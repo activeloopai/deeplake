@@ -1,0 +1,21 @@
+version: '2'
+
+services:
+  meta:
+    build:
+      context: . 
+    volumes:
+       - ./:/workspace/
+    command: bash -c "
+          cd /workspace
+          && meta configure
+          && python3 example.py"
+  prod:
+    image: python:3
+    volumes:
+       - ./:/workspace/
+    command: bash -c "
+          cd /workspace
+          && ls
+          && pip3 install meta-array-beta
+          && meta configure"
