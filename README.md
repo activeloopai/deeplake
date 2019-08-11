@@ -40,7 +40,12 @@ print(mnist[0,0,0,0])
 * **Scale**: Create as big arrays as you want
 * **Visualization**: Visualize the data without trouble
 
-
+## Use Cases
+* **Areal images**: Satellite and drone imagery
+* **Medical Images**: Volumetric images such as MRI or Xray
+* **Self-Driving Cars**: Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects
+* **Retail**: Self-checkout datasets
+* **Media**: Images, Video, Audio storage
 
 ### Acknolowdgement
 Acknowledgment: This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab and his awesome project cloud-volume.
