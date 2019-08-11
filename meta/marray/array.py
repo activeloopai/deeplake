@@ -1,5 +1,5 @@
-from .config import CloudVolume, client
-#from meta.log import logger
+from cloudvolume import CloudVolume
+
 import warnings
 from meta.utils.store_control import StoreControlClient
 
@@ -56,13 +56,13 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', num_channels = 1):
         volume_size     = dim, # e.g. a cubic millimeter dataset
     )
 
-    vol = CloudVolume(path, info=info, fill_missing=True, non_aligned_writes=True)
+    vol = CloudVolume(path, info=info, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
     vol.commit_info()
     return vol
 
 def load(name):
     path = _get_path(name)
-    return CloudVolume(path, parallel=True, progress=False, fill_missing=False, non_aligned_writes=False)
+    return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
     
 # TODO implement a cloudvolume simple wrapper that translates errors into Meta errors
 def delete(name):

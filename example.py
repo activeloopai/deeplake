@@ -1,9 +1,11 @@
 import meta
 import numpy as np
 
-vol = meta.load(name='imagenet/image:val')[400:600]
-a = (vol.mean(axis=(1,2,3)) == 0).sum()
-print(vol.mean(axis=(1,2,3)) == 0)
+def download():
+    vol = meta.load(name='imagenet/image:val')[400:600]
+    a = (vol.mean(axis=(1,2,3)) == 0).sum()
+    print(vol.mean(axis=(1,2,3)) == 0)
+
 exit()
 # Currently only support for up to 4D images
 mnist = meta.array((50000, 28, 28, 1), name="jason/mnist:v2", dtype='float32')
