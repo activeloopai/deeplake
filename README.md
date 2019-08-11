@@ -32,7 +32,7 @@ mnist = hub.load(name='username/mnist:v1')
 print(mnist[0,0,0,0])
 ```
 
-## Features (on the roadmap)
+## Features
 * **Data Management**: Storing large datasets with version control
 * **Collaboration**: Multiple data scientists working on the same data in sync
 * **Distribute**: Accessing from multiple machines at the same time
