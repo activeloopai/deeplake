@@ -1,7 +1,7 @@
 # Hub Array
 
 Hub Arrays are very large arrays stored on the cloud and accessed over internet as if local numpy arrays.
-```
+```python
 > import hub
 > imagenet = hub.load(name='imagenet')
 > imagenet.shape
