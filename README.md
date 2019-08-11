@@ -11,7 +11,7 @@ Hub Arrays are very large arrays stored on the cloud and accessed over internet 
 ## Motivation
 Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. Wouldn’t it be more convenient to have large datasets represented as single arrays and have access from any machine at scale?
 
-Read more [here](https://medium.com/@SnarkAI/meta-arrays-how-to-store-imagenet-in-a-single-array-d6eefe033b2)
+Read more in our [blogpost](https://medium.com/@SnarkAI/meta-arrays-how-to-store-imagenet-in-a-single-array-d6eefe033b2)
 
 ## Usage
 1. Install, then provide AWS credentials and bucket name
