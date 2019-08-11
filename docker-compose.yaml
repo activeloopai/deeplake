@@ -1,14 +1,14 @@
 version: '2'
 
 services:
-  meta:
+  hub:
     build:
       context: . 
     volumes:
        - ./:/workspace/
     command: bash -c "
           cd /workspace
-          && meta configure
+          && hub configure
           && python3 example.py"
   prod:
     image: python:3
@@ -17,5 +17,5 @@ services:
     command: bash -c "
           cd /workspace
           && ls
-          && pip3 install meta-array-beta
-          && meta configure"
+          && pip3 install hub-array-beta
+          && hub configure"

@@ -1,20 +1,20 @@
 import os
 from setuptools import find_packages, setup
 
-project = "meta-array-beta"
-version = "0.2.4"
+project = "hub"
+version = "0.0.1"
 
 setup(
     name=project,
     version=version,
-    description="Snark Meta",
+    description="Snark Hub",
     author="Snark AI Inc.",
     author_email="support@snark.ai",
-    url="https://github.com/snarkai/meta",
+    url="https://github.com/snarkai/hub",
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    keywords="snark-meta",
+    keywords="snark-hub",
     python_requires='>=3',
     install_requires=[
         "click>=6.7,<7",
@@ -24,7 +24,7 @@ setup(
     dependency_links=[],
     entry_points={
         "console_scripts": [
-            "meta = meta:cli",
+            "hub = hub:cli",
         ],
     },
     tests_require=[

@@ -2,7 +2,7 @@ import boto3
 from botocore.exceptions import ClientError
 import random
 import string
-from meta.log import logger
+from hub.log import logger
 
 class Verify(object):
 
@@ -19,7 +19,7 @@ class Verify(object):
             aws_secret_access_key=secret_key,
             region_name='us-east-1'
         )
-        self.prefix = 'snark-meta'
+        self.prefix = 'snark-hub'
 
     def randomString(self, stringLength=10):
         """Generate a random string of fixed length """

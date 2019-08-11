@@ -1,7 +1,7 @@
 from cloudvolume import CloudVolume
 
 import warnings
-from meta.utils.store_control import StoreControlClient
+from hub.utils.store_control import StoreControlClient
 
 def _get_path(name):
     if len(name.split('/')) == 1:
@@ -27,18 +27,18 @@ def array(dim=None, name='username/test:latest', dtype='uint8'):
 def create(path, dim=[50000, 28, 28], dtype='uint8', num_channels = 1):
     if len(dim)==1:
         dim = (dim[0],1,1,1)
-        warnings.warn('Meta arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
+        warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
 
     if len(dim)==2:
         dim = (dim[0], dim[1], 1, 1)
-        warnings.warn('Meta arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
+        warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
 
     if len(dim)==4:
         num_channels = dim[3]
         dim = dim[:3]
     
     if len(dim)>4:
-        raise Exception('Meta arrays support up to 4D')
+        raise Exception('hub arrays support up to 4D')
 
     chunk_size = list(dim)
     chunk_size[0] = 1
@@ -64,7 +64,7 @@ def load(name):
     path = _get_path(name)
     return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
     
-# TODO implement a cloudvolume simple wrapper that translates errors into Meta errors
+# TODO implement a cloudvolume simple wrapper that translates errors into hub errors
 def delete(name):
     path = _get_path(name)
     bucket = StoreControlClient().get_config()['bucket']

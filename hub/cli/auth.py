@@ -1,14 +1,14 @@
 import click
-from meta.log import logger
-from meta.utils.store_control import StoreControlClient
-from meta.utils.verify import Verify
+from hub.log import logger
+from hub.utils.store_control import StoreControlClient
+from hub.utils.verify import Verify
 
 @click.command()
 @click.option('--username', '-u', default=None, help='Your AWS access key')
 @click.option('--password', '-p', default=None, help='Your AWS secret key')
 @click.option('--bucket',   '-b', default=None, help='Desired bucket name')
 def configure(username, password, bucket):
-    """ Logs in to Meta"""
+    """ Logs in to Hub"""
     logger.info("Please log in using your AWS credentials.")
     if not username:
         logger.debug("Prompting for Access Key")

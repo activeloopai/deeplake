@@ -1,15 +1,12 @@
 #import gevent.monkey
 #gevent.monkey.patch_all(thread=True)
 
-import meta
+import hub
 import time
 import numpy as np
 
-#x = meta.array((1000,200,200), 'test/image:train2', dtype='uint8')
-#x[:990] = (255*np.random.random((1000-10,200,200))).astype('uint8')
-#print(x.shape, x.mean())
-#exit()
-x = meta.load('imagenet/fake:train')
+
+x = hub.load('imagenet/fake:train')
 
 if True:
     t1 = time.time()

@@ -1,6 +1,6 @@
 import json
-import meta.config as config
-from meta.log import logger
+import hub.config as config
+from hub.log import logger
 import os
 
 class StoreControlClient(object):
@@ -23,7 +23,7 @@ class StoreControlClient(object):
                 details = file.readlines()
                 details = json.loads(''.join(details))
         except:
-            logger.error("No AWS credentials found. Please configure credentials '> meta configure'")
+            logger.error("No AWS credentials found. Please configure credentials '> hub configure'")
             return {
                 'AWS_ACCESS_KEY_ID':'',
                 'AWS_SECRET_ACCESS_KEY': '',

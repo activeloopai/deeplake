@@ -1,8 +1,8 @@
-import meta
-from meta.marray.array import array, load
+import hub
+from hub.marray.array import array, load
 import click
 import sys
-from meta.log import configure_logger
+from hub.log import configure_logger
 from .cli.auth import configure
 
 @click.group()
