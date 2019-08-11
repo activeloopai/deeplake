@@ -48,4 +48,4 @@ print(mnist[0,0,0,0])
 * **Media**: Images, Video, Audio storage
 
 ### Acknolowdgement
-Acknowledgment: This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab and his awesome project cloud-volume.
+Acknowledgment: This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab and his awesome project (cloud-volume)[https://github.com/seung-lab/cloud-volume].
