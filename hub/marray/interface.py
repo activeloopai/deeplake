@@ -1,18 +1,18 @@
-from bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from pathos.threading import ThreadPool
-from storage import Storage, S3
 import numpy as np
 from hub.log import logger
+from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
+from .storage import Storage, S3
 
 class TensorInterface(object):
-    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True):
+    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F'):
         self.shape = shape
         self.chunk_shape = chunk_shape
         self.dtype = dtype
         self.key = key
         self.protocol = protocol
         self.storage = S3(self.key)
-        self.order = 'F'
+        self.order = order
 
         if parallel == False:
             parallel = 1
@@ -103,7 +103,7 @@ class TensorInterface(object):
     
     def upload(self, cloudpaths, requested_bbox, item):
         cloudpaths_chunks = self.chunkify(cloudpaths, requested_bbox, item)
-        list(map(self.upload_chunk, list(cloudpaths_chunks)))
+        self.pool.map(self.upload_chunk, list(cloudpaths_chunks))
 
     def __setitem__(self, slices, item):
         cloudpaths, requested_bbox = self.generate_cloudpaths(slices)
@@ -111,13 +111,9 @@ class TensorInterface(object):
 
 if __name__ == "__main__":
     a = TensorInterface(
-            shape=(100,100,100,100,100), 
-            chunk_shape=(10,10,10,10,10), 
-            dtype='uint8', 
-            key='s3://snark-hub-main/imagenet/fake/train'
+        shape=(100,100,100,100,100), 
+        chunk_shape=(10,10,10,10,10), 
+        dtype='uint8', 
+        key='s3://snark-hub-main/imagenet/fake/train'
     )
-    a[:10, :10, :10, :10, :10] = np.ones((10,10,10,10,10), dtype='uint8')
-    print(a[:10, :10, :10, :10, :10].mean())
-    #print(b)
-    #a[1:10,:10,:23] = 0
-    #a[...] = 0
+
