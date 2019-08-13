@@ -34,5 +34,4 @@ def configure(username, password, bucket):
         
 def logout():
     """ Logs out of Snark AI"""
-    # TODO remove scripts
-    TokenManager.purge_token()
+    raise NotImplementedError

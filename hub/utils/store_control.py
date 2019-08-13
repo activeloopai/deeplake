@@ -13,6 +13,7 @@ class StoreControlClient(object):
     def is_authenticated(cls):
         return os.path.getsize(config.TOKEN_FILE_PATH) > 10
 
+    @classmethod
     def get_config(self):
         try:
             with open(config.TOKEN_FILE_PATH, 'r') as file:
@@ -31,6 +32,7 @@ class StoreControlClient(object):
             }
         return details
 
+    @classmethod
     def save_config(self, details):
         try:
             os.mkdir('/'.join(config.TOKEN_FILE_PATH.split('/')[:-1]))

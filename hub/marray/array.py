@@ -1,5 +1,3 @@
-from cloudvolume import CloudVolume
-
 import warnings
 from hub.utils.store_control import StoreControlClient
 
