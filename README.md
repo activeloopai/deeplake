@@ -36,7 +36,7 @@ print(mnist[0,0,0,0])
 * **Data Management**: Storing large datasets with version control
 * **Collaboration**: Multiple data scientists working on the same data in sync
 * **Distribute**: Accessing from multiple machines at the same time
-* **Machine Learning**: Native integration with PyTorch or TensorFlow DataLoader.
+* **Machine Learning**: Native integration with Numpy, Dask, PyTorch or TensorFlow.
 * **Scale**: Create as big arrays as you want
 * **Visualization**: Visualize the data without trouble
 
