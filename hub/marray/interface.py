@@ -44,7 +44,7 @@ class TensorInterface(object):
 
     # read from raw file and transform to numpy array 
     def decode(self, chunk):
-        return np.frombuffer(bytearray(chunk), dtype=dtype).reshape(self.chunk_shape, order='F')
+        return np.frombuffer(bytearray(chunk), dtype=self.dtype).reshape(self.chunk_shape, order='F')
 
     def download_chunk(self, cloudpath):
         chunk = self.storage.get(cloudpath)

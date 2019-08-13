@@ -39,7 +39,7 @@ class S3(Storage):
             attrs = {
                 'Bucket': self.bucket,
                 'Body': content,
-                'Key': path.replace(self.bucket, ''),
+                'Key': path.replace('s3://{}/'.format(self.bucket), ''),
                 'ContentType': (content_type or 'application/octet-stream'),
             }
 
@@ -49,7 +49,7 @@ class S3(Storage):
                 attrs['CacheControl'] = cache_control
             self.client.put_object(**attrs)
         except Exception as err:
-            logger.error('err')
+            logger.error(err)
             raise
         
     @retry
@@ -57,7 +57,7 @@ class S3(Storage):
         try:
             resp = self.client.get_object(
                 Bucket=self.bucket,
-                Key=path,
+                Key=path.replace('s3://{}/'.format(self.bucket), ''),
             )
             return resp['Body'].read()
         except botocore.exceptions.ClientError as err:
