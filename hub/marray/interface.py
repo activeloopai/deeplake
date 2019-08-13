@@ -117,6 +117,7 @@ if __name__ == "__main__":
             key='s3://snark-hub-main/imagenet/fake/train'
     )
     a[:10, :10, :10, :10, :10] = np.ones((10,10,10,10,10), dtype='uint8')
+    print(a[:10, :10, :10, :10, :10].mean())
     #print(b)
     #a[1:10,:10,:23] = 0
     #a[...] = 0
