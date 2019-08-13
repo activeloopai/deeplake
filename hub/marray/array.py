@@ -2,6 +2,7 @@ import warnings
 from hub.utils.store_control import StoreControlClient
 from hub.marray.interface import TensorInterface
 from cloudvolume import CloudVolume
+
 def _get_path(name):
     if len(name.split('/')) == 1:
         raise Exception('array name should be specified the following format (username/dataset:version)')
@@ -42,7 +43,7 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', cloudvolume=False):
     # auto chunking
     chunk_size = list(dim)
     chunk_size[0] = 1
-    
+
     if cloudvolume:
         info = CloudVolume.create_new_info(
             num_channels    = num_channels,

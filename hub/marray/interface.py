@@ -109,11 +109,3 @@ class TensorInterface(object):
         cloudpaths, requested_bbox = self.generate_cloudpaths(slices)
         self.upload(cloudpaths, requested_bbox, item)
 
-if __name__ == "__main__":
-    a = TensorInterface(
-        shape=(100,100,100,100,100), 
-        chunk_shape=(10,10,10,10,10), 
-        dtype='uint8', 
-        key='s3://snark-hub-main/imagenet/fake/train'
-    )
-
