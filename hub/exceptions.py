@@ -18,3 +18,7 @@ class IncompatibleBroadcasting(Exception):
 class IncompatibleTypes(Exception):
     """Types can not cast"""
     pass
+
+class WrongTypeError(Exception):
+    """Types is not supported"""
+    pass

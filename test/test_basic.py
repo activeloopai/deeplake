@@ -45,13 +45,15 @@ def test_broadcasting():
     assert x[3, 90].mean() == 1
     print('passed')   
 
-# Add Shape Check
-# Add Type Check
+def test_chunk_shape():
+    x = hub.array((100,100,100), name="test/example:3", dtype='uint8', chunk_size=(10,10,10))
+    x[0:10,0:10,0:10] = 0
 
 if __name__ == "__main__":
     print('Running Basic Tests')
-    test_init()
-    test_simple_upload_download()
-    test_multiple_upload_download()
-    test_cross_chunk_upload_download()
-    test_broadcasting()
+    #test_init()
+    #test_simple_upload_download()
+    #test_multiple_upload_download()
+    #test_cross_chunk_upload_download()
+    #test_broadcasting()
+    test_chunk_shape()

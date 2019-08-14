@@ -1,7 +1,13 @@
 import warnings
 from hub.utils.store_control import StoreControlClient
 from hub.marray.interface import TensorInterface
-from cloudvolume import CloudVolume
+import numpy as np
+from hub.exceptions import WrongTypeError
+try:
+    from cloudvolume import CloudVolume
+    cloudvolume_exist = False
+except ImportError as e:
+    cloudvolume_exist = False
 
 def _get_path(name):
     if len(name.split('/')) == 1:
@@ -17,34 +23,47 @@ def _get_path(name):
     path = 's3://'+bucket+'/'+user+'/'+dataset+'/'+tag
     return path
 
-def array(dim=None, name='username/test:latest', dtype='uint8', cloudvolume=False):
+def array(dim=None, name='username/test:latest', dtype='uint8', chunk_size=None):
     path = _get_path(name)
-    if not dim:
+    if not dim and cloudvolume_exist:
         return CloudVolume(path, parallel=True, progress=False, fill_missing=True, non_aligned_writes=True)
 
-    return create(path, dim, dtype, cloudvolume)
+    return create(path, dim, dtype, chunk_size, cloudvolume_exist)
     
-def create(path, dim=[50000, 28, 28], dtype='uint8', cloudvolume=False):
-    if len(dim)==1 and cloudvolume:
-        dim = (dim[0],1,1,1)
-        warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
+def create(path, dim=[50000, 28, 28], dtype='uint8', chunk_size=None, cloudvolume=False):
+    # TODO to remvoe
+    if cloudvolume:
+        if len(dim)==1:
+            dim = (dim[0],1,1,1)
+            warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
 
-    if len(dim)==2 and cloudvolume:
-        dim = (dim[0], dim[1], 1, 1)
-        warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
+        if len(dim)==2:
+            dim = (dim[0], dim[1], 1, 1)
+            warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
 
-    if len(dim)==4 and cloudvolume:
-        num_channels = dim[3]
-        dim = dim[:3]
-    
-    if len(dim)>4 and cloudvolume:
-        raise Exception('hub arrays support up to 4D')
+        if len(dim)==4:
+            num_channels = dim[3]
+            dim = dim[:3]
+        
+        if len(dim)>4:
+            raise Exception('hub arrays support up to 4D')
 
     # auto chunking
-    chunk_size = list(dim)
-    chunk_size[0] = 1
+    if not chunk_size:
+        chunk_size = list(dim)
+        chunk_size[0] = 1
+    
+    # Input checking
+    assert len(chunk_size) == len(dim)
+    assert np.array(dim).dtype in np.sctypes['int']
+    assert np.array(chunk_size).dtype in np.sctypes['int']
+    
+    try:
+        np.zeros((1), dtype=dtype)
+    except:
+        raise WrongTypeError('Dtype {} is not supported '.format(dtype))
 
-    if cloudvolume:
+    if cloudvolume_exist:
         info = CloudVolume.create_new_info(
             num_channels    = num_channels,
             layer_type      = 'image',
@@ -67,7 +86,10 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', cloudvolume=False):
 
 def load(name):
     path = _get_path(name)
-    return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
+    if cloudvolume_exist:
+        return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
+    else:
+        raise NotImplementedError
     
 # TODO implement a cloudvolume simple wrapper that translates errors into hub errors
 def delete(name):
