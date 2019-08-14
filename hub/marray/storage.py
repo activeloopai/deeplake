@@ -61,7 +61,6 @@ class S3(Storage):
             )
             return resp['Body'].read()
         except botocore.exceptions.ClientError as err:
-            print(err)
             if err.response['Error']['Code'] == 'NoSuchKey':
                 return None
             else:

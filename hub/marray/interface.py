@@ -87,11 +87,11 @@ class TensorInterface(object):
             cloudchunk = Bbox.from_filename(path)
             intersection = Bbox.intersection(cloudchunk, requested_bbox)
             chunk_slices = (intersection-cloudchunk.minpt).to_slices()
-            item_slices = (intersection-cloudchunk.minpt).to_slices()
+            item_slices = (intersection-requested_bbox.minpt).to_slices()
 
             chunk = np.zeros(shape=self.chunk_shape, dtype=self.dtype, order=self.order)
             if np.any(np.array(intersection.to_shape()) != np.array(self.chunk_shape)):
-                logger.warn('Non aligned write')
+                logger.debug('Non aligned write')
                 chunk, _ = self.download_chunk(path)
             else:
                 chunk = np.zeros(shape=self.chunk_shape, dtype=self.dtype, order=self.order)
@@ -102,6 +102,9 @@ class TensorInterface(object):
         return zip(cloudpaths, chunks)
     
     def upload(self, cloudpaths, requested_bbox, item):
+        item = np.broadcast_to(item, requested_bbox.to_shape())
+
+        #exit()
         cloudpaths_chunks = self.chunkify(cloudpaths, requested_bbox, item)
         self.pool.map(self.upload_chunk, list(cloudpaths_chunks))
 
