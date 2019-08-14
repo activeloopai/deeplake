@@ -44,8 +44,8 @@ from itertools import product
 import posixpath
 
 import numpy as np
+from hub.exceptions import OutOfBoundsError, AlignmentError
 
-#from .exceptions import OutOfBoundsError
 
 def map2(fn, a, b):
     assert len(a) == len(b), "Vector lengths do not match: {} (len {}), {} (len {})".format(a[:3], len(a), b[:3], len(b))
@@ -69,14 +69,6 @@ def min2(a, b):
 def clamp(val, low, high):
     return min(max(val, low), high)
   
-# TODO move this to exceptions
-class OutOfBoundsError(Exception):
-    """Raised upon finding a missing chunk."""
-    pass
-
-class AlignmentError(Exception):
-    """Raised upon finding a missing chunk."""
-    pass
 
 def generate_chunks(img, offset, chunk_size):
     shape = Vec(*img.shape)

@@ -3,6 +3,7 @@ import numpy as np
 from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .storage import Storage, S3
+from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes
 
 class TensorInterface(object):
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F'):
@@ -102,9 +103,16 @@ class TensorInterface(object):
         return zip(cloudpaths, chunks)
     
     def upload(self, cloudpaths, requested_bbox, item):
-        item = np.broadcast_to(item, requested_bbox.to_shape())
+        try:
+            item = np.broadcast_to(item, requested_bbox.to_shape())
+        except:
+            raise IncompatibleBroadcasting
 
-        #exit()
+        try:
+            item = item.astype(self.dtype)
+        except Exception as err:
+            raise IncompatibleTypes
+
         cloudpaths_chunks = self.chunkify(cloudpaths, requested_bbox, item)
         self.pool.map(self.upload_chunk, list(cloudpaths_chunks))
 
