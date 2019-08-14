@@ -105,13 +105,13 @@ class TensorInterface(object):
     def upload(self, cloudpaths, requested_bbox, item):
         try:
             item = np.broadcast_to(item, requested_bbox.to_shape())
-        except:
-            raise IncompatibleBroadcasting
+        except ValueError as err:
+            raise IncompatibleBroadcasting(err)
 
         try:
             item = item.astype(self.dtype)
         except Exception as err:
-            raise IncompatibleTypes
+            raise IncompatibleTypes(err)
 
         cloudpaths_chunks = self.chunkify(cloudpaths, requested_bbox, item)
         self.pool.map(self.upload_chunk, list(cloudpaths_chunks))
