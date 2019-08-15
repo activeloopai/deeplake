@@ -3,19 +3,15 @@ Most of the time Data Scientists/ML researchers work on data management and prep
 
 > **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
 
-Let see how it works in action:
+Let's see how it works in action:
+```sh
+pip3 install hub
+```
+
+Create a large array remotely on cloud with some parts cached locally. You can read/write from anywhere as if it's a local array!
 ```python
 > import hub
-> import numpy as np
-
-# Create a large array remotely on cloud with some parts cached locally.
-# You can read/write from anywhere as if it's a local array!
 > bigarray = hub.array((10000000000, 512, 512, 3), name="test/bigarray:v0")
-
-# Load any slice of ImageNet to local machine
-> import matplotlib.pyplot as plt
-> imagenet = hub.load(name='imagenet') 
-> plt.imshow(imagenet[0])
 ```
 
 # Problems with Current Workflows
@@ -56,14 +52,8 @@ We’re working on simple authentication system, data management, advanced data 
 ## Usage
 **Step 1.** Install 
 ```sh
-$pip3 install hub
+pip3 install hub
 ```
-
-Then provide AWS credentials and name of your project.
-```sh
-$hub configure
-```
-It will create a bucket to store the data 
 
 **Step 2.** Lazy-load a public dataset with up to 50MB/s speed and plot
 ```python
