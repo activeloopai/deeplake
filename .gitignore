@@ -32,7 +32,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+*.gz
+*.pkl
 hyper/cluster/terraform/asg/.ssh/
 hyper/cluster/terraform/asg/terraform.tfstate
 hyper/cluster/terraform/asg/terraform.tfstate.backup

@@ -1,13 +1,20 @@
 import os
+from os import path
 from setuptools import find_packages, setup
 
 project = "hub"
-version = "0.1.3"
+version = "0.1.5"
+
+this_directory = path.abspath(path.dirname(__file__))
+with open(path.join(this_directory, 'README.md')) as f:
+    long_description = f.read()
 
 setup(
     name=project,
     version=version,
     description="Snark Hub",
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author="Snark AI Inc.",
     author_email="support@snark.ai",
     url="https://github.com/snarkai/hub",
