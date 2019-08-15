@@ -9,7 +9,7 @@ retry = tenacity.retry(
     stop=tenacity.stop_after_attempt(7), 
     wait=tenacity.wait_random_exponential(0.5, 60.0),
 )
-  
+
 class Storage(object):
     def __init__(self):
         return
@@ -24,12 +24,17 @@ class Storage(object):
 class S3(Storage):
     def __init__(self, bucket, public=False):
         super(Storage, self).__init__()
-        #TODO add pools
         self.bucket = StoreControlClient.get_config(public)['BUCKET']
+
+        client_config = botocore.config.Config(
+            max_pool_connections=25,
+        )
+
         self.client = boto3.client(
             's3',
             aws_access_key_id=StoreControlClient.get_config(public)['AWS_ACCESS_KEY_ID'],
             aws_secret_access_key=StoreControlClient.get_config(public)['AWS_SECRET_ACCESS_KEY'],
+            config=client_config
             #endpoint_url=URL,
         )
     

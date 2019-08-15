@@ -19,7 +19,7 @@ class HubArray(object):
         if parallel == False:
             parallel = 1
         if parallel == True:
-            parallel = 20
+            parallel = 25
 
         self.pool = ThreadPool(nodes=parallel)
         self.initialize(self.key)
