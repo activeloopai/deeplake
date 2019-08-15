@@ -5,7 +5,6 @@ import string
 from hub.log import logger
 
 class Verify(object):
-
     def __init__(self, access_key, secret_key):
         self.creds = {
             'AWS_ACCESS_KEY_ID': access_key, 
@@ -21,19 +20,39 @@ class Verify(object):
         )
         self.prefix = 'snark-hub'
 
-    def randomString(self, stringLength=10):
+    def randomString(self, stringLength=6):
         """Generate a random string of fixed length """
         letters = string.ascii_lowercase
         return ''.join(random.choice(letters) for i in range(stringLength))
 
     def verify_aws(self, bucket):
-        # Create bucket
+        # check if AWS credentials have access to any snark-hub-... bucket
+        if not bucket:
+            bucket = self.lookup_hub_bucket()
+            
+        # if still no bucket, then try to create one
+        if not bucket:
+            bucket = 'snark-hub-{}'.format(self.randomString())
+
+        # Create bucket or verify if it exists and have access
         bucket_name = '{}-{}'.format(self.prefix, bucket)
         success = self.create_bucket(bucket_name)
         if success:
             self.creds['bucket'] = bucket_name
             return True, self.creds
         return False, None 
+
+    def lookup_hub_bucket(self):
+        try:
+            response = self.client.list_buckets()
+
+            for bucket in response['Buckets']:
+                if bucket["Name"].contains('snark-hub-'):
+                    return bucket["Name"]
+        except ClientError as e:
+            logger.error(e)
+
+        return None
 
     def exist_bucket(self, bucket):
         try:

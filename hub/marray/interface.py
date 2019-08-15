@@ -4,8 +4,9 @@ from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .storage import Storage, S3
 from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes
+import json
 
-class TensorInterface(object):
+class HubArray(object):
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F'):
         self.shape = shape
         self.chunk_shape = chunk_shape
@@ -14,13 +15,42 @@ class TensorInterface(object):
         self.protocol = protocol
         self.storage = S3(self.key)
         self.order = order
-
+        
         if parallel == False:
             parallel = 1
         if parallel == True:
             parallel = 20
 
         self.pool = ThreadPool(nodes=parallel)
+        self.initialize(self.key)
+
+        # Make sure the object was properly initialized
+        assert self.shape
+        assert self.chunk_shape
+        assert self.dtype
+
+    def initialize(self, path):
+        cloudpath = "{}/info.txt".format(path)
+        info = self.storage.get(cloudpath)
+        if info:
+            info = json.loads(info)
+            self.shape = info['shape']
+            self.chunk_shape = info['chunk_shape']
+            self.key = info['key']
+            self.dtype = info['dtype']
+            self.order = info['order']
+            self.protocol = info['protocol']
+        else:
+            info = {
+                'shape': self.shape, 
+                'chunk_shape': self.chunk_shape,
+                'key': self.key,
+                'dtype': self.dtype,
+                'order': self.order,
+                'protocol': self.protocol,
+            }
+            info = json.dumps(info)
+            self.storage.put(cloudpath, info, content_type=None)
 
     def generate_cloudpaths(self, slices):
         # Slices -> Bbox

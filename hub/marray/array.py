@@ -1,8 +1,9 @@
 import warnings
 from hub.utils.store_control import StoreControlClient
-from hub.marray.interface import TensorInterface
+from hub.marray.interface import HubArray
 import numpy as np
 from hub.exceptions import WrongTypeError
+
 try:
     from cloudvolume import CloudVolume
     cloudvolume_exist = False
@@ -19,7 +20,7 @@ def _get_path(name):
     if len(tag) == 1:
         tag.append('latest')
     tag = tag[1]
-    bucket = StoreControlClient().get_config()['bucket']
+    bucket = StoreControlClient().get_config()['BUCKET']
     path = 's3://'+bucket+'/'+user+'/'+dataset+'/'+tag
     return path
 
@@ -40,7 +41,7 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', chunk_size=None, cloudvolum
         if len(dim)==2:
             dim = (dim[0], dim[1], 1, 1)
             warnings.warn('hub arrays support only 3D/4D arrays. Expanding shape to {}'.format(str(dim)))
-
+ 
         if len(dim)==4:
             num_channels = dim[3]
             dim = dim[:3]
@@ -82,16 +83,15 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', chunk_size=None, cloudvolum
         vol.commit_info()
         return vol
     else:
-        return TensorInterface(shape=dim, dtype=dtype, chunk_shape=chunk_size, key=path, protocol=None)
+        return HubArray(shape=dim, dtype=dtype, chunk_shape=chunk_size, key=path, protocol=None)
 
 def load(name):
     path = _get_path(name)
     if cloudvolume_exist:
         return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
     else:
-        raise NotImplementedError
+        return HubArray(key=path)
     
-# TODO implement a cloudvolume simple wrapper that translates errors into hub errors
 def delete(name):
     path = _get_path(name)
     bucket = StoreControlClient().get_config()['bucket']

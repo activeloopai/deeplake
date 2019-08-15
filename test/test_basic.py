@@ -49,11 +49,16 @@ def test_chunk_shape():
     x = hub.array((100,100,100), name="test/example:3", dtype='uint8', chunk_size=(10,10,10))
     x[0:10,0:10,0:10] = 0
 
+def test_load_array():
+    x = hub.load(name="test/example:3")
+    print(x.shape)
+
 if __name__ == "__main__":
     print('Running Basic Tests')
-    #test_init()
-    #test_simple_upload_download()
-    #test_multiple_upload_download()
-    #test_cross_chunk_upload_download()
-    #test_broadcasting()
+    test_init()
+    test_simple_upload_download()
+    test_multiple_upload_download()
+    test_cross_chunk_upload_download()
+    test_broadcasting()
     test_chunk_shape()
+    test_load_array()

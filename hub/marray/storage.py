@@ -25,7 +25,7 @@ class S3(Storage):
     def __init__(self, bucket):
         super(Storage, self).__init__()
         #TODO add pools
-        self.bucket = StoreControlClient.get_config()['bucket']
+        self.bucket = StoreControlClient.get_config()['BUCKET']
         self.client = boto3.client(
             's3',
             aws_access_key_id=StoreControlClient.get_config()['AWS_ACCESS_KEY_ID'],
