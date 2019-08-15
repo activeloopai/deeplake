@@ -1,7 +1,22 @@
 # Introduction
 Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. **Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?**
 
-> **Introducing Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
+> **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
+
+Let see how it works in action:
+```python
+> import hub
+> import numpy as np
+
+# Create a large array remotely on cloud with some parts cached locally.
+# You can read/write from anywhere as if it's a local array!
+> bigarray = hub.array((10000000000, 512, 512, 3), name="test/bigarray:v0")
+
+# Load any slice of ImageNet to local machine
+> import matplotlib.pyplot as plt
+> imagenet = hub.load(name='imagenet') 
+> plt.imshow(imagenet[0])
+```
 
 # Problems with Current Workflows
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
@@ -30,14 +45,16 @@ We’re working on simple authentication system, data management, advanced data 
 > image = np.random((512,512,3))
 > bigarray[0, :,:, :] = image
 
-# Load an existing array from cloud
+# Lazy-Load an existing array from cloud without really downloading the entries
 > imagenet = hub.load(name='imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
+# Download the entries from cloud to local on demand.
+> imagenet[0,:,:,:].mean()
 ```
 
 ## Usage
-1. Install 
+**Step 1.** Install 
 ```sh
 $pip3 install hub
 ```
@@ -48,18 +65,18 @@ $hub configure
 ```
 It will create a bucket to store the data 
 
-2. Load a public dataset on-demand with up to 50MB/s speed and plot
+**Step 2.** Lazy-load a public dataset with up to 50MB/s speed and plot
 ```python
 > import hub
 > imagenet = hub.load(name='imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
 
->import matplotlib.pyplot as plt
+> import matplotlib.pyplot as plt
 > plt.imshow(imagenet[0])
 ```
 
-3. Compute the mean and standard deviation of any chunk of the full dataset
+**Step 3.** Compute the mean and standard deviation of any chunk of the full dataset
 ```python
 > imagenet[0:10,100:200,100:200].mean()
 0.132
@@ -67,7 +84,7 @@ It will create a bucket to store the data
 0.005
 ```
 
-4. Create your own array and access it from another machine
+**Step 4.** Create your own array and access it from another machine
 ```python
 # Create on one machine
 > import numpy as np
