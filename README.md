@@ -102,5 +102,5 @@ pip3 install hub
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
 
-### Acknolowdgement
+### Acknowledgement
 Acknowledgment: This technology was inspired from our experience at Princeton University at SeungLab and would like to thank William Silversmith @SeungLab and his awesome project [cloud-volume](https://github.com/seung-lab/cloud-volume).
