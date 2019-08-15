@@ -99,9 +99,27 @@ class HubArray(object):
 
         return renderbuffer
 
+    def squeeze(self, slices, tensor):
+        squeeze_dims = [] 
+
+        if isinstance(slices, list) and len(slices)==1:
+            slices = slices[0]
+
+        if not isinstance(slices, list) and not isinstance(slices, tuple):
+            slices = [slices]
+            
+        for dim in range(len(slices)):
+            if isinstance(slices[dim], int):
+                squeeze_dims.append(dim)
+
+        if len(squeeze_dims)>=1:
+            tensor = tensor.squeeze(axis=(*squeeze_dims, ) )
+        return tensor
+
     def __getitem__(self, slices):
         cloudpaths, requested_bbox = self.generate_cloudpaths(slices)
         tensor = self.download(cloudpaths, requested_bbox)
+        tensor = self.squeeze(slices, tensor)
         return tensor
 
     def encode(self, chunk):

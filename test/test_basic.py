@@ -46,19 +46,34 @@ def test_broadcasting():
     print('passed')   
 
 def test_chunk_shape():
+    print('- Chunk shape')
     x = hub.array((100,100,100), name="test/example:3", dtype='uint8', chunk_size=(10,10,10))
     x[0:10,0:10,0:10] = 0
+    print('passed')  
 
 def test_load_array():
+    print('- Loading arrays')
     x = hub.load(name="test/example:3")
     print(x.shape)
+    print('passed')  
+
+def test_squeeze_array():
+    print('- Squeezing arrays')
+    x = hub.array((100,100,100), name="test/example:3", dtype='uint8')
+    assert len(x[0].shape) == 2
+    assert len(x[:1].shape) == 3
+    assert len(x[:2,0, :].shape) == 2
+    assert len(x[0, 0, :].shape) == 1
+    assert x[0,0,0] == 0
+    print('passed')  
 
 if __name__ == "__main__":
     print('Running Basic Tests')
-    test_init()
-    test_simple_upload_download()
-    test_multiple_upload_download()
-    test_cross_chunk_upload_download()
-    test_broadcasting()
-    test_chunk_shape()
-    test_load_array()
+    #test_init()
+    #test_simple_upload_download()
+    #test_multiple_upload_download()
+    #test_cross_chunk_upload_download()
+    #test_broadcasting()
+    #test_chunk_shape()
+    #test_load_array()
+    test_squeeze_array()
