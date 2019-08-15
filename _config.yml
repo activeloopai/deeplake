@@ -1,1 +1,8 @@
+title: "Hub Array: Scalable Cloud Numpy Array"
+description: "Read and Write from Anywhere"
+google_analytics: 
+show_downloads: true
 theme: jekyll-theme-cayman
+
+gems:
+  - jekyll-mentions
