@@ -1,4 +1,4 @@
-# Hub Array - Scalable Cloud Numpy Array
+# Hub - Scalable Cloud Numpy Array
 
 Hub Arrays are very large arrays stored on the cloud storage (such as S3) and accessed over internet as if local numpy arrays.
 ```python
