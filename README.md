@@ -1,7 +1,7 @@
 # Introduction
 Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. *Wouldn’t it be more convenient to have large datasets stored as single numpy array on the cloud and have access from any machine at scale?*
 
-> *Introducing Hub Arrays*: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
+> **Introducing Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
 
 # Problems with Current Workflows
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
@@ -13,7 +13,7 @@ We realized that there are a few problems related with current workflow in deep 
 6. Whenever you want to create a numpy array you are worried if it is going to fit in the RAM limit.
 
 # Workflow with Hub Arrays
-Simply declare an array with the namespace inside the code and thats it. “Where and How the data is stored?” is totally abstracted away from the data scientist or machine learning engineer. *You can create a numpy array up to Petabytes scale without worrying if the array will fit into RAM or local disk.* The inner workings are like this:
+Simply declare an array with the namespace inside the code and thats it. “Where and How the data is stored?” is totally abstracted away from the data scientist or machine learning engineer. **You can create a numpy array up to Petabytes scale without worrying if the array will fit into RAM or local disk.** The inner workings are like this:
 1. The actual array is created on a cloud bucket (object storage) and partially cached on your local environment. The array size can easily scale to 1PB.
 2. When you read/write to the array, the package automatically synchronize the change from local to cloud bucket via internet.
 
