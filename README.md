@@ -5,12 +5,12 @@ Most of the time Data Scientists/ML researchers work on data management and prep
 
 # Problems with Current Workflows
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
-1. People use a folder structure to store images or videos. As a result, the data input pipeline has to take into consideration the raw folder structure which creates un-necessary & error-prone code dependency of the dataset folder structure.
-2. If you want to run some preprocessing, it would be ideal to cache the preprocessed images for training. But it’s usually hard to cache the preprocessed images locally if the dataset is very big. Version control of caches is also a problem.
-3. Another popular way is to store in HDF5/TFRecords format and upload to a cloud bucket, but still you have to manage many chunks of HDF5/TFRecords files.
-4. If multiple users modify the data, there needs to be a data versioning protocol implemented and synchronization methods not to overwrite the data.
-5. There is no easy way to access only a single image from big HDF5/TFRecords file without downloading the whole chunk.
-6. Whenever you want to create a numpy array you are worried if it is going to fit in the RAM limit.
+1. People use a folder structure to store images or videos. As a result, the data input pipeline has to take into consideration the raw folder structure which creates **un-necessary & error-prone code dependency of the dataset folder structure**.
+2. If you want to run some preprocessing, it would be ideal to cache the preprocessed images for training. But it’s usually **hard to cache & version control the preprocessed images locally** if the dataset is very big.
+3. Another popular way is to store in HDF5/TFRecords format and upload to a cloud bucket, but still you have to **manage many chunks of HDF5/TFRecords files**.
+4. If multiple users modify the data, there needs to be a **data versioning and synchronization protocol** implemented.
+5. There is no easy way to **access only a single image from big HDF5/TFRecords file without downloading the entire file**.
+6. Whenever you want to create a numpy array **you are worried if the numpy array is going to fit in the RAM limit**.
 
 # Workflow with Hub Arrays
 Simply declare an array with the namespace inside the code and thats it. “Where and How the data is stored?” is totally abstracted away from the data scientist or machine learning engineer. **You can create a numpy array up to Petabytes scale without worrying if the array will fit into RAM or local disk.** The inner workings are like this:
