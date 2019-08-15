@@ -2,7 +2,7 @@ import os
 from setuptools import find_packages, setup
 
 project = "hub"
-version = "0.0.1"
+version = "0.1.1"
 
 setup(
     name=project,
@@ -15,7 +15,7 @@ setup(
     include_package_data=True,
     zip_safe=False,
     keywords="snark-hub",
-    #python_requires='>=3',
+    python_requires='>=3',
     install_requires=[
         "click>=6.7,<7",
         "pathos==0.2.2.1",

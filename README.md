@@ -11,7 +11,7 @@ Hub Arrays are very large arrays stored on the cloud storage (such as S3) and ac
 ## Usage
 1. Install 
 ```sh
-pip install hub
+pip3 install hub
 ```
 
 Then provide AWS credentials and name of your project.
