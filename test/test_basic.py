@@ -69,11 +69,11 @@ def test_squeeze_array():
 
 if __name__ == "__main__":
     print('Running Basic Tests')
-    #test_init()
-    #test_simple_upload_download()
-    #test_multiple_upload_download()
-    #test_cross_chunk_upload_download()
-    #test_broadcasting()
-    #test_chunk_shape()
-    #test_load_array()
+    test_init()
+    test_simple_upload_download()
+    test_multiple_upload_download()
+    test_cross_chunk_upload_download()
+    test_broadcasting()
+    test_chunk_shape()
+    test_load_array()
     test_squeeze_array()

@@ -38,15 +38,17 @@ class StoreControlClient(object):
             
     @classmethod
     def get_config(self, public=False):
-        if public:
-            return gen()
         try:
             if os.path.exists(config.TOKEN_FILE_PATH):
                 with open(config.TOKEN_FILE_PATH, 'r') as file:
                     details = file.readlines()
                     details = json.loads(''.join(details))
                     return details
-            elif os.path.exists(config.AWSCRED_PATH):
+            else:
+                return gen()
+
+            # Disabled AWS credential lookup
+            if False and os.path.exists(config.AWSCRED_PATH):
                 return self.lookup_aws_creds()
             raise Exception
         except Exception as err:

@@ -27,3 +27,7 @@ class WrongTypeError(Exception):
 class NotAuthorized(Exception):
     """Types is not supported"""
     pass
+
+class ArrayNotFound(Exception):
+    """When Info could not be found for array"""
+    pass 
