@@ -112,8 +112,12 @@ class HubArray(object):
             if isinstance(slices[dim], int):
                 squeeze_dims.append(dim)
 
-        if len(squeeze_dims)>=1:
+        if len(squeeze_dims) >= 1:
             tensor = tensor.squeeze(axis=(*squeeze_dims, ) )
+
+        if len(tensor.shape) == 0:
+            tensor = tensor.item()
+
         return tensor
 
     def __getitem__(self, slices):
