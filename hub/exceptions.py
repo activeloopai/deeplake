@@ -22,3 +22,8 @@ class IncompatibleTypes(Exception):
 class WrongTypeError(Exception):
     """Types is not supported"""
     pass
+
+
+class NotAuthorized(Exception):
+    """Types is not supported"""
+    pass

@@ -10,17 +10,18 @@ try:
 except ImportError as e:
     cloudvolume_exist = False
 
-def _get_path(name):
+def _get_path(name, public=False):
     if len(name.split('/')) == 1:
-        raise Exception('array name should be specified the following format (username/dataset:version)')
-        return 
+        name = '{}/{}'.format(name,name)
     user = name.split('/')[0]
     dataset = name.split('/')[1].split(':')[0]
     tag = name.split(':')
     if len(tag) == 1:
         tag.append('latest')
     tag = tag[1]
-    bucket = StoreControlClient().get_config()['BUCKET']
+    bucket = StoreControlClient().get_config(public)['BUCKET']
+    if bucket=='':
+        exit()
     path = 's3://'+bucket+'/'+user+'/'+dataset+'/'+tag
     return path
 
@@ -86,13 +87,14 @@ def create(path, dim=[50000, 28, 28], dtype='uint8', chunk_size=None, cloudvolum
         return HubArray(shape=dim, dtype=dtype, chunk_shape=chunk_size, key=path, protocol=None)
 
 def load(name):
-    path = _get_path(name)
+    is_public = name in ['imagenet', 'cifar', 'coco', 'mnist']
+    path = _get_path(name, is_public)
     if cloudvolume_exist:
         return CloudVolume(path, parallel=True, fill_missing=True, progress=False,  non_aligned_writes=True, autocrop=True, green_threads=False)
     else:
-        return HubArray(key=path)
+        return HubArray(key=path, public=is_public)
     
 def delete(name):
     path = _get_path(name)
-    bucket = StoreControlClient().get_config()['bucket']
+    bucket = StoreControlClient().get_config()['BUCKET']
     s3.Object(bucket, path.split(bucket)[-1]).delete()

@@ -7,13 +7,13 @@ from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, Incompat
 import json
 
 class HubArray(object):
-    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F'):
+    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F', public=False):
         self.shape = shape
         self.chunk_shape = chunk_shape
         self.dtype = dtype
         self.key = key
         self.protocol = protocol
-        self.storage = S3(self.key)
+        self.storage = S3(self.key, public=public)
         self.order = order
         
         if parallel == False:

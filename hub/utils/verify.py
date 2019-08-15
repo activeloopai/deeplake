@@ -9,7 +9,7 @@ class Verify(object):
         self.creds = {
             'AWS_ACCESS_KEY_ID': access_key, 
             'AWS_SECRET_ACCESS_KEY': secret_key,
-            'bucket': ''
+            'BUCKET': ''
         }
 
         self.client = client = boto3.client(
@@ -29,16 +29,18 @@ class Verify(object):
         # check if AWS credentials have access to any snark-hub-... bucket
         if not bucket:
             bucket = self.lookup_hub_bucket()
-            
+            bucket_name = bucket.replace(self.prefix, '')
+
         # if still no bucket, then try to create one
         if not bucket:
-            bucket = 'snark-hub-{}'.format(self.randomString())
+            bucket = '{}'.format(self.randomString())
+        
+        bucket_name = '{}-{}'.format(self.prefix, bucket)
 
         # Create bucket or verify if it exists and have access
-        bucket_name = '{}-{}'.format(self.prefix, bucket)
         success = self.create_bucket(bucket_name)
         if success:
-            self.creds['bucket'] = bucket_name
+            self.creds['BUCKET'] = bucket_name
             return True, self.creds
         return False, None 
 
@@ -47,7 +49,7 @@ class Verify(object):
             response = self.client.list_buckets()
 
             for bucket in response['Buckets']:
-                if bucket["Name"].contains('snark-hub-'):
+                if 'snark-hub-' in bucket["Name"]:
                     return bucket["Name"]
         except ClientError as e:
             logger.error(e)

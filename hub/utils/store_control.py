@@ -5,6 +5,7 @@ import os
 from hub.utils.verify import Verify
 import base64
 from hub.utils.base import gen
+from hub.exceptions import NotAuthorized
 
 class StoreControlClient(object):
     """
@@ -20,11 +21,12 @@ class StoreControlClient(object):
     def lookup_aws_creds(self):
         with open(config.AWSCRED_PATH, 'r') as file:
             creds = file.readlines()
+            
             for line in creds:
                 line = ''.join(line.split())
-                if line.contains('aws_access_key_id'):
+                if 'aws_access_key_id' in line:
                     access_key = line.split('=')[1]
-                if line.contains('aws_secret_access_key'):
+                if 'aws_secret_access_key' in line:
                     secret_key = line.split('=')[1]
 
         success, creds = Verify(access_key, secret_key).verify_aws(bucket=None)
@@ -35,24 +37,20 @@ class StoreControlClient(object):
         return creds
             
     @classmethod
-    def get_config(self, default=False):
-        if default:
+    def get_config(self, public=False):
+        if public:
             return gen()
-
         try:
             if os.path.exists(config.TOKEN_FILE_PATH):
                 with open(config.TOKEN_FILE_PATH, 'r') as file:
                     details = file.readlines()
                     details = json.loads(''.join(details))
                     return details
-
             elif os.path.exists(config.AWSCRED_PATH):
                 return self.lookup_aws_creds()
-
             raise Exception
-        except:
-            logger.error("No Hub or AWS credentials found. Please configure credentials '$ hub configure'")
-            
+        except Exception as err:
+            raise NotAuthorized("No Hub or AWS credentials found. Please provide credentials by running '> hub configure'")
             return {
                 'AWS_ACCESS_KEY_ID':'',
                 'AWS_SECRET_ACCESS_KEY': '',

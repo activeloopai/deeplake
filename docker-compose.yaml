@@ -9,6 +9,7 @@ services:
     command: bash -c "
           cd /workspace
           && python3 test/test_basic.py"
+
   py2:
     image: python:2
     volumes:
@@ -17,6 +18,7 @@ services:
           cd /workspace
           && pip install -e .
           && python -c 'import hub; hub.load(name=\"imagenet/image:train\")'"
+          
   py3:
     image: python:3
     volumes:
