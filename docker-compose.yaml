@@ -9,12 +9,19 @@ services:
     command: bash -c "
           cd /workspace
           && python3 test/test_basic.py"
-  prod:
+  py2:
+    image: python:2
+    volumes:
+       - ./:/workspace/
+    command: bash -c "
+          cd /workspace
+          && pip install -e .
+          && python -c 'import hub; hub.load(name=\"imagenet/image:train\")'"
+  py3:
     image: python:3
     volumes:
        - ./:/workspace/
     command: bash -c "
           cd /workspace
-          && ls
-          && pip3 install hub
-          && hub configure"
+          && pip3 install -e .
+          && python3 -c 'import hub; hub.load(name=\"imagenet/image:train\")'"

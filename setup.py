@@ -15,10 +15,9 @@ setup(
     include_package_data=True,
     zip_safe=False,
     keywords="snark-hub",
-    python_requires='>=3',
+    #python_requires='>=3',
     install_requires=[
         "click>=6.7,<7",
-        #"cloud-volume==0.56.2",
         "pathos==0.2.2.1",
         "boto3==1.9.2",
         "botocore==1.12.204",
