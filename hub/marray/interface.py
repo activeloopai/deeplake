@@ -36,7 +36,7 @@ class HubArray(object):
             name, dataset, version = self.key.split('/')[-3:]
             raise ArrayNotFound('Could not identify array with name {}/{}:{}. Please make sure the array name is correct.'.format(name, dataset, version))
         if info:
-            info = json.loads(info)
+            info = json.loads(info.decode('utf-8'))
             self.shape = info['shape']
             self.chunk_shape = info['chunk_shape']
             self.key = info['key']
