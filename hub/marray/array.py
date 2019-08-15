@@ -17,6 +17,7 @@ def _get_path(name, public=False):
     if bucket=='':
         exit()
     path = 's3://'+bucket+'/'+user+'/'+dataset+'/'+tag
+    #print(path)
     return path
 
 def load(name):

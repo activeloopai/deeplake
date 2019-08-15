@@ -3,7 +3,7 @@ import numpy as np
 from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .storage import Storage, S3
-from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes
+from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, ArrayNotFound
 import json
 
 class HubArray(object):
@@ -32,6 +32,9 @@ class HubArray(object):
     def initialize(self, path):
         cloudpath = "{}/info.txt".format(path)
         info = self.storage.get(cloudpath)
+        if not info and not self.shape:
+            name, dataset, version = self.key.split('/')[-3:]
+            raise ArrayNotFound('Could not identify array with name {}/{}:{}. Please make sure the array name is correct.'.format(name, dataset, version))
         if info:
             info = json.loads(info)
             self.shape = info['shape']
