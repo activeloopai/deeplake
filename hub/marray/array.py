@@ -17,7 +17,6 @@ def _get_path(name, public=False):
     if bucket=='':
         exit()
     path = 's3://'+bucket+'/'+user+'/'+dataset+'/'+tag
-    #print(path)
     return path
 
 def load(name):
@@ -42,7 +41,7 @@ def create(path, dim=[50000, 28, 28], dtype='float', chunk_size=None):
     if chunk_size is None:
         chunk_size = list(dim)
         chunk_size[0] = 1
-
+        
     # Input checking
     assert len(chunk_size) == len(dim)
     assert np.array(dim).dtype in np.sctypes['int']
