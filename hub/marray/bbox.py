@@ -117,16 +117,13 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
     spt = max2(src_bbox.minpt, dest_bbox.minpt)
     ept = min2(src_bbox.maxpt, dest_bbox.maxpt)
     dbox = Bbox(spt, ept) - dest_bbox.minpt
-  
     ZERO = Vec.zeros(dest_bbox.maxpt)
     istart = max2(spt - src_bbox.minpt, ZERO)
-    iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    sbox = Bbox(istart, iend)
-
-    #TODO implement broadcasting
-    #while src_img.ndim < 4:
-    #  src_img = src_img[..., np.newaxis]
     
+    # FIXME in case some here
+    #iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
+    iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
+    sbox = Bbox(istart, iend)
     dest_img[ dbox.to_slices() ] = src_img[ sbox.to_slices() ]
 
 def chunknames(bbox, volume_bbox, key, chunk_size, protocol=None):

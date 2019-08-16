@@ -36,6 +36,6 @@ def test_wo_aws_or_hub_creds():
 if __name__ == "__main__":
 
     print('Running Basic Tests')
-    #test_aws_wo_hub_creds()
+    test_aws_wo_hub_creds()
     test_wo_aws_or_hub_creds()
-    #test_public_access_no_creds()
+    test_public_access_no_creds()
