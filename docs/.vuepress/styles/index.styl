@@ -1,0 +1,91 @@
+$primary = #ef672e
+
+.home .hero img
+    max-height: 120px !important
+
+.category--active
+    border-color: transparent !important
+
+.category__headers
+    .category__header-item
+        border-left: 1px solid black !important
+        margin: 0 !important
+        margin-left: 40px !important
+        padding-left: 10px !important
+        position relative
+
+        &::before
+            display: none
+
+        &::after
+            content: ''
+            display: block
+            width: 14px
+            height: 14px
+            position absolute
+            top: 6.5px
+            left: -8px
+            border-radius: 100%
+            background-color: $primary
+
+    &.category--active
+        .category__header-item::after
+            background-color: black
+
+.content
+    h1
+        font-size: 49px
+
+    h2
+        font-size: 27px
+        padding-top: 70px
+
+        .tooltip
+            font-size: 12px
+            background-color: $primary
+            color: white
+            border-radius: 100px
+            position absolute
+            padding: 3px 10px
+            cursor: pointer
+
+    p
+        font-size: 15px !important
+
+    hr
+        width: 30%
+        margin: 40px 0
+        margin-left: 0
+        height: 6px
+        background-color: $primary
+        border: none
+
+    a
+        color: $primary
+        text-decoration: underline
+
+    .header-anchor
+        color: $primary
+        background-color: transparent
+
+table
+    border: none !important
+
+    th
+        border: none
+        border-bottom: 2px solid $primary
+        color: $primary
+
+    tbody 
+        tr:nth-child(even)
+            background-color: #FCFCFC
+
+    td
+        border-top: none
+        border-bottom: none
+
+        &:first-child
+            border-left: none
+
+        &:last-child
+            border-right: none

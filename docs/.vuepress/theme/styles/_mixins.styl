@@ -1,0 +1,54 @@
+media-breakpoint-up($name, $breakpoints = $grid-breakpoints)
+  $min = $breakpoints[$name]
+  @media (min-width: $min)
+    {block}
+
+make-container()
+  width: 100%
+  margin-left: auto
+  margin-right: auto
+
+make-container-max-widths($max-widths = $container-max-widths, $breakpoints = $grid-breakpoints)
+  for $breakpoint, $container-max-width in $max-widths
+    +media-breakpoint-up($breakpoint, $breakpoints)
+      max-width: $container-max-width
+
+make-row()
+  display: flex
+  flex-wrap: wrap
+
+make-col($size, $columns = $grid-columns)
+  flex: 0 0 percentage($size / $columns)
+  max-width: percentage($size / $columns)
+
+make-grid-columns($columns = $grid-columns, $breakpoints = $grid-breakpoints)
+  $grid-column
+    position: relative
+    width: 100%
+    min-height: 1px
+
+  for $breakpoint in $breakpoints
+    for $i in (1..$columns)
+      .col-{$breakpoint}-{$i}
+        @extends $grid-column
+      .col-{$i}
+        make-col($i, $columns)
+
+    .col-{$breakpoint},
+    .col-{$breakpoint}-auto
+      @extends $grid-column
+
+
+    +media-breakpoint-up($breakpoint, $breakpoints)
+      .col-{$breakpoint}
+        flex-basis: 0
+        flex-grow: 1
+        max-width: 100
+      .col-{$breakpoint}-auto
+        flex: 0 0 auto
+        width: auto
+        max-width: none
+
+      for $i in (1..$columns)
+        .col-{$breakpoint}-{$i}
+          make-col($i, $columns)

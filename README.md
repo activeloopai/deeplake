@@ -50,12 +50,12 @@ We’re working on simple authentication system, data management, advanced data 
 ```
 
 ## Usage
-**Step 1.** Install 
+**Step 1.** Install
 ```sh
 pip3 install hub
 ```
 
-**Step 2.** Lazy-load a public dataset with up to 50MB/s speed and plot
+**Step 2.** Lazy-load a public dataset, and fetch a single image with up to 50MB/s speed and plot
 ```python
 > import hub
 > imagenet = hub.load(name='imagenet')
