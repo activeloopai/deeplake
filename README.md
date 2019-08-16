@@ -96,7 +96,7 @@ pip3 install hub
 * **Visualization**: Visualize the data without trouble
 
 ## Use Cases
-* **Areal images**: Satellite and drone imagery
+* **Aerial images**: Satellite and drone imagery
 * **Medical Images**: Volumetric images such as MRI or Xray
 * **Self-Driving Cars**: Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects
 * **Retail**: Self-checkout datasets
