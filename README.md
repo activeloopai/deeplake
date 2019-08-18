@@ -95,13 +95,6 @@ pip3 install hub
 * **Scale**: Create as big arrays as you want
 * **Visualization**: Visualize the data without trouble
 
-## Use Cases
-* **Aerial images**: Satellite and drone imagery
-* **Medical Images**: Volumetric images such as MRI or Xray
-* **Self-Driving Cars**: Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects
-* **Retail**: Self-checkout datasets
-* **Media**: Images, Video, Audio storage
-
 ## Benchmarking
 
 For full reproducibility please refer to the [code](/test/benchmark)
@@ -121,7 +114,12 @@ Training Deep Learning          |  Data Streaming
 :-------------------------:|:-------------------------:
 <img src="https://snarkai.github.io/Hub/test/benchmark/results/Training.png" alt="Training" width="440"/>  |   <img src="https://snarkai.github.io/Hub/test/benchmark/results/Data%20Bottleneck.png" width="440"/>
 
-
+## Use Cases
+* **Aerial images**: Satellite and drone imagery
+* **Medical Images**: Volumetric images such as MRI or Xray
+* **Self-Driving Cars**: Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects
+* **Retail**: Self-checkout datasets
+* **Media**: Images, Video, Audio storage
 
 ### Acknowledgement
 Acknowledgment: This technology was inspired from our experience at Princeton University at SeungLab and would like to thank William Silversmith @SeungLab and his awesome project [cloud-volume](https://github.com/seung-lab/cloud-volume).
