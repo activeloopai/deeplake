@@ -25,9 +25,9 @@ setup(
     python_requires='>=3',
     install_requires=[
         "click>=6.7,<7",
-        "pathos==0.2.2.1",
-        "boto3==1.9.2",
-        "botocore==1.12.204",
+        "pathos>=0.2.2.1",
+        "boto3>=1.9.2",
+        "botocore>=1.12.204",
         "numpy", 
         "tenacity"
     ],
