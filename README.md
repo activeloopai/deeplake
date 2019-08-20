@@ -38,7 +38,7 @@ We’re working on simple authentication system, data management, advanced data 
 > bigarray = hub.array((100000, 512, 512, 3), name="test/bigarray:v0")
 
 # Writing to one slice of the array. Automatically syncs to cloud.
-> image = np.random((512,512,3))
+> image = np.random.random((512,512,3))
 > bigarray[0, :,:, :] = image
 
 # Lazy-Load an existing array from cloud without really downloading the entries
