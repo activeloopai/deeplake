@@ -8,6 +8,10 @@ import json
 
 
 class HubArray(object):
+    """
+        Main class for Hub Array
+    """
+
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol=None, parallel=True, order='F', public=False):
         self.shape = shape
         self.chunk_shape = chunk_shape

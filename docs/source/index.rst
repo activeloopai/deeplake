@@ -11,8 +11,10 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   motivation
-   getting-started
+   getting-started/motivation.rst
+   getting-started/quick-overview.rst
+
+   references/api.rst
 
 
 Hub Array is a scalable numpy-like array stored on the cloud accessible over network as if they're local numpy arrays. 
