@@ -78,20 +78,19 @@ def test_squeeze_array():
 
 
 def test_dtypes():
-    x = hub.array((100,100,100), name="test/example:4", dtype=np.uint8)
+    print('- Numpy dtypes arrays')
+    x = hub.array((100,100,100), name="test/example:5", dtype=np.uint8)
     assert x.dtype == 'uint8'
-    assert x.dtype == np.uint8
+    print('passed')
 
 if __name__ == "__main__":
     print('Running Basic Tests')
-    if False:
-        test_init()
-        test_simple_upload_download()
-        test_multiple_upload_download()
-        test_cross_chunk_upload_download()
-        test_broadcasting()
-        test_chunk_shape()
-        test_load_array()
-        test_squeeze_array()
-
+    test_init()
+    test_simple_upload_download()
+    test_multiple_upload_download()
+    test_cross_chunk_upload_download()
+    test_broadcasting()
+    test_chunk_shape()
+    test_load_array()
+    test_squeeze_array()
     test_dtypes()
