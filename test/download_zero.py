@@ -1,5 +1,5 @@
 #import gevent.monkey
-#gevent.monkey.patch_all(thread=True)
+# gevent.monkey.patch_all(thread=True)
 
 import hub
 import time
@@ -10,7 +10,7 @@ x = hub.load('imagenet/fake:train')
 
 if True:
     t1 = time.time()
-    zeros = (x[:100].mean(axis=(1,2,3)) == 0).sum()
+    zeros = (x[:100].mean(axis=(1, 2, 3)) == 0).sum()
     t2 = time.time()
     print(zeros, t2-t1)
 exit()

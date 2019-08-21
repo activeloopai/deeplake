@@ -7,10 +7,12 @@ import base64
 from hub.utils.base import gen
 from hub.exceptions import NotAuthorized
 
+
 class StoreControlClient(object):
     """
     Controlling Snark Pods through rest api
     """
+
     def __init__(self):
         super(StoreControlClient, self).__init__()
 
@@ -21,7 +23,7 @@ class StoreControlClient(object):
     def lookup_aws_creds(self):
         with open(config.AWSCRED_PATH, 'r') as file:
             creds = file.readlines()
-            
+
             for line in creds:
                 line = ''.join(line.split())
                 if 'aws_access_key_id' in line:
@@ -33,9 +35,10 @@ class StoreControlClient(object):
         if success:
             self.save_config(creds)
         else:
-            raise Exception('Error in lookup AWS credentials or in having AWS S3 bucket access.')
+            raise Exception(
+                'Error in lookup AWS credentials or in having AWS S3 bucket access.')
         return creds
-            
+
     @classmethod
     def get_config(self, public=False):
         try:
@@ -52,9 +55,10 @@ class StoreControlClient(object):
                 return self.lookup_aws_creds()
             raise Exception
         except Exception as err:
-            raise NotAuthorized("No Hub or AWS credentials found. Please provide credentials by running '> hub configure'")
+            raise NotAuthorized(
+                "No Hub or AWS credentials found. Please provide credentials by running '> hub configure'")
             return {
-                'AWS_ACCESS_KEY_ID':'',
+                'AWS_ACCESS_KEY_ID': '',
                 'AWS_SECRET_ACCESS_KEY': '',
                 'BUCKET': ''
             }

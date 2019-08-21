@@ -4,10 +4,11 @@ import random
 import string
 from hub.log import logger
 
+
 class Verify(object):
     def __init__(self, access_key, secret_key):
         self.creds = {
-            'AWS_ACCESS_KEY_ID': access_key, 
+            'AWS_ACCESS_KEY_ID': access_key,
             'AWS_SECRET_ACCESS_KEY': secret_key,
             'BUCKET': ''
         }
@@ -34,7 +35,7 @@ class Verify(object):
         # if still no bucket, then try to create one
         if not bucket:
             bucket = '{}'.format(self.randomString())
-        
+
         bucket_name = '{}-{}'.format(self.prefix, bucket)
 
         # Create bucket or verify if it exists and have access
@@ -42,7 +43,7 @@ class Verify(object):
         if success:
             self.creds['BUCKET'] = bucket_name
             return True, self.creds
-        return False, None 
+        return False, None
 
     def lookup_hub_bucket(self):
         try:
@@ -67,7 +68,7 @@ class Verify(object):
             if bucket["Name"] == bucket:
                 return bucket
         return ''
-    
+
     def create_bucket(self, bucket_name, region=None):
         """Create an S3 bucket in a specified region
 
@@ -86,7 +87,7 @@ class Verify(object):
             else:
                 location = {'LocationConstraint': region}
                 self.client.create_bucket(Bucket=bucket_name,
-                                        CreateBucketConfiguration=location)
+                                          CreateBucketConfiguration=location)
         except ClientError as e:
             logger.error(e)
             return False
