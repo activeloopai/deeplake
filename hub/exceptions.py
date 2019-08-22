@@ -39,9 +39,15 @@ class ArrayNotFound(Exception):
     pass
 
 
+class DatasetNotFound(Exception):
+    """When Info could not be found for dataset"""
+    pass
+
+
 class FileSystemException(Exception):
     """Error working with local file system"""
     pass
+
 
 class S3Exception(Exception):
     """Error working with AWS"""
