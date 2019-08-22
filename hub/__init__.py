@@ -1,5 +1,5 @@
 import hub
-from hub.marray.array import array, load
+from hub.marray.interface import array, load
 import click
 import sys
 from hub.log import configure_logger

@@ -99,7 +99,6 @@ def generate_chunks(img, offset, chunk_size):
     img_offset = bounds.minpt - offset
     img_end = Vec.clamp(bounds.size3() + img_offset, Vec.zeros(shape), shape)
 
-    # xyzrange( img_offset, img_end, meta.chunk_size(mip) )
     for startpt in product(*xranges):
         startpt = startpt.clone()
         endpt = min2(startpt + chunk_size, shape)
