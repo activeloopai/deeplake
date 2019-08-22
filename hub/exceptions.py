@@ -37,3 +37,12 @@ class NotAuthorized(Exception):
 class ArrayNotFound(Exception):
     """When Info could not be found for array"""
     pass
+
+
+class FileSystemException(Exception):
+    """Error working with local file system"""
+    pass
+
+class S3Exception(Exception):
+    """Error working with AWS"""
+    pass
