@@ -9,6 +9,11 @@ from hub.utils import StoreControlClient
 import json
 from hub.marray.array import HubArray
 
+try:
+    from hub.integrations import TorchDataset
+except:
+    pass
+
 
 class Dataset():
     def __init__(self, objdict={}, key='', storage=None):
@@ -57,6 +62,7 @@ class Dataset():
     @property
     def shape(self):
         return self.common_shape(self.shapes)
+
     @property
     def chunk_shape(self):
         return self.common_shape(self.chunk_shapes)
@@ -84,6 +90,18 @@ class Dataset():
                 raise Exception(
                     'Input to the dataset is unknown: {}:{}'.format(k, objdict[k]))
         return self.datas
+
+    def to_pytorch(self, transforms=None):
+        try:
+            return TorchDataset(
+                self,
+                transforms=transforms
+            )
+        except:
+            Exception('PyTorch is not installed')
+
+    def to_tensorflow(self):
+        raise NotImplemented
 
     def initialize(self, path):
         cloudpath = "{}/info.txt".format(path)
