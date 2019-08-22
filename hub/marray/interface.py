@@ -3,7 +3,7 @@ from hub.utils.store_control import StoreControlClient
 from hub.marray.array import HubArray
 import numpy as np
 from hub.exceptions import WrongTypeError
-from hub.backend.storage import Storage, S3, FS
+from hub.backend.storage import StorageFactory
 
 def _get_path(name, public=False):
     if len(name.split('/')) == 1:
@@ -14,9 +14,6 @@ def _get_path(name, public=False):
     if len(tag) == 1:
         tag.append('latest')
     tag = tag[1]
-    #bucket = StoreControlClient().get_config(public)['BUCKET']
-    #if bucket == '':
-    #    exit()
     path = user+'/'+dataset+'/'+tag
     return path
 
@@ -32,15 +29,7 @@ def _create(path, dim=[50000, 28, 28], dtype='float', chunk_size=None, backend='
     assert np.array(dim).dtype in np.sctypes['int']
     assert np.array(chunk_size).dtype in np.sctypes['int']
 
-    try:
-        dtype = np.dtype(dtype).name
-    except:
-        raise WrongTypeError('Dtype {} is not supported '.format(dtype))
-    
-    if backend == 'fs':
-        storage = FS()
-    else:
-        storage = S3(StoreControlClient.get_config()['BUCKET'])
+    storage = StorageFactory(protocols=backend)
 
     return HubArray(
         shape=dim,
@@ -67,7 +56,12 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3'):
         raise Exception(
             'Backend {} was not found'.format(backend)
         )
-
+    
+    try:
+        dtype = np.dtype(dtype).name
+    except:
+        raise WrongTypeError('Dtype {} is not supported '.format(dtype))
+    
     return _create(path, shape, dtype, chunk_size, backend)
 
 
@@ -75,11 +69,8 @@ def load(name, backend='s3'):
     is_public = name in ['imagenet', 'cifar', 'coco', 'mnist']
     path = _get_path(name, is_public)
 
-    if backend == 'fs':
-        storage = FS()
-    else:
-        storage = S3(StoreControlClient.get_config()['BUCKET'])
-
+    storage = StorageFactory(protocols=backend)
+    
     return HubArray(key=path, public=is_public, storage=storage)
 
 

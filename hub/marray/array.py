@@ -54,7 +54,7 @@ class HubArray(object):
                 'protocol': self.protocol,
             }
             info = json.dumps(info).encode('utf-8')
-            self.storage.put(cloudpath, info, content_type=None)
+            self.storage.put(cloudpath, info)
 
     def generate_cloudpaths(self, slices):
         # Slices -> Bbox
@@ -141,7 +141,7 @@ class HubArray(object):
     def upload_chunk(self, cloudpath_chunk):
         cloudpath, chunk = cloudpath_chunk
         chunk = self.encode(chunk)
-        chunk = self.storage.put(cloudpath, chunk, content_type=None)
+        chunk = self.storage.put(cloudpath, chunk)
 
     def chunkify(self, cloudpaths, requested_bbox, item):
         chunks = []
