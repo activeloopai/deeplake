@@ -32,7 +32,7 @@ class Storage(object):
 
 
 class StorageFactory(Storage):
-    def __init__(self, protocols):
+    def __init__(self, protocols, caching=False):
         super(Storage, self).__init__()
         if isinstance(protocols, str):
             protocols = [protocols]
@@ -40,25 +40,35 @@ class StorageFactory(Storage):
         self.storages = list(map(self.map, protocols))
         self.protocol = 'factory_{}'.format(
             '_'.join(map(lambda x: x.protocol, self.storages)))
-        print(self.protocol)
+        self.caching = caching
 
     def map(self, name):
         # S3 object storage
-        if name == 's3':
-            return S3(
-                bucket=StoreControlClient.get_config()['BUCKET']
-            )
+        if isinstance(name, str) and name == 's3':
+            return S3()
 
         # FileSystem object Storage
-        elif name == 'fs':
+        elif isinstance(name, str) and name == 'fs':
             return FS()
-        raise Exception('backend not found {}'.format(name))
+
+        elif isinstance(name, Storage):
+            return name
+
+        raise Exception('Backend not found {}'.format(name))
 
     def get(self, path):
         # Return first object found
         for store in self.storages:
+
             obj = store.get(path)
             if obj is not None:
+
+                # caching
+                if self.caching:
+                    ith = self.storages.index(store)
+                    for sub_store in self.storages[:ith]:
+                        sub_store.put(path, obj)
+
                 return obj
 
     def put(self, path, file):
@@ -100,9 +110,11 @@ class FS(Storage):
 
 
 class S3(Storage):
-    def __init__(self, bucket, public=False):
+    def __init__(self, bucket=None, public=False, aws_access_key_id=None, aws_secret_access_key=None):
         super(Storage, self).__init__()
 
+        if bucket is None:
+            self.bucket = bucket=StoreControlClient.get_config()['BUCKET']
         self.bucket = bucket
         self.protocol = 'object'
 
@@ -110,12 +122,15 @@ class S3(Storage):
             max_pool_connections=25,
         )
 
+        if aws_access_key_id is None:
+            aws_access_key_id = StoreControlClient.get_config(public)['AWS_ACCESS_KEY_ID']
+        if aws_secret_access_key is None:
+            aws_secret_access_key = StoreControlClient.get_config(public)['AWS_SECRET_ACCESS_KEY']
+
         self.client = boto3.client(
             's3',
-            aws_access_key_id=StoreControlClient.get_config(public)[
-                'AWS_ACCESS_KEY_ID'],
-            aws_secret_access_key=StoreControlClient.get_config(
-                public)['AWS_SECRET_ACCESS_KEY'],
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
             config=client_config
             # endpoint_url=URL,
         )

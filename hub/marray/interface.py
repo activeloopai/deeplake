@@ -5,6 +5,7 @@ import numpy as np
 from hub.exceptions import WrongTypeError
 from hub.backend.storage import StorageFactory
 
+
 def _get_path(name, public=False):
     if len(name.split('/')) == 1:
         name = '{}/{}'.format(name, name)
@@ -18,30 +19,7 @@ def _get_path(name, public=False):
     return path
 
 
-def _create(path, dim=[50000, 28, 28], dtype='float', chunk_size=None, backend='s3'):
-    # auto chunking
-    if chunk_size is None:
-        chunk_size = list(dim)
-        chunk_size[0] = 1
-
-    # Input checking
-    assert len(chunk_size) == len(dim)
-    assert np.array(dim).dtype in np.sctypes['int']
-    assert np.array(chunk_size).dtype in np.sctypes['int']
-
-    storage = StorageFactory(protocols=backend)
-
-    return HubArray(
-        shape=dim,
-        dtype=dtype,
-        chunk_shape=chunk_size,
-        key=path,
-        protocol=storage.protocol,
-        storage=storage
-    )
-
-
-def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3'):
+def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False):
 
     if not name:
         raise Exception(
@@ -52,17 +30,31 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3'):
     if not shape:
         return load(name)
 
-    if backend.lower() not in ['s3', 'fs']:
-        raise Exception(
-            'Backend {} was not found'.format(backend)
-        )
-    
     try:
         dtype = np.dtype(dtype).name
     except:
         raise WrongTypeError('Dtype {} is not supported '.format(dtype))
-    
-    return _create(path, shape, dtype, chunk_size, backend)
+
+    # auto chunking
+    if chunk_size is None:
+        chunk_size = list(shape)
+        chunk_size[0] = 1
+
+    # Input checking
+    assert len(chunk_size) == len(shape)
+    assert np.array(shape).dtype in np.sctypes['int']
+    assert np.array(chunk_size).dtype in np.sctypes['int']
+
+    storage = StorageFactory(protocols=backend, caching=caching)
+
+    return HubArray(
+        shape=shape,
+        dtype=dtype,
+        chunk_shape=chunk_size,
+        key=path,
+        protocol=storage.protocol,
+        storage=storage
+    )
 
 
 def load(name, backend='s3'):
@@ -70,7 +62,7 @@ def load(name, backend='s3'):
     path = _get_path(name, is_public)
 
     storage = StorageFactory(protocols=backend)
-    
+
     return HubArray(key=path, public=is_public, storage=storage)
 
 
