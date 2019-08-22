@@ -1,4 +1,4 @@
 Combining
-#################
+#################################
 
-Concatenate two Hub Arrays together. [TODO]
+Concatenate two Hub Arrays together.
