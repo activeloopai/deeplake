@@ -4,6 +4,7 @@ from hub.marray.array import HubArray
 import numpy as np
 from hub.exceptions import WrongTypeError
 from hub.backend.storage import StorageFactory
+from hub.marray.dataset import Dataset
 
 
 def _get_path(name, public=False):
@@ -55,6 +56,13 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', c
         protocol=storage.protocol,
         storage=storage
     )
+
+
+def dataset(arrays=None, name=None):
+    # TODO check inputs validity
+    if arrays is None:
+        return Dataset(key=name)
+    return Dataset(arrays, name)
 
 
 def load(name, backend='s3'):
