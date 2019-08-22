@@ -1,6 +1,7 @@
 # Sphinix
 # sphinx build folder
 docs/_build
+docs/source/_build
 
 # Compiled source #
 ###################
