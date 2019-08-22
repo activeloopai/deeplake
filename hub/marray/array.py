@@ -9,7 +9,7 @@ import json
 
 
 class HubArray(object):
-    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='file', parallel=True, order='F', public=False, storage=None):
+    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None):
         self.shape = shape
         self.chunk_shape = chunk_shape
         self.dtype = dtype

@@ -74,7 +74,13 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3'):
 def load(name, backend='s3'):
     is_public = name in ['imagenet', 'cifar', 'coco', 'mnist']
     path = _get_path(name, is_public)
-    return HubArray(key=path, public=is_public)
+
+    if backend == 'fs':
+        storage = FS()
+    else:
+        storage = S3(StoreControlClient.get_config()['BUCKET'])
+
+    return HubArray(key=path, public=is_public, storage=storage)
 
 
 # FIXME implement deletion of repositories
