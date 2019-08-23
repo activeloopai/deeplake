@@ -113,7 +113,7 @@ For full reproducibility please refer to the [code](/test/benchmark)
 
 The following chart shows that hub on a single machine (aws p3.2xlarge) can achieve up to 875 MB/s download speed with multithreading and multiprocessing enabled. Choosing the chunk size plays a role in reaching maximum speed up. The bellow chart shows the tradeoff using different number of threads and processes.
 
-<img src="https://github.com/snarkai/Hub/blob/master/test/benchmark/results/Parallel12MB.png" width="650"/>
+<img src="test/benchmark/results/Parallel12MB.png" width="650"/>
 
 
 ### Training Deep Learning Model 
@@ -122,7 +122,7 @@ The following benchmark shows that streaming data through Hub package while trai
 
 Training Deep Learning          |  Data Streaming
 :-------------------------:|:-------------------------:
-<img src="https://github.com/snarkai/Hub/blob/master/test/benchmark/results/Training.png" alt="Training" width="440"/>  |   <img src="https://github.com/snarkai/Hub/blob/master/test/benchmark/results/Data%20Bottleneck.png" width="440"/>
+<img src="test/benchmark/results/Training.png" alt="Training" width="440"/>  |   <img src="test/benchmark/results/Data%20Bottleneck.png" width="440"/>
 
 ## Use Cases
 * **Aerial images**: Satellite and drone imagery
