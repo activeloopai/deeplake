@@ -20,3 +20,10 @@ A: Performance benchmarks show that training speed is not slowed down if the bac
 compute node is on the same region on AWS/GCP/Azure. The raw data read speed can be as fast as 800MB/s 
 on AWS S3 which is faster than reading from local SSD. This is made possible because S3 provides horizontal 
 scalability in data I/O.
+
+Q: Would there be data egress cost if the data backend storage is in the cloud but computation happens locally? 
+
+A: Yes there will be data egress cost in this case. 
+For example data transfer from AWS S3 to outside of AWS is 0.07$-0.09$ per GB. 
+Data transfer from one S3 region to another S3 region is 0.02$ per GB. 
+Data transfer is free within the same region and same zone in S3. 
