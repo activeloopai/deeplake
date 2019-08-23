@@ -8,8 +8,8 @@ from hub.exceptions import FileSystemException, S3Exception
 from hub.config import CACHE_FILE_PATH
 retry = tenacity.retry(
     reraise=True,
-    stop=tenacity.stop_after_attempt(7),
-    wait=tenacity.wait_random_exponential(0.5, 60.0),
+    stop=tenacity.stop_after_attempt(6),
+    wait=tenacity.wait_random_exponential(0.4, 50.0),
 )
 
 
@@ -110,7 +110,7 @@ class FS(Storage):
 
 
 class S3(Storage):
-    def __init__(self, bucket=None, public=False, aws_access_key_id=None, aws_secret_access_key=None):
+    def __init__(self, bucket=None, public=False, aws_access_key_id=None, aws_secret_access_key=None, parallel=25):
         super(Storage, self).__init__()
 
         if bucket is None:
@@ -119,7 +119,7 @@ class S3(Storage):
         self.protocol = 'object'
 
         client_config = botocore.config.Config(
-            max_pool_connections=25,
+            max_pool_connections=parallel,
         )
 
         if aws_access_key_id is None:
