@@ -60,6 +60,7 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', c
 
 def dataset(arrays=None, name=None):
     # TODO check inputs validity
+    name = _get_path(name)
     if arrays is None:
         return Dataset(key=name)
     return Dataset(arrays, name)

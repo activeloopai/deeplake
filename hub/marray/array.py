@@ -2,21 +2,20 @@ from pathos.threading import ThreadPool
 import numpy as np
 from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
-from hub.backend.storage import Storage, S3, FS
-from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, ArrayNotFound
-from hub.utils import StoreControlClient
-import json
+from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
+from .meta import MetaObject
 
-
-class HubArray(object):
+class HubArray(MetaObject):
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None):
-        self.shape = shape
-        self.chunk_shape = chunk_shape
-        self.dtype = dtype
-        self.key = key
-        self.protocol = protocol
-        self.storage = storage if storage is not None else S3(StoreControlClient.get_config(public)['BUCKET'], public=public)
-        self.order = order
+        super().__init__(key=key, storage=storage, create=shape)
+        
+        self.info['shape'] = shape
+        self.info['chunk_shape'] = chunk_shape
+        self.info['dtype'] = dtype
+        self.info['key'] = key
+        self.info['protocol'] = protocol
+        self.info['order'] = order
+        self.info['dclass'] = self.dclass = 'array'
 
         parallel = 25 if parallel else 1
 
@@ -28,33 +27,25 @@ class HubArray(object):
         assert self.chunk_shape
         assert self.dtype
 
-    def initialize(self, path):
-        cloudpath = "{}/info.txt".format(path)
-        info = self.storage.get(cloudpath)
+    @property
+    def shape(self):
+        return self.info['shape']
+    
+    @property
+    def chunk_shape(self):
+        return self.info['chunk_shape']
 
-        if not info and not self.shape:
-            name, dataset, version = self.key.split('/')[-3:]
-            raise ArrayNotFound(
-                'Could not identify array with name {}/{}:{}. Please make sure the array name is correct.'.format(name, dataset, version))
-        if info:
-            info = json.loads(info.decode('utf-8'))
-            self.shape = info['shape']
-            self.chunk_shape = info['chunk_shape']
-            self.key = info['key']
-            self.dtype = info['dtype']
-            self.order = info['order']
-            self.protocol = info['protocol']
-        else:
-            info = {
-                'shape': self.shape,
-                'chunk_shape': self.chunk_shape,
-                'key': self.key,
-                'dtype': self.dtype,
-                'order': self.order,
-                'protocol': self.protocol,
-            }
-            info = json.dumps(info).encode('utf-8')
-            self.storage.put(cloudpath, info)
+    @property
+    def dtype(self):
+        return self.info['dtype']
+    
+    @property
+    def order(self):
+        return self.info['order']
+    
+    @property
+    def protocol(self):
+        return self.info['protocol']
 
     def generate_cloudpaths(self, slices):
         # Slices -> Bbox

@@ -34,13 +34,8 @@ class NotAuthorized(Exception):
     pass
 
 
-class ArrayNotFound(Exception):
+class NotFound(Exception):
     """When Info could not be found for array"""
-    pass
-
-
-class DatasetNotFound(Exception):
-    """When Info could not be found for dataset"""
     pass
 
 
