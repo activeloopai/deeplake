@@ -4,10 +4,11 @@ import numpy as np
 from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from hub.backend.storage import Storage, S3, FS
-from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, DatasetNotFound
+from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 from hub.utils import StoreControlClient
 import json
 from hub.marray.array import HubArray
+from .array import MetaObject
 
 try:
     from hub.integrations import TorchDataset
@@ -15,13 +16,19 @@ except:
     pass
 
 
-class Dataset():
-    def __init__(self, objdict={}, key='', storage=None):
-        self.datas = self.setup(objdict)
-        self.key = key
-        self.storage = storage if storage is not None else FS()
-        self.initialize(key)
-        self.pool = ThreadPool(nodes=len(self.datas))
+class Dataset(MetaObject):
+    def __init__(self, objdict=None, key='', storage=None):
+        super().__init__(key=key, storage=storage, create=objdict)
+        if objdict is None:
+            self.initialize(self.key)
+            self.datas = self.setup(self.info['keys'])
+        else:
+            self.datas = self.setup(objdict)
+            self.initialize(self.key)
+
+        parallel = max(len(self.datas), 1)
+        self.pool = ThreadPool(nodes=parallel)
+        self.info['dclass'] = self.dclass = 'dataset'
 
     @property
     def shapes(self):
@@ -81,6 +88,9 @@ class Dataset():
 
     def setup(self, objdict):
         self.datas = {}
+        if objdict is None:
+            return self.datas
+
         for k in objdict:
             if isinstance(objdict[k], str):
                 self.datas[k] = HubArray(key=objdict[k])
@@ -89,6 +99,14 @@ class Dataset():
             else:
                 raise Exception(
                     'Input to the dataset is unknown: {}:{}'.format(k, objdict[k]))
+
+        self.info['keys'] = self.keys
+        self.info['chunk_shapes'] = self.chunk_shapes
+        self.info['order'] = self.order
+        self.info['shapes'] = self.shapes
+        self.info['shape'] = self.shape
+        self.info['chunk_shape'] = self.chunk_shape
+
         return self.datas
 
     def to_pytorch(self, transforms=None):
@@ -103,30 +121,6 @@ class Dataset():
     def to_tensorflow(self):
         raise NotImplemented
 
-    def initialize(self, path):
-        cloudpath = "{}/info.txt".format(path)
-        info = self.storage.get(cloudpath)
-
-        if not info and not self.shape:
-            name, dataset, version = self.key.split('/')[-3:]
-            raise DatasetNotFound(
-                'Could not identify dataset with name {}/{}:{}. Please make sure the dataset name is correct.'.format(name, dataset, version))
-
-        if info:
-            info = json.loads(info.decode('utf-8'))
-            self.datas = self.setup(info['keys'])
-        else:
-            info = {
-                'shape': self.shape,
-                'chunk_shape': self.chunk_shape,
-                'key': self.key,
-                'dtype': self.dtype,
-                'order': self.order,
-                'protocol': self.protocol,
-                'keys': self.keys
-            }
-            info = json.dumps(info).encode('utf-8')
-            self.storage.put(cloudpath, info)
 
     def __getitem__(self, slices):
         if not isinstance(slices, list) and not isinstance(slices, tuple):
