@@ -6,10 +6,10 @@ Data fetching happens when indexing of the Array was executed.
 The package fetches the data from local cache or from cloud object storage (S3/GCS/Blob) when indexing of an array was executed.
 When we write data to the indexed array, the package synchronizes the change to the local cache, and then to the S3/GCS/Blob backend.
 
-.. code-block:: ipython
+.. ipython:: python
 
-    > import hub
-    > bigarray = hub.array((10000000000, 512, 512, 3), 
+    >>> import hub
+    >>> bigarray = hub.array((10000000000, 512, 512, 3), 
                     name="test/bigarray:v0")
 
     >>> import numpy as np
