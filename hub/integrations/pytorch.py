@@ -15,7 +15,7 @@ class TorchDataset(data.Dataset):
         self.batch = None
         self.indexbeta = 0
         self.batch_size = dataset.chunk_shape[0]
-  
+
     def __getitem__(self, index):
         """
         Args:
@@ -25,7 +25,7 @@ class TorchDataset(data.Dataset):
         """
         # Load dataset for each worker
         if not self.dataset:
-            self.dataset = hub.dataset(name=self.key)
+            self.dataset = hub.Dataset(key=self.key)
 
         if self.batch is None or self.indexbeta == self.batch_size:
             self.indexbeta = 0

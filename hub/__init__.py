@@ -1,5 +1,6 @@
 import hub
 from hub.marray.interface import array, load, dataset
+from hub.marray.dataset import Dataset
 import click
 import sys
 from hub.log import configure_logger

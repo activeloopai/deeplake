@@ -132,7 +132,7 @@ class Dataset(MetaObject):
             else:
                 return self.datas[slices[0]][slices[1:]]
         else:
-            if len(slices) <= len(self.chunk_shape):
+            if len(slices) <= len(self.shape):
                 datas = [self.datas[k] for k in self.datas]
                 return self.pool.map(lambda x: x[slices], datas)
             else:
