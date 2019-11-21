@@ -40,24 +40,8 @@ Simply declare an array with the namespace inside the code and thats it. “Wher
 
 We’re working on simple authentication system, data management, advanced data caching & fetching, and version controls.
 
-```python
-> import hub
-> import numpy as np
 
-# Create a large array that you can read/write from anywhere.
-> bigarray = hub.array((100000, 512, 512, 3), name="test/bigarray:v0")
 
-# Writing to one slice of the array. Automatically syncs to cloud.
-> image = np.random.random((512,512,3))
-> bigarray[0, :,:, :] = image
-
-# Lazy-Load an existing array from cloud without really downloading the entries
-> imagenet = hub.load(name='imagenet')
-> imagenet.shape
-(1034908, 469, 387, 3)
-# Download the entries from cloud to local on demand.
-> imagenet[0,:,:,:].mean()
-```
 
 ## Usage
 **Step 1.** Install
@@ -133,3 +117,25 @@ Training Deep Learning          |  Data Streaming
 
 ### Acknowledgement
 Acknowledgment: This technology was inspired from our experience at Princeton University at SeungLab and would like to thank William Silversmith @SeungLab and his awesome project [cloud-volume](https://github.com/seung-lab/cloud-volume).
+
+
+```python
+> import tensordb
+
+# Create a large array that you can read/write from anywhere.
+> tensordb.connect(access_token="o87XmS1EgHr81702TkYx")
+> bigarray = tensordb.array((100000, 512, 512, 3), name="test/bigarray:v0")
+
+# Writing to one slice of the array. Automatically syncs to cloud.
+> import numpy as np
+> image = np.random.random((512,512,3))
+> bigarray[0, :,:, :] = image
+
+# Lazy-Load an existing array from cloud without really downloading the entries
+> imagenet = tensordb.load(name='imagenet')
+> imagenet.shape
+(1034908, 469, 387, 3)
+
+# Download the entries from cloud to local on demand.
+> imagenet[0,:,:,:].mean()
+```
