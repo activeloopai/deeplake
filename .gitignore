@@ -170,3 +170,8 @@ hyper.sublime-*
 hyper_search/
 yolo/
 logs/
+
+# other
+.vscode
+.idea
+waymo

@@ -1,17 +1,14 @@
 import hub
 import torch
-from torchvision import transforms
-import torchvision.datasets as datasets
-
 
 def test_pytorch():
     print('testing pytorch')
 
     # Create arrays
-    images = hub.array((100000, 100, 100),
+    images = hub.array((100, 100, 100),
                        name='test/dataloaders:images', dtype='uint8')
     labels = hub.array(
-        (100000, 1), name='test/dataloaders:labels', dtype='uint8')
+        (100, 1), name='test/dataloaders:labels', dtype='uint8')
 
     # Create dataset
     ds = hub.dataset({
@@ -36,22 +33,3 @@ def test_pytorch():
         break
 
     print('pass')
-
-
-def test_keras():
-    print('testing keras')
-    ...
-    print('not implemented')
-
-
-def test_tensorflow():
-    print('testing Tensorflow')
-    ...
-    print('Not implemented')
-
-
-if __name__ == "__main__":
-    test_pytorch()
-    exit()
-    # test_keras()
-    # test_tensorflow()
