@@ -1,3 +1,5 @@
+from google.cloud import storage
+from google.oauth2 import service_account
 import boto3
 import os
 import botocore
@@ -15,6 +17,7 @@ retry = tenacity.retry(
 
 class Storage(object):
     def __init__(self):
+        service_account.Credentials.from_service_account_info()
         self.protocol = ''
         return
 
@@ -46,7 +49,9 @@ class StorageFactory(Storage):
         # S3 object storage
         if isinstance(name, str) and name == 's3':
             return S3()
-
+        # GS object storage
+        elif isinstance(name, str) and name == 'gs':
+            return GS()
         # FileSystem object Storage
         elif isinstance(name, str) and name == 'fs':
             return FS()
@@ -171,3 +176,47 @@ class S3(Storage):
             else:
                 logger.error(err)
                 raise S3Exception(err)
+
+class GS(Storage):
+    def __init__(self):
+        self.protocol = 'gs'
+        self.__bucket_name = 'snark_waymo_open_dataset'
+        self.__bucket = storage.Client().get_bucket(self.__bucket_name)
+
+    @retry
+    def get(self, path):
+        try:
+            # print(path)
+            # path = path.replace('gs://{}/'.format(self.__bucket), '')
+            blob = self.__bucket.blob(path)
+            return blob.download_as_string()
+        except Exception as ex:
+            return None
+            # raise S3Exception(ex)
+
+    @retry
+    def put(self, path, content):
+        try:
+            # path = path.replace('gs://{}/'.format(self.__bucket), '')
+            blob = self.__bucket.blob(path)
+            blob.upload_from_string(content)
+        except Exception as ex:
+            raise S3Exception(ex)
+
+    @retry
+    def delete(self, path):
+        try:
+            # path = path.replace('gs://{}/'.format(self.__bucket), '')
+            self.__bucket.delete_blob(path)
+        except:
+            pass
+
+    @retry
+    def exist(self, path):
+        try:
+            # path = path.replace('gs://{}/'.format(self.__bucket), '')
+            blob = self.__bucket.blob(path)
+            return blob.exists()
+        except: 
+            pass
+        

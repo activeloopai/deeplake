@@ -27,14 +27,28 @@ class TorchDataset(data.Dataset):
         if not self.dataset:
             self.dataset = hub.Dataset(key=self.key)
 
-        if self.batch is None or self.indexbeta == self.batch_size:
-            self.indexbeta = 0
-            self.batch = self.dataset[:self.batch_size]
+        # if self.batch is None or self.indexbeta == self.batch_size:
+        #     self.indexbeta = 0
+        #     self.batch = self.dataset[:self.batch_size]
 
-        output = list(map(lambda x:x[self.indexbeta], self.batch))
-        self.indexbeta += 1
+        # output = list(map(lambda x:x[self.indexbeta], self.batch))
+        # self.indexbeta += 1
+
+        output = list(self.dataset[index])
         
         return (*output, )
 
     def __len__(self):
         return self.size
+
+class TorchIterableDataset(data.IterableDataset):
+    def __init__(self, dataset):
+        self.size = dataset.shape[0]
+        self.key = dataset.key
+        self.dataset = None
+    
+    def __iter__(self):
+        if self.dataset is None:
+            self.dataset = hub.Dataset(key = self.key)
+        for i in self.dataset:
+            yield (*list(i),)

@@ -11,10 +11,14 @@ from hub.marray.array import HubArray
 from .array import MetaObject
 
 try:
-    from hub.integrations import TorchDataset
+    from hub.integrations.pytorch import TorchIterableDataset
 except:
     pass
 
+try:
+    from hub.integrations.tensorflow import HubTensorflowDataset
+except Exception as ex:
+    raise ex
 
 class Dataset(MetaObject):
     def __init__(self, objdict=None, key='', storage=None):
@@ -111,16 +115,17 @@ class Dataset(MetaObject):
 
     def to_pytorch(self, transforms=None):
         try:
-            return TorchDataset(
-                self,
-                transforms=transforms
+            return TorchIterableDataset(
+                self
             )
-        except:
-            Exception('PyTorch is not installed')
+        except Exception as ex:
+            raise ex # Exception('PyTorch is not installed')
 
     def to_tensorflow(self):
-        raise NotImplemented
-
+        try:
+            return HubTensorflowDataset(self)
+        except Exception as ex:
+            raise ex # Exception('TensorFlow is not intalled')
 
     def __getitem__(self, slices):
         if not isinstance(slices, list) and not isinstance(slices, tuple):
@@ -152,3 +157,11 @@ class Dataset(MetaObject):
                 def assign(xy):
                     xy[0][slices] = xy[1]
             return self.pool.map(assign, zip(datas, item))
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __iter__(self):
+        for i in range(0, len(self)):
+            yield self[i]
+        
