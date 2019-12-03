@@ -8,11 +8,11 @@ class TensorflowDataset(tensorflow.data.Dataset):
         pass
 
     def _inputs(self):
-        pass
+        raise NotImplementedError()
 
     @property
     def element_spec(self):
-        pass
+        raise NotImplementedError()
     
     def __iter__(self):
         raise NotImplementedError()
@@ -21,16 +21,17 @@ class TensorflowDataset(tensorflow.data.Dataset):
         raise NotImplementedError()
 
     def apply(self, transformation_func):
-        return ApplyTensorflowDataset(self, transformation_func)
+        raise NotImplementedError()
+        #return ApplyTensorflowDataset(self, transformation_func)
 
     def batch(self, batch_size, drop_remainder=False):
         return BatchTensorflowDataset(self, batch_size, drop_remainder=drop_remainder)
 
     def cache(self, filename=''):
-        pass
+        raise NotImplementedError()
 
     def concatenate(self, dataset):
-        pass
+        raise NotImplementedError()
 
     def enumerate(self, start = 0):
         i = 0
@@ -40,49 +41,49 @@ class TensorflowDataset(tensorflow.data.Dataset):
             i += 1
 
     def filter(self, predicate):
-        pass
+        raise NotImplementedError()
     
     def flat_map(self, map_func):
-        pass
+        raise NotImplementedError()
 
     # def interleave(self, map_func, cycle_length=tensorflow.data.AUTOTUNE, block_length=1, num_parallel_calls=None):
     #     pass
 
     def map(self, map_func, num_parallel_calls=None):
-        pass
+        raise NotImplementedError()
     
     def options(self):
-        pass
+        raise NotImplementedError()
 
     def padded_batch(self, batch_size, padded_shapes, padding_values=None, drop_remainder=False):
-        pass
+        raise NotImplementedError()
 
     def prefetch(self, buffer_size):
-        pass
+        raise NotImplementedError()
 
     def reduce(self, initial_state, reduce_func):
-        pass
+        raise NotImplementedError()
 
     def repeat(self, count=None):
-        pass
+        raise NotImplementedError()
 
     def shard(self, num_shards, index):
-        pass
+        raise NotImplementedError()
 
     def shuffle(self, buffer_size, seed=None, reshuffle_each_iteration=None):
-        pass
+        raise NotImplementedError()
 
     def skip(self, count):
-        pass
+        raise NotImplementedError()
 
     def take(self, count):
-        pass
+        raise NotImplementedError()
 
     def window(self, size, shift=None, stride=1,drop_remainder=False):
-        pass
+        raise NotImplementedError()
 
     def with_options(options):
-        pass
+        raise NotImplementedError()
 
 class HubTensorflowDataset(TensorflowDataset):
     def __init__(self, hub_dataset):
@@ -99,13 +100,13 @@ class HubTensorflowDataset(TensorflowDataset):
             print(i)
             yield (*list(i),)
 
-class ApplyTensorflowDataset(TensorflowDataset):
-    def __init__(self, wrappee, transformation_func):
-        self.__wrappee = wrappee
-        self.__transformation_func = transformation_func
+# class ApplyTensorflowDataset(TensorflowDataset):
+#     def __init__(self, wrappee, transformation_func):
+#         self.__wrappee = wrappee
+#         self.__transformation_func = transformation_func
     
-    def __iter__(self):
-        pass
+#     def __iter__(self):
+#         pass
     
 
 class BatchTensorflowDataset(TensorflowDataset):
