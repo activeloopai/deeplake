@@ -8,6 +8,7 @@ from hub.log import logger
 from hub.utils.store_control import StoreControlClient
 from hub.exceptions import FileSystemException, S3Exception
 from hub.config import CACHE_FILE_PATH
+import gzip
 retry = tenacity.retry(
     reraise=True,
     stop=tenacity.stop_after_attempt(6),
@@ -17,9 +18,7 @@ retry = tenacity.retry(
 
 class Storage(object):
     def __init__(self):
-        service_account.Credentials.from_service_account_info()
         self.protocol = ''
-        return
 
     def get(self, path):
         raise NotImplementedError
@@ -45,7 +44,7 @@ class StorageFactory(Storage):
             '_'.join(map(lambda x: x.protocol, self.storages)))
         self.caching = caching
 
-    def map(self, name):
+    def __map(self, name):
         # S3 object storage
         if isinstance(name, str) and name == 's3':
             return S3()
@@ -60,6 +59,10 @@ class StorageFactory(Storage):
             return name
 
         raise Exception('Backend not found {}'.format(name))
+
+    def map(self, name):
+        storage = self.__map(name)
+        return GZipStorage(storage)
 
     def get(self, path):
         # Return first object found
@@ -179,6 +182,7 @@ class S3(Storage):
 
 class GS(Storage):
     def __init__(self):
+        service_account.Credentials.from_service_account_info()
         self.protocol = 'gs'
         self.__bucket_name = 'snark_waymo_open_dataset'
         self.__bucket = storage.Client().get_bucket(self.__bucket_name)
@@ -220,3 +224,22 @@ class GS(Storage):
         except: 
             pass
         
+class GZipStorage(Storage):
+    def __init__(self, internal_storage):
+        self.__internar_storage = internal_storage
+        self.protocol = internal_storage.protocol
+    
+    def get(self, path):
+        content = self.__internar_storage.get(path);
+        data = gzip.decompress(content)
+        return data
+
+    def put(self, path, content):
+        data = gzip.compress(content)
+        self.__internar_storage.put(path, data)
+
+    def delete(self, path):
+        self.__internar_storage.delete(path)
+    
+    def exist(self, path):
+        return self.__internar_storage.exist(path)

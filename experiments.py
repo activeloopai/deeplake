@@ -46,39 +46,52 @@ from waymo_open_dataset import dataset_pb2 as open_dataset
 import hub
 from PIL import Image
 
-filename = 'waymo/' + os.listdir('waymo')[0]
-dataset = tf.data.TFRecordDataset(filename)
-cnt = 0
+filenames = os.listdir('/home/edward/waymo/validation')[0:1]
+filenames = ['/home/edward/waymo/validation/' + filename for filename in filenames]
+print(filenames)
+image_count = 0
+frame_count = 0
 
-cnt2 = 0
+file_counter = 0
+for filename in filenames:
+    try:
+        dataset = tf.data.TFRecordDataset(filename)
+        print('Image Count: {} File Count: {}/{}'.format(image_count, file_counter + 1, len(filenames)))
+        file_counter += 1
+        for data in dataset:
+            frame_count += 1
+            frame = open_dataset.Frame()
+            frame.ParseFromString(bytearray(data.numpy()))
+            for image in frame.images:
+                if image.name == 1:
+                    image_count += 1 
+    except:
+        print(filename)
 
-for data in dataset:
-    cnt2 += 1
-    frame = open_dataset.Frame()
-    frame.ParseFromString(bytearray(data.numpy()))
-    for image in frame.images:
-        if image.name == 1:
-            cnt += 1 
 
-arr = hub.array((cnt, 1280, 1920, 3 ), name='velocity:v0', backend='gs')
-ds = hub.dataset(name = 'waymo_ds', arrays = {'images_velocity': arr})
+arr = hub.array((image_count, 1280, 1920, 3 ), name='waymo-images:v6', backend='s3', dtype='uint8', chunk_size=(3, 1280, 1920, 3))
+ds = hub.dataset(name = 'waymo-images-dataset', arrays = {'images': arr})
 
-i = 0
-j = 0
-for data in dataset:
-    print("{}/{}".format(j, cnt2))
-    j += 1
-    frame = open_dataset.Frame()
-    frame.ParseFromString(bytearray(data.numpy()))
-    for image in frame.images:
-        if image.name == 1:
-            img = Image.open(io.BytesIO(bytearray(image.image)))
-            a = np.array(img)
-            print(a.shape)
-            arr[i] = a
-            print('Here')
-            i += 1
-            break
+image_index = 0
+frame_index = 0
+for filename in filenames:
+    dataset = tf.data.TFRecordDataset(filename)
+    for datas in dataset.batch(30):
+        images = []
+        print('{}/{}'.format(frame_index + 1, frame_count))
+        for data in datas: 
+            frame_index += 1
+            frame = open_dataset.Frame()
+            frame.ParseFromString(bytearray(data.numpy()))
+            for image in frame.images:
+                if image.name == 1:
+                    img = Image.open(io.BytesIO(bytearray(image.image)))
+                    a = np.array(img)
+                    print(a.shape)
+                    images.append(a)
+        arr[image_index:image_index + len(images)] = images
+        image_index += len(images)
 
+print(arr[6].shape)
 
 
