@@ -69,8 +69,8 @@ for filename in filenames:
         print(filename)
 
 
-arr = hub.array((image_count, 1280, 1920, 3 ), name='waymo-images:v6', backend='s3', dtype='uint8', chunk_size=(3, 1280, 1920, 3))
-ds = hub.dataset(name = 'waymo-images-dataset', arrays = {'images': arr})
+arr = hub.array((image_count, 1280, 1920, 3 ), name='edward/waymo-images:v9', backend='s3', dtype='uint8', chunk_size=(3, 1280, 1920, 3))
+ds = hub.dataset(name = 'edward/waymo-images-dataset', arrays = {'images': arr})
 
 image_index = 0
 frame_index = 0

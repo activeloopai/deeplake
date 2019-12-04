@@ -8,14 +8,13 @@ from hub.marray.dataset import Dataset
 
 
 def _get_path(name, public=False):
+    tag = 'latest'
+    if len(name.split(':')) == 2:
+        tag = name.split(':')[1]
+    name = name.split(':')[0]
     if len(name.split('/')) == 1:
         name = '{}/{}'.format(name, name)
-    user = name.split('/')[0]
-    dataset = name.split('/')[1].split(':')[0]
-    tag = name.split(':')
-    if len(tag) == 1:
-        tag.append('latest')
-    tag = tag[1]
+    user, dataset = name.split('/')
     path = user+'/'+dataset+'/'+tag
     return path
 
