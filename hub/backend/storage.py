@@ -235,7 +235,7 @@ class GZipStorage(Storage):
         return data
 
     def put(self, path, content):
-        data = gzip.compress(content)
+        data = gzip.compress(content, compresslevel=1)
         self.__internar_storage.put(path, data)
 
     def delete(self, path):
