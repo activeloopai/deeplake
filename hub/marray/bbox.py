@@ -148,7 +148,7 @@ def chunknames(bbox, volume_bbox, key, chunk_size, protocol=None):
         filename = ["{}-{}".format(x, max_x)
                     for x, max_x in zip(index, highpt)]
         filename = "_".join(filename)
-        yield path.join(key, filename)
+        yield path.join(key, 'chunks', filename)
 
 
 def check_bounds(val, low, high):

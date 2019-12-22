@@ -67,7 +67,12 @@ from hub.backend.storage import S3
 # img = Image.open(io.BytesIO(bytearray(image.image)))
 # print(np.array(img).shape)
 
-arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
+# arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
 
-img = arr[200][1]
-Image.fromarray(img, 'RGB').save('image.png')
+# img = arr[200][1]
+# Image.fromarray(img, 'RGB').save('image.png')
+
+arr = hub.array(shape=(100, 100), name='test', dtype='int32', chunk_size=(1, 1), storage=S3(bucket='waymo-dataset-upload'))
+arr[5,5] = 20
+arr[6,6] = 20
+print('Hello')

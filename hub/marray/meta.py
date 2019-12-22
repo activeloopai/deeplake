@@ -34,7 +34,7 @@ class MetaObject(object):
 
 
     def initialize(self, path):
-        cloudpath = "{}/info.txt".format(path)
+        cloudpath = "{}/info.json".format(path)
         info = self.storage.get(cloudpath)
         
         if info is None and self.create is None:
