@@ -72,7 +72,7 @@ from hub.backend.storage import S3
 # img = arr[200][1]
 # Image.fromarray(img, 'RGB').save('image.png')
 
-arr = hub.array(shape=(100, 100), name='test', dtype='int32', chunk_size=(1, 1), storage=S3(bucket='waymo-dataset-upload'))
-arr[5,5] = 20
-arr[6,6] = 20
+arr = hub.array(shape=(100, 100, 100000), name='test4', chunk_size=(1, 1, 100000), storage=S3(bucket='waymo-dataset-upload'), compression=None)
+arr[5,5] = np.ones(shape=(100000))
+arr[6,6] = np.ones(shape=(100000))
 print('Hello')

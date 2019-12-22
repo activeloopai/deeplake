@@ -5,9 +5,12 @@ from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 from .meta import MetaObject
 import os
+import io
+import zlib
+from PIL import Image
 
 class HubArray(MetaObject):
-    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None):
+    def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None, compression='zlib', compression_level=6):
         super().__init__(key=key, storage=storage, create=shape)
         
         self.info['shape'] = shape
@@ -17,6 +20,8 @@ class HubArray(MetaObject):
         self.info['protocol'] = protocol
         self.info['order'] = order
         self.info['dclass'] = self.dclass = 'array'
+        self.info['compression'] = compression
+        self.info['compression_level'] = compression_level
 
         parallel = 25 if parallel else 1
 
@@ -48,6 +53,14 @@ class HubArray(MetaObject):
     def protocol(self):
         return self.info['protocol']
 
+    @property
+    def compression(self):
+        return self.info['compression']
+
+    @property
+    def compression_level(self):
+        return self.info['compression_level']
+
     def generate_cloudpaths(self, slices):
         # Slices -> Bbox
         slices = Bbox(Vec.zeros(self.shape), self.shape).reify_slices(slices)
@@ -73,7 +86,15 @@ class HubArray(MetaObject):
 
     # read from raw file and transform to numpy array
     def decode(self, chunk):
-        return np.frombuffer(bytearray(chunk), dtype=self.dtype).reshape(self.chunk_shape, order='F')
+        data = bytearray(chunk)
+        if self.compression == 'zlib':
+            return zlib.decompress(data)
+        elif self.compression == 'jpeg':
+            img = np.array(Image.open(io.BytesIO(data)))
+            img.reshape(self.chunk_shape, order='F')
+            return img
+        else:
+            return np.frombuffer(data, dtype=self.dtype).reshape(self.chunk_shape, order='F')
 
     def download_chunk(self, cloudpath):
         chunk = self.storage.get(cloudpath)
@@ -128,7 +149,15 @@ class HubArray(MetaObject):
         return tensor
 
     def encode(self, chunk):
-        return chunk.tostring('F')
+        if self.compression == 'zlib':
+            return zlib.compress(chunk.tobytes(order='F'), level=self.compression_level)
+        elif self.compression == 'jpeg':
+            byte_stream = io.BytesIO()
+            img = Image.fromarray(chunk)
+            img.save(byte_stream)
+            return byte_stream.getvalue() 
+        else:
+            return chunk.tostring('F')
 
     def upload_chunk(self, cloudpath_chunk):
         cloudpath, chunk = cloudpath_chunk

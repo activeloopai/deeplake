@@ -19,7 +19,7 @@ def _get_path(name, public=False):
     return path
 
 
-def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False, storage=None):
+def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False, storage=None, compression='zlib', compression_level=6):
 
     if not name:
         raise Exception(
@@ -54,7 +54,9 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', c
         chunk_shape=chunk_size,
         key=path,
         protocol=storage.protocol,
-        storage=storage
+        storage=storage,
+        compression=compression,
+        compression_level=compression_level
     )
 
 
