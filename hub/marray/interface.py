@@ -19,7 +19,7 @@ def _get_path(name, public=False):
     return path
 
 
-def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False):
+def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False, storage=None):
 
     if not name:
         raise Exception(
@@ -45,7 +45,8 @@ def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', c
     assert np.array(shape).dtype in np.sctypes['int']
     assert np.array(chunk_size).dtype in np.sctypes['int']
 
-    storage = StorageFactory(protocols=backend, caching=caching)
+    if storage is None:
+        storage = StorageFactory(protocols=backend, caching=caching)
 
     return HubArray(
         shape=shape,
@@ -65,11 +66,12 @@ def dataset(arrays=None, name=None):
     return Dataset(arrays, name)
 
 
-def load(name, backend='s3'):
+def load(name, backend='s3', storage=None):
     is_public = name in ['imagenet', 'cifar', 'coco', 'mnist']
     path = _get_path(name, is_public)
 
-    storage = StorageFactory(protocols=backend)
+    if storage is None:
+        storage = StorageFactory(protocols=backend)
 
     return HubArray(key=path, public=is_public, storage=storage)
 

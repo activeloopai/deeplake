@@ -62,7 +62,8 @@ class StorageFactory(Storage):
 
     def map(self, name):
         storage = self.__map(name)
-        return GZipStorage(storage)
+        return storage
+        #return GZipStorage(storage)
 
     def get(self, path):
         # Return first object found

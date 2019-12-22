@@ -4,6 +4,7 @@ from hub.log import logger
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from hub.exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 from .meta import MetaObject
+import os
 
 class HubArray(MetaObject):
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None):
@@ -19,7 +20,7 @@ class HubArray(MetaObject):
 
         parallel = 25 if parallel else 1
 
-        self.pool = ThreadPool(nodes=parallel)
+        self.pool = ThreadPool(nodes=1)
         self.initialize(self.key)
 
         # Make sure the object was properly initialized
@@ -86,7 +87,7 @@ class HubArray(MetaObject):
 
     def download(self, cloudpaths, requested_bbox):
         # Download chunks
-        chunks_bboxs = self.pool.map(self.download_chunk, cloudpaths)
+        chunks_bboxs = list(map(self.download_chunk, cloudpaths))
 
         # Combine Chunks
         renderbuffer = np.zeros(
@@ -95,7 +96,7 @@ class HubArray(MetaObject):
         def process(chunk_bbox):
             chunk, bbox = chunk_bbox
             shade(renderbuffer, requested_bbox, chunk, bbox)
-        self.pool.map(process, chunks_bboxs)
+        list(map(process, chunks_bboxs))
 
         return renderbuffer
 
@@ -168,7 +169,7 @@ class HubArray(MetaObject):
             raise IncompatibleTypes(err)
 
         cloudpaths_chunks = self.chunkify(cloudpaths, requested_bbox, item)
-        self.pool.map(self.upload_chunk, list(cloudpaths_chunks))
+        list(map(self.upload_chunk, list(cloudpaths_chunks)))
 
     def __setitem__(self, slices, item):
         cloudpaths, requested_bbox = self.generate_cloudpaths(slices)
