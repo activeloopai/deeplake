@@ -7,12 +7,17 @@ from .meta import MetaObject
 import os
 import io
 import zlib
+import gzip
+import pickle
 from PIL import Image
 
 class HubArray(MetaObject):
     def __init__(self, shape=None, chunk_shape=None, dtype=None, key=None, protocol='s3', parallel=True, order='F', public=False, storage=None, compression='zlib', compression_level=6):
         super().__init__(key=key, storage=storage, create=shape)
         
+        if compression is str:
+            compression = compression.lower()
+
         self.info['shape'] = shape
         self.info['chunk_shape'] = chunk_shape
         self.info['dtype'] = dtype
@@ -86,15 +91,23 @@ class HubArray(MetaObject):
 
     # read from raw file and transform to numpy array
     def decode(self, chunk):
-        data = bytearray(chunk)
+        data = chunk
         if self.compression == 'zlib':
-            return zlib.decompress(data)
-        elif self.compression == 'jpeg':
-            img = np.array(Image.open(io.BytesIO(data)))
-            img.reshape(self.chunk_shape, order='F')
-            return img
-        else:
-            return np.frombuffer(data, dtype=self.dtype).reshape(self.chunk_shape, order='F')
+            data = zlib.decompress(chunk)
+        elif self.compression == 'gzip':
+            data = gzip.decompress(chunk)
+        elif self.compression in ['jpeg', 'png']:
+            info = pickle.loads(chunk)
+            shape = info['shape']
+            images = info['images']
+            indexes = list(np.ndindex(shape))
+            arr = np.zeros(self.chunk_shape, dtype='uint8', order='F')
+            for i in range(0, len(images)):
+                img = np.array(Image.open(io.BytesIO(images[i])))
+                img.reshape(self.chunk_shape, order='F')
+                arr[indexes[i]] = img
+            return arr
+        return np.frombuffer(data, dtype=self.dtype).reshape(self.chunk_shape, order='F')
 
     def download_chunk(self, cloudpath):
         chunk = self.storage.get(cloudpath)
@@ -150,12 +163,25 @@ class HubArray(MetaObject):
 
     def encode(self, chunk):
         if self.compression == 'zlib':
-            return zlib.compress(chunk.tobytes(order='F'), level=self.compression_level)
-        elif self.compression == 'jpeg':
-            byte_stream = io.BytesIO()
-            img = Image.fromarray(chunk)
-            img.save(byte_stream)
-            return byte_stream.getvalue() 
+            return zlib.compress(chunk.tobytes(), level=self.compression_level)
+        elif self.compression == 'gzip':
+            return gzip.compress(chunk.tobytes(), compresslevel=self.compression_level)
+        elif self.compression in ['jpeg', 'png']:
+            assert chunk.shape[-1] == 3 # RGB is only supported for now
+            assert len(chunk.shape) > 3
+            
+            new_shape = chunk.shape[:len(chunk.shape) - 3]
+            info = {}
+            info['shape'] = new_shape
+            info['images'] = []
+
+            for index in np.ndindex(new_shape):
+                byte_stream = io.BytesIO()
+                img = Image.fromarray(chunk[index])
+                img.save(byte_stream, format=self.compression)
+
+                info['images'].append(bytearray(byte_stream.getvalue()))
+            return pickle.dumps(info)
         else:
             return chunk.tostring('F')
 
