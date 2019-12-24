@@ -1,5 +1,5 @@
 import hub
-from hub.marray.interface import array, load, dataset
+from hub.marray.interface import array, load, dataset, S3, GS, FS
 from hub.marray.dataset import Dataset
 import click
 import sys

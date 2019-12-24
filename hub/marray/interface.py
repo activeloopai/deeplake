@@ -3,8 +3,10 @@ from hub.utils.store_control import StoreControlClient
 from hub.marray.array import HubArray
 import numpy as np
 from hub.exceptions import WrongTypeError
+import hub.backend.storage 
 from hub.backend.storage import StorageFactory
 from hub.marray.dataset import Dataset
+from hub.marray.bucket import HubBucket
 
 
 def _get_path(name, public=False):
@@ -18,6 +20,14 @@ def _get_path(name, public=False):
     path = user+'/'+dataset+'/'+tag
     return path
 
+def S3(bucket=None, public=False, aws_access_key_id=None, aws_secret_access_key=None, parallel=25):
+    return HubBucket(hub.backend.storage.S3(bucket, public, aws_access_key_id, aws_secret_access_key, parallel), 's3')
+
+def GS():
+    return HubBucket(hub.backend.storage.GS(), 'gs')
+
+def FS(bucket=None):
+    return HubBucket(hub.backend.storage.FS(bucket), 'fs')
 
 def array(shape=None, name=None, dtype='float', chunk_size=None, backend='s3', caching=False, storage=None, compression='zlib', compression_level=6):
 

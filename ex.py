@@ -77,7 +77,8 @@ from hub.backend.storage import S3
 # arr[6,6] = np.ones(shape=(100000))
 # print(arr[5, 5, 3])
 
-arr = hub.array(shape=(5, 1920, 1080, 3), name='test8', dtype='uint8', chunk_size=(1, 1920, 1080, 3), storage=S3(bucket='waymo-dataset-upload'), compression='jpeg')
+bucket = hub.S3(bucket='waymo-dataset-upload')
+arr = bucket.arraynew(shape=(5, 1920, 1080, 3), name='test9', dtype='uint8', chunk=(1, 1920, 1080, 3), compress='jpeg')
 arr[2] = np.ones((1920, 1080, 3))
 arr[3] = np.ones((1920, 1080, 3))
 print(arr[3, 120, 120, 2])
