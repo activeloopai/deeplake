@@ -106,7 +106,6 @@ class Dataset(MetaObject):
 
         self.info['keys'] = self.keys
         self.info['chunk_shapes'] = self.chunk_shapes
-        self.info['order'] = self.order
         self.info['shapes'] = self.shapes
         self.info['shape'] = self.shape
         self.info['chunk_shape'] = self.chunk_shape
