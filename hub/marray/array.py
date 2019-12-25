@@ -22,7 +22,7 @@ class HubArray(MetaObject):
         protocol='s3', 
         parallel=True,  
         public=False, 
-        storage: Optional[hub.backend.storage] = None, 
+        storage: hub.backend.storage = None, 
         compression: Optional[str]='zlib', 
         compression_level: int=6):
 
@@ -36,7 +36,6 @@ class HubArray(MetaObject):
         self.info['dtype'] = dtype
         self.info['key'] = key
         self.info['protocol'] = protocol
-        self.info['order'] = order
         self.info['dclass'] = self.dclass = 'array'
         self.info['compress'] = compression
         self.info['compresslevel'] = compression_level
@@ -66,10 +65,6 @@ class HubArray(MetaObject):
     @property
     def dtype(self) -> str:
         return self.info['dtype']
-    
-    @property
-    def order(self) -> str:
-        return self.info['order']
     
     @property
     def protocol(self) -> str:
