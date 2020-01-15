@@ -27,10 +27,10 @@ def frames_tfrecord(filepath):
 
     return frame_count
 
-path = '/home/edward/waymo/training/'
+path = '/home/edward/waymo/validation/'
 filenames = os.listdir(path)
 filenames.sort()
-pool = ThreadPool(8)
+pool = ProcessPool(16)
 data = pool.map(frames_tfrecord, map(lambda f: path + f, filenames))
 frames = sum(data, 0)
 print('Frames in files: {}, Total: {}'.format(data, frames))
@@ -38,16 +38,16 @@ print('Frames in files: {}, Total: {}'.format(data, frames))
 start_frame = []
 for i in range(0, frames):
     start_frame.append(sum(data[:i],0))
-dataset_type = 'training'
+dataset_type = 'validation'
 version = 'v2'
 storage = S3(bucket='waymo-dataset-upload')
 labels_arr = hub.array(shape=(frames, 2, 6, 30, 7), chunk_size=(100, 2, 6, 30, 7), storage=storage, name='edward/{}-labels:{}'.format(dataset_type, version), backend='s3', dtype='float64')
-images_arr = hub.array(shape=(frames, 6, 1280, 1920, 3), storage=storage, name='edward/{}-camera-images:{}'.format(dataset_type, version), backend='s3', dtype='uint8', chunk_size=(1, 6, 1280, 1920, 3))    
+images_arr = hub.array(compression='jpeg', shape=(frames, 6, 1280, 1920, 3), storage=storage, name='edward/{}-camera-images:{}'.format(dataset_type, version), backend='s3', dtype='uint8', chunk_size=(1, 6, 1280, 1920, 3))    
 
 
 def upload_record(i):
-    # waymo_upload.upload_tfrecord(dataset_type, path + filenames[i], version, start_frame[i])
-    os.system('python3 -c "from waymo_upload import upload_the_record; upload_the_record() ", {} {} {} {}'.format(dataset_type, path + filenames[i], version, start_frame[i]))
+    waymo_upload.upload_tfrecord(dataset_type, path + filenames[i], version, start_frame[i])
+    # os.system('python3 -c "from waymo_upload import upload_the_record; upload_the_record() ", {} {} {} {}'.format(dataset_type, path + filenames[i], version, start_frame[i]))
 
 # for i in range(0, len(filenames), 2):
 #     upload_record(i)

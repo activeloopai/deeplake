@@ -2,13 +2,12 @@ from hub.marray.array import HubArray
 import time
 import numpy as np
 
-
 chunk_sizes = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 8192*2, 8192*4, 8192*8]
 
 download_time = []
 upload_time = []
 for cs in chunk_sizes:
-    x = HubArray((cs,cs), key="test/benchmark:t{}".format(str(cs)), chunk_shape=(cs, cs), dtype='uint8', compression=None)
+    x = HubArray((cs,cs), key="test/benchmark:t{}".format(str(cs)), chunk_shape=(cs, cs), dtype='uint8', compression='zlib')
     arr = (255*np.random.rand(cs, cs)).astype('uint8')
 
     # Upload

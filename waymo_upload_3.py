@@ -66,12 +66,12 @@ def upload_tfrecord(dataset_type, filepath, version, start_frame):
         start_frame += l
 
 def main():
-    path = '/home/edward/waymo/training/'
-    dataset_type = 'training'
+    path = '/home/edward/waymo/validation/'
+    dataset_type = 'validation'
     version = 'v2'
     filenames = os.listdir(path)
     filenames.sort()
-    pool = ProcessPool(8)
+    pool = ProcessPool(16)
     frame_count_arr = pool.map(frames_tfrecord, map(lambda f: path + f, filenames)) 
     frames = sum(frame_count_arr, 0)
 

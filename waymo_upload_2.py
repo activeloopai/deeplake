@@ -92,7 +92,7 @@ def main():
     version = 'v2'
     filenames = os.listdir(path)
     filenames.sort()
-    pool = ProcessPool(8)
+    pool = ProcessPool(16)
     frame_count_arr = pool.map(frames_tfrecord, map(lambda f: path + f, filenames))
     frames = sum(frame_count_arr, 0)
 

@@ -12,6 +12,7 @@ import pickle
 import hub.backend.storage
 from PIL import Image
 from typing import Tuple, Optional
+from hub import codec
 
 class HubArray(MetaObject):
     def __init__(self, 
@@ -24,7 +25,7 @@ class HubArray(MetaObject):
         public=False, 
         storage: hub.backend.storage = None, 
         compression: Optional[str]='zlib', 
-        compression_level: int=6):
+        compression_level: float = 0.5):
 
         super().__init__(key=key, storage=storage, create=shape)
         
@@ -44,11 +45,13 @@ class HubArray(MetaObject):
 
         self.pool = ThreadPool(nodes=1)
         self.initialize(self.key)
+        self._codec = codec.create(self.compression, self.compression_level)
 
         # Make sure the objectmultidimentional was properly initialized
         assert self.shape
         assert self.chunk_shape
         assert self.dtype
+        assert self.compression
 
     @property
     def shape(self) -> Tuple[int]:
@@ -79,11 +82,11 @@ class HubArray(MetaObject):
         return self.info['compress']
 
     @property
-    def compresslevel(self) -> int:
+    def compresslevel(self) -> float:
         return self.info['compresslevel']
 
     @property
-    def compression_level(self) -> int:
+    def compression_level(self) -> float:
         return self.info['compresslevel']
 
     def generate_cloudpaths(self, slices):
@@ -111,23 +114,7 @@ class HubArray(MetaObject):
 
     # read from raw file and transform to numpy array
     def decode(self, chunk: bytes) -> np.ndarray:
-        data = chunk
-        if self.compression == 'zlib':
-            data = zlib.decompress(chunk)
-        elif self.compression == 'gzip':
-            data = gzip.decompress(chunk)
-        elif self.compression in ['jpeg', 'png']:
-            info = pickle.loads(chunk)
-            shape = info['shape']
-            images = info['images']
-            indexes = list(np.ndindex(shape))
-            arr = np.zeros(self.chunk_shape, dtype='uint8')
-            for i in range(0, len(images)):
-                img = np.array(Image.open(io.BytesIO(images[i])))
-                img.reshape(self.chunk_shape)
-                arr[indexes[i]] = img
-            return arr
-        return np.frombuffer(data, dtype=self.dtype).reshape(self.chunk_shape)
+        return self._codec.decode(chunk)
 
     def download_chunk(self, cloudpath):
         chunk = self.storage.get(cloudpath)
@@ -136,6 +123,7 @@ class HubArray(MetaObject):
         else:
             chunk = np.zeros(shape=self.chunk_shape,
                              dtype=self.dtype)
+                             
         bbox = Bbox.from_filename(cloudpath)
         return chunk, bbox
 
@@ -182,28 +170,7 @@ class HubArray(MetaObject):
         return tensor
 
     def encode(self, chunk: np.ndarray) -> bytes:
-        if self.compression == 'zlib':
-            return zlib.compress(chunk.tobytes(), level=self.compresslevel)
-        elif self.compression == 'gzip':
-            return gzip.compress(chunk.tobytes(), compresslevel=self.compresslevel)
-        elif self.compression in ['jpeg', 'png']:
-            assert chunk.shape[-1] == 3 # RGB is only supported for now
-            assert len(chunk.shape) > 3
-            
-            new_shape = chunk.shape[:len(chunk.shape) - 3]
-            info = {}
-            info['shape'] = new_shape
-            info['images'] = []
-
-            for index in np.ndindex(new_shape):
-                byte_stream = io.BytesIO()
-                img = Image.fromarray(chunk[index])
-                img.save(byte_stream, format=self.compression)
-
-                info['images'].append(bytearray(byte_stream.getvalue()))
-            return pickle.dumps(info)
-        else:
-            return chunk.tobytes()
+        return self._codec.encode(chunk)
 
     def upload_chunk(self, cloudpath_chunk):
         cloudpath, chunk = cloudpath_chunk
@@ -218,8 +185,7 @@ class HubArray(MetaObject):
             chunk_slices = (intersection-cloudchunk.minpt).to_slices()
             item_slices = (intersection-requested_bbox.minpt).to_slices()
 
-            chunk = np.zeros(shape=self.chunk_shape,
-                             dtype=self.dtype)
+            chunk = None
             if np.any(np.array(intersection.to_shape()) != np.array(self.chunk_shape)):
                 logger.debug('Non aligned write')
                 chunk, _ = self.download_chunk(path)
@@ -227,6 +193,7 @@ class HubArray(MetaObject):
                 chunk = np.zeros(shape=self.chunk_shape,
                                  dtype=self.dtype)
 
+            chunk.setflags(write=1)
             chunk[chunk_slices] = item[item_slices]
             chunks.append(chunk)
 

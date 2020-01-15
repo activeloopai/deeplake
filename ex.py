@@ -67,21 +67,21 @@ from hub.backend.storage import S3
 # img = Image.open(io.BytesIO(bytearray(image.image)))
 # print(np.array(img).shape)
 
-# arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
+arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
 
-# img = arr[200][1]
-# Image.fromarray(img, 'RGB').save('image.png')
+img = arr[1000, 2]
+Image.fromarray(img, 'RGB').save('image.jpg')
 
 # arr = hub.array(shape=(100, 100, 100000), name='test6', chunk_size=(1, 1, 100000), storage=S3(bucket='waymo-dataset-upload'), compression='gzip')
 # arr[5,5] = np.ones(shape=(100000))
 # arr[6,6] = np.ones(shape=(100000))
 # print(arr[5, 5, 3])
 
-bucket = hub.S3(bucket='waymo-dataset-upload')
-arr = bucket.arraynew(shape=(5, 1920, 1080, 3), name='test10', dtype='uint8', chunk=(1, 1920, 1080, 3), compress='jpeg')
-arr[2] = np.ones((1920, 1080, 3))
-arr[3] = np.ones((1920, 1080, 3))
-print(arr[3, 120, 120, 2])
+# bucket = hub.S3(bucket='waymo-dataset-upload')
+# arr = bucket.arraynew(shape=(5, 1920, 1080, 3), name='test10', dtype='uint8', chunk=(1, 1920, 1080, 3), compress='jpeg')
+# arr[2] = np.ones((1920, 1080, 3))
+# arr[3] = np.ones((1920, 1080, 3))
+# print(arr[3, 120, 120, 2])
 
 # arr = np.array([[1, 2], [3, 4]])
 # print(type(arr))
