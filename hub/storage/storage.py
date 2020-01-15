@@ -9,6 +9,9 @@ class Storage():
 
     def exists(self, path: str) -> bool:
         raise NotImplementedError
+    
+    def delete(self, path: str):
+        raise NotImplementedError()
 
     def get_or_none(self, path: str) -> Optional[bytes]:
         if self.exists(path):

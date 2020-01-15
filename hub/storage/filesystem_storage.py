@@ -26,3 +26,6 @@ class FileSystemStorage(Storage):
     def exists(self, path: str) -> bool:
         path = os.path.join(self._dir, path)
         return os.path.exists(path)
+
+    def delete(self, path: str):
+        os.remove(os.path.join(self._dir, path))

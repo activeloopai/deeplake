@@ -3,11 +3,11 @@ import numpy
 
 class HubArray():
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
     @property
-    def chunk(self) -> Tuple[int]:
+    def chunk(self) -> Tuple[int, ...]:
         raise NotImplementedError()
 
     @property

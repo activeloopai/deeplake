@@ -16,8 +16,8 @@ from hub import codec
 
 class HubArray(MetaObject):
     def __init__(self, 
-        shape: Optional[Tuple[int]] = None, 
-        chunk_shape: Optional[Tuple[int]] = None, 
+        shape: Optional[Tuple[int, ...]] = None, 
+        chunk_shape: Optional[Tuple[int, ...]] = None, 
         dtype: Optional[str] = None, 
         key=None, 
         protocol='s3', 
@@ -54,15 +54,15 @@ class HubArray(MetaObject):
         assert self.compression
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> Tuple[int, ...]:
         return self.info['shape']
     
     @property
-    def chunk(self) -> Tuple[int]:
+    def chunk(self) -> Tuple[int, ...]:
         return self.info['chunk_shape']
 
     @property
-    def chunk_shape(self) -> Tuple[int]:
+    def chunk_shape(self) -> Tuple[int, ...]:
         return self.info['chunk_shape']
 
     @property
