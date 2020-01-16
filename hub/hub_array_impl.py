@@ -9,12 +9,12 @@ from .marray.bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 
 class HubArrayImpl():
-    _props: HubArrayProps = None
+    _props: HubArrayProps = HubArrayProps()
 
     def __init__(self, path: str, storage: Storage):
         self._path = path
         self._storage = storage
-        self._props = json.loads(storage.get(path + "/info.json"))
+        self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = CodecFactory.create(self.compress, self.compresslevel)
     
     @property
@@ -142,7 +142,7 @@ class HubArrayImpl():
 
     def _upload(self, cloudpaths, requested_bbox, item):
         try:
-            item = np.broadcast_to(item, requested_bbox.to_shape())
+            item = numpy.broadcast_to(item, requested_bbox.to_shape())
         except ValueError as err:
             raise IncompatibleBroadcasting(err)
 

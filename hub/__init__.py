@@ -6,6 +6,10 @@ import sys
 from hub.log import configure_logger
 from .cli.auth import configure
 
+from .api.api import amazon_s3 as s3
+from .api.api import filesystem as fs
+from .api.api import bucket
+
 @click.group()
 @click.option('-v', '--verbose', count=True, help='Devel debugging')
 def cli(verbose):

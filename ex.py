@@ -67,10 +67,10 @@ from hub.backend.storage import S3
 # img = Image.open(io.BytesIO(bytearray(image.image)))
 # print(np.array(img).shape)
 
-arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
+# arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
 
-img = arr[1000, 2]
-Image.fromarray(img, 'RGB').save('image.jpg')
+# img = arr[1000, 2]
+# Image.fromarray(img, 'RGB').save('image.jpg')
 
 # arr = hub.array(shape=(100, 100, 100000), name='test6', chunk_size=(1, 1, 100000), storage=S3(bucket='waymo-dataset-upload'), compression='gzip')
 # arr[5,5] = np.ones(shape=(100000))
@@ -87,3 +87,8 @@ Image.fromarray(img, 'RGB').save('image.jpg')
 # print(type(arr))
 # print(arr[1])
 # print(type(arr[1]))
+
+bucket = hub.bucket(hub.fs('~/bucket/'))
+arr = bucket.array_create('sample/sample/v2', shape=(100, 1920, 1080, 3), chunk=(1, 1920, 1080, 3), dtype='uint8', compress='jpeg', overwrite=True)
+arr[5] = 3 * np.ones((1920, 1080, 3), 'uint8')
+print(arr[5, 1, 4, 2])

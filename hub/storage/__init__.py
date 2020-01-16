@@ -1,6 +1,6 @@
 from .storage_factory import StorageFactory as _StorageFactory
 from .storage import Storage
 
-amazon = _StorageFactory.amazon
+amazon_s3 = _StorageFactory.amazon_s3
 filesystem = _StorageFactory.filesystem
 recursive = _StorageFactory.recursive

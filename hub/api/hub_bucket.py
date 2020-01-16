@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Dict
 
 from .hub_array import HubArray
 from .hub_dataset import HubDataset
@@ -13,7 +13,7 @@ class HubBucket():
     def array_delete(self, name: str):
         raise NotImplementedError()
 
-    def dataset_create(self, name: str, components: dict[str, str], overwrite: bool = False) -> HubDataset:
+    def dataset_create(self, name: str, components: Dict[str, str], overwrite: bool = False) -> HubDataset:
         raise NotImplementedError()
 
     def dataset_open(self, name: str) -> HubDataset:
