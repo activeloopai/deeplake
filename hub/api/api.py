@@ -13,7 +13,7 @@ from hub.utils.store_control import StoreControlClient
 from hub.exceptions import FileSystemException, S3Exception
 from hub.config import CACHE_FILE_PATH
 
-def amazon_s3(bucket: Optional[str], aws_creds_filepath: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str]) -> HubBackend:
+def amazon_s3(bucket: Optional[str] = None, aws_creds_filepath: Optional[str] = None, aws_access_key_id: Optional[str] = None, aws_secret_access_key: Optional[str] = None) -> HubBackend:
     if aws_access_key_id is not None or aws_secret_access_key is not None:
         assert aws_access_key_id is not None
         assert aws_secret_access_key is not None

@@ -71,7 +71,7 @@ class HubArrayImpl():
         return cloudpaths, requested_bbox
 
     def _download_chunk(self, cloudpath):
-        chunk = self._storage.get(cloudpath)
+        chunk = self._storage.get_or_none(cloudpath)
         if chunk:
             chunk = self._codec.decode(chunk)
         else:

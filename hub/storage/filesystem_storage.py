@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from .storage import Storage
 from hub.config import CACHE_FILE_PATH
@@ -28,4 +29,8 @@ class FileSystemStorage(Storage):
         return os.path.exists(path)
 
     def delete(self, path: str):
-        os.remove(os.path.join(self._dir, path))
+        path = os.path.join(self._dir, path)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)

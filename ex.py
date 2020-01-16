@@ -88,7 +88,7 @@ from hub.backend.storage import S3
 # print(arr[1])
 # print(type(arr[1]))
 
-bucket = hub.bucket(hub.fs('~/bucket/'))
+bucket = hub.bucket(hub.s3(bucket='snark-hub-main'))
 arr = bucket.array_create('sample/sample/v2', shape=(100, 1920, 1080, 3), chunk=(1, 1920, 1080, 3), dtype='uint8', compress='jpeg', overwrite=True)
-arr[5] = 3 * np.ones((1920, 1080, 3), 'uint8')
+arr[5] = 5 * np.ones((1920, 1080, 3), 'uint8')
 print(arr[5, 1, 4, 2])

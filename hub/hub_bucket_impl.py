@@ -23,8 +23,7 @@ class HubBucketImpl(HubBucket):
         props.compresslevel = compresslevel
 
         assert len(shape) == len(chunk)
-        
-        if not self._storage.exists(name + '/info.json') or overwrite:
+        if overwrite or not self._storage.exists(name + '/info.json'):
             self._storage.put(name + '/info.json', bytes(json.dumps(props.__dict__), 'utf-8'))
 
         if overwrite and self._storage.exists(name + '/chunks'):
