@@ -1,6 +1,6 @@
 from typing import Optional
 
-class Storage():
+class Base():
     def get(self, path: str) -> bytes:
         raise NotImplementedError
 
@@ -17,4 +17,4 @@ class Storage():
         if self.exists(path):
            return self.get(path)
         else:
-            return None 
+            return None

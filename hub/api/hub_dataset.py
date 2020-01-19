@@ -1,4 +1,0 @@
-
-
-class HubDataset():
-    pass

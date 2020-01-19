@@ -1,9 +1,9 @@
 import numpy
 import pickle
 
-from .codec import Codec
+from .base import Base
 
-class ZipCodec(Codec):
+class Zip(Base):
     def __init__(self, compressor, compresslevel: int):
         self._compressor = compressor
         self._compresslevel = compresslevel

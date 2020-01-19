@@ -1,6 +1,5 @@
-from .storage_factory import StorageFactory as _StorageFactory
-from .storage import Storage
-
-amazon_s3 = _StorageFactory.amazon_s3
-filesystem = _StorageFactory.filesystem
-recursive = _StorageFactory.recursive
+from .base import Base
+from .s3 import S3
+from .gs import GS
+from .fs import FS
+from .recursive import Recursive

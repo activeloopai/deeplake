@@ -1,11 +1,11 @@
 import os
-import tensorflow as tf
+# import tensorflow as tf
 import math
 import numpy as np
 import itertools
 import io
 
-tf.enable_eager_execution()
+# tf.enable_eager_execution()
 
 from waymo_open_dataset.utils import range_image_utils
 from waymo_open_dataset.utils import transform_utils
@@ -67,10 +67,13 @@ from hub.backend.storage import S3
 # img = Image.open(io.BytesIO(bytearray(image.image)))
 # print(np.array(img).shape)
 
+client = hub.s3('waymo-dataset-upload').fs('~/bucket/').connect() 
+arr = client.array_open('edward/validation-camera-images/v2')
+
 # arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
 
-# img = arr[1000, 2]
-# Image.fromarray(img, 'RGB').save('image.jpg')
+img = arr[1005, 3]
+Image.fromarray(img, 'RGB').save('image.jpg')
 
 # arr = hub.array(shape=(100, 100, 100000), name='test6', chunk_size=(1, 1, 100000), storage=S3(bucket='waymo-dataset-upload'), compression='gzip')
 # arr[5,5] = np.ones(shape=(100000))
@@ -88,7 +91,9 @@ from hub.backend.storage import S3
 # print(arr[1])
 # print(type(arr[1]))
 
-bucket = hub.bucket(hub.s3(bucket='snark-hub-main'))
+bucket = hub.gs('waymo-dataset-upload', '~/google-creds.json').fs('~/bucket').connect()
 arr = bucket.array_create('sample/sample/v2', shape=(100, 1920, 1080, 3), chunk=(1, 1920, 1080, 3), dtype='uint8', compress='jpeg', overwrite=True)
+arr2 = bucket.array_open('sample/sample/v2')
 arr[5] = 5 * np.ones((1920, 1080, 3), 'uint8')
-print(arr[5, 1, 4, 2])
+print(arr2[5, 1, 4, 2])
+bucket.array_delete('sample/sample/v2')

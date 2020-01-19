@@ -1,7 +1,7 @@
 import numpy
 import pickle
 
-class Codec():
+class Base():
     def encode(self, array: numpy.ndarray) -> bytes:
         raise NotImplementedError()
 

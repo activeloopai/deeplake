@@ -1,9 +1,9 @@
 import boto3
 import botocore
 
-from .storage import Storage
+from .base import Base
 
-class AmazonS3(Storage):
+class S3(Base):
     def __init__(self, bucket: str, aws_access_key_id: str, aws_secret_access_key: str):
         super().__init__()
         self._bucket_name = bucket
@@ -35,4 +35,4 @@ class AmazonS3(Storage):
         return True
     
     def delete(self, path: str):
-        self._client.delete_object(Bucket=self._bucket_name, Key=path)
+        self._bucket.objects.filter(Prefix=path).delete()

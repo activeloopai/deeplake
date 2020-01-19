@@ -1,8 +1,9 @@
-from .codec import Codec
 import numpy
 import pickle
 
-class DefaultCodec(Codec):
+from .base import Base
+
+class Default(Base):
     def __init__(self):
         super().__init__()
 

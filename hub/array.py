@@ -2,20 +2,35 @@ import numpy
 import json
 from typing import Tuple
 
-from .storage import Storage
-from .hub_array_props import HubArrayProps
-from .codec.codec_factory import CodecFactory
+from .storage import Base as Storage
+from . import codec
 from .marray.bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 
-class HubArrayImpl():
-    _props: HubArrayProps = HubArrayProps()
+class Props():
+    shape: Tuple[int, ...] = None
+    chunk_shape: Tuple[int, ...] = None
+    dtype: str = None
+    compress: str = None
+    compresslevel: float = 0.5
+
+    @property
+    def chunk(self) -> Tuple[int, ...]:
+        return self.chunk_shape
+
+    @chunk.setter
+    def chunk(self, value: Tuple[int, ...]):
+        self.chunk_shape = value
+
+
+class Array():
+    _props: Props = Props()
 
     def __init__(self, path: str, storage: Storage):
         self._path = path
         self._storage = storage
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
-        self._codec = CodecFactory.create(self.compress, self.compresslevel)
+        self._codec = codec.from_name(self.compress, self.compresslevel)
     
     @property
     def shape(self) -> Tuple[int, ...]:

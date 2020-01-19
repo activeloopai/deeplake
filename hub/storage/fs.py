@@ -1,11 +1,12 @@
 import os
 import shutil
 
-from .storage import Storage
 from hub.config import CACHE_FILE_PATH
 from hub.exceptions import FileSystemException
 
-class FileSystemStorage(Storage):
+from .base import Base
+
+class FS(Base):
     def __init__(self, dir: str):
         super().__init__()
         self._dir = dir
