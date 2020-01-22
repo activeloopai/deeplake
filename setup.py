@@ -29,7 +29,9 @@ setup(
         "boto3>=1.9.2",
         "botocore>=1.12.204",
         "numpy", 
-        "tenacity"
+        "tenacity",
+        "google-cloud-storage",
+        "lz4"
     ],
     setup_requires=[],
     dependency_links=[],
