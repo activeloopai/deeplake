@@ -59,7 +59,9 @@ class Base():
     @staticmethod
     def _fs(dir: str) -> 'creds.Base':
         dir = os.path.expanduser(dir)
-        assert os.path.isdir(dir)
+        
+        if not os.path.exists(dir):
+            os.makedirs(dir)
         
         return FS(dir)
 

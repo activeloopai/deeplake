@@ -24,11 +24,10 @@ class Props():
 
 
 class Array():
-    _props: Props = Props()
-
     def __init__(self, path: str, storage: Storage):
         self._path = path
         self._storage = storage
+        self._props = Props()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = codec.from_name(self.compress, self.compresslevel)
     

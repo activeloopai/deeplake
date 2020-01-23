@@ -39,7 +39,6 @@ class Bucket():
 
         return Array(name, self._storage)
 
-
     def array_open(self, name: str) -> Array:
         return Array(name, self._storage)
 
@@ -47,10 +46,25 @@ class Bucket():
         return self._storage.delete(name)
 
     def dataset_create(self, name: str, components: Dict[str, str], overwrite: bool = False) -> Dataset:
-        raise NotImplementedError()
+        
+        props = Props()
+        props.paths = {}
+        for key, comp in components.items():
+            if isinstance(comp, Array):
+                props.paths[key] = comp._path
+            elif isinstance(comp, str):
+                props.paths[key] = comp
+            else:
+                raise Exception(
+                    'Input to the dataset is unknown: {}:{}'.format(k, value))
+        
+        if overwrite or not self._storage.exists(name + '/info.json'):
+            self._storage.put(name + '/info.json', bytes(json.dumps(props.__dict__), 'utf-8'))
+        
+        return Dataset(name, self._storage)
 
     def dataset_open(self, name: str) -> Dataset:
-        raise NotImplementedError()
+        return Dataset(name, self._storage)
 
     def dataset_delete(self, name: str):
-        raise NotImplementedError()
+        return self._storage.delete(name) 
