@@ -1,6 +1,7 @@
 import hub
 import torch
 import torch.utils.data as data
+import torchvision.transforms as transforms
     
 class TorchDataset(data.Dataset):
     """ Dataset
@@ -42,13 +43,17 @@ class TorchDataset(data.Dataset):
         return self.size
 
 class TorchIterableDataset(data.IterableDataset):
-    def __init__(self, dataset):
+    def __init__(self, dataset, transforms=None):
         self.size = dataset.shape[0]
-        self.key = dataset.key
+        self.path = dataset._path
+        self.storage = dataset._storage 
         self.dataset = None
-    
+        self.transform = transforms
+        
     def __iter__(self):
         if self.dataset is None:
-            self.dataset = hub.Dataset(key = self.key)
+            self.dataset = hub.Dataset(self.path, self.storage)
+            
         for i in self.dataset:
+            i = self.transform(i)
             yield (*list(i),)

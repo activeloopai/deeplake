@@ -85,7 +85,8 @@ class Dataset():
     def to_pytorch(self, transforms=None):
         try:
             return TorchIterableDataset(
-                self
+                self, 
+                transforms=transforms
             )
         except Exception as ex:
             raise ex # Exception('PyTorch is not installed')
