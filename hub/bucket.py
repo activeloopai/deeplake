@@ -3,7 +3,7 @@ import json
 
 from .array import Array, Props
 from .storage import Base as Storage
-from .dataset import Dataset
+from .dataset import Dataset, DatasetProps
 
 
 class Bucket():
@@ -20,9 +20,9 @@ class Bucket():
         dtype: str, 
         compress: str = 'default', 
         compresslevel: float = 0.5, 
-        overwrite: bool = False
         ) -> Array:
         
+        overwrite = False
         props = Props()
         props.shape = shape
         props.chunk = chunk
@@ -45,9 +45,9 @@ class Bucket():
     def array_delete(self, name: str):
         return self._storage.delete(name)
 
-    def dataset_create(self, name: str, components: Dict[str, str], overwrite: bool = False) -> Dataset:
-        
-        props = Props()
+    def dataset_create(self, name: str, components: Dict[str, str]) -> Dataset:
+        overwrite = False
+        props = DatasetProps()
         props.paths = {}
         for key, comp in components.items():
             if isinstance(comp, Array):
