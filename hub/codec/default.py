@@ -16,4 +16,6 @@ class Default(Base):
 
     def decode(self, bytes: bytes) -> numpy.ndarray:
         info = pickle.loads(bytes)
-        return numpy.frombuffer(info['data'], dtype=info['dtype']).reshape(info['shape'])
+        arr = numpy.frombuffer(bytearray(info['data']), dtype=info['dtype']).reshape(info['shape'])
+        arr.setflags(write=1)
+        return arr
