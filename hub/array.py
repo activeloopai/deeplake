@@ -63,7 +63,7 @@ class Array():
 
     def _generate_cloudpaths(self, slices):
         # Slices -> Bbox
-        slices = Bbox(Vec.zeros(self.shape), self.shape).reify_slices(slices)
+        slices = Bbox(Vec.zeros(self.shape), self.shape).reify_slices(slices, bounded=True)
         requested_bbox = Bbox.from_slices(slices)
 
         # Make sure chunks fit

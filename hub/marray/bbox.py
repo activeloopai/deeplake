@@ -122,13 +122,14 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
 
     spt = max2(src_bbox.minpt, dest_bbox.minpt)
     ept = min2(src_bbox.maxpt, dest_bbox.maxpt)
+
     dbox = Bbox(spt, ept) - dest_bbox.minpt
     ZERO = Vec.zeros(dest_bbox.maxpt)
     istart = max2(spt - src_bbox.minpt, ZERO)
 
     # FIXME in case some here
-    #iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
+    iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
+    #iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
     sbox = Bbox(istart, iend)
     dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
 
