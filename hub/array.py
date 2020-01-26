@@ -1,7 +1,7 @@
 import numpy
 import json
 from typing import Tuple
-from pathos import ThreadPool
+from pathos.threading import ThreadPool
 import multiprocessing as mp
 
 from .storage import Base as Storage
