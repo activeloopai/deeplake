@@ -1,11 +1,14 @@
 import numpy
 import json
 from typing import Tuple
+from pathos import ThreadPool
+import multiprocessing as mp
 
 from .storage import Base as Storage
 from . import codec
 from .marray.bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
+
 
 class Props():
     shape: Tuple[int, ...] = None
@@ -30,6 +33,7 @@ class Array():
         self._props = Props()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = codec.from_name(self.compress, self.compresslevel)
+        self._pool = ThreadPool(mp.cpu_count())
     
     @property
     def shape(self) -> Tuple[int, ...]:
@@ -96,7 +100,7 @@ class Array():
 
     def _download(self, cloudpaths, requested_bbox):
         # Download chunks
-        chunks_bboxs = list(map(self._download_chunk, cloudpaths))
+        chunks_bboxs = list(self._pool.map(self._download_chunk, cloudpaths))
 
         # Combine Chunks
         renderbuffer = numpy.zeros(shape=requested_bbox.to_shape(), dtype=self.dtype)
@@ -104,7 +108,7 @@ class Array():
         def process(chunk_bbox):
             chunk, bbox = chunk_bbox
             shade(renderbuffer, requested_bbox, chunk, bbox)
-        list(map(process, chunks_bboxs))
+        list(self._pool.map(process, chunks_bboxs))
 
         return renderbuffer
 
@@ -166,4 +170,4 @@ class Array():
             raise IncompatibleTypes(err)
 
         cloudpaths_chunks = self._chunkify(cloudpaths, requested_bbox, item)
-        list(map(self._upload_chunk, list(cloudpaths_chunks)))
+        list(self._pool.map(self._upload_chunk, list(cloudpaths_chunks)))
