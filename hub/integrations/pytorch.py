@@ -57,3 +57,6 @@ class TorchIterableDataset(data.IterableDataset):
         for i in self.dataset:
             i = self.transform(i)
             yield (*list(i),)
+            
+    def __len__(self):
+        return self.size//512
