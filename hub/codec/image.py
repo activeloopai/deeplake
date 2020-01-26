@@ -37,14 +37,14 @@ class Image(Base):
     def decode(self, content: bytes) -> numpy.ndarray:
         info = pickle.loads(content)
         if 'image' in info:
-            img = PILImage.open(io.BytesIO(info['image']))
+            img = PILImage.open(io.BytesIO(bytearray(info['image'])))
             img.reshape(info['shape'])
             return img
         else:
             array = numpy.zeros(info['shape'], info['dtype'])
             images = info['images']
             for i, index in enumerate(numpy.ndindex(info['shape'][:-3])):
-                img = PILImage.open(io.BytesIO(images[i]))
+                img = PILImage.open(io.BytesIO(bytearray(images[i])))
                 arr = numpy.asarray(img)
                 array[index] = arr
             return array

@@ -18,6 +18,6 @@ class Zip(Base):
     def decode(self, content: bytes) -> numpy.ndarray:
         info = pickle.loads(content)
         data = self._compressor.decompress(info['data'])
-        return numpy.frombuffer(data, dtype=info['dtype']).reshape(info['shape'])
+        return numpy.frombuffer(bytearray(data), dtype=info['dtype']).reshape(info['shape'])
 
     
