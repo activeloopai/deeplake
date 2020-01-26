@@ -59,4 +59,4 @@ class TorchIterableDataset(data.IterableDataset):
             yield (*list(i),)
             
     def __len__(self):
-        return self.size//512
+        return self.size
