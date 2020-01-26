@@ -4,11 +4,23 @@ import botocore
 from .base import Base
 
 class S3(Base):
-    def __init__(self, bucket: str, aws_access_key_id: str, aws_secret_access_key: str):
+    def __init__(
+        self, 
+        bucket: str, 
+        aws_access_key_id: str, 
+        aws_secret_access_key: str):
+
         super().__init__()
         self._bucket_name = bucket
-        self._client = boto3.client('s3', aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
-        self._resource = boto3.resource('s3', aws_access_key_id = aws_access_key_id, aws_secret_access_key = aws_secret_access_key)
+        self._client = boto3.client(
+            's3', 
+            aws_access_key_id = aws_access_key_id, 
+            aws_secret_access_key = aws_secret_access_key, 
+            botocore.config.Config(max_pool_connections=32))
+        self._resource = boto3.resource(
+            's3', 
+            aws_access_key_id = aws_access_key_id, 
+            aws_secret_access_key = aws_secret_access_key)
         self._bucket = self._resource.Bucket(bucket)
 
     def get(self, path: str) -> bytes:
@@ -22,17 +34,22 @@ class S3(Base):
             'ContentType': ('application/octet-stream'),
         }
         self._client.put_object(**attrs)
-        # self._bucket.Object(path).put({'Body': content, 'ContentType': ('application/octet-stream')})
     
     def exists(self, path: str) -> bool:
-        try:
-            self._resource.Object(self._bucket_name, path).get()
-        except botocore.exceptions.ClientError as ex:
-            if ex.response['Error']['Code'] in ['NoSuchKey', '404']:
-                return False
-            else:
-                raise
-        return True
+        return self.get_or_none(path) is not None
     
     def delete(self, path: str):
         self._bucket.objects.filter(Prefix=path).delete()
+
+    def get_or_none(self, path):
+        try:
+            resp = self._client.get_object(
+                Bucket=self._bucket_name,
+                Key=path,
+            )
+            return resp['Body'].read()
+        except botocore.exceptions.ClientError as err:
+            if err.response['Error']['Code'] == 'NoSuchKey':
+                return None
+            else:
+                raise err
