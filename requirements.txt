@@ -2,7 +2,7 @@ click>=6.7,<7
 pathos>=0.2.2.1
 boto3>=1.9.2
 botocore>=1.12.204
-numpy==1.15
+numpy==1.18.1
 tenacity==5.1.1
 google-cloud-storage
 lz4
