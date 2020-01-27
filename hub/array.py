@@ -25,15 +25,16 @@ class Props():
     def chunk(self, value: Tuple[int, ...]):
         self.chunk_shape = value
 
+pool = ThreadPool(mp.cpu_count())
 
 class Array():
-    def __init__(self, path: str, storage: Storage):
+    def __init__(self, path: str, storage: Storage, threaded=False):
         self._path = path
         self._storage = storage
         self._props = Props()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = codec.from_name(self.compress, self.compresslevel)
-        self._pool = ThreadPool(mp.cpu_count())
+        self._map = pool.map if threaded else map
     
     @property
     def shape(self) -> Tuple[int, ...]:
@@ -89,18 +90,19 @@ class Array():
         return cloudpaths, requested_bbox
 
     def _download_chunk(self, cloudpath):
+        
         chunk = self._storage.get_or_none(cloudpath)
         if chunk:
             chunk = self._codec.decode(chunk)
         else:
             chunk = numpy.zeros(shape=self.chunk, dtype=self.dtype)
-                             
+                  
         bbox = Bbox.from_filename(cloudpath)
         return chunk, bbox
 
     def _download(self, cloudpaths, requested_bbox):
         # Download chunks
-        chunks_bboxs = list(self._pool.map(self._download_chunk, cloudpaths))
+        chunks_bboxs = list(self._map(self._download_chunk, cloudpaths))
 
         # Combine Chunks
         renderbuffer = numpy.zeros(shape=requested_bbox.to_shape(), dtype=self.dtype)
@@ -108,7 +110,7 @@ class Array():
         def process(chunk_bbox):
             chunk, bbox = chunk_bbox
             shade(renderbuffer, requested_bbox, chunk, bbox)
-        list(self._pool.map(process, chunks_bboxs))
+        list(self._map(process, chunks_bboxs))
 
         return renderbuffer
 
@@ -170,4 +172,4 @@ class Array():
             raise IncompatibleTypes(err)
 
         cloudpaths_chunks = self._chunkify(cloudpaths, requested_bbox, item)
-        list(self._pool.map(self._upload_chunk, list(cloudpaths_chunks)))
+        list(self._map(self._upload_chunk, list(cloudpaths_chunks)))

@@ -54,9 +54,9 @@ class TorchIterableDataset(data.IterableDataset):
         if self.dataset is None:
             self.dataset = hub.Dataset(self.path, self.storage)
             
-        for i in self.dataset:
-            i = self.transform(i)
-            yield (*list(i),)
+        for index, x in enumerate(self.dataset):
+            x = self.transform(x)
+            yield (*list(x),)
             
     def __len__(self):
         return self.size

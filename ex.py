@@ -95,5 +95,5 @@ bucket = hub.gs('waymo-dataset-upload', '~/google-creds.json').fs('~/bucket').co
 arr = bucket.array_create('sample/sample/v2', shape=(100, 1920, 1080, 3), chunk=(1, 1920, 1080, 3), dtype='uint8', compress='jpeg', overwrite=True)
 arr2 = bucket.array_open('sample/sample/v2')
 arr[5] = 5 * np.ones((1920, 1080, 3), 'uint8')
-print(arr2[5, 1, 4, 2])
+#print(arr2[5, 1, 4, 2])
 bucket.array_delete('sample/sample/v2')
