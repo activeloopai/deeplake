@@ -1,14 +1,16 @@
 import numpy
 import json
 from typing import Tuple
-from pathos.threading import ThreadPool
-import multiprocessing as mp
+# from pathos.threading import ThreadPool
+
+from multiprocessing.pool import ThreadPool
 
 from .storage import Base as Storage
 from . import codec
 from .marray.bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 
+_hub_thread_pool = None
 
 class Props():
     shape: Tuple[int, ...] = None
@@ -25,16 +27,18 @@ class Props():
     def chunk(self, value: Tuple[int, ...]):
         self.chunk_shape = value
 
-pool = ThreadPool(mp.cpu_count())
-
 class Array():
-    def __init__(self, path: str, storage: Storage, threaded=False):
+    def __init__(self, path: str, storage: Storage, threaded=True):
         self._path = path
         self._storage = storage
         self._props = Props()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = codec.from_name(self.compress, self.compresslevel)
-        self._map = pool.map if threaded else map
+        global _hub_thread_pool
+        if _hub_thread_pool is None:
+            print('Thread Pool Created')
+            _hub_thread_pool = ThreadPool(32)
+        self._map = _hub_thread_pool.map if threaded else map
     
     @property
     def shape(self) -> Tuple[int, ...]:

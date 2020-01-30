@@ -16,7 +16,7 @@ class S3(Base):
             's3', 
             aws_access_key_id = aws_access_key_id, 
             aws_secret_access_key = aws_secret_access_key, 
-            config=botocore.config.Config(max_pool_connections=32))
+            config=botocore.config.Config(max_pool_connections=128))
         self._resource = boto3.resource(
             's3', 
             aws_access_key_id = aws_access_key_id, 
