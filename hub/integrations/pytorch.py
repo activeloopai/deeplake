@@ -50,11 +50,30 @@ class TorchIterableDataset(data.IterableDataset):
         self.dataset = None
         self.transform = transforms
         
+    def _get_common_chunk(self, dataset):
+        batch_sizes = map(lambda x: x[0], dataset.chunks.values())
+        return min(batch_sizes)
+
+    def _enumerate(self, dataset):
+        """
+        Seperate for each worker the id such that there is no conflict
+        """
+        worker_info = torch.utils.data.get_worker_info()
+        id = worker_info.id
+        workers = worker_info.num_workers
+        batch = self._get_common_chunk(dataset)
+
+        # Be careful might contain bugs
+        for i in range(dataset.shape[0]):
+            if (i//batch)%workers == id:
+                yield dataset[i]
+        
     def __iter__(self):
+        
         if self.dataset is None:
             self.dataset = hub.Dataset(self.path, self.storage)
             
-        for index, x in enumerate(self.dataset):
+        for x in self._enumerate(self.dataset):
             x = self.transform(x)
             yield (*list(x),)
             
