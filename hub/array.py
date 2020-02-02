@@ -28,14 +28,14 @@ class Props():
         self.chunk_shape = value
 
 class Array():
-    def __init__(self, path: str, storage: Storage, threaded=True):
+    def __init__(self, path: str, storage: Storage, threaded=False):
         self._path = path
         self._storage = storage
         self._props = Props()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._codec = codec.from_name(self.compress, self.compresslevel)
         global _hub_thread_pool
-        if _hub_thread_pool is None:
+        if _hub_thread_pool is None and threaded:
             print('Thread Pool Created')
             _hub_thread_pool = ThreadPool(32)
         self._map = _hub_thread_pool.map if threaded else map

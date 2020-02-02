@@ -128,10 +128,15 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
     istart = max2(spt - src_bbox.minpt, ZERO)
 
     # FIXME in case some here
-    iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    #iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
+    #iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
+    iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
     sbox = Bbox(istart, iend)
-    dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
+    try:
+        dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
+    except:
+        print('error found')
+        print(dbox.to_slices(), sbox.to_slices())
+        exit()
 
 
 def chunknames(bbox, volume_bbox, key, chunk_size, protocol=None):
