@@ -128,14 +128,19 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
     istart = max2(spt - src_bbox.minpt, ZERO)
 
     # FIXME in case some here
-    #iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
+    iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
+    #print(src_img.shape, (dest_bbox.maxpt - dest_bbox.minpt))
+    #iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
+    #iend = ept - src_bbox.maxpt + (dest_bbox.maxpt - dest_bbox.minpt)
+    #print(iend1, iend2)
+    #exit()
+    #iend = min(iend1, iend2)
     sbox = Bbox(istart, iend)
     try:
         dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
-    except:
-        print('error found')
-        print(dbox.to_slices(), sbox.to_slices())
+    except Exception as e :
+        print('error found {}'.format(str(e)))
+        #print(dbox.to_slices(), sbox.to_slices())
         exit()
 
 
