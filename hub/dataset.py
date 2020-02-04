@@ -131,6 +131,9 @@ class Dataset():
     def __len__(self):
         return self.shape[0]
 
+    def items(self):
+        return list(self._components.items())
+
     def __iter__(self):
         for i in range(0, len(self)):
             yield self[i]
