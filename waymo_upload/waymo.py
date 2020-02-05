@@ -38,26 +38,25 @@ class Waymo:
     pool_size: int = 0
     debug: int = None
 
-    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v023'):
+    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v027'):
         self.dir_in = os.path.expanduser(dir_in)
         self.dir_out = dir_out
-        self.batch_size = 4
-        self.pool_size = 4
+        self.batch_size = 1
+        self.pool_size = 8
         self.debug = None
 
     def get_filenames(self, tag: str):
         dir = os.path.join(self.dir_in, tag)
         files = os.listdir(dir)
         files.sort()
-        files = [os.path.join(dir, f) for f in files]   
+        files = [os.path.join(dir, f) for f in files]  
+        # files = ['/home/edward/waymo/validation/segment-3126522626440597519_806_440_826_440.tfrecord']
         if self.debug is not None:
             return list(files)[:self.debug]
         else:
             return list(files)
     
-    def get_frames(self, tag: str):
-        files = self.get_filenames(tag)
-
+    def get_frames(self, files: [str]):
         # ctx = mp.get_context('fork')
         frames = None
 
@@ -79,8 +78,8 @@ class Waymo:
         dataset = {}
         info = {
             'labels': {
-                'shape': (frame_count, 11, 200, 7),
-                'chunk': (190, 11, 200, 7),
+                'shape': (frame_count, 11, 400, 7),
+                'chunk': (190, 11, 400, 7),
                 'dtype': 'float64',
                 'compress': 'lz4'
             },
@@ -239,7 +238,8 @@ class Waymo:
         for tag in ['validation', 'training']:
             t1 = time.time()
             print('Total {} files in {}'.format(len(self.get_filenames(tag)), tag))
-            frames = self.get_frames(tag)
+            files = self.get_filenames(tag)
+            frames = self.get_frames(self.get_filenames(tag))
             print('Total {} frames in {}'.format(sum(frames), tag))
             self.create_dataset(tag, sum(frames))
             self.upload_record_tag(tag, frames)
