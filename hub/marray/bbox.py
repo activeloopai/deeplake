@@ -124,18 +124,8 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
     ept = min2(src_bbox.maxpt, dest_bbox.maxpt)
 
     dbox = Bbox(spt, ept) - dest_bbox.minpt
-    ZERO = Vec.zeros(dest_bbox.maxpt)
-    istart = max2(spt - src_bbox.minpt, ZERO)
-
-    # FIXME in case some here
-    iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    #print(src_img.shape, (dest_bbox.maxpt - dest_bbox.minpt))
-    #iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
-    #iend = ept - src_bbox.maxpt + (dest_bbox.maxpt - dest_bbox.minpt)
-    #print(iend1, iend2)
-    #exit()
-    #iend = min(iend1, iend2)
-    sbox = Bbox(istart, iend)
+    sbox = Bbox(spt, ept) - src_bbox.minpt
+ 
     try:
         dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
     except Exception as e :
