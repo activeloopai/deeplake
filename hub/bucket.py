@@ -1,9 +1,11 @@
-from typing import Tuple, Dict, Optional
+from typing import *
 import json
 
 from .array import Array, Props
 from .storage import Base as Storage
 from .dataset import Dataset, DatasetProps
+import io
+import torch
 
 
 class Bucket():
@@ -69,3 +71,35 @@ class Bucket():
 
     def dataset_delete(self, name: str):
         return self._storage.delete(name) 
+    
+    def blob_get(self, name: str, none_on_errors: bool = False) -> bytes:
+        if none_on_errors:
+            return self._storage.get_or_none(name)
+        else:
+            return self._storage.get(name)
+
+    def blob_set(self, name: str, content: bytes):
+        self._storage.put(name, content)
+
+    def blob_delete(self, name: str) -> bytes: 
+        self._storage.delete(name)
+    
+    def pytorch_model_get(self, name: str, none_on_errors: bool = False) -> dict:
+        blob = self.blob_get(name, none_on_errors)
+       
+        if blob is None and not none_on_errors:
+            raise Error('Error loading pytorch model')
+        elif blob is None:
+            return None
+        else:
+            f = io.BytesIO(blob)
+            return torch.load(f)
+    
+    def pytorch_model_set(self, name: str, model: dict):
+        f = io.BytesIO()
+        torch.save(model, f)
+        f.seek(0)
+        self.blob_set(name, f.read())
+    
+    def pytorch_model_delete(self, name: str):
+        self.blob_delete(name)
