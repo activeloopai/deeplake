@@ -1,5 +1,6 @@
 from typing import *
 import json
+import os
 
 from .array import Array, Props
 from .storage import Base as Storage
@@ -33,12 +34,15 @@ class Bucket():
         props.compresslevel = compresslevel
 
         assert len(shape) == len(chunk)
-        
-        if overwrite or not self._storage.exists(name + '/info.json'):
-            self._storage.put(name + '/info.json', bytes(json.dumps(props.__dict__), 'utf-8'))
 
-        if overwrite and self._storage.exists(name + '/chunks'):
-            self._storage.delete(name + '/chunks')
+        info_path = os.path.join(name, 'info.json')
+        chunk_path = os.path.join(name, 'chunks')
+
+        if overwrite or not self._storage.exists(info_path):
+            self._storage.put(info_path, bytes(json.dumps(props.__dict__), 'utf-8'))
+
+        if overwrite and self._storage.exists(chunk_path):
+            self._storage.delete(chunk_path)
 
         return Array(name, self._storage)
 
@@ -61,8 +65,10 @@ class Bucket():
                 raise Exception(
                     'Input to the dataset is unknown: {}:{}'.format(k, value))
         
-        if overwrite or not self._storage.exists(name + '/info.json'):
-            self._storage.put(name + '/info.json', bytes(json.dumps(props.__dict__), 'utf-8'))
+        dataset_path = os.path.join(name, 'info.json')
+
+        if overwrite or not self._storage.exists(dataset_path):
+            self._storage.put(dataset_path, bytes(json.dumps(props.__dict__), 'utf-8'))
         
         return Dataset(name, self._storage)
 

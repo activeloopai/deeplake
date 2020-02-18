@@ -1,6 +1,9 @@
+from typing import *
+
 import numpy
 import json
-from typing import Tuple
+import os
+
 # from pathos.threading import ThreadPool
 
 from multiprocessing.pool import ThreadPool
@@ -18,6 +21,7 @@ class Props():
     dtype: str = None
     compress: str = None
     compresslevel: float = 0.5
+    dynamic_dims: int = 0
 
     @property
     def chunk(self) -> Tuple[int, ...]:
@@ -26,14 +30,20 @@ class Props():
     @chunk.setter
     def chunk(self, value: Tuple[int, ...]):
         self.chunk_shape = value
+    
+    def __init__(self, dict: dict = None):
+        if dict is not None:
+            self.__dict__ = dict
 
 class Array():
     def __init__(self, path: str, storage: Storage, threaded=False):
         self._path = path
         self._storage = storage
-        self._props = Props()
-        self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
+        print('$', path)
+        print('$', os.path.join(path,'info.json'))
+        self._props = Props(json.loads(storage.get(os.path.join(path, 'info.json'))))
         self._codec = codec.from_name(self.compress, self.compresslevel)
+        self._dynamic_codec = codec.Default()
         global _hub_thread_pool
         if _hub_thread_pool is None and threaded:
             print('Thread Pool Created')
@@ -43,6 +53,10 @@ class Array():
     @property
     def shape(self) -> Tuple[int, ...]:
         return self._props.shape
+    
+    # @property
+    # def dynamic_shape(self, slices: Union[Slice[int, ...], Tuple[int, ...], List[int, ...]]):
+    #     pass
 
     @property
     def chunk(self) -> Tuple[int, ...]:
