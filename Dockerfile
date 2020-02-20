@@ -1,8 +1,5 @@
-FROM amd64/python:3.6 AS build
+FROM python:3.6
 ADD ./ /workspace
 WORKDIR /workspace
-RUN pip install -e /workspace 
-
-FROM build as dev
-RUN echo $(pip --version)
-RUN pip install torch
+RUN pip install -r requirements.txt
+RUN pip install -e /workspace

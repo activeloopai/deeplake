@@ -67,7 +67,7 @@ from hub.backend.storage import S3
 # img = Image.open(io.BytesIO(bytearray(image.image)))
 # print(np.array(img).shape)
 
-client = hub.s3('waymo-dataset-upload', aws_access_key_id='AKIAIUUHCNWTJRL3MLDA', aws_secret_access_key='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').connect() 
+client = hub.s3('waymo-dataset-upload', aws_creds_filepath='.creds/aws.json').connect() 
 arr = client.array_open('v028/validation/images')
 
 # arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))

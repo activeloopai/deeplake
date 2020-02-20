@@ -14,7 +14,7 @@ tf.enable_eager_execution()
 
 from waymo_open_dataset.utils import range_image_utils
 from waymo_open_dataset.utils import transform_utils
-from waymo_open_dataset.utils import  frame_utils
+from waymo_open_dataset.utils import frame_utils
 from waymo_open_dataset import dataset_pb2 as open_dataset
 import hub
 from hub.backend.storage import S3 as S3, GZipStorage
@@ -29,7 +29,7 @@ import gc
 from concurrent.futures import ProcessPoolExecutor
 
 def conn_setup(bucket: str = 'waymo-dataset-upload') -> hub.Bucket:
-    return hub.s3(bucket=bucket, aws_access_key_id='AKIAIUUHCNWTJRL3MLDA', aws_secret_access_key='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').connect()
+    return hub.s3(bucket=bucket, aws_creds_filepath='.creds/aws.json').connect()
 
 class Waymo:
     dir_in: str = None
@@ -154,7 +154,6 @@ class Waymo:
                             _count += 1
                         
                         ds['labels'].darray[index + i][5 * j + image.name] = (_count, 7)
-
             
             key = 'laser_labels'
             _count = 0

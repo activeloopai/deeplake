@@ -3,9 +3,9 @@ import os, sys, time, random, uuid, traceback
 from setuptools import find_packages, setup
 
 project = "hub"
-version = "0.3.0.0"
+version = "0.4.0.0"
 
-this_directory = os.path.abspath(path.dirname(__file__))
+this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
 

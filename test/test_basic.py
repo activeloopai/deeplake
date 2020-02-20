@@ -71,7 +71,14 @@ def test_squeeze_array():
     x = hub.array((100, 100, 100), name="test/example:3", dtype='uint8')
     assert len(x[0].shape) == 2
     assert len(x[:1].shape) == 3
-    assert len(x[:2, 0, :].shape) == 2
+    assert len(x[:2, 0, :].sh  py2:
+    image: python:2
+    volumes:
+       - ./:/workspace/
+    command: bash -c "
+          cd /workspace
+          && pip install -e .
+          && python -c 'import hub; hub.load(name=\"imagenet/image:train\")'"ape) == 2
     assert len(x[0, 0, :].shape) == 1
     assert x[0, 0, 0] == 0
     print('passed')
