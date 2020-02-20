@@ -13,7 +13,6 @@ from waymo_open_dataset.utils import  frame_utils
 from waymo_open_dataset import dataset_pb2 as open_dataset
 import hub
 from PIL import Image
-from hub.backend.storage import S3
 
 # filenames = os.listdir('/home/edward/waymo/validation')[0:2]
 # filenames = ['/home/edward/waymo/validation/' + filename for filename in filenames]
