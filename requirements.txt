@@ -1,8 +1,9 @@
-click>=6.7,<7
-pathos>=0.2.2.1
-boto3>=1.9.2
+click>=6.7,<8
+pathos==0.2.2.1
+boto3>=1.9.2<3
 botocore>=1.12.204
-numpy==1.18.1
-tenacity==5.1.1
-google-cloud-storage
-lz4
+numpy>=1.18.1<2 
+tenacity>=5<7
+google-cloud-storage>=1<2
+pillow>=6<8
+lz4>=3<4
