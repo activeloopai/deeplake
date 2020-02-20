@@ -1,11 +1,9 @@
 from typing import *
-import json
-import os
+import json, os, sys, time, random, uuid, io
 
 from .array import Array, Props
 from .storage import Base as Storage
 from .dataset import Dataset, DatasetProps
-import io
 import torch
 
 
@@ -18,13 +16,17 @@ class Bucket():
     def array_create(
         self, 
         name: str, 
-        shape: Tuple[int, ...], 
-        chunk: Tuple[int, ...], 
+        shape: Iterable[int], 
+        chunk: Iterable[int], 
         dtype: str, 
         compress: str = 'default', 
         compresslevel: float = 0.5, 
+        dsplit: int = None,
         ) -> Array:
         
+        shape = tuple(shape)
+        chunk = tuple(chunk)
+
         overwrite = False
         props = Props()
         props.shape = shape
@@ -32,6 +34,14 @@ class Bucket():
         props.dtype = dtype
         props.compress = compress
         props.compresslevel = compresslevel
+        if dsplit is not None:
+            assert isinstance(dsplit, int)
+            props.darray = 'darray'
+            darray_path = os.path.join(name, props.darray)
+            darray_shape = shape[:dsplit] + (len(shape) - dsplit,)
+            arr = self.array_create(darray_path, darray_shape, darray_shape, 'int32')
+            slices = tuple(map(lambda s: slice(0, s), shape[:dsplit]))
+            arr[slices] = shape[dsplit:] 
 
         assert len(shape) == len(chunk)
 

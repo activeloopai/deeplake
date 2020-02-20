@@ -1,5 +1,5 @@
-from typing import Optional
-import os
+from typing import *
+import os, sys, time, random, json, itertools, uuid, traceback
 
 from .bucket import Bucket
 from . import storage
@@ -29,7 +29,13 @@ class Base():
             assert aws_creds_filepath is None
             return S3(bucket, aws_access_key_id, aws_secret_access_key)
         elif aws_creds_filepath is not None:
-            raise NotImplementedError()
+            with open(aws_creds_filepath, 'r') as f:
+                j = json.loads(f.read())
+                if not bucket:
+                    bucket = j['bucket']
+                aws_access_key_id = j['aws_access_key_id']
+                aws_secret_access_key = j['aws_secret_access_key']
+                return S3(bucket, aws_access_key_id, aws_secret_access_key)
         else: 
             config = StoreControlClient.get_config()
             if bucket is None:

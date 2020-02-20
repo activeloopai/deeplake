@@ -68,12 +68,14 @@ from hub.backend.storage import S3
 # print(np.array(img).shape)
 
 client = hub.s3('waymo-dataset-upload', aws_access_key_id='AKIAIUUHCNWTJRL3MLDA', aws_secret_access_key='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').connect() 
-arr = client.array_open('v027/training/images')
+arr = client.array_open('v028/validation/images')
 
 # arr = hub.load(name='edward/validation-camera-images:v2', backend='s3', storage=S3(bucket='waymo-dataset-upload'))
 
-img = arr[1995, 3]
-Image.fromarray(img, 'RGB').save('image.jpg')
+for i in range(0, 5):
+    img = arr[10, i]
+    print(img.shape)
+    Image.fromarray(img, 'RGB').save(f'output/image-{i}.jpg')
 
 # arr = hub.array(shape=(100, 100, 100000), name='test6', chunk_size=(1, 1, 100000), storage=S3(bucket='waymo-dataset-upload'), compression='gzip')
 # arr[5,5] = np.ones(shape=(100000))

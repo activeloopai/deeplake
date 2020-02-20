@@ -38,7 +38,7 @@ class Waymo:
     pool_size: int = 0
     debug: int = None
 
-    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v027'):
+    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v029'):
         self.dir_in = os.path.expanduser(dir_in)
         self.dir_out = dir_out
         self.batch_size = 1
@@ -81,7 +81,8 @@ class Waymo:
                 'shape': (frame_count, 11, 400, 7),
                 'chunk': (190, 11, 400, 7),
                 'dtype': 'float64',
-                'compress': 'lz4'
+                'compress': 'lz4',
+                'dsplit': 2,
             },
 
             'lasers_camera_projection': {
@@ -89,6 +90,7 @@ class Waymo:
                 'chunk': (self.batch_size, 5, 2, 200, 2650, 6),
                 'dtype': 'int32',
                 'compress': 'lz4',
+                'dsplit': 3,
             },
 
             'images': {
@@ -96,6 +98,7 @@ class Waymo:
                 'chunk': (self.batch_size, 5, 1280, 1920, 3),
                 'dtype': 'uint8',
                 'compress': 'jpeg',
+                'dsplit': 2,
             },
 
             'lasers_range_image': {
@@ -103,6 +106,7 @@ class Waymo:
                 'chunk': (self.batch_size, 5, 2, 200, 2650, 4),
                 'dtype': 'float32',
                 'compress': 'lz4',
+                'dsplit': 3,
             },
         }
 
@@ -110,7 +114,12 @@ class Waymo:
             dataset[key] = bucket.array_create(os.path.join(self.dir_out, tag, key), **value)
         
         ds = bucket.dataset_create(os.path.join(self.dir_out, tag, 'dataset'), dataset)
-
+        ds['images'].darray[:, :3] = (1280, 1920, 3)
+        ds['images'].darray[:,3:] = (886, 1920, 3)
+        ds['lasers_range_image'].darray[:, 0:1, :] = (64, 2650, 4)
+        ds['lasers_range_image'].darray[:, 1:, :] = (200, 600, 4)
+        ds['lasers_camera_projection'].darray[:, 0:1, :] = (64, 2650, 6)
+        ds['lasers_camera_projection'].darray[:, 1:, :] = (200, 600, 6)
         return ds
 
     def extract_record_batch(self, ds: hub.Dataset, arr: Dict[str, np.ndarray], index: int, batch) -> int:
@@ -131,23 +140,31 @@ class Waymo:
                 if image.name > 0:
                     img = np.array(Image.open(io.BytesIO(bytearray(image.image))))
                     arrkey[i, image.name - 1, :img.shape[0], :img.shape[1]] = img
-
+                     
 
             arrkey = arr['labels'][index + i]
             for j, key in enumerate(['camera_labels', 'projected_lidar_labels']):    
                 for image in getattr(frame, key):
                     if image.name > 0:
+                        _count = 0
                         for l, label in enumerate(image.labels):
                             box = label.box
                             x = np.array([box.center_x, box.center_y, box.center_z, box.length, box.width, box.height, box.heading])
                             arrkey[5 * j + image.name, l] = x
+                            _count += 1
+                        
+                        ds['labels'].darray[index + i][5 * j + image.name] = (_count, 7)
 
             
             key = 'laser_labels'
+            _count = 0
             for j, label in enumerate(getattr(frame, key)):
                 box = label.box
                 x = np.array([box.center_x, box.center_y, box.center_z, box.length, box.width, box.height, box.heading])
                 arrkey[0, j] = x
+                _count += 1
+            
+            ds['labels'].darray[index + i][0] = (_count, 7)
 
             for kid, key in enumerate(['lasers_range_image', 'lasers_camera_projection']):
                 arrkey = arr[key]
@@ -165,6 +182,7 @@ class Waymo:
                                 ) 
 
                             arrkey[i, laser.name - 1, j, :_arr.shape[0], :_arr.shape[1]] = _arr
+                            # print(f'{laser.name - 1}, {key}: {_arr.shape}')
             t2 = time.time()
 
         return cnt

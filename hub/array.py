@@ -1,8 +1,6 @@
 from typing import *
-
-import numpy
-import json
-import os
+import sys, os, json, uuid, traceback, random, time
+import numpy as np
 
 # from pathos.threading import ThreadPool
 
@@ -10,7 +8,7 @@ from multiprocessing.pool import ThreadPool
 
 from .storage import Base as Storage
 from . import codec
-from .marray.bbox import Bbox, chunknames, shade, Vec, generate_chunks
+from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
 from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
 
 _hub_thread_pool = None
@@ -21,7 +19,8 @@ class Props():
     dtype: str = None
     compress: str = None
     compresslevel: float = 0.5
-    dynamic_dims: int = 0
+    # dsplit: Optional[Union[int, List[int]]] = None
+    darray: str = None
 
     @property
     def chunk(self) -> Tuple[int, ...]:
@@ -39,20 +38,27 @@ class Array():
     def __init__(self, path: str, storage: Storage, threaded=False):
         self._path = path
         self._storage = storage
-        print('$', path)
-        print('$', os.path.join(path,'info.json'))
         self._props = Props(json.loads(storage.get(os.path.join(path, 'info.json'))))
         self._codec = codec.from_name(self.compress, self.compresslevel)
-        self._dynamic_codec = codec.Default()
+        self._dcodec = codec.Default()
         global _hub_thread_pool
         if _hub_thread_pool is None and threaded:
-            print('Thread Pool Created')
+            # print('Thread Pool Created')
             _hub_thread_pool = ThreadPool(32)
         self._map = _hub_thread_pool.map if threaded else map
+
+        self._darray = None
+        if self._props.darray:
+            self._darray = Array(os.path.join(path, self._props.darray), storage)
+        # assert isinstance(self._props.dsplit, int)
     
     @property
     def shape(self) -> Tuple[int, ...]:
         return self._props.shape
+
+    @property
+    def darray(self) -> 'Array':
+        return self._darray
     
     # @property
     # def dynamic_shape(self, slices: Union[Slice[int, ...], Tuple[int, ...], List[int, ...]]):
@@ -74,19 +80,62 @@ class Array():
     def compresslevel(self) -> float:
         return self._props.compresslevel
 
+    # @property
+    # def _dshape_path(self):
+    #     return os.path.join(self._path, 'dshape.json')
+
+    # def _get_dshape(self) -> np.ndarray:
+    #     data = self._storage.get(self._dshape_path)
+    #     return self._dcodec.decode(data)
+
+    # def _set_dshape(self, arr: np.ndarray): 
+    #     data = self._dcodec.encode(arr)
+    #     self._storage.put(self._dshape_path, data)
+
+    # def get_shape(self, slices: Iterable[slice]):
+    #     slices = tuple(slices)
+
+    # # Iterable slices
+    # def set_shape(self, slices: Iterable[slice], shape: Iterable[int]):
+    #     slices = tuple(slices)
+    #     shape = tuple(shape)
+    #     assert len(slices) == self._props.dsplit
+    #     assert len(shape) == len(self._props.shape) - self._props.dsplit
+        
+    #     arr = self._get_dshape()
+    #     arr[slices] = shape
+    #     self._set_dshape(arr)
+
     def __getitem__(self, slices: Tuple[slice]):
         cloudpaths, requested_bbox = self._generate_cloudpaths(slices)
         tensor = self._download(cloudpaths, requested_bbox)
         tensor = self._squeeze(slices, tensor)
         return tensor
 
-    def __setitem__(self, slices: Tuple[slice], content: numpy.ndarray):
+    def __setitem__(self, slices: Tuple[slice], content: np.ndarray):
         cloudpaths, requested_bbox = self._generate_cloudpaths(slices)
         self._upload(cloudpaths, requested_bbox, content)
 
     def _generate_cloudpaths(self, slices):
         # Slices -> Bbox
-        slices = Bbox(Vec.zeros(self.shape), self.shape).reify_slices(slices, bounded=True)
+        if isinstance(slices, int):
+            slices = (slices,)
+        elif isinstance(slices, slice):
+            slices = (slices,)
+        slices = tuple(slices)
+        
+        _shape = list(self.shape)
+        if self._darray is not None:
+            s = len(self._darray.shape) - 1
+            arr = self._darray[slices[:s]]
+            res = np.amax(arr, axis=tuple(range(0, len(arr.shape) - 1)))
+            assert len(res.shape) == 1
+            assert len(_shape[s:]) == res.shape[0]
+            _shape[s:] = res
+            _shape = tuple(_shape)
+
+
+        slices = Bbox(Vec.zeros(_shape), _shape).reify_slices(slices, bounded=True)
         requested_bbox = Bbox.from_slices(slices)
 
         # Make sure chunks fit
@@ -113,7 +162,7 @@ class Array():
         if chunk:
             chunk = self._codec.decode(chunk)
         else:
-            chunk = numpy.zeros(shape=self.chunk, dtype=self.dtype)
+            chunk = np.zeros(shape=self.chunk, dtype=self.dtype)
                   
         bbox = Bbox.from_filename(cloudpath)
         return chunk, bbox
@@ -123,7 +172,7 @@ class Array():
         chunks_bboxs = list(self._map(self._download_chunk, cloudpaths))
 
         # Combine Chunks
-        renderbuffer = numpy.zeros(shape=requested_bbox.to_shape(), dtype=self.dtype)
+        renderbuffer = np.zeros(shape=requested_bbox.to_shape(), dtype=self.dtype)
 
         def process(chunk_bbox):
             chunk, bbox = chunk_bbox
@@ -167,10 +216,10 @@ class Array():
             item_slices = (intersection-requested_bbox.minpt).to_slices()
 
             chunk = None
-            if numpy.any(numpy.array(intersection.to_shape()) != numpy.array(self.chunk)):
+            if np.any(np.array(intersection.to_shape()) != np.array(self.chunk)):
                 chunk, _ = self._download_chunk(path)
             else:
-                chunk = numpy.zeros(shape=self.chunk, dtype=self.dtype)
+                chunk = np.zeros(shape=self.chunk, dtype=self.dtype)
 
             chunk.setflags(write=1)
             chunk[chunk_slices] = item[item_slices]
@@ -180,7 +229,7 @@ class Array():
 
     def _upload(self, cloudpaths, requested_bbox, item):
         try:
-            item = numpy.broadcast_to(item, requested_bbox.to_shape())
+            item = np.broadcast_to(item, requested_bbox.to_shape())
         except ValueError as err:
             raise IncompatibleBroadcasting(err)
 
