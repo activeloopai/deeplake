@@ -173,6 +173,7 @@ logs/
 
 # other
 .vscode
+.creds
 .idea
 waymo
 output
