@@ -1,7 +1,7 @@
 from typing import *
 import os, sys, io, time, random, traceback, json
 
-import numpy as numpy
+import numpy as np
 import msgpack
 
 
