@@ -10,3 +10,4 @@ lz4>=3,<4
 tensorflow>=1.14,<2
 torch>=1,<2
 waymo-open-dataset>=1.0.1,<2
+msgpack>=1,<2

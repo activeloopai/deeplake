@@ -1,7 +1,10 @@
-import numpy
+from typing import *
+import os, sys, io, time, random, traceback, json
+
+
+import numpy as np
+import msgpack
 from PIL import Image as PILImage
-import pickle
-import io
 
 from .base import Base
 
@@ -10,10 +13,11 @@ class Image(Base):
         self._format = format
         super().__init__()
 
-    def encode(self, array: numpy.ndarray) -> bytes:
-        info = {}
-        info['shape'] = array.shape
-        info['dtype'] = array.dtype
+    def encode(self, array: np.ndarray) -> bytes:
+        info = {
+            'shape': array.shape,
+            'dtype': array.dtype
+        }
 
         assert array.dtype == 'uint8'
         assert len(array.shape) >= 3
@@ -26,26 +30,26 @@ class Image(Base):
             info['image'] = bs.getvalue()
         else:
             images = []
-            for i, index in enumerate(numpy.ndindex(array.shape[:-3])):
+            for i, index in enumerate(np.ndindex(array.shape[:-3])):
                 bs = io.BytesIO()
                 img = PILImage.fromarray(array[index])
                 img.save(bs, format=self._format)
                 images.append(bs.getvalue())
         info['images'] = images         
-        return pickle.dumps(info)
+        return msgpack.dumps(info)
     
-    def decode(self, content: bytes) -> numpy.ndarray:
-        info = pickle.loads(content)
+    def decode(self, content: bytes) -> np.ndarray:
+        info = msgpack.loads(content)
         if 'image' in info:
             img = PILImage.open(io.BytesIO(bytearray(info['image'])))
             img.reshape(info['shape'])
             return img
         else:
-            array = numpy.zeros(info['shape'], info['dtype'])
+            array = np.zeros(info['shape'], info['dtype'])
             images = info['images']
-            for i, index in enumerate(numpy.ndindex(info['shape'][:-3])):
+            for i, index in enumerate(np.ndindex(info['shape'][:-3])):
                 img = PILImage.open(io.BytesIO(bytearray(images[i])))
-                arr = numpy.asarray(img)
+                arr = np.asarray(img)
                 array[index] = arr
             return array
 

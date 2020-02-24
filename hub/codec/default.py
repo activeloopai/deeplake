@@ -1,5 +1,9 @@
-import numpy
-import pickle
+from typing import *
+import os, sys, io, time, random, traceback, json
+
+import numpy as numpy
+import msgpack
+
 
 from .base import Base
 
@@ -7,14 +11,15 @@ class Default(Base):
     def __init__(self):
         super().__init__()
 
-    def encode(self, array: numpy.ndarray) -> bytes:
-        info = {}
-        info['shape'] = array.shape
-        info['dtype'] = array.dtype
-        info['data'] = array.tobytes()
-        return pickle.dumps(info)
+    def encode(self, array: np.ndarray) -> bytes:
+        info = {
+            'shape': array.shape,
+            'dtype': array.dtype,
+            'data': array.tobytes(),
+        }
+        return msgpack.dumps(info)
 
-    def decode(self, bytes: bytes) -> numpy.ndarray:
-        info = pickle.loads(bytes)
-        arr = numpy.frombuffer(bytearray(info['data']), dtype=info['dtype']).reshape(info['shape'])
-        return arr
+    def decode(self, bytes: bytes) -> np.ndarray:
+        info = msgpack.loads(bytes)
+        return np.frombuffer(bytearray(info['data']), dtype=info['dtype'])\
+                                .reshape(info['shape'])
