@@ -3,6 +3,7 @@ import os, sys, time, random, json, itertools, uuid, traceback
 
 from .bucket import Bucket
 from . import storage
+from .storage.retry_wrapper import RetryWrapper
 from hub.utils.store_control import StoreControlClient
 
 class Base():
@@ -11,7 +12,7 @@ class Base():
         pass
 
     def connect(self) -> Bucket:
-        return Bucket(self._create_storage())
+        return Bucket(RetryWrapper(storage.self._create_storage()))
 
     @staticmethod
     def _s3(
