@@ -1,29 +1,19 @@
 version: '2'
 
 services:
-  test:
-    build:
-      context: . 
-    volumes:
-       - ./:/workspace/
-    command: bash -c "
-          cd /workspace
-          && python3 test/test_basic.py"
-
-  py2:
-    image: python:2
-    volumes:
-       - ./:/workspace/
-    command: bash -c "
-          cd /workspace
-          && pip install -e .
-          && python -c 'import hub; hub.load(name=\"imagenet/image:train\")'"
+  # test:
+  #   build:
+  #     context: . 
+  #   volumes:
+  #      - ./:/workspace/
+  #   command: bash -c "
+  #         cd /workspace
+  #         && python3 test/test_basic.py"
           
   py3:
-    image: python:3
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
        - ./:/workspace/
-    command: bash -c "
-          cd /workspace
-          && pip3 install -e .
-          && python3 -c 'import hub; hub.load(name=\"imagenet/image:train\")'"
+    command: sleep infinity

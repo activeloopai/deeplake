@@ -1,13 +1,16 @@
-import os
-from os import path
+from typing import *
+import os, sys, time, random, uuid, traceback
 from setuptools import find_packages, setup
 
 project = "hub"
-version = "0.2.0.4"
+version = "0.4.0.0"
 
-this_directory = path.abspath(path.dirname(__file__))
-with open(path.join(this_directory, 'README.md')) as f:
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
+
+with open(os.path.join(this_directory, 'requirements.txt'), 'r') as f:
+    requirements = f.readlines()
 
 setup(
     name=project,
@@ -23,14 +26,7 @@ setup(
     zip_safe=False,
     keywords="snark-hub",
     python_requires='>=3',
-    install_requires=[
-        "click>=6.7,<7",
-        "pathos>=0.2.2.1",
-        "boto3>=1.9.2",
-        "botocore>=1.12.204",
-        "numpy", 
-        "tenacity"
-    ],
+    install_requires=requirements,
     setup_requires=[],
     dependency_links=[],
     entry_points={

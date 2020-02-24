@@ -1,12 +1,19 @@
 import hub
 import numpy as np
+import sys, os, time, random, uuid, itertools, json, traceback, io
 
 # Create
-x = hub.array(
-    (50000, 250, 250, 3),
-    name='test/test:v2',
-    dtyp='uint8',
-    chunk_size=(4, 250, 250, 3)
+conn = hub.s3(
+    'waymo-dataset-upload', 
+    aws_creds_filepath='.creds/aws.json'
+    ).connect()
+
+
+x = conn.array_create(
+    shape = (50000, 250, 250, 3),
+    chunk=(4, 250, 250, 3),
+    name= os.path.join('test', f'{int(time.time())}'),
+    dtype='uint8',
 )
 
 # Upload

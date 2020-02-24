@@ -122,15 +122,16 @@ def shade(dest_img, dest_bbox, src_img, src_bbox):
 
     spt = max2(src_bbox.minpt, dest_bbox.minpt)
     ept = min2(src_bbox.maxpt, dest_bbox.maxpt)
-    dbox = Bbox(spt, ept) - dest_bbox.minpt
-    ZERO = Vec.zeros(dest_bbox.maxpt)
-    istart = max2(spt - src_bbox.minpt, ZERO)
 
-    # FIXME in case some here
-    #iend = min2(ept - src_bbox.maxpt, ZERO) + src_img.shape
-    iend = istart + (dest_bbox.maxpt - dest_bbox.minpt)
-    sbox = Bbox(istart, iend)
-    dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
+    dbox = Bbox(spt, ept) - dest_bbox.minpt
+    sbox = Bbox(spt, ept) - src_bbox.minpt
+ 
+    try:
+        dest_img[dbox.to_slices()] = src_img[sbox.to_slices()]
+    except Exception as e :
+        print('error found {}'.format(str(e)))
+        #print(dbox.to_slices(), sbox.to_slices())
+        exit()
 
 
 def chunknames(bbox, volume_bbox, key, chunk_size, protocol=None):
@@ -148,7 +149,7 @@ def chunknames(bbox, volume_bbox, key, chunk_size, protocol=None):
         filename = ["{}-{}".format(x, max_x)
                     for x, max_x in zip(index, highpt)]
         filename = "_".join(filename)
-        yield path.join(key, filename)
+        yield path.join(key, 'chunks', filename)
 
 
 def check_bounds(val, low, high):
