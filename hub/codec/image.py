@@ -16,7 +16,7 @@ class Image(Base):
     def encode(self, array: np.ndarray) -> bytes:
         info = {
             'shape': array.shape,
-            'dtype': array.dtype
+            'dtype': str(array.dtype)
         }
 
         assert array.dtype == 'uint8'

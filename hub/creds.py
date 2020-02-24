@@ -12,7 +12,7 @@ class Base():
         pass
 
     def connect(self) -> Bucket:
-        return Bucket(RetryWrapper(storage.self._create_storage()))
+        return Bucket(RetryWrapper(self._create_storage()))
 
     @staticmethod
     def _s3(

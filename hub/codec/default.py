@@ -14,7 +14,7 @@ class Default(Base):
     def encode(self, array: np.ndarray) -> bytes:
         info = {
             'shape': array.shape,
-            'dtype': array.dtype,
+            'dtype': str(array.dtype),
             'data': array.tobytes(),
         }
         return msgpack.dumps(info)

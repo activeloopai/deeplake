@@ -11,15 +11,15 @@ class Zip(Base):
         self._compressor = compressor
         self._compresslevel = compresslevel
 
-    def encode(self, array: numpy.ndarray) -> bytes:
+    def encode(self, array: np.ndarray) -> bytes:
         info = {
             'shape': array.shape,
-            'dtype': array.dtype,
+            'dtype': str(array.dtype),
             'data': self._compressor.compress(array.tobytes(), self._compresslevel),
         }
         return msgpack.dumps(info)
     
-    def decode(self, content: bytes) -> numpy.ndarray:
+    def decode(self, content: bytes) -> np.ndarray:
         info = msgpack.loads(content)
         data = self._compressor.decompress(info['data'])
         return np.frombuffer(bytearray(data), dtype=info['dtype'])\
