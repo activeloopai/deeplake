@@ -3,7 +3,7 @@ import os, sys, io, time, random, traceback, json
 
 
 import numpy as np
-import msgpack
+import pickle as msgpack
 from PIL import Image as PILImage
 
 from .base import Base
