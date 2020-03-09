@@ -112,7 +112,10 @@ class GS(Base):
 
     def __init__(self, bucket: str, creds_path: str):
         self._bucket = bucket
-        self._creds_path = os.path.expanduser(creds_path)
+        if creds_path is not None:
+            self._creds_path = os.path.expanduser(creds_path)
+        else:
+            self._creds_path = None
 
     def _create_storage(self):
         return storage.GS(self._bucket, self._creds_path)
