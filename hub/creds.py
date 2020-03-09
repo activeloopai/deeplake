@@ -57,10 +57,10 @@ class Base():
             return Recursive(self, self.__class__._s3(bucket, aws_creds_filepath, aws_access_key_id, aws_secret_access_key))
 
     @staticmethod
-    def _gs(bucket: str, creds_path: str):
+    def _gs(bucket: str, creds_path: Optional[str] = None):
         return GS(bucket, creds_path)
 
-    def gs(self, bucket: str, creds_path: str) -> 'creds.Base':
+    def gs(self, bucket: str, creds_path: Optional[str] = None) -> 'creds.Base':
         return Recursive(self, self.__class__._gs(bucket, creds_path))
 
     @staticmethod
