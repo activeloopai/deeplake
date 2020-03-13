@@ -14,6 +14,47 @@ class Bucket():
     def __init__(self, storage: Storage):
         self._storage = storage
 
+    def array(
+        self,
+        name:str, 
+        shape: Iterable[int],
+        chunk: Iterable[int],
+        dtype: Union[str, np.dtype],
+        compress: str = 'default',
+        compresslevel: float = 0.5,
+        dsplit: int = None,
+        ) -> Array:
+
+        return self.array_create(name, shape, chunk, dtype, compress, compresslevel, dsplit)
+    
+    def dataset(self, name: str, components: Dict[str, str]):
+        return self.dataset_create(name, components)
+    
+    def open(self, name: str):
+        jsontext = self._storage.get_or_none(os.path.join(name, 'info.json'))
+        if jsontext is None:
+            return self.blob_get(name)
+        else:
+            d = json.loads(jsontext.decode())
+            if 'compresslevel' in d:
+                return self.array_open(name)
+            else:
+                return self.dataset_open(name)
+
+    def delete(self, name: str):
+        jsontext = self._storage.get_or_none(os.path.join(name, 'info.json'))
+        if jsontext is None:
+            if self._storage.get_or_none(name) is not None:
+                self.blob_delete(name)
+            else:
+                raise Exception(f'Path f{name} is invalid for deletion')
+        else:
+            d = json.loads(jsontext.decode())
+            if 'compresslevel' in d:
+                self.array_delete(name)
+            else:
+                self.dataset_delete(name)
+        
     def array_create(
         self, 
         name: str, 
