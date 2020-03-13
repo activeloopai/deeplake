@@ -5,6 +5,7 @@ from .array import Array, Props
 from .storage import Base as Storage
 from .dataset import Dataset, DatasetProps
 import torch
+import numpy as np
 
 
 class Bucket():
@@ -18,7 +19,7 @@ class Bucket():
         name: str, 
         shape: Iterable[int], 
         chunk: Iterable[int], 
-        dtype: str, 
+        dtype: Union[str, np.dtype], 
         compress: str = 'default', 
         compresslevel: float = 0.5, 
         dsplit: int = None,
@@ -31,7 +32,7 @@ class Bucket():
         props = Props()
         props.shape = shape
         props.chunk = chunk
-        props.dtype = dtype
+        props.dtype = str(dtype)
         props.compress = compress
         props.compresslevel = compresslevel
         if dsplit is not None:
