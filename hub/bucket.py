@@ -73,7 +73,7 @@ class Bucket():
         props = Props()
         props.shape = shape
         props.chunk = chunk
-        props.dtype = str(dtype)
+        props.dtype = np.dtype(dtype).str
         props.compress = compress
         props.compresslevel = compresslevel
         if dsplit is not None:
@@ -102,7 +102,7 @@ class Bucket():
         return Array(name, self._storage)
 
     def array_delete(self, name: str):
-        return self._storage.delete(name)
+        self._storage.delete(name)
 
     def dataset_create(self, name: str, components: Dict[str, str]) -> Dataset:
         overwrite = False
@@ -116,7 +116,7 @@ class Bucket():
             else:
                 raise Exception(
                     'Input to the dataset is unknown: {}:{}'.format(k, value))
-        
+
         dataset_path = os.path.join(name, 'info.json')
 
         if overwrite or not self._storage.exists(dataset_path):

@@ -23,7 +23,7 @@ class RetryWrapper(Base):
     
     @retry(stop_max_attempt_number=3)
     def delete(self, path):
-        self._internal.delete(self, path)
+        self._internal.delete(path)
 
     @retry(stop_max_attempt_number=3)
     def get_or_none(self, path):
