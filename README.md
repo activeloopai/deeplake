@@ -13,7 +13,8 @@ pip3 install hub
 Create a large array remotely on cloud with some parts cached locally. You can read/write from anywhere as if it's a local array!
 ```python
 > import hub
-> bigarray = hub.array((10000000000, 512, 512, 3), name="test/bigarray:v0")
+> bucket = hub.s3('your_bucket_name', 'your_credentials_path.json').connect()
+> bigarray = bucket.array('your_array_name', shape=(10000, 10000, 3), chunk=(100, 100, 1), dtype='uint8')
 ```
 
 # Problems with Current Workflows
@@ -45,14 +46,15 @@ We’re working on simple authentication system, data management, advanced data 
 > import numpy as np
 
 # Create a large array that you can read/write from anywhere.
-> bigarray = hub.array((100000, 512, 512, 3), name="test/bigarray:v0")
+> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
+> bigarray = bucket.array('your_array_name', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='int32')
 
 # Writing to one slice of the array. Automatically syncs to cloud.
 > image = np.random.random((512,512,3))
 > bigarray[0, :,:, :] = image
 
 # Lazy-Load an existing array from cloud without really downloading the entries
-> imagenet = hub.load(name='imagenet')
+> imagenet = bucket.open('imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
 
@@ -69,7 +71,8 @@ pip3 install hub
 **Step 2.** Lazy-load a public dataset, and fetch a single image with up to 50MB/s speed and plot
 ```python
 > import hub
-> imagenet = hub.load(name='imagenet')
+> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
+> imagenet = bucket.open('imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
 
@@ -89,11 +92,12 @@ pip3 install hub
 ```python
 # Create on one machine
 > import numpy as np
-> mnist = hub.array((50000,28,28,1), name="name/random_name:v1")
+> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
+> mnist = bucket.array(shape=(50000,28,28,1), name='name/random_name')
 > mnist[0,:,:,:] = np.random.random((1,28,28,1))
 
 # Access it from another machine
-> mnist = hub.load(name='name/random_name:v1')
+> mnist = bucket.open('name/random_name')
 > print(mnist[0])
 ```
 
