@@ -172,8 +172,8 @@ yolo/
 logs/
 
 # other
-.vscode
-.creds
-.idea
-waymo
-output
+.vscode/
+.creds/
+.idea/
+waymo/
+output/
