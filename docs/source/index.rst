@@ -6,9 +6,9 @@
 Welcome to Hub's documentation!
 ===============================
 
-Hub Array is a scalable numpy-like array stored on the cloud accessible over network as if they're local numpy arrays. 
-You can create a Hub Array on your local environment as large as PetaBytes, use it as a local numpy array without worrying if the local disk/RAM will hold it or not. 
-The Array is created on an object storage on the cloud and cached partially on your local environment. 
+Hub Array is a scalable NumPy-like array stored on the cloud accessible over the network as if they're local NumPy arrays. 
+You can create a Hub Array on your local environment as large as Petabytes, use it as a local NumPy array without worrying if the local disk/RAM will hold it or not. 
+The Array is created on object storage on the cloud and cached partially on your local environment. 
 All read/write to the Array is automatically synchronized to the bucket.
 
 Hub Array aims to provide a cloud-based data management solution for deep learning practitioners. 
@@ -29,8 +29,12 @@ You can read/write from anywhere as if it's a local array!
 .. code-block:: python
 
     import hub
-    bigarray = hub.array((10000000000, 512, 512, 3), 
-                    name="test/bigarray:v0")
+    datahub = hub.s3('your_bucket_name').connect()
+    bigarray = datahub.array('your_array_name', 
+         shape = (10000, 10000, 3), 
+         chunk = (100, 100, 1), 
+         dtype = 'uint8'
+    )
 
 Documentation
 -------------
