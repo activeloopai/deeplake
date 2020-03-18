@@ -1,3 +1,4 @@
+from typing import *
 from google.cloud.storage import Client, Bucket
 from google.oauth2 import service_account
 
@@ -12,13 +13,16 @@ class GS(Base):
     _project: str = None
     _bucket: Bucket = None
 
-    def __init__(self, bucket: str, creds_path: str):
+    def __init__(self, bucket: str, creds_path: Optional[str] = None):
         super().__init__()
-        self._creds = service_account.Credentials.from_service_account_file(creds_path)
-        with open(creds_path, 'rt') as f:
-            self._project = json.loads(f.read())['project_id']
+        if creds_path is not None:
+            self._creds = service_account.Credentials.from_service_account_file(creds_path)
+            with open(creds_path, 'rt') as f:
+                self._project = json.loads(f.read())['project_id']
         
-        self._bucket = Client(self._project, self._creds).bucket(bucket)
+            self._bucket = Client(self._project, self._creds).bucket(bucket)
+        else:
+            self._bucket = Client().bucket(bucket)
         
     
     def get(self, path: str) -> bytes:

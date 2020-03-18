@@ -5,6 +5,7 @@ from .array import Array, Props
 from .storage import Base as Storage
 from .dataset import Dataset, DatasetProps
 import torch
+import numpy as np
 
 
 class Bucket():
@@ -13,12 +14,53 @@ class Bucket():
     def __init__(self, storage: Storage):
         self._storage = storage
 
+    def array(
+        self,
+        name:str, 
+        shape: Iterable[int],
+        chunk: Iterable[int],
+        dtype: Union[str, np.dtype],
+        compress: str = 'default',
+        compresslevel: float = 0.5,
+        dsplit: int = None,
+        ) -> Array:
+
+        return self.array_create(name, shape, chunk, dtype, compress, compresslevel, dsplit)
+    
+    def dataset(self, name: str, components: Dict[str, str]):
+        return self.dataset_create(name, components)
+    
+    def open(self, name: str):
+        jsontext = self._storage.get_or_none(os.path.join(name, 'info.json'))
+        if jsontext is None:
+            return self.blob_get(name)
+        else:
+            d = json.loads(jsontext.decode())
+            if 'compresslevel' in d:
+                return self.array_open(name)
+            else:
+                return self.dataset_open(name)
+
+    def delete(self, name: str):
+        jsontext = self._storage.get_or_none(os.path.join(name, 'info.json'))
+        if jsontext is None:
+            if self._storage.get_or_none(name) is not None:
+                self.blob_delete(name)
+            else:
+                raise Exception(f'Path f{name} is invalid for deletion')
+        else:
+            d = json.loads(jsontext.decode())
+            if 'compresslevel' in d:
+                self.array_delete(name)
+            else:
+                self.dataset_delete(name)
+        
     def array_create(
         self, 
         name: str, 
         shape: Iterable[int], 
         chunk: Iterable[int], 
-        dtype: str, 
+        dtype: Union[str, np.dtype], 
         compress: str = 'default', 
         compresslevel: float = 0.5, 
         dsplit: int = None,
@@ -31,7 +73,7 @@ class Bucket():
         props = Props()
         props.shape = shape
         props.chunk = chunk
-        props.dtype = dtype
+        props.dtype = np.dtype(dtype).str
         props.compress = compress
         props.compresslevel = compresslevel
         if dsplit is not None:
@@ -60,7 +102,7 @@ class Bucket():
         return Array(name, self._storage)
 
     def array_delete(self, name: str):
-        return self._storage.delete(name)
+        self._storage.delete(name)
 
     def dataset_create(self, name: str, components: Dict[str, str]) -> Dataset:
         overwrite = False
@@ -74,7 +116,7 @@ class Bucket():
             else:
                 raise Exception(
                     'Input to the dataset is unknown: {}:{}'.format(k, value))
-        
+
         dataset_path = os.path.join(name, 'info.json')
 
         if overwrite or not self._storage.exists(dataset_path):

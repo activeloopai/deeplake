@@ -3,6 +3,7 @@ import os, sys, time, random, json, itertools, uuid, traceback
 
 from .bucket import Bucket
 from . import storage
+from .storage.retry_wrapper import RetryWrapper
 from hub.utils.store_control import StoreControlClient
 
 class Base():
@@ -11,7 +12,7 @@ class Base():
         pass
 
     def connect(self) -> Bucket:
-        return Bucket(self._create_storage())
+        return Bucket(RetryWrapper(self._create_storage()))
 
     @staticmethod
     def _s3(
@@ -56,10 +57,10 @@ class Base():
             return Recursive(self, self.__class__._s3(bucket, aws_creds_filepath, aws_access_key_id, aws_secret_access_key))
 
     @staticmethod
-    def _gs(bucket: str, creds_path: str):
+    def _gs(bucket: str, creds_path: Optional[str] = None):
         return GS(bucket, creds_path)
 
-    def gs(self, bucket: str, creds_path: str) -> 'creds.Base':
+    def gs(self, bucket: str, creds_path: Optional[str] = None) -> 'creds.Base':
         return Recursive(self, self.__class__._gs(bucket, creds_path))
 
     @staticmethod
@@ -111,7 +112,10 @@ class GS(Base):
 
     def __init__(self, bucket: str, creds_path: str):
         self._bucket = bucket
-        self._creds_path = os.path.expanduser(creds_path)
+        if creds_path is not None:
+            self._creds_path = os.path.expanduser(creds_path)
+        else:
+            self._creds_path = None
 
     def _create_storage(self):
         return storage.GS(self._bucket, self._creds_path)
