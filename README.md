@@ -13,9 +13,11 @@ pip3 install hub
 Create a large array remotely on cloud with some parts cached locally. You can read/write from anywhere as if it's a local array!
 ```python
 > import hub
-> bucket = hub.s3('your_bucket_name', 'your_credentials_path.json').connect()
-> bigarray = bucket.array('your_array_name', shape=(10000, 10000, 3), chunk=(100, 100, 1), dtype='uint8')
+> datahub = hub.s3('your_bucket_name').connect()
+> bigarray = datahub.array('your_array_name', shape=(10000, 10000, 3), chunk=(100, 100, 1), dtype='uint8')
+> bigarray[0,0,0]
 ```
+It automatically finds AWS credentials
 
 # Problems with Current Workflows
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
@@ -46,15 +48,15 @@ We’re working on simple authentication system, data management, advanced data 
 > import numpy as np
 
 # Create a large array that you can read/write from anywhere.
-> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
-> bigarray = bucket.array('your_array_name', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='int32')
+> datahub = hub.gs('your_bucket_name', 'your_creds_path.json').connect()
+> bigarray = datahub.array('your_array_name', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='int32')
 
 # Writing to one slice of the array. Automatically syncs to cloud.
 > image = np.random.random((512,512,3))
 > bigarray[0, :,:, :] = image
 
 # Lazy-Load an existing array from cloud without really downloading the entries
-> imagenet = bucket.open('imagenet')
+> imagenet = datahub.open('imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
 
@@ -71,8 +73,8 @@ pip3 install hub
 **Step 2.** Lazy-load a public dataset, and fetch a single image with up to 50MB/s speed and plot
 ```python
 > import hub
-> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
-> imagenet = bucket.open('imagenet')
+> datahub = hub.gs('your_bucket_name', 'your_creds_path.json').connect()
+> imagenet = datahub.open('imagenet')
 > imagenet.shape
 (1034908, 469, 387, 3)
 
@@ -92,12 +94,12 @@ pip3 install hub
 ```python
 # Create on one machine
 > import numpy as np
-> bucket = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
-> mnist = bucket.array(shape=(50000,28,28,1), name='name/random_name')
+> datahub = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
+> mnist = datahub.array(shape=(50000,28,28,1), name='name/random_name')
 > mnist[0,:,:,:] = np.random.random((1,28,28,1))
 
 # Access it from another machine
-> mnist = bucket.open('name/random_name')
+> mnist = datahub.open('name/random_name')
 > print(mnist[0])
 ```
 
