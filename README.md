@@ -4,7 +4,7 @@
 
 **Hub for machine learning to store large datasets and train models at scale**
 
-Hub includes following features:
+Hub currently supports following features and more coming soon:
  - **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
 
 # Quick Start
