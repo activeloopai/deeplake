@@ -147,6 +147,3 @@ Training Deep Learning          |  Data Streaming
 * **Self-Driving Cars**: Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
-
-### Acknowledgement
-Acknowledgment: This technology was inspired from our experience at Princeton University at SeungLab and would like to thank William Silversmith @SeungLab and his awesome project [cloud-volume](https://github.com/seung-lab/cloud-volume).
