@@ -2,10 +2,10 @@
 
 <img src="docs/logo/hub_logo.png" width="100%"/>
 
-# Introduction
-Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. **Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?**
+**Hub for machine learning to store large datasets and train models at scale**
 
-> **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
+Hub includes following features:
+ - **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
 
 # Quick Start
 
@@ -27,6 +27,9 @@ Create a large array and read/write from anywhere as if it's a local array!
 Instead of `hub.fs(path)` (Local File System), you could also use `hub.s3('bucket_name', aws_access_key_id='...', aws_secret_access_key='...')` or `hub.gs('bucket_name', 'gs_cred_path.json')` or chain them together to enable caching mechanism such as `hub.s3('bucket_name').fs('./path/to/cache')`
 
 # Problems with Current Workflows
+
+Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. **Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?**
+
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
 1. **Data locality**. When you have local GPU servers but store the data in a secure remote data center or on the cloud, you need to plan ahead to download specific datasets to your GPU box because it takes time. Sharing preprocessed dataset from one GPU box across your team is also slow and error-prone if there're multiple preprocessing pipelines.
 
