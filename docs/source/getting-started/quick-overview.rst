@@ -13,7 +13,8 @@ Getting Started
 .. code-block:: python
 
     > import hub
-    > imagenet = hub.load(name='imagenet')
+    > datahub = hub.gs('your_bucket_name', 'your_creds_path.json').connect()
+    > imagenet = datahub.open('imagenet')
     > imagenet.shape
     (1034908, 469, 387, 3)
 
@@ -37,9 +38,10 @@ The package will download the chunk to the local environment and compute locally
 
     # Create on one machine
     > import numpy as np
-    > mnist = hub.array((50000,28,28,1), name="name/random_name:v1")
+    > datahub = hub.gs('your_bucket_name', 'your_creds_path.json').connect()
+    > mnist = datahub.array(shape=(50000,28,28,1), name='name/random_name')
     > mnist[0,:,:,:] = np.random.random((1,28,28,1))
 
     # Access it from another machine
-    > mnist = hub.load(name='name/random_name:v1')
+    > mnist = datahub.open('name/random_name')
     > print(mnist[0])

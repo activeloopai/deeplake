@@ -1,4 +1,4 @@
-[![Documentation Status](https://readthedocs.org/projects/snarkhub/badge/?version=latest)](http://snarkhub.readthedocs.io/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/hubdb/badge/?version=latest)](https://hubdb.readthedocs.io/en/latest/?badge=latest)
 
 <img src="docs/logo/hub.png" width="100%"/>
 
@@ -7,19 +7,24 @@ Most of the time Data Scientists/ML researchers work on data management and prep
 
 > **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet as if they're local numpy arrays.
 
+# Quick Start
+
 Let's see how it works in action:
 ```sh
 pip3 install hub
 ```
 
-Create a large array remotely on cloud with some parts cached locally. You can read/write from anywhere as if it's a local array!
+Create a large array and read/write from anywhere as if it's a local array!
 ```python
 > import hub
-> datahub = hub.s3('your_bucket_name').connect()
-> bigarray = datahub.array('your_array_name', shape=(10000, 10000, 3), chunk=(100, 100, 1), dtype='uint8')
+> datahub = hub.fs('./cache').connect()
+> bigarray = datahub.array('your_array_name', 
+          shape=(10000, 10000, 3), 
+          chunk=(100, 100, 1), 
+          dtype='uint8')
 > bigarray[0,0,0]
 ```
-It automatically finds AWS credentials
+Instead of `hub.fs(path)` (Local File System), you could also use `hub.s3('bucket_name', aws_access_key_id='...', aws_secret_access_key='...')` or `hub.gs('bucket_name', 'gs_cred_path.json')` or chain them together to enable caching mechanism such as `hub.s3('bucket_name').fs('./path/to/cache')`
 
 # Problems with Current Workflows
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers.
@@ -50,7 +55,7 @@ We’re working on simple authentication system, data management, advanced data 
 > import numpy as np
 
 # Create a large array that you can read/write from anywhere.
-> datahub = hub.gs('your_bucket_name', 'your_creds_path.json').connect()
+> datahub = hub.s3('bucket_name', aws_access_key_id='...', aws_secret_access_key='...').connect()
 > bigarray = datahub.array('your_array_name', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='int32')
 
 # Writing to one slice of the array. Automatically syncs to cloud.
@@ -96,7 +101,7 @@ pip3 install hub
 ```python
 # Create on one machine
 > import numpy as np
-> datahub = hub.s3('your_bucket_name', 'your_creds_path.json').connect()
+> datahub = hub.s3('bucket_name', aws_access_key_id='...', aws_secret_access_key='...').connect()
 > mnist = datahub.array(shape=(50000,28,28,1), name='name/random_name')
 > mnist[0,:,:,:] = np.random.random((1,28,28,1))
 
