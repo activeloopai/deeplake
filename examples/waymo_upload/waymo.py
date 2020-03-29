@@ -79,7 +79,7 @@ class Waymo:
         info = {
             'labels': {
                 'shape': (frame_count, 11, 400, 7),
-                'chunk': (190, 11, 400, 7),
+                'chunk': (self.batch_size, 11, 400, 7),
                 'dtype': 'float64',
                 'compress': 'lz4',
                 'dsplit': 2,
@@ -250,9 +250,13 @@ class Waymo:
             for i in range(0, 2):
                 list(pool.map(self._upload_record_file, [input[x] for x in range(i, len(input), 2)]))
         # pool.terminate()
-        
+    
+
+    def get_all_tags(self):
+        return ['validation', 'training']
+
     def process(self):
-        for tag in ['validation', 'training']:
+        for tag in self.get_all_tags():
             t1 = time.time()
             print('Total {} files in {}'.format(len(self.get_filenames(tag)), tag))
             files = self.get_filenames(tag)
