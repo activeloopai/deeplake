@@ -26,6 +26,11 @@ Create a large array and read/write from anywhere as if it's a local array!
 ```
 Instead of `hub.fs(path)` (Local File System), you could also use `hub.s3('bucket_name', aws_access_key_id='...', aws_secret_access_key='...')` or `hub.gs('bucket_name', 'gs_cred_path.json')` or chain them together to enable caching mechanism such as `hub.s3('bucket_name').fs('./path/to/cache')`
 
+# Examples
+- [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
+- [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
+
+
 # Problems with Current Workflows
 
 Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. **Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?**
