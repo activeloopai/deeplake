@@ -17,7 +17,7 @@ from waymo_open_dataset.utils import transform_utils
 from waymo_open_dataset.utils import frame_utils
 from waymo_open_dataset import dataset_pb2 as open_dataset
 import hub
-from hub.backend.storage import S3 as S3, GZipStorage
+# from hub.backend.storage import S3 as S3, GZipStorage
 from PIL import Image
 from time import clock
 from pathos.multiprocessing import ProcessPool
@@ -29,7 +29,7 @@ import gc
 from concurrent.futures import ProcessPoolExecutor
 
 def conn_setup(bucket: str = 'waymo-dataset-upload') -> hub.Bucket:
-    return hub.fs('/drive/upload')
+    return hub.fs('/drive/upload').connect()
     # return hub.s3(bucket=bucket, aws_creds_filepath='.creds/aws.json').connect()
 
 class Waymo:
@@ -39,12 +39,12 @@ class Waymo:
     pool_size: int = 0
     debug: int = None
 
-    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v029', pool_size = 32):
+    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v029', pool_size = 32, debug = None):
         self.dir_in = os.path.expanduser(dir_in)
         self.dir_out = dir_out
         self.batch_size = 1
         self.pool_size = pool_size
-        self.debug = None
+        self.debug = debug
 
     def get_filenames(self, tag: str):
         dir = os.path.join(self.dir_in, tag)
@@ -248,20 +248,20 @@ class Waymo:
 
         with ProcessPoolExecutor(self.pool_size) as pool:
             input = list(zip(files, [tag] * len(files), frames))
-
-            for i in range(0, 2):
-                list(pool.map(self._upload_record_file, [input[x] for x in range(i, len(input), 2)]))
+            pool.map(self._upload_record_file, input)
+            # for i in range(0, 2):
+            #     list(pool.map(self._upload_record_file, [input[x] for x in range(i, len(input), 2)]))
         # pool.terminate()
     
 
     def get_all_tags(self):
         # return ['validation', 'training']
         return [
-            'domain_adaption/training', 
-            'domain_adaption/training/unlabeled',
-            'domain_adaption/testing',
-            'domain_adaption/validation',
-            'domain_adaption/validation/unlabeled',
+            'domain_adaptation/training', 
+            'domain_adaptation/training/unlabeled',
+            'domain_adaptation/testing',
+            'domain_adaptation/validation',
+            'domain_adaptation/validation/unlabeled',
             'training', 
             'testing',
             'validation',
@@ -283,4 +283,4 @@ class Waymo:
 if __name__ == '__main__':
     print('Hello World')
     time.sleep(1)
-    Waymo().process()
+    Waymo('/drive/waymo', '/drive/upload', pool_size = 32, debug = None).process()
