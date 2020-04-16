@@ -59,12 +59,17 @@ class TorchIterableDataset(data.IterableDataset):
         Seperate for each worker the id such that there is no conflict
         """
         worker_info = torch.utils.data.get_worker_info()
+
         if worker_info is None:
             for i, x in enumerate(dataset):
                 yield x
                 
-        id = worker_info.id
-        workers = worker_info.num_workers
+        if worker_info is None:
+            id = 1
+            workers = 1 
+        else:        
+            id = worker_info.id
+            workers = worker_info.num_workers
         batch = self._get_common_chunk(dataset)
 
         # Be careful might contain bugs
