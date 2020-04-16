@@ -82,11 +82,11 @@ class Dataset():
             
         return datas
 
-    def to_pytorch(self, transforms=None):
+    def to_pytorch(self, transform=None):
         try:
             return TorchIterableDataset(
                 self, 
-                transforms=transforms
+                transform=transform
             )
         except Exception as ex:
             raise ex # Exception('PyTorch is not installed')
@@ -108,8 +108,9 @@ class Dataset():
                 return self._components[slices[0]][slices[1:]]
         else:
             if len(slices) <= len(self.shape):
-                datas = [self._components[k] for k in self._components]
-                return list(map(lambda x: x[slices], datas))
+                datas = {key: value[slices] for key, value in self._components.items()}
+                # return list(map(lambda x: x[slices], datas))
+                return datas
             else:
                 raise Exception(
                     'Slices ({}) could not much to multiple arrays'.format(slices))

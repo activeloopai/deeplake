@@ -84,7 +84,7 @@ class Bucket():
             arr = self.array_create(darray_path, darray_shape, darray_shape, 'int32')
             slices = tuple(map(lambda s: slice(0, s), shape[:dsplit]))
             arr[slices] = shape[dsplit:] 
-
+            
         assert len(shape) == len(chunk)
 
         info_path = os.path.join(name, 'info.json')

@@ -43,12 +43,12 @@ class TorchDataset(data.Dataset):
         return self.size
 
 class TorchIterableDataset(data.IterableDataset):
-    def __init__(self, dataset, transforms=None):
+    def __init__(self, dataset, transform=None):
         self.size = dataset.shape[0]
         self.path = dataset._path
         self.storage = dataset._storage 
         self.dataset = None
-        self.transform = transforms
+        self.transform = transform
         
     def _get_common_chunk(self, dataset):
         batch_sizes = map(lambda x: x[0], dataset.chunks.values())
@@ -78,8 +78,10 @@ class TorchIterableDataset(data.IterableDataset):
             self.dataset = hub.Dataset(self.path, self.storage)
             
         for x in self._enumerate(self.dataset):
-            x = self.transform(x)
-            yield (*list(x),)
+            if self.transform:
+                x = self.transform(x)
+            yield x
+        
             
     def __len__(self):
         return self.size
