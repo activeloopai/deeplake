@@ -43,7 +43,7 @@ class Array():
         self._dcodec = codec.Default()
         global _hub_thread_pool
         if _hub_thread_pool is None and threaded:
-            # print('Thread Pool Created')
+            print('Thread Pool Created')
             _hub_thread_pool = ThreadPool(32)
         self._map = _hub_thread_pool.map if threaded else map
 

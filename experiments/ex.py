@@ -14,8 +14,9 @@ import io
 import hub
 from PIL import Image
 
-client = hub.gs('snark_waymo_open_dataset', creds_path='.creds/gs.json').connect() 
-arr = client.array_open('v029/validation/images')
+# client = hub.gs('snark_waymo_open_dataset', creds_path='.creds/gs.json').connect() 
+client = hub.fs('/drive/upload').connect()
+arr = client.array_open('validation/images')
 
 for i in range(0, 5):
     img = arr[10, i]

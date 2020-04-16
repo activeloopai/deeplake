@@ -17,7 +17,7 @@ from waymo_open_dataset.utils import transform_utils
 from waymo_open_dataset.utils import frame_utils
 from waymo_open_dataset import dataset_pb2 as open_dataset
 import hub
-from hub.backend.storage import S3 as S3, GZipStorage
+# from hub.backend.storage import S3 as S3, GZipStorage
 from PIL import Image
 from time import clock
 from pathos.multiprocessing import ProcessPool
@@ -29,7 +29,8 @@ import gc
 from concurrent.futures import ProcessPoolExecutor
 
 def conn_setup(bucket: str = 'waymo-dataset-upload') -> hub.Bucket:
-    return hub.s3(bucket=bucket, aws_creds_filepath='.creds/aws.json').connect()
+    return hub.fs('/drive/upload').connect()
+    # return hub.s3(bucket=bucket, aws_creds_filepath='.creds/aws.json').connect()
 
 class Waymo:
     dir_in: str = None
@@ -38,16 +39,17 @@ class Waymo:
     pool_size: int = 0
     debug: int = None
 
-    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v029'):
+    def __init__(self, dir_in: str = '~/waymo/', dir_out: str = 'v029', pool_size = 32, debug = None):
         self.dir_in = os.path.expanduser(dir_in)
         self.dir_out = dir_out
         self.batch_size = 1
-        self.pool_size = 8
-        self.debug = None
+        self.pool_size = pool_size
+        self.debug = debug
 
     def get_filenames(self, tag: str):
         dir = os.path.join(self.dir_in, tag)
         files = os.listdir(dir)
+        files = list(filter(lambda f: f.endswith('.tfrecord'), files))
         files.sort()
         files = [os.path.join(dir, f) for f in files]  
         # files = ['/home/edward/waymo/validation/segment-3126522626440597519_806_440_826_440.tfrecord']
@@ -79,7 +81,7 @@ class Waymo:
         info = {
             'labels': {
                 'shape': (frame_count, 11, 400, 7),
-                'chunk': (190, 11, 400, 7),
+                'chunk': (self.batch_size, 11, 400, 7),
                 'dtype': 'float64',
                 'compress': 'lz4',
                 'dsplit': 2,
@@ -246,13 +248,27 @@ class Waymo:
 
         with ProcessPoolExecutor(self.pool_size) as pool:
             input = list(zip(files, [tag] * len(files), frames))
-
-            for i in range(0, 2):
-                list(pool.map(self._upload_record_file, [input[x] for x in range(i, len(input), 2)]))
+            pool.map(self._upload_record_file, input)
+            # for i in range(0, 2):
+            #     list(pool.map(self._upload_record_file, [input[x] for x in range(i, len(input), 2)]))
         # pool.terminate()
-        
+    
+
+    def get_all_tags(self):
+        # return ['validation', 'training']
+        return [
+            'domain_adaptation/training', 
+            'domain_adaptation/training/unlabeled',
+            'domain_adaptation/testing',
+            'domain_adaptation/validation',
+            'domain_adaptation/validation/unlabeled',
+            'training', 
+            'testing',
+            'validation',
+        ]
+
     def process(self):
-        for tag in ['validation', 'training']:
+        for tag in self.get_all_tags():
             t1 = time.time()
             print('Total {} files in {}'.format(len(self.get_filenames(tag)), tag))
             files = self.get_filenames(tag)
@@ -267,4 +283,4 @@ class Waymo:
 if __name__ == '__main__':
     print('Hello World')
     time.sleep(1)
-    Waymo().process()
+    Waymo('/drive/waymo', '/drive/upload', pool_size = 32, debug = None).process()
