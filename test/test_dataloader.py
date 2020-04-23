@@ -7,38 +7,40 @@ import torch
 import numpy as np
 from torchvision import transforms
 import random
-from skimage.transform import rotate
+#from skimage.transform import rotate
+
 
 def test_pytorch():
     print('testing pytorch')
 
     # Create arrays
-    images = hub.array((100000, 100, 100),
-                       name='test/dataloaders:images', dtype='uint8')
-    labels = hub.array(
-        (100000, 1), name='test/dataloaders:labels', dtype='uint8')
+    datahub = hub.fs('./data/cache').connect()
+
+    images = datahub.array(name='test/dataloaders/images3',
+                           shape=(100, 100, 100), chunk=(1, 100, 100), dtype='uint8')
+    labels = datahub.array(name='test/dataloaders/labels3',
+                           shape=(100, 1),  chunk=(100, 1), dtype='uint8')
 
     # Create dataset
-    ds = hub.dataset({
+    ds = datahub.dataset(name='test/loaders/dataset2', components={
         'images': images,
         'labels': labels
-    }, name='test/loaders:dataset')
+    })
 
     # Transform to Pytorch
     train_dataset = ds.to_pytorch()
 
     # Create data loader
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=32, num_workers=1,
-        pin_memory=True
+        train_dataset, batch_size=32, num_workers=2,
+        pin_memory=False, shuffle=False, drop_last=False
     )
 
     # Loop over attributes
-    for i, (images, labels) in enumerate(train_loader):
-        print(images.shape, labels.shape)
-        assert (images.shape == (32, 100, 100))
-        assert (labels.shape == (32, 1))
-        break
+    for i, batch in enumerate(train_loader):
+        print(f'iteration {i}: batch size={batch["images"].shape[0]}')
+        #assert (batch['images'].shape == (32, 100, 100))
+        #assert (batch['labels'].shape == (32, 1))
 
     print('pass')
 
@@ -48,11 +50,12 @@ def test_pytorch_new():
 
     # Create arrays
     conn = hub.fs('./data/cache').connect()
-    images = conn.array('test/test1/image2', (1000, 100, 100, 3), chunk=(100, 100, 100, 3), dtype='uint8')
-    labels = conn.array('test/test1/label2', (1000, 1) , chunk=(100, 1), dtype='uint8')
-    masks = conn.array('test/test1/mask2', (1000, 100, 100) , chunk=(100, 100, 100), dtype='uint8')
-    
-    
+    images = conn.array('test/test1/image2', (1000, 100, 100, 3),
+                        chunk=(100, 100, 100, 3), dtype='uint8')
+    labels = conn.array('test/test1/label2', (1000, 1),
+                        chunk=(100, 1), dtype='uint8')
+    masks = conn.array('test/test1/mask2', (1000, 100, 100),
+                       chunk=(100, 100, 100), dtype='uint8')
 
     # Create dataset
     ds = conn.dataset(name='test/test1/loaders2', components={
@@ -62,7 +65,7 @@ def test_pytorch_new():
     })
 
     # Transform to Pytorch
-    train_dataset = ds.to_pytorch(transform = ToTensor())
+    train_dataset = ds.to_pytorch(transform=ToTensor())
 
     # Create data loader
     train_loader = torch.utils.data.DataLoader(
@@ -105,8 +108,8 @@ def test_tensorflow():
 
 
 if __name__ == "__main__":
-    # test_pytorch()
-    test_pytorch_new()
-    exit()
+    test_pytorch()
+    # test_pytorch_new()
+    # exit()
     # test_keras()
     # test_tensorflow()
