@@ -8,7 +8,7 @@ from .dataset import Dataset, DatasetProps
 try:
     import torch
 except ImportError:
-    raise ImportError("not able to import torch")
+    pass
 
 import numpy as np
 
