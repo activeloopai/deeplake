@@ -8,26 +8,28 @@ try:
 except:
     pass
 
-#try:
-#    from hub.integrations.tensorflow import HubTensorflowDataset
-#except Exception as ex:
-#    pass
+try:
+    from hub.integrations.tensorflow import HubTensorflowDataset
+except Exception as ex:
+    pass
 
-class DatasetProps():
+
+class DatasetProps:
     paths: Dict[str, str] = None
-    
-class Dataset():
+
+
+class Dataset:
     def __init__(self, path: str, storage: Storage):
         self._path = path
         self._storage = storage
         self._props = DatasetProps()
         self._props.__dict__ = json.loads(storage.get(path + "/info.json"))
         self._components = self._setup(self.paths)
-        
+
     @property
     def paths(self) -> Dict[str, str]:
         return self._props.paths
-    
+
     @property
     def shape(self) -> Tuple[int, ...]:
         return self._common_shape(self.shapes)
@@ -38,28 +40,27 @@ class Dataset():
 
     @property
     def shapes(self) -> Dict[str, Tuple[int, ...]]:
-        return self._get_property('shape')
-    
+        return self._get_property("shape")
+
     @property
     def chunks(self) -> Dict[str, Tuple[int, ...]]:
-        return self._get_property('chunk')
-    
+        return self._get_property("chunk")
+
     @property
     def dtype(self) -> Dict[str, str]:
-        return self._get_property('dtype')
+        return self._get_property("dtype")
 
     @property
     def compress(self) -> Dict[str, str]:
-        return self._get_property('compress') 
-    
+        return self._get_property("compress")
+
     @property
     def compresslevel(self) -> Dict[str, float]:
-        return self._get_property('compresslevel') 
+        return self._get_property("compresslevel")
 
     def _get_property(self, name: str) -> Dict:
-        return {k: getattr(comp, name)
-                for k, comp in self._components.items()}
-    
+        return {k: getattr(comp, name) for k, comp in self._components.items()}
+
     def _common_shape(self, shapes: Tuple[int, ...]) -> Tuple[int, ...]:
         shapes = [shapes[k] for k in shapes]
         shapes = sorted(shapes, key=lambda x: len(x))
@@ -70,8 +71,8 @@ class Dataset():
                 if min_shape[dim] != shp[dim]:
                     return common_shape
             common_shape.append(min_shape[dim])
-        return common_shape     
-    
+        return common_shape
+
     def _setup(self, components: Dict[str, str]) -> Dict[str, Array]:
         datas = {}
         if components is None:
@@ -79,23 +80,20 @@ class Dataset():
 
         for key, path in components.items():
             datas[key] = Array(path, self._storage)
-            
+
         return datas
 
     def to_pytorch(self, transform=None):
         try:
-            return TorchIterableDataset(
-                self, 
-                transform=transform
-            )
+            return TorchIterableDataset(self, transform=transform)
         except Exception as ex:
-            raise ex # Exception('PyTorch is not installed')
+            raise ex  # Exception('PyTorch is not installed')
 
     def to_tensorflow(self):
         try:
             return HubTensorflowDataset(self)
         except Exception as ex:
-            raise ex # Exception('TensorFlow is not intalled')
+            raise ex  # Exception('TensorFlow is not intalled')
 
     def __getitem__(self, slices):
         if not isinstance(slices, list) and not isinstance(slices, tuple):
@@ -113,7 +111,8 @@ class Dataset():
                 return datas
             else:
                 raise Exception(
-                    'Slices ({}) could not much to multiple arrays'.format(slices))
+                    "Slices ({}) could not much to multiple arrays".format(slices)
+                )
 
     def __setitem__(self, slices, item):
         if isinstance(slices[0], str):
@@ -122,11 +121,14 @@ class Dataset():
             else:
                 self._components[slices[0]][slices[1:]] = item
         else:
-            if len(slices) < len(self.chunk_shape) and len(item) == len(self._components):
+            if len(slices) < len(self.chunk_shape) and len(item) == len(
+                self._components
+            ):
                 datas = [self._components[k] for k in self._components]
 
                 def assign(xy):
                     xy[0][slices] = xy[1]
+
             return list(map(assign, zip(datas, item)))
 
     def __len__(self):
@@ -138,7 +140,3 @@ class Dataset():
     def __iter__(self):
         for i in range(0, len(self)):
             yield self[i]
-        
-
-        
-

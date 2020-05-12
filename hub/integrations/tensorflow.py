@@ -3,6 +3,7 @@ import tensorflow
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework import tensor_spec
 
+
 class TensorflowDataset(tensorflow.data.Dataset):
     def __init__(self):
         pass
@@ -13,7 +14,7 @@ class TensorflowDataset(tensorflow.data.Dataset):
     @property
     def element_spec(self):
         raise NotImplementedError()
-    
+
     def __iter__(self):
         raise NotImplementedError()
 
@@ -22,18 +23,18 @@ class TensorflowDataset(tensorflow.data.Dataset):
 
     def apply(self, transformation_func):
         raise NotImplementedError()
-        #return ApplyTensorflowDataset(self, transformation_func)
+        # return ApplyTensorflowDataset(self, transformation_func)
 
     def batch(self, batch_size, drop_remainder=False):
         return BatchTensorflowDataset(self, batch_size, drop_remainder=drop_remainder)
 
-    def cache(self, filename=''):
+    def cache(self, filename=""):
         raise NotImplementedError()
 
     def concatenate(self, dataset):
         raise NotImplementedError()
 
-    def enumerate(self, start = 0):
+    def enumerate(self, start=0):
         i = 0
         for item in self:
             if i >= start:
@@ -42,7 +43,7 @@ class TensorflowDataset(tensorflow.data.Dataset):
 
     def filter(self, predicate):
         raise NotImplementedError()
-    
+
     def flat_map(self, map_func):
         raise NotImplementedError()
 
@@ -51,11 +52,13 @@ class TensorflowDataset(tensorflow.data.Dataset):
 
     def map(self, map_func, num_parallel_calls=None):
         raise NotImplementedError()
-    
+
     def options(self):
         raise NotImplementedError()
 
-    def padded_batch(self, batch_size, padded_shapes, padding_values=None, drop_remainder=False):
+    def padded_batch(
+        self, batch_size, padded_shapes, padding_values=None, drop_remainder=False
+    ):
         raise NotImplementedError()
 
     def prefetch(self, buffer_size):
@@ -79,11 +82,12 @@ class TensorflowDataset(tensorflow.data.Dataset):
     def take(self, count):
         raise NotImplementedError()
 
-    def window(self, size, shift=None, stride=1,drop_remainder=False):
+    def window(self, size, shift=None, stride=1, drop_remainder=False):
         raise NotImplementedError()
 
     def with_options(options):
         raise NotImplementedError()
+
 
 class HubTensorflowDataset(TensorflowDataset):
     def __init__(self, hub_dataset):
@@ -95,43 +99,50 @@ class HubTensorflowDataset(TensorflowDataset):
     def __iter__(self):
         # if self.__dataset is None:
         #     self.__dataset = hub.Dataset(key = self._hub_dataset.key)
-        
+
         for i in self.__hub_dataset:
-            print(i)
-            yield (*list(i),)
+            yield i
+
 
 # class ApplyTensorflowDataset(TensorflowDataset):
 #     def __init__(self, wrappee, transformation_func):
 #         self.__wrappee = wrappee
 #         self.__transformation_func = transformation_func
-    
+
 #     def __iter__(self):
 #         pass
-    
+
 
 class BatchTensorflowDataset(TensorflowDataset):
     def __init__(self, wrappee, batch_size, drop_remainder=False):
         self.__wrappee = wrappee
         self.__batch_size = batch_size
         self.__drop_remainder = drop_remainder
-    
+
     def __iter__(self):
         res = None
         cnt = 0
+
         for item in self.__wrappee:
             if res is None:
-                res = [[]] * len(item)
-            
+                res = {k: [] for k in item.keys()}
+
             if cnt > 0 and cnt % self.__batch_size == 0:
-                yield (*res,)
-                res = [[]] * len(res)
-            
+                res = {k: tensorflow.convert_to_tensor(v) for k, v in res.items()}
+                yield res
+                res = {k: [] for k in item.keys()}
+
             cnt += 1
-            for j in range(0, len(item)):
-                res[j].append(item[j])
-        
-        if not self.__drop_remainder and res != None and len(res[0]) > 0:
-            yield (*res,)
+            for k in item.keys():
+                res[k].append(item[k])
+
+        if (
+            not self.__drop_remainder
+            and res is not None
+            and len(list(res.values())[0]) > 0
+        ):
+            res = {k: tensorflow.convert_to_tensor(v) for k, v in res.items()}
+            yield res
 
     def __len__(self):
         ans = len(self.__wrappee) / self.__batch_size
@@ -139,4 +150,3 @@ class BatchTensorflowDataset(TensorflowDataset):
             return ans + 1
         else:
             return ans
-    
