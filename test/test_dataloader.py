@@ -133,10 +133,11 @@ def test_tensorflow():
         components={"image": images, "label": labels, "mask": masks},
     )
 
-    # Transform to Pytorch
+    # Transform to Tensorflow
     train_dataset = ds.to_tensorflow()
     for images in train_dataset.batch(batch_size=16):
-        print(images["label"][0])
+        print(images["label"].shape)
+
     # Create data loader
 
 
