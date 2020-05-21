@@ -2,6 +2,7 @@ import hub
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
+import numpy as np
 
 
 class TorchDataset(data.Dataset):
@@ -51,6 +52,10 @@ class TorchIterableDataset(data.IterableDataset):
         self.storage = dataset._storage
         self.dataset = None
         self.transform = transform
+        self._components = dataset._components
+        self._dynkeys = {
+            key for key, value in self._components.items() if value.darray is not None
+        }
 
     def _get_common_chunk(self, dataset):
         batch_sizes = map(lambda x: x[0], dataset.chunks.values())
@@ -84,6 +89,9 @@ class TorchIterableDataset(data.IterableDataset):
         if self.dataset is None:
             self.dataset = hub.Dataset(self.path, self.storage)
 
+        # keys = tuple(self.dataset.paths.keys())
+        # dyn_keys = [key for key in keys if self.dataset[key].darray is not None]
+
         for x in self._enumerate(self.dataset):
             if self.transform:
                 x = self.transform(x)
@@ -91,3 +99,14 @@ class TorchIterableDataset(data.IterableDataset):
 
     def __len__(self):
         return self.size
+
+    def collate_fn(self, batch):
+        batch = tuple(batch)
+        keys = tuple(batch[0].keys())
+        ans = {key: [item[key] for item in batch] for key in keys}
+        for key in keys:
+            if key not in self._dynkeys:
+                ans[key] = torch.tensor(ans[key])
+            else:
+                ans[key] = [torch.tensor(item) for item in ans[key]]
+        return ans
