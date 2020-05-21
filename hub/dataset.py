@@ -3,16 +3,6 @@ from typing import Tuple, Dict
 from .storage import Base as Storage
 from .array import Array, Props
 
-try:
-    from hub.integrations.pytorch import TorchIterableDataset
-except:
-    pass
-
-try:
-    from hub.integrations.tensorflow import HubTensorflowDataset
-except Exception as ex:
-    pass
-
 
 class DatasetProps:
     paths: Dict[str, str] = None
@@ -85,12 +75,16 @@ class Dataset:
 
     def to_pytorch(self, transform=None):
         try:
+            from hub.integrations.pytorch import TorchIterableDataset
+
             return TorchIterableDataset(self, transform=transform)
         except Exception as ex:
             raise ex  # Exception('PyTorch is not installed')
 
     def to_tensorflow(self):
         try:
+            from hub.integrations.tensorflow import HubTensorflowDataset
+
             return HubTensorflowDataset(self)
         except Exception as ex:
             raise ex  # Exception('TensorFlow is not intalled')
