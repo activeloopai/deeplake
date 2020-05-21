@@ -9,11 +9,17 @@ from multiprocessing.pool import ThreadPool
 from .storage import Base as Storage
 from . import codec
 from .bbox import Bbox, chunknames, shade, Vec, generate_chunks
-from .exceptions import IncompatibleBroadcasting, IncompatibleTypes, IncompatibleShapes, NotFound
+from .exceptions import (
+    IncompatibleBroadcasting,
+    IncompatibleTypes,
+    IncompatibleShapes,
+    NotFound,
+)
 
 _hub_thread_pool = None
 
-class Props():
+
+class Props:
     shape: Tuple[int, ...] = None
     chunk_shape: Tuple[int, ...] = None
     dtype: str = None
@@ -29,21 +35,22 @@ class Props():
     @chunk.setter
     def chunk(self, value: Tuple[int, ...]):
         self.chunk_shape = value
-    
+
     def __init__(self, dict: dict = None):
         if dict is not None:
             self.__dict__ = dict
 
-class Array():
+
+class Array:
     def __init__(self, path: str, storage: Storage, threaded=False):
         self._path = path
         self._storage = storage
-        self._props = Props(json.loads(storage.get(os.path.join(path, 'info.json'))))
+        self._props = Props(json.loads(storage.get(os.path.join(path, "info.json"))))
         self._codec = codec.from_name(self.compress, self.compresslevel)
         self._dcodec = codec.Default()
         global _hub_thread_pool
         if _hub_thread_pool is None and threaded:
-            print('Thread Pool Created')
+            print("Thread Pool Created")
             _hub_thread_pool = ThreadPool(32)
         self._map = _hub_thread_pool.map if threaded else map
 
@@ -51,15 +58,15 @@ class Array():
         if self._props.darray:
             self._darray = Array(os.path.join(path, self._props.darray), storage)
         # assert isinstance(self._props.dsplit, int)
-    
+
     @property
     def shape(self) -> Tuple[int, ...]:
         return self._props.shape
 
     @property
-    def darray(self) -> 'Array':
+    def darray(self) -> "Array":
         return self._darray
-    
+
     # @property
     # def dynamic_shape(self, slices: Union[Slice[int, ...], Tuple[int, ...], List[int, ...]]):
     #     pass
@@ -88,7 +95,7 @@ class Array():
     #     data = self._storage.get(self._dshape_path)
     #     return self._dcodec.decode(data)
 
-    # def _set_dshape(self, arr: np.ndarray): 
+    # def _set_dshape(self, arr: np.ndarray):
     #     data = self._dcodec.encode(arr)
     #     self._storage.put(self._dshape_path, data)
 
@@ -101,7 +108,7 @@ class Array():
     #     shape = tuple(shape)
     #     assert len(slices) == self._props.dsplit
     #     assert len(shape) == len(self._props.shape) - self._props.dsplit
-        
+
     #     arr = self._get_dshape()
     #     arr[slices] = shape
     #     self._set_dshape(arr)
@@ -123,7 +130,7 @@ class Array():
         elif isinstance(slices, slice):
             slices = (slices,)
         slices = tuple(slices)
-        
+
         _shape = list(self.shape)
         if self._darray is not None:
             s = len(self._darray.shape) - 1
@@ -134,7 +141,6 @@ class Array():
             _shape[s:] = res
             _shape = tuple(_shape)
 
-
         slices = Bbox(Vec.zeros(_shape), _shape).reify_slices(slices, bounded=True)
         requested_bbox = Bbox.from_slices(slices)
 
@@ -144,26 +150,29 @@ class Array():
         )
 
         # Clamb the border
-        full_bbox = Bbox.clamp(full_bbox, Bbox(
-            Vec.zeros(self.shape), self.shape))
+        full_bbox = Bbox.clamp(full_bbox, Bbox(Vec.zeros(self.shape), self.shape))
 
         # Generate chunknames
-        cloudpaths = list(chunknames(
-            full_bbox, self.shape,
-            self._path, self.chunk,
-            protocol = 'none' # self.protocol
-        ))
+        cloudpaths = list(
+            chunknames(
+                full_bbox,
+                self.shape,
+                self._path,
+                self.chunk,
+                protocol="none",  # self.protocol
+            )
+        )
 
         return cloudpaths, requested_bbox
 
     def _download_chunk(self, cloudpath):
-        
+
         chunk = self._storage.get_or_none(cloudpath)
         if chunk:
             chunk = self._codec.decode(chunk)
         else:
             chunk = np.zeros(shape=self.chunk, dtype=self.dtype)
-                  
+
         bbox = Bbox.from_filename(cloudpath)
         return chunk, bbox
 
@@ -177,6 +186,7 @@ class Array():
         def process(chunk_bbox):
             chunk, bbox = chunk_bbox
             shade(renderbuffer, requested_bbox, chunk, bbox)
+
         list(self._map(process, chunks_bboxs))
 
         return renderbuffer
@@ -195,7 +205,7 @@ class Array():
                 squeeze_dims.append(dim)
 
         if len(squeeze_dims) >= 1:
-            tensor = tensor.squeeze(axis=(*squeeze_dims, ))
+            tensor = tensor.squeeze(axis=(*squeeze_dims,))
 
         if len(tensor.shape) == 0:
             tensor = tensor.item()
@@ -212,8 +222,8 @@ class Array():
         for path in cloudpaths:
             cloudchunk = Bbox.from_filename(path)
             intersection = Bbox.intersection(cloudchunk, requested_bbox)
-            chunk_slices = (intersection-cloudchunk.minpt).to_slices()
-            item_slices = (intersection-requested_bbox.minpt).to_slices()
+            chunk_slices = (intersection - cloudchunk.minpt).to_slices()
+            item_slices = (intersection - requested_bbox.minpt).to_slices()
 
             chunk = None
             if np.any(np.array(intersection.to_shape()) != np.array(self.chunk)):

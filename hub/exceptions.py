@@ -47,3 +47,8 @@ class FileSystemException(Exception):
 class S3Exception(Exception):
     """Error working with AWS"""
     pass
+
+
+class S3CredsParseException(Exception):
+    """Can't parse AWS creds"""
+    pass
