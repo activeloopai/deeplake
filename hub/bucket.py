@@ -54,7 +54,7 @@ class Bucket:
             if self._storage.get_or_none(name) is not None:
                 self.blob_delete(name)
             else:
-                raise Exception(f"Path f{name} is invalid for deletion")
+                raise Exception(f"Path {name} is invalid for deletion")
         else:
             d = json.loads(jsontext.decode())
             if "compresslevel" in d:
