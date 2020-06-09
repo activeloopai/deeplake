@@ -49,18 +49,20 @@ class Bucket:
                 return self.dataset_open(name)
 
     def delete(self, name: str):
-        jsontext = self._storage.get_or_none(os.path.join(name, "info.json"))
-        if jsontext is None:
-            if self._storage.get_or_none(name) is not None:
-                self.blob_delete(name)
-            else:
-                raise Exception(f"Path f{name} is invalid for deletion")
-        else:
-            d = json.loads(jsontext.decode())
-            if "compresslevel" in d:
-                self.array_delete(name)
-            else:
-                self.dataset_delete(name)
+        if self._storage.exists(name):
+            self._storage.delete(name)
+        # jsontext = self._storage.get_or_none(os.path.join(name, "info.json"))
+        # if jsontext is None:
+        #     if self._storage.get_or_none(name) is not None:
+        #         self.blob_delete(name)
+        #     else:
+        #         raise Exception(f"Path f{name} is invalid for deletion")
+        # else:
+        #     d = json.loads(jsontext.decode())
+        #     if "compresslevel" in d:
+        #         self.array_delete(name)
+        #     else:
+        #         self.dataset_delete(name)
 
     def array_create(
         self,
@@ -88,7 +90,8 @@ class Bucket:
             props.darray = "darray"
             darray_path = os.path.join(name, props.darray)
             darray_shape = shape[:dsplit] + (len(shape) - dsplit,)
-            arr = self.array_create(darray_path, darray_shape, darray_shape, "int32")
+            darray_chunk = chunk[:dsplit] + (len(shape) - dsplit,)
+            arr = self.array_create(darray_path, darray_shape, darray_chunk, "int32")
             slices = tuple(map(lambda s: slice(0, s), shape[:dsplit]))
             arr[slices] = shape[dsplit:]
 
