@@ -1,16 +1,20 @@
 import hub
 
-conn = hub.s3(
-            bucket='waymo-dataset-upload', 
-            aws_creds_filepath='.creds/aws.json'
-            ).connect()
+def test_dynamic_array():
+    conn = hub.fs("./data/cache").connect()
+    arr = conn.array_create(
+        "test/dynamic_array_3",
+        shape=(10, 8, 4, 12),
+        chunk=(5, 4, 2, 6),
+        dtype="uint8",
+        dsplit=2,
+    )
+    arr.darray[0:10, 0:5] = (2, 12)
+    arr.darray[0:10, 5:8] = (6, 14)
 
-arr = conn.array_create('test/dynamic_array_1', shape=(10000, 11, 400, 7), chunk=(100, 11, 400, 7), dtype='uint8', dsplit=2)
-print(arr.darray.shape)
-print(arr[6, 2].shape)
-arr.darray[0:100, 0:5] = (200, 6)
-arr.darray[0:100, 5:11] = (300, 4)
+    assert arr[5, 3, :, :].shape == (2, 12)
+    assert arr[5, 6, :, :].shape == (6, 14)
+    assert arr[5, 4:6, :, :].shape == (2, 6, 14)
 
-print(arr[5, 3, :, :].shape)
-print(arr[5, 6, :, :].shape)
-print(arr[5, 4:6, :, :].shape)
+if __name__ == "__main__":
+    test_dynamic_array()

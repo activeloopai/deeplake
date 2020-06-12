@@ -106,16 +106,30 @@ def test_dtypes():
     assert x.dtype == "<f4"
     print("passed")
 
+def test_delete_item():
+    datahub = hub.fs("./data/cache").connect()
+    datahub.delete(name="test/example:5")
+    status = "exists"
+    try:
+        datahub.open(name="test/example:5")
+    except:
+        status = "removed"
+        pass
+    assert status == "removed"
+
+
+
+
 
 if __name__ == "__main__":
     print("Running Basic Tests")
-
-    test_init()
-    test_simple_upload_download()
-    test_multiple_upload_download()
-    test_cross_chunk_upload_download()
-    test_broadcasting()
-    test_chunk_shape()
-    test_open_array()
-    test_squeeze_array()
-    test_dtypes()
+    test_delete_item()
+    # test_init()
+    # test_simple_upload_download()
+    # test_multiple_upload_download()
+    # test_cross_chunk_upload_download()
+    # test_broadcasting()
+    # test_chunk_shape()
+    # test_open_array()
+    # test_squeeze_array()
+    # test_dtypes()
