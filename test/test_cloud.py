@@ -1,4 +1,5 @@
 import hub
+import pytest
 
 # TODO
 # def test_gs():
@@ -24,17 +25,5 @@ def test_s3_array():
 def test_s3_delete_item():
     bucket = hub.s3('snark-test', aws_creds_filepath=".secrets/s3").connect()
     bucket.delete(name="test_array")
-    status = "exists"
-    try:
+    with pytest.raises(Exception):
         bucket.open(name="test/example:5")
-    except:
-        status = "removed"
-        pass
-    assert status == "removed"
-
-
-if __name__ == '__main__':
-    # test_gs()
-    test_s3_blob()
-    test_s3_array()
-    test_s3_delete_item()

@@ -19,8 +19,3 @@ def test_load_dataset():
     assert list(map(lambda x: x[0], ds.items())) == ["input", "label"]  
     assert ds['label', 0].mean() == 0
 
-
-if __name__ == "__main__":
-    print('Running Dataset Tests')
-    test_dataset()
-    test_load_dataset()

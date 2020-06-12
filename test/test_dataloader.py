@@ -60,7 +60,3 @@ def test_to_tensorflow():
     assert batch["images"].shape == (16, 100, 100)
     # TODO create dataloader 
 
-
-if __name__ == "__main__":
-    test_pytorch()
-    test_to_tensorflow()

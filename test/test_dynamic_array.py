@@ -15,6 +15,3 @@ def test_dynamic_array():
     assert arr[5, 3, :, :].shape == (2, 12)
     assert arr[5, 6, :, :].shape == (6, 14)
     assert arr[5, 4:6, :, :].shape == (2, 6, 14)
-
-if __name__ == "__main__":
-    test_dynamic_array()
