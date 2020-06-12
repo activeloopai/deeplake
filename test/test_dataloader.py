@@ -41,13 +41,13 @@ def test_pytorch():
     # Loop over attributes
     batch = next(iter(train_loader))
     assert batch["images"].shape == (32, 100, 100)
-    assert batch['labels'].shape == (32, 1)
-
+    assert batch["labels"].shape == (32, 1)
 
 
 # TODO keras
 # def test_keras():
 #     print("not implemented")
+
 
 def test_to_tensorflow():
     print("testing Tensorflow")
@@ -58,5 +58,4 @@ def test_to_tensorflow():
     train_dataset = ds.to_tensorflow()
     batch = next(iter(train_dataset.batch(batch_size=16)))
     assert batch["images"].shape == (16, 100, 100)
-    # TODO create dataloader 
-
+    # TODO create dataloader

@@ -1,5 +1,6 @@
 import hub
 
+
 def test_dynamic_array():
     conn = hub.fs("./data/cache").connect()
     arr = conn.array_create(

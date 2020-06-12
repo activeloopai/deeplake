@@ -2,6 +2,7 @@ import pytest
 import hub
 import numpy as np
 
+
 def test_init():
     print("- Initialize array")
     shape = (10, 10, 10, 10)
@@ -41,8 +42,8 @@ def test_cross_chunk_upload_download():
     shape = (10, 10, 10, 10)
     chunk = (5, 5, 5, 5)
     x = datahub.array(name="test/example:2", shape=shape, chunk=chunk, dtype="uint8")
-    x[2:5, 0:9, 0:10] = np.ones((3, 9, 10 , 10), dtype="uint8")
-    x[2:5, 9:10] = np.zeros((3, 1, 10, 10), dtype='uint8')
+    x[2:5, 0:9, 0:10] = np.ones((3, 9, 10, 10), dtype="uint8")
+    x[2:5, 9:10] = np.zeros((3, 1, 10, 10), dtype="uint8")
     assert x[2:5, 0:9, 0:10].mean() == 1
     assert x[2:5, 9:10].mean() == 0
     print("passed")
@@ -106,8 +107,10 @@ def test_dtypes():
     assert x.dtype == "<f4"
     print("passed")
 
+
 def test_delete_item():
     datahub = hub.fs("./data/cache").connect()
     datahub.delete(name="test/example:5")
     with pytest.raises(Exception):
-         datahub.open(name="test/example:5")
+        datahub.open(name="test/example:5")
+
