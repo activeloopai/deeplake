@@ -29,12 +29,40 @@ class Bucket:
         compresslevel: float = 0.5,
         dsplit: int = None,
     ) -> Array:
+        """Create Hub array.
+
+        Parameters
+        ----------
+        name: str
+            Path to store the array in local storage or in cloud
+        shape: tuple
+            Shape of the array like (1000, 1000, 100)
+        chunk: tuple
+            How to chunk the array. Must have the same length as shape. like(100, 100, 10)
+        dtype: str or np.dtype
+            The desired data type for the array
+        Returns
+        -------
+        Hub Array: Chunkified array stored in local storage or in cloud
+        """
 
         return self.array_create(
             name, shape, chunk, dtype, compress, compresslevel, dsplit
         )
 
     def dataset(self, name: str, components: Dict[str, str]):
+        """Create Hub Dataset.
+
+        Parameters
+        ----------
+        name: str
+            Path to store the dataset in local storage or in cloud
+        components: dict
+            Dictionary of Hub Arrays
+        Returns
+        -------
+        Hub Dataset: Dataset containing Hub Arrays stored in local storage or in cloud
+        """
         return self.dataset_create(name, components)
 
     def open(self, name: str):
