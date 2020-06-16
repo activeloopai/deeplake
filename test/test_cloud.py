@@ -1,13 +1,12 @@
 import hub
 import pytest
 
-# TODO
-# def test_gs():
-# bucket = hub.gs('snark-test', creds_path=".secrets/gcs.json").connect()
-# text = bucket.blob_get('temporary_blob1.txt')
-# bucket.blob_set('temporary_blob.txt', bytes(1))
-# bucket.blob_set('temporary_blob.txt')
-#  assert text == bytes(1)
+
+def test_gs():
+    bucket = hub.gs("snark-test", creds_path=".secrets/gcs.json").connect()
+    bucket.blob_set("temporary_blob.txt", bytes(1))
+    text = bucket.blob_get("temporary_blob.txt")
+    assert text == bytes(1)
 
 
 def test_s3_blob():
