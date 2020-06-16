@@ -44,6 +44,11 @@ class Bucket:
         Returns
         -------
         Hub Array: Chunkified array stored in local storage or in cloud
+        Examples
+        --------
+        >>> datahub = hub.fs('./data/cache').connect()
+        >>> arr = datahub.array('your_array_name', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='float32')
+        >>> arr[0] = np.random.rand((512, 512, 3), dtype='float32')
         """
 
         return self.array_create(
@@ -62,6 +67,14 @@ class Bucket:
         Returns
         -------
         Hub Dataset: Dataset containing Hub Arrays stored in local storage or in cloud
+        Examples
+        --------
+        >>> datahub = hub.fs('./data/cache').connect()
+        >>> images = datahub.array('images', shape=(100000, 512, 512, 3), chunk=(100, 512, 512, 3), dtype='float32')
+        >>> images[0] = np.random.random((512, 512, 3))
+        >>> labels = datahub.array('labels', shape=(100000, 2), chunk=(100, 2), dtype='uint8')
+        >>> labels[0] = 1
+        >>> ds = datahub.dataset(name="test/dataset:train", components={"images": images, "labels": labels})
         """
         return self.dataset_create(name, components)
 
