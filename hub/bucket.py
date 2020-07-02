@@ -129,7 +129,8 @@ class Bucket:
             props.darray = "darray"
             darray_path = os.path.join(name, props.darray)
             darray_shape = shape[:dsplit] + (len(shape) - dsplit,)
-            arr = self.array_create(darray_path, darray_shape, darray_shape, "int32")
+            darray_chunk = chunk[:dsplit] + (len(shape) - dsplit,)
+            arr = self.array_create(darray_path, darray_shape, darray_chunk, "int32")
             slices = tuple(map(lambda s: slice(0, s), shape[:dsplit]))
             arr[slices] = shape[dsplit:]
 
