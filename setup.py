@@ -4,6 +4,7 @@ from setuptools import find_packages, setup
 
 project = "hub"
 version = "0.4.1.5"
+version = "0.5.0.0"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:
