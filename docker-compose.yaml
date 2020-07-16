@@ -1,14 +1,14 @@
 version: '2'
 
 services:
-  # test:
-  #   build:
-  #     context: . 
-  #   volumes:
-  #      - ./:/workspace/
-  #   command: bash -c "
-  #         cd /workspace
-  #         && python3 test/test_basic.py"
+  test-gpu:
+     build:
+       context: . 
+     volumes:
+        - ./:/workspace/
+     command: bash -c "
+           cd /workspace
+           && pytest ./"
           
   py3:
     build:
