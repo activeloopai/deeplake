@@ -1,10 +1,8 @@
-from typing import *
-import os, sys, time, random, uuid, traceback
+import os
 from setuptools import find_packages, setup
 
 project = "hub"
-version = "0.4.1.5"
-version = "0.5.0.0"
+version = "0.9.0.0"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:
@@ -30,6 +28,12 @@ setup(
     install_requires=requirements,
     setup_requires=[],
     dependency_links=[],
-    entry_points={"console_scripts": ["hub = hub:cli",],},
-    tests_require=["pytest", "mock>=1.0.1",],
+    entry_points={
+        "console_scripts": [
+            "hub = hub.cli.command:cli",
+            "hub-local = hub.cli.local:cli",
+            "hub-dev = hub.cli.dev:cli",
+        ]
+    },
+    tests_require=["pytest", "mock>=1.0.1"],
 )
