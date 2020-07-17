@@ -1,15 +1,24 @@
 version: '2'
 
 services:
-  test-gpu:
-     build:
-       context: . 
-     volumes:
-        - ./:/workspace/
-     command: bash -c "
+  test:
+    build:
+      context: . 
+    volumes:
+      - ./:/workspace/
+    command: bash -c "
            cd /workspace
            && pytest ./"
-          
+
+  test-gpu:
+    build:
+      context: . 
+    volumes:
+      - ./:/workspace/
+    command: bash -c "
+          cd /workspace
+          && pytest ./"
+
   py3:
     build:
       context: .

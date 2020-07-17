@@ -138,3 +138,9 @@ class WaitTimeoutException(HubException):
 class LockedException(HubException):
     def __init__(self, message="Resource locked."):
         super(LockedException, self).__init__(message=message)
+
+
+class DatasetNotFound(HubException):
+    def __init__(self, response):
+        message = f"The dataset with tag {response} was not found"
+        super(DatasetNotFound, self).__init__(message=message)

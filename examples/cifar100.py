@@ -41,6 +41,7 @@ def main():
     )
     print(images.shape, fine_labels.shape, coarse_labels.shape)
     Image.fromarray(images[1000].transpose(1, 2, 0)).save("./data/image.png")
+
     images_t = tensor.from_array(images)
     fine_labels_t = tensor.from_array(fine_labels)
     coarse_labels_t = tensor.from_array(coarse_labels)

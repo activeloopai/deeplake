@@ -14,6 +14,7 @@ try:
 except ImportError:
     pass
 
+from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
@@ -95,26 +96,59 @@ def _load_creds(creds):
         return creds
 
 
-def _load_fs_and_path(path, creds):
+def _connect(tag):
+    """ Connects to the backend and receive credentials
+    """
+
+    creds = HubControlClient().get_config()
+    dataset = HubControlClient().get_dataset_path(tag)
+    if dataset and "tag" in dataset:
+        path = dataset["tag"]
+    else:
+        path = f"{creds['bucket']}/{tag}"
+
+    return path, creds
+
+
+def _load_fs_and_path(path, creds=None, session_creds=True):
     """ Given url(path) and creds returns filesystem required for accessing that file + url's filepath in that filesystem
     """
-    creds = _load_creds(creds)
+    if (
+        path.startswith("./")
+        or path.startswith("/")
+        or path.startswith("../")
+        or path.startswith("~/")
+    ):
+        return fsspec.filesystem("file"), os.path.expanduser(path.replace("fs://", ""))
+
+    if session_creds and creds is None and not path.startswith("s3://"):
+        path, creds = _connect(path)
+
     if path.startswith("s3://"):
         path = path[5:]
-        if creds is not None:
+        if creds is not None and session_creds:
             return (
                 fsspec.filesystem(
                     "s3",
-                    key=creds.get("aws_access_key_id"),
-                    secret=creds.get("aws_secret_access_key"),
-                    # token=creds.get("aws_secret_access_token"),
+                    key=creds["access_key"],
+                    secret=creds["secret_key"],
+                    token=creds["session_token"],
+                    client_kwargs={
+                        "endpoint_url": creds["endpoint"],
+                        "region_name": creds["region"],
+                    },
+                ),
+                path,
+            )
+        elif creds is not None:
+            return (
+                fsspec.filesystem(
+                    "s3", key=creds.get("access_key"), secret=creds.get("secret_key"),
                 ),
                 path,
             )
         else:
             return fsspec.filesystem("s3"), path
-    else:
-        return fsspec.filesystem("file"), os.path.expanduser(path)
 
 
 class Dataset:
@@ -294,22 +328,22 @@ class Dataset:
         ds_meta = {"tensors": tensor_meta, "len": self.count}
         return ds_meta
 
-    def delete(self, tag, creds=None) -> bool:
+    def delete(self, tag, creds=None, session_creds=True) -> bool:
         """ Deletes dataset given tag(filepath) and credentials (optional)
         """
-        fs, path = _load_fs_and_path(tag, creds)
+        fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
         fs: fsspec.AbstractFileSystem = fs
         if fs.exists(path):
             fs.delete(path, recursive=True)
             return True
         return False
 
-    def store(self, tag, creds=None) -> "Dataset":
+    def store(self, tag, creds=None, session_creds=True) -> "Dataset":
         """ Stores dataset by tag(filepath) given credentials (can be omitted)
         """
-        fs, path = _load_fs_and_path(tag, creds)
+        fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
         fs: fsspec.AbstractFileSystem = fs
-        self.delete(path, creds)
+        self.delete(tag, creds)
         fs.makedirs(path)
         tensor_paths = [os.path.join(path, t) for t in self._tensors]
         for tensor_path in tensor_paths:
@@ -344,10 +378,10 @@ def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
         return np.load(f, allow_pickle=True)
 
 
-def load(tag, creds=None) -> Dataset:
+def load(tag, creds=None, session_creds=True) -> Dataset:
     """ Load a dataset from repository using given url and credentials (optional)
     """
-    fs, path = _load_fs_and_path(tag, creds)
+    fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
     assert fs.exists(path)
     with fs.open(os.path.join(path, "meta.json"), "r") as f:

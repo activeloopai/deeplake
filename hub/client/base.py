@@ -71,6 +71,7 @@ class HubHttpClient(object):
                 files=files,
                 timeout=timeout,
             )
+
         except requests.exceptions.ConnectionError as e:
             logger.debug("Exception: {}".format(e, exc_info=True))
             sys.exit("Connection error. Please retry or check your internet connection")
@@ -92,17 +93,14 @@ class HubHttpClient(object):
         Check response status and throw corresponding exception on failure
         """
         code = response.status_code
-
         if code < 200 or code >= 300:
             try:
                 message = response.json()["error"]
             except Exception:
                 message = " "
 
-            logger.debug(
-                'Error received: status code: {}, message: "{}"'.format(
-                    response.status_code, message
-                )
+            logger.error(
+                'Error received: status code: {}, message: "{}"'.format(code, message)
             )
             if code == 400:
                 raise BadRequestException(response)

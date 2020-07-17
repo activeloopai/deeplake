@@ -22,6 +22,8 @@ class TokenManager(object):
     @classmethod
     def get_token(cls):
         logger.debug("Getting token...")
+        if not os.path.exists(config.TOKEN_FILE_PATH):
+            return None
         with open(config.TOKEN_FILE_PATH, "r") as f:
             token = f.read()
         logger.debug("Got the key {} from {}.".format(token, config.TOKEN_FILE_PATH))
@@ -31,8 +33,9 @@ class TokenManager(object):
     def get_auth_header(cls):
         logger.debug("Constructing auth header...")
         token = cls.get_token()
-        auth_header = "Bearer {}".format(token)
-        return auth_header
+        if token:
+            return "Bearer {}".format(token)
+        return None
 
     @classmethod
     def purge_token(cls):

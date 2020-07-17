@@ -47,10 +47,14 @@ def load_mnist(dataset="training", digits=np.arange(10), path=".", size=60000):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "dataset_path", type=str, help="Path to cifar dataset", default="./data/mnist",
+        "-d",
+        "--dataset_path",
+        type=str,
+        help="Path to cifar dataset",
+        default="./data/mnist",
     )
     parser.add_argument(
-        "output_name", type=str, help="Dataset output name", default="mnist",
+        "-o", "--output_name", type=str, help="Dataset output name", default="mnist",
     )
     args = parser.parse_args()
     files = ["training", "testing"]
@@ -62,7 +66,7 @@ def main():
     # images = images.reshape((len(images), 3, 32, 32))
     labels = np.concatenate([np.array(d["labels"], dtype="int8") for d in dicts])
     print(images.shape, labels.shape)
-    Image.fromarray(images[1000]).save("./data/image.png")
+    # Image.fromarray(images[1000]).save("./data/image.png")
     images_t = tensor.from_array(images)
     labels_t = tensor.from_array(labels)
     # coarse_labels_t = tensor.from_array(coarse_labels)
