@@ -99,7 +99,7 @@ class HubHttpClient(object):
             except Exception:
                 message = " "
 
-            logger.error(
+            logger.debug(
                 'Error received: status code: {}, message: "{}"'.format(code, message)
             )
             if code == 400:

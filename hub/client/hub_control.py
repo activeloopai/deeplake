@@ -3,11 +3,10 @@ import os
 import time
 from hub import config
 from hub.client.base import HubHttpClient
+from hub.client.auth import AuthClient
+from pathlib import Path
 
-# import subprocess
-# from subprocess import Popen, PIPE
-from hub.log import logger
-from hub.exceptions import DatasetNotFound, NotFoundException
+from hub.exceptions import NotFoundException
 
 
 class HubControlClient(HubHttpClient):
@@ -27,19 +26,20 @@ class HubControlClient(HubHttpClient):
                 params={"tag": tag},
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
-        except NotFoundException as e:
-            logger.info(e)
-            raise DatasetNotFound(tag)
+        except NotFoundException:
+            dataset = None
 
         return dataset
 
     def get_credentials(self):
-        try:
-            r = self.request(
-                "GET", config.GET_CREDENTIALS_SUFFIX, endpoint=config.HUB_REST_ENDPOINT,
-            ).json()
-        except Exception as e:
-            logger.debug(e)
+
+        if self.auth_header is None:
+            token = AuthClient().get_access_token(username="public", password="")
+            self.auth_header = f"Bearer {token}"
+
+        r = self.request(
+            "GET", config.GET_CREDENTIALS_SUFFIX, endpoint=config.HUB_REST_ENDPOINT,
+        ).json()
 
         details = {
             "_id": r["_id"],
@@ -55,8 +55,9 @@ class HubControlClient(HubHttpClient):
         self.save_config(details)
         return details
 
-    def get_config(self, reset=True):
-        if not os.path.isfile(config.STORE_CONFIG_PATH):
+    def get_config(self, reset=False):
+
+        if not os.path.isfile(config.STORE_CONFIG_PATH) or self.auth_header is None:
             self.get_credentials()
 
         with open(config.STORE_CONFIG_PATH, "r") as file:
@@ -68,5 +69,7 @@ class HubControlClient(HubHttpClient):
         return details
 
     def save_config(self, details):
+        path = Path(config.STORE_CONFIG_PATH)
+        os.makedirs(path.parent, exist_ok=True)
         with open(config.STORE_CONFIG_PATH, "w") as file:
             file.writelines(json.dumps(details))

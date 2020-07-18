@@ -8,7 +8,7 @@ from hub.cli.command import add_commands
 @click.group()
 @click.option("-v", "--verbose", count=True, help="Devel debugging")
 def cli(verbose):
-    config.HUB_REST_ENDPOINT = "http://127.0.0.1:8085"
+    config.HUB_REST_ENDPOINT = config.HUB_LOCAL_REST_ENDPOINT
     configure_logger(verbose)
 
 

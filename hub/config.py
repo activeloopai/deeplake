@@ -7,7 +7,8 @@ STORE_CONFIG_PATH = os.path.expanduser("~/.snarkai/store")
 CACHE_FILE_PATH = os.path.expanduser("~/.snarkai/tmp")
 AWSCRED_PATH = os.path.expanduser("~/.aws/credentials")
 
-HUB_REST_ENDPOINT = "http://localhost:8085"  # "https://app.snark.ai"
+HUB_REST_ENDPOINT = "https://app.snark.ai"
+HUB_LOCAL_REST_ENDPOINT = "http://localhost:8000"
 
 DEFAULT_TIMEOUT = 170
 

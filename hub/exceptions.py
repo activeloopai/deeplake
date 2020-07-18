@@ -144,3 +144,9 @@ class DatasetNotFound(HubException):
     def __init__(self, response):
         message = f"The dataset with tag {response} was not found"
         super(DatasetNotFound, self).__init__(message=message)
+
+
+class PermissionException(HubException):
+    def __init__(self, response):
+        message = f"No permision to store the dataet at {response}"
+        super(PermissionException, self).__init__(message=message)

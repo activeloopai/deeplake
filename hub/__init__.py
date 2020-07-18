@@ -1,3 +1,8 @@
 from .collections import dataset
 from .collections import tensor
 from .collections.dataset import load
+import hub.config
+
+
+def local_mode():
+    hub.config.HUB_REST_ENDPOINT = hub.config.HUB_LOCAL_REST_ENDPOINT

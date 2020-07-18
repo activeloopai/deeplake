@@ -18,6 +18,7 @@ from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
+from hub.exceptions import PermissionException
 
 
 class DatasetGenerator:
@@ -102,8 +103,9 @@ def _connect(tag):
 
     creds = HubControlClient().get_config()
     dataset = HubControlClient().get_dataset_path(tag)
-    if dataset and "tag" in dataset:
-        path = dataset["tag"]
+
+    if dataset and "path" in dataset:
+        path = dataset["path"]
     else:
         path = f"{creds['bucket']}/{tag}"
 
@@ -345,6 +347,7 @@ class Dataset:
         fs: fsspec.AbstractFileSystem = fs
         self.delete(tag, creds)
         fs.makedirs(path)
+
         tensor_paths = [os.path.join(path, t) for t in self._tensors]
         for tensor_path in tensor_paths:
             fs.makedir(tensor_path)
@@ -353,10 +356,14 @@ class Dataset:
             for name, t in self._tensors.items()
         }
         count = self.count
-        if count == -1:
-            count = self._store_unknown_sized_ds(fs, path)
-        else:
-            self._store_known_sized_ds(fs, path)
+        try:
+            if count == -1:
+                count = self._store_unknown_sized_ds(fs, path)
+            else:
+                self._store_known_sized_ds(fs, path)
+        except Exception as e:
+            logger.debug(e)
+            raise PermissionException(tag)
 
         for _, el in tensor_meta.items():
             el["shape"] = (count,) + tuple(el["shape"][1:])
@@ -383,8 +390,13 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     """
     fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
-    assert fs.exists(path)
-    with fs.open(os.path.join(path, "meta.json"), "r") as f:
+    path_2 = os.path.join(path, "meta.json")
+    if not fs.exists(path):
+        from hub.exceptions import DatasetNotFound
+
+        raise DatasetNotFound(tag)
+
+    with fs.open(path_2, "r") as f:
         ds_meta = json.loads(f.read())
 
     for name in ds_meta["tensors"]:
