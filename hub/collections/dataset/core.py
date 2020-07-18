@@ -1,7 +1,7 @@
 from collections import abc
 from configparser import ConfigParser
 import json
-import multiprocessing
+import multiprocessing as mp
 import os
 from typing import Dict, Tuple
 
@@ -17,6 +17,7 @@ except ImportError:
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
+from hub.collections._chunk_utils import _tensor_chunksize, _logify_chunksize
 from hub.log import logger
 from hub.exceptions import PermissionException
 
@@ -246,7 +247,7 @@ class Dataset:
 
     def _store_unknown_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = multiprocessing.cpu_count()
+        worker_count = mp.cpu_count()
         # worker_count = 4
         chunks = {key: t._delayed_objs for key, t in self._tensors.items()}
         chunk_count = [len(items) for _, items in chunks.items()]
@@ -255,8 +256,12 @@ class Dataset:
         ), "Number of chunks in each tensor should be the same to be able to store dataset"
         chunk_count = chunk_count[0]
         count = 0
+        collected = {el: None for el in self._tensors.keys()}
+        collected_offset = {el: 0 for el in collected}
+        # max_chunksize = max(*[t.chunksize for t in self._tensors])
         for i in range(0, chunk_count, worker_count):
             batch_count = min(i + worker_count, chunk_count) - i
+            lasttime = True if i + worker_count >= chunk_count else False
             tasks = {
                 key: delayed_objs[i : i + batch_count]
                 for key, delayed_objs in chunks.items()
@@ -281,30 +286,97 @@ class Dataset:
             #         )
             #         == 1
             #     ), "All numpy arrays returned from call should have same len"
-            lens = [
-                # len(next(iter(persisted.values()))[j])
-                dask.delayed(len)(next(iter(persisted.values()))[j]).compute()
-                for j in range(batch_count)
-            ]
-            tasks = [
-                dask.delayed(_numpy_saver)(
-                    fs, os.path.join(path, key, f"{sum(lens[:j], count) + i}.npy"), d,
-                )
-                # dask.delayed(_numpy_saver)(fs, os.path.join(path, key), objs[j])
+            lens = {
+                key: [dask.delayed(len)(objs[j]) for j in range(batch_count)]
                 for key, objs in persisted.items()
-                for j in range(batch_count)
-                for i, d in enumerate(
-                    dask.delayed(_numpy_to_tuple, nout=lens[j])(objs[j])
+            }
+            lens, keys = _dict_to_tuple(lens)
+            lens = client.gather(client.compute(lens))
+            lens = _tuple_to_dict(lens, keys)
+            for key, objs in persisted.items():
+                arr = dask.array.concatenate(
+                    [
+                        dask.array.from_delayed(
+                            obj,
+                            dtype=self._tensors[key].dtype,
+                            shape=(lens[key][i],) + tuple(self._tensors[key].shape[1:]),
+                        )
+                        for i, obj in enumerate(objs)
+                    ]
                 )
-            ]
+                if collected[key] is None:
+                    collected[key] = arr
+                else:
+                    collected[key] = dask.array.concatenate(collected[key], arr)
+            # tasks = [obj for key, objs in persisted.items() for obj in objs]
+            tasks = []
+
+            for key in list(collected.keys()):
+                c = collected[key]
+                chunksize = self._tensors[key].chunksize
+                cnt = len(c) - len(c) % chunksize if not lasttime else len(c)
+                for i in range(0, cnt, chunksize):
+                    tasks += [
+                        dask.delayed(_numpy_saver)(
+                            fs,
+                            os.path.join(path, key, f"{collected_offset[key] + i}.npy"),
+                            c[i : i + chunksize],
+                        )
+                    ]
+                collected_offset[key] += cnt
+                collected[key] = collected[key][cnt:]
             client.gather(client.compute(tasks))
-            # wait(dask.persist(*tasks))
-            # wait(client.persist(*tasks))
-            count = sum(lens, count)
-            logger.info(f"Samples done: {count}")
-        return count
+        count = set(collected_offset.values())
+        assert (
+            len(count) == 1
+        ), "All tensors should be the same size to be stored in the same dataset"
+        return next(iter(count))
 
     def _store_known_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
+        client = get_client()
+        worker_count = mp.cpu_count()
+        # worker_count = 4
+        chunksize = 100
+        cnt = len(self)
+        collected = {el: None for el in self._tensors.keys()}
+        collected_offset = {el: 0 for el in collected}
+        step = worker_count * chunksize
+        for i in range(0, cnt, step):
+            batch_count = min(step, cnt - i)
+            lasttime = True if i + step >= cnt else False
+            persisted = client.persist(
+                [self._tensors[key]._array[i : i + batch_count] for key in collected]
+            )
+            persisted = {key: persisted[j] for j, key in enumerate(collected)}
+            tasks = []
+            for el, arr in persisted.items():
+                if collected[el] is None:
+                    collected[el] = arr
+                else:
+                    collected[el] = dask.array.concatenate([collected[el], arr])
+                c = collected[el]
+                chunksize_ = self._tensors[el].chunksize
+                if len(c) >= chunksize_ or lasttime:
+                    jcnt = len(c) - len(c) % chunksize_ if not lasttime else len(c)
+                    for j in range(0, jcnt, chunksize_):
+                        tasks += [
+                            dask.delayed(_numpy_saver)(
+                                fs,
+                                os.path.join(
+                                    path, el, f"{collected_offset[el] + i}.npy"
+                                ),
+                                collected[el][j : j + chunksize_],
+                            )
+                        ]
+                    collected_offset[el] += jcnt
+                    collected[el] = collected[el][jcnt:]
+            client.gather(client.compute(tasks))
+        count = set(collected_offset.values())
+        assert (
+            len(count) == 1
+        ), "All tensors should be the same size to be stored in the same dataset"
+        return next(iter(count))
+
         tasks = {
             name: [
                 dask.delayed(_numpy_saver)(
@@ -414,7 +486,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                 for name, tmeta in ds_meta["tensors"].items()
             }
         )
-
+    len_ = ds_meta["len"]
     return Dataset(
         {
             name: Tensor(
@@ -423,12 +495,13 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                     [
                         dask.array.from_delayed(
                             dask.delayed(_numpy_load)(
-                                fs, os.path.join(path, name, str(i) + ".npy")
+                                fs, os.path.join(path, name, f"{i}.npy")
                             ),
-                            shape=(1,) + tuple(tmeta["shape"][1:]),
+                            shape=(min(tmeta["chunksize"], len_ - i),)
+                            + tuple(tmeta["shape"][1:]),
                             dtype=tmeta["dtype"],
                         )
-                        for i in range(ds_meta["len"])
+                        for i in range(0, len_, tmeta["chunksize"])
                     ]
                 ),
             )

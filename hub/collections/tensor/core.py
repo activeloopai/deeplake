@@ -4,6 +4,7 @@ import dask
 import numpy as np
 
 from hub.collections._store_version import CURRENT_STORE_VERSION
+from hub.collections._chunk_utils import _tensor_chunksize
 
 
 def _dask_shape_backward(shape: Tuple[int]):
@@ -26,12 +27,18 @@ class Tensor:
         self._dcompress = meta.get("dcompress")
         self._dcompress_algo = meta.get("dcompress_algo")
         self._dcompress_lvl = meta.get("dcompress_lvl")
+        self._chunksize = meta.get("chunksize")
 
     @staticmethod
     def _preprocess_meta(meta, daskarray):
         meta = dict(meta)
         meta["preprocessed"] = True
         meta["dtype"] = meta.get("dtype") or daskarray.dtype
+        if meta.get("chunksize") is None:
+            if str(meta["dtype"]) == "object":
+                meta["chunksize"] = 1
+            else:
+                meta["chunksize"] = _tensor_chunksize(daskarray)
         meta["shape"] = daskarray.shape
         meta["STORE_VERSION"] = CURRENT_STORE_VERSION
         if "dcompress" in meta:
@@ -126,6 +133,10 @@ class Tensor:
     @property
     def dcompress(self):
         return self._dcompress
+
+    @property
+    def chunksize(self):
+        return self._chunksize
 
     def __getitem__(self, slices) -> "Tensor":
         """ Slices tensor

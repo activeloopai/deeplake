@@ -4,7 +4,7 @@ import numpy as np
 from .core import Tensor
 
 
-def from_array(array, dtag=None, dcompress=None, chunksize=-1) -> Tensor:
+def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
     """ Generates tensor from arraylike object
     Parameters
     ----------
