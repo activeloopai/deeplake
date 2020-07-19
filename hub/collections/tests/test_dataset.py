@@ -112,6 +112,16 @@ def test_dataset_store_load():
     assert (ds["t2"].compute() == np.array([1, 2, 3], dtype="int32")).all()
 
 
+def test_dataset_store_load_big():
+    t1 = tensor.from_array(np.zeros(shape=(2 ** 10, 2 ** 13), dtype="int32"))
+    ds = dataset.from_tensors({"t1": t1})
+    path = "./data/test_store_tmp/store_load_big"
+    ds = ds.store(path)
+    assert (
+        ds["t1"].compute() == np.zeros(shape=(2 ** 10, 2 ** 13), dtype="int32")
+    ).all()
+
+
 def test_dataset_merge():
     t1 = tensor.from_array(
         np.array([[1, 2, 3, 4], [4, 5, 6, 7], [7, 8, 9, 10]], dtype="int32")
