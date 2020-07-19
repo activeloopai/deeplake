@@ -52,7 +52,7 @@ def main():
             "coarse_labels": coarse_labels_t,
         }
     )
-    ds.store(f"./data/generated/{args.output_name}")
+    ds.store(f"{args.output_name}")
 
 
 if __name__ == "__main__":

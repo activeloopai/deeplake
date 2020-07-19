@@ -71,7 +71,7 @@ def main():
     labels_t = tensor.from_array(labels)
     # coarse_labels_t = tensor.from_array(coarse_labels)
     ds = dataset.from_tensors({"data": images_t, "labels": labels_t})
-    ds.store(f"./data/generated/{args.output_name}")
+    ds.store(f"{args.output_name}")
 
 
 if __name__ == "__main__":
