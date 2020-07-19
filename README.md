@@ -30,7 +30,7 @@ Access public datasets in few lines.
 import hub
 
 mnist = hub.load("mnist/mnist")
-mnist["images"][0].compute()
+mnist["images"][0:1000].compute()
 ```
 
 ## 2. Train a model
