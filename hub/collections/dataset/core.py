@@ -363,7 +363,7 @@ class Dataset:
                             dask.delayed(_numpy_saver)(
                                 fs,
                                 os.path.join(
-                                    path, el, f"{collected_offset[el] + i}.npy"
+                                    path, el, f"{collected_offset[el] + j}.npy"
                                 ),
                                 collected[el][j : j + chunksize_],
                             )
