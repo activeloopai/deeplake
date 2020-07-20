@@ -17,7 +17,6 @@ except ImportError:
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
-from hub.collections._chunk_utils import _tensor_chunksize, _logify_chunksize
 from hub.log import logger
 from hub.exceptions import PermissionException
 
@@ -434,7 +433,7 @@ class Dataset:
             else:
                 self._store_known_sized_ds(fs, path)
         except Exception as e:
-            logger.debug(e)
+            logger.error(e)
             raise PermissionException(tag)
 
         for _, el in tensor_meta.items():

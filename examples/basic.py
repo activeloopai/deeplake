@@ -1,12 +1,14 @@
+import time
 import hub
+from hub import tensor, dataset
 import numpy as np
 
 hub.local_mode()
 
-images = hub.tensor.from_array(np.zeros((4, 512, 512)))
-labels = hub.tensor.from_array(np.zeros((4, 512, 512)))
+images = tensor.from_array(np.zeros((4, 512, 512)))
+labels = tensor.from_array(np.zeros((4, 512, 512)))
+ds = dataset.from_tensors({"images": images, "labels": labels})
+ds.store("basic2")
 
-# ds = hub.dataset.from_tensors({"images": images, "labels": labels})
-# ds.store("davit2/basic2")
-
-ds = hub.load("davit2/basic")
+# ds = hub.load("davit/basic2")
+print(ds["images"][0].compute())
