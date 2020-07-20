@@ -486,6 +486,12 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
             }
         )
     len_ = ds_meta["len"]
+
+    # added reverse compatibility for previous versions
+    for name, tmeta in ds_meta["tensors"].items():
+        if "chunksize" not in tmeta:
+            tmeta["chunksize"] = 1
+
     return Dataset(
         {
             name: Tensor(
