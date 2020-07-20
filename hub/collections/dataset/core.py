@@ -335,7 +335,12 @@ class Dataset:
         client = get_client()
         worker_count = mp.cpu_count()
         # worker_count = 4
-        chunksize = 100
+        # chunksize = min(*[t.chunksize for t in self._tensors.values()])
+        chunksize = (
+            min(*[t.chunksize for t in self._tensors.values()])
+            if len(self._tensors) > 1
+            else next(iter(self._tensors.values())).chunksize
+        )
         cnt = len(self)
         collected = {el: None for el in self._tensors.keys()}
         collected_offset = {el: 0 for el in collected}
