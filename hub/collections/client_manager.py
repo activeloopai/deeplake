@@ -53,4 +53,3 @@ def init(
     global _client
     _client = client
     return client
-
