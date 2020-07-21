@@ -4,7 +4,7 @@ import numpy as np
 
 
 def _logify_chunksize(chunksize):
-    return 2 ** int(math.ceil(math.log2(chunksize)))
+    return 2 ** int(math.ceil(math.log2(max(chunksize, 1))))
 
 
 def _tensor_chunksize(t: np.ndarray):

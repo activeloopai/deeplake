@@ -1,6 +1,7 @@
 from .collections import dataset
 from .collections import tensor
 from .collections.dataset import load
+from .collections.client_manager import init
 import hub.config
 
 
