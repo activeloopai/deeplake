@@ -81,7 +81,7 @@ import hub
 
 ds = hub.load("username/basic")
 ```
-For more advanced data pipelines please see [docs](https://docs.snark.ai).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](https://docs.snark.ai).
 
 ## Things you can do with Hub
 * Store large datasets with version control
