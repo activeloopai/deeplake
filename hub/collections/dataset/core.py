@@ -456,7 +456,9 @@ class Dataset:
 def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
-    assert fs.exists(filepath)
+    assert fs.exists(
+        filepath
+    ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
     with fs.open(filepath, "rb") as f:
         return np.load(f, allow_pickle=True)
 
@@ -476,7 +478,9 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
         ds_meta = json.loads(f.read())
 
     for name in ds_meta["tensors"]:
-        assert fs.exists(os.path.join(path, name))
+        assert fs.exists(
+            os.path.join(path, name)
+        ), f"Tensor {name} of {tag} dataset does not exist"
     if ds_meta["len"] == 0:
         logger.warning("The dataset is empty (has 0 samples)")
         return Dataset(
