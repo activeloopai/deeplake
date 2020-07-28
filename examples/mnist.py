@@ -67,7 +67,7 @@ def main():
     labels = np.concatenate([np.array(d["labels"], dtype="int8") for d in dicts])
     print(images.shape, labels.shape)
     # Image.fromarray(images[1000]).save("./data/image.png")
-    images_t = tensor.from_array(images)
+    images_t = tensor.from_array(images, dtag="mask")
     labels_t = tensor.from_array(labels)
     # coarse_labels_t = tensor.from_array(coarse_labels)
     ds = dataset.from_tensors({"data": images_t, "labels": labels_t})
