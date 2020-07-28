@@ -2,9 +2,9 @@ import os
 
 curr_path = os.path.dirname(os.path.abspath(__file__))
 
-TOKEN_FILE_PATH = os.path.expanduser("~/.snarkai/token")
-STORE_CONFIG_PATH = os.path.expanduser("~/.snarkai/store")
-CACHE_FILE_PATH = os.path.expanduser("~/.snarkai/tmp")
+TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
+STORE_CONFIG_PATH = os.path.expanduser("~/.activeloop/store")
+CACHE_FILE_PATH = os.path.expanduser("~/.activeloop/tmp")
 AWSCRED_PATH = os.path.expanduser("~/.aws/credentials")
 
 HUB_REST_ENDPOINT = "http://app.activeloop.ai"
