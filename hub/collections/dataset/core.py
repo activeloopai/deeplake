@@ -293,7 +293,7 @@ class Dataset:
             lens = client.gather(client.compute(lens))
             lens = _tuple_to_dict(lens, keys)
             for key, objs in persisted.items():
-                arr = dask.array.concatenate(
+                arr = _dask_concat(
                     [
                         dask.array.from_delayed(
                             obj,
@@ -306,7 +306,7 @@ class Dataset:
                 if collected[key] is None:
                     collected[key] = arr
                 else:
-                    collected[key] = dask.array.concatenate(collected[key], arr)
+                    collected[key] = _dask_concat(collected[key], arr)
             # tasks = [obj for key, objs in persisted.items() for obj in objs]
             tasks = []
 
@@ -357,7 +357,7 @@ class Dataset:
                 if collected[el] is None:
                     collected[el] = arr
                 else:
-                    collected[el] = dask.array.concatenate([collected[el], arr])
+                    collected[el] = _dask_concat([collected[el], arr])
                 c = collected[el]
                 chunksize_ = self._tensors[el].chunksize
                 if len(c) >= chunksize_ or lasttime:
@@ -505,7 +505,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
         {
             name: Tensor(
                 tmeta,
-                dask.array.concatenate(
+                _dask_concat(
                     [
                         dask.array.from_delayed(
                             dask.delayed(_numpy_load)(
@@ -569,3 +569,10 @@ class TorchDataset:
             else:
                 ans[key] = [torch.tensor(item) for item in ans[key]]
         return ans
+
+
+def _dask_concat(arr):
+    if len(arr) == 1:
+        return arr[0]
+    else:
+        return dask.array.concatenate(arr)
