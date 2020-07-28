@@ -437,7 +437,7 @@ class Dataset:
                 count = self._store_unknown_sized_ds(fs, path)
             else:
                 self._store_known_sized_ds(fs, path)
-        except Exception as e:
+        except PermissionError as e:
             logger.error(e)
             raise PermissionException(tag)
 
