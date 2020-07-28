@@ -306,7 +306,7 @@ class Dataset:
                 if collected[key] is None:
                     collected[key] = arr
                 else:
-                    collected[key] = _dask_concat(collected[key], arr)
+                    collected[key] = _dask_concat([collected[key], arr])
             # tasks = [obj for key, objs in persisted.items() for obj in objs]
             tasks = []
 
