@@ -148,5 +148,5 @@ class DatasetNotFound(HubException):
 
 class PermissionException(HubException):
     def __init__(self, response):
-        message = f"No permision to store the dataet at {response}"
+        message = f"No permision to store the dataset at {response}"
         super(PermissionException, self).__init__(message=message)

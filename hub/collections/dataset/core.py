@@ -103,12 +103,14 @@ def _connect(tag):
 
     creds = HubControlClient().get_config()
     dataset = HubControlClient().get_dataset_path(tag)
-
     if dataset and "path" in dataset:
         path = dataset["path"]
     else:
-        path = f"{creds['bucket']}/{tag}"
-
+        sub_tags = tag.split("/")
+        real_tag = sub_tags[-1]
+        if len(sub_tags) > 1 and sub_tags[0] != creds["_id"]:
+            raise PermissionException(tag)
+        path = f"{creds['bucket']}/{real_tag}"
     return path, creds
 
 
