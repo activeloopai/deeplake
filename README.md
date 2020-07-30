@@ -4,7 +4,7 @@
     </br>
 </p>
 <p align="center">
-    <a href="https://docs.snark.ai/">
+    <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
     </a>
 </p>
@@ -93,7 +93,7 @@ For more advanced data pipelines like uploading large datasets or applying many 
 * Take a quick look on your data without redundant manipulations/in a matter of seconds/etc.
 
 ## Use Cases
-* **Aerial images**: [Satellite and drone imagery](https://snark.ai/usecase/intelinair)
+* **Aerial images**: [Satellite and drone imagery](https://activeloop.ai/usecase/intelinair)
 * **Medical Images**: Volumetric images such as MRI or Xray
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
