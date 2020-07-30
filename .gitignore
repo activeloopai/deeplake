@@ -2,6 +2,8 @@
 # sphinx build folder
 docs/_build
 docs/source/_build
+cache/
+dask-worker-space/
 
 # Compiled source #
 ###################
