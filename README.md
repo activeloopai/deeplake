@@ -60,8 +60,9 @@ for images, labels in train_loader:
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
-1. Register a free account at [Snark](https://app.snark.ai) and authenticate locally
+1. Register a free account at [Activeloop](http://app.activeloop.ai) and authenticate locally
 ```sh
+hub register
 hub login
 ```
 
@@ -82,7 +83,7 @@ import hub
 
 ds = hub.load("username/basic")
 ```
-For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](https://docs.snark.ai).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
 ## Things you can do with Hub
 * Store large datasets with version control
