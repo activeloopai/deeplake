@@ -1,13 +1,13 @@
 from collections import abc
 from configparser import ConfigParser
 import json
-import multiprocessing as mp
 import os
 from typing import Dict, Tuple
 
 import dask
 import fsspec
 import numpy as np
+import psutil
 
 try:
     import torch
@@ -248,8 +248,8 @@ class Dataset:
 
     def _store_unknown_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = mp.cpu_count()
-        # worker_count = 4
+        worker_count = psutil.cpu_count()
+        # worker_count = 1
         chunks = {key: t._delayed_objs for key, t in self._tensors.items()}
         chunk_count = [len(items) for _, items in chunks.items()]
         assert (
@@ -335,8 +335,8 @@ class Dataset:
 
     def _store_known_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = mp.cpu_count()
-        # worker_count = 4
+        worker_count = psutil.cpu_count()
+        # worker_count = 1
         # chunksize = min(*[t.chunksize for t in self._tensors.values()])
         chunksize = (
             min(*[t.chunksize for t in self._tensors.values()])

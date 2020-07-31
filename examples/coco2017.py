@@ -2,12 +2,15 @@ import argparse
 import os
 import pickle
 import json
+import time
 
 import numpy as np
+import psutil
 from PIL import Image
 
 import hub
 from hub.collections import dataset, tensor
+from hub.log import logger
 
 
 class CocoGenerator(dataset.DatasetGenerator):
@@ -17,45 +20,50 @@ class CocoGenerator(dataset.DatasetGenerator):
 
     def meta(self):
         return {
-            "segmentation": {"shape": (1,), "dtype": "object", "chunksize": 100},
-            "area": {"shape": (1,), "dtype": "object", "chunksize": 100},
-            "iscrowd": {"shape": (1,), "dtype": "object", "chunksize": 100},
+            "segmentation": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "area": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "iscrowd": {"shape": (1,), "dtype": "object", "chunksize": 1000},
             "image_id": {"shape": (1,), "dtype": "int64"},
-            "bbox": {"shape": (1,), "dtype": "object", "chunksize": 100},
-            "category_id": {"shape": (1,), "dtype": "object", "chunksize": 100},
-            "id": {"shape": (1,), "dtype": "object", "chunksize": 100},
-            "image": {"shape": (1,), "dtype": "object", "chunksize": 16},
+            "bbox": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "category_id": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "id": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "image": {"shape": (1,), "dtype": "object", "chunksize": 100},
         }
 
     def __call__(self, input):
-        ds = {}
-        # print(f"Image id: {input['image_id']}")
-        ds["image_id"] = input["image_id"]
-        info = input["info"]
-        ds["image"] = np.empty(1, object)
-        ds["image"][0] = np.array(
-            Image.open(
-                os.path.join(
-                    self._args.dataset_path,
-                    self._tag,
-                    f"{str(input['image_id']).zfill(12)}.jpg",
+        try:
+            ds = {}
+            # print(f"Image id: {input['image_id']}")
+            ds["image_id"] = input["image_id"]
+            info = input["info"]
+            ds["image"] = np.empty(1, object)
+            ds["image"][0] = np.array(
+                Image.open(
+                    os.path.join(
+                        self._args.dataset_path,
+                        self._tag,
+                        f"{str(input['image_id']).zfill(12)}.jpg",
+                    )
                 )
             )
-        )
-        ds["segmentation"] = np.empty(1, object)
-        ds["area"] = np.empty(1, object)
-        ds["iscrowd"] = np.empty(1, object)
-        ds["bbox"] = np.empty(1, object)
-        ds["category_id"] = np.empty(1, object)
-        ds["id"] = np.empty(1, object)
+            ds["segmentation"] = np.empty(1, object)
+            ds["area"] = np.empty(1, object)
+            ds["iscrowd"] = np.empty(1, object)
+            ds["bbox"] = np.empty(1, object)
+            ds["category_id"] = np.empty(1, object)
+            ds["id"] = np.empty(1, object)
 
-        ds["segmentation"][0] = [anno["segmentation"] for anno in info]
-        ds["area"][0] = [anno["area"] for anno in info]
-        ds["iscrowd"][0] = [anno["iscrowd"] for anno in info]
-        ds["bbox"][0] = [anno["bbox"] for anno in info]
-        ds["category_id"][0] = [anno["category_id"] for anno in info]
-        ds["id"][0] = [anno["id"] for anno in info]
-        return ds
+            ds["segmentation"][0] = [anno["segmentation"] for anno in info]
+            ds["area"][0] = [anno["area"] for anno in info]
+            ds["iscrowd"][0] = [anno["iscrowd"] for anno in info]
+            ds["bbox"][0] = [anno["bbox"] for anno in info]
+            ds["category_id"][0] = [anno["category_id"] for anno in info]
+            ds["id"][0] = [anno["id"] for anno in info]
+
+            logger.info(f"Tag: {self._tag}, Index: {input['index']}")
+            return ds
+        except Exception as e:
+            logger.error(e, exc_info=e, stack_info=True)
 
 
 def load_dataset(args, tag):
@@ -83,17 +91,21 @@ def load_dataset(args, tag):
         )
     ]
     print("Image ids selected")
-    images = [{"image_id": image_id, "info": images[image_id]} for image_id in ids]
+    images = [
+        {"image_id": image_id, "info": images[image_id], "index": index}
+        for index, image_id in enumerate(ids)
+    ]
     # print(f"Images selected by ids, sample {images[0]}")
-    images = images[:10000]
+    # images = images[:100000]
     # print(ids[:1000][-10:])
-    print("First 200 images slices")
+    # print("First 200 images slices")
     ds = dataset.generate(CocoGenerator(args, tag), images)
     return ds
 
 
 def main():
-    hub.init(processes=True, n_workers=1, memory_limit=4e9)
+    t1 = time.time()
+    hub.init(processes=True, n_workers=psutil.cpu_count(), memory_limit=55e9)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "dataset_path",
@@ -114,9 +126,11 @@ def main():
     ds = {tag: load_dataset(args, tag) for tag in tags}
     for tag in ds:
         print(f"{tag}: {len(ds[tag])} samples")
-    # ds = dataset.concat([ds[tag] for tag in tags])
-    ds = ds["train"]
+    ds = dataset.concat([ds[tag] for tag in tags])
+    # ds = ds["train"]
     ds.store(f"{args.output_path}")
+    t2 = time.time()
+    logger.info(f"Pipeline took {(t2 - t1) / 60} minutes")
 
 
 if __name__ == "__main__":
