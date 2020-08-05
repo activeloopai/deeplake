@@ -1,10 +1,10 @@
 # How to Upload a Dataset
 
-1. First install the package, create an account and authenticate.
+1. First install the package, create an account and then authenticate.
 ```
-pip3 install hub
-hub register
-hub login
+> pip3 install hub
+> hub register
+> hub login
 ```
 
 2. Then create your dataset
@@ -52,8 +52,10 @@ For each tensor you would need to specify a dtag so that visualizer knows how dr
 
 
 ## Guidelines
+1. Fork the github repo and create a folder under `examples/dataset`
 
-1. Train a model using Pytorch
+2. Train a model using Pytorch
+
 ```python
 import hub
 import pytorch
@@ -65,7 +67,8 @@ ds = ds.to_pytorch()
 ...
 ```
 
-2. Train a model using Tensorflow 
+3. Train a model using Tensorflow 
+
 ```python
 import hub
 import tensorflow
@@ -77,13 +80,15 @@ ds = ds.to_tensorflow()
 ...
 ```
 
-3. Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
+4. Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
 
-So here is the checklist
+## Final Checklist
+So here is the checklist, the pull request.
 -  [ ] Accessible using the sdk
 -  [ ] Trainable on Tensorflow
 -  [ ] Trainable on PyTorch 
 -  [ ] Visualizable at [app.activeloop.ai](https://app.activeloop.ai)
+-  [ ] Pull Request merged into master
 
 ## Issues
 
