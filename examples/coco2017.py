@@ -41,8 +41,7 @@ class CocoGenerator(dataset.DatasetGenerator):
                 Image.open(
                     os.path.join(
                         self._args.dataset_path,
-                        self._tag,
-                        f"{str(input['image_id']).zfill(12)}.jpg",
+                        get_image_name(self._args, self._tag, input["image_id"]),
                     )
                 )
             )
@@ -66,9 +65,19 @@ class CocoGenerator(dataset.DatasetGenerator):
             logger.error(e, exc_info=e, stack_info=True)
 
 
+def get_image_name(args, tag, id):
+    if args.year == "2014":
+        return f"{tag}/COCO_{tag}2014_{str(id).zfill(12)}.jpg"
+    elif args.year == "2017":
+        return f"{tag}/{str(id).zfill(12)}.jpg"
+    else:
+        raise Exception("Invalid COCO year")
+
+
 def load_dataset(args, tag):
     with open(
-        os.path.join(args.dataset_path, f"annotations/instances_{tag}2017.json"), "r"
+        os.path.join(args.dataset_path, f"annotations/instances_{tag}{args.year}.json"),
+        "r",
     ) as f:
         instances = json.load(f)
     # print(instances.keys())
@@ -86,9 +95,7 @@ def load_dataset(args, tag):
     ids = [
         f
         for f in sorted(images.keys())
-        if os.path.exists(
-            os.path.join(args.dataset_path, f"{tag}/{str(f).zfill(12)}.jpg")
-        )
+        if os.path.exists(os.path.join(args.dataset_path, get_image_name(args, tag, f)))
     ]
     print("Image ids selected")
     images = [
@@ -121,6 +128,7 @@ def main():
         help="Dataset output path",
         default="cifar10",
     )
+    parser.add_argument("year", metavar="Y", type=str, default="2017")
     args = parser.parse_args()
     tags = ["train", "val"]
     ds = {tag: load_dataset(args, tag) for tag in tags}
