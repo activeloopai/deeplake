@@ -26,7 +26,7 @@ def login(username, password):
         AuthClient.check_token(token)
     else:
         logger.info(
-            "Please log in using Snark AI credentials. You can register at https://app.snark.ai "
+            "Please log in using Snark AI credentials. You can register at https://app.activeloop.ai "
         )
         if not username:
             logger.debug("Prompting for username.")
@@ -44,16 +44,16 @@ def login(username, password):
 
 @click.command()
 def logout():
-    """ Logs out of Snark AI"""
+    """ Logs out of Activeloop AI"""
     TokenManager.purge_token()
 
 
 @click.command()
-@click.option("--username", "-u", default=None, help="Your Snark AI username")
+@click.option("--username", "-u", default=None, help="Your Activeloop AI username")
 @click.option("--email", "-e", default=None, help="Your email")
-@click.option("--password", "-p", default=None, help="Your Snark AI password")
+@click.option("--password", "-p", default=None, help="Your Activeloop AI password")
 def register(username, email, password):
-    """ Register at of Snark AI"""
+    """ Register at of Activeloop AI"""
     if not username:
         logger.debug("Prompting for username.")
         username = click.prompt("Username", type=str)
@@ -70,3 +70,5 @@ def register(username, email, password):
     password = password.strip()
 
     AuthClient().register(username, email, password)
+    token = AuthClient().get_access_token(username, password)
+    TokenManager.set_token(token)

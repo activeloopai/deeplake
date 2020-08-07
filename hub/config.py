@@ -7,8 +7,8 @@ STORE_CONFIG_PATH = os.path.expanduser("~/.activeloop/store")
 CACHE_FILE_PATH = os.path.expanduser("~/.activeloop/tmp")
 AWSCRED_PATH = os.path.expanduser("~/.aws/credentials")
 
-HUB_REST_ENDPOINT = "http://app.activeloop.ai"
-HUB_LOCAL_REST_ENDPOINT = "http://localhost:8000"
+HUB_REST_ENDPOINT = "https://app.activeloop.ai"
+HUB_LOCAL_REST_ENDPOINT = "http://localhost:5000"
 
 DEFAULT_TIMEOUT = 170
 
