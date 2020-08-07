@@ -10,6 +10,12 @@ import numpy as np
 import psutil
 
 try:
+    import tensorflow as tf
+    import tensorflow_datasets as tfds
+except ImportError:
+    pass
+
+try:
     import torch
 except ImportError:
     pass
@@ -200,7 +206,8 @@ class Dataset:
     def items(self):
         """ Returns tensors
         """
-        yield from self._tensors.items()
+        for key, value in self._tensors.items():
+            yield (key, value)
 
     def __getitem__(self, slices) -> "Dataset":
         """ Returns a slice of dataset
@@ -457,6 +464,27 @@ class Dataset:
     def to_pytorch(self, transform=None):
         return TorchDataset(self, transform)
 
+    def to_tensorflow(self):
+        def tf_gen():
+            for i in range(len(self)):
+                sample = self[i : i + 1]
+                yield {key: value.compute()[0] for key, value in sample.items()}
+
+        def tf_dtype(np_dtype):
+            print(np_dtype)
+            try:
+                return tf.dtypes.as_dtype(np_dtype)
+            except Exception:
+                return tf.variant
+
+        return tf.data.Dataset.from_generator(
+            tf_gen,
+            output_types={
+                key: tf_dtype(self._tensors[key].dtype) for key in self.keys()
+            },
+            output_shapes={key: self._tensors[key].shape[1:] for key in self.keys()},
+        )
+
 
 def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
@@ -557,7 +585,7 @@ class TorchDataset:
 
     def __getitem__(self, index):
         return self._do_transform(
-            {key: value.compute() for key, value in self._ds[index].items()}
+            {key: value.compute()[0] for key, value in self._ds[index].items()}
         )
 
     def __iter__(self):
@@ -581,3 +609,33 @@ def _dask_concat(arr):
         return arr[0]
     else:
         return dask.array.concatenate(arr)
+
+
+# class TensorflowDataset(tfds.core.GeneratorBasedBuilder):
+#     def _info(self):
+#         return tfds.core.DatasetInfo(
+#             builder=self,
+#             # This is the description that will appear on the datasets page.
+#             description=(
+#                 "This is the dataset for xxx. It contains yyy. The "
+#                 "images are kept at their original dimensions."
+#             ),
+#             # tfds.features.FeatureConnectors
+#             # features=tfds.features.FeaturesDict(
+#             #     {
+#             #         "image_description": tfds.features.Text(),
+#             #         "image": tfds.features.Image(),
+#             #         # Here, labels can be of 5 distinct values.
+#             #         "label": tfds.features.ClassLabel(num_classes=5),
+#             #     }
+#             # ),
+#             # If there's a common (input, target) tuple from the features,
+#             # specify them here. They'll be used if as_supervised=True in
+#             # builder.as_dataset.
+#             # supervised_keys=("image", "label"),
+#             # Homepage of the dataset for documentation
+#             homepage="https://dataset-homepage.org",
+#             # Bibtex citation for the dataset
+#             citation=r"""@article{my-awesome-dataset-2020,
+#                                 author = {Smith, John},"}""",
+#         )
