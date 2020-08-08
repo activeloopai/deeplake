@@ -14,9 +14,10 @@ try:
 except ImportError:
     pass
 
+from hub import config
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client
+from hub.collections.client_manager import get_client, init
 from hub.log import logger
 from hub.exceptions import PermissionException
 
@@ -455,6 +456,16 @@ class Dataset:
         return load(tag, creds)
 
     def to_pytorch(self, transform=None):
+        """
+            Transforms into pytorch dataset
+            
+            Parameters
+            ----------
+            transform: func
+                any transform that takes input a dictionary of a sample and returns transformed dictionary 
+        """
+        if config.DISTRIBUTED:
+            init(distributed=False)
         return TorchDataset(self, transform)
 
 

@@ -5,5 +5,6 @@ from .collections.client_manager import init
 import hub.config
 
 
+
 def local_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_LOCAL_REST_ENDPOINT
