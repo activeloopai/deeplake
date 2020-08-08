@@ -3,23 +3,36 @@ import torch
 import hub
 from hub.utils import generate_dataset, report
 import numpy as np
+from PIL import Image
+from pathlib import Path
+import os
 
 class Dataset(torch.utils.data.Dataset):
   'Characterizes a dataset for PyTorch'
-  def __init__(self, samples, width=256):
+  def __init__(self, samples, width=256, load_image=True, image_path = "results/Training.png"):
         'Initialization'
         self.samples = samples
         self.width = width
-
+        self.load_image = load_image
+        self.image_path = image_path
+        
   def __len__(self):
         'Denotes the total number of samples'
         return self.samples
 
   def __getitem__(self, index):
         'Generates one sample of data'
-        
+        if self.load_image:
+            folder = Path(__file__).parent
+            path = os.path.join(folder, self.image_path)
+            with open(path, 'rb') as f:
+                img = Image.open(f)
+                inp = img.convert('RGB')
+                inp = np.array(inp)
+        else:
+            inp = np.random.rand(self.width, self.width, 3)
         return {
-            "input": np.random.rand(self.width, self.width, 3),
+            "input": inp,
             "label": np.random.rand(1)
         }
 
