@@ -613,7 +613,7 @@ class TorchDataset:
             arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}
 
         objs = self._do_transform(arrs)
-        # objs = {k: torch.tensor(v) for k, v in objs.items()}
+        objs = {k: self._to_tensor(k, v) for k, v in objs.items()}
         return objs
 
     def __iter__(self):
@@ -633,13 +633,8 @@ class TorchDataset:
 
         for key in keys:
             if key not in self._dynkeys:
-                ans[key] = torch.tensor(ans[key])
-            else:
-                print(key)
-                if key == "segmentation":
-                    for item in ans[key]:
-                        print([np.array(i).shape for i in item])
-                ans[key] = [torch.tensor(item) for item in ans[key]]
+                ans[key] = torch.stack(ans[key], dim=0, out=None)
+
         return ans
 
 
