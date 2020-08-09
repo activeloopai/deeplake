@@ -3,11 +3,12 @@ from configparser import ConfigParser
 import json
 import os
 from typing import Dict, Tuple
-
+import time
 import dask
 import fsspec
 import numpy as np
 import psutil
+import traceback
 
 try:
     import tensorflow as tf
@@ -20,9 +21,10 @@ try:
 except ImportError:
     pass
 
+from hub import config
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client
+from hub.collections.client_manager import get_client, init
 from hub.log import logger
 from hub.exceptions import PermissionException
 
@@ -140,6 +142,7 @@ def _load_fs_and_path(path, creds=None, session_creds=True):
     if path.startswith("s3://"):
         path = path[5:]
         if creds is not None and session_creds:
+
             return (
                 fsspec.filesystem(
                     "s3",
@@ -257,7 +260,7 @@ class Dataset:
 
     def _store_unknown_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = psutil.cpu_count()
+        worker_count = sum(client.ncores().values())
         # worker_count = 1
         chunks = {key: t._delayed_objs for key, t in self._tensors.items()}
         chunk_count = [len(items) for _, items in chunks.items()]
@@ -344,8 +347,7 @@ class Dataset:
 
     def _store_known_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = psutil.cpu_count()
-        # worker_count = 1
+        worker_count = sum(client.ncores().values())
         # chunksize = min(*[t.chunksize for t in self._tensors.values()])
         chunksize = (
             min(*[t.chunksize for t in self._tensors.values()])
@@ -391,19 +393,6 @@ class Dataset:
             len(count) == 1
         ), "All tensors should be the same size to be stored in the same dataset"
         return next(iter(count))
-
-        tasks = {
-            name: [
-                dask.delayed(_numpy_saver)(
-                    fs, os.path.join(path, name, str(i) + ".npy"), t._array[i : i + 1]
-                )
-                for i in range(len(self))
-            ]
-            for name, t in self._tensors.items()
-        }
-
-        for i in range(len(self)):
-            dask.compute([tasks[name][i] for name in self._tensors])
 
     @property
     def meta(self) -> dict:
@@ -461,6 +450,14 @@ class Dataset:
         return load(tag, creds)
 
     def to_pytorch(self, transform=None):
+        """
+            Transforms into pytorch dataset
+            
+            Parameters
+            ----------
+            transform: func
+                any transform that takes input a dictionary of a sample and returns transformed dictionary 
+        """
         return TorchDataset(self, transform)
 
     def to_tensorflow(self):
@@ -488,11 +485,18 @@ class Dataset:
 def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
-    assert fs.exists(
-        filepath
-    ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
-    with fs.open(filepath, "rb") as f:
-        return np.load(f, allow_pickle=True)
+    # assert fs.exists(
+    #    filepath
+    # ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+
+    try:
+        with fs.open(filepath, "rb") as f:
+            return np.load(f, allow_pickle=False)
+    except Exception as e:
+        logger.error(traceback.format_exc() + str(e))
+        raise Exception(
+            "Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+        )
 
 
 def load(tag, creds=None, session_creds=True) -> Dataset:
@@ -563,9 +567,11 @@ def _is_arraylike(arr):
 
 
 def _is_tensor_dynamic(tensor):
-    # print(type(tensor._array.to_delayed().flatten()[0]))
     arr = tensor._array.to_delayed().flatten()[0].compute()
     return str(tensor.dtype) == "object" and _is_arraylike(arr.flatten()[0])
+
+
+flatten = lambda l: [item for sublist in l for item in sublist]
 
 
 class TorchDataset:
@@ -575,6 +581,7 @@ class TorchDataset:
         self._dynkeys = {
             key for key in self._ds.keys() if _is_tensor_dynamic(self._ds[key])
         }
+        self._client = None
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -583,23 +590,35 @@ class TorchDataset:
         return len(self._ds)
 
     def __getitem__(self, index):
-        return self._do_transform(
-            {key: value.compute() for key, value in self._ds[index].items()}
-        )
+        with dask.config.set(scheduler="sync"):
+            arrs = [self._ds[index].values() for i in range(1)]
+            arrs = list(map(lambda x: x._array, flatten(arrs)))
+            arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
+            arrs = arrs.compute()
+            arrs = {key: r for key, r in zip(self._ds[index].keys(), arrs)}
+
+        objs = self._do_transform(arrs)
+        objs = {k: torch.tensor(v) for k, v in objs.items()}
+        return objs
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
+    def _to_tensor(self, key, sample):
+        if key not in self._dynkeys:
+            return torch.tensor(sample)
+        else:
+            return [torch.tensor(item) for item in sample]
+
     def collate_fn(self, batch):
         batch = tuple(batch)
         keys = tuple(batch[0].keys())
         ans = {key: [item[key] for item in batch] for key in keys}
+
         for key in keys:
             if key not in self._dynkeys:
-                ans[key] = torch.tensor(ans[key])
-            else:
-                ans[key] = [torch.tensor(item) for item in ans[key]]
+                ans[key] = torch.stack(ans[key], dim=0, out=None)
         return ans
 
 

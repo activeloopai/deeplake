@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 from hub import config
 from hub.log import logger
 
@@ -16,6 +16,8 @@ class TokenManager(object):
         logger.debug(
             "Putting the key {} into {}.".format(token, config.TOKEN_FILE_PATH)
         )
+        path = Path(config.TOKEN_FILE_PATH)
+        os.makedirs(path.parent, exist_ok=True)
         with open(config.TOKEN_FILE_PATH, "w") as f:
             f.write(token)
 

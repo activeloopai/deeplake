@@ -1,7 +1,10 @@
 import psutil
+
+import dask
+import hub
 from dask.cache import Cache
 from dask.distributed import Client
-from hub.log import logger
+from hub import config
 
 _client = None
 
@@ -17,9 +20,11 @@ def init(
     token: str = "",
     cache=2e9,
     cloud=False,
-    n_workers=None,
+    n_workers=1,
     memory_limit=None,
     processes=False,
+    threads_per_worker=1,
+    distributed=True,
 ):
     """Initializes cluster either local or on the cloud
         
@@ -32,10 +37,20 @@ def init(
         cloud: bool
             Should be run locally or on the cloud
         n_workers: int
-            number of concurrent workers, default 5
+            number of concurrent workers, default to1
+        threads_per_worker: int
+            Number of threads per each worker
     """
+    global _client
+    if _client is not None:
+        _client.close()
+
     if cloud:
         raise NotImplementedError
+    elif not distributed:
+        client = None
+        dask.config.set(scheduler="threading")
+        hub.config.DISTRIBUTED = False
     else:
         n_workers = n_workers if n_workers is not None else psutil.cpu_count()
         memory_limit = (
@@ -43,13 +58,15 @@ def init(
             if memory_limit is not None
             else psutil.virtual_memory().available
         )
-
         client = Client(
-            n_workers=n_workers, processes=processes, memory_limit=memory_limit
+            n_workers=n_workers,
+            processes=processes,
+            memory_limit=memory_limit,
+            threads_per_worker=threads_per_worker,
         )
-
+        config.DISTRIBUTED = True
     cache = Cache(cache)
     cache.register()
-    global _client
+
     _client = client
     return client
