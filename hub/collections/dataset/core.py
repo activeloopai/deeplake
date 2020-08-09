@@ -206,8 +206,7 @@ class Dataset:
     def items(self):
         """ Returns tensors
         """
-        for key, value in self._tensors.items():
-            yield (key, value)
+        yield from self._tensors.items()
 
     def __getitem__(self, slices) -> "Dataset":
         """ Returns a slice of dataset
@@ -585,7 +584,7 @@ class TorchDataset:
 
     def __getitem__(self, index):
         return self._do_transform(
-            {key: value.compute()[0] for key, value in self._ds[index].items()}
+            {key: value.compute() for key, value in self._ds[index].items()}
         )
 
     def __iter__(self):
