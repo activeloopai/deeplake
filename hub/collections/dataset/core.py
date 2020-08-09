@@ -136,6 +136,7 @@ def _load_fs_and_path(path, creds=None, session_creds=True):
     if path.startswith("s3://"):
         path = path[5:]
         if creds is not None and session_creds:
+
             return (
                 fsspec.filesystem(
                     "s3",
@@ -253,7 +254,7 @@ class Dataset:
 
     def _store_unknown_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = psutil.cpu_count()
+        worker_count = sum(client.ncores().values())
         # worker_count = 1
         chunks = {key: t._delayed_objs for key, t in self._tensors.items()}
         chunk_count = [len(items) for _, items in chunks.items()]
@@ -340,8 +341,7 @@ class Dataset:
 
     def _store_known_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = psutil.cpu_count()
-        # worker_count = 1
+        worker_count = sum(client.ncores().values())
         # chunksize = min(*[t.chunksize for t in self._tensors.values()])
         chunksize = (
             min(*[t.chunksize for t in self._tensors.values()])
@@ -387,19 +387,6 @@ class Dataset:
             len(count) == 1
         ), "All tensors should be the same size to be stored in the same dataset"
         return next(iter(count))
-
-        tasks = {
-            name: [
-                dask.delayed(_numpy_saver)(
-                    fs, os.path.join(path, name, str(i) + ".npy"), t._array[i : i + 1]
-                )
-                for i in range(len(self))
-            ]
-            for name, t in self._tensors.items()
-        }
-
-        for i in range(len(self)):
-            dask.compute([tasks[name][i] for name in self._tensors])
 
     @property
     def meta(self) -> dict:

@@ -3,6 +3,7 @@ import time
 from hub.utils import generate_dataset, report
 
 BUCKET = "s3://snark-hub/benchmark"
+# BUCKET = "/tmp"
 
 
 def aws_cli_copy(samples=30, chunksize=None, name="aws cli"):
@@ -42,13 +43,14 @@ def upload_and_download(samples=30, chunksize=None, name="hub"):
 
 
 if __name__ == "__main__":
-    samples = 10
+    samples = 64
     chunksize = None
+    import hub
 
-    # hub.init(processes=True, n_workers=1, threads_per_worker=1)
+    hub.init(processes=True, n_workers=8, threads_per_worker=1)
 
     r1 = upload_and_download(samples, chunksize=chunksize)
     r2 = aws_cli_copy(samples, chunksize=chunksize)
 
-    report([r2, r1])
+    report([r1, r2])
 
