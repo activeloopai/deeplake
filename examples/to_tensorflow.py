@@ -18,9 +18,9 @@ def main():
 
 def main2():
     tf.enable_eager_execution()
-    ds = hub.load("s3://snark-hub/public/coco/coco2017")
-    print(ds["id"][0].compute())
-    exit()
+    ds = hub.load("./data/generated/coco2017")
+    # print(ds["id"][0].compute())
+    # exit()
     # ds = hub.dataset.from_tensors(
     #     {
     #         "image_id": ds["image_id"],

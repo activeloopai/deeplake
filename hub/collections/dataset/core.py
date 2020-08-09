@@ -206,6 +206,11 @@ class Dataset:
         """
         yield from self._tensors.keys()
 
+    def values(self):
+        """ Returns tensors
+        """
+        yield from self._tensors.values()
+
     def items(self):
         """ Returns tensors
         """
@@ -491,11 +496,11 @@ def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
 
     try:
         with fs.open(filepath, "rb") as f:
-            return np.load(f, allow_pickle=False)
+            return np.load(f, allow_pickle=True)
     except Exception as e:
         logger.error(traceback.format_exc() + str(e))
         raise Exception(
-            "Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+            f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
         )
 
 
@@ -591,14 +596,14 @@ class TorchDataset:
 
     def __getitem__(self, index):
         with dask.config.set(scheduler="sync"):
-            arrs = [self._ds[index].values() for i in range(1)]
+            arrs = [self._ds[index : index + 1].values() for i in range(1)]
             arrs = list(map(lambda x: x._array, flatten(arrs)))
             arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
             arrs = arrs.compute()
-            arrs = {key: r for key, r in zip(self._ds[index].keys(), arrs)}
+            arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}
 
         objs = self._do_transform(arrs)
-        objs = {k: torch.tensor(v) for k, v in objs.items()}
+        # objs = {k: torch.tensor(v) for k, v in objs.items()}
         return objs
 
     def __iter__(self):
@@ -618,7 +623,13 @@ class TorchDataset:
 
         for key in keys:
             if key not in self._dynkeys:
-                ans[key] = torch.stack(ans[key], dim=0, out=None)
+                ans[key] = torch.tensor(ans[key])
+            else:
+                print(key)
+                if key == "segmentation":
+                    for item in ans[key]:
+                        print([np.array(i).shape for i in item])
+                ans[key] = [torch.tensor(item) for item in ans[key]]
         return ans
 
 
