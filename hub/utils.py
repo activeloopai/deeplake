@@ -2,6 +2,7 @@ import numpy as np
 from hub import tensor, dataset as ds
 from hub.log import logger
 
+
 def generate_dataset(shapes=[(10, 1024, 1024)], chunksize=None):
     """
     Generates a datasets with random tensors
@@ -9,9 +10,11 @@ def generate_dataset(shapes=[(10, 1024, 1024)], chunksize=None):
     ds_dict = {}
     for shape in shapes:
         data = np.random.rand(*shape)
+        data = (255 * data).astype("uint8")
         ds_dict[f"ds{str(shape)}"] = tensor.from_array(data, chunksize=chunksize)
     _ds = ds.from_tensors(ds_dict)
     return _ds
+
 
 def report(logs):
     """
@@ -21,5 +24,5 @@ def report(logs):
     for log in logs:
         logger.info(f"~~~~ {log['name']} ~~~~")
         del log["name"]
-        for k,v in log.items(): 
+        for k, v in log.items():
             logger.info(f"{k}: {v}")

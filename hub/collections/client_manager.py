@@ -49,7 +49,7 @@ def init(
         raise NotImplementedError
     elif not distributed:
         client = None
-        dask.config.set(scheduler="synchronous")
+        dask.config.set(scheduler="threading")
         hub.config.DISTRIBUTED = False
     else:
         n_workers = n_workers if n_workers is not None else psutil.cpu_count()

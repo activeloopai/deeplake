@@ -3,11 +3,12 @@ from configparser import ConfigParser
 import json
 import os
 from typing import Dict, Tuple
-
+import time
 import dask
 import fsspec
 import numpy as np
 import psutil
+import traceback
 
 try:
     import torch
@@ -464,19 +465,24 @@ class Dataset:
             transform: func
                 any transform that takes input a dictionary of a sample and returns transformed dictionary 
         """
-        if config.DISTRIBUTED:
-            init(distributed=False)
         return TorchDataset(self, transform)
 
 
 def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
-    assert fs.exists(
-        filepath
-    ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
-    with fs.open(filepath, "rb") as f:
-        return np.load(f, allow_pickle=True)
+    # assert fs.exists(
+    #    filepath
+    # ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+
+    try:
+        with fs.open(filepath, "rb") as f:
+            return np.load(f, allow_pickle=False)
+    except Exception as e:
+        logger.error(traceback.format_exc() + str(e))
+        raise Exception(
+            "Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+        )
 
 
 def load(tag, creds=None, session_creds=True) -> Dataset:
@@ -547,9 +553,11 @@ def _is_arraylike(arr):
 
 
 def _is_tensor_dynamic(tensor):
-    # print(type(tensor._array.to_delayed().flatten()[0]))
     arr = tensor._array.to_delayed().flatten()[0].compute()
     return str(tensor.dtype) == "object" and _is_arraylike(arr.flatten()[0])
+
+
+flatten = lambda l: [item for sublist in l for item in sublist]
 
 
 class TorchDataset:
@@ -559,6 +567,7 @@ class TorchDataset:
         self._dynkeys = {
             key for key in self._ds.keys() if _is_tensor_dynamic(self._ds[key])
         }
+        self._client = None
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -567,23 +576,35 @@ class TorchDataset:
         return len(self._ds)
 
     def __getitem__(self, index):
-        return self._do_transform(
-            {key: value.compute() for key, value in self._ds[index].items()}
-        )
+        with dask.config.set(scheduler="sync"):
+            arrs = [self._ds[index].values() for i in range(1)]
+            arrs = list(map(lambda x: x._array, flatten(arrs)))
+            arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
+            arrs = arrs.compute()
+            arrs = {key: r for key, r in zip(self._ds[index].keys(), arrs)}
+
+        objs = self._do_transform(arrs)
+        objs = {k: torch.tensor(v) for k, v in objs.items()}
+        return objs
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
+    def _to_tensor(self, key, sample):
+        if key not in self._dynkeys:
+            return torch.tensor(sample)
+        else:
+            return [torch.tensor(item) for item in sample]
+
     def collate_fn(self, batch):
         batch = tuple(batch)
         keys = tuple(batch[0].keys())
         ans = {key: [item[key] for item in batch] for key in keys}
+
         for key in keys:
             if key not in self._dynkeys:
-                ans[key] = torch.tensor(ans[key])
-            else:
-                ans[key] = [torch.tensor(item) for item in ans[key]]
+                ans[key] = torch.stack(ans[key], dim=0, out=None)
         return ans
 
 
