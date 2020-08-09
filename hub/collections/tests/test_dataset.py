@@ -224,6 +224,6 @@ def test_to_pytorch():
         assert "t1" in data[i]
         assert "t2" in data[i]
     assert data[0]["t1"][0].tolist() == [1, 2]
-    assert data[0]["t2"][0].tolist() == [5, 6, 7, 8]
+    assert data[0]["t2"][0] == [5, 6, 7, 8]
     assert data[1]["t1"][0].tolist() == [3, 4]
-    assert data[1]["t2"][0].tolist() == [7, 8, 9]
+    assert data[1]["t2"][0] == [7, 8, 9]
