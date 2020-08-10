@@ -1,11 +1,9 @@
 import argparse
 import os
-import pickle
 import struct
 
 import numpy as np
 from array import array as pyarray
-from PIL import Image
 
 from hub.collections import dataset, tensor
 

@@ -18,3 +18,4 @@ GET_REGISTER_SUFFIX = "/api/user/register"
 GET_DATASET_SUFFIX = "/api/dataset/get"
 GET_DATASET_PATH_SUFFIX = "/api/dataset/get/path"
 
+DISTRIBUTED = True

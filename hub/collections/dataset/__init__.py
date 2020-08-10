@@ -84,7 +84,7 @@ def _meta_concat(metas: Tuple[Dict[str, object]]):
     for meta in metas:
         assert _meta["dtype"] == meta["dtype"]
         assert _meta["shape"][1:] == meta["shape"][1:]
-        assert _meta["dtag"] == meta["dtag"]
+        assert _meta.get("dtag") == meta.get("dtag")
         assert _meta["dcompress"] == meta["dcompress"]
 
     _meta["shape"] = (sum([meta["shape"][0] for meta in metas]),) + _meta["shape"][1:]

@@ -1,4 +1,0 @@
-tensorflow>=1.14,<2
-torch>=1,<2
-waymo-open-dataset-tf-1-15-0
-pytest

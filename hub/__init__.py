@@ -1,4 +1,5 @@
 from .collections import dataset
+from .collections.dataset.core import Transform
 from .collections import tensor
 from .collections.dataset import load
 from .collections.client_manager import init

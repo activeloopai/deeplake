@@ -1,35 +1,85 @@
 from collections import abc
 from configparser import ConfigParser
 import json
-import multiprocessing as mp
 import os
 from typing import Dict, Tuple
-
 import dask
 import fsspec
 import numpy as np
-
-try:
-    import torch
-except ImportError:
-    pass
+import traceback
 
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
 from hub.exceptions import PermissionException
+from hub.utils import _flatten
+
+try:
+    import torch
+except ImportError:
+    pass
 
 
-class DatasetGenerator:
+class Transform:
     def __init__(self):
         pass
 
     def __call__(self, input):
-        raise NotImplementedError()
+        return self.forward(input)
 
     def meta(self):
+        """
+        Provides the metadata for all tensors including shapes, dtypes, dtags and chunksize for each array in the form
+        
+        Returns
+        -------
+        returns 
+            dict of tensor
+            
+        Examples
+        -------
+        >>> def meta()
+        >>>     return {
+        >>>         ...
+        >>>         "tesnor_name":{
+        >>>             "shape": (1,256,256), 
+        >>>             "dtype": "uint8", 
+        >>>             "chunksize": 100, 
+        >>>             "dtag": "segmentation"
+        >>>         }
+        >>>         ...
+        >>>     }
+        """
+
         raise NotImplementedError()
+
+    def forward(input):
+        """
+        Takes a an element of a list or sample from dataset and returns sample of the dataset
+        
+        Parameters
+        -------
+        input
+            an element of list or dict of arrays  
+            
+        Returns
+        -------
+        dict
+            dict of numpy arrays
+        
+        Examples
+        -------
+        >>> def forward(input):
+        >>>    ds = {}
+        >>>    ds["image"] = np.empty(1, object)
+        >>>    ds["image"][0] = np.array(256, 256)
+        >>>    return ds
+        """
+        raise NotImplementedError()
+
+
+DatasetGenerator = Transform
 
 
 def _numpy_to_tuple(arr: np.ndarray):
@@ -134,6 +184,7 @@ def _load_fs_and_path(path, creds=None, session_creds=True):
     if path.startswith("s3://"):
         path = path[5:]
         if creds is not None and session_creds:
+
             return (
                 fsspec.filesystem(
                     "s3",
@@ -197,6 +248,11 @@ class Dataset:
         """
         yield from self._tensors.keys()
 
+    def values(self):
+        """ Returns tensors
+        """
+        yield from self._tensors.values()
+
     def items(self):
         """ Returns tensors
         """
@@ -251,8 +307,8 @@ class Dataset:
 
     def _store_unknown_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = mp.cpu_count()
-        # worker_count = 4
+        worker_count = sum(client.ncores().values())
+        # worker_count = 1
         chunks = {key: t._delayed_objs for key, t in self._tensors.items()}
         chunk_count = [len(items) for _, items in chunks.items()]
         assert (
@@ -338,8 +394,7 @@ class Dataset:
 
     def _store_known_sized_ds(self, fs: fsspec.AbstractFileSystem, path: str) -> int:
         client = get_client()
-        worker_count = mp.cpu_count()
-        # worker_count = 4
+        worker_count = sum(client.ncores().values())
         # chunksize = min(*[t.chunksize for t in self._tensors.values()])
         chunksize = (
             min(*[t.chunksize for t in self._tensors.values()])
@@ -386,19 +441,6 @@ class Dataset:
         ), "All tensors should be the same size to be stored in the same dataset"
         return next(iter(count))
 
-        tasks = {
-            name: [
-                dask.delayed(_numpy_saver)(
-                    fs, os.path.join(path, name, str(i) + ".npy"), t._array[i : i + 1]
-                )
-                for i in range(len(self))
-            ]
-            for name, t in self._tensors.items()
-        }
-
-        for i in range(len(self)):
-            dask.compute([tasks[name][i] for name in self._tensors])
-
     @property
     def meta(self) -> dict:
         """ Dict of meta's of each tensor
@@ -426,8 +468,19 @@ class Dataset:
         """
         fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
         fs: fsspec.AbstractFileSystem = fs
+
+        if (
+            fs.exists(os.path.join(path))
+            and not fs.exists(os.path.join(path, "meta.json"))
+            # and not fs.exists(os.path.join(path, "HUB_DATASET"))
+            # and len(fs.ls(path, detail=False)) > 0
+        ):
+            raise Exception(f"This path {path} is not a dataset path, tag: {tag}")
         self.delete(tag, creds)
         fs.makedirs(path)
+
+        # with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
+        #     f.write("Hello World")
 
         tensor_paths = [os.path.join(path, t) for t in self._tensors]
         for tensor_path in tensor_paths:
@@ -455,17 +508,70 @@ class Dataset:
         return load(tag, creds)
 
     def to_pytorch(self, transform=None):
+        """
+            Transforms into pytorch dataset
+            
+            Parameters
+            ----------
+            transform: func
+                any transform that takes input a dictionary of a sample and returns transformed dictionary 
+        """
         return TorchDataset(self, transform)
+
+    def to_tensorflow(self):
+        """
+            Transforms into tensorflow dataset
+        """
+        try:
+            import tensorflow as tf
+        except ImportError:
+            pass
+
+        def tf_gen(step=4):
+            with dask.config.set(scheduler="sync"):
+                for index in range(0, len(self), step):
+                    arrs = [self[index : index + step].values() for i in range(1)]
+                    arrs = list(map(lambda x: x._array, _flatten(arrs)))
+                    arrs = dask.delayed(list, pure=False, nout=len(list(self.keys())))(
+                        arrs
+                    )
+                    arrs = arrs.compute()
+                    for i in range(step):
+                        sample = {key: r[i] for key, r in zip(self[index].keys(), arrs)}
+                        yield sample
+
+        def tf_dtype(np_dtype):
+            try:
+                return tf.dtypes.as_dtype(np_dtype)
+            except Exception as e:
+                return tf.variant
+
+        # TODO use None for dimensions you don't know the length tf.TensorShape([None])
+        # FIXME Dataset Generator is not very good with multiprocessing but its good for fast tensorflow support
+        return tf.data.Dataset.from_generator(
+            tf_gen,
+            output_types={
+                key: tf_dtype(self._tensors[key].dtype) for key in self.keys()
+            },
+            output_shapes={key: self._tensors[key].shape[1:] for key in self.keys()},
+        )
 
 
 def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
-    assert fs.exists(
-        filepath
-    ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
-    with fs.open(filepath, "rb") as f:
-        return np.load(f, allow_pickle=True)
+    # assert fs.exists(
+    #    filepath
+    # ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+
+    try:
+        with fs.open(filepath, "rb") as f:
+            return np.load(f, allow_pickle=True)
+    except Exception as e:
+        logger.error(traceback.format_exc() + str(e))
+        raise Exception(
+            f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
+        )
 
 
 def load(tag, creds=None, session_creds=True) -> Dataset:
@@ -536,9 +642,11 @@ def _is_arraylike(arr):
 
 
 def _is_tensor_dynamic(tensor):
-    # print(type(tensor._array.to_delayed().flatten()[0]))
     arr = tensor._array.to_delayed().flatten()[0].compute()
     return str(tensor.dtype) == "object" and _is_arraylike(arr.flatten()[0])
+
+
+#
 
 
 class TorchDataset:
@@ -548,6 +656,7 @@ class TorchDataset:
         self._dynkeys = {
             key for key in self._ds.keys() if _is_tensor_dynamic(self._ds[key])
         }
+        self._client = None
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -556,23 +665,36 @@ class TorchDataset:
         return len(self._ds)
 
     def __getitem__(self, index):
-        return self._do_transform(
-            {key: value.compute() for key, value in self._ds[index].items()}
-        )
+        with dask.config.set(scheduler="sync"):
+            arrs = [self._ds[index : index + 1].values() for i in range(1)]
+            arrs = list(map(lambda x: x._array, _flatten(arrs)))
+            arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
+            arrs = arrs.compute()
+            arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}
+
+        objs = self._do_transform(arrs)
+        objs = {k: self._to_tensor(k, v) for k, v in objs.items()}
+        return objs
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
+    def _to_tensor(self, key, sample):
+        if key not in self._dynkeys:
+            return torch.tensor(sample)
+        else:
+            return [torch.tensor(item) for item in sample]
+
     def collate_fn(self, batch):
         batch = tuple(batch)
         keys = tuple(batch[0].keys())
         ans = {key: [item[key] for item in batch] for key in keys}
+
         for key in keys:
             if key not in self._dynkeys:
-                ans[key] = torch.tensor(ans[key])
-            else:
-                ans[key] = [torch.tensor(item) for item in ans[key]]
+                ans[key] = torch.stack(ans[key], dim=0, out=None)
+
         return ans
 
 
@@ -581,3 +703,33 @@ def _dask_concat(arr):
         return arr[0]
     else:
         return dask.array.concatenate(arr)
+
+
+# class TensorflowDataset(tfds.core.GeneratorBasedBuilder):
+#     def _info(self):
+#         return tfds.core.DatasetInfo(
+#             builder=self,
+#             # This is the description that will appear on the datasets page.
+#             description=(
+#                 "This is the dataset for xxx. It contains yyy. The "
+#                 "images are kept at their original dimensions."
+#             ),
+#             # tfds.features.FeatureConnectors
+#             # features=tfds.features.FeaturesDict(
+#             #     {
+#             #         "image_description": tfds.features.Text(),
+#             #         "image": tfds.features.Image(),
+#             #         # Here, labels can be of 5 distinct values.
+#             #         "label": tfds.features.ClassLabel(num_classes=5),
+#             #     }
+#             # ),
+#             # If there's a common (input, target) tuple from the features,
+#             # specify them here. They'll be used if as_supervised=True in
+#             # builder.as_dataset.
+#             # supervised_keys=("image", "label"),
+#             # Homepage of the dataset for documentation
+#             homepage="https://dataset-homepage.org",
+#             # Bibtex citation for the dataset
+#             citation=r"""@article{my-awesome-dataset-2020,
+#                                 author = {Smith, John},"}""",
+#         )
