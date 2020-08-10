@@ -3,30 +3,22 @@ from configparser import ConfigParser
 import json
 import os
 from typing import Dict, Tuple
-import time
 import dask
 import fsspec
 import numpy as np
-import psutil
 import traceback
 
-try:
-    import tensorflow as tf
-    import tensorflow_datasets as tfds
-except ImportError:
-    pass
+from hub.client.hub_control import HubControlClient
+from hub.collections.tensor.core import Tensor
+from hub.collections.client_manager import get_client
+from hub.log import logger
+from hub.exceptions import PermissionException
+from hub.utils import _flatten
 
 try:
     import torch
 except ImportError:
     pass
-
-from hub import config
-from hub.client.hub_control import HubControlClient
-from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client, init
-from hub.log import logger
-from hub.exceptions import PermissionException
 
 
 class DatasetGenerator:
@@ -428,16 +420,16 @@ class Dataset:
         fs: fsspec.AbstractFileSystem = fs
 
         if (
-            fs.exists(path)
-            and not fs.exists(os.path.join(path, "HUB_DATASET"))
-            and len(fs.ls(path, detail=False)) > 0
+            not fs.exists(os.path.join(path, "meta.json"))
+            # and not fs.exists(os.path.join(path, "HUB_DATASET"))
+            # and len(fs.ls(path, detail=False)) > 0
         ):
             raise Exception(f"This path {path} is not a dataset path, tag: {tag}")
         self.delete(tag, creds)
         fs.makedirs(path)
-        # touchign a file
-        with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
-            f.write("Hello World")
+
+        # with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
+        #     f.write("Hello World")
 
         tensor_paths = [os.path.join(path, t) for t in self._tensors]
         for tensor_path in tensor_paths:
@@ -476,18 +468,35 @@ class Dataset:
         return TorchDataset(self, transform)
 
     def to_tensorflow(self):
-        def tf_gen():
-            for i in range(len(self)):
-                sample = self[i : i + 1]
-                yield {key: value.compute()[0] for key, value in sample.items()}
+        """
+            Transforms into tensorflow dataset
+        """
+        try:
+            import tensorflow as tf
+        except ImportError:
+            pass
+
+        def tf_gen(step=4):
+            with dask.config.set(scheduler="sync"):
+                for index in range(0, len(self), step):
+                    arrs = [self[index : index + step].values() for i in range(1)]
+                    arrs = list(map(lambda x: x._array, _flatten(arrs)))
+                    arrs = dask.delayed(list, pure=False, nout=len(list(self.keys())))(
+                        arrs
+                    )
+                    arrs = arrs.compute()
+                    for i in range(step):
+                        sample = {key: r[i] for key, r in zip(self[index].keys(), arrs)}
+                        yield sample
 
         def tf_dtype(np_dtype):
-            print(np_dtype)
             try:
                 return tf.dtypes.as_dtype(np_dtype)
-            except Exception:
+            except Exception as e:
                 return tf.variant
 
+        # TODO use None for dimensions you don't know the length tf.TensorShape([None])
+        # FIXME Dataset Generator is not very good with multiprocessing but its good for fast tensorflow support
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types={
@@ -586,7 +595,7 @@ def _is_tensor_dynamic(tensor):
     return str(tensor.dtype) == "object" and _is_arraylike(arr.flatten()[0])
 
 
-flatten = lambda l: [item for sublist in l for item in sublist]
+#
 
 
 class TorchDataset:
@@ -607,7 +616,7 @@ class TorchDataset:
     def __getitem__(self, index):
         with dask.config.set(scheduler="sync"):
             arrs = [self._ds[index : index + 1].values() for i in range(1)]
-            arrs = list(map(lambda x: x._array, flatten(arrs)))
+            arrs = list(map(lambda x: x._array, _flatten(arrs)))
             arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
             arrs = arrs.compute()
             arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}

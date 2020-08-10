@@ -1,6 +1,6 @@
 import os
 import time
-from hub.utils import generate_dataset, report
+from helper import generate_dataset, report
 
 BUCKET = "s3://snark-hub/benchmark"
 # BUCKET = "/tmp"
