@@ -21,15 +21,65 @@ except ImportError:
     pass
 
 
-class DatasetGenerator:
+class Transform:
     def __init__(self):
         pass
 
     def __call__(self, input):
-        raise NotImplementedError()
+        return self.forward(input)
 
     def meta(self):
+        """
+        Provides the metadata for all tensors including shapes, dtypes, dtags and chunksize for each array in the form
+        
+        Returns
+        -------
+        returns 
+            dict of tensor
+            
+        Examples
+        -------
+        >>> def meta()
+        >>>     return {
+        >>>         ...
+        >>>         "tesnor_name":{
+        >>>             "shape": (1,256,256), 
+        >>>             "dtype": "uint8", 
+        >>>             "chunksize": 100, 
+        >>>             "dtag": "segmentation"
+        >>>         }
+        >>>         ...
+        >>>     }
+        """
+
         raise NotImplementedError()
+
+    def forward(input):
+        """
+        Takes a an element of a list or sample from dataset and returns sample of the dataset
+        
+        Parameters
+        -------
+        input
+            an element of list or dict of arrays  
+            
+        Returns
+        -------
+        dict
+            dict of numpy arrays
+        
+        Examples
+        -------
+        >>> def forward(input):
+        >>>    ds = {}
+        >>>    ds["image"] = np.empty(1, object)
+        >>>    ds["image"][0] = np.array(256, 256)
+        >>>    return ds
+        """
+        raise NotImplementedError()
+
+
+DatasetGenerator = Transform
 
 
 def _numpy_to_tuple(arr: np.ndarray):
@@ -420,7 +470,8 @@ class Dataset:
         fs: fsspec.AbstractFileSystem = fs
 
         if (
-            not fs.exists(os.path.join(path, "meta.json"))
+            fs.exists(os.path.join(path))
+            and not fs.exists(os.path.join(path, "meta.json"))
             # and not fs.exists(os.path.join(path, "HUB_DATASET"))
             # and len(fs.ls(path, detail=False)) > 0
         ):
