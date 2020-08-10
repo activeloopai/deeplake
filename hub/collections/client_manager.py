@@ -8,6 +8,9 @@ from hub import config
 
 _client = None
 
+cache = Cache(2e9)
+cache.register()
+
 
 def get_client():
     global _client
@@ -18,7 +21,6 @@ def get_client():
 
 def init(
     token: str = "",
-    cache=2e9,
     cloud=False,
     n_workers=1,
     memory_limit=None,
@@ -65,8 +67,6 @@ def init(
             threads_per_worker=threads_per_worker,
         )
         config.DISTRIBUTED = True
-    cache = Cache(cache)
-    cache.register()
 
     _client = client
     return client

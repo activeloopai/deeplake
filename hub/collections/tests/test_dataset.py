@@ -227,3 +227,54 @@ def test_to_pytorch():
     assert data[0]["t2"][0] == [5, 6, 7, 8]
     assert data[1]["t1"][0].tolist() == [3, 4]
     assert data[1]["t2"][0] == [7, 8, 9]
+
+
+def test_to_backend_with_tf_and_pytorch():
+    try:
+        import torch
+        import tensorflow
+    except ImportError:
+        print("Pytorch hasn't been imported and tested")
+        return
+
+    ds = dataset.load("mnist/mnist")
+
+    tfds = ds.to_tensorflow()
+    ptds = ds.to_pytorch()
+    ptds = torch.utils.data.DataLoader(
+        ptds,
+        batch_size=1,
+        num_workers=1,
+        collate_fn=ds.collate_fn if "collate_fn" in dir(ds) else None,
+    )
+
+    for i, (batchtf, batchpt) in enumerate(zip(tfds, ptds)):
+        gt = ds["labels"][i].compute()
+        assert gt == batchtf["labels"].numpy()
+        assert gt == batchpt["labels"].numpy()
+        if i > 10:
+            break
+
+
+def test_to_backend_with_tf_and_pytorch():
+    try:
+        import torch
+        import tensorflow
+    except ImportError:
+        print("Pytorch hasn't been imported and tested")
+        return
+
+    ds = dataset.load("mnist/mnist")
+
+    tfds = ds.to_tensorflow().batch(8)
+    ptds = ds.to_pytorch()
+    ptds = torch.utils.data.DataLoader(
+        ptds,
+        batch_size=8,
+        num_workers=8,
+        collate_fn=ds.collate_fn if "collate_fn" in dir(ds) else None,
+    )
+    for i, (batchtf, batchpt) in enumerate(zip(tfds, ptds)):
+        assert np.all(batchtf["labels"].numpy() == batchpt["labels"].numpy())
+        if i > 10:
+            break

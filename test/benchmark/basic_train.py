@@ -151,10 +151,10 @@ if __name__ == "__main__":
     params = [
         {"samples": n_samples, "backend": "pytorch", "read_from_fs": False},
         {"samples": n_samples, "backend": "pytorch", "read_from_fs": True},
-        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": False},
-        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": True},
         {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": False},
         {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": True},
+        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": False},
+        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": True},
         {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": False},
         {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": True},
     ]
