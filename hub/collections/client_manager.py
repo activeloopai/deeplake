@@ -65,6 +65,7 @@ def init(
             processes=processes,
             memory_limit=memory_limit,
             threads_per_worker=threads_per_worker,
+            local_directory="/tmp/",
         )
         config.DISTRIBUTED = True
 
