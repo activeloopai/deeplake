@@ -673,7 +673,11 @@ class TorchDataset:
             arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}
 
         objs = self._do_transform(arrs)
-        objs = {k: self._to_tensor(k, v) for k, v in objs.items()}
+        if isinstance(objs, dict):
+            objs = {k: self._to_tensor(k, v) for k, v in objs.items()}
+        elif isinstance(objs, list):
+            objs = [self._to_tensor(v) for v in objs]
+
         return objs
 
     def __iter__(self):
