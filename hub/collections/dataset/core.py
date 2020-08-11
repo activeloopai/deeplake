@@ -420,16 +420,17 @@ class Dataset:
         fs: fsspec.AbstractFileSystem = fs
 
         if (
-            not fs.exists(os.path.join(path, "meta.json"))
-            # and not fs.exists(os.path.join(path, "HUB_DATASET"))
-            # and len(fs.ls(path, detail=False)) > 0
+            fs.exists(path)
+            and not fs.exists(os.path.join(path, "meta.json"))
+            and not fs.exists(os.path.join(path, "HUB_DATASET"))
+            and len(fs.ls(path, detail=False)) > 0
         ):
             raise Exception(f"This path {path} is not a dataset path, tag: {tag}")
         self.delete(tag, creds)
         fs.makedirs(path)
 
-        # with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
-        #     f.write("Hello World")
+        with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
+            f.write("Hello World")
 
         tensor_paths = [os.path.join(path, t) for t in self._tensors]
         for tensor_path in tensor_paths:
