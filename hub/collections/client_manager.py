@@ -8,9 +8,6 @@ from hub import config
 
 _client = None
 
-cache = Cache(2e9)
-cache.register()
-
 
 def get_client():
     global _client
@@ -68,6 +65,9 @@ def init(
             local_directory="/tmp/",
         )
         config.DISTRIBUTED = True
+
+    cache = Cache(2e9)
+    cache.register()
 
     _client = client
     return client
