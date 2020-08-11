@@ -232,11 +232,12 @@ def test_to_pytorch():
 def test_to_backend_with_tf_and_pytorch():
     try:
         import torch
-        import tensorflow
+        import tensorflow as tf
     except ImportError:
         print("Pytorch hasn't been imported and tested")
         return
 
+    tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
 
     tfds = ds.to_tensorflow()
@@ -256,14 +257,15 @@ def test_to_backend_with_tf_and_pytorch():
             break
 
 
-def test_to_backend_with_tf_and_pytorch():
+def test_to_backend_with_tf_and_pytorch_multiworker():
     try:
         import torch
-        import tensorflow
+        import tensorflow as tf
     except ImportError:
         print("Pytorch hasn't been imported and tested")
         return
 
+    tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
 
     tfds = ds.to_tensorflow().batch(8)
