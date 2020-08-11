@@ -1,6 +1,6 @@
 from .image import Image
 
+
 class Png(Image):
     def __init__(self):
-        super().__init__('png')
-    
+        super().__init__("png")
