@@ -280,3 +280,11 @@ def test_to_backend_with_tf_and_pytorch_multiworker():
         assert np.all(batchtf["labels"].numpy() == batchpt["labels"].numpy())
         if i > 10:
             break
+
+
+def test_lz4():
+    ds = dataset.from_tensors(
+        {"t1": tensor.from_array(np.array([1, 2, 3]), dcompress="lz4:4")}
+    )
+    ds = ds.store("./data/test_store_tmp/test_lz4")
+    assert ds["t1"].compute().tolist() == [1, 2, 3]

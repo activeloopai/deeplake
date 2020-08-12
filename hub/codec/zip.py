@@ -12,7 +12,7 @@ class Zip(Base):
 
     def encode(self, array: np.ndarray) -> bytes:
         with io.BytesIO() as f:
-            array.save(f, allow_pickle=True)
+            np.save(f, array, allow_pickle=True)
             return self._compressor.compress(f.getvalue(), self._compresslevel)
 
     def decode(self, content: bytes) -> np.ndarray:

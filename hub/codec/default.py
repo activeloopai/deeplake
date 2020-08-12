@@ -1,3 +1,5 @@
+import io
+
 import numpy as np
 
 from .base import Base
@@ -9,7 +11,7 @@ class Default(Base):
 
     def encode(self, array: np.ndarray) -> bytes:
         with io.BytesIO() as f:
-            array.save(f, allow_pickle=True)
+            np.save(f, array, allow_pickle=True)
             return f.getvalue()
 
     def decode(self, bytes_: bytes) -> np.ndarray:

@@ -10,6 +10,8 @@ from .png import Png
 
 
 def from_name(codec_name: str) -> Base:
+    if codec_name is None:
+        return Default()
     compresslevel = None
     if ":" in codec_name:
         comp = codec_name.split(":")
@@ -25,7 +27,7 @@ def from_name(codec_name: str) -> Base:
     elif codec_name == "zlib":
         return Zlib(compresslevel)
     elif codec_name == "lz4":
-        return LZ4(compresslevel)
+        return LZ4(compresslevel or 1)
     elif codec_name == "jpeg":
         return Jpeg()
     elif codec_name == "png":

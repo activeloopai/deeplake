@@ -9,6 +9,8 @@ import numpy as np
 import traceback
 
 from hub.client.hub_control import HubControlClient
+from hub.codec import Base as BaseCodec
+from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
@@ -88,11 +90,13 @@ def _numpy_to_tuple(arr: np.ndarray):
     return [np.array([t]) for t in arr]
 
 
-def _numpy_saver(fs: fsspec.AbstractFileSystem, filepath: str, array: np.ndarray):
+def _numpy_saver(
+    fs: fsspec.AbstractFileSystem, filepath: str, array: np.ndarray, codec: BaseCodec
+):
     """ Saves a single numpy array into filepath given specific filesystem
     """
     with fs.open(filepath, "wb") as f:
-        np.save(f, array, allow_pickle=True)
+        f.write(codec.encode(array))
 
 
 def _numpy_saver_multi(
@@ -374,6 +378,7 @@ class Dataset:
             for key in list(collected.keys()):
                 c = collected[key]
                 chunksize = self._tensors[key].chunksize
+                codec = codec_from_name(self._tensors[key].dcompress)
                 cnt = len(c) - len(c) % chunksize if not lasttime else len(c)
                 for i in range(0, cnt, chunksize):
                     tasks += [
@@ -381,6 +386,7 @@ class Dataset:
                             fs,
                             os.path.join(path, key, f"{collected_offset[key] + i}.npy"),
                             c[i : i + chunksize],
+                            codec,
                         )
                     ]
                 collected_offset[key] += cnt
@@ -420,6 +426,7 @@ class Dataset:
                     collected[el] = _dask_concat([collected[el], arr])
                 c = collected[el]
                 chunksize_ = self._tensors[el].chunksize
+                codec = codec_from_name(self._tensors[el].dcompress)
                 if len(c) >= chunksize_ or lasttime:
                     jcnt = len(c) - len(c) % chunksize_ if not lasttime else len(c)
                     for j in range(0, jcnt, chunksize_):
@@ -430,6 +437,7 @@ class Dataset:
                                     path, el, f"{collected_offset[el] + j}.npy"
                                 ),
                                 collected[el][j : j + chunksize_],
+                                codec,
                             )
                         ]
                     collected_offset[el] += jcnt
@@ -557,7 +565,9 @@ class Dataset:
         )
 
 
-def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
+def _numpy_load(
+    fs: fsspec.AbstractFileSystem, filepath: str, codec: BaseCodec
+) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
     # assert fs.exists(
@@ -566,7 +576,7 @@ def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
 
     try:
         with fs.open(filepath, "rb") as f:
-            return np.load(f, allow_pickle=True)
+            return codec.decode(f.read())
     except Exception as e:
         logger.error(traceback.format_exc() + str(e))
         raise Exception(
@@ -620,7 +630,9 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                     [
                         dask.array.from_delayed(
                             dask.delayed(_numpy_load)(
-                                fs, os.path.join(path, name, f"{i}.npy")
+                                fs,
+                                os.path.join(path, name, f"{i}.npy"),
+                                codec_from_name(tmeta.get("dcompress")),
                             ),
                             shape=(min(tmeta["chunksize"], len_ - i),)
                             + tuple(tmeta["shape"][1:]),
