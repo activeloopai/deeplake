@@ -36,9 +36,26 @@ def main():
     labels = np.concatenate([np.array(d[b"labels"], dtype="int16") for d in dicts])
     print(images.shape, labels.shape)
     Image.fromarray(images[1000].transpose(1, 2, 0)).save("./data/image.png")
-    images_t = tensor.from_array(images)
+    images_t = tensor.from_array(images, dtag="image")
     labels_t = tensor.from_array(labels)
-    ds = dataset.from_tensors({"data": images_t, "labels": labels_t})
+    classes = [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck",
+    ]
+    label_texts_t = tensor.from_array(
+        np.array([classes[label] for label in labels], dtype="U16"), dtag="label"
+    )
+    ds = dataset.from_tensors(
+        {"data": images_t, "labels": labels_t, "classes": label_texts_t}
+    )
     ds.store(f"{args.output_name}")
 
 
