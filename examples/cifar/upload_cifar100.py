@@ -98,11 +98,11 @@ def main():
     coarse_labels_t = tensor.from_array(coarse_labels)
     classes_t = tensor.from_array(
         np.array([subclasses[label] for label in fine_labels], dtype="U64"),
-        dtag="label",
+        dtag="text",
     )
     superclasses_t = tensor.from_array(
         np.array([superclasses[label] for label in coarse_labels], dtype="U64"),
-        dtag="label",
+        dtag="text",
     )
     ds = dataset.from_tensors(
         {

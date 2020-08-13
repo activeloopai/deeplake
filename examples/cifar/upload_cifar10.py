@@ -51,7 +51,7 @@ def main():
         "truck",
     ]
     label_texts_t = tensor.from_array(
-        np.array([classes[label] for label in labels], dtype="U16"), dtag="label"
+        np.array([classes[label] for label in labels], dtype="U16"), dtag="text"
     )
     ds = dataset.from_tensors(
         {"data": images_t, "labels": labels_t, "classes": label_texts_t}
