@@ -23,9 +23,9 @@ def from_name(codec_name: str) -> Base:
     if codec_name == "default":
         return Default()
     elif codec_name == "gzip":
-        return Gzip(compresslevel)
+        return Gzip(compresslevel or 9)
     elif codec_name == "zlib":
-        return Zlib(compresslevel)
+        return Zlib(compresslevel or -1)
     elif codec_name == "lz4":
         return LZ4(compresslevel or 1)
     elif codec_name == "jpeg":
