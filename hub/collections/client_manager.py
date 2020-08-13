@@ -3,8 +3,17 @@ import psutil
 import dask
 import hub
 from dask.cache import Cache
+
 from dask.distributed import Client
 from hub import config
+from multiprocessing import current_process
+
+from dask.callbacks import Callback
+from timeit import default_timer
+from numbers import Number
+import sys
+
+import psutil, os, time
 
 _client = None
 
@@ -40,6 +49,7 @@ def init(
         threads_per_worker: int
             Number of threads per each worker
     """
+    print("initialized")
     global _client
     if _client is not None:
         _client.close()
@@ -66,8 +76,26 @@ def init(
         )
         config.DISTRIBUTED = True
 
-    cache = Cache(2e9)
-    cache.register()
-
     _client = client
     return client
+
+
+overhead = sys.getsizeof(1.23) * 4 + sys.getsizeof(()) * 4
+
+
+class HubCache(Cache):
+    def _posttask(self, key, value, dsk, state, id):
+        duration = default_timer() - self.starttimes[key]
+        deps = state["dependencies"][key]
+        if deps:
+            duration += max(self.durations.get(k, 0) for k in deps)
+        self.durations[key] = duration
+        nb = self._nbytes(value) + overhead + sys.getsizeof(key) * 4
+
+        # _cost calculation has been fixed to avoid memory leak
+        _cost = duration
+        self.cache.put(key, value, cost=_cost, nbytes=nb)
+
+
+cache = HubCache(2e9)
+cache.register()

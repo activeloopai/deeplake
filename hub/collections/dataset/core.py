@@ -10,15 +10,21 @@ import traceback
 
 from hub.client.hub_control import HubControlClient
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client
+from hub.collections.client_manager import get_client, HubCache
 from hub.log import logger
 from hub.exceptions import PermissionException
-from hub.utils import _flatten
 
 try:
     import torch
 except ImportError:
     pass
+
+def _flatten(l):
+    """
+        Helper function to flatten the list
+    """
+    return [item for sublist in l for item in sublist]
+
 
 
 class Transform:
@@ -646,9 +652,6 @@ def _is_tensor_dynamic(tensor):
     return str(tensor.dtype) == "object" and _is_arraylike(arr.flatten()[0])
 
 
-#
-
-
 class TorchDataset:
     def __init__(self, ds, transform=None):
         self._ds = ds
@@ -656,7 +659,12 @@ class TorchDataset:
         self._dynkeys = {
             key for key in self._ds.keys() if _is_tensor_dynamic(self._ds[key])
         }
-        self._client = None
+
+        def cost(nbytes, time):
+            print(nbytes, time)
+            return float(time) / (nbytes or 1) / 1e9
+
+        self.client = None
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -665,11 +673,12 @@ class TorchDataset:
         return len(self._ds)
 
     def __getitem__(self, index):
-        with dask.config.set(scheduler="sync"):
+        with dask.config.set(scheduler="sync", delayed_pure=True):
             arrs = [self._ds[index : index + 1].values() for i in range(1)]
             arrs = list(map(lambda x: x._array, _flatten(arrs)))
-            arrs = dask.delayed(list, pure=False, nout=len(list(self._ds.keys())))(arrs)
+            arrs = dask.delayed(list, pure=True, nout=len(list(self._ds.keys())))(arrs)
             arrs = arrs.compute()
+
             arrs = {key: r[0] for key, r in zip(self._ds[index].keys(), arrs)}
 
         objs = self._do_transform(arrs)
@@ -677,7 +686,6 @@ class TorchDataset:
             objs = {k: self._to_tensor(k, v) for k, v in objs.items()}
         elif isinstance(objs, list):
             objs = [self._to_tensor(v) for v in objs]
-
         return objs
 
     def __iter__(self):
