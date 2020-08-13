@@ -13,12 +13,18 @@ from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
 from hub.exceptions import PermissionException
-from hub.utils import _flatten
 
 try:
     import torch
 except ImportError:
     pass
+
+def _flatten(l):
+    """
+        Helper function to flatten the list
+    """
+    return [item for sublist in l for item in sublist]
+
 
 
 class Transform:
