@@ -45,17 +45,15 @@ Load the data and directly train your model using pytorch
 
 ```python
 import hub
-import pytorch
+import torch
 
-cifar = hub.load("cifar/cifar10")
-cifar = cifar.to_pytorch()
+mnist = hub.load("mnist/mnist")
+mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
 
-train_loader = torch.utils.data.DataLoader(
-        cifar, batch_size=1, num_workers=0, collate_fn=cifar.collate_fn
-)
+train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
 
-for images, labels in train_loader:
-    # your training loop here
+for image, label in train_loader:
+    # Training loop here
 ```
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
