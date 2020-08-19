@@ -109,7 +109,7 @@ def _numpy_saver_multi(
     fs: fsspec.AbstractFileSystem, filepath: str, arrays: np.ndarray, offset: int
 ):
     for i in range(len(arrays)):
-        _numpy_saver(fs, os.path.join(filepath, f"{offset+i}.npy"), arrays[i : i + 1])
+        _numpy_saver(fs, f"{filepath}/{offset+i}.npy", arrays[i : i + 1])
     return len(arrays)
 
 
@@ -390,7 +390,7 @@ class Dataset:
                     tasks += [
                         dask.delayed(_numpy_saver)(
                             fs,
-                            os.path.join(path, key, f"{collected_offset[key] + i}.npy"),
+                            f"{path}/{key}/{collected_offset[key] + i}.npy",
                             c[i : i + chunksize],
                             codec,
                         )
@@ -439,9 +439,7 @@ class Dataset:
                         tasks += [
                             dask.delayed(_numpy_saver)(
                                 fs,
-                                os.path.join(
-                                    path, el, f"{collected_offset[el] + j}.npy"
-                                ),
+                                f"{path}/{el}/{collected_offset[el] + j}.npy",
                                 collected[el][j : j + chunksize_],
                                 codec,
                             )
@@ -485,18 +483,18 @@ class Dataset:
 
         if (
             fs.exists(path)
-            and not fs.exists(os.path.join(path, "meta.json"))
-            and not fs.exists(os.path.join(path, "HUB_DATASET"))
+            and not fs.exists(f"{path}/meta.json")
+            and not fs.exists(f"{path}/HUB_DATASET")
             and len(fs.ls(path, detail=False)) > 0
         ):
             raise Exception(f"This path {path} is not a dataset path, tag: {tag}")
         self.delete(tag, creds)
         fs.makedirs(path)
 
-        with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
+        with fs.open(f"{path}/HUB_DATASET", "w") as f:
             f.write("Hello World")
 
-        tensor_paths = [os.path.join(path, t) for t in self._tensors]
+        tensor_paths = [f"{path}/{t}" for t in self._tensors]
         for tensor_path in tensor_paths:
             fs.makedir(tensor_path)
         tensor_meta = {
@@ -516,7 +514,7 @@ class Dataset:
         for _, el in tensor_meta.items():
             el["shape"] = (count,) + tuple(el["shape"][1:])
         ds_meta = {"tensors": tensor_meta, "len": count}
-        with fs.open(os.path.join(path, "meta.json"), "w") as f:
+        with fs.open(f"{path}/meta.json", "w") as f:
             f.write(json.dumps(ds_meta, indent=2, sort_keys=True))
 
         return load(tag, creds)
@@ -595,7 +593,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     """
     fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
-    path_2 = os.path.join(path, "meta.json")
+    path_2 = f"{path}/meta.json"
     if not fs.exists(path):
         from hub.exceptions import DatasetNotFound
 
@@ -606,7 +604,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
 
     for name in ds_meta["tensors"]:
         assert fs.exists(
-            os.path.join(path, name)
+            f"{path}/{name}"
         ), f"Tensor {name} of {tag} dataset does not exist"
     if ds_meta["len"] == 0:
         logger.warning("The dataset is empty (has 0 samples)")
@@ -637,7 +635,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                         dask.array.from_delayed(
                             dask.delayed(_numpy_load)(
                                 fs,
-                                os.path.join(path, name, f"{i}.npy"),
+                                f"{path}/{name}/{i}.npy",
                                 codec_from_name(tmeta.get("dcompress")),
                             ),
                             shape=(min(tmeta["chunksize"], len_ - i),)
