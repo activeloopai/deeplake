@@ -9,6 +9,8 @@ import numpy as np
 import traceback
 
 from hub.client.hub_control import HubControlClient
+from hub.codec import Base as BaseCodec
+from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client, HubCache
 from hub.log import logger
@@ -94,18 +96,20 @@ def _numpy_to_tuple(arr: np.ndarray):
     return [np.array([t]) for t in arr]
 
 
-def _numpy_saver(fs: fsspec.AbstractFileSystem, filepath: str, array: np.ndarray):
+def _numpy_saver(
+    fs: fsspec.AbstractFileSystem, filepath: str, array: np.ndarray, codec: BaseCodec
+):
     """ Saves a single numpy array into filepath given specific filesystem
     """
     with fs.open(filepath, "wb") as f:
-        np.save(f, array, allow_pickle=True)
+        f.write(codec.encode(array))
 
 
 def _numpy_saver_multi(
     fs: fsspec.AbstractFileSystem, filepath: str, arrays: np.ndarray, offset: int
 ):
     for i in range(len(arrays)):
-        _numpy_saver(fs, os.path.join(filepath, f"{offset+i}.npy"), arrays[i : i + 1])
+        _numpy_saver(fs, f"{filepath}/{offset+i}.npy", arrays[i : i + 1])
     return len(arrays)
 
 
@@ -380,13 +384,15 @@ class Dataset:
             for key in list(collected.keys()):
                 c = collected[key]
                 chunksize = self._tensors[key].chunksize
+                codec = codec_from_name(self._tensors[key].dcompress)
                 cnt = len(c) - len(c) % chunksize if not lasttime else len(c)
                 for i in range(0, cnt, chunksize):
                     tasks += [
                         dask.delayed(_numpy_saver)(
                             fs,
-                            os.path.join(path, key, f"{collected_offset[key] + i}.npy"),
+                            f"{path}/{key}/{collected_offset[key] + i}.npy",
                             c[i : i + chunksize],
+                            codec,
                         )
                     ]
                 collected_offset[key] += cnt
@@ -426,16 +432,16 @@ class Dataset:
                     collected[el] = _dask_concat([collected[el], arr])
                 c = collected[el]
                 chunksize_ = self._tensors[el].chunksize
+                codec = codec_from_name(self._tensors[el].dcompress)
                 if len(c) >= chunksize_ or lasttime:
                     jcnt = len(c) - len(c) % chunksize_ if not lasttime else len(c)
                     for j in range(0, jcnt, chunksize_):
                         tasks += [
                             dask.delayed(_numpy_saver)(
                                 fs,
-                                os.path.join(
-                                    path, el, f"{collected_offset[el] + j}.npy"
-                                ),
+                                f"{path}/{el}/{collected_offset[el] + j}.npy",
                                 collected[el][j : j + chunksize_],
+                                codec,
                             )
                         ]
                     collected_offset[el] += jcnt
@@ -476,19 +482,19 @@ class Dataset:
         fs: fsspec.AbstractFileSystem = fs
 
         if (
-            fs.exists(os.path.join(path))
-            and not fs.exists(os.path.join(path, "meta.json"))
-            # and not fs.exists(os.path.join(path, "HUB_DATASET"))
-            # and len(fs.ls(path, detail=False)) > 0
+            fs.exists(path)
+            and not fs.exists(f"{path}/meta.json")
+            and not fs.exists(f"{path}/HUB_DATASET")
+            and len(fs.ls(path, detail=False)) > 0
         ):
             raise Exception(f"This path {path} is not a dataset path, tag: {tag}")
         self.delete(tag, creds)
         fs.makedirs(path)
 
-        # with fs.open(os.path.join(path, "HUB_DATASET"), "w") as f:
-        #     f.write("Hello World")
+        with fs.open(f"{path}/HUB_DATASET", "w") as f:
+            f.write("Hello World")
 
-        tensor_paths = [os.path.join(path, t) for t in self._tensors]
+        tensor_paths = [f"{path}/{t}" for t in self._tensors]
         for tensor_path in tensor_paths:
             fs.makedir(tensor_path)
         tensor_meta = {
@@ -508,7 +514,7 @@ class Dataset:
         for _, el in tensor_meta.items():
             el["shape"] = (count,) + tuple(el["shape"][1:])
         ds_meta = {"tensors": tensor_meta, "len": count}
-        with fs.open(os.path.join(path, "meta.json"), "w") as f:
+        with fs.open(f"{path}/meta.json", "w") as f:
             f.write(json.dumps(ds_meta, indent=2, sort_keys=True))
 
         return load(tag, creds)
@@ -563,7 +569,9 @@ class Dataset:
         )
 
 
-def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
+def _numpy_load(
+    fs: fsspec.AbstractFileSystem, filepath: str, codec: BaseCodec
+) -> np.ndarray:
     """ Given filesystem and filepath, loads numpy array
     """
     # assert fs.exists(
@@ -572,7 +580,7 @@ def _numpy_load(fs: fsspec.AbstractFileSystem, filepath: str) -> np.ndarray:
 
     try:
         with fs.open(filepath, "rb") as f:
-            return np.load(f, allow_pickle=True)
+            return codec.decode(f.read())
     except Exception as e:
         logger.error(traceback.format_exc() + str(e))
         raise Exception(
@@ -585,7 +593,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     """
     fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
-    path_2 = os.path.join(path, "meta.json")
+    path_2 = f"{path}/meta.json"
     if not fs.exists(path):
         from hub.exceptions import DatasetNotFound
 
@@ -596,7 +604,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
 
     for name in ds_meta["tensors"]:
         assert fs.exists(
-            os.path.join(path, name)
+            f"{path}/{name}"
         ), f"Tensor {name} of {tag} dataset does not exist"
     if ds_meta["len"] == 0:
         logger.warning("The dataset is empty (has 0 samples)")
@@ -626,7 +634,9 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                     [
                         dask.array.from_delayed(
                             dask.delayed(_numpy_load)(
-                                fs, os.path.join(path, name, f"{i}.npy")
+                                fs,
+                                f"{path}/{name}/{i}.npy",
+                                codec_from_name(tmeta.get("dcompress")),
                             ),
                             shape=(min(tmeta["chunksize"], len_ - i),)
                             + tuple(tmeta["shape"][1:]),

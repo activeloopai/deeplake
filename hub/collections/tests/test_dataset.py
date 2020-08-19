@@ -232,11 +232,12 @@ def test_to_pytorch():
 def test_to_backend_with_tf_and_pytorch():
     try:
         import torch
-        import tensorflow
+        import tensorflow as tf
     except ImportError:
         print("Pytorch hasn't been imported and tested")
         return
 
+    tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
 
     tfds = ds.to_tensorflow()
@@ -256,14 +257,15 @@ def test_to_backend_with_tf_and_pytorch():
             break
 
 
-def test_to_backend_with_tf_and_pytorch():
+def test_to_backend_with_tf_and_pytorch_multiworker():
     try:
         import torch
-        import tensorflow
+        import tensorflow as tf
     except ImportError:
         print("Pytorch hasn't been imported and tested")
         return
 
+    tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
 
     tfds = ds.to_tensorflow().batch(8)
@@ -278,3 +280,11 @@ def test_to_backend_with_tf_and_pytorch():
         assert np.all(batchtf["labels"].numpy() == batchpt["labels"].numpy())
         if i > 10:
             break
+
+
+def test_lz4():
+    ds = dataset.from_tensors(
+        {"t1": tensor.from_array(np.array([1, 2, 3]), dcompress="lz4:4")}
+    )
+    ds = ds.store("./data/test_store_tmp/test_lz4")
+    assert ds["t1"].compute().tolist() == [1, 2, 3]
