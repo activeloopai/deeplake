@@ -20,7 +20,7 @@ Hub provides fast access to the state-of-the-art datasets for Deep Learning, ena
 
 ### Problems with Current Workflows
 
-We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. It is hard to manage data, version control and track. It is time-consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
+We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size.  It is hard to manage data, store, access, and version-control. It is time-consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
 
 ## Getting Started
 
@@ -45,17 +45,15 @@ Load the data and directly train your model using pytorch
 
 ```python
 import hub
-import pytorch
+import torch
 
-cifar = hub.load("cifar/cifar10")
-cifar = cifar.to_pytorch()
+mnist = hub.load("mnist/mnist")
+mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
 
-train_loader = torch.utils.data.DataLoader(
-        cifar, batch_size=1, num_workers=0, collate_fn=cifar.collate_fn
-)
+train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
 
-for images, labels in train_loader:
-    # your training loop here
+for image, label in train_loader:
+    # Training loop here
 ```
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
@@ -86,7 +84,7 @@ ds = hub.load("username/basic")
 For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
 ## Things you can do with Hub
-* Store large datasets with version control
+* Store large datasets with version-control
 * Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
 * Access from multiple machines simultaneously
 * Integration with your ML tools like Numpy, Dask, PyTorch, or TensorFlow.
@@ -107,5 +105,9 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 
 
 
+# Disclaimers
 
+Similarly to other dataset management packages, `Hub` is a utility library that downloads and prepares public datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have license to use the dataset. It is your responsibility to determine whether you have permission to use the dataset under the dataset's license.
+
+If you're a dataset owner and wish to update any part of it (description, citation, etc.), or do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Thanks for your contribution to the ML community!
 
