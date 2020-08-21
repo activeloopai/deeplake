@@ -61,7 +61,6 @@ def main():
         images, labels = load_fashion_mnist(f, path=args.dataset_path)
         dicts += [{"images": images, "labels": labels}]
     images = np.concatenate([d["images"] for d in dicts])
-    
     labels = np.concatenate([np.array(d["labels"], dtype="int8") for d in dicts])
     print(images.shape, labels.shape)
 

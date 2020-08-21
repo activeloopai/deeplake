@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -20,46 +21,48 @@ class CNN(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.dropout(x, training=self.training)
         x = self.fc2(x)
-        return F.log_softmax(x,dim=1)
+        return F.log_softmax(x, dim=1)
 
-def train(model,train_loader,optimizer):
-  model.train()
-  for batch_idx, batch in enumerate(train_loader): 
-    data=batch["data"]
-    data=torch.unsqueeze(data,1)
-    labels=batch["labels"]
-    labels = labels.type(torch.LongTensor)
-    optimizer.zero_grad() 
-    output = model(data)
-    loss = F.nll_loss(output, labels)
-    loss.backward()
-    optimizer.step()
 
-def test(model,test_loader):
-  model.eval()
-  print("Evaluating on Test Set")
-  test_loss = correct = 0
-  with torch.no_grad():
-    for batch in test_loader:
-      data=batch["data"]
-      data=torch.unsqueeze(data,1)
-      labels=batch["labels"]
-      labels = labels.type(torch.LongTensor)
-      output = model(data)
-      test_loss += F.nll_loss(output, labels, reduction='sum').item()
-      pred = output.data.max(1, keepdim=True)[1]
-      correct += pred.eq(labels.data.view_as(pred)).sum()
+def train(model, train_loader, optimizer):
+    model.train()
+    for batch_idx, batch in enumerate(train_loader):
+        data = batch["data"]
+        data = torch.unsqueeze(data, 1)
+        labels = batch["labels"]
+        labels = labels.type(torch.LongTensor)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = F.nll_loss(output, labels)
+        loss.backward()
+        optimizer.step()
 
-  test_loss /= len(test_loader.dataset)
-  print('Test set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-    test_loss, correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
+
+def test(model, test_loader):
+    model.eval()
+    print("Evaluating on Test Set")
+    test_loss = correct = 0
+    with torch.no_grad():
+        for batch in test_loader:
+            data = batch["data"]
+            data = torch.unsqueeze(data, 1)
+            labels = batch["labels"]
+            labels = labels.type(torch.LongTensor)
+            output = model(data)
+            test_loss += F.nll_loss(output, labels, reduction='sum').item()
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(labels.data.view_as(pred)).sum()
+
+    test_loss /= len(test_loader.dataset)
+    print('Test set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+        test_loss, correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
+
 
 def main():
     EPOCHS = 3
     BATCH_SIZE = 64
     LEARNING_RATE = 0.01
     MOMENTUM = 0.5
-    
     torch.backends.cudnn.enabled = False
     random_seed = 2
     torch.manual_seed(random_seed)
@@ -72,19 +75,20 @@ def main():
 
     # Splitting back into the original train and test sets, instead of random split
     train_dataset = torch.utils.data.Subset(ds, range(60000))
-    test_dataset = torch.utils.data.Subset(ds, range(60000,70000))
+    test_dataset = torch.utils.data.Subset(ds, range(60000, 70000))
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE,collate_fn=ds.collate_fn)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE,collate_fn=ds.collate_fn)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
 
     model = CNN()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
 
     for epoch in range(EPOCHS):
         print("Starting Training Epoch {}".format(epoch))
-        train(model,train_loader,optimizer)
+        train(model, train_loader, optimizer)
         print("Training Epoch {} finished\n".format(epoch))
-        test(model,test_loader)
+        test(model, test_loader)
+
 
 if __name__ == "__main__":
     main()
