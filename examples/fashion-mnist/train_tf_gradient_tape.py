@@ -18,7 +18,7 @@ def create_CNN():
 	return model
 
 def train(model,train_dataset,optimizer,loss_fn,train_acc_metric):
-	for batch_idx,batch in enumerate(train_dataset):
+	for batch in train_dataset:
 		with tf.GradientTape() as tape:
 			pred = model(tf.expand_dims(batch["data"], axis=3))
 			loss=loss_fn(batch["labels"], pred)
@@ -34,7 +34,7 @@ def train(model,train_dataset,optimizer,loss_fn,train_acc_metric):
 
 def test(model,test_dataset,test_acc_metric):
 	print("Evaluating on Test Set")
-	for batch_idx,batch in enumerate(test_dataset):
+	for batch in test_dataset:
 		pred = model(tf.expand_dims(batch["data"], axis=3), training=False)
 		test_acc_metric.update_state(batch["labels"],pred)
 
