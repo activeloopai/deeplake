@@ -7,6 +7,7 @@ import numpy as np
 
 from .core import Dataset, DatasetGenerator, load, _dask_shape
 from hub.collections.tensor import Tensor
+from hub.collections import dataset, tensor
 
 
 def _generate(generator: DatasetGenerator, input):
@@ -132,3 +133,17 @@ def merge(datasets: Iterable[Dataset]) -> Dataset:
             assert tname not in tensors
             tensors[tname] = tvalue
     return Dataset(tensors)
+
+
+def from_tensorflow(input):
+    images, labels = [], []
+    for image, label in input.take(100):
+        images.append(image)
+        labels.append(label)
+
+    images = np.array(images)
+    labels = np.array(labels)
+    images_t = tensor.from_array(images)
+    labels_t = tensor.from_array(labels)
+    output = dataset.from_tensors({"data": images_t, "labels": labels_t})
+    return output

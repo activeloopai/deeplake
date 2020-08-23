@@ -33,6 +33,7 @@ dask-worker-space/
 *.sql
 *.sqlite
 data/
+tmp/
 
 # OS generated files #
 ######################
