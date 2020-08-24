@@ -7,6 +7,7 @@ import dask
 import fsspec
 import numpy as np
 import traceback
+from gcsfs.core import GCSFileSystem
 
 from hub.client.hub_control import HubControlClient
 from hub.codec import Base as BaseCodec
@@ -21,12 +22,12 @@ try:
 except ImportError:
     pass
 
+
 def _flatten(l):
     """
         Helper function to flatten the list
     """
     return [item for sublist in l for item in sublist]
-
 
 
 class Transform:
@@ -177,7 +178,7 @@ def _connect(tag):
     return path, creds
 
 
-def _load_fs_and_path(path, creds=None, session_creds=True):
+def _load_fs_and_path(path, creds=None, session_creds=True, google_cloud_project=""):
     """ Given url(path) and creds returns filesystem required for accessing that file + url's filepath in that filesystem
     """
     if (
@@ -188,7 +189,12 @@ def _load_fs_and_path(path, creds=None, session_creds=True):
     ):
         return fsspec.filesystem("file"), os.path.expanduser(path.replace("fs://", ""))
 
-    if session_creds and creds is None and not path.startswith("s3://"):
+    if (
+        session_creds
+        and creds is None
+        and not path.startswith("s3://")
+        and not path.startswith("gcs://")
+    ):
         path, creds = _connect(path)
 
     if path.startswith("s3://"):
@@ -217,6 +223,11 @@ def _load_fs_and_path(path, creds=None, session_creds=True):
             )
         else:
             return fsspec.filesystem("s3"), path
+    elif path.startswith("gcs://"):
+        return (
+            GCSFileSystem(project=google_cloud_project, token=creds),
+            path[6:],
+        )
 
 
 class Dataset:
@@ -496,7 +507,7 @@ class Dataset:
 
         tensor_paths = [f"{path}/{t}" for t in self._tensors]
         for tensor_path in tensor_paths:
-            fs.makedir(tensor_path)
+            fs.makedirs(tensor_path)
         tensor_meta = {
             name: _preprocess_meta_before_save(t._meta)
             for name, t in self._tensors.items()

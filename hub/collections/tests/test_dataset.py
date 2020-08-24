@@ -192,7 +192,17 @@ def test_s3_dataset():
     assert ds["arr"].shape == (-1, 5)
     assert ds["rra"].shape == (-1,)
     ds = ds.store("s3://snark-test/test_dataflow/test_s3_dataset")
-    # dzevakan comment
+    assert len(ds) == 3
+    assert (ds["rra"][:3].compute() == np.array([0, 0, 1], dtype="int32")).all()
+    assert ds["rra"][2].compute() == 1
+    assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
+
+
+def test_gcs_dataset():
+    ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
+    assert ds["arr"].shape == (-1, 5)
+    assert ds["rra"].shape == (-1,)
+    ds = ds.store("gcs://snark-test/test_dataflow/test_s3_dataset")
     assert len(ds) == 3
     assert (ds["rra"][:3].compute() == np.array([0, 0, 1], dtype="int32")).all()
     assert ds["rra"][2].compute() == 1
