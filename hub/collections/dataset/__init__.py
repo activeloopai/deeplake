@@ -135,15 +135,14 @@ def merge(datasets: Iterable[Dataset]) -> Dataset:
     return Dataset(tensors)
 
 
-def from_tensorflow(input):
-    images, labels = [], []
-    for image, label in input.take(100):
-        images.append(image)
-        labels.append(label)
-
-    images = np.array(images)
-    labels = np.array(labels)
-    images_t = tensor.from_array(images)
-    labels_t = tensor.from_array(labels)
-    output = dataset.from_tensors({"data": images_t, "labels": labels_t})
-    return output
+def from_tensorflow(ds, features, n_examples=-1):
+    features = {i: feature for i, feature in enumerate(features)}
+    tensors = {feature: [] for i, feature in features.items()}
+    if n_examples > 0:
+        ds = ds.take(n_examples)
+    for ex in ds:
+        for i, item in enumerate(ex):
+            tensors[features[i]] += [item]
+    for key, val in tensors.items():
+        tensors[key] = tensor.from_array(np.array(val))
+    return dataset.from_tensors(tensors)

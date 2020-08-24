@@ -2,12 +2,8 @@ import argparse
 import os
 import pickle
 import numpy as np
-from fnmatch import fnmatch
-from PIL import Image
 
 from hub.collections import dataset, tensor
-
-import torch, torchvision
 
 
 def main():
@@ -17,7 +13,7 @@ def main():
         "-i",
         type=str,
         help="Path to an original imagenet dataset",
-        default="./data/imagenet",
+        default="./data/imagenet8x8",
     )
     parser.add_argument(
         "--output",
