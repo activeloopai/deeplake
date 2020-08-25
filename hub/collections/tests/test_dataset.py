@@ -298,3 +298,16 @@ def test_lz4():
     )
     ds = ds.store("./data/test_store_tmp/test_lz4")
     assert ds["t1"].compute().tolist() == [1, 2, 3]
+
+
+def test_description_license():
+    t1 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
+    t2 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
+    ds = dataset.from_tensors(
+        {"abc": t1, "def": t2}, license="Some license", description="Some description"
+    )
+    assert ds.license == "Some license"
+    assert ds.description == "Some description"
+    ds = ds.store("./data/test_store_tmp/test_description_license")
+    assert ds.license == "Some license"
+    assert ds.description == "Some description"

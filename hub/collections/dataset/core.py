@@ -231,10 +231,11 @@ def _load_fs_and_path(path, creds=None, session_creds=True, google_cloud_project
 
 
 class Dataset:
-    def __init__(self, tensors: Dict[str, Tensor]):
+    def __init__(self, tensors: Dict[str, Tensor], metainfo=dict()):
         """ Creates dict given dict of tensors (name -> Tensor key value pairs)
         """
         self._tensors = tensors
+        self._metainfo = metainfo
         shape = None
         for name, tensor in tensors.items():
             if shape is None or tensor.ndim > len(shape):
@@ -250,6 +251,18 @@ class Dataset:
                 "Cannot return __len__ of dataset for which __len__ is not known, use .count property, it will return -1 instead of this Exception"
             )
         return self._len
+
+    @property
+    def license(self) -> str:
+        """ Dataset license
+        """
+        return self._metainfo.get("license") if self._metainfo else None
+
+    @property
+    def description(self) -> str:
+        """ Dataset description
+        """
+        return self._metainfo.get("description") if self._metainfo else None
 
     @property
     def count(self) -> int:
@@ -525,6 +538,10 @@ class Dataset:
         for _, el in tensor_meta.items():
             el["shape"] = (count,) + tuple(el["shape"][1:])
         ds_meta = {"tensors": tensor_meta, "len": count}
+        ds_info = dict()
+        for key, value in self._metainfo.items():
+            ds_info[key] = value
+        ds_meta["metainfo"] = ds_info
         with fs.open(f"{path}/meta.json", "w") as f:
             f.write(json.dumps(ds_meta, indent=2, sort_keys=True))
 
@@ -628,7 +645,8 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                     ),
                 )
                 for name, tmeta in ds_meta["tensors"].items()
-            }
+            },
+            metainfo=ds_meta.get("metainfo"),
         )
     len_ = ds_meta["len"]
 
@@ -658,7 +676,8 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
                 ),
             )
             for name, tmeta in ds_meta["tensors"].items()
-        }
+        },
+        metainfo=ds_meta.get("metainfo"),
     )
 
 

@@ -73,10 +73,12 @@ def generate(generator: DatasetGenerator, input) -> Dataset:
     )
 
 
-def from_tensors(tensors: dict) -> Dataset:
+def from_tensors(
+    tensors: dict, license: str = None, description: str = None
+) -> Dataset:
     """ Creates a dataset from dict of tensors
     """
-    return Dataset(tensors)
+    return Dataset(tensors, metainfo={"license": license, "description": description})
 
 
 def _meta_concat(metas: Tuple[Dict[str, object]]):
