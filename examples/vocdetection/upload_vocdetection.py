@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[ ]:
-
-
 import argparse
 import os
 import struct
@@ -83,7 +77,7 @@ def transform_img(img):
     img = cv2.imread(img)
     return cv2.resize(img, dsize=(256, 256), interpolation=cv2.INTER_CUBIC)
 
-def load_pascal_detection(path=r"C:\Users\ACER\Downloads\PascalVoc"):
+def load_pascal_detection(path):
 
     # get train path
     fname_img_train = os.path.join(path, "train/Images")
@@ -158,7 +152,7 @@ def load_pascal_detection(path=r"C:\Users\ACER\Downloads\PascalVoc"):
 def main():
     
 
-    train, test = load_pascal_detection(path=r"C:\Users\ACER\Downloads\PascalVoc")
+    train, test = load_pascal_detection(path)
     
     train_images = np.concatenate([img for img in train["imgs"]])
     train_labels = np.concatenate([lbl for lbl in train["lbls"]])
