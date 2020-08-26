@@ -168,7 +168,7 @@ def main():
     test_labels = tensor.from_array(test_labels, dtag="lbls")
 
     train_ds = dataset.from_tensors({"data": train_images, "labels": train_labels})
-    test_ds = dataset.from_tensors({"imgs": test_images, "labels": test_labels})
+    test_ds = dataset.from_tensors({"data": test_images, "labels": test_labels})
     
     train_ds.store('arenbeglaryan/vocdetection')
 
