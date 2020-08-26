@@ -265,6 +265,18 @@ class Dataset:
         return self._metainfo.get("description") if self._metainfo else None
 
     @property
+    def citation(self) -> str:
+        """ Dataset citation
+        """
+        return self._metainfo.get("citation") if self._metainfo else None
+
+    @property
+    def howtoload(self) -> str:
+        """ Dataset howtoload
+        """
+        return self._metainfo.get("howtoload") if self._metainfo else None
+
+    @property
     def count(self) -> int:
         """ len of dataset (len of tensors across axis 0, yes, they all should be = to each other) 
         Returns -1 if length is unknown
