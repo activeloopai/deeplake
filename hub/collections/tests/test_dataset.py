@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+import tensorflow as tf
+import tensorflow_datasets as tfds
 from hub.collections import dataset, tensor
 
 
@@ -192,7 +194,17 @@ def test_s3_dataset():
     assert ds["arr"].shape == (-1, 5)
     assert ds["rra"].shape == (-1,)
     ds = ds.store("s3://snark-test/test_dataflow/test_s3_dataset")
-    # dzevakan comment
+    assert len(ds) == 3
+    assert (ds["rra"][:3].compute() == np.array([0, 0, 1], dtype="int32")).all()
+    assert ds["rra"][2].compute() == 1
+    assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
+
+
+def test_gcs_dataset():
+    ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
+    assert ds["arr"].shape == (-1, 5)
+    assert ds["rra"].shape == (-1,)
+    ds = ds.store("gcs://snark-test/test_dataflow/test_s3_dataset")
     assert len(ds) == 3
     assert (ds["rra"][:3].compute() == np.array([0, 0, 1], dtype="int32")).all()
     assert ds["rra"][2].compute() == 1
@@ -288,3 +300,62 @@ def test_lz4():
     )
     ds = ds.store("./data/test_store_tmp/test_lz4")
     assert ds["t1"].compute().tolist() == [1, 2, 3]
+
+
+def test_description_license():
+    t1 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
+    t2 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
+    ds = dataset.from_tensors(
+        {"abc": t1, "def": t2},
+        license="Some license",
+        description="Some description",
+        citation="Some citation",
+        howtoload="Some howtoload",
+    )
+    assert ds.license == "Some license"
+    assert ds.description == "Some description"
+    assert ds.citation == "Some citation"
+    assert ds.howtoload == "Some howtoload"
+    ds = ds.store("./data/test_store_tmp/test_description_license")
+    assert ds.license == "Some license"
+    assert ds.description == "Some description"
+    assert ds.citation == "Some citation"
+    assert ds.howtoload == "Some howtoload"
+
+
+def _is_equal(lds, rds):
+    output = True
+    for lex, rex in zip(lds, rds):
+        if lex.keys() != rex.keys():
+            return False
+        for key in lex.keys():
+            comparsion = lex[key].numpy() == rex[key].numpy()
+            output *= comparsion.all()
+    return output
+
+
+def _check_one(name):
+    ds_tf, info = tfds.load(
+        name,
+        split="train",
+        shuffle_files=True,
+        with_info=True,
+#        as_supervised=True,
+    )
+    ds_hb = dataset.from_tensorflow(ds_tf, info, 100)
+    stored = ds_hb.store(f"./tmp/{name}")
+    stored_tf = stored.to_tensorflow()
+    stored_pt = stored.to_pytorch()
+    return _is_equal(stored_tf, stored_pt)
+
+
+def _check_many(names):
+    output = []
+    for name in names:
+        output += [_check_one(name)]
+    return output
+
+
+def test_from_tensorflow():
+    names = ['mnist', 'imagenet_resized/8x8', 'voc']
+    assert _check_many(names)

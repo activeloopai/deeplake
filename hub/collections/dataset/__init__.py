@@ -7,7 +7,8 @@ import numpy as np
 
 from .core import Dataset, DatasetGenerator, load, _dask_shape
 from hub.collections.tensor import Tensor
-from hub.collections import dataset, tensor
+from hub.collections import dataset
+from hub.collections import tensor as hub_tensor
 
 
 def _generate(generator: DatasetGenerator, input):
@@ -74,10 +75,24 @@ def generate(generator: DatasetGenerator, input) -> Dataset:
     )
 
 
-def from_tensors(tensors: dict) -> Dataset:
+def from_tensors(
+    tensors: dict,
+    license: str = None,
+    description: str = None,
+    citation: str = None,
+    howtoload: str = None,
+) -> Dataset:
     """ Creates a dataset from dict of tensors
     """
-    return Dataset(tensors)
+    return Dataset(
+        tensors,
+        metainfo={
+            "license": license,
+            "description": description,
+            "citation": citation,
+            "howtoload": howtoload,
+        },
+    )
 
 
 def _meta_concat(metas: Tuple[Dict[str, object]]):
@@ -134,15 +149,53 @@ def merge(datasets: Iterable[Dataset]) -> Dataset:
             tensors[tname] = tvalue
     return Dataset(tensors)
 
+# ItemClass to Dtags mapping
+dtags = {
+    'Audio': 'audio',
+    'BBoxFeature': 'box',
+    'Image': 'image',
+    'Dtype': 'tensor',
+    'Tensor': 'tensor',
+    'ClassLabel': 'text',
+    'Text': 'text',
+    'Video': 'video',
+#    'Sequence': 'object',
+#    'FeaturesDict': 'object',
+}
 
-def from_tensorflow(ds, features, n_examples=-1):
-    features = {i: feature for i, feature in enumerate(features)}
-    tensors = {feature: [] for i, feature in features.items()}
+# Dtag to Archiver mapping
+codecs = {
+    'audio': 'lz4:4',
+    'box': 'lz4:4',
+    'image': 'lz4:4',
+    'tensor': 'lz4:4',
+    'text': 'lz4:4',
+    'video': 'lz4:4',
+}
+
+
+def from_tensorflow(ds_tf, info, n_examples=-1):
+    #0. Auxilary variables
+    tensors = {feature: [] for feature in info.features.keys()}
+    #1. Subsampling the input dataset for testing issues
     if n_examples > 0:
-        ds = ds.take(n_examples)
-    for ex in ds:
-        for i, item in enumerate(ex):
-            tensors[features[i]] += [item]
-    for key, val in tensors.items():
-        tensors[key] = tensor.from_array(np.array(val))
-    return dataset.from_tensors(tensors)
+        ds_tf = ds_tf.take(n_examples)
+    #2. Mapping features to collected tensors from the input dataset
+    for ex in ds_tf:
+        for feature, tensor in ex.items():
+            if feature in dtags:
+                tensors[feature] += [tensor]
+    #3. Mapping features to concatenated tensors
+    for feature in tensors:
+        data = np.array(tensors[feature])
+        name = type(info.features[feature]).__name__
+        dtag = dtags.get(name, 'tensor')
+        codec = codecs[dtag]
+        tensors[feature] = hub_tensor.from_array(data, dtag=dtag, dcompress=codec)
+    ds_hb = dataset.from_tensors(
+        tensors,
+        citation=info.citation,
+        description=info.description,
+#        license=info.redistribution_info
+    )
+    return ds_hb

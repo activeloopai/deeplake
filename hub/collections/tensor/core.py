@@ -128,7 +128,7 @@ class Tensor:
         Returns
         -------
         str
-            Information about data stored in tensor (iamge, mask, label, ...)
+            Information about data stored in tensor (image, mask, label, ...)
         """
         return self._dtag
 
