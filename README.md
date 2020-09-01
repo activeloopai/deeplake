@@ -13,10 +13,7 @@
         <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social">
     </a>
   </a>
-</p>.. image::
-    :alt: PyPI Downloads
-    :target: 
-
+</p>
 <h3 align="center">
 The fastest way to access and manage datasets for PyTorch and TensorFlow
 </h3>
