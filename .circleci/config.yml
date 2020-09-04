@@ -3,13 +3,8 @@ version: 2.1
 orbs:
   slack: circleci/slack@3.4.2
 
-parameters:
-  working_branch:
-    type: string
-    default: "master"
-
 workflows:
-  PROD environment:
+  build_and_deploy:
     jobs:
       - test:
 #          filters:
