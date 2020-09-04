@@ -8,6 +8,7 @@ CACHE_FILE_PATH = os.path.expanduser("~/.activeloop/tmp")
 AWSCRED_PATH = os.path.expanduser("~/.aws/credentials")
 
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
+HUB_DEV_REST_ENDPOINT = "https://app.dev.activeloop.ai"
 HUB_LOCAL_REST_ENDPOINT = "http://localhost:5000"
 
 DEFAULT_TIMEOUT = 170

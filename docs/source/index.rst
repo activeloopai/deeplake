@@ -1,100 +1,64 @@
-.. hub documentation master file, created by
-   sphinx-quickstart on Wed Aug 21 21:40:09 2019.
+.. Hub Documentation documentation master file, created by
+   sphinx-quickstart on Mon May 18 23:53:34 2020.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Hub's documentation!
-===============================
+What is Hub?
+==============
+.. image:: https://raw.githubusercontent.com/snarkai/Hub/master/docs/logo/hub_logo.png
 
-Hub Array is a scalable NumPy-like array stored on the cloud accessible over the network as if they're local NumPy arrays. 
-You can create a Hub Array on your local environment as large as Petabytes, use it as a local NumPy array without worrying if the local disk/RAM will hold it or not. 
-The Array is created on object storage on the cloud and cached partially on your local environment. 
-All read/write to the Array is automatically synchronized to the bucket.
 
-Hub Array aims to provide a cloud-based data management solution for deep learning practitioners. 
-Key features will include version control, feature store, data sharing and visualization for computer vision & NLP tasks, 
+**The fastest way to access and manage datasets for PyTorch and TensorFlow**
 
-    **Hub Arrays**: scalable numpy-like arrays stored on the cloud accessible over internet 
-    as if they're local numpy arrays.
+Hub provides fast access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow 
 
-Let's see how it works in action:
+Problems with Current Workflows
+------------------------
 
-.. code-block:: bash 
+We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. 
 
-   pip3 install hub
+1. It is hard to manage data, version control and track. 
 
-Create a large array remotely on cloud with some parts cached locally. 
-You can read/write from anywhere as if it's a local array!
+2. It is time-consuming to download the data and link with the training or inference code. 
 
-.. code-block:: python
+3. There is no easy way to access a chunk of it and possibly visualize. 
 
-    import hub
-    datahub = hub.s3('your_bucket_name').connect()
-    bigarray = datahub.array('your_array_name', 
-         shape = (10000, 10000, 3), 
-         chunk = (100, 100, 1), 
-         dtype = 'uint8'
-    )
+Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
 
-Documentation
--------------
 
-**Getting Started**
-
-* :doc:`getting-started/why-hub`
-* :doc:`getting-started/quick-overview`
-* :doc:`getting-started/faq`
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
+   :maxdepth: 3
+   :caption: Overview
+   
+   installing.md
+   why.md
+   benchmarks.md
+   api
+
+.. toctree::
+   :maxdepth: 3
    :caption: Getting Started
 
-   getting-started/why-hub
-   getting-started/quick-overview
-   getting-started/faq
-
-**User Guide**
-
-* :doc:`user-guide/indexing`
-* :doc:`user-guide/computation`
-* :doc:`user-guide/reshaping`
-* :doc:`user-guide/combining`
-* :doc:`user-guide/io`
+   simple.md
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: User Guide
+   :maxdepth: 3
+   :caption: Concepts
 
-   user-guide/indexing
-   user-guide/computation
-   user-guide/reshaping
-   user-guide/combining
-   user-guide/io
-
-**Help & reference**
-
-* :doc:`references/api`
-* :doc:`references/roadmap`
-* :doc:`references/contributing`
-* :doc:`references/related-projects`
+   concepts/tensor.md
+   concepts/dataset.md
+   concepts/dtags.md
+   concepts/transform.md
 
 .. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Help & reference
+   :maxdepth: 3
+   :caption: Integrations
 
-   references/api
-   references/roadmap
-   references/contributing
-   references/related-projects
-
-
-
-Indices and tables
-==================
-
+   integrations/pytorch.md
+   integrations/tensorflow.md
+   
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
