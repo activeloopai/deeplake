@@ -21,12 +21,9 @@ formats:
 python:
   version: 3.7
   install:
-    - requirements: docs/requirements.txt
-    - requirements: requirements.txt
     - method: pip
       path: .
       extra_requirements:
         - docs
-    - method: setuptools
-    path: another/package
+    - requirements: docs/requirements.txt
   system_packages: true
