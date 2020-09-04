@@ -34,6 +34,7 @@ jobs:
           command: |
             mkdir -p ".secrets/"
             echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > ".secrets/gcs.json"
+            export GOOGLE_APPLICATION_CREDENTIALS=.secrets/gcs.json
       - run:
           name: "Running tests"
           command: |
