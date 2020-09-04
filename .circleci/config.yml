@@ -32,9 +32,9 @@ jobs:
       - run:
           name: "Prep Google credentials"
           command: |
-            mkdir -p ".secrets/"
-            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > ".secrets/gcs.json"
-            export GOOGLE_APPLICATION_CREDENTIALS=.secrets/gcs.json
+            mkdir -p "/home/circleci/.secrets/"
+            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
       - run:
           name: "Running tests"
           command: |
