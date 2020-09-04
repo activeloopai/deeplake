@@ -8,18 +8,23 @@ workflows:
     jobs:
       - test:
         context: pypi
-#          filters:
-#            tags:
-#              only: /.*/
+        filters:
+          branches:
+            only:
+              - cicd-pypi
       - deploy:
           context: pypi
           requires:
             - test
           filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
             branches:
-              ignore: /.*/
+              only:
+                - cicd-pypi
+#          filters:
+#            tags:
+#              only: /[0-9]+(\.[0-9]+)*/
+#            branches:
+#              ignore: /.*/
 
 jobs:
   test:
