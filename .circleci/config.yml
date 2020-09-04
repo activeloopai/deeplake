@@ -7,7 +7,7 @@ workflows:
   build_and_deploy:
     jobs:
       - test:
-          context: pypi
+          context: test
 #          filters:
 #            tags:
 #              only: /[0-9]+(\.[0-9]+)*/
@@ -29,6 +29,11 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
+      - run:
+          name: "Prep Google credentials"
+          command: |
+            mkdir -p ".secrets/"
+            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > ".secrets/gcs.json"
       - run:
           name: "Running tests"
           command: |
