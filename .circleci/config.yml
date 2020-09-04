@@ -34,6 +34,7 @@ jobs:
           command: |
             pip install pytest
             pip install -r requirements.txt
+            pip install -e .
             pytest ./
       - store_test_results:
           path: test-reports
