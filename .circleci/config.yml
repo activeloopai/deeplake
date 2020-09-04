@@ -32,7 +32,8 @@ jobs:
       - run:
           name: "Running tests"
           command: |
-              pytest ./
+            pip install pytest
+            pytest ./
       - store_test_results:
           path: test-reports
       - store_artifacts:
