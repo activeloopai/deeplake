@@ -34,10 +34,10 @@ jobs:
           command: |
             mkdir -p "/home/circleci/.secrets/"
             echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
       - run:
           name: "Running tests"
           command: |
+            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
             pip install pytest
             pip install -r requirements.txt
             pip install -e .
