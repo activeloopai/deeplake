@@ -15,13 +15,13 @@ workflows:
 #              ignore: /.*/
       - deploy:
           context: pypi
-#          requires:
-#            - test
-#          filters:
-#            tags:
-#              only: /[0-9]+(\.[0-9]+)*/
-#            branches:
-#              ignore: /.*/
+          requires:
+            - test
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
 
 jobs:
   test:
@@ -46,9 +46,9 @@ jobs:
           path: test-reports
       - store_artifacts:
           path: test-reports
-#      - slack/status:
-#          fail_only: true
-#          webhook: $SLACK_WEBHOOK
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
 
   deploy:
     docker:
@@ -78,7 +78,7 @@ jobs:
           name: "Upload dist to PyPi"
           command: |
             twine upload dist/*
-#      - slack/status:
-#          fail_only: true
-#          webhook: $SLACK_WEBHOOK
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
 
