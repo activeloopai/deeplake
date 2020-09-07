@@ -34,7 +34,6 @@ jobs:
           command: |
             mkdir -p "/home/circleci/.secrets/"
             echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
-            ls -alh "/home/circleci/.secrets/gcs.json"
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
       - run:
           name: "Running tests"
@@ -60,12 +59,6 @@ jobs:
           name: "Verify git tag vs. version"
           command: |
             python setup.py verify
-      - run:
-          name: "Init .pypirc"
-          command: |
-            echo -e "[pypi]" >> ~/.pypirc
-            echo -e "username = $PYPI_USERNAME" >> ~/.pypirc
-            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
       - run:
           name: "Create a source distribution & wheel"
           command: |
