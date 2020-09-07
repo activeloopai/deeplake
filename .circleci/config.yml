@@ -6,8 +6,8 @@ orbs:
 workflows:
   build_and_deploy:
     jobs:
-      - test:
-          context: test
+#      - test:
+#          context: test
 #          filters:
 #            tags:
 #              only: /[0-9]+(\.[0-9]+)*/
@@ -15,8 +15,8 @@ workflows:
 #              ignore: /.*/
       - deploy:
           context: pypi
-          requires:
-            - test
+#          requires:
+#            - test
 #          filters:
 #            tags:
 #              only: /[0-9]+(\.[0-9]+)*/
@@ -60,6 +60,12 @@ jobs:
 #          command: |
 #            python setup.py verify
       - run:
+          name: "Init .pypirc"
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = __token__" >> ~/.pypirc
+            echo -e "password = $TWINE_PASSWORD" >> ~/.pypirc
+      - run:
           name: "Create a source distribution & wheel"
           command: |
             python setup.py sdist
@@ -71,7 +77,7 @@ jobs:
       - run:
           name: "Upload dist to PyPi"
           command: |
-            twine upload --verbose dist/*
+            twine upload dist/*
 #      - slack/status:
 #          fail_only: true
 #          webhook: $SLACK_WEBHOOK
