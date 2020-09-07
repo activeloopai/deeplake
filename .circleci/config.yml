@@ -71,7 +71,7 @@ jobs:
       - run:
           name: "Upload dist to PyPi"
           command: |
-            twine upload dist/*
+            twine upload --verbose dist/*
 #      - slack/status:
 #          fail_only: true
 #          webhook: $SLACK_WEBHOOK
