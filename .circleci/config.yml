@@ -55,10 +55,10 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
-      - run:
-          name: "Verify git tag vs. version"
-          command: |
-            python setup.py verify
+#      - run:
+#          name: "Verify git tag vs. version"
+#          command: |
+#            python setup.py verify
       - run:
           name: "Create a source distribution & wheel"
           command: |
