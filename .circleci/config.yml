@@ -17,11 +17,11 @@ workflows:
           context: pypi
 #          requires:
 #            - test
-#          filters:
-#            tags:
-#              only: /[0-9]+(\.[0-9]+)*/
-#            branches:
-#              ignore: /.*/
+          filters:
+            tags:
+              only: /([0-9]+)*\.([0-9]+)\.([0-9]+)*/
+            branches:
+              ignore: /.*/
 
 jobs:
   test:
@@ -55,10 +55,10 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
-#      - run:
-#          name: "Verify git tag vs. version"
-#          command: |
-#            python setup.py verify
+      - run:
+          name: "Verify git tag vs. version"
+          command: |
+            python setup.py verify
       - run:
           name: "Init .pypirc"
           command: |
