@@ -8,11 +8,9 @@ workflows:
     jobs:
       - test:
           context: test
-          filters:
+#          filters:
 #            tags:
 #              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              only: /.*/
       - deploy:
           context: pypi
           requires:
@@ -36,12 +34,15 @@ jobs:
             mkdir -p "/home/circleci/.secrets/"
             echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
       - run:
-          name: "Running tests"
+          name: "Collecting requirements"
           command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
             pip install pytest
             pip install -r requirements.txt
             pip install -e .
+      - run:
+          name: "Running tests"
+          command: |
+            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
             pytest ./
       - store_test_results:
           path: test-reports
