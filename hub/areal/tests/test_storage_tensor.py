@@ -61,7 +61,7 @@ def test_memcache():
     assert tensor.dtype == "float32"
 
 
-def test_overwrite_safety(capsys):
+def test_overwrite_safety():
     path = "./data/test/test_storage_tensor/test_overwrite_safety"
     os.makedirs(path, exist_ok=True)
     with open(os.path.join(path, "hello.txt"), "w") as f:
@@ -73,9 +73,11 @@ def test_overwrite_safety(capsys):
         )
     except Exception as ex:
         assert isinstance(ex, NotZarrFolderException)
+    else:
+        assert False, "Should have raised Exception didn't"
 
 
-def test_overwrite_safety_folder(capsys):
+def test_overwrite_safety_folder():
     path = "./data/test/test_storage_tensor/test_overwrite_safety_folder"
     os.makedirs(os.path.join(path, "inner_folder"), exist_ok=True)
     try:
