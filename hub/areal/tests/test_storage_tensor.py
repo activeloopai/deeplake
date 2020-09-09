@@ -1,7 +1,10 @@
+import os
+
 import numpy as np
 
 from hub.areal.storage_tensor import StorageTensor
 from hub.areal.tensor import Tensor
+from hub.areal.store import NotZarrFolderException
 
 
 def test_open():
@@ -56,3 +59,39 @@ def test_memcache():
     assert tensor.shape == (200, 100, 100)
     assert tensor.chunks == (256, 128, 128)
     assert tensor.dtype == "float32"
+
+
+def test_overwrite_safety(capsys):
+    path = "./data/test/test_storage_tensor/test_overwrite_safety"
+    os.makedirs(path, exist_ok=True)
+    with open(os.path.join(path, "hello.txt"), "w") as f:
+        f.write("Hello World")
+    try:
+        StorageTensor(
+            "./data/test/test_storage_tensor/test_overwrite_safety",
+            shape=[200, 100, 100],
+        )
+    except Exception as ex:
+        assert isinstance(ex, NotZarrFolderException)
+
+
+# def test_overwrite_safety_folder(capsys):
+#     path = "./data/test/test_storage_tensor/test_overwrite_safety_folder"
+#     os.makedirs(os.path.join(path, "inner_folder"), exist_ok=True)
+#     try:
+#         StorageTensor(
+#             "./data/test/test_storage_tensor/test_overwrite_safety_folder",
+#             shape=[200, 100, 100],
+#         )
+#     except Exception as ex:
+#         assert isinstance(ex, NotZarrFolderException)
+#     else:
+#         assert False, "Should have raised Exception didn't"
+
+
+def main():
+    test_overwrite_safety()
+
+
+if __name__ == "__main__":
+    main()
