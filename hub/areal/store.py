@@ -25,7 +25,7 @@ def _get_storage_map(url: str, creds: dict = None):
         # TODO: Azure
         raise NotImplementedError()
     elif (
-        url.startswith("fs://")
+        url.startswith("../")
         or url.startswith("./")
         or url.startswith("/")
         or url.startswith("~/")
@@ -37,4 +37,16 @@ def _get_storage_map(url: str, creds: dict = None):
 
 def get_storage_map(url: str, creds: dict = None, memcache: float = None):
     store = _get_storage_map(url, creds)
+    if (
+        store.get(".zarray") is None
+        and store.get(".zgroup") is None
+        and len(store) != 0
+    ):
+        raise NotZarrFolderException(
+            "This url is not empty but not zarr url either, for safety reasons refusing to overwrite this folder"
+        )
     return store if not memcache else zarr.LRUStoreCache(store, memcache * (2 ** 20))
+
+
+class NotZarrFolderException(Exception):
+    pass
