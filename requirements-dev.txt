@@ -1,4 +1,3 @@
-pytest
 tensorflow>=1.14,<2
 tensorflow-datasets>=3.0,<4
 torch>=1,<2

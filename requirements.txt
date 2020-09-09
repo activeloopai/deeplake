@@ -8,3 +8,8 @@ s3fs==0.4.2
 gcsfs==0.6.2
 outdated==0.2.0
 lz4>=3,<4
+
+#dev
+pytest
+flake8
+black
