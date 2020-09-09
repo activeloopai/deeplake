@@ -11,16 +11,20 @@ def _read_aws_creds(creds_path: str):
     return {section: dict(parser.items(section)) for section in parser.sections()}
 
 
-def _get_storage_map(url: str, creds: dict = None):
+def _get_fs_and_path(url: str, creds: dict = None):
     if url.startswith("s3://"):
         creds = creds or dict()
         creds = _read_aws_creds(creds) if isinstance(creds, str) else creds
-        return s3fs.S3FileSystem(
-            key=creds.get("aws_access_key_id"),
-            secret=creds.get("aws_secret_access_key"),
-        ).get_mapper(url[5:])
+        return (
+            fsspec.filesystem(
+                "s3",
+                key=creds.get("aws_access_key_id"),
+                secret=creds.get("aws_secret_access_key"),
+            ),
+            url[5:],
+        )
     elif url.startswith("gcs://"):
-        return gcsfs.GCSFileSystem(token=creds).get_mapper(url[6:])
+        return gcsfs.GCSFileSystem(token=creds), url[6:]
     elif url.startswith("abs://"):
         # TODO: Azure
         raise NotImplementedError()
@@ -30,17 +34,29 @@ def _get_storage_map(url: str, creds: dict = None):
         or url.startswith("/")
         or url.startswith("~/")
     ):
-        return zarr.DirectoryStore(url)
+        return fsspec.filesystem("file"), url
     else:
         raise NotImplementedError()
 
 
+def _get_storage_map(url: str, creds: dict = None):
+    fs, path = _get_fs_and_path(url, creds)
+    fs_map = fs.get_mapper(path, check=True)
+    return (
+        fs,
+        path,
+        fs_map,
+    )
+
+
 def get_storage_map(url: str, creds: dict = None, memcache: float = None):
-    store = _get_storage_map(url, creds)
+    fs, path, store = _get_storage_map(url, creds)
+    # TODO: Make use that fs.listdir and store.get do not cache locally filenames,
+    # because in that case if something is added to s3 or gcs it won't be notified by the program
     if (
         store.get(".zarray") is None
         and store.get(".zgroup") is None
-        and len(store) != 0
+        and len(fs.listdir(path)) > 0
     ):
         raise NotZarrFolderException(
             "This url is not empty but not zarr url either, for safety reasons refusing to overwrite this folder"

@@ -75,18 +75,18 @@ def test_overwrite_safety(capsys):
         assert isinstance(ex, NotZarrFolderException)
 
 
-# def test_overwrite_safety_folder(capsys):
-#     path = "./data/test/test_storage_tensor/test_overwrite_safety_folder"
-#     os.makedirs(os.path.join(path, "inner_folder"), exist_ok=True)
-#     try:
-#         StorageTensor(
-#             "./data/test/test_storage_tensor/test_overwrite_safety_folder",
-#             shape=[200, 100, 100],
-#         )
-#     except Exception as ex:
-#         assert isinstance(ex, NotZarrFolderException)
-#     else:
-#         assert False, "Should have raised Exception didn't"
+def test_overwrite_safety_folder(capsys):
+    path = "./data/test/test_storage_tensor/test_overwrite_safety_folder"
+    os.makedirs(os.path.join(path, "inner_folder"), exist_ok=True)
+    try:
+        StorageTensor(
+            "./data/test/test_storage_tensor/test_overwrite_safety_folder",
+            shape=[200, 100, 100],
+        )
+    except Exception as ex:
+        assert isinstance(ex, NotZarrFolderException)
+    else:
+        assert False, "Should have raised Exception didn't"
 
 
 def main():
