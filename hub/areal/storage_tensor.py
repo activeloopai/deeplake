@@ -5,6 +5,7 @@ import zarr
 import numpy as np
 
 import hub.areal.tensor
+import hub.areal.store
 
 
 class StorageTensor(hub.areal.tensor.Tensor):
@@ -22,19 +23,30 @@ class StorageTensor(hub.areal.tensor.Tensor):
             res *= t
         return res
 
-    def __init__(self, url: str, shape: typing.Tuple[int, ...] = None, dtype="float32"):
+    def __init__(
+        self,
+        url: str,
+        shape: typing.Tuple[int, ...] = None,
+        dtype="float32",
+        creds=None,
+        memcache: float = None,
+    ):
         if shape is not None:
             self._zarr = zarr.zeros(
                 shape,
                 dtype=dtype,
                 chunks=self._determine_chunksizes(shape, dtype),
-                store=zarr.DirectoryStore(url),
+                store=hub.areal.store.get_storage_map(url, creds, memcache),
                 overwrite=True,
             )
         else:
-            self._zarr = zarr.open_array(url)
+            self._zarr = zarr.open_array(
+                hub.areal.store.get_storage_map(url, creds, memcache)
+            )
         self._shape = self._zarr.shape
         self._chunks = self._zarr.chunks
+        self._dtype = self._zarr.dtype
+        self._memcache = memcache
 
     def __getitem__(self, slice_):
         return self._zarr[slice_]
@@ -49,3 +61,7 @@ class StorageTensor(hub.areal.tensor.Tensor):
     @property
     def chunks(self):
         return self._chunks
+
+    @property
+    def dtype(self):
+        return self._dtype
