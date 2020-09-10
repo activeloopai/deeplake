@@ -68,7 +68,7 @@ def main():
     torch.manual_seed(random_seed)
 
     # Load data
-    ds = dataset.load("abhinavtuli/fashion-mnist")
+    ds = dataset.load("mnist/fashion-mnist")
 
     # Transform into pytorch
     ds = ds.to_pytorch()
@@ -88,6 +88,19 @@ def main():
         train(model, train_loader, optimizer)
         print("Training Epoch {} finished\n".format(epoch))
         test(model, test_loader)
+
+    # sanity check to see outputs of model
+    for batch in test_loader:
+        print("\nNamed Labels:",dataset.get_text(batch["named_labels"]))
+        print("\nLabels:",batch["labels"])
+
+        data = batch["data"]
+        data = torch.unsqueeze(data, 1)
+
+        output = model(data)
+        pred = output.data.max(1)[1]
+        print("\nPredictions:",pred)
+        break
 
 
 if __name__ == "__main__":

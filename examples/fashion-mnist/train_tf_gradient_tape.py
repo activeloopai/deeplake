@@ -2,6 +2,7 @@ from hub import dataset
 import tensorflow as tf
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
+import numpy as np
 
 
 def create_CNN():
@@ -56,7 +57,7 @@ def main():
     loss_fn = SparseCategoricalCrossentropy()
 
     # Load data
-    ds = dataset.load("abhinavtuli/fashion-mnist")
+    ds = dataset.load("mnist/fashion-mnist")
 
     # transform into Tensorflow dataset
     ds = ds.to_tensorflow()
@@ -77,6 +78,16 @@ def main():
         print("Training Epoch {} finished\n".format(epoch))
         test(model, test_dataset, test_acc_metric)
 
+    # sanity check to see outputs of model
+    for batch in test_dataset:
+        print("\nNamed Labels:",dataset.get_text(batch["named_labels"]))
+        print("\nLabels:",batch["labels"])
+
+        output = model(tf.expand_dims(batch["data"], axis=3), training=False)
+        print(type(output))
+        pred = np.argmax(output, axis=-1)
+        print("\nPredictions:",pred)
+        break
 
 if __name__ == "__main__":
     main()

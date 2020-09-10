@@ -29,7 +29,7 @@ def main():
     EPOCHS = 3
 
     # Load data
-    ds = dataset.load("abhinavtuli/fashion-mnist")
+    ds = dataset.load("mnist/fashion-mnist")
 
     # transform into Tensorflow dataset
     ds = ds.to_tensorflow()

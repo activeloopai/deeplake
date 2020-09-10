@@ -15,7 +15,6 @@ def load_fashion_mnist(dataset="training", digits=np.arange(10), path=".", size=
     elif dataset == "testing":
         fname_img = os.path.join(path, "t10k-images-idx3-ubyte")
         fname_lbl = os.path.join(path, "t10k-labels-idx1-ubyte")
-
     else:
         raise ValueError("dataset must be 'testing' or 'training'")
 
@@ -43,32 +42,37 @@ def load_fashion_mnist(dataset="training", digits=np.arange(10), path=".", size=
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-d",
-        "--dataset_path",
-        type=str,
-        help="Path to fashion-mnist dataset",
-        default="./data/fashion-mnist",
-    )
-    parser.add_argument(
-        "-o", "--output_name", type=str, help="Dataset output name", default="fashion-mnist",
-    )
-    args = parser.parse_args()
     files = ["training", "testing"]
     dicts = []
+
+    # required to generate named labels
+    mapping = {0: "T-shirt/top",
+               1: "Trouser",
+               2: "Pullover",
+               3: "Dress",
+               4: "Coat",
+               5: "Sandal",
+               6: "Shirt",
+               7: "Sneaker",
+               8: "Bag",
+               9: "Ankle boot"
+               }
+
     for f in files:
-        images, labels = load_fashion_mnist(f, path=args.dataset_path)
+        images, labels = load_fashion_mnist(f, path="./data/fashion-mnist")
         dicts += [{"images": images, "labels": labels}]
+
     images = np.concatenate([d["images"] for d in dicts])
     labels = np.concatenate([np.array(d["labels"], dtype="int8") for d in dicts])
+    named_labels = np.array([mapping[label] for label in labels])
     print(images.shape, labels.shape)
 
     images_t = tensor.from_array(images, dtag="mask")
-    labels_t = tensor.from_array(labels)
+    labels_t = tensor.from_array(labels, dtag="text")
+    named_labels_t = tensor.from_array(named_labels, dtag="text")
 
-    ds = dataset.from_tensors({"data": images_t, "labels": labels_t})
-    ds.store(f"{args.output_name}")
+    ds = dataset.from_tensors({"data": images_t, "labels": labels_t, "named_labels": named_labels_t})
+    ds.store("mnist/fashion-mnist")
 
 
 if __name__ == "__main__":
