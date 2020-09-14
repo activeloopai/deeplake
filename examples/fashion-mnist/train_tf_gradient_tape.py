@@ -60,7 +60,8 @@ def main():
     ds = dataset.load("mnist/fashion-mnist")
 
     # transform into Tensorflow dataset
-    ds = ds.to_tensorflow()
+    # max_text_len is an optional argument that sets the maximum length of text labels, default is 30
+    ds = ds.to_tensorflow(max_text_len = 15)
 
     # Splitting back into the original train and test sets
     train_dataset = ds.take(60000)
