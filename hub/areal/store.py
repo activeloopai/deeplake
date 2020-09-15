@@ -41,7 +41,7 @@ def _get_fs_and_path(url: str, creds: dict = None):
 
 def _get_storage_map(url: str, creds: dict = None):
     fs, path = _get_fs_and_path(url, creds)
-    fs_map = fs.get_mapper(path, check=True, create=True)
+    fs_map = fs.get_mapper(path, check=False, create=True)
     return (
         fs,
         path,
