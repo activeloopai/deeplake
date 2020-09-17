@@ -14,9 +14,7 @@ workflows:
             - test
           filters:
             tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+              only: /^\d+\.\d+\.\d+/
 
 jobs:
   test:
