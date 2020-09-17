@@ -10,8 +10,8 @@ workflows:
           context: test
       - deploy:
           context: pypi
-#          requires:
-#            - test
+          requires:
+            - test
           filters:
             tags:
               only: /^\d+\.\d+\.\d+/
