@@ -21,7 +21,7 @@ class VerifyVersionCommand(install):
     description = "verify that the git tag matches our version"
 
     def run(self):
-        tag = os.getenv("CIRCLE_TAG")
+        tag = os.environ.get("CIRCLE_TAG")
 
         print(tag)
         print(type(tag))
