@@ -6,18 +6,52 @@ orbs:
 workflows:
   build_and_deploy:
     jobs:
-      - test:
+      - untagged_test:
           context: test
+      - tagged_test:
+          context: test
+          filters:
+            tags:
+              only: /.*/
       - deploy:
           context: pypi
           requires:
-            - test
+            - tagged_test
           filters:
             tags:
               only: /^\d+\.\d+\.\d+/
 
 jobs:
-  test:
+  untagged_test:
+    docker:
+      - image: circleci/python:3.8
+    steps:
+      - checkout
+      - run:
+          name: "Prep Google credentials"
+          command: |
+            mkdir -p "/home/circleci/.secrets/"
+            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+      - run:
+          name: "Collecting requirements"
+          command: |
+            pip install pytest
+            pip install -r requirements.txt
+            pip install -e .
+      - run:
+          name: "Running tests"
+          command: |
+            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+            pytest ./
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
+
+  tagged_test:
     docker:
       - image: circleci/python:3.8
     steps:
