@@ -14,27 +14,6 @@ with open(os.path.join(this_directory, "README.md")) as f:
 with open(os.path.join(this_directory, "requirements.txt"), "r") as f:
     requirements = f.readlines()
 
-
-class VerifyVersionCommand(install):
-    """Custom command to verify that the git tag matches our version"""
-
-    description = "verify that the git tag matches our version"
-
-    def run(self):
-        tag = os.environ.get("CIRCLE_TAG")
-
-        print(tag)
-        print(type(tag))
-        print(VERSION)
-        print(type(VERSION))
-
-        if tag != VERSION:
-            info = "Git tag: {0} does not match the version of this app: {1}".format(
-                tag, VERSION
-            )
-            sys.exit(info)
-
-
 setup(
     name=project,
     version=VERSION,
@@ -59,8 +38,5 @@ setup(
             "hub-dev = hub.cli.dev:cli",
         ]
     },
-    tests_require=["pytest", "mock>=1.0.1"],
-    cmdclass={
-        "verify": VerifyVersionCommand,
-    },
+    tests_require=["pytest", "mock>=1.0.1"]
 )
