@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 from setuptools.command.install import install
 
 project = "hub"
-VERSION = "0.12.4"
+VERSION = "0.12.5"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:
@@ -38,5 +38,5 @@ setup(
             "hub-dev = hub.cli.dev:cli",
         ]
     },
-    tests_require=["pytest", "mock>=1.0.1"]
+    tests_require=["pytest", "mock>=1.0.1"],
 )
