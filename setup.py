@@ -21,7 +21,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Snark AI Inc.",
-    author_email="support@snark.ai",
+    author_email="support@activeloop.ai",
     url="https://github.com/snarkai/hub",
     packages=find_packages(),
     include_package_data=True,
