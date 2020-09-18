@@ -68,10 +68,11 @@ def main():
     torch.manual_seed(random_seed)
 
     # Load data
-    ds = dataset.load("abhinavtuli/fashion-mnist")
+    ds = dataset.load("mnist/fashion-mnist")
 
     # Transform into pytorch
-    ds = ds.to_pytorch()
+    # max_text_len is an optional argument that sets the maximum length of text labels, default is 30
+    ds = ds.to_pytorch(max_text_len=15)
 
     # Splitting back into the original train and test sets, instead of random split
     train_dataset = torch.utils.data.Subset(ds, range(60000))
@@ -88,6 +89,19 @@ def main():
         train(model, train_loader, optimizer)
         print("Training Epoch {} finished\n".format(epoch))
         test(model, test_loader)
+
+    # sanity check to see outputs of model
+    for batch in test_loader:
+        print("\nNamed Labels:",dataset.get_text(batch["named_labels"]))
+        print("\nLabels:",batch["labels"])
+
+        data = batch["data"]
+        data = torch.unsqueeze(data, 1)
+
+        output = model(data)
+        pred = output.data.max(1)[1]
+        print("\nPredictions:",pred)
+        break
 
 
 if __name__ == "__main__":

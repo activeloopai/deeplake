@@ -5,7 +5,7 @@ import dask
 import dask.array
 import numpy as np
 
-from .core import Dataset, DatasetGenerator, load, _dask_shape
+from .core import Dataset, DatasetGenerator, load, _dask_shape, get_text
 from hub.collections.tensor import Tensor
 
 

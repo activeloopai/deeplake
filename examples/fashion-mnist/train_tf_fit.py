@@ -29,10 +29,11 @@ def main():
     EPOCHS = 3
 
     # Load data
-    ds = dataset.load("abhinavtuli/fashion-mnist")
+    ds = dataset.load("mnist/fashion-mnist")
 
     # transform into Tensorflow dataset
-    ds = ds.to_tensorflow()
+    # max_text_len is an optional argument that fixes the maximum length of text labels
+    ds = ds.to_tensorflow(max_text_len = 15)
 
     # converting ds so that it can be directly used in model.fit
     ds = ds.map(lambda x: to_model_fit(x))

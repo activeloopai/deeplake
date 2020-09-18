@@ -559,7 +559,7 @@ class Dataset:
 
         return load(tag, creds)
 
-    def to_pytorch(self, transform=None):
+    def to_pytorch(self, transform = None, max_text_len = 30):
         """
             Transforms into pytorch dataset
             
@@ -567,12 +567,20 @@ class Dataset:
             ----------
             transform: func
                 any transform that takes input a dictionary of a sample and returns transformed dictionary 
+            max_text_len: integer
+                the maximum length of text strings that would be stored. Strings longer than this would be snipped
         """
-        return TorchDataset(self, transform)
+        return TorchDataset(self, transform, max_text_len)
 
-    def to_tensorflow(self):
+    def to_tensorflow(self, max_text_len = 30):
         """
             Transforms into tensorflow dataset
+            
+            Parameters
+            ----------
+            max_text_len: integer
+                the maximum length of text strings that would be stored. Strings longer than this would be snipped
+
         """
         try:
             import tensorflow as tf
@@ -588,24 +596,41 @@ class Dataset:
                         arrs
                     )
                     arrs = arrs.compute()
+                    for ind, arr in enumerate(arrs):
+                        if arr.dtype.type is np.str_:
+                            arr = [([ ord(x) for x in sample.tolist()[0:max_text_len] ] ) for sample in arr]
+                            arr = np.array([np.pad(sample, (0, max_text_len-len(sample)), 'constant', constant_values=(32)) for sample in arr])
+                            arrs[ind] = arr
+
                     for i in range(step):
                         sample = {key: r[i] for key, r in zip(self[index].keys(), arrs)}
                         yield sample
 
         def tf_dtype(np_dtype):
             try:
+                if "U" in np_dtype:
+                    return tf.dtypes.as_dtype("string")
                 return tf.dtypes.as_dtype(np_dtype)
             except Exception as e:
                 return tf.variant
+
+        output_shapes={}
+        output_types={}
+        for key in self.keys():
+            output_types[key] = tf_dtype(self._tensors[key].dtype)
+            output_shapes[key] = self._tensors[key].shape[1:] 
+
+            # if this is a string, we change the type to int, as it's going to become ascii. shape is also set to None
+            if output_types[key] == tf.dtypes.as_dtype("string"):
+                output_types[key] = tf.dtypes.as_dtype("int8")
+                output_shapes[key] = None
 
         # TODO use None for dimensions you don't know the length tf.TensorShape([None])
         # FIXME Dataset Generator is not very good with multiprocessing but its good for fast tensorflow support
         return tf.data.Dataset.from_generator(
             tf_gen,
-            output_types={
-                key: tf_dtype(self._tensors[key].dtype) for key in self.keys()
-            },
-            output_shapes={key: self._tensors[key].shape[1:] for key in self.keys()},
+            output_types=output_types,
+            output_shapes=output_shapes,
         )
 
 
@@ -626,6 +651,26 @@ def _numpy_load(
         raise Exception(
             f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
         )
+
+def get_text(input):
+    """ Converts strings stored as ascii value tensors back into strings
+    """
+    if input.ndim==1:
+        try: 
+            text = "".join([chr(x) for x in input]).rstrip()
+            return text
+        except Exception as e:
+            logger.error(traceback.format_exc() + str(e))
+            raise Exception("get_text can only be called on a tensor of text or a batch of tensors of text")
+    elif input.ndim==2:
+        try:
+            text= ["".join([chr(x) for x in sample]).rstrip() for sample in input]
+            return text
+        except Exception as e:
+            logger.error(traceback.format_exc() + str(e))
+            raise Exception("get_text can only be called on a tensor of text or a batch of tensors of text")
+    else:
+        raise Exception(f"Got input of dimension {input.ndim} for get_text. Expected dimension of 1 or 2")
 
 
 def load(tag, creds=None, session_creds=True) -> Dataset:
@@ -705,12 +750,13 @@ def _is_tensor_dynamic(tensor):
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None):
+    def __init__(self, ds, transform = None, max_text_len = 30):
         self._ds = ds
         self._transform = transform
         self._dynkeys = {
             key for key in self._ds.keys() if _is_tensor_dynamic(self._ds[key])
         }
+        self._max_text_len = max_text_len
 
         def cost(nbytes, time):
             print(nbytes, time)
@@ -746,6 +792,9 @@ class TorchDataset:
 
     def _to_tensor(self, key, sample):
         if key not in self._dynkeys:
+            if isinstance(sample, np.str_):
+                sample = np.array([ ord(x) for x in sample.tolist()[0:self._max_text_len] ])
+                sample=np.pad(sample, (0, self._max_text_len-len(sample)), 'constant',constant_values=(32))
             return torch.tensor(sample)
         else:
             return [torch.tensor(item) for item in sample]
@@ -760,7 +809,6 @@ class TorchDataset:
                 ans[key] = torch.stack(ans[key], dim=0, out=None)
 
         return ans
-
 
 def _dask_concat(arr):
     if len(arr) == 1:
