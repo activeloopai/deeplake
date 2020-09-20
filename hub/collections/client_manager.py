@@ -97,5 +97,5 @@ class HubCache(Cache):
         self.cache.put(key, value, cost=_cost, nbytes=nb)
 
 
-cache = HubCache(2e9)
-cache.register()
+# cache = HubCache(2e9)
+# cache.register()
