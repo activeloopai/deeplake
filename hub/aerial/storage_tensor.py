@@ -4,11 +4,11 @@ import math
 import zarr
 import numpy as np
 
-import hub.areal.tensor
-import hub.areal.store
+import hub.aerial.tensor
+import hub.aerial.store
 
 
-class StorageTensor(hub.areal.tensor.Tensor):
+class StorageTensor(hub.aerial.tensor.Tensor):
     @classmethod
     def _determine_chunksizes(cls, shape, dtype):
         sz = np.dtype(dtype).itemsize
@@ -36,12 +36,12 @@ class StorageTensor(hub.areal.tensor.Tensor):
                 shape,
                 dtype=dtype,
                 chunks=self._determine_chunksizes(shape, dtype),
-                store=hub.areal.store.get_storage_map(url, creds, memcache),
+                store=hub.aerial.store.get_storage_map(url, creds, memcache),
                 overwrite=True,
             )
         else:
             self._zarr = zarr.open_array(
-                hub.areal.store.get_storage_map(url, creds, memcache)
+                hub.aerial.store.get_storage_map(url, creds, memcache)
             )
         self._shape = self._zarr.shape
         self._chunks = self._zarr.chunks

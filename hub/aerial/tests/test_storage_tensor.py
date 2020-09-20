@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 
-from hub.areal.storage_tensor import StorageTensor
-from hub.areal.tensor import Tensor
-from hub.areal.store import NotZarrFolderException
+from hub.aerial.storage_tensor import StorageTensor
+from hub.aerial.store import NotZarrFolderException
 
 
 def test_open():
