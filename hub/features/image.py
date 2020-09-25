@@ -13,14 +13,16 @@ class Image(Tensor):
         self._set_dtype(dtype)
         super(Image, self).__init__(shape, dtype)
         self._set_channels(channels)
+        self._set_encoding_format(encoding_format)
 
-    @property
-    def encoding_format(self):
-        raise NotImplementedError()
+    def _set_encoding_format(self, encoding_format):
+        if encoding_format not in ('png', 'jpeg'):
+            raise ValueError('Not supported encoding format')
+        self._encoding_format = encoding_format
 
     def _set_dtype(self, dtype):
         if dtype not in ('uint8', 'uint16'):
-            raise ValueError(f'Not acceptable dtype for {self.__class__.__name__}')
+            raise ValueError(f'Not supported dtype for {self.__class__.__name__}')
         self.dtype = dtype
 
     def _set_channels(self, channels):        
