@@ -1,8 +1,7 @@
 import fsspec
-import s3fs
 import gcsfs
-import zarr
 import configparser
+from .cache import Cache
 
 
 def _read_aws_creds(creds_path: str):
@@ -53,6 +52,7 @@ def get_storage_map(url: str, creds: dict = None, memcache: float = None):
     fs, path, store = _get_storage_map(url, creds)
     # TODO: Make use that fs.listdir and store.get do not cache locally filenames,
     # because in that case if something is added to s3 or gcs it won't be notified by the program
+    print(url)
     if (
         store.get(".zarray") is None
         and store.get(".zgroup") is None
@@ -61,7 +61,7 @@ def get_storage_map(url: str, creds: dict = None, memcache: float = None):
         raise NotZarrFolderException(
             "This url is not empty but not zarr url either, for safety reasons refusing to overwrite this folder"
         )
-    return store if not memcache else zarr.LRUStoreCache(store, memcache * (2 ** 20))
+    return store if not memcache else Cache(store, memcache * (2 ** 20))
 
 
 class NotZarrFolderException(Exception):
