@@ -30,12 +30,14 @@ def test_cache():
 
         z[...] = i
         store.invalidate()
+
         t1 = time.time()
         z[...]
         t2 = time.time()
         z[...]
         t3 = time.time()
         assert z[0, 0] == i
+        # print(t2 - t1, t3 - t2)
         assert t2 - t1 > t3 - t2
     store.commit()
 
