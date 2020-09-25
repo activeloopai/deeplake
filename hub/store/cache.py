@@ -4,21 +4,6 @@ import zarr
 from collections import OrderedDict
 
 
-def _bytes_to_int(bytes):
-    result = 0
-    for b in bytes:
-        result = result * 256 + int(b)
-    return result
-
-
-def _int_to_bytes(value, length):
-    result = []
-    for i in range(0, length):
-        result.append(value >> (i * 8) & 0xFF)
-    result.reverse()
-    return result
-
-
 class CacheStore(zarr.LMDBStore):
     def __init__(self, path, buffers=True, **kwargs):
         super(CacheStore, self).__init__(path, buffers=True, **kwargs)
