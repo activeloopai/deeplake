@@ -16,9 +16,11 @@ class Image(Tensor):
         self._set_encoding_format(encoding_format)
 
     def _set_encoding_format(self, encoding_format):
-        if encoding_format not in ('png', 'jpeg'):
+        if encoding_format and encoding_format not in ('png', 'jpeg'):
             raise ValueError('Not supported encoding format')
-        self._encoding_format = encoding_format
+        else:
+            encoding_format = 'png'
+        self.encoding_format = encoding_format
 
     def _set_dtype(self, dtype):
         if dtype not in ('uint8', 'uint16'):
@@ -30,3 +32,12 @@ class Image(Tensor):
             raise ValueError(f'Channels are incompatible with image shape {self.shape}')
         self.channels = channels
         
+    def get_attribute_dict(self):
+        """Return class attributes
+        """
+        return self.__dict__        
+
+
+if __name__ == "__main__":
+    image = Image((300, 400, 3), channels=['red', 'blue', 'green'], dtype='uint8')
+    import pdb; pdb.set_trace()

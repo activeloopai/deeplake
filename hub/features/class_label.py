@@ -45,20 +45,17 @@ class ClassLabel(Tensor):
     @names.setter
     def names(self, new_names):
         int2str = [name for name in new_names]
-        # Names can only be defined once
         if self._int2str is not None and self._int2str != int2str:
             raise ValueError(
                 "Trying to overwrite already defined ClassLabel names. Previous: {} "
                 ", new: {}".format(self._int2str, int2str))
 
-        # Set-up [new] names
         self._int2str = int2str
         self._str2int = {name: i for i, name in enumerate(self._int2str)}
         if len(self._int2str) != len(self._str2int):
             raise ValueError(
                 "Some label names are duplicated. Each label name should be unique.")
 
-        # If num_classes has been defined, ensure that num_classes and names match
         num_classes = len(self._str2int)
         if self._num_classes is None:
             self._num_classes = num_classes
@@ -91,3 +88,8 @@ class ClassLabel(Tensor):
     @property
     def num_classes(self):
         return self._num_classes
+
+    def get_attribute_dict(self):
+        """Return class attributes
+        """
+        return self.__dict__ 
