@@ -24,4 +24,4 @@ def serialize_featuredict(fdict):
     return d
 
 def serialize_primitive(primitive):
-    return primitive._dtype.str
+    return str(primitive._dtype)
