@@ -2,8 +2,8 @@ import os
 
 import numpy as np
 
-from hub.aerial.storage_tensor import StorageTensor
-from hub.aerial.store import NotZarrFolderException
+from hub.store.storage_tensor import StorageTensor
+from hub.store.store import NotZarrFolderException
 
 
 def test_open():
@@ -91,7 +91,8 @@ def test_overwrite_safety_folder():
 
 
 def main():
-    test_overwrite_safety()
+    # test_overwrite_safety()
+    test_memcache()
 
 
 if __name__ == "__main__":
