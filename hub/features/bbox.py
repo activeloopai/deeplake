@@ -9,11 +9,7 @@ class BBox(Tensor):
             dtype = 'float32'
         super(BBox, self).__init__(shape=(4,), dtype=dtype)
 
-    def get_attribute_dict(self):
+    def get_attr_dict(self):
         """Return class attributes
         """
         return self.__dict__ 
-
-if __name__ == "__main__":
-    box = BBox()
-    import pdb; pdb.set_trace()
