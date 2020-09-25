@@ -54,7 +54,7 @@ class CacheStore(zarr.LMDBStore):
 
 
 class Cache(zarr.LRUStoreCache):
-    def __init__(self, store, max_size, path="~/.activeloop/cache.mdb"):
+    def __init__(self, store, max_size, path="~/.activeloop/cache"):
         """
         Extends zarr.LRUStoreCache with LMBD Cache that could be shared across
 
@@ -72,7 +72,9 @@ class Cache(zarr.LRUStoreCache):
             if you would like the cache to have unlimited size.
         """
         super(Cache, self).__init__(store, max_size)
-        self._values_cache = CacheStore(os.path.expanduser(path), buffers=True)
+        self.path = os.path.expanduser(path)
+        os.makedirs(self.path, exist_ok=True)
+        self._values_cache = CacheStore(self.path, buffers=True)
         self.cache_key = "_current_size"
 
     @property
