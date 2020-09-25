@@ -52,7 +52,6 @@ def get_storage_map(url: str, creds: dict = None, memcache: float = None):
     fs, path, store = _get_storage_map(url, creds)
     # TODO: Make use that fs.listdir and store.get do not cache locally filenames,
     # because in that case if something is added to s3 or gcs it won't be notified by the program
-    print(url)
     if (
         store.get(".zarray") is None
         and store.get(".zgroup") is None
