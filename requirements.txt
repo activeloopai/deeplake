@@ -8,7 +8,7 @@ s3fs==0.4.2
 gcsfs==0.6.2
 outdated==0.2.0
 lz4>=3,<4
-zarr=2.4
+zarr==2.4
 lmdb==1.0.0
 
 #dev
