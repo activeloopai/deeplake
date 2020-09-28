@@ -1,7 +1,7 @@
 from typing import Tuple
 
 from hub.features import featurify, FeatureConnector, FlatTensor
-from hub.aerial.storage_tensor import StorageTensor
+from hub.store.storage_tensor import StorageTensor
 
 
 class Dataset:
@@ -30,7 +30,7 @@ class Dataset:
         for t in self._flat_tensors:
             t: FlatTensor = t
             yield t.path, StorageTensor(
-                f"{self.url}/{t.path}",
+                f"{self.url}{t.path}",
                 shape=(self.num_samples,) + t.shape,
                 dtype=t.dtype,
             )
