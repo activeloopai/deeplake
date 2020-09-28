@@ -13,9 +13,33 @@ def _load_names_from_file(names_filepath):
 
 
 class ClassLabel(Tensor):
+    """`FeatureConnector` for integer class labels."""
+
     def __init__(self, num_classes: int = None,
                  names: List[str] = None, names_file: str = None
                 ):
+        """Constructs a ClassLabel FeatureConnector.
+        There are 3 ways to define a ClassLabel, which correspond to the 3
+        arguments:
+        * `num_classes`: create 0 to (num_classes-1) labels
+        * `names`: a list of label strings
+        * `names_file`: a file containing the list of labels.
+        Note: On python2, the strings are encoded as utf-8.
+        Args:
+        num_classes: `int`, number of classes. All labels must be < num_classes.
+        names: `list<str>`, string names for the integer classes. The
+            order in which the names are provided is kept.
+        names_file: `str`, path to a file with names for the integer
+            classes, one per line.
+        Example:
+        ```python
+        class_label_tensor = ClassLabel(num_classes=10)
+        class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3'])
+        class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
+        ``` 
+        Raises:
+        ValueError: If more than one argument is provided
+        """
         super(ClassLabel, self).__init__(shape=(), dtype='int64')
 
         self._num_classes = None
@@ -89,7 +113,6 @@ class ClassLabel(Tensor):
     def num_classes(self):
         return self._num_classes
 
-    def get_attribute_dict(self):
-        """Return class attributes
-        """
+    def get_attr_dict(self):
+        """Return class attributes."""
         return self.__dict__ 
