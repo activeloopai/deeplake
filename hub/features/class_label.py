@@ -34,9 +34,12 @@ class ClassLabel(Tensor):
         Example:
         ```python
         class_label_tensor = ClassLabel(num_classes=10)
-        class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3'])
+        class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
         class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
         ``` 
+
+        Note: Only num_classes argument can be filled, providing number of classes, 
+              names or names file
         Raises:
         ValueError: If more than one argument is provided
         """
@@ -52,9 +55,14 @@ class ClassLabel(Tensor):
         if sum(a is not None for a in (num_classes, names, names_file)) != 1:
             raise ValueError(
                 "Only a single argument of ClassLabel() should be provided.")
-
+        
         if num_classes is not None:
-            self._num_classes = num_classes
+            if isinstance(num_classes, int):
+                self._num_classes = num_classes
+            elif isinstance(num_classes, List):
+                names = num_classes
+            elif isinstance(num_classes, str):
+                names_file = num_classes
         elif names is not None:
             self.names = names
         else:
