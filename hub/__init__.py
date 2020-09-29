@@ -6,6 +6,7 @@ from .collections import tensor
 from .collections.dataset import load
 from .collections.client_manager import init
 import hub.config
+import hub.api.dataset
 
 
 def local_mode():
@@ -14,3 +15,14 @@ def local_mode():
 
 def dtype(*args, **kwargs):
     return np.dtype(*args, **kwargs)
+
+
+def open(url: str = None, mode: str = None, shape=None, dtype=None, token=None):
+    assert url is not None
+    shape = shape or (None,)
+
+    assert len(shape) == 1
+
+    return hub.api.dataset.Dataset(
+        url, token, num_samples=shape[0], mode=mode, dtype=dtype
+    )

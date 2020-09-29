@@ -2,6 +2,13 @@ from typing import Tuple
 
 from hub.features import featurify, FeatureConnector, FlatTensor
 from hub.store.storage_tensor import StorageTensor
+import hub.collections.dataset.core as core
+import json
+import hub.features.serialize
+import hub.features.deserialize
+import hub.dynamic_tensor as dynamic_tensor
+
+DynamicTensor = dynamic_tensor.DynamicTensor
 
 
 class Dataset:
@@ -21,18 +28,43 @@ class Dataset:
         self.url = url
         self.token = token
         self.mode = mode
-        self.num_samples = num_samples
-        self.dtype: FeatureConnector = featurify(dtype)
-        self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
-        self._tensors = dict(self._generate_storage_tensors())
+
+        fs, path = core._load_fs_and_path(self.url, creds=token)
+        if mode in ["r", "w+"] and fs.exists(path + "/meta.json"):
+            with fs.open(path + "/meta.json", "r") as f:
+                meta = json.loads(f.read())
+            self.num_samples = meta["num_samples"]
+            self.dtype = hub.features.deserialize.deserialize(meta["dtype"])
+            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
+            self._tensors = dict(self._open_storage_tensors())
+        else:
+            self.dtype: FeatureConnector = featurify(dtype)
+            self.num_samples = num_samples
+            meta = {
+                "num_samples": num_samples,
+                "dtype": hub.features.serialize.serialize(self.dtype),
+            }
+            fs.makedirs(path, exist_ok=True)
+            with fs.open(path + "/meta.json", "w") as f:
+                f.write(json.dumps(meta))
+            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
+            self._tensors = dict(self._generate_storage_tensors())
 
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
-            yield t.path, StorageTensor(
-                f"{self.url}{t.path}",
+            yield t.path, DynamicTensor(
+                f"{self.url}/{t.path}",
                 shape=(self.num_samples,) + t.shape,
+                max_shape=(self.num_samples,) + t.max_shape,
                 dtype=t.dtype,
+            )
+
+    def _open_storage_tensors(self):
+        for t in self._flat_tensors:
+            t: FlatTensor = t
+            yield t.path, DynamicTensor(
+                f"{self.url}/{t.path}", shape=(self.num_samples,) + t.shape
             )
 
     def _slice_split(self, slice_):

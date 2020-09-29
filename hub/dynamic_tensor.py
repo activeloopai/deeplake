@@ -1,9 +1,8 @@
-from typing import Tuple
 import collections.abc as abc
+from typing import Tuple
 
-import numpy as np
-
-import hub.aerial.storage_tensor as storage_tensor
+import hub.collections.dataset.core as core
+import hub.store.storage_tensor as storage_tensor
 
 StorageTensor = storage_tensor.StorageTensor
 
@@ -20,12 +19,21 @@ class DynamicTensor:
         token=None,
         memcache=None,
     ):
-        self._storage_tensor = StorageTensor(
-            url, max_shape, dtype=dtype, creds=token, memcache=memcache
-        )
+        if max_shape is None:
+            self._storage_tensor = StorageTensor(url, creds=token, memcache=memcache)
+        else:
+            self._storage_tensor = StorageTensor(
+                url, max_shape, dtype=dtype, creds=token, memcache=memcache
+            )
         self._dynamic_dims = get_dynamic_dims(shape)
         if max_shape is None:
-            self._dynamic_tensor = StorageTensor(url, creds=token, memcache=memcache)
+            fs, path = core._load_fs_and_path(url, creds=token)
+            if fs.exists(path + "/dynamic"):
+                self._dynamic_tensor = StorageTensor(
+                    url + "/dynamic", creds=token, memcache=memcache
+                )
+            else:
+                self._dynamic_tensor = None
         else:
             if len(self._dynamic_dims) > 0:
                 self._dynamic_tensor = StorageTensor(
@@ -38,7 +46,8 @@ class DynamicTensor:
             else:
                 self._dynamic_tensor = None
         self.shape = shape
-        self.max_shape = max_shape
+        self.max_shape = self._storage_tensor.shape
+        self.dtype = self._storage_tensor.dtype
         assert len(self.shape) == len(self.max_shape)
         for item in self.max_shape:
             assert item is not None

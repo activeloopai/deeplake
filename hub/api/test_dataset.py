@@ -16,7 +16,7 @@ my_dtype = {
 
 def test_dataset():
     ds = Dataset(
-        "./data/hello_world", token=None, num_samples=10000, mode="w+", dtype=my_dtype
+        "./data/test/dataset", token=None, num_samples=10000, mode="w+", dtype=my_dtype
     )
     ds["label/a", 5, 50, 50] = 8
     assert ds["label/a", 5, 50, 50] == 8

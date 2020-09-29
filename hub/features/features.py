@@ -6,10 +6,11 @@ Shape = Tuple[int, ...]
 
 
 class FlatTensor:
-    def __init__(self, path: str, shape: Shape, dtype):
+    def __init__(self, path: str, shape: Shape, dtype, max_shape: Shape):
         self.path = path
         self.shape = shape
         self.dtype = dtype
+        self.max_shape = max_shape
 
 
 class FeatureConnector:
@@ -31,7 +32,7 @@ class Primitive(FeatureConnector):
         self._dtype = hub.dtype(dtype)
 
     def _flatten(self):
-        yield FlatTensor("", (), self._dtype)
+        yield FlatTensor("", (), self._dtype, ())
 
 
 class FeatureDict(FeatureConnector):
@@ -43,13 +44,16 @@ class FeatureDict(FeatureConnector):
     def _flatten(self):
         for key, value in self.dict_.items():
             for item in value._flatten():
-                yield FlatTensor(f"/{key}{item.path}", item.shape, item.dtype)
+                yield FlatTensor(
+                    f"/{key}{item.path}", item.shape, item.dtype, item.max_shape
+                )
 
 
 class Tensor(FeatureConnector):
-    def __init__(self, shape: Shape, dtype):
+    def __init__(self, shape: Shape, dtype, max_shape: Shape = None):
         self.shape = shape
         self.dtype = featurify(dtype)
+        self.max_shape = max_shape or shape
 
     def _flatten(self):
         for item in self.dtype._flatten():
@@ -57,4 +61,5 @@ class Tensor(FeatureConnector):
                 item.path,
                 self.shape + item.shape,
                 item.dtype,
+                self.max_shape + item.max_shape,
             )
