@@ -1,12 +1,27 @@
-import hub.features.feature_connector as feature_connector
-
-FeatureConnector = feature_connector.FeatureConnector
+from hub.features.features import Tensor
 
 
-class Sequence(FeatureConnector):
-    def __init__(feature: FeatureConnector, length: int = None):
-        pass
+class Sequence(Tensor):
+    """`Sequence` correspond to sequence of `features.FeatureConnector`. 
+    At generation time, a list for each of the sequence element is given. The output
+    of `Dataset` will batch all the elements of the sequence together.
+    If the length of the sequence is static and known in advance, it should be
+    specified in the constructor using the `length` param.
 
-    @property
-    def feature(self):
-        raise NotImplementedError()
+    Example:
+    ```
+    sequence = Sequence(Image(), length=NB_FRAME)
+    ```
+    """
+    def __init__(self, feature: Tensor, length: int = None):
+        """Construct a sequence of Tensors.
+        Args:
+        feature: the features to wrap
+        length: `int`, length of the sequence if static and known in advance
+        """
+        super(Sequence, self).__init__(shape=(length, ), dtype=feature.dtype)
+
+    def get_attr_dict(self):
+        """Return class attributes
+        """
+        return self.__dict__  
