@@ -11,6 +11,13 @@ Shape = Tuple[int, ...]
 
 
 class DynamicTensor:
+    """Class for handling dynamicness of the tensor
+
+    This class adds dynamic nature to storage tensor.
+    The shape of tensor depends on the index of the first dim.
+    """
+
+    # TODO Make first dim is extensible as well
     def __init__(
         self,
         url: str,
@@ -63,28 +70,22 @@ class DynamicTensor:
                 assert item[0] == item[1]
 
     def __getitem__(self, slice_):
+        """Gets a slice or slices from tensor"""
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
+        # real_shapes is dynamic shapes based on first dim index, only dynamic dims are stored, static ones are ommitted
         if self._dynamic_tensor:
             real_shapes = self._dynamic_tensor[slice_[0]]
         else:
             real_shapes = None
+        # Extend slice_ to dim count
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
-        if real_shapes is not None:
-            for r, i in enumerate(self._dynamic_dims):
-                if isinstance(slice_[i], int) and slice_[i] < 0:
-                    slice_[i] += real_shapes[i]
-                elif isinstance(slice_[i], slice) and (
-                    slice_[i].stop is None or slice_[i].stop < 0
-                ):
-                    slice_[i] = slice_stop_changed(
-                        slice_[i], (slice_[i].stop or 0) + real_shapes[r]
-                    )
-        slice_ = tuple(slice_)
+        slice_ = self._get_slice(slice_, real_shapes)
         return self._storage_tensor[slice_]
 
     def __setitem__(self, slice_, value):
+        """Sets a slice or slices with a value"""
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -94,6 +95,14 @@ class DynamicTensor:
                 if i >= len(slice_):
                     real_shapes[r] = value.shape[i - len(slice_)]
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
+        slice_ = self._get_slice(slice_, real_shapes)
+        self._storage_tensor[slice_] = value
+        if real_shapes is not None:
+            self._dynamic_tensor[slice_[0]] = real_shapes
+
+    def _get_slice(self, slice_, real_shapes):
+        # Makes slice_ which is uses relative indices (ex [:-5]) into precise slice_ (ex [10:40])
+        slice_ = list(slice_)
         if real_shapes is not None:
             for r, i in enumerate(self._dynamic_dims):
                 if isinstance(slice_[i], int) and slice_[i] < 0:
@@ -104,10 +113,7 @@ class DynamicTensor:
                     slice_[i] = slice_stop_changed(
                         slice_[i], (slice_[i].stop or 0) + real_shapes[r]
                     )
-        slice_ = tuple(slice_)
-        self._storage_tensor[slice_] = value
-        if real_shapes is not None:
-            self._dynamic_tensor[slice_[0]] = real_shapes
+        return tuple(slice_)
 
 
 def get_dynamic_dims(shape):
