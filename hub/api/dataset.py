@@ -1,4 +1,5 @@
 from typing import Tuple
+from pathlib import posixpath
 
 from hub.features import featurify, FeatureConnector, FlatTensor
 from hub.store.storage_tensor import StorageTensor
@@ -54,17 +55,19 @@ class Dataset:
         for t in self._flat_tensors:
             t: FlatTensor = t
             yield t.path, DynamicTensor(
-                f"{self.url}/{t.path}",
+                posixpath.join(self.url, t.path[1:]),
                 shape=(self.num_samples,) + t.shape,
                 max_shape=(self.num_samples,) + t.max_shape,
                 dtype=t.dtype,
+                chunks=t.chunks,
             )
 
     def _open_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
             yield t.path, DynamicTensor(
-                f"{self.url}/{t.path}", shape=(self.num_samples,) + t.shape
+                posixpath.join(self.url, t.path[1:]),
+                shape=(self.num_samples,) + t.shape,
             )
 
     def _slice_split(self, slice_):

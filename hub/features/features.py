@@ -6,11 +6,12 @@ Shape = Tuple[int, ...]
 
 
 class FlatTensor:
-    def __init__(self, path: str, shape: Shape, dtype, max_shape: Shape):
+    def __init__(self, path: str, shape: Shape, dtype, max_shape: Shape, chunks: Shape):
         self.path = path
         self.shape = shape
         self.dtype = dtype
         self.max_shape = max_shape
+        self.chunks = chunks
 
 
 class FeatureConnector:
@@ -28,11 +29,12 @@ def featurify(feature) -> FeatureConnector:
 
 
 class Primitive(FeatureConnector):
-    def __init__(self, dtype):
+    def __init__(self, dtype, chunks=True):
         self._dtype = hub.dtype(dtype)
+        self.chunks = chunks
 
     def _flatten(self):
-        yield FlatTensor("", (), self._dtype, ())
+        yield FlatTensor("", (), self._dtype, (), self.chunks)
 
 
 class FeatureDict(FeatureConnector):
@@ -45,15 +47,20 @@ class FeatureDict(FeatureConnector):
         for key, value in self.dict_.items():
             for item in value._flatten():
                 yield FlatTensor(
-                    f"/{key}{item.path}", item.shape, item.dtype, item.max_shape
+                    f"/{key}{item.path}",
+                    item.shape,
+                    item.dtype,
+                    item.max_shape,
+                    item.chunks,
                 )
 
 
 class Tensor(FeatureConnector):
-    def __init__(self, shape: Shape, dtype, max_shape: Shape = None):
+    def __init__(self, shape: Shape, dtype, max_shape: Shape = None, chunks=True):
         self.shape = shape
         self.dtype = featurify(dtype)
         self.max_shape = max_shape or shape
+        self.chunks = chunks
 
     def _flatten(self):
         for item in self.dtype._flatten():
@@ -62,4 +69,5 @@ class Tensor(FeatureConnector):
                 self.shape + item.shape,
                 item.dtype,
                 self.max_shape + item.max_shape,
+                item.chunks,
             )

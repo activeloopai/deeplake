@@ -1,5 +1,6 @@
 import collections.abc as abc
 from typing import Tuple
+from pathlib import posixpath
 
 import hub.collections.dataset.core as core
 import hub.store.storage_tensor as storage_tensor
@@ -18,19 +19,25 @@ class DynamicTensor:
         dtype="float64",
         token=None,
         memcache=None,
+        chunks=True,
     ):
         if max_shape is None:
             self._storage_tensor = StorageTensor(url, creds=token, memcache=memcache)
         else:
             self._storage_tensor = StorageTensor(
-                url, max_shape, dtype=dtype, creds=token, memcache=memcache
+                url,
+                max_shape,
+                dtype=dtype,
+                creds=token,
+                memcache=memcache,
+                chunks=chunks,
             )
         self._dynamic_dims = get_dynamic_dims(shape)
         if max_shape is None:
             fs, path = core._load_fs_and_path(url, creds=token)
-            if fs.exists(path + "/dynamic"):
+            if fs.exists(posixpath.join(path, "dynamic")):
                 self._dynamic_tensor = StorageTensor(
-                    url + "/dynamic", creds=token, memcache=memcache
+                    posixpath.join(path, "dynamic"), creds=token, memcache=memcache
                 )
             else:
                 self._dynamic_tensor = None
