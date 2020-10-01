@@ -1,34 +1,29 @@
-from hub.features import featurify, FeatureConnector, FlatTensor
-from hub.store.storage_tensor import StorageTensor
-# from hub.api.dataset import slice_split_tuple, slice_extract_info
 class TensorView:
     def __init__(
         self,
-        token=None,
-        mode: str = None,
-        dtype=None,
-        path=None,
+        dataset=None,
+        subpath=None,
         slice_=None,
-        _tensors=None,
     ):
-        assert dtype is not None
-        # assert num_samples is not None
-        assert mode is not None
-        assert path is not None
-        assert _tensors is not None
 
-        self.token = token
-        self.mode = mode
-        # self.num_samples = num_samples
-        self.dtype: FeatureConnector = dtype
-        # self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
-        self._tensors = _tensors
-        self.path=path
-        # self.offset = offset
-        self.slice_=slice_
+        assert dataset is not None
+        assert subpath is not None
+        assert slice_ is not None
 
-    
+        self.dataset = dataset
+        self.subpath = subpath
+        self.slice_ = slice_
+
+    # TODO Add support for incomplete paths
+
     def numpy(self):
         if self.slice_ is None:
-            return self._tensors[self.path][:]
-        return self._tensors[self.path][self.slice_]
+            return self.dataset_tensors[self.subpath][:]
+        return self.dataset._tensors[self.subpath][self.slice_]
+
+    # TODO Add slicing logic to tensorview
+    def __getitem__(self, slice_):
+        raise NotImplementedError()
+
+    def __setitem__(self, slice_):
+        raise NotImplementedError()

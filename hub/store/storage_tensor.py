@@ -30,12 +30,15 @@ class StorageTensor(hub.store.tensor.Tensor):
         dtype="float32",
         creds=None,
         memcache: float = None,
+        chunks=True,
     ):
         if shape is not None:
             self._zarr = zarr.zeros(
                 shape,
                 dtype=dtype,
-                chunks=self._determine_chunksizes(shape, dtype),
+                chunks=self._determine_chunksizes(shape, dtype)
+                if chunks is True
+                else chunks,
                 store=hub.store.store.get_storage_map(url, creds, memcache),
                 overwrite=True,
             )
