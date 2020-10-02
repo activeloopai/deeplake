@@ -4,7 +4,7 @@ import json
 
 
 class CacheStore(zarr.LMDBStore):
-    def __init__(self, path, buffers=True, cache_reset=True, **kwargs):
+    def __init__(self, path, buffers=False, cache_reset=True, **kwargs):
         """
         Extends zarr.LMDB store to support Ordered Dictionary map
 
@@ -21,7 +21,7 @@ class CacheStore(zarr.LMDBStore):
             Keyword arguments passed through to the `lmdb.open` function.
 
         """
-        super(CacheStore, self).__init__(path, buffers=True, **kwargs)
+        super(CacheStore, self).__init__(path, buffers=True, lock=False, **kwargs)
         if cache_reset:
             for k, v in self.items():
                 del self[k]
@@ -129,7 +129,7 @@ class Cache(zarr.LRUStoreCache):
         super(Cache, self).__init__(store, max_size)
         self.path = os.path.expanduser(path)
         os.makedirs(self.path, exist_ok=True)
-        self._values_cache = CacheStore(self.path, buffers=True)
+        self._values_cache = CacheStore(self.path, buffers=False)
         self.cache_key = "_current_size"
 
     @property

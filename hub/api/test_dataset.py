@@ -16,7 +16,7 @@ my_dtype = {
 
 def test_dataset():
     ds = Dataset(
-        "./data/test/dataset", token=None, num_samples=10000, mode="w+", dtype=my_dtype
+        "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
     )
     sds = ds[5]
     sds["label/a", 0, 50, 50] = 2
@@ -53,8 +53,8 @@ def test_dataset_with_chunks():
     ds = Dataset(
         "./data/test/dataset_with_chunks",
         token=None,
-        num_samples=10000,
-        mode="w+",
+        shape=(10000,),
+        mode="w",
         dtype=my_dtype_with_chunks,
     )
     ds["label/a", 5, 50, 50] = 8

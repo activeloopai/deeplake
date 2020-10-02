@@ -1,11 +1,18 @@
+from hub.exceptions import (
+    StorageTensorNotFoundException,
+    OverwriteIsNotSafeException,
+)
+import posixpath
 import typing
 import math
+import json
 
 import zarr
 import numpy as np
 
 import hub.store.tensor
 import hub.store.store
+import hub.utils as utils
 
 
 class StorageTensor(hub.store.tensor.Tensor):
@@ -26,30 +33,46 @@ class StorageTensor(hub.store.tensor.Tensor):
     def __init__(
         self,
         url: str,
-        shape: typing.Tuple[int, ...] = None,
-        dtype="float32",
-        creds=None,
-        memcache: float = None,
+        mode: str = "r",
+        shape=None,
+        dtype=np.float64,
+        token=None,
+        memcache=2 ** 26,
         chunks=True,
+        fs=None,
+        fs_map=None,
     ):
-        if shape is not None:
+        fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
+        if ("w" in mode or "a" in mode) and not fs.exists(path):
+            fs.makedirs(path)
+        fs_map = fs_map or utils.get_storage_map(fs, path, memcache)
+        exist_ = bool(fs_map.get(".hub.storage_tensor"))
+        # if not exist_ and len(fs_map) > 0 and "w" in mode:
+        #     raise OverwriteIsNotSafeException()
+        exist = False if "w" in mode else exist_
+        if "r" in mode and not exist:
+            raise StorageTensorNotFoundException()
+
+        if "r" in mode or "a" in mode and exist:
+            self._zarr = zarr.open_array(fs_map)
+        else:
             self._zarr = zarr.zeros(
                 shape,
                 dtype=dtype,
                 chunks=self._determine_chunksizes(shape, dtype)
                 if chunks is True
                 else chunks,
-                store=hub.store.store.get_storage_map(url, creds, memcache),
-                overwrite=True,
+                store=fs_map,
+                overwrite=("w" in mode),
             )
-        else:
-            self._zarr = zarr.open_array(
-                hub.store.store.get_storage_map(url, creds, memcache)
-            )
+            fs_map[".hub.storage_tensor"] = bytes(json.dumps(dict()), "utf-8")
         self._shape = self._zarr.shape
         self._chunks = self._zarr.chunks
         self._dtype = self._zarr.dtype
         self._memcache = memcache
+        self._fs = fs
+        self._fs_map = fs_map
+        self._path = path
 
     def __getitem__(self, slice_):
         return self._zarr[slice_]
