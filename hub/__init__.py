@@ -40,5 +40,5 @@ def open(url: str = None, mode: str = None, shape=None, dtype=None, token=None):
     assert len(shape) == 1
 
     return hub.api.dataset.Dataset(
-        url, token, num_samples=shape[0], mode=mode, dtype=dtype
+        url, token=token, shape=shape, mode=mode, dtype=dtype
     )

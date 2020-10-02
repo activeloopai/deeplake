@@ -1,9 +1,15 @@
 import collections.abc as abc
 from typing import Tuple
-from pathlib import posixpath
+import posixpath
+import json
+
+import numpy as np
 
 import hub.collections.dataset.core as core
 import hub.store.storage_tensor as storage_tensor
+import hub.utils as utils
+
+from hub.exceptions import DynamicTensorNotFoundException, OverwriteIsNotSafeException
 
 StorageTensor = storage_tensor.StorageTensor
 
@@ -21,44 +27,72 @@ class DynamicTensor:
     def __init__(
         self,
         url: str,
+        mode: str = "r",
         shape: Shape = None,
         max_shape: Shape = None,
         dtype="float64",
         token=None,
         memcache=None,
         chunks=True,
+        fs=None,
+        fs_map=None,
     ):
-        if max_shape is None:
-            self._storage_tensor = StorageTensor(url, creds=token, memcache=memcache)
+        fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
+        if ("w" in mode or "a" in mode) and not fs.exists(path):
+            fs.makedirs(path)
+        fs_map = fs_map or utils.get_storage_map(fs, path, memcache)
+        exist_ = fs_map.get(".hub.dynamic_tensor")
+        # if not exist_ and len(fs_map) > 0 and "w" in mode:
+        #     raise OverwriteIsNotSafeException()
+        exist = False if "w" in mode else exist_ is not None
+        if exist:
+            meta = json.loads(str(fs_map.get(".hub.dynamic_tensor")))
+            shape = meta["shape"]
+        else:
+            meta = {"shape": shape}
+            fs_map[".hub.dynamic_tensor"] = bytes(json.dumps(meta), "utf-8")
+        self._dynamic_dims = get_dynamic_dims(shape)
+        if "r" in mode and not exist:
+            raise DynamicTensorNotFoundException()
+
+        if ("r" in mode or "a" in mode) and exist:
+            self._storage_tensor = StorageTensor(path, mode=mode, fs=fs, fs_map=fs_map)
         else:
             self._storage_tensor = StorageTensor(
-                url,
-                max_shape,
+                path,
+                mode=mode,
+                shape=max_shape,
                 dtype=dtype,
-                creds=token,
-                memcache=memcache,
                 chunks=chunks,
+                fs=fs,
+                fs_map=fs_map,
             )
-        self._dynamic_dims = get_dynamic_dims(shape)
-        if max_shape is None:
-            fs, path = core._load_fs_and_path(url, creds=token)
-            if fs.exists(posixpath.join(path, "dynamic")):
-                self._dynamic_tensor = StorageTensor(
-                    posixpath.join(path, "dynamic"), creds=token, memcache=memcache
+
+        if ("r" in mode or "a" in mode) and exist:
+            self._dynamic_tensor = (
+                StorageTensor(
+                    posixpath.join(path, "dynamic"),
+                    mode=mode,
+                    memcache=2 ** 25,
+                    fs=fs,
+                    fs_map=fs_map,
                 )
-            else:
-                self._dynamic_tensor = None
+                if self._dynamic_dims
+                else None
+            )
         else:
-            if len(self._dynamic_dims) > 0:
-                self._dynamic_tensor = StorageTensor(
-                    url,
+            self._dynamic_tensor = (
+                StorageTensor(
+                    posixpath.join(path, "dynamic"),
+                    mode=mode,
                     shape=(max_shape[0], len(self._dynamic_dims)),
-                    dtype="int32",
-                    creds=token,
-                    memcache=20,
+                    dtype=np.int32,
+                    fs=fs,
+                    memcache=2 ** 25,
                 )
-            else:
-                self._dynamic_tensor = None
+                if self._dynamic_dims
+                else None
+            )
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
         self.dtype = self._storage_tensor.dtype

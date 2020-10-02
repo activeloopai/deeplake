@@ -14,7 +14,7 @@ my_dtype = {
 
 def test_hub_open():
     ds = hub.open(
-        "./data/test/hub_open", token=None, shape=(10000,), mode="w+", dtype=my_dtype
+        "./data/test/hub_open", token=None, shape=(10000,), mode="w", dtype=my_dtype
     )
     ds["label/a", 5, 50, 50] = 9
     assert ds["label/a", 5, 50, 50] == 9

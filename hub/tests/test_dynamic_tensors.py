@@ -8,6 +8,7 @@ DynamicTensor = dynamic_tensor.DynamicTensor
 def test_dynamic_tensor():
     t = DynamicTensor(
         "./data/test/test_dynamic_tensor",
+        mode="w",
         shape=(5, 100, 100),
         max_shape=(5, 100, 100),
         dtype="int32",
@@ -19,6 +20,7 @@ def test_dynamic_tensor():
 def test_dynamic_tensor_2():
     t = DynamicTensor(
         "./data/test/test_dynamic_tensor_2",
+        mode="w",
         shape=(5, None, None),
         max_shape=(5, 100, 100),
         dtype="int32",
