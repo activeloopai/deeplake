@@ -10,6 +10,7 @@ my_dtype = {
     "label": {
         "a": Tensor((100, 200), "int32"),
         "b": Tensor((100, 400), "int64"),
+        "c": Tensor((5, 3), "uint8")
     },
 }
 
@@ -36,9 +37,9 @@ def test_dataset():
     ds["image", 6, 3:5, 100:135, 700:720] = 5 * np.ones((2, 35, 20, 3))
     assert(subds["image", 1, 3:5, 100:135, 700:720].numpy() == 5 * np.ones((2, 35, 20, 3))).all()
 
-    ds["label", "b"] = 4 * np.ones((10000, 100, 400), "uint8")
+    ds["label", "c"] = 4 * np.ones((10000, 5, 3), "uint8")
     assert (
-        ds["label/b"].numpy() == 4 * np.ones((10000, 100, 400), "uint8")
+        ds["label/c"].numpy() == 4 * np.ones((10000, 5, 3), "uint8")
     ).all()
 
 
