@@ -1,6 +1,7 @@
-from hub.features.features import Primitive,Tensor,FeatureDict 
+from hub.features.features import Tensor
 from hub.features.serialize import serialize
 from hub.features.deserialize import deserialize
+
 
 def test_serialize_deserialize():
     t = Tensor(
@@ -26,8 +27,8 @@ def test_serialize_deserialize():
     original_shapes = [r.shape for r in original_result]
     origanal_dtypes = [str(r.dtype) for r in original_result]
 
-    serialize_t=serialize(t)
-    deserialize_t=deserialize(serialize_t)
+    serialize_t = serialize(t)
+    deserialize_t = deserialize(serialize_t)
 
     result = tuple(deserialize_t._flatten())
     paths = [r.path for r in result]

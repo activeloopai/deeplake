@@ -6,6 +6,9 @@ import posixpath
 from hub.features import featurify, FeatureConnector, FlatTensor
 # from hub.store.storage_tensor import StorageTensor
 from hub.api.tensorview import TensorView
+from hub.api.datasetview import DatasetView
+from hub.api.dataset_utils import slice_extract_info, slice_split_tuple
+
 # import hub.collections.dataset.core as core
 import json
 import hub.features.serialize
@@ -25,7 +28,6 @@ class Dataset:
         token=None,
         shape=None,
         dtype=None,
-        offset=0,
         fs=None,
         fs_map=None,
     ):
@@ -38,7 +40,6 @@ class Dataset:
         self.url = url
         self.token = token
         self.mode = mode
-        self.offset = offset
 
         fs, path = (fs, url) if fs else utils.get_fs_and_path(self.url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
@@ -99,33 +100,28 @@ class Dataset:
             # doesn't handle negative right now
             if slice_ >= self.shape[0]:
                 raise IndexError('index out of bounds for dimension with length {}'.format(self.shape[0]))
-            return Dataset(url=self.url, token=self.token, shape=(1,), mode=self.mode , dtype=self.dtype, offset=self.offset + slice_)
+            return DatasetView(dataset=self, num_samples=1, offset=slice_)
 
         elif isinstance(slice_, slice):         # return Dataset with multiple samples
             num, ofs = slice_extract_info(slice_, self.shape[0])
-            return Dataset(url=self.url, token=self.token, shape=(num,), mode=self.mode , dtype=self.dtype, offset=self.offset + ofs)
+            return DatasetView(dataset=self, num_samples=num, offset=ofs)
 
         elif isinstance(slice_, str):
             subpath = slice_ if slice_.startswith("/") else "/" + slice_     # return TensorView object
-            # add slice for original Dataset range
-            offset_slice = slice(self.offset, self.offset + self.shape[0])
-            return TensorView(dataset=self, subpath=subpath, slice_=offset_slice)
+            return TensorView(dataset=self, subpath=subpath, slice_=None)
 
         elif isinstance(slice_, tuple):        # return tensor view object
             subpath, slice_ = slice_split_tuple(slice_)
 
             if len(slice_) == 0:
-                slice_ = slice(self.offset, self.offset + self.shape[0])
+                pass
             elif isinstance(slice_[0], int):
                 if slice_[0] >= self.shape[0]:
                     raise IndexError('index out of bounds for dimension with length {}'.format(self.shape[0]))
-                ls = list(slice_)
-                ls[0] += self.offset
-                slice_ = tuple(ls)
             elif isinstance(slice_[0], slice):
                 num, ofs = slice_extract_info(slice_[0], self.shape[0])
                 ls = list(slice_)
-                ls[0] = slice(self.offset + ofs, self.offset + ofs + num)
+                ls[0] = slice(ofs, ofs + num)
                 slice_ = tuple(ls)
             return TensorView(dataset=self, subpath=subpath, slice_=slice_)
         else:
@@ -140,22 +136,10 @@ class Dataset:
 
         elif isinstance(slice_, str):
             slice_ = slice_ if slice_.startswith("/") else "/" + slice_     # return TensorView object
-            self._tensors[slice_][slice(self.offset, self.offset + self.shape[0])] = value
+            self._tensors[slice_][:] = value
 
         elif isinstance(slice_, tuple):        # return tensor view object
             subpath, slice_ = slice_split_tuple(slice_)
-            if len(slice_) == 0:
-                slice_ = slice(self.offset, self.offset + self.shape[0])
-            elif isinstance(slice_[0], int):
-                offset_slice = slice_[0] + self.offset
-                ls = list(slice_)
-                ls[0] = offset_slice
-                slice_ = tuple(ls)
-            elif isinstance(slice_[0], slice):
-                offset_slice = slice(slice_[0].start + self.offset, slice_[0].stop + self.offset)
-                ls = list(slice_)
-                ls[0] = offset_slice
-                slice_ = tuple(ls)
             self._tensors[subpath][slice_] = value
 
         else:
@@ -175,61 +159,3 @@ def open(
     url: str = None, token=None, num_samples: int = None, mode: str = None
 ) -> Dataset:
     raise NotImplementedError()
-
-
-def slice_split_tuple(slice_):
-    path = ""
-    list_slice = []
-    for sl in slice_:
-        if isinstance(sl, str):
-            path += sl if sl.startswith("/") else "/" + sl
-        elif isinstance(sl, int) or isinstance(sl, slice):
-            list_slice.append(sl)
-        else:
-            raise TypeError("type {} isn't supported in dataset slicing".format(type(sl)))
-    tuple_slice = tuple(list_slice)
-    if path == "":
-        raise ValueError("No path found in slice!")
-    return path, tuple_slice
-
-
-def slice_extract_info(slice_, num):
-    assert isinstance(slice_, slice)
-
-    if slice_.step is not None and slice_.step < 0:       # negative step not supported
-        raise ValueError("Negative step not supported in dataset slicing")
-
-    offset = 0
-
-    if slice_.start is not None:
-        if slice_.start < 0:                 # make indices positive if possible
-            slice_.start += num
-            if slice_.start < 0:
-                raise IndexError('index out of bounds for dimension with length {}'.format(num))
-
-        if slice_.start >= num:
-            raise IndexError('index out of bounds for dimension with length {}'.format(num))
-        offset = slice_.start
-
-    if slice_.stop is not None:
-        if slice_.stop < 0:                   # make indices positive if possible
-            slice_.stop += num
-            if slice_.stop < 0:
-                raise IndexError('index out of bounds for dimension with length {}'.format(num))
-
-        if slice_.stop >= num:
-            raise IndexError('index out of bounds for dimension with length {}'.format(num))
-
-    if slice_.start is not None and slice_.stop is not None:
-        if slice_.stop < slice_.start:    # return empty
-            num = 0
-        else:
-            num = slice_.stop - slice_.start
-    elif slice_.start is None and slice_.stop is not None:
-        num = slice_.stop
-    elif slice_.start is not None and slice_.stop is None:
-        num = num - slice_.start
-    else:
-        num = num
-
-    return num, offset

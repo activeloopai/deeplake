@@ -8,7 +8,6 @@ class TensorView:
 
         assert dataset is not None
         assert subpath is not None
-        assert slice_ is not None
 
         self.dataset = dataset
         self.subpath = subpath
@@ -18,7 +17,7 @@ class TensorView:
 
     def numpy(self):
         if self.slice_ is None:
-            return self.dataset_tensors[self.subpath][:]
+            return self.dataset._tensors[self.subpath][:]
         return self.dataset._tensors[self.subpath][self.slice_]
 
     # TODO Add slicing logic to tensorview
