@@ -1,3 +1,4 @@
+from hub.features.features import Primitive
 from typing import Tuple
 import posixpath
 
@@ -106,14 +107,15 @@ class Dataset:
         path, slice_ = self._slice_split(slice_)
         self._tensors[path][slice_] = value
 
-    def commit(self):
-        raise NotImplementedError()
-
     def __exit__(self, type, value, traceback):
         raise NotImplementedError()
 
     def __iter__(self):
         raise NotImplementedError()
+
+    def commit(self):
+        for t in self._tensors.values():
+            t.commit()
 
 
 def open(

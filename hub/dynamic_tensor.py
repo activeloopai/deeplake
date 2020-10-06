@@ -149,6 +149,11 @@ class DynamicTensor:
                     )
         return tuple(slice_)
 
+    def commit(self):
+        self._storage_tensor.commit()
+        if self._dynamic_tensor:
+            self._dynamic_tensor.commit()
+
 
 def get_dynamic_dims(shape):
     return [i for i, s in enumerate(shape) if s is None]

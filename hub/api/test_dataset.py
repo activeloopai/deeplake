@@ -24,6 +24,7 @@ def test_dataset():
     assert (
         ds["image", 5, 4, 100:200, 150:300, :] == np.ones((100, 150, 3), "uint8")
     ).all()
+    ds.commit()
 
 
 my_dtype_with_chunks = {
