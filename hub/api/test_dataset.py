@@ -10,7 +10,10 @@ my_dtype = {
     "label": {
         "a": Tensor((100, 200), "int32"),
         "b": Tensor((100, 400), "int64"),
-        "c": Tensor((5, 3), "uint8")
+        "c": Tensor((5, 3), "uint8"),
+        "d": {
+            "e": Tensor((5, 3), "uint8")
+        }
     },
 }
 
@@ -56,6 +59,12 @@ def test_dataset():
     assert(
         ds[7:9, 4, "label", "/c"].numpy() == 98 * np.ones((2, 3))
     ).all()
+
+    labels = ds["label", 1:5]
+    d = labels["d"]
+    e = d["e"]
+    e[:] = 77 * np.ones((4, 5, 3))
+    assert(e.numpy() == 77 * np.ones((4, 5, 3))).all()
 
 
 my_dtype_with_chunks = {

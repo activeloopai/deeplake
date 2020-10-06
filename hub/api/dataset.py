@@ -112,23 +112,46 @@ class Dataset:
                 return TensorView(dataset=self, subpath=subpath, slice_=slice(0, self.shape[0]))
             else:
                 d = {}
+                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
                 for key in self._tensors.keys():
-                    if key.startswith(subpath + "/"):
-                        d[key] = TensorView(dataset=self, subpath=key, slice_=slice(0, self.shape[0]))
+                    if key.startswith(post_subpath):
+                        suffix_key = key[len(post_subpath):]
+                    else:
+                        continue
+                    split_key = suffix_key.split("/")
+                    cur = d
+                    for i in range(len(split_key) - 1):
+                        if split_key[i] in cur.keys():
+                            cur = cur[split_key[i]]
+                        else:
+                            cur[split_key[i]] = {}
+                            cur = cur[split_key[i]]
+                    cur[split_key[-1]] = TensorView(dataset=self, subpath=key, slice_=slice(0, self.shape[0]))
                 if len(d) == 0:
                     raise KeyError(f"Key {subpath} was not found in dataset")
                 return d
 
         elif isinstance(slice_, tuple):        # return tensor view object
             subpath, slice_ = slice_split_tuple(slice_)
-            d = {}
             if len(slice_) == 0:
                 slice_ = (slice(0, self.shape[0]),)
-
+            d = {}
             if subpath not in self._tensors.keys():
+                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
                 for key in self._tensors.keys():
-                    if key.startswith(subpath + "/"):
-                        d[key] = TensorView(dataset=self, subpath=key, slice_=slice_)
+                    if key.startswith(post_subpath):
+                        suffix_key = key[len(post_subpath):]
+                    else:
+                        continue
+                    split_key = suffix_key.split("/")
+                    cur = d
+                    for i in range(len(split_key) - 1):
+                        if split_key[i] in cur.keys():
+                            cur = cur[split_key[i]]
+                        else:
+                            cur[split_key[i]] = {}
+                            cur = cur[split_key[i]]
+                    cur[split_key[-1]] = TensorView(dataset=self, subpath=key, slice_=slice_)
                 if len(d) == 0:
                     raise KeyError(f"Key {subpath} was not found in dataset")
 
