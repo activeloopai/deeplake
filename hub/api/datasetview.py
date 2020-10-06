@@ -79,6 +79,5 @@ class DatasetView:
                 ls[0] = offset_slice
                 slice_ = tuple(ls)
             self.dataset._tensors[subpath][slice_] = value
-
         else:
             raise TypeError("type {} isn't supported in dataset slicing".format(type(slice_)))

@@ -108,22 +108,52 @@ class Dataset:
 
         elif isinstance(slice_, str):
             subpath = slice_ if slice_.startswith("/") else "/" + slice_     # return TensorView object
-            return TensorView(dataset=self, subpath=subpath, slice_=None)
+            if subpath in self._tensors.keys():
+                return TensorView(dataset=self, subpath=subpath, slice_=slice(0, self.shape[0]))
+            else:
+                d = {}
+                for key in self._tensors.keys():
+                    if key.startswith(subpath + "/"):
+                        d[key] = TensorView(dataset=self, subpath=key, slice_=slice(0, self.shape[0]))
+                if len(d) == 0:
+                    raise KeyError(f"Key {subpath} was not found in dataset")
+                return d
 
         elif isinstance(slice_, tuple):        # return tensor view object
             subpath, slice_ = slice_split_tuple(slice_)
-
+            d = {}
             if len(slice_) == 0:
-                pass
-            elif isinstance(slice_[0], int):
-                if slice_[0] >= self.shape[0]:
+                slice_ = (slice(0, self.shape[0]),)
+
+            if subpath not in self._tensors.keys():
+                for key in self._tensors.keys():
+                    if key.startswith(subpath + "/"):
+                        d[key] = TensorView(dataset=self, subpath=key, slice_=slice_)
+                if len(d) == 0:
+                    raise KeyError(f"Key {subpath} was not found in dataset")
+
+            if len(slice_) <= 1:
+                if len(slice_) == 1 :
+                    if isinstance(slice_[0], int) and slice_[0] >= self.shape[0]:
+                        raise IndexError('index out of bounds for dimension with length {}'.format(self.shape[0]))
+                    elif isinstance(slice_[0], slice):
+                        # will check slice limits and raise error if required
+                        num, ofs = slice_extract_info(slice_[0], self.shape[0])
+                if subpath in self._tensors.keys():
+                    return TensorView(dataset=self, subpath=subpath, slice_=slice_)
+                else:
+                    return d
+            else:
+                if subpath not in self._tensors.keys():
+                    raise ValueError("You can't slice a dictionary of Tensors")
+                elif isinstance(slice_[0], int) and slice_[0] >= self.shape[0]:
                     raise IndexError('index out of bounds for dimension with length {}'.format(self.shape[0]))
-            elif isinstance(slice_[0], slice):
-                num, ofs = slice_extract_info(slice_[0], self.shape[0])
-                ls = list(slice_)
-                ls[0] = slice(ofs, ofs + num)
-                slice_ = tuple(ls)
-            return TensorView(dataset=self, subpath=subpath, slice_=slice_)
+                elif isinstance(slice_[0], slice):
+                    num, ofs = slice_extract_info(slice_[0], self.shape[0])
+                    ls = list(slice_)
+                    ls[0] = slice(ofs, ofs + num)
+                    slice_ = tuple(ls)
+                return TensorView(dataset=self, subpath=subpath, slice_=slice_)
         else:
             raise TypeError("type {} isn't supported in dataset slicing".format(type(slice_)))
 

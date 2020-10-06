@@ -87,4 +87,18 @@ def test_dataset_with_chunks():
 
 
 if __name__ == "__main__":
+    # a=slice(2,None)
+    # l=[1,2,3,4,5]
+    # print(l[a])
+    # print(a.start)
+    # print(a.stop)
+    # print(a.step)
+    # b=1
+    # c=tuple([1,2])
+    # a=list(c)
+    # #d=[a]
+    # print(a)
     test_dataset()
+    # a=1
+    # b=(a,)
+    # print(b)
