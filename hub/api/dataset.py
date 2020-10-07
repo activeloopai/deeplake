@@ -13,8 +13,10 @@ import hub.features.deserialize
 import hub.dynamic_tensor as dynamic_tensor
 import hub.utils as utils
 from hub.exceptions import OverwriteIsNotSafeException
+from hub.utils import MetaStorage
 
 DynamicTensor = dynamic_tensor.DynamicTensor
+MetaStorage = utils.MetaStorage
 
 
 class Dataset:
@@ -72,24 +74,29 @@ class Dataset:
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
+            path = posixpath.join(self._path, t.path[1:])
+            self._fs.makedirs(path)
             yield t.path, DynamicTensor(
-                posixpath.join(self._path, t.path[1:]),
+                path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 max_shape=self.shape + t.max_shape,
                 dtype=t.dtype,
                 chunks=t.chunks,
                 fs=self._fs,
+                fs_map=MetaStorage(t.path, utils.get_storage_map(self._fs, path), self._fs_map)
             )
 
     def _open_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
+            path = posixpath.join(self._path, t.path[1:])
             yield t.path, DynamicTensor(
-                posixpath.join(self._path, t.path[1:]),
+                path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 fs=self._fs,
+                fs_map=MetaStorage(t.path, utils.get_storage_map(self._fs, path), self._fs_map)
             )
 
     def _slice_split(self, slice_):
