@@ -1,3 +1,4 @@
+from hub.features.features import Primitive
 from typing import Tuple
 import posixpath
 
@@ -16,8 +17,10 @@ import hub.features.deserialize
 import hub.dynamic_tensor as dynamic_tensor
 import hub.utils as utils
 from hub.exceptions import OverwriteIsNotSafeException
+from hub.utils import MetaStorage
 
 DynamicTensor = dynamic_tensor.DynamicTensor
+MetaStorage = utils.MetaStorage
 
 
 class Dataset:
@@ -75,24 +78,29 @@ class Dataset:
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
+            path = posixpath.join(self._path, t.path[1:])
+            self._fs.makedirs(path)
             yield t.path, DynamicTensor(
-                posixpath.join(self._path, t.path[1:]),
+                path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 max_shape=self.shape + t.max_shape,
                 dtype=t.dtype,
                 chunks=t.chunks,
                 fs=self._fs,
+                fs_map=MetaStorage(t.path, utils.get_storage_map(self._fs, path), self._fs_map)
             )
 
     def _open_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
+            path = posixpath.join(self._path, t.path[1:])
             yield t.path, DynamicTensor(
-                posixpath.join(self._path, t.path[1:]),
+                path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 fs=self._fs,
+                fs_map=MetaStorage(t.path, utils.get_storage_map(self._fs, path), self._fs_map)
             )
 
     def __getitem__(self, slice_):
@@ -198,14 +206,15 @@ class Dataset:
         else:
             raise TypeError("type {} isn't supported in dataset slicing".format(type(slice_)))
 
-    def commit(self):
-        raise NotImplementedError()
-
     def __exit__(self, type, value, traceback):
         raise NotImplementedError()
 
     def __iter__(self):
         raise NotImplementedError()
+
+    def commit(self):
+        for t in self._tensors.values():
+            t.commit()
 
 
 def open(

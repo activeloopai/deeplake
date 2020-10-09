@@ -91,3 +91,6 @@ class StorageTensor(hub.store.tensor.Tensor):
     @property
     def dtype(self):
         return self._dtype
+
+    def commit(self):
+        self._fs_map.commit()
