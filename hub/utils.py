@@ -26,6 +26,7 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
                 "s3",
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
+                token=token.get("aws_session_token"),
             ),
             url[5:],
         )
@@ -52,7 +53,7 @@ def read_aws_creds(filepath: str):
 
 
 def _get_storage_map(fs, path):
-    return fs.get_mapper(path, check=True, create=False)
+    return fs.get_mapper(path, check=False, create=False)
 
 
 def get_storage_map(fs, path, memcache=2 ** 26):

@@ -17,10 +17,10 @@ def test_hub_open():
         "./data/test/hub_open", token=None, shape=(10000,), mode="w", dtype=my_dtype
     )
     ds["label/a", 5, 50, 50] = 9
-    assert ds["label/a", 5, 50, 50] == 9
+    assert ds["label/a", 5, 50, 50].numpy() == 9
     ds["image", 5, 4, 120:200, 150:300, :] = 3 * np.ones((80, 150, 3), "uint8")
     assert (
-        ds["image", 5, 4, 120:200, 150:300, :] == 3 * np.ones((80, 150, 3), "uint8")
+        ds["image", 5, 4, 120:200, 150:300, :].numpy() == 3 * np.ones((80, 150, 3), "uint8")
     ).all()
 
 
