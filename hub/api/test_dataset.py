@@ -53,7 +53,7 @@ def test_dataset():
     assert (
         sssds.numpy() == 6 * np.ones((3))
     ).all()
-    ds.commit()
+    # ds.commit()
 
     sds = ds["/label", 5:15, "c"]
     sds[2:4, 4, :] = 98 * np.ones((2, 3))
