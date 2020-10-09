@@ -1,23 +1,25 @@
 from typing import List
-
 from hub.features.features import Tensor
 
 
 def _load_names_from_file(names_filepath):
-  with open(names_filepath, "r") as f:
-    return [
-        name.strip()
-        for name in f.read().split("\n")
-        if name.strip()  
-    ]
+    with open(names_filepath, "r") as f:
+        return [
+            name.strip()
+            for name in f.read().split("\n")
+            if name.strip()
+        ]
 
 
 class ClassLabel(Tensor):
     """`FeatureConnector` for integer class labels."""
 
-    def __init__(self, num_classes: int = None,
-                 names: List[str] = None, names_file: str = None
-                ):
+    def __init__(
+        self, num_classes: int = None,
+        names: List[str] = None,
+        names_file: str = None,
+        chunks=True
+    ):
         """Constructs a ClassLabel FeatureConnector.
         There are 3 ways to define a ClassLabel, which correspond to the 3
         arguments:
@@ -36,14 +38,14 @@ class ClassLabel(Tensor):
         class_label_tensor = ClassLabel(num_classes=10)
         class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
         class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
-        ``` 
+        ```
 
-        Note: Only num_classes argument can be filled, providing number of classes, 
+        Note: Only num_classes argument can be filled, providing number of classes,
               names or names file
         Raises:
         ValueError: If more than one argument is provided
         """
-        super(ClassLabel, self).__init__(shape=(), dtype='int64')
+        super(ClassLabel, self).__init__(shape=(), dtype='int64', chunks=chunks)
 
         self._num_classes = None
         self._str2int = None
@@ -54,15 +56,15 @@ class ClassLabel(Tensor):
 
         if sum(a is not None for a in (num_classes, names, names_file)) != 1:
             raise ValueError(
-                "Only a single argument of ClassLabel() should be provided.")
-        
+                "Only a single labeling argument of ClassLabel() should be provided.")
+
         if num_classes is not None:
             if isinstance(num_classes, int):
                 self._num_classes = num_classes
-            elif isinstance(num_classes, List):
-                names = num_classes
-            elif isinstance(num_classes, str):
-                names_file = num_classes
+            # elif isinstance(num_classes, List):
+            #     names = num_classes
+            # elif isinstance(num_classes, str):
+            #     names_file = num_classes
         elif names is not None:
             self.names = names
         else:
@@ -115,7 +117,7 @@ class ClassLabel(Tensor):
     def int2str(self, int_value: int):
         """Conversion integer => class name string."""
         if self._int2str:
-            return self._int2str[int_value]    
+            return self._int2str[int_value]
 
     @property
     def num_classes(self):
@@ -123,4 +125,4 @@ class ClassLabel(Tensor):
 
     def get_attr_dict(self):
         """Return class attributes."""
-        return self.__dict__ 
+        return self.__dict__

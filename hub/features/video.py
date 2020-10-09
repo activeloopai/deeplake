@@ -8,14 +8,19 @@ class Video(Sequence):
     """`FeatureConnector` for videos, encoding frames individually on disk.
 
     The connector accepts as input a 4 dimensional `uint8` array
-    representing a video. 
+    representing a video.
     Output:
         video: Tensor of type `uint8` and shape
         [num_frames, height, width, channels], where channels must be 1 or 3
     """
-    def __init__(self, shape: Tuple[int, ...] = None, dtype: str = 'uint8',
-                 encoding_format: str = 'png'):
-         """Initializes the connector.
+    def __init__(
+        self,
+        shape: Tuple[int, ...] = None,
+        dtype: str = 'uint8',
+        encoding_format: str = 'png',
+        chunks=True
+    ):
+        """Initializes the connector.
             Args:
             shape: tuple of ints, the shape of the video (num_frames, height, width,
                 channels), where channels is 1 or 3.
@@ -25,8 +30,8 @@ class Video(Sequence):
             Raises:
             ValueError: If the shape, dtype or encoding formats are invalid
         """
-        super(Video, self).__init__(feature=Image(shape=shape[1:], dtype=dtype, 
-                                    encoding_format=encoding_format), length=shape[0])
+        super(Video, self).__init__(feature=Image(shape=shape[1:], dtype=dtype,
+                                    encoding_format=encoding_format), length=shape[0], chunks=chunks)
 
     def get_attr_dict(self):
         """Return class attributes."""

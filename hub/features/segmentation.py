@@ -1,8 +1,7 @@
-from typing import Tuple, Union, Iterable
+from typing import Tuple
 import numpy as np
 
 from hub.features.features import Tensor
-from hub.features.polygon import Polygon
 from hub.features.class_label import ClassLabel
 
 
@@ -16,6 +15,8 @@ class Segmentation(Tensor):
         num_classes: int = None,
         names: Tuple[str] = None,
         names_file: str = None,
+        max_shape: Tuple[int, ...] = None,
+        chunks=True
     ):
         """Constructs a Segmentation FeatureConnector.
         Also constructs ClassLabel FeatureConnector for Segmentation classes.
@@ -28,14 +29,13 @@ class Segmentation(Tensor):
         names_file: `str`, path to a file with names for the integer
                     classes, one per line.
         """
-        super(Segmentation, self).__init__(shape, dtype)
-        self.class_labels = ClassLabel(num_classes=num_classes, names=names,
-                                      names_file=names_file)
-    
+        super(Segmentation, self).__init__(shape, dtype, max_shape=max_shape, chunks=chunks)
+        self.class_labels = ClassLabel(num_classes=num_classes, names=names, names_file=names_file, chunks=chunks)
+
     def get_segmentation_classes(self):
         class_indices = np.unique(self)
         return [self.class_labels.int2str(value) for value in class_indices]
-    
+
     def get_attr_dict(self):
         """Return class attributes."""
         return self.__dict__
