@@ -105,7 +105,12 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 - [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 - [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
 
-
+## Top Contributors
+1. davidbuniat 
+2. edogrigqv2 
+3. AbhinavTuli 
+4. vagharsh
+5. mikayelh
 
 # Disclaimers
 
