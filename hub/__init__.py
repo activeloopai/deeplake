@@ -7,6 +7,7 @@ from .collections.dataset import load
 from .collections.client_manager import init
 import hub.config
 import hub.api.dataset
+from hub.pipeline import transform
 
 
 def local_mode():
@@ -42,3 +43,4 @@ def open(url: str = None, mode: str = None, shape=None, dtype=None, token=None):
     return hub.api.dataset.Dataset(
         url, token=token, shape=shape, mode=mode, dtype=dtype
     )
+

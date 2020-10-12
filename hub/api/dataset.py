@@ -210,7 +210,11 @@ class Dataset:
         raise NotImplementedError()
 
     def __iter__(self):
-        raise NotImplementedError()
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        return self.shape[0]
 
     def commit(self):
         for t in self._tensors.values():
