@@ -15,10 +15,12 @@ class Transformer:
         ds = hub.open(url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token)
         for i, item in enumerate(self._ds):
             result = self._func(item)
+            result["image"] = result["image"].squeeze()
             for key in result:
                 ds[key, i] = result[key]
             # self._transfer(self._func(item), ds[i])
-    
+        return ds
+
     def _transfer(self, from_, to):
         assert isinstance(from_, dict)
         for key, value in from_.items():

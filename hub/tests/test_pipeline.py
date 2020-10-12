@@ -13,7 +13,7 @@ my_dtype = {
 def my_transform(sample):
     return {
         "image": sample["image"].numpy() * 2,
-        "label": sample["label"],
+        "label": sample["label"].numpy()[0],
     }
 
 
@@ -24,5 +24,5 @@ def test_pipeline_basic():
         ds["label", i] = f"hello {i}"
     out_ds = my_transform(ds)
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
-    assert res_ds["label", 5] == "hello 5"
+    assert res_ds["label", 5].numpy() == "hello 5"
     assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
