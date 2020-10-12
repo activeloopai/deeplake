@@ -41,9 +41,9 @@ def test_dynamic_tensor_3():
         dtype="int32",
     )
     t[0, 5] = np.ones((20, 30), dtype="int32")
-    t[0, 6:8] = 5 * np.ones((2, 20, 30), dtype="int32")
+    t[0, 6:8, 5:9] = 5 * np.ones((2, 4, 30), dtype="int32")
     assert t[0, 5, 7].tolist() == [1] * 30
-    assert t[0, 7, 15].tolist() == [5] * 30
+    assert t[0, 7, 8].tolist() == [5] * 30
 
 
 def test_dynamic_tensor_shapes():
