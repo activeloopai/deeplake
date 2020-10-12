@@ -124,14 +124,17 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
+        ranged_slice_count = len([i for i in slice_[1:] if isinstance(i, slice)])
         if real_shapes is not None:
             for r, i in enumerate(self._dynamic_dims):
                 if i >= len(slice_):
-                    real_shapes[r] = value.shape[i - len(slice_)]
+                    real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]
+                else:
+                    real_shapes[r] = max(real_shapes[r], self._get_slice_upper_boundary(slice_[i]))
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
-        if real_shapes is not None:
+        if real_shapes is not None:  
             self._dynamic_tensor[slice_[0]] = real_shapes
 
     def _get_slice(self, slice_, real_shapes):
@@ -140,7 +143,7 @@ class DynamicTensor:
         if real_shapes is not None:
             for r, i in enumerate(self._dynamic_dims):
                 if isinstance(slice_[i], int) and slice_[i] < 0:
-                    slice_[i] += real_shapes[i]
+                    slice_[i] += real_shapes[r]
                 elif isinstance(slice_[i], slice) and (
                     slice_[i].stop is None or slice_[i].stop < 0
                 ):
@@ -148,6 +151,14 @@ class DynamicTensor:
                         slice_[i], (slice_[i].stop or 0) + real_shapes[r]
                     )
         return tuple(slice_)
+
+    @classmethod
+    def _get_slice_upper_boundary(cls, slice_):
+        if isinstance(slice_, slice):
+            return slice_.stop
+        else:
+            assert isinstance(slice_, int)
+            return slice_ + 1
 
     def commit(self):
         self._storage_tensor.commit()
