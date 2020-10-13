@@ -1,8 +1,7 @@
 from hub.exceptions import (
     StorageTensorNotFoundException,
-    OverwriteIsNotSafeException,
 )
-import posixpath
+
 import typing
 import math
 import json

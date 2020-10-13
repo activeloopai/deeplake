@@ -1,5 +1,4 @@
 import configparser
-import posixpath
 from typing import Tuple
 from collections.abc import MutableMapping
 import json
@@ -9,7 +8,7 @@ import gcsfs
 
 from hub.store.cache import Cache
 
-from .exceptions import NotZarrFolderException
+from hub.client.hub_control import HubControlClient
 
 
 def _flatten(list_):
@@ -17,6 +16,25 @@ def _flatten(list_):
     Helper function to flatten the list
     """
     return [item for sublist in list_ for item in sublist]
+
+
+def _connect(tag):
+    """Connects to the backend and receive credentials"""
+
+    creds = HubControlClient().get_config()
+    dataset = HubControlClient().get_dataset_path(tag)
+
+    if dataset and "path" in dataset:
+        path = dataset["path"]
+    else:
+        sub_tags = tag.split("/")
+        real_tag = sub_tags[-1]
+        if len(sub_tags) > 1 and sub_tags[0] != creds["_id"]:
+            username = creds["bucket"].split("/")[-1]
+            creds["bucket"] = creds["bucket"].replace(username, sub_tags[0])
+
+        path = f"{creds['bucket']}/{real_tag}"
+    return path, creds
 
 
 def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, str]:
@@ -45,7 +63,21 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
     ):
         return fsspec.filesystem("file"), url
     else:
-        raise NotImplementedError()
+        # TOOD check if url is username/dataset:version
+        url, creds = _connect(url)
+        return (
+            fsspec.filesystem(
+                "s3",
+                key=creds["access_key"],
+                secret=creds["secret_key"],
+                token=creds["session_token"],
+                client_kwargs={
+                    "endpoint_url": creds["endpoint"],
+                    "region_name": creds["region"],
+                },
+            ),
+            url,
+        )
 
 
 def read_aws_creds(filepath: str):
@@ -64,7 +96,7 @@ def get_storage_map(fs, path, memcache=2 ** 26):
 
 
 class MetaStorage(MutableMapping):
-    @classmethod 
+    @classmethod
     def to_str(cls, obj):
         if isinstance(obj, memoryview):
             obj = obj.tobytes()
@@ -79,10 +111,15 @@ class MetaStorage(MutableMapping):
 
     def __getitem__(self, k: str) -> bytes:
         if k.startswith("."):
-            return bytes(json.dumps(json.loads(self.to_str(self._meta[".hub.dataset"]))[k][self._path]), "utf-8")
+            return bytes(
+                json.dumps(
+                    json.loads(self.to_str(self._meta[".hub.dataset"]))[k][self._path]
+                ),
+                "utf-8",
+            )
         else:
             return self._fs_map[k]
-    
+
     def get(self, k: str) -> bytes:
         if k.startswith("."):
             meta_ = self._meta.get(".hub.dataset")
@@ -96,7 +133,7 @@ class MetaStorage(MutableMapping):
             return bytes(json.dumps(item), "utf-8") if item else None
         else:
             return self._fs_map.get(k)
-    
+
     def __setitem__(self, k: str, v: bytes):
         if k.startswith("."):
             meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
@@ -105,14 +142,14 @@ class MetaStorage(MutableMapping):
             self._meta[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
         else:
             self._fs_map[k] = v
-    
+
     def __len__(self):
         return len(self._fs_map) + 1
-    
+
     def __iter__(self):
         yield ".zarray"
         yield from self._fs_map
-    
+
     def __delitem__(self, k: str):
         if k.startswith("."):
             meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
@@ -127,7 +164,7 @@ class MetaStorage(MutableMapping):
     #     for i in self:
     #         res += [i]
     #     return res
-    
+
     # def rmdir(self):
     #     for i in self.listdir():
     #         del self[i]

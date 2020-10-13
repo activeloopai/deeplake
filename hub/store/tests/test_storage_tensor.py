@@ -1,9 +1,5 @@
-import os
-
 import numpy as np
-
 from hub.store.storage_tensor import StorageTensor
-from hub.store.store import NotZarrFolderException
 
 
 def test_open():
@@ -64,10 +60,24 @@ def test_memcache():
     assert tensor.dtype == "float32"
 
 
+def test_hubbackend():
+    tensor = StorageTensor(
+        "davit5/mnist",
+        mode="r",
+        shape=[200, 100, 100],
+        dtype="float32",
+    )
+    tensor[50:100, 0, 0] = np.ones((50,), dtype="float32")
+    assert tensor.shape == (200, 100, 100)
+    assert tensor.chunks == (256, 128, 128)
+    assert tensor.dtype == "float32"
+
+
 def main():
     # test_overwrite_safety()
     test_memcache()
 
 
 if __name__ == "__main__":
-    test_s3_open()
+    # test_s3_open()
+    test_hubbackend()
