@@ -176,9 +176,15 @@ class MetaStorage(MutableMapping):
 
 def gcp_creds_exist():
     """Checks if credentials exists"""
-    from google.cloud import storage
 
     try:
+        import os
+
+        env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+        if env is not None:
+            return True
+        from google.cloud import storage
+
         storage.Client()
     except Exception:
         return False
