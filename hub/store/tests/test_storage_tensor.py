@@ -33,7 +33,7 @@ def test_s3_open():
     assert tensor.dtype == "int32"
 
 
-@pytest.mark.skipif(gcp_creds_exist(), reason="requires gcp credentials")
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_gcs_open():
     StorageTensor(
         "gcs://snark-test/test_storage_tensor/test_gcs_open",
