@@ -239,7 +239,7 @@ def test_to_pytorch():
 
 
 @pytest.mark.skipif(
-    not (tensorflow_loaded() or pytorch_loaded()),
+    not (tensorflow_loaded() and pytorch_loaded()),
     reason="requires both pytorch and tensorflow to be loaded",
 )
 def test_to_backend_with_tf_and_pytorch():
@@ -267,7 +267,7 @@ def test_to_backend_with_tf_and_pytorch():
 
 
 @pytest.mark.skipif(
-    not (tensorflow_loaded() or pytorch_loaded()),
+    not (tensorflow_loaded() and pytorch_loaded()),
     reason="requires both pytorch and tensorflow to be loaded",
 )
 def test_to_backend_with_tf_and_pytorch_multiworker():
