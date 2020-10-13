@@ -135,7 +135,6 @@ class Dataset:
                             cur[split_key[i]] = {}
                             cur = cur[split_key[i]]
                     cur[split_key[-1]] = TensorView(dataset=self, subpath=key, slice_=slice(0, self.shape[0]))
-                    
                 if len(d) == 0:
                     raise KeyError(f"Key {subpath} was not found in dataset")
                 return d
