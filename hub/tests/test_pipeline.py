@@ -13,7 +13,7 @@ my_dtype = {
 def my_transform(sample):
     return {
         "image": sample["image"].numpy() * 2,
-        "label": sample["label"].numpy()[0],
+        "label": sample["label"].numpy(),
     }
 
 
