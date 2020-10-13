@@ -1,5 +1,7 @@
 import numpy as np
+import pytest
 from hub.store.storage_tensor import StorageTensor
+from hub.utils import gcp_creds_exist, s3_creds_exist
 
 
 def test_open():
@@ -16,6 +18,7 @@ def test_open():
     assert tensor.dtype == "int32"
 
 
+@pytest.mark.skipif(s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_open():
     StorageTensor(
         "s3://snark-test/test_storage_tensor/test_s3_open",
@@ -30,6 +33,7 @@ def test_s3_open():
     assert tensor.dtype == "int32"
 
 
+@pytest.mark.skipif(gcp_creds_exist(), reason="requires gcp credentials")
 def test_gcs_open():
     StorageTensor(
         "gcs://snark-test/test_storage_tensor/test_gcs_open",
@@ -61,8 +65,12 @@ def test_memcache():
 
 
 def test_hubbackend():
+    from hub import config
+
+    config.HUB_REST_ENDPOINT = config.HUB_DEV_REST_ENDPOINT
+
     tensor = StorageTensor(
-        "davit5/mnist",
+        "testtest/mnist",
         mode="r",
         shape=[200, 100, 100],
         dtype="float32",
@@ -71,11 +79,6 @@ def test_hubbackend():
     assert tensor.shape == (200, 100, 100)
     assert tensor.chunks == (256, 128, 128)
     assert tensor.dtype == "float32"
-
-
-def main():
-    # test_overwrite_safety()
-    test_memcache()
 
 
 if __name__ == "__main__":

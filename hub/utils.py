@@ -174,5 +174,39 @@ class MetaStorage(MutableMapping):
         self._fs_map.commit()
 
 
-if __name__ == "__main__":
-    test_meta_storage()
+def gcp_creds_exist():
+    """Checks if credentials exists"""
+    from google.cloud import storage
+
+    try:
+        storage.Client()
+    except Exception:
+        return False
+    return True
+
+
+def s3_creds_exist():
+    import boto3
+
+    sts = boto3.client("sts")
+    try:
+        sts.get_caller_identity()
+    except boto3.exceptions.ClientError:
+        return False
+    return True
+
+
+def pytorch_loaded():
+    try:
+        import torch
+    except ImportError:
+        return False
+    return True
+
+
+def tensorflow_loaded():
+    try:
+        import tensorflow
+    except ImportError:
+        return False
+    return True

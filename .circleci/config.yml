@@ -9,13 +9,13 @@ workflows:
       - test:
           context: 
             # - test
-            - test-aws
+            # - test-aws
   test_and_deploy:
     jobs:
       - test:
           context: 
             # - test
-            - test-aws
+            # - test-aws
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/

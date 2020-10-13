@@ -1,20 +1,15 @@
-from hub.exceptions import (
-    StorageTensorNotFoundException,
-)
-
+from hub.exceptions import StorageTensorNotFoundException
 import typing
 import math
 import json
-
 import zarr
 import numpy as np
+from hub.utils import get_fs_and_path, get_storage_map
+from hub.log import logger
+from hub.store.tensor import Tensor
 
-import hub.store.tensor
-import hub.store.store
-import hub.utils as utils
 
-
-class StorageTensor(hub.store.tensor.Tensor):
+class StorageTensor(Tensor):
     @classmethod
     def _determine_chunksizes(cls, shape, dtype):
         sz = np.dtype(dtype).itemsize
@@ -41,11 +36,16 @@ class StorageTensor(hub.store.tensor.Tensor):
         fs=None,
         fs_map=None,
     ):
-        fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
+        fs, path = (fs, url) if fs else get_fs_and_path(url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
             fs.makedirs(path)
-        fs_map = fs_map or utils.get_storage_map(fs, path, memcache)
-        exist_ = bool(fs_map.get(".hub.storage_tensor"))
+        fs_map = fs_map or get_storage_map(fs, path, memcache)
+
+        try:
+            exist_ = bool(fs_map.get(".hub.storage_tensor"))
+        except Exception as e:
+            logger.error(e)
+            exist_ = False
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
         exist = False if "w" in mode else exist_

@@ -17,11 +17,6 @@ from hub.collections.client_manager import get_client, HubCache
 from hub.log import logger
 from hub.exceptions import PermissionException
 
-try:
-    import torch
-except ImportError:
-    pass
-
 
 def _flatten(l):
     """
@@ -751,6 +746,8 @@ def _is_tensor_dynamic(tensor):
 
 
 class TorchDataset:
+    import torch
+
     def __init__(self, ds, transform=None, max_text_len=30):
         self._ds = ds
         self._transform = transform
