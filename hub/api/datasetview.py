@@ -31,7 +31,10 @@ class DatasetView:
         elif isinstance(slice_, str):
             subpath = slice_ if slice_.startswith("/") else "/" + slice_     # return TensorView object
             # add slice for original Dataset range
-            return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice(self.offset, self.offset + self.num_samples))
+            if self.num_samples == 1:
+                return TensorView(dataset=self.dataset, subpath=subpath, slice_=self.offset)
+            else:
+                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice(self.offset, self.offset + self.num_samples))
 
         elif isinstance(slice_, tuple):        # return tensor view object
             subpath, slice_ = slice_split_tuple(slice_)
@@ -47,7 +50,10 @@ class DatasetView:
             elif isinstance(slice_[0], slice):
                 num, ofs = slice_extract_info(slice_[0], self.num_samples)
                 ls = list(slice_)
-                ls[0] = slice(self.offset + ofs, self.offset + ofs + num)
+                if num == 1:
+                    ls[0] = self.offset + ofs
+                else:
+                    ls[0] = slice(self.offset + ofs, self.offset + ofs + num)
                 slice_ = tuple(ls)
             return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
         else:

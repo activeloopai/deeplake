@@ -135,6 +135,7 @@ class Dataset:
                             cur[split_key[i]] = {}
                             cur = cur[split_key[i]]
                     cur[split_key[-1]] = TensorView(dataset=self, subpath=key, slice_=slice(0, self.shape[0]))
+                    
                 if len(d) == 0:
                     raise KeyError(f"Key {subpath} was not found in dataset")
                 return d
@@ -182,7 +183,10 @@ class Dataset:
                 elif isinstance(slice_[0], slice):
                     num, ofs = slice_extract_info(slice_[0], self.shape[0])
                     ls = list(slice_)
-                    ls[0] = slice(ofs, ofs + num)
+                    if num == 1:
+                        ls[0] = ofs
+                    else:
+                        ls[0] = slice(ofs, ofs + num)
                     slice_ = tuple(ls)
                 return TensorView(dataset=self, subpath=subpath, slice_=slice_)
         else:
