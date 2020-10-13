@@ -8,7 +8,6 @@ workflows:
     jobs:
       - test:
           # context: test
-            # - test-aws
   test_and_deploy:
     jobs:
       - test:
