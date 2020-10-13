@@ -25,6 +25,12 @@ def _flatten(l):
     return [item for sublist in l for item in sublist]
 
 
+try:
+    import torch
+except ImportError:
+    pass
+
+
 class Transform:
     def __init__(self):
         pass
@@ -746,8 +752,6 @@ def _is_tensor_dynamic(tensor):
 
 
 class TorchDataset:
-    import torch
-
     def __init__(self, ds, transform=None, max_text_len=30):
         self._ds = ds
         self._transform = transform
