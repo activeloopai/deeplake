@@ -18,7 +18,7 @@ def test_open():
     assert tensor.dtype == "int32"
 
 
-@pytest.mark.skipif(s3_creds_exist(), reason="requires s3 credentials")
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_open():
     StorageTensor(
         "s3://snark-test/test_storage_tensor/test_s3_open",

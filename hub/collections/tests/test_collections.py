@@ -188,7 +188,7 @@ def test_unknown_size_input():
     assert (ds["arr"][5].compute() == np.array([2, 3, 4, 5, 6], dtype="int32")).all()
 
 
-@pytest.mark.skipif(s3_creds_exist(), reason="requires s3 credentials")
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -200,7 +200,7 @@ def test_s3_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
-@pytest.mark.skipif(gcp_creds_exist(), reason="requires gcs credentials")
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcs credentials")
 def test_gcs_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -212,7 +212,7 @@ def test_gcs_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
-@pytest.mark.skipif(pytorch_loaded(), reason="requires pytorch to be loaded")
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_to_pytorch():
     import torch
 
@@ -239,7 +239,7 @@ def test_to_pytorch():
 
 
 @pytest.mark.skipif(
-    tensorflow_loaded() or pytorch_loaded(),
+    not (tensorflow_loaded() or pytorch_loaded()),
     reason="requires both pytorch and tensorflow to be loaded",
 )
 def test_to_backend_with_tf_and_pytorch():
@@ -267,7 +267,7 @@ def test_to_backend_with_tf_and_pytorch():
 
 
 @pytest.mark.skipif(
-    tensorflow_loaded() or pytorch_loaded(),
+    not (tensorflow_loaded() or pytorch_loaded()),
     reason="requires both pytorch and tensorflow to be loaded",
 )
 def test_to_backend_with_tf_and_pytorch_multiworker():
