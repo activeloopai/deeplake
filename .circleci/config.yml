@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@3.4.2
+  codecov: codecov/codecov@1.1.1
 
 workflows:
   test:
@@ -48,11 +49,13 @@ jobs:
           name: "Running tests"
           command: |
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest ./
+            pytest --cov-report=xml --cov=./
       - store_test_results:
           path: test-reports
       - store_artifacts:
           path: test-reports
+      - codecov/upload:
+          file: coverage.xml
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
