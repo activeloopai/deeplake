@@ -50,12 +50,12 @@ jobs:
           command: |
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
             pytest --cov-report=xml --cov=./
+      - codecov/upload:
+          file: coverage.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:
           path: test-reports
-      - codecov/upload:
-          file: coverage.xml
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
