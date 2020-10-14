@@ -106,9 +106,18 @@ class CacheStore(zarr.LMDBStore):
         self._order = order
         super().__delitem__(key)
 
+    def safety_wrapper(self, gen):
+        while True:
+            try:
+                yield next(gen)
+            except StopIteration:
+                break
+            except Exception as e:
+                pass
+
     def clear(self):
         """ Clean up the cache """
-        for k in self.keys():
+        for k in self.safety_wrapper(self.keys()):
             if k != "_order" and k != "_values_cache":
                 try:
                     del self[k]
