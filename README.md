@@ -13,6 +13,7 @@
         <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social">
     </a>
   </a>
+  [![codecov](https://codecov.io/gh/activeloopai/Hub/settings/badge)](https://codecov.io/gh/activeloopai/Hub/branch/master)
 </p>
 <h3 align="center">
 The fastest way to access and manage datasets for PyTorch and TensorFlow
