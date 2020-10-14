@@ -75,7 +75,8 @@ def test_hubbackend():
         shape=[200, 100, 100],
         dtype="float32",
     )
-    tensor[50:100, 0, 0] = np.ones((50,), dtype="float32")
+
+    # tensor[50:100, 0, 0] = np.ones((50,), dtype="float32")
     assert tensor.shape == (200, 100, 100)
     assert tensor.chunks == (256, 128, 128)
     assert tensor.dtype == "float32"

@@ -4,8 +4,8 @@ import math
 import json
 import zarr
 import numpy as np
-from hub.utils import get_fs_and_path, get_storage_map
-from hub.log import logger
+from hub.store.store import get_fs_and_path, get_storage_map
+
 from hub.store.tensor import Tensor
 
 
@@ -41,11 +41,7 @@ class StorageTensor(Tensor):
             fs.makedirs(path)
         fs_map = fs_map or get_storage_map(fs, path, memcache)
 
-        try:
-            exist_ = bool(fs_map.get(".hub.storage_tensor"))
-        except Exception as e:
-            logger.error(e)
-            exist_ = False
+        exist_ = bool(fs_map.get(".hub.storage_tensor"))
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
         exist = False if "w" in mode else exist_

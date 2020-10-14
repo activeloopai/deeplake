@@ -13,16 +13,11 @@ from hub.client.hub_control import HubControlClient
 from hub.codec import Base as BaseCodec
 from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client, HubCache
+from hub.collections.client_manager import get_client
 from hub.log import logger
 from hub.exceptions import PermissionException
 
-
-def _flatten(l):
-    """
-    Helper function to flatten the list
-    """
-    return [item for sublist in l for item in sublist]
+from hub.utils import _flatten
 
 
 try:
@@ -610,6 +605,7 @@ class Dataset:
                     return tf.dtypes.as_dtype("string")
                 return tf.dtypes.as_dtype(np_dtype)
             except Exception as e:
+                logger.log(e)
                 return tf.variant
 
         output_shapes = {}

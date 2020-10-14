@@ -1,10 +1,13 @@
 import os
 import zarr
 import json
+from hub.log import logger
 
 
 class CacheStore(zarr.LMDBStore):
-    def __init__(self, path, buffers=False, cache_reset=True, **kwargs):
+    def __init__(
+        self, path, buffers=True, namespace="namespace", cache_reset=True, **kwargs
+    ):
         """
         Extends zarr.LMDB store to support Ordered Dictionary map
 
@@ -17,20 +20,22 @@ class CacheStore(zarr.LMDBStore):
             reducing memory copies.
         cache_reset: bool, optional
             cleans up the cach
+        namespace: str, optional
+            For creating namespaces for keys
         **kwargs
             Keyword arguments passed through to the `lmdb.open` function.
 
         """
-        super(CacheStore, self).__init__(path, buffers=True, lock=False, **kwargs)
+        super(CacheStore, self).__init__(path, buffers=False, lock=False, **kwargs)
+        self.namespace = namespace
         if cache_reset:
-            for k, v in self.items():
-                del self[k]
+            self.clear()
             self._order = ["_order"]
 
     @property
     def _order(self):
         try:
-            order = json.loads(super().__getitem__("_order").tobytes())
+            order = json.loads(super().__getitem__("_order"))
             return order
         except KeyError:
             self._order = ["_order"]
@@ -43,7 +48,10 @@ class CacheStore(zarr.LMDBStore):
     def _key_format(self, key):
         """ Zarr sometimes inserts tuple, but lmbd can't have tuple key (".zgroup", "z.group") """
         if isinstance(key, tuple):
-            key = key[0]
+            key = str(key[0])
+
+        # if self.namespace not in key:
+        #    key = f"{self.namespace}/{key}"
         return key
 
     def move_to_end(self, key):
@@ -103,9 +111,12 @@ class CacheStore(zarr.LMDBStore):
 
     def clear(self):
         """ Clean up the cache """
-        for k, v in self.items():
+        for k in self.keys():
             if k != "_order" and k != "_values_cache":
-                del self[k]
+                try:
+                    del self[k]
+                except Exception as e:
+                    logger.warning(f"{k} could not be deleted: {e}")
 
 
 class Cache(zarr.LRUStoreCache):
@@ -129,7 +140,7 @@ class Cache(zarr.LRUStoreCache):
         super(Cache, self).__init__(store, max_size)
         self.path = os.path.expanduser(path)
         os.makedirs(self.path, exist_ok=True)
-        self._values_cache = CacheStore(self.path, buffers=False)
+        self._values_cache = CacheStore(self.path, buffers=False, namespace=store.root)
         self.cache_key = "_current_size"
 
     @property
