@@ -49,18 +49,15 @@ class CacheStore(zarr.LMDBStore):
         """ Zarr sometimes inserts tuple, but lmbd can't have tuple key (".zgroup", "z.group") """
         if isinstance(key, tuple):
             key = str(key[0])
-
-        # if self.namespace not in key:
-        #    key = f"{self.namespace}/{key}"
         return key
 
     def move_to_end(self, key):
         """Move key to the end"""
-        key = self._key_format(key)
         order = self._order
         ind = order.index(key)
         el = order.pop(ind)
         order.append(el)
+        key = self._key_format(key)
         self._order = order
 
     def popitem(self, last=False):
@@ -87,11 +84,11 @@ class CacheStore(zarr.LMDBStore):
     def __setitem__(self, key, value):
         """On each new add, remember the order"""
         order = self._order
+        key = self._key_format(key)
         if key in order:
             order.remove(key)
         order.append(key)
         self._order = order
-        key = self._key_format(key)
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
@@ -116,7 +113,7 @@ class CacheStore(zarr.LMDBStore):
                 try:
                     del self[k]
                 except Exception as e:
-                    logger.warning(f"{k} could not be deleted: {e}")
+                    logger.info(f"CacheStore: {k} could not be deleted: {e}")
 
 
 class Cache(zarr.LRUStoreCache):
@@ -142,6 +139,7 @@ class Cache(zarr.LRUStoreCache):
         os.makedirs(self.path, exist_ok=True)
         self._values_cache = CacheStore(self.path, buffers=False, namespace=store.root)
         self.cache_key = "_current_size"
+        self.root = store.root
 
     @property
     def _current_size(self):
@@ -164,3 +162,22 @@ class Cache(zarr.LRUStoreCache):
     def commit(self):
         """ closes the cache db """
         self._values_cache.close()
+
+    def __setitem__(self, key, value):
+        """On each new add, remember the order"""
+        # print(key)
+        # key = f"{self.root}/{key}"
+        super().__setitem__(key, value)
+
+    def __getitem__(self, key):
+        """On each new add, remember the order"""
+        # print(key)
+        # key = f"{self.root}/{key}"
+        el = super().__getitem__(key)
+        return el
+
+    def __delitem__(self, key):
+        """ Delete item """
+        # print(key)
+        # key = f"{self.root}/{key}"
+        super().__delitem__(key)

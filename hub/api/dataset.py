@@ -51,7 +51,7 @@ class Dataset:
         self._fs = fs
         self._path = path
         self._fs_map = fs_map
-        exist_ = fs_map.get(".hub.dataset")
+        exist_ = bool(fs_map.get(".hub.dataset"))
         if not exist_ and len(fs_map) > 0 and "w" in mode:
             raise OverwriteIsNotSafeException()
         if len(fs_map) > 0 and exist_ and "w" in mode:
