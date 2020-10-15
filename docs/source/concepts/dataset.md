@@ -44,7 +44,7 @@ dataset.combine(ds1, ds2)
 ## Get text labels
 To get text labels from a dataset  
 <br/>
-Pytorch
+###### Pytorch
 ```python
 from hub import dataset
 import torch
@@ -67,8 +67,8 @@ test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, c
 for batch in test_loader:
     tl = dataset.get_text(batch['named_label'])
 ```
-<br/>
-Tensorflow
+###### Tensorflow  
+
 ```python
 from hub import dataset
 import tensorflow as tf
