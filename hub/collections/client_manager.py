@@ -35,7 +35,7 @@ def init(
     distributed=True,
 ):
     """Initializes cluster either local or on the cloud
-        
+
         Parameters
         ----------
         token: str
@@ -67,12 +67,20 @@ def init(
             if memory_limit is not None
             else psutil.virtual_memory().available
         )
+
+        local_directory = os.path.join(
+            os.path.expanduser('~'),
+            '.activeloop',
+            'tmp',
+        )
+        if not os.path.exists(local_directory):
+            os.makedirs(local_directory)
         client = Client(
             n_workers=n_workers,
             processes=processes,
             memory_limit=memory_limit,
             threads_per_worker=threads_per_worker,
-            local_directory="/tmp/",
+            local_directory=local_directory,
         )
         config.DISTRIBUTED = True
 
