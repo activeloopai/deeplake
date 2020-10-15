@@ -42,9 +42,53 @@ dataset.combine(ds1, ds2)
 ```
 
 ## Get text labels
-To get text labels from a dataset
+To get text labels from a dataset  
+<br/>
+Pytorch
 ```python
 from hub import dataset
+import torch
+
+ds = dataset.load("mnist/fashion-mnist")
+
+#Transform into pytorch
+ds = ds.to_pytorch()
+
+#Define train size and test size
+train_size = int(0.8 * len(ds))
+test_size = len(ds) - train_size
+
+#Split the dataset
+train_dataset, test_dataset = torch.utils.data.random_split(ds, [train_size, test_size])
+
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+
+for batch in test_loader:
+    tl = dataset.get_text(batch['named_label'])
+```
+<br/>
+Tensorflow
+```python
+from hub import dataset
+import tensorflow as tf
+
+ds = dataset.load("mnist/fashion-mnist")
+
+#Transform into tensorflow
+ds = ds.to_tensorflow()
+
+#Define train size and test size
+train_size = int(0.8 * len(ds))
+test_size = len(ds) - train_size
+
+#Split the dataset
+train_dataset = ds.take(train_size)
+test_dataset = ds.skip(test_size)
+
+train_dataset = train_dataset.batch(BATCH_SIZE)
+test_dataset = test_dataset.batch(BATCH_SIZE)
+
 
 for batch in test_dataset:
     tl = dataset.get_text(batch['named_label'])
