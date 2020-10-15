@@ -58,17 +58,14 @@ def register(username, email, password):
         logger.debug("Prompting for username.")
         username = click.prompt("Username", type=str)
     username = username.strip()
-
     if not email:
         logger.debug("Prompting for email.")
         email = click.prompt("Email", type=str)
     email = email.strip()
-
     if not password:
         logger.debug("Prompting for password.")
         password = click.prompt("Password", type=str, hide_input=True)
     password = password.strip()
-
     AuthClient().register(username, email, password)
     token = AuthClient().get_access_token(username, password)
     TokenManager.set_token(token)
