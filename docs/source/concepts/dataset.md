@@ -41,6 +41,14 @@ dataset.concat(ds1, ds2)
 dataset.combine(ds1, ds2)
 ```
 
+## Get text labels
+To get text labels from a dataset
+```python
+from hub import dataset
+
+for batch in test_dataset:
+    tl = dataset.get_text(batch['named_label'])
+```
 
 ## How to Upload a Dataset
 
