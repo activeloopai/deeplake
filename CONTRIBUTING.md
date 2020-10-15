@@ -27,7 +27,7 @@ if you are using vscode then Replace `.vscode/settings.json` content with the fo
     "[py]": {
         "editor.formatOnSave": true
     },
-    "python.formatting.provider": "black",
+    "python.formatting.provider": "Black",
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Path": "flake8",
     "python.linting.flake8Args": [
