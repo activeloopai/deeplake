@@ -43,7 +43,7 @@ dataset.combine(ds1, ds2)
 
 ## Get text labels
 To get text labels from a dataset  
-<br/>
+
 ###### Pytorch
 ```python
 from hub import dataset
