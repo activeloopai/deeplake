@@ -66,7 +66,7 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
-      - pypi/publish
+      - pypi-tools/publish
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
