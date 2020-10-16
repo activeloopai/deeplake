@@ -113,7 +113,7 @@ class CacheStore(zarr.LMDBStore):
             except StopIteration:
                 break
             except Exception as e:
-                pass
+                logger.debug(e)
 
     def clear(self):
         """ Clean up the cache """

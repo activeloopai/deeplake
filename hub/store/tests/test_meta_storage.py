@@ -10,4 +10,4 @@ def test_meta_storage():
     meta_map = fs.get_mapper("./data/test/test_meta_storage")
     meta_map[".hub.dataset"] = bytes(json.dumps(dict()), "utf-8")
     fs_map = fs.get_mapper("./data/test/test_meta_storage/internal_tensor")
-    ms = MetaStorage("internal_tensor", fs_map, meta_map)
+    MetaStorage("internal_tensor", fs_map, meta_map)

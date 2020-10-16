@@ -22,8 +22,8 @@ def test_dataset():
     )
 
     sds = ds[5]
-    sds["label/a", 0, 50, 50] = 2
-    assert sds["label", 0, 50, 50, "a"].numpy() == 2
+    sds["label/a", 50, 50] = 2
+    assert sds["label", 50, 50, "a"].numpy() == 2
 
     ds["image", 5, 4, 100:200, 150:300, :] = np.ones((100, 150, 3), "uint8")
     assert (

@@ -18,7 +18,9 @@ def my_transform(sample):
 
 
 def test_pipeline_basic():
-    ds = hub.open("./data/test/test_pipeline_basic", mode="w", shape=(10,), dtype=my_dtype)
+    ds = hub.open(
+        "./data/test/test_pipeline_basic", mode="w", shape=(10,), dtype=my_dtype
+    )
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
@@ -26,3 +28,7 @@ def test_pipeline_basic():
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
     assert res_ds["label", 5].numpy() == "hello 5"
     assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
+
+
+if __name__ == "__main__":
+    test_pipeline_basic()

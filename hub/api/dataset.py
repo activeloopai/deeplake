@@ -1,17 +1,12 @@
-from hub.features.features import Primitive
 from typing import Tuple
 import posixpath
 
-# import fsspec
-
 from hub.features import featurify, FeatureConnector, FlatTensor
 
-# from hub.store.storage_tensor import StorageTensor
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split_tuple
 
-# import hub.collections.dataset.core as core
 import json
 import hub.features.serialize
 import hub.features.deserialize

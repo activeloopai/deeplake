@@ -36,6 +36,8 @@ def s3_creds_exist():
 def pytorch_loaded():
     try:
         import torch
+
+        torch.__version__
     except ImportError:
         return False
     return True
@@ -44,6 +46,8 @@ def pytorch_loaded():
 def tensorflow_loaded():
     try:
         import tensorflow
+
+        tensorflow.__version__
     except ImportError:
         return False
     return True
