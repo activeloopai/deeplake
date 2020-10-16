@@ -1,6 +1,6 @@
 import os
 
-from logs import Track
+from hub.training.logs import Track
 from hub.api.dataset import Dataset
 
 import torch
@@ -49,10 +49,7 @@ class LitMNIST(pl.LightningModule):
     def forward(self, x):
         x = self.model(x)
         return F.log_softmax(x, dim=1)
-
-    # @pl.property
-    # def tracker(self):
-    #     return Track(num_of_epochs=self.num_of_epochs)    
+   
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -83,7 +80,7 @@ class LitMNIST(pl.LightningModule):
         self.tracker.track(Track().scalar, 'val', {
             'loss': avg_loss, 
             'acc' : avg_acc
-        }).iterate()   
+        })  
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -91,10 +88,7 @@ class LitMNIST(pl.LightningModule):
         self.tracker.track(Track().scalar, 'train', {
             'loss': avg_loss, 
             'acc' : avg_acc
-        }).iterate()  
-
-    def training_end(self):
-        self.tracker.logs.commit()
+        }).iterate() 
 
     def test_step(self, batch, batch_idx):
         # Here we just reuse the validation_step for testing
@@ -104,9 +98,6 @@ class LitMNIST(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
-    ####################
-    # DATA RELATED HOOKS
-    ####################
 
     def prepare_data(self):
         # download
@@ -137,7 +128,8 @@ epochs = 3
 LOGS = Dataset(dtype={"train_acc": float, "train_loss": float, "val_acc": float, "val_loss": float},
                             shape=(epochs,), url='./models', mode='w')
 model = LitMNIST()
-trainer = pl.Trainer(gpus=1, max_epochs=epochs, progress_bar_refresh_rate=20, callbacks=[])
+trainer = pl.Trainer(gpus=1, max_epochs=epochs, progress_bar_refresh_rate=20, num_sanity_val_steps=0)
 trainer.fit(model)
 
 trainer.test()
+model.tracker.logs.commit()

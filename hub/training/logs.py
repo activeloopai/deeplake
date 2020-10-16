@@ -121,9 +121,9 @@ class Track(object):
         if self.counter > 0 and self.counter % frequency_upload_to_s3 == 0:
             self.add_to_logs()
     
-    def add_to_logs(self):    
+    def add_to_logs(self):   
         for key, value in self.meters.items():
-            self.logs[key][value.count - 1: value.count] = value.avg
+            self.logs[key][self.step] = value.avg
     
     def track(self, label: str, tag: str, el):  
         if label == self.scalar:
@@ -180,7 +180,7 @@ class ProgressMeter(object):
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
     
-    
+
 if __name__ == "__main__": 
     # keep track of logs
     for i in range(100):
