@@ -1,4 +1,5 @@
 tensorflow>=1.14,<2
+tensorflow>=1.14,<2
 tensorflow-datasets>=3.0,<4
 torch>=1,<2
 waymo-open-dataset-tf-1-15-0
