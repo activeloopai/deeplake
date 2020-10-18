@@ -1,6 +1,6 @@
 click>=6.7,<8
 numpy>=1.13.0,<2 
-dask[complete]==2.20
+dask[complete]==2.30.0
 requests>=2,<3
 cachey==0.2.1
 fsspec==0.7.4
