@@ -116,12 +116,31 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 For small datasets that would fit into your RAM you can directly upload by converting a numpy array into hub tensor. 
 For larger datasets you would need to define a dataset generator and apply the transformation iteratively.Data pipelines are usually a series of data transformations on datasets. User needs to implement the transformation in the dataset generator form.
 Hub Transform are user-defined classes that implement Hub Transform interface. You can think of them as user-defined data transformations that stand as nodes from which the data pipelines are constructed.
+
 Transform interface looks like this.
-```def forward(self, input):
+```class Transform:
+
+    def forward(self, input):
         raise NotImplementedError()
 ​
     def meta(self):
-        raise NotImplementedError()```
+        raise NotImplementedError()
+```
+Then you can apply the function on a list or a hub.dataset object. .generate() function returns a dataset object. Note that all computations are done in lazy mode, and in order to get the final dataset we need to call the compute method.
+```from hub import dataset
+
+ids = [1,2,3] 
+croped_images = dataset.generate(Transform(), ids)
+croped_images.compute()
+```
+You can stack multiple transformations together before calling compute function.
+```from hub import dataset
+
+ids = [1,2,3] 
+croped_images = dataset.generate(Transform1(), croped_images)
+flipped_images = dataset.generate(Transform2(), ids)
+flipped_images.compute()
+```
 
 # Disclaimers
 
