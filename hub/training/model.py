@@ -15,11 +15,16 @@ tensorflow_spec = importlib.util.find_spec("tensorflow")
 if tensorflow_spec is not None:
     import tensorflow as tf
     import h5py
+pytorch_lightning_spec = importlib.util.find_spec("pytorch_lightning")
+if pytorch_lightning_spec is not None:
+    import pytorch_lightning as pl
 
 if torch_spec is not None:
     PYTORCH_MODEL_CLASSES = (torch.nn.Module, torch.nn.Sequential)
 if tensorflow_spec is not None:
     TENSORFLOW_MODEL_CLASSES = (tf.keras.Model, tf.keras.Sequential)
+if pytorch_lightning_spec is not None:
+    PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
 
 
 class Model:
@@ -100,8 +105,10 @@ class Model:
             model_full_path = os.path.join(url, model_class.__name__ + '.pth')
             with fs.open(model_full_path, 'wb') as opened_file:  
                 torch.save(self._model, opened_file)
-        elif ("TENSORFLOW_MODEL_CLASSES" in globals() 
-            and issubclass(model_class, TENSORFLOW_MODEL_CLASSES)):
+        elif (("TENSORFLOW_MODEL_CLASSES" in globals() 
+            and issubclass(model_class, TENSORFLOW_MODEL_CLASSES)) or 
+            ("PYTORCH_LIGHTNING_MODEL_CLASSES" in globals() 
+            and issubclass(model_class, PYTORCH_LIGHTNING_MODEL_CLASSES))):
             model_full_path = os.path.join(url, model_class.__name__ + '.h5')
             io_h5 = io.BytesIO()
             self._model.save(io_h5)
