@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   slack: circleci/slack@3.4.2
   codecov: codecov/codecov@1.1.1
+  pypi-tools: pennlabs/pypi-tools@0.0.3
 
 workflows:
   test:
@@ -65,25 +66,7 @@ jobs:
       - image: circleci/python:3.8
     steps:
       - checkout
-      - run:
-          name: "Init .pypirc"
-          command: |
-            echo -e "[pypi]" >> ~/.pypirc
-            echo -e "username = __token__" >> ~/.pypirc
-            echo -e "password = $TWINE_PASSWORD" >> ~/.pypirc
-      - run:
-          name: "Create a source distribution & wheel"
-          command: |
-            python setup.py sdist
-            python setup.py bdist_wheel
-      - run:
-          name: "Install twine via pip"
-          command: |
-            pip install twine
-      - run:
-          name: "Upload dist to PyPi"
-          command: |
-            twine upload dist/*
+      - pypi-tools/publish
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
