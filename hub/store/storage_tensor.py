@@ -51,7 +51,6 @@ class StorageTensor(Tensor):
         if "r" in mode or "a" in mode and exist:
             self._zarr = zarr.open_array(fs_map)
         else:
-            print("fsmap", fs_map)
             self._zarr = zarr.zeros(
                 shape,
                 dtype=dtype,
@@ -71,11 +70,9 @@ class StorageTensor(Tensor):
         self._path = path
 
     def __getitem__(self, slice_):
-        print("Storage", self._path, self._zarr.basename, slice_, self._zarr[slice_])
         return self._zarr[slice_]
 
     def __setitem__(self, slice_, value):
-        print("Storage", self._path, self._zarr.basename, slice_, value)
         self._zarr[slice_] = value
 
     @property
