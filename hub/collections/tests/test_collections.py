@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from hub.collections import dataset, tensor
+from hub.utils import gcp_creds_exist, s3_creds_exist, tensorflow_loaded, pytorch_loaded
 
 
 def test_tensor_getitem0():
@@ -187,6 +188,7 @@ def test_unknown_size_input():
     assert (ds["arr"][5].compute() == np.array([2, 3, 4, 5, 6], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -198,6 +200,7 @@ def test_s3_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcs credentials")
 def test_gcs_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -209,13 +212,9 @@ def test_gcs_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_to_pytorch():
-
-    try:
-        import torch
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import torch
 
     t1 = tensor.from_array(np.array([[1, 2], [3, 4]], dtype="int32"))
     np_arr = np.empty(2, object)
@@ -239,13 +238,13 @@ def test_to_pytorch():
     assert data[1]["t2"][0] == [7, 8, 9]
 
 
+@pytest.mark.skipif(
+    not (tensorflow_loaded() and pytorch_loaded()),
+    reason="requires both pytorch and tensorflow to be loaded",
+)
 def test_to_backend_with_tf_and_pytorch():
-    try:
-        import torch
-        import tensorflow as tf
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import tensorflow as tf
+    import torch
 
     tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
@@ -267,13 +266,13 @@ def test_to_backend_with_tf_and_pytorch():
             break
 
 
+@pytest.mark.skipif(
+    not (tensorflow_loaded() and pytorch_loaded()),
+    reason="requires both pytorch and tensorflow to be loaded",
+)
 def test_to_backend_with_tf_and_pytorch_multiworker():
-    try:
-        import torch
-        import tensorflow as tf
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import tensorflow as tf
+    import torch
 
     tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")

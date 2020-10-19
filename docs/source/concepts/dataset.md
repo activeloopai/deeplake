@@ -41,6 +41,38 @@ dataset.concat(ds1, ds2)
 dataset.combine(ds1, ds2)
 ```
 
+## Get text labels
+To get text labels from a dataset  
+
+###### Pytorch
+```python
+from hub import dataset
+import torch
+
+ds = dataset.load("mnist/fashion-mnist")
+
+ds = ds.to_pytorch()
+
+data_loader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+
+for batch in data_loader:
+    tl = dataset.get_text(batch['named_label'])
+```
+###### Tensorflow  
+
+```python
+from hub import dataset
+import tensorflow as tf
+
+ds = dataset.load("mnist/fashion-mnist")
+
+ds = ds.to_tensorflow()
+
+dataset = ds.batch(BATCH_SIZE)
+
+for batch in dataset:
+    tl = dataset.get_text(batch['named_label'])
+```
 
 ## How to Upload a Dataset
 
