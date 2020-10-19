@@ -1,13 +1,18 @@
-from tensorboardX import SummaryWriter
+import importlib
 import shutil
 import torch
 import time
 import os
+import sys
 import hub
 # from utils.creds import Creds
 import uuid
 import json
 from hub.api.dataset import Dataset
+
+tensorboardX_spec = importlib.util.find_spec("tensorboardX")
+if tensorboardX_spec is not None:    
+    from tensorboardX import SummaryWriter
 
 class _SingletonWrapper:
     """
@@ -40,25 +45,8 @@ class Track(object):
     Manage model tracking logic
     """
     # TODO save hyper parameters
-    
-    # object track
+   
     scalar = 'scalar'
-    histogram = 'histogram'
-    hyper_parameters = 'hyper-parameters'
-    pr_curve = 'pr_curve'
-    
-    model = 'model'
-    graph = 'graph'
-    onnx_graph = 'onnx_graph'
-    
-    # output types
-    figure = 'figure'
-    image = 'image'
-    audio = 'audio'
-    text = 'text'
-    embedding = 'embedding'
-    video = 'video'
-    mesh = 'mesh'
     counter = 0
     
     def __init__(self, logs: Dataset=None, dir='./data/logs', id=None): 
@@ -66,8 +54,10 @@ class Track(object):
         if id == None:
             id = str(int(time.time()))
         self.logs = logs
-        self.path = "{}/{}".format(dir, id)
-        self.writer = SummaryWriter(logdir=self.path)
+        self.writer = None
+        if "tensorboardX" in sys.modules:            
+            self.path = "{}/{}".format(dir, id)
+            self.writer = SummaryWriter(logdir=self.path)
         self.step = 0
         self.timer = {}
         self.meters = {}       
@@ -112,11 +102,13 @@ class Track(object):
     def add_scalar(self, tag: str, el, frequency_upload_to_s3=1):
         self.counter += 1 
         if isinstance(el,dict):
-            self.writer.add_scalars(tag, el, global_step=self.step)
+            if self.writer:
+                self.writer.add_scalars(tag, el, global_step=self.step)
             for key, val in el.items():
                 self.add_meter("{}_{}".format(tag, key), val)
         else:
-            self.writer.add_scalar(tag, el, global_step=self.step)
+            if self.writer:
+                self.writer.add_scalar(tag, el, global_step=self.step)
             self.add_meter(tag, el)        
         if self.counter > 0 and self.counter % frequency_upload_to_s3 == 0:
             self.add_to_logs()
@@ -128,8 +120,6 @@ class Track(object):
     def track(self, label: str, tag: str, el):  
         if label == self.scalar:
             self.add_scalar(tag, el)
-        elif label == self.model:
-            self.save_checkpoint(el) 
         else:
             #TODO implement other 
             raise NotImplementedError
@@ -179,19 +169,4 @@ class ProgressMeter(object):
         num_digits = len(str(num_batches // 1))
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
-    
-
-if __name__ == "__main__": 
-    # keep track of logs
-    for i in range(100):
-        time.sleep(0.1)
-        log_track = Track(num_of_epochs=100)
-        log_track.track(Track().scalar, 'train', {
-            'loss': i, 
-            'acc' : i
-        }).display(i, 100, 'train').iterate()
-        log_track.track(Track().scalar, 'val', {
-            'loss': i, 
-            'acc' : i
-        }).display(i, 100, 'val').iterate()
         
