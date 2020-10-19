@@ -37,6 +37,7 @@ class DynamicTensor:
         fs=None,
         fs_map=None,
     ):
+        self.url = url
         fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
             fs.makedirs(path)
@@ -105,6 +106,7 @@ class DynamicTensor:
 
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
+        print(self.url, slice_)
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -119,6 +121,7 @@ class DynamicTensor:
         return self._storage_tensor[slice_]
 
     def __setitem__(self, slice_, value):
+        print(self.url, slice_, value)
         """Sets a slice or slices with a value"""
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
@@ -130,6 +133,7 @@ class DynamicTensor:
                     real_shapes[r] = value.shape[i - len(slice_)]
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
+        print(136, slice_)
         self._storage_tensor[slice_] = value
         if real_shapes is not None:
             self._dynamic_tensor[slice_[0]] = real_shapes
