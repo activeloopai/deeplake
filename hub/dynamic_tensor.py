@@ -7,7 +7,7 @@ import numpy as np
 
 import hub.collections.dataset.core as core
 import hub.store.storage_tensor as storage_tensor
-import hub.utils as utils
+from hub.store.store import get_fs_and_path, get_storage_map
 
 from hub.exceptions import DynamicTensorNotFoundException, OverwriteIsNotSafeException
 
@@ -37,11 +37,10 @@ class DynamicTensor:
         fs=None,
         fs_map=None,
     ):
-        self.url = url
-        fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
+        fs, path = (fs, url) if fs else get_fs_and_path(url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
             fs.makedirs(path)
-        fs_map = fs_map or utils.get_storage_map(fs, path, memcache)
+        fs_map = fs_map or get_storage_map(fs, path, memcache)
         exist_ = fs_map.get(".hub.dynamic_tensor")
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
@@ -127,10 +126,15 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
+        ranged_slice_count = len([i for i in slice_[1:] if isinstance(i, slice)])
         if real_shapes is not None:
             for r, i in enumerate(self._dynamic_dims):
                 if i >= len(slice_):
-                    real_shapes[r] = value.shape[i - len(slice_)]
+                    real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]
+                else:
+                    real_shapes[r] = max(
+                        real_shapes[r], self._get_slice_upper_boundary(slice_[i])
+                    )
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         print(136, slice_)
@@ -144,7 +148,7 @@ class DynamicTensor:
         if real_shapes is not None:
             for r, i in enumerate(self._dynamic_dims):
                 if isinstance(slice_[i], int) and slice_[i] < 0:
-                    slice_[i] += real_shapes[i]
+                    slice_[i] += real_shapes[r]
                 elif isinstance(slice_[i], slice) and (
                     slice_[i].stop is None or slice_[i].stop < 0
                 ):
@@ -152,6 +156,14 @@ class DynamicTensor:
                         slice_[i], (slice_[i].stop or 0) + real_shapes[r]
                     )
         return tuple(slice_)
+
+    @classmethod
+    def _get_slice_upper_boundary(cls, slice_):
+        if isinstance(slice_, slice):
+            return slice_.stop
+        else:
+            assert isinstance(slice_, int)
+            return slice_ + 1
 
     def commit(self):
         self._storage_tensor.commit()
