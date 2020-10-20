@@ -14,7 +14,7 @@ def test_open():
 
     tensor = StorageTensor("./data/test/test_storage_tensor/test_open", mode="r")
     assert tensor.shape == (50, 100, 100)
-    assert tensor.chunks == (102, 204, 204)
+    assert tensor.chunks == (50, 100, 100)
     assert tensor.dtype == "int32"
 
 
@@ -29,7 +29,7 @@ def test_s3_open():
     tensor = StorageTensor("s3://snark-test/test_storage_tensor/test_s3_open", mode="r")
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
     assert tensor.shape == (50, 100, 100)
-    assert tensor.chunks == (102, 204, 204)
+    assert tensor.chunks == (50, 100, 100)
     assert tensor.dtype == "int32"
 
 
@@ -46,7 +46,7 @@ def test_gcs_open():
     )
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
     assert tensor.shape == (50, 100, 100)
-    assert tensor.chunks == (102, 204, 204)
+    assert tensor.chunks == (50, 100, 100)
     assert tensor.dtype == "int32"
 
 
@@ -60,7 +60,7 @@ def test_memcache():
     )
     tensor[50:100, 0, 0] = np.ones((50,), dtype="float32")
     assert tensor.shape == (200, 100, 100)
-    assert tensor.chunks == (256, 128, 128)
+    assert tensor.chunks == (200, 100, 100)
     assert tensor.dtype == "float32"
 
 
@@ -84,4 +84,6 @@ def test_hubbackend():
 
 if __name__ == "__main__":
     # test_s3_open()
+    test_open()
+    test_memcache()
     test_hubbackend()

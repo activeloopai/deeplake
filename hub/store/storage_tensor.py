@@ -43,7 +43,7 @@ class StorageTensor(Tensor):
 
         # If the tensor is smaller then the chunk size return
         if len(left_part) == len(shape):
-            return tuple(left_part)
+            return list(left_part)
 
         # Get the middle chunk size of dimension
         els = math.ceil(elem_count_in_chunk / cls._tuple_product(left_part))
@@ -51,8 +51,8 @@ class StorageTensor(Tensor):
         # Contruct the chunksize shape
         chunksize = [els] + list(left_part)
         if len(chunksize) < len(shape):
-            chunksize = [[1] * (len(shape) - len(chunksize))] + chunksize
-        return tuple(chunksize)
+            chunksize = [1] * (len(shape) - len(chunksize)) + chunksize
+        return list(chunksize)
 
     @classmethod
     def _tuple_product(cls, tuple: typing.Tuple[int, ...]):
