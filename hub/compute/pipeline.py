@@ -17,11 +17,6 @@ class Transformer:
         ds = hub.open(
             url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token
         )
-
-        print(self._ds.shape)
-        print(ds._tensors["/image"]._storage_tensor._chunks)
-        print(ds._tensors["/image"]._storage_tensor._shape)
-        exit()
         # TODO chunk based compute combination and storage
         results = [self._func.remote(item) for item in self._ds]
         results = ray.get(results)
