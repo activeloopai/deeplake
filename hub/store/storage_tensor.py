@@ -11,11 +11,48 @@ from hub.store.tensor import Tensor
 
 class StorageTensor(Tensor):
     @classmethod
-    def _determine_chunksizes(cls, shape, dtype):
+    def _determine_chunksizes(cls, shape, dtype, block_size=2 ** 24):
+        """
+        Autochunking of tensors
+        Chunk is determined by 16MB blocks keeping left dimensions inside a chunk
+        Dimensions from left are kept until 16MB block is filled
+
+        Parameters
+        ----------
+        shape: tuple
+            the shape of the whole array
+        dtype: type
+            the type of the element (int, float)
+        block_size: int (optional)
+            how big the chunk size should be. Default to 16MB
+        """
+
         sz = np.dtype(dtype).itemsize
-        elem_count_in_chunk = (2 ** 24) / sz
-        ratio = (cls._tuple_product(shape) / elem_count_in_chunk) ** (1 / len(shape))
-        return tuple([int(math.ceil(s / ratio)) for s in shape])
+        elem_count_in_chunk = block_size / sz
+
+        # Get left most part which will be left static inside the chunk
+        a = list(shape)
+        a.reverse()
+        left_part = shape
+        prod = 1
+        for i, dim in enumerate(a):
+            prod *= dim
+            if elem_count_in_chunk < prod:
+                left_part = shape[-i:]
+                break
+
+        # If the tensor is smaller then the chunk size return
+        if len(left_part) == len(shape):
+            return tuple(left_part)
+
+        # Get the middle chunk size of dimension
+        els = math.ceil(elem_count_in_chunk / cls._tuple_product(left_part))
+
+        # Contruct the chunksize shape
+        chunksize = [els] + list(left_part)
+        if len(chunksize) < len(shape):
+            chunksize = [[1] * (len(shape) - len(chunksize))] + chunksize
+        return tuple(chunksize)
 
     @classmethod
     def _tuple_product(cls, tuple: typing.Tuple[int, ...]):

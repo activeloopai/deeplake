@@ -81,4 +81,5 @@ def _get_storage_map(fs, path):
 
 def get_storage_map(fs, path, memcache=2 ** 26):
     store = _get_storage_map(fs, path)
-    return Cache(store, memcache)
+    return store
+    # return Cache(store, memcache)

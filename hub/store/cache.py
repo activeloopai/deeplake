@@ -26,6 +26,7 @@ class CacheStore(zarr.LMDBStore):
             Keyword arguments passed through to the `lmdb.open` function.
 
         """
+        kwargs = {}
         super(CacheStore, self).__init__(path, buffers=False, lock=False, **kwargs)
         self.namespace = namespace
         if cache_reset:
