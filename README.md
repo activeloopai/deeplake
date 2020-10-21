@@ -90,6 +90,11 @@ import hub
 
 ds = hub.load("username/basic")
 ```
+### Look at Hub in action on Google Colab!
+MNIST Classification with Hub and PyTorch  
+&nbsp;
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
+
 For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
 ## Things you can do with Hub
@@ -111,11 +116,6 @@ For more advanced data pipelines like uploading large datasets or applying many 
 Activeloop’s Hub format lets you achieve faster inference at a lower cost. Test out the datasets we’ve converted into Hub format - see for yourself!
 - [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 - [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
-
-Look at Hub in action on Google Colab!
-- MNIST Classification using Hub and PyTorch  
-&nbsp; 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
 
 
 
