@@ -19,7 +19,7 @@
 The fastest way to access and manage datasets for PyTorch and TensorFlow
 </h3>
 
-Hub provides fast access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow 
+Hub provides the fastest access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow.
 
 
 ### Contributors
