@@ -12,20 +12,18 @@ from torchvision import transforms
 import pytorch_lightning as pl
 from pytorch_lightning.metrics.functional import accuracy
 from pytorch_lightning.callbacks import Callback
+from hub.training.model import Model
 
 
 class LitMNIST(pl.LightningModule):
     
-    def __init__(self, data_dir='./', hidden_size=64, learning_rate=2e-4):
-
+    def __init__(self, data_dir='./', hidden_size=64, learning_rate=2e-4, logs: Dataset=None):
         super().__init__()        
-        # Set our init args as class attributes        
-        self.tracker = Track(logs=LOGS)
+        self.log_tracker = Track(logs=logs)        
         self.data_dir = data_dir
         self.hidden_size = hidden_size
         self.learning_rate = learning_rate
 
-        # Hardcode some dataset specific attributes
         self.num_classes = 10
         self.dims = (1, 28, 28)
         channels, width, height = self.dims
@@ -34,7 +32,6 @@ class LitMNIST(pl.LightningModule):
             transforms.Normalize((0.1307,), (0.3081,))
         ])
 
-        # Define PyTorch model
         self.model = nn.Sequential(
             nn.Flatten(),
             nn.Linear(channels * width * height, hidden_size),
@@ -69,7 +66,6 @@ class LitMNIST(pl.LightningModule):
         preds = torch.argmax(logits, dim=1)
         acc = accuracy(preds, y)
 
-        # Calling self.log will surface up scalars for you in TensorBoard
         self.log('val_loss', loss, prog_bar=True)
         self.log('val_acc', acc, prog_bar=True)        
         return {'val_acc': acc, 'val_loss': loss}
@@ -77,21 +73,20 @@ class LitMNIST(pl.LightningModule):
     def validation_epoch_end(self, outputs):   
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         avg_acc = torch.stack([x['val_acc'] for x in outputs]).mean()        
-        self.tracker.track(Track().scalar, 'val', {
+        self.log_tracker.track(Track().scalar, 'val', {
             'loss': avg_loss, 
             'acc' : avg_acc
-        })  
+        })
 
     def training_epoch_end(self, outputs):
         avg_loss = torch.stack([x['loss'] for x in outputs]).mean()
         avg_acc = torch.stack([x['train_acc'] for x in outputs]).mean()
-        self.tracker.track(Track().scalar, 'train', {
+        self.log_tracker.track(Track().scalar, 'train', {
             'loss': avg_loss, 
             'acc' : avg_acc
         }).iterate() 
 
     def test_step(self, batch, batch_idx):
-        # Here we just reuse the validation_step for testing
         return self.validation_step(batch, batch_idx)
 
     def configure_optimizers(self):
@@ -124,12 +119,20 @@ class LitMNIST(pl.LightningModule):
     def test_dataloader(self):
         return DataLoader(self.mnist_test, batch_size=32)
 
-epochs = 3
-LOGS = Dataset(dtype={"train_acc": float, "train_loss": float, "val_acc": float, "val_loss": float},
-                            shape=(epochs,), url='./models', mode='w')
-model = LitMNIST()
-trainer = pl.Trainer(gpus=1, max_epochs=epochs, progress_bar_refresh_rate=20, num_sanity_val_steps=0)
-trainer.fit(model)
+def train():
+    epochs = 3
+    log_dataset = Dataset(dtype={"train_acc": float, "train_loss": float, "val_acc": float, "val_loss": float},
+                          shape=(epochs,),
+                          url = './models/logs',
+                          mode='w')    
+    model = LitMNIST(logs=log_dataset)
+    model_obj = Model(model)
+    trainer = pl.Trainer(gpus=1, max_epochs=epochs, progress_bar_refresh_rate=20, num_sanity_val_steps=0)
+    trainer.fit(model)
 
-trainer.test()
-model.tracker.logs.commit()
+    trainer.test(verbose=False)
+    model.log_tracker.logs.commit()
+    model_obj.store('./models/')
+
+if __name__ == "__main__":
+    train()

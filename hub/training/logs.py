@@ -5,7 +5,6 @@ import time
 import os
 import sys
 import hub
-# from utils.creds import Creds
 import uuid
 import json
 from hub.api.dataset import Dataset
@@ -42,7 +41,7 @@ def singleton(cls):
 @singleton
 class Track(object):
     """
-    Manage model tracking logic
+    Manage tracking logic
     """
     # TODO save hyper parameters
    
@@ -50,6 +49,13 @@ class Track(object):
     counter = 0
     
     def __init__(self, logs: Dataset=None, dir='./data/logs', id=None): 
+        """Creates Track using given logs dataset
+
+        Arguments:
+        logs: Dataset object with predefined metrics which should be tracked during training.
+        dir: Directory to store tensorboard logs, if necessary
+        id: Unique id of the tensoboard logs
+        """
         super().__init__()
         if id == None:
             id = str(int(time.time()))
@@ -64,6 +70,8 @@ class Track(object):
 
 
     def add_meter(self, label, scalar, fmt=':f'):
+        """Add a `scalar` to the metric `label`
+        """
         if label not in self.meters:
             meter = AverageMeter(label, ':6.3f')
             self.meters[label] = meter
@@ -72,6 +80,14 @@ class Track(object):
         return self.meters[label]
     
     def display(self, iter=None, num_batches=0, cls=None):
+        """Display logs
+
+        Arguments: 
+        iter: Number of iteration to display a logs of.
+        num_batches: Show `num_batches` logs at once
+        cls: Single metric name to be displayed
+
+        """
         if iter == None:
             iter = self.step
         to_display = []
@@ -82,24 +98,15 @@ class Track(object):
         ProgressMeter(num_batches, to_display).display(iter)
         return self
     
-    def time(self, label: str, reset: bool = False):
-        now = time.time()
-        if label not in self.timer:
-            self.timer[label] = {
-                'diff': 0,
-                'last': now,
-                'meter': self.add_meter(label, 0, fmt='6.3ft')
-            }
-        if reset:
-            self.timer[label]['diff'] = 0
-            self.timer[label]['last'] = now
-        else:
-            self.timer[label]['diff'] = now - self.timer[label]['last']
-            self.timer[label]['last'] = now
-            self.timer[label]['meter'].update(self.timer[label]['diff'])
-        return self
-    
-    def add_scalar(self, tag: str, el, frequency_upload_to_s3=1):
+    def add_scalar(self, tag: str, el, frequency_upload=1):
+        """Add a scalar value to metric
+
+        Arguments:
+        tag: Name of tag to add a scalar too, i.e 'train'
+        el: Dict or Tuple with metric names and values to be stored in logs
+        frequence_upload: Frequency of storing the collected metrics to logs.
+                          Default value: 1.
+        """
         self.counter += 1 
         if isinstance(el,dict):
             if self.writer:
@@ -110,18 +117,26 @@ class Track(object):
             if self.writer:
                 self.writer.add_scalar(tag, el, global_step=self.step)
             self.add_meter(tag, el)        
-        if self.counter > 0 and self.counter % frequency_upload_to_s3 == 0:
+        if self.counter > 0 and self.counter % frequency_upload == 0:
             self.add_to_logs()
     
     def add_to_logs(self):   
+        """Store collected metrics in logs
+        """
         for key, value in self.meters.items():
             self.logs[key][self.step] = value.avg
     
     def track(self, label: str, tag: str, el):  
+        """Add a new value(s) to metrics
+
+        Arguments: 
+        label: Type of values. Currently supported type: Track.scalar
+        tag: Name of tag to add a scalar too, i.e 'train'
+        el: Dict or Tuple with metric names and values to be stored in logs
+        """
         if label == self.scalar:
             self.add_scalar(tag, el)
         else:
-            #TODO implement other 
             raise NotImplementedError
         return self
     
