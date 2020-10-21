@@ -1,3 +1,6 @@
+from math import gcd
+
+
 def _flatten(list_):
     """
     Helper function to flatten the list
@@ -51,3 +54,22 @@ def tensorflow_loaded():
     except ImportError:
         return False
     return True
+
+
+def compute_lcm(a):
+    """
+    Lowest Common Multiple of a list a
+    """
+    lcm = a[0]
+    for i in a[1:]:
+        lcm = lcm * i / gcd(lcm, i)
+    return int(lcm)
+
+
+def batch(iterable, n=1):
+    """
+    Batchify an iteratable
+    """
+    ls = len(iterable)
+    for ndx in range(0, ls, n):
+        yield iterable[ndx : min(ndx + n, ls)]

@@ -6,6 +6,7 @@ from typing import Tuple
 
 import fsspec
 import gcsfs
+import os
 
 
 def _connect(tag):
@@ -81,5 +82,6 @@ def _get_storage_map(fs, path):
 
 def get_storage_map(fs, path, memcache=2 ** 26):
     store = _get_storage_map(fs, path)
+    cache_path = os.path.join("~/.activeloop/cache/", path)
     return store
     # return Cache(store, memcache)

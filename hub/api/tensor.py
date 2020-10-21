@@ -5,19 +5,18 @@ import json
 
 import numpy as np
 
-import hub.collections.dataset.core as core
 import hub.store.storage_tensor as storage_tensor
 from hub.store.store import get_fs_and_path, get_storage_map
 
-from hub.exceptions import DynamicTensorNotFoundException, OverwriteIsNotSafeException
+from hub.exceptions import DynamicTensorNotFoundException
 
 StorageTensor = storage_tensor.StorageTensor
 
 Shape = Tuple[int, ...]
 
 
-class DynamicTensor:
-    """Class for handling dynamicness of the tensor
+class Tensor:
+    """Class for handling dynamic tensor
 
     This class adds dynamic nature to storage tensor.
     The shape of tensor depends on the index of the first dim.
@@ -101,6 +100,7 @@ class DynamicTensor:
             assert item is not None
         for item in zip(self.shape, self.max_shape):
             if item[0] is not None:
+                # FIXME throw an error and explain whats wrong
                 assert item[0] == item[1]
 
     def __getitem__(self, slice_):
@@ -161,6 +161,37 @@ class DynamicTensor:
         else:
             assert isinstance(slice_, int)
             return slice_ + 1
+
+    @property
+    def chunksize(self):
+        """
+        Get chunk shape of the array
+        """
+        return self._storage_tensor.chunks
+
+    def _get_chunking_dim(self):
+        for i, d in enumerate(self.chunksize):
+            if d != 1:
+                return i, self.shape[i], self.chunksize[i]
+        return 0, self.shape[0], self.chunksize[0]
+
+    def chunk_slice_iterator(self):
+        """
+        Get an iterator over chunk coordinates
+        """
+        # FIXME assume chunking is done in one dimension
+        nth, shpd, chnkd = self._get_chunking_dim()
+        n_els = int(shpd / chnkd)
+        for i in range(n_els):
+            yield [1] * nth + [slice(i * chnkd, (i + 1) * chnkd)]
+
+    def chunk_iterator(self):
+        """
+        Get an iterator over chunks
+        """
+        slices = self.chunk_slice_iterator()
+        for slice_chunk in slices:
+            yield self.__getitem__(*slice_chunk)
 
     def commit(self):
         self._storage_tensor.commit()

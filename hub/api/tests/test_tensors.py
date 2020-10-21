@@ -1,12 +1,10 @@
 import numpy as np
 
-import hub.dynamic_tensor as dynamic_tensor
-
-DynamicTensor = dynamic_tensor.DynamicTensor
+from hub.api.tensor import Tensor
 
 
 def test_dynamic_tensor():
-    t = DynamicTensor(
+    t = Tensor(
         "./data/test/test_dynamic_tensor",
         mode="w",
         shape=(5, 100, 100),
@@ -18,7 +16,7 @@ def test_dynamic_tensor():
 
 
 def test_dynamic_tensor_2():
-    t = DynamicTensor(
+    t = Tensor(
         "./data/test/test_dynamic_tensor_2",
         mode="w",
         shape=(5, None, None),
@@ -33,7 +31,7 @@ def test_dynamic_tensor_2():
 
 
 def test_dynamic_tensor_3():
-    t = DynamicTensor(
+    t = Tensor(
         "./data/test/test_dynamic_tensor_3",
         mode="w",
         shape=(5, None, None, None),
@@ -47,7 +45,7 @@ def test_dynamic_tensor_3():
 
 
 def test_dynamic_tensor_shapes():
-    t = DynamicTensor(
+    t = Tensor(
         "./data/test/test_dynamic_tensor_4",
         mode="w",
         shape=(5, None, None),
@@ -60,7 +58,7 @@ def test_dynamic_tensor_shapes():
 
 
 def test_dynamic_tensor_4():
-    t = DynamicTensor(
+    t = Tensor(
         "./data/test/test_dynamic_tensor_4",
         mode="w",
         shape=(5, None, None, None),
@@ -71,5 +69,19 @@ def test_dynamic_tensor_4():
     assert (t[0, 6:8] == np.ones((2, 20, 30), dtype="int32")).all()
 
 
+def test_chunk_iterator():
+    t = Tensor(
+        "./data/test/test_dynamic_tensor_4",
+        mode="w",
+        shape=(50, 100, 100, 100),
+        max_shape=(50, 100, 100, 100),
+        dtype="int32",
+    )
+
+    assert t.chunksize == (5, 100, 100, 100)
+    assert list(t.chunk_iterator())[0].shape == t.chunksize
+
+
 if __name__ == "__main__":
+    test_chunk_iterator()
     test_dynamic_tensor_shapes()

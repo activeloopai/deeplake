@@ -23,6 +23,7 @@ def test_pipeline_basic():
     ds = hub.open(
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), dtype=my_dtype
     )
+
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
@@ -34,5 +35,5 @@ def test_pipeline_basic():
 
 
 if __name__ == "__main__":
-    ray.init(address="auto")
+    # ray.init(address="auto")
     test_pipeline_basic()

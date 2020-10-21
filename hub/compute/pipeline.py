@@ -2,6 +2,8 @@ import hub
 
 import ray
 
+from hub.utils import batch
+
 
 class Transformer:
     def __init__(self, func, dtype, ds):
@@ -17,18 +19,51 @@ class Transformer:
         ds = hub.open(
             url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token
         )
-        # TODO chunk based compute combination and storage
+
+        # Fire ray computes
         results = [self._func.remote(item) for item in self._ds]
+
         results = ray.get(results)
-        results = [self._transfer_2(ds, i, result) for i, result in enumerate(results)]
-        # ray.get(results)
-        # self._transfer(self._func(item), ds[i])
+        for i, result in enumerate(results):
+            for key in result:
+                ds[key, i] = result[key]
         return ds
 
-    # @ray.remote
-    def _transfer_2(self, ds, i, result):
-        for key in result:
-            ds[key, i] = result[key]
+    def store_chunkwise(self, url, token=None):
+        """
+        mary chunks with compute
+        """
+        ds = hub.open(
+            url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token
+        )
+
+        results = [self._func.remote(item) for item in self._ds]
+
+        # Chunkwise compute
+        batch_size = ds.chunksize
+
+        @ray.remote(num_returns=int(len(ds) / batch_size))
+        def batchify(results):
+            return tuple(batch(results, batch_size))
+
+        results_batched = batchify.remote(results)
+        if isinstance(results_batched, list):
+            results = [
+                self._transfer_batch.remote(self, ds, i, result)
+                for i, result in enumerate(results_batched)
+            ]
+        else:
+            self._transfer_batch.remote(self, ds, 0, results_batched)
+
+        ray.get(results_batched)
+        return ds
+
+    @ray.remote
+    def _transfer_batch(self, ds, i, results):
+        for j, result in enumerate(results[0]):
+            print(result)
+            for key in result:
+                ds[key, i * ds.chunksize + j] = result[key]
 
     def _transfer(self, from_, to):
         assert isinstance(from_, dict)

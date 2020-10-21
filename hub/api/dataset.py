@@ -6,16 +6,15 @@ from hub.features import featurify, FeatureConnector, FlatTensor
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split_tuple
-
+from hub.utils import compute_lcm
 import json
 import hub.features.serialize
 import hub.features.deserialize
-import hub.dynamic_tensor as dynamic_tensor
+
+from hub.api.tensor import Tensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.store.metastore import MetaStorage
-
-DynamicTensor = dynamic_tensor.DynamicTensor
 
 
 class Dataset:
@@ -75,7 +74,7 @@ class Dataset:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
             self._fs.makedirs(path)
-            yield t.path, DynamicTensor(
+            yield t.path, Tensor(
                 path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
@@ -92,7 +91,7 @@ class Dataset:
         for t in self._flat_tensors:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
-            yield t.path, DynamicTensor(
+            yield t.path, Tensor(
                 path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
@@ -103,6 +102,7 @@ class Dataset:
             )
 
     def __getitem__(self, slice_):
+        # FIXME function length is 100 lines?
         if isinstance(slice_, int):  # return Dataset with single sample
             # doesn't handle negative right now
             if slice_ >= self.shape[0]:
@@ -247,6 +247,12 @@ class Dataset:
     def commit(self):
         for t in self._tensors.values():
             t.commit()
+
+    @property
+    def chunksize(self):
+        # FIXME assumes chunking is done on the first sample
+        chunks = [t.chunksize[0] for t in self._tensors.values()]
+        return compute_lcm(chunks)
 
 
 def open(
