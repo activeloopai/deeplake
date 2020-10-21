@@ -19,8 +19,6 @@ if tensorflow_spec is not None:
     reason="requires pytorch to be loaded",
 )
 def test_store_load_torch():
-    if torch_spec is None:
-        raise ModuleNotFoundError("Module 'torch' is not installed")
     model_arch = torch.nn.Sequential(
         torch.nn.Linear(1000, 100),
         torch.nn.ReLU(),
@@ -43,8 +41,6 @@ def test_store_load_torch():
     reason="requires tensorflow to be loaded",
 )
 def test_store_load_tf():
-    if tensorflow_spec is None:
-        raise ModuleNotFoundError("Module 'tensorflow' is not installed")
 
     def get_model():
         inputs = tf.keras.Input(shape=(32,))
