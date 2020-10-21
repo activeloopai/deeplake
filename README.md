@@ -90,6 +90,11 @@ import hub
 
 ds = hub.load("username/basic")
 ```
+### Look at Hub in action on Google Colab
+- MNIST Classification with Hub and PyTorch  
+&nbsp;
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
+
 For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
 ## Things you can do with Hub
