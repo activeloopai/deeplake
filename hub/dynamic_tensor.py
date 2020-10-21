@@ -7,7 +7,7 @@ import numpy as np
 
 import hub.collections.dataset.core as core
 import hub.store.storage_tensor as storage_tensor
-import hub.utils as utils
+from hub.store.store import get_fs_and_path, get_storage_map
 
 from hub.exceptions import DynamicTensorNotFoundException, OverwriteIsNotSafeException
 
@@ -37,10 +37,10 @@ class DynamicTensor:
         fs=None,
         fs_map=None,
     ):
-        fs, path = (fs, url) if fs else utils.get_fs_and_path(url, token=token)
+        fs, path = (fs, url) if fs else get_fs_and_path(url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
             fs.makedirs(path)
-        fs_map = fs_map or utils.get_storage_map(fs, path, memcache)
+        fs_map = fs_map or get_storage_map(fs, path, memcache)
         exist_ = fs_map.get(".hub.dynamic_tensor")
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
@@ -130,11 +130,13 @@ class DynamicTensor:
                 if i >= len(slice_):
                     real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]
                 else:
-                    real_shapes[r] = max(real_shapes[r], self._get_slice_upper_boundary(slice_[i]))
+                    real_shapes[r] = max(
+                        real_shapes[r], self._get_slice_upper_boundary(slice_[i])
+                    )
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
-        if real_shapes is not None:  
+        if real_shapes is not None:
             self._dynamic_tensor[slice_[0]] = real_shapes
 
     def _get_slice(self, slice_, real_shapes):

@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@3.4.2
+  codecov: codecov/codecov@1.1.1
 
 workflows:
   test:
@@ -11,7 +12,7 @@ workflows:
   test_and_deploy:
     jobs:
       - test:
-          context: test
+          context:  test
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/
@@ -48,7 +49,9 @@ jobs:
           name: "Running tests"
           command: |
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest ./
+            pytest --cov-report=xml --cov=./
+      - codecov/upload:
+          file: coverage.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:

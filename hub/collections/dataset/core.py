@@ -13,21 +13,17 @@ from hub.client.hub_control import HubControlClient
 from hub.codec import Base as BaseCodec
 from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client, HubCache
+from hub.collections.client_manager import get_client
 from hub.log import logger
 from hub.exceptions import PermissionException
+
+from hub.utils import _flatten
+
 
 try:
     import torch
 except ImportError:
     pass
-
-
-def _flatten(l):
-    """
-        Helper function to flatten the list
-    """
-    return [item for sublist in l for item in sublist]
 
 
 class Transform:
@@ -40,21 +36,21 @@ class Transform:
     def meta(self):
         """
         Provides the metadata for all tensors including shapes, dtypes, dtags and chunksize for each array in the form
-        
+
         Returns
         -------
-        returns 
+        returns
             dict of tensor
-            
+
         Examples
         -------
         >>> def meta()
         >>>     return {
         >>>         ...
         >>>         "tesnor_name":{
-        >>>             "shape": (1,256,256), 
-        >>>             "dtype": "uint8", 
-        >>>             "chunksize": 100, 
+        >>>             "shape": (1,256,256),
+        >>>             "dtype": "uint8",
+        >>>             "chunksize": 100,
         >>>             "dtag": "segmentation"
         >>>         }
         >>>         ...
@@ -66,17 +62,17 @@ class Transform:
     def forward(input):
         """
         Takes a an element of a list or sample from dataset and returns sample of the dataset
-        
+
         Parameters
         -------
         input
-            an element of list or dict of arrays  
-            
+            an element of list or dict of arrays
+
         Returns
         -------
         dict
             dict of numpy arrays
-        
+
         Examples
         -------
         >>> def forward(input):
@@ -92,16 +88,14 @@ DatasetGenerator = Transform
 
 
 def _numpy_to_tuple(arr: np.ndarray):
-    """ Converts numpy array to tuple of numpy arrays 
-    """
+    """Converts numpy array to tuple of numpy arrays"""
     return [np.array([t]) for t in arr]
 
 
 def _numpy_saver(
     fs: fsspec.AbstractFileSystem, filepath: str, array: np.ndarray, codec: BaseCodec
 ):
-    """ Saves a single numpy array into filepath given specific filesystem
-    """
+    """Saves a single numpy array into filepath given specific filesystem"""
     with fs.open(filepath, "wb") as f:
         f.write(codec.encode(array))
 
@@ -121,14 +115,12 @@ def _preprocess_meta_before_save(meta: dict):
 
 
 def _dask_shape(input_shape: Tuple[int]):
-    """ Dask accept np.nan value in shape if the axis length is not known, our API uses -1 for that, this function converts -1 to np.nan
-    """
+    """Dask accept np.nan value in shape if the axis length is not known, our API uses -1 for that, this function converts -1 to np.nan"""
     return (np.nan,) + input_shape[1:] if input_shape[0] == -1 else input_shape
 
 
 def _dict_to_tuple(d: dict):
-    """ Converts dict of lists into (flattened list of values, list of keys)
-    """
+    """Converts dict of lists into (flattened list of values, list of keys)"""
     keys = sorted(d.keys())
     lens = {len(d[key]) for key in keys}
     assert len(lens) == 1
@@ -137,15 +129,14 @@ def _dict_to_tuple(d: dict):
 
 
 def _tuple_to_dict(t: tuple, keys: tuple):
-    """ Converts (flattened list of values, list of keys) into dict of lists
-    """
+    """Converts (flattened list of values, list of keys) into dict of lists"""
     cnt = len(keys)
     assert len(t) % cnt == 0
     return {key: [t[i] for i in range(j, len(t), cnt)] for j, key in enumerate(keys)}
 
 
 def _load_creds(creds):
-    """ Loads credentials from "{creds}" cfg file if such exists
+    """Loads credentials from "{creds}" cfg file if such exists
     if creds is dict, then dict will be returned, assuming all credential data is in dict
     """
     if creds is None:
@@ -159,8 +150,7 @@ def _load_creds(creds):
 
 
 def _connect(tag):
-    """ Connects to the backend and receive credentials
-    """
+    """Connects to the backend and receive credentials"""
 
     creds = HubControlClient().get_config()
     dataset = HubControlClient().get_dataset_path(tag)
@@ -179,8 +169,7 @@ def _connect(tag):
 
 
 def _load_fs_and_path(path, creds=None, session_creds=True, google_cloud_project=""):
-    """ Given url(path) and creds returns filesystem required for accessing that file + url's filepath in that filesystem
-    """
+    """Given url(path) and creds returns filesystem required for accessing that file + url's filepath in that filesystem"""
     if (
         path.startswith("./")
         or path.startswith("/")
@@ -217,7 +206,9 @@ def _load_fs_and_path(path, creds=None, session_creds=True, google_cloud_project
         elif creds is not None:
             return (
                 fsspec.filesystem(
-                    "s3", key=creds.get("access_key"), secret=creds.get("secret_key"),
+                    "s3",
+                    key=creds.get("access_key"),
+                    secret=creds.get("secret_key"),
                 ),
                 path,
             )
@@ -232,8 +223,7 @@ def _load_fs_and_path(path, creds=None, session_creds=True, google_cloud_project
 
 class Dataset:
     def __init__(self, tensors: Dict[str, Tensor], metainfo=dict()):
-        """ Creates dict given dict of tensors (name -> Tensor key value pairs)
-        """
+        """Creates dict given dict of tensors (name -> Tensor key value pairs)"""
         self._tensors = tensors
         self._metainfo = metainfo
         shape = None
@@ -243,7 +233,7 @@ class Dataset:
             self._len = tensor.count
 
     def __len__(self) -> int:
-        """ len of dataset (len of tensors across axis 0, yes, they all should be = to each other) 
+        """len of dataset (len of tensors across axis 0, yes, they all should be = to each other)
         Raises Exception if length is unknown
         """
         if self._len == -1:
@@ -254,58 +244,50 @@ class Dataset:
 
     @property
     def license(self) -> str:
-        """ Dataset license
-        """
+        """Dataset license"""
         return self._metainfo.get("license") if self._metainfo else None
 
     @property
     def description(self) -> str:
-        """ Dataset description
-        """
+        """Dataset description"""
         return self._metainfo.get("description") if self._metainfo else None
 
     @property
     def citation(self) -> str:
-        """ Dataset citation
-        """
+        """Dataset citation"""
         return self._metainfo.get("citation") if self._metainfo else None
 
     @property
     def howtoload(self) -> str:
-        """ Dataset howtoload
-        """
+        """Dataset howtoload"""
         return self._metainfo.get("howtoload") if self._metainfo else None
 
     @property
     def count(self) -> int:
-        """ len of dataset (len of tensors across axis 0, yes, they all should be = to each other) 
+        """len of dataset (len of tensors across axis 0, yes, they all should be = to each other)
         Returns -1 if length is unknown
         """
         return self._len
 
     def __iter__(self):
-        """ Iterates over axis 0 return dict of Tensors
-        """
+        """Iterates over axis 0 return dict of Tensors"""
         for i in range(len(self)):
             yield {key: t._array[i] for key, t in self._tensors.items()}
 
     def keys(self):
-        """ Returns names of tensors
-        """
+        """Returns names of tensors"""
         yield from self._tensors.keys()
 
     def values(self):
-        """ Returns tensors
-        """
+        """Returns tensors"""
         yield from self._tensors.values()
 
     def items(self):
-        """ Returns tensors
-        """
+        """Returns tensors"""
         yield from self._tensors.items()
 
     def __getitem__(self, slices) -> "Dataset":
-        """ Returns a slice of dataset
+        """Returns a slice of dataset
         slices can be
             1) List of strs (slicing horizontally)
             2) List of slices or ints (slicing vertically)
@@ -491,7 +473,7 @@ class Dataset:
 
     @property
     def meta(self) -> dict:
-        """ Dict of meta's of each tensor
+        """Dict of meta's of each tensor
         meta of tensor contains all metadata for tensor storage
         """
         tensor_meta = {
@@ -502,8 +484,7 @@ class Dataset:
         return ds_meta
 
     def delete(self, tag, creds=None, session_creds=True) -> bool:
-        """ Deletes dataset given tag(filepath) and credentials (optional)
-        """
+        """Deletes dataset given tag(filepath) and credentials (optional)"""
         fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
         fs: fsspec.AbstractFileSystem = fs
         if fs.exists(path):
@@ -512,8 +493,7 @@ class Dataset:
         return False
 
     def store(self, tag, creds=None, session_creds=True) -> "Dataset":
-        """ Stores dataset by tag(filepath) given credentials (can be omitted)
-        """
+        """Stores dataset by tag(filepath) given credentials (can be omitted)"""
         fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
         fs: fsspec.AbstractFileSystem = fs
 
@@ -559,27 +539,27 @@ class Dataset:
 
         return load(tag, creds)
 
-    def to_pytorch(self, transform = None, max_text_len = 30):
+    def to_pytorch(self, transform=None, max_text_len=30):
         """
-            Transforms into pytorch dataset
-            
-            Parameters
-            ----------
-            transform: func
-                any transform that takes input a dictionary of a sample and returns transformed dictionary 
-            max_text_len: integer
-                the maximum length of text strings that would be stored. Strings longer than this would be snipped
+        Transforms into pytorch dataset
+
+        Parameters
+        ----------
+        transform: func
+            any transform that takes input a dictionary of a sample and returns transformed dictionary
+        max_text_len: integer
+            the maximum length of text strings that would be stored. Strings longer than this would be snipped
         """
         return TorchDataset(self, transform, max_text_len)
 
-    def to_tensorflow(self, max_text_len = 30):
+    def to_tensorflow(self, max_text_len=30):
         """
-            Transforms into tensorflow dataset
-            
-            Parameters
-            ----------
-            max_text_len: integer
-                the maximum length of text strings that would be stored. Strings longer than this would be snipped
+        Transforms into tensorflow dataset
+
+        Parameters
+        ----------
+        max_text_len: integer
+            the maximum length of text strings that would be stored. Strings longer than this would be snipped
 
         """
         try:
@@ -598,8 +578,21 @@ class Dataset:
                     arrs = arrs.compute()
                     for ind, arr in enumerate(arrs):
                         if arr.dtype.type is np.str_:
-                            arr = [([ ord(x) for x in sample.tolist()[0:max_text_len] ] ) for sample in arr]
-                            arr = np.array([np.pad(sample, (0, max_text_len-len(sample)), 'constant', constant_values=(32)) for sample in arr])
+                            arr = [
+                                ([ord(x) for x in sample.tolist()[0:max_text_len]])
+                                for sample in arr
+                            ]
+                            arr = np.array(
+                                [
+                                    np.pad(
+                                        sample,
+                                        (0, max_text_len - len(sample)),
+                                        "constant",
+                                        constant_values=(32),
+                                    )
+                                    for sample in arr
+                                ]
+                            )
                             arrs[ind] = arr
 
                     for i in range(step):
@@ -612,13 +605,14 @@ class Dataset:
                     return tf.dtypes.as_dtype("string")
                 return tf.dtypes.as_dtype(np_dtype)
             except Exception as e:
+                logger.log(e)
                 return tf.variant
 
-        output_shapes={}
-        output_types={}
+        output_shapes = {}
+        output_types = {}
         for key in self.keys():
             output_types[key] = tf_dtype(self._tensors[key].dtype)
-            output_shapes[key] = self._tensors[key].shape[1:] 
+            output_shapes[key] = self._tensors[key].shape[1:]
 
             # if this is a string, we change the type to int, as it's going to become ascii. shape is also set to None
             if output_types[key] == tf.dtypes.as_dtype("string"):
@@ -637,8 +631,7 @@ class Dataset:
 def _numpy_load(
     fs: fsspec.AbstractFileSystem, filepath: str, codec: BaseCodec
 ) -> np.ndarray:
-    """ Given filesystem and filepath, loads numpy array
-    """
+    """Given filesystem and filepath, loads numpy array"""
     # assert fs.exists(
     #    filepath
     # ), f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
@@ -652,30 +645,35 @@ def _numpy_load(
             f"Dataset file {filepath} does not exists. Your dataset data is likely to be corrupted"
         )
 
+
 def get_text(input):
-    """ Converts strings stored as ascii value tensors back into strings
-    """
-    if input.ndim==1:
-        try: 
+    """Converts strings stored as ascii value tensors back into strings"""
+    if input.ndim == 1:
+        try:
             text = "".join([chr(x) for x in input]).rstrip()
             return text
         except Exception as e:
             logger.error(traceback.format_exc() + str(e))
-            raise Exception("get_text can only be called on a tensor of text or a batch of tensors of text")
-    elif input.ndim==2:
+            raise Exception(
+                "get_text can only be called on a tensor of text or a batch of tensors of text"
+            )
+    elif input.ndim == 2:
         try:
-            text= ["".join([chr(x) for x in sample]).rstrip() for sample in input]
+            text = ["".join([chr(x) for x in sample]).rstrip() for sample in input]
             return text
         except Exception as e:
             logger.error(traceback.format_exc() + str(e))
-            raise Exception("get_text can only be called on a tensor of text or a batch of tensors of text")
+            raise Exception(
+                "get_text can only be called on a tensor of text or a batch of tensors of text"
+            )
     else:
-        raise Exception(f"Got input of dimension {input.ndim} for get_text. Expected dimension of 1 or 2")
+        raise Exception(
+            f"Got input of dimension {input.ndim} for get_text. Expected dimension of 1 or 2"
+        )
 
 
 def load(tag, creds=None, session_creds=True) -> Dataset:
-    """ Load a dataset from repository using given url and credentials (optional)
-    """
+    """Load a dataset from repository using given url and credentials (optional)"""
     fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
     path_2 = f"{path}/meta.json"
@@ -750,7 +748,7 @@ def _is_tensor_dynamic(tensor):
 
 
 class TorchDataset:
-    def __init__(self, ds, transform = None, max_text_len = 30):
+    def __init__(self, ds, transform=None, max_text_len=30):
         self._ds = ds
         self._transform = transform
         self._dynkeys = {
@@ -793,8 +791,15 @@ class TorchDataset:
     def _to_tensor(self, key, sample):
         if key not in self._dynkeys:
             if isinstance(sample, np.str_):
-                sample = np.array([ ord(x) for x in sample.tolist()[0:self._max_text_len] ])
-                sample=np.pad(sample, (0, self._max_text_len-len(sample)), 'constant',constant_values=(32))
+                sample = np.array(
+                    [ord(x) for x in sample.tolist()[0 : self._max_text_len]]
+                )
+                sample = np.pad(
+                    sample,
+                    (0, self._max_text_len - len(sample)),
+                    "constant",
+                    constant_values=(32),
+                )
             return torch.tensor(sample)
         else:
             return [torch.tensor(item) for item in sample]
@@ -809,6 +814,7 @@ class TorchDataset:
                 ans[key] = torch.stack(ans[key], dim=0, out=None)
 
         return ans
+
 
 def _dask_concat(arr):
     if len(arr) == 1:

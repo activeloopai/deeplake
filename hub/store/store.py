@@ -1,29 +1,46 @@
+from hub.store.cache import Cache
+
+from hub.client.hub_control import HubControlClient
+import configparser
+from typing import Tuple
+
 import fsspec
 import gcsfs
-import configparser
-from .cache import Cache
 
 
-def _read_aws_creds(creds_path: str):
-    parser = configparser.ConfigParser()
-    parser.read(creds_path)
-    return {section: dict(parser.items(section)) for section in parser.sections()}
+def _connect(tag):
+    """Connects to the backend and receives credentials"""
+
+    creds = HubControlClient().get_config()
+    dataset = HubControlClient().get_dataset_path(tag)
+
+    # If dataset is in DB then return the path
+    # Otherwise construct the path from the tag
+    if dataset and "path" in dataset:
+        path = dataset["path"]
+    else:
+        sub_tags = tag.split("/")
+        # Get repository path from the cred location
+        path = "/".join(creds["bucket"].split("/")[:-1])
+        path = f"{path}/{sub_tags[0]}/{sub_tags[-1]}"
+    return path, creds
 
 
-def _get_fs_and_path(url: str, creds: dict = None):
+def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, str]:
     if url.startswith("s3://"):
-        creds = creds or dict()
-        creds = _read_aws_creds(creds) if isinstance(creds, str) else creds
+        token = token or dict()
+        token = read_aws_creds(token) if isinstance(token, str) else token
         return (
             fsspec.filesystem(
                 "s3",
-                key=creds.get("aws_access_key_id"),
-                secret=creds.get("aws_secret_access_key"),
+                key=token.get("aws_access_key_id"),
+                secret=token.get("aws_secret_access_key"),
+                token=token.get("aws_session_token"),
             ),
             url[5:],
         )
     elif url.startswith("gcs://"):
-        return gcsfs.GCSFileSystem(token=creds), url[6:]
+        return gcsfs.GCSFileSystem(token=token), url[6:]
     elif url.startswith("abs://"):
         # TODO: Azure
         raise NotImplementedError()
@@ -35,33 +52,33 @@ def _get_fs_and_path(url: str, creds: dict = None):
     ):
         return fsspec.filesystem("file"), url
     else:
-        raise NotImplementedError()
-
-
-def _get_storage_map(url: str, creds: dict = None):
-    fs, path = _get_fs_and_path(url, creds)
-    fs_map = fs.get_mapper(path, check=False, create=True)
-    return (
-        fs,
-        path,
-        fs_map,
-    )
-
-
-def get_storage_map(url: str, creds: dict = None, memcache: float = None):
-    fs, path, store = _get_storage_map(url, creds)
-    # TODO: Make use that fs.listdir and store.get do not cache locally filenames,
-    # because in that case if something is added to s3 or gcs it won't be notified by the program
-    if (
-        store.get(".zarray") is None
-        and store.get(".zgroup") is None
-        and len(fs.listdir(path)) > 0
-    ):
-        raise NotZarrFolderException(
-            "This url is not empty but not zarr url either, for safety reasons refusing to overwrite this folder"
+        # TOOD check if url is username/dataset:version
+        url, creds = _connect(url)
+        return (
+            fsspec.filesystem(
+                "s3",
+                key=creds["access_key"],
+                secret=creds["secret_key"],
+                token=creds["session_token"],
+                client_kwargs={
+                    "endpoint_url": creds["endpoint"],
+                    "region_name": creds["region"],
+                },
+            ),
+            url,
         )
-    return store if not memcache else Cache(store, memcache * (2 ** 20))
 
 
-class NotZarrFolderException(Exception):
-    pass
+def read_aws_creds(filepath: str):
+    parser = configparser.ConfigParser()
+    parser.read(filepath)
+    return {section: dict(parser.items(section)) for section in parser.sections()}
+
+
+def _get_storage_map(fs, path):
+    return fs.get_mapper(path, check=False, create=False)
+
+
+def get_storage_map(fs, path, memcache=2 ** 26):
+    store = _get_storage_map(fs, path)
+    return Cache(store, memcache)
