@@ -16,6 +16,14 @@ my_dtype = {
 }
 
 
+def test_dataset2():
+    dt = {"first": "float", "second": "float"}
+    ds = Dataset(dtype=dt, shape=(2,), url="./data/tests/models", mode="w")
+
+    ds["first"][0] = 2.3
+    assert ds["second"][0].numpy() != 2.3
+
+
 def test_dataset():
     ds = Dataset(
         "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
@@ -95,5 +103,5 @@ def test_dataset_with_chunks():
 
 
 if __name__ == "__main__":
-    test_dataset()
-    test_dataset_with_chunks()
+    # test_dataset()
+    test_dataset2()
