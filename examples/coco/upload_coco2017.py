@@ -20,14 +20,14 @@ class CocoGenerator(dataset.DatasetGenerator):
 
     def meta(self):
         return {
-            "segmentation": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "area": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "iscrowd": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "segmentation": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "area": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "iscrowd": {"shape": (1,), "dtype": "uint8", "chunksize": 1000},
             "image_id": {"shape": (1,), "dtype": "int64"},
-            "bbox": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "category_id": {"shape": (1,), "int64": "object", "chunksize": 1000},
-            "id": {"shape": (1,), "dtype": "uint8", "chunksize": 1000},
-            "image": {"shape": (1,), "dtype": "uint8", "chunksize": 100},
+            "bbox": {"shape": (1,), "dtype": "uint16", "chunksize": 1000},
+            "category_id": {"shape": (1,), "dtype": "int64", "chunksize": 1000},
+            "id": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "image": {"shape": (1,), "dtype": "uint32", "chunksize": 100},
         }
 
     def __call__(self, input):
@@ -36,21 +36,21 @@ class CocoGenerator(dataset.DatasetGenerator):
             # print(f"Image id: {input['image_id']}")
             ds["image_id"] = input["image_id"]
             info = input["info"]
-            ds["image"] = np.empty(1, np.uint8)
+            ds["image"] = np.empty(1, np.uint32)
             ds["image"][0] = np.array(
                 Image.open(
                     os.path.join(
                         self._args.dataset_path,
                         get_image_name(self._args, self._tag, input["image_id"]),
                     )
-                ), dtype=np.uint8
+                ), dtype=np.uint32
             )
-            ds["segmentation"] = np.empty(1, object)
-            ds["area"] = np.empty(1, object)
-            ds["iscrowd"] = np.empty(1, object)
-            ds["bbox"] = np.empty(1, object)
+            ds["segmentation"] = np.empty(1, np.uint32)
+            ds["area"] = np.empty(1, np.uint32)
+            ds["iscrowd"] = np.empty(1, np.uint8)
+            ds["bbox"] = np.empty(1, np.np.uint16)
             ds["category_id"] = np.empty(1, np.uint8)
-            ds["id"] = np.empty(1, np.uint8)
+            ds["id"] = np.empty(1, np.uint32)
 
             ds["segmentation"][0] = [anno["segmentation"] for anno in info]
             ds["area"][0] = [anno["area"] for anno in info]
