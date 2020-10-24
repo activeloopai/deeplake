@@ -15,9 +15,10 @@
     </a>
   </a>
 </p>
-<h3 align="center">
+<h4 align="center">
 Hacktoberfest is here. Check out our Hacktoberfest Project Dashboard to contribute!
-
+</h4>
+<h3 align="center">
 The fastest way to access and manage datasets for PyTorch and TensorFlow
 </h3>
 
