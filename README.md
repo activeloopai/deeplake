@@ -16,6 +16,8 @@
   </a>
 </p>
 <h3 align="center">
+### #Hacktoberfest2020 is here. Check out our Hacktoberfest Project Dashboard to contribute!
+
 The fastest way to access and manage datasets for PyTorch and TensorFlow
 </h3>
 
