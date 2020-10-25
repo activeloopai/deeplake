@@ -71,7 +71,7 @@ class Tensor:
 
     @property
     def shape(self):
-        """ 
+        """
         Returns
         -------
         tuple
@@ -141,7 +141,7 @@ class Tensor:
         return self._chunksize
 
     def __getitem__(self, slices) -> "Tensor":
-        """ Slices tensor
+        """Slices tensor
         Parameters
         ----------
         slices
@@ -167,7 +167,7 @@ class Tensor:
             yield self._array[i]
 
     def compute(self):
-        """ Does lazy computation and converts data to numpy array
+        """Does lazy computation and converts data to numpy array
         Returns
         -------
         np.ndarray

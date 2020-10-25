@@ -46,17 +46,18 @@ def main():
     dicts = []
 
     # required to generate named labels
-    mapping = {0: "T-shirt/top",
-               1: "Trouser",
-               2: "Pullover",
-               3: "Dress",
-               4: "Coat",
-               5: "Sandal",
-               6: "Shirt",
-               7: "Sneaker",
-               8: "Bag",
-               9: "Ankle boot"
-               }
+    mapping = {
+        0: "T-shirt/top",
+        1: "Trouser",
+        2: "Pullover",
+        3: "Dress",
+        4: "Coat",
+        5: "Sandal",
+        6: "Shirt",
+        7: "Sneaker",
+        8: "Bag",
+        9: "Ankle boot",
+    }
 
     for f in files:
         images, labels = load_fashion_mnist(f, path="./data/fashion-mnist")
@@ -71,7 +72,9 @@ def main():
     labels_t = tensor.from_array(labels, dtag="text")
     named_labels_t = tensor.from_array(named_labels, dtag="text")
 
-    ds = dataset.from_tensors({"data": images_t, "labels": labels_t, "named_labels": named_labels_t})
+    ds = dataset.from_tensors(
+        {"data": images_t, "labels": labels_t, "named_labels": named_labels_t}
+    )
     ds.store("mnist/fashion-mnist")
 
 
