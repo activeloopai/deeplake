@@ -37,7 +37,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3 :: Only",
     ],
-    python_requires=">=3",
+    python_requires=">=3.6",
     install_requires=requirements,
     setup_requires=[],
     dependency_links=[],
