@@ -118,15 +118,15 @@ def main():
         "dataset_path",
         metavar="P",
         type=str,
-        help="Path to cifar dataset",
-        default="./data/cifar10",
+        help="Path to coco2017 dataset",
+        default="./data/COCOdataset2017",
     )
     parser.add_argument(
         "output_path",
         metavar="N",
         type=str,
         help="Dataset output path",
-        default="cifar10",
+        default="COCOdataset2017",
     )
     parser.add_argument("year", metavar="Y", type=str, default="2017")
     args = parser.parse_args()
