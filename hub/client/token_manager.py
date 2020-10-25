@@ -13,9 +13,7 @@ class TokenManager:
 
     @classmethod
     def set_token(cls, token):
-        logger.debug(
-            f"Putting the key {token} into {config.TOKEN_FILE_PATH}."
-        )
+        logger.debug(f"Putting the key {token} into {config.TOKEN_FILE_PATH}.")
         path = Path(config.TOKEN_FILE_PATH)
         os.makedirs(path.parent, exist_ok=True)
         with open(config.TOKEN_FILE_PATH, "w") as f:

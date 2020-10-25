@@ -38,7 +38,9 @@ class HubControlClient(HubHttpClient):
             self.auth_header = f"Bearer {token}"
 
         r = self.request(
-            "GET", config.GET_CREDENTIALS_SUFFIX, endpoint=config.HUB_REST_ENDPOINT,
+            "GET",
+            config.GET_CREDENTIALS_SUFFIX,
+            endpoint=config.HUB_REST_ENDPOINT,
         ).json()
 
         details = {

@@ -99,9 +99,7 @@ class HubHttpClient:
             except Exception:
                 message = " "
 
-            logger.debug(
-                f'Error received: status code: {code}, message: "{message}"'
-            )
+            logger.debug(f'Error received: status code: {code}, message: "{message}"')
             if code == 400:
                 raise BadRequestException(response)
             elif response.status_code == 401:
