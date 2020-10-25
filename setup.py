@@ -28,6 +28,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     keywords="snark-hub",
+    project_urls={
+        "Documentation": "https://docs.activeloop.ai/",
+        "Source": "https://github.com/activeloopai/Hub",
+    },
     classifiers=[
         "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
         "Programming Language :: Python :: 3",
