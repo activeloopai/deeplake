@@ -7,7 +7,7 @@ import torch.optim as optim
 
 class CNN(nn.Module):
     def __init__(self):
-        super(CNN, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
@@ -85,9 +85,9 @@ def main():
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
 
     for epoch in range(EPOCHS):
-        print("Starting Training Epoch {}".format(epoch))
+        print(f"Starting Training Epoch {epoch}")
         train(model, train_loader, optimizer)
-        print("Training Epoch {} finished\n".format(epoch))
+        print(f"Training Epoch {epoch} finished\n")
         test(model, test_loader)
 
     # sanity check to see outputs of model

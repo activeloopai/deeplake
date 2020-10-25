@@ -15,7 +15,7 @@ class HubControlClient(HubHttpClient):
     """
 
     def __init__(self):
-        super(HubControlClient, self).__init__()
+        super().__init__()
         self.details = self.get_config()
 
     def get_dataset_path(self, tag):
@@ -60,7 +60,7 @@ class HubControlClient(HubHttpClient):
         if not os.path.isfile(config.STORE_CONFIG_PATH) or self.auth_header is None:
             self.get_credentials()
 
-        with open(config.STORE_CONFIG_PATH, "r") as file:
+        with open(config.STORE_CONFIG_PATH) as file:
             details = file.readlines()
             details = json.loads("".join(details))
 
