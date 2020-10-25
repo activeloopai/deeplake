@@ -117,7 +117,7 @@ def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
 
     if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
+        print(f"Use GPU: {args.gpu} for training")
 
     if args.distributed:
         if args.dist_url == "env://" and args.rank == -1:
@@ -130,10 +130,10 @@ def main_worker(gpu, ngpus_per_node, args):
                                 world_size=args.world_size, rank=args.rank)
     # create model
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        print(f"=> using pre-trained model '{args.arch}'")
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        print(f"=> creating model '{args.arch}'")
         model = models.__dict__[args.arch]()
 
     if args.distributed:
@@ -175,7 +175,7 @@ def main_worker(gpu, ngpus_per_node, args):
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
+            print(f"=> loading checkpoint '{args.resume}'")
             checkpoint = torch.load(args.resume)
             args.start_epoch = checkpoint['epoch']
             best_acc1 = checkpoint['best_acc1']
@@ -187,7 +187,7 @@ def main_worker(gpu, ngpus_per_node, args):
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.resume, checkpoint['epoch']))
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            print(f"=> no checkpoint found at '{args.resume}'")
 
     cudnn.benchmark = True
 
@@ -264,7 +264,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     progress = ProgressMeter(
         len(train_loader),
         [batch_time, data_time, losses, top1, top5],
-        prefix="Epoch: [{}]".format(epoch))
+        prefix=f"Epoch: [{epoch}]")
 
     # switch to train mode
     model.train()
@@ -351,7 +351,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
         shutil.copyfile(filename, 'model_best.pth.tar')
 
 
-class AverageMeter(object):
+class AverageMeter:
     """Computes and stores the average and current value"""
     def __init__(self, name, fmt=':f'):
         self.name = name
@@ -375,7 +375,7 @@ class AverageMeter(object):
         return fmtstr.format(**self.__dict__)
 
 
-class ProgressMeter(object):
+class ProgressMeter:
     def __init__(self, num_batches, meters, prefix=""):
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
         self.meters = meters

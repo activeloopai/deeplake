@@ -32,7 +32,7 @@ def train(model, train_dataset, optimizer, loss_fn, train_acc_metric):
         train_acc_metric.update_state(batch["labels"], pred)
 
     train_acc = train_acc_metric.result()
-    print("Training acc: %.4f" % (float(train_acc),))
+    print("Training acc: {:.4f}".format(float(train_acc)))
     train_acc_metric.reset_states()
 
 
@@ -43,7 +43,7 @@ def test(model, test_dataset, test_acc_metric):
         test_acc_metric.update_state(batch["labels"], pred)
 
     test_acc = test_acc_metric.result()
-    print("Test acc: %.4f" % (float(test_acc),))
+    print("Test acc: {:.4f}".format(float(test_acc)))
     test_acc_metric.reset_states()
 
 
@@ -74,9 +74,9 @@ def main():
     # model.summary()
 
     for epoch in range(EPOCHS):
-        print("\nStarting Training Epoch {}".format(epoch))
+        print(f"\nStarting Training Epoch {epoch}")
         train(model, train_dataset, optimizer, loss_fn, train_acc_metric)
-        print("Training Epoch {} finished\n".format(epoch))
+        print(f"Training Epoch {epoch} finished\n")
         test(model, test_dataset, test_acc_metric)
 
     # sanity check to see outputs of model

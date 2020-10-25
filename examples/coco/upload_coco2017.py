@@ -77,7 +77,6 @@ def get_image_name(args, tag, id):
 def load_dataset(args, tag):
     with open(
         os.path.join(args.dataset_path, f"annotations/instances_{tag}{args.year}.json"),
-        "r",
     ) as f:
         instances = json.load(f)
     # print(instances.keys())

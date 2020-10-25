@@ -11,7 +11,7 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:
     long_description = f.read()
 
-with open(os.path.join(this_directory, "requirements.txt"), "r") as f:
+with open(os.path.join(this_directory, "requirements.txt")) as f:
     requirements = f.readlines()
 
 setup(
