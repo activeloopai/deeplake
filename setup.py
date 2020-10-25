@@ -23,7 +23,7 @@ setup(
     author="Snark AI Inc.",
     author_email="support@activeloop.ai",
     license="MPL 2.0",
-    url="https://github.com/snarkai/hub",
+    url="https://github.com/activeloopai/Hub",
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
