@@ -16,10 +16,10 @@
   </a>
 </p>
 <h4 align="center">
-Hacktoberfest is here. Check out our Hacktoberfest Project Dashboard to contribute!
+Hacktoberfest is back. Check out our Hacktoberfest Project  Dashboard to Contribute!
 </h4>
 <h3 align="center">
-The fastest way to access and manage datasets for PyTorch and TensorFlow
+The fastest way to access and manage datasets for PyTorch and TensorFlow.
 </h3>
 
 Hub provides the fastest access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow.
