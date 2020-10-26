@@ -3,6 +3,7 @@ import typing
 import math
 import json
 import zarr
+import numcodecs
 import numpy as np
 from hub.store.store import get_fs_and_path, get_storage_map
 
@@ -96,6 +97,7 @@ class StorageTensor(Tensor):
                 else chunks,
                 store=fs_map,
                 overwrite=("w" in mode),
+                object_codec=numcodecs.Pickle() if str(dtype) == "object" else None,
             )
             fs_map[".hub.storage_tensor"] = bytes(json.dumps(dict()), "utf-8")
         self._shape = self._zarr.shape

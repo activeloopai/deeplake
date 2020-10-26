@@ -2,7 +2,7 @@ from hub.store.cache import Cache
 
 from hub.client.hub_control import HubControlClient
 import configparser
-from typing import Tuple
+from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
@@ -81,7 +81,30 @@ def _get_storage_map(fs, path):
 
 
 def get_storage_map(fs, path, memcache=2 ** 26):
-    store = _get_storage_map(fs, path)
+    store = StorageMapWrapperWithCommit(_get_storage_map(fs, path))
     cache_path = os.path.join("~/.activeloop/cache/", path)
     return store
     # return Cache(store, memcache)
+
+
+class StorageMapWrapperWithCommit(MutableMapping):
+    def __init__(self, map):
+        self._map = map
+
+    def __getitem__(self, slice_):
+        return self._map[slice_]
+
+    def __setitem__(self, slice_, value):
+        self._map[slice_] = value
+
+    def __delitem__(self, slice_):
+        del self._map[slice_]
+
+    def __len__(self):
+        return len(self._map)
+
+    def __iter__(self):
+        yield from self._map
+
+    def commit(self):
+        pass
