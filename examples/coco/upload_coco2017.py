@@ -1,20 +1,21 @@
 import argparse
 import os
-import pickle
 import json
 import time
+from abc import ABC
 
 import numpy as np
 import psutil
 from PIL import Image
 
 import hub
-from hub.collections import dataset, tensor
+from hub.collections import dataset
 from hub.log import logger
 
 
-class CocoGenerator(dataset.DatasetGenerator):
+class CocoGenerator(dataset.DatasetGenerator, ABC):
     def __init__(self, args, tag):
+        super().__init__()
         self._args = args
         self._tag = tag
 
@@ -32,9 +33,8 @@ class CocoGenerator(dataset.DatasetGenerator):
 
     def __call__(self, input):
         try:
-            ds = {}
+            ds = {"image_id": input["image_id"]}
             # print(f"Image id: {input['image_id']}")
-            ds["image_id"] = input["image_id"]
             info = input["info"]
             ds["image"] = np.empty(1, object)
             ds["image"][0] = np.array(
@@ -117,15 +117,15 @@ def main():
         "dataset_path",
         metavar="P",
         type=str,
-        help="Path to coco2017 dataset",
-        default="./data/COCOdataset2017",
+        help="Path to cifar dataset",
+        default="./data/cifar10",
     )
     parser.add_argument(
         "output_path",
         metavar="N",
         type=str,
         help="Dataset output path",
-        default="COCOdataset2017",
+        default="cifar10",
     )
     parser.add_argument("year", metavar="Y", type=str, default="2017")
     args = parser.parse_args()
@@ -142,3 +142,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
