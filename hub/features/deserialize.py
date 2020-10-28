@@ -22,21 +22,12 @@ def deserialize(inp):
                 chunks=inp["chunks"],
             )
         elif inp["type"] == "BBox":
-            return BBox(
-                dtype=deserialize(inp["dtype"]),
-                chunks=inp["chunks"]
-            )
+            return BBox(dtype=deserialize(inp["dtype"]), chunks=inp["chunks"])
         elif inp["type"] == "ClassLabel":
             if "_num_classes" in inp.keys():
-                return ClassLabel(
-                    num_classes=inp["_num_classes"],
-                    chunks=inp["chunks"]
-                )
+                return ClassLabel(num_classes=inp["_num_classes"], chunks=inp["chunks"])
             else:
-                return ClassLabel(
-                    names=inp["names"],
-                    chunks=inp["chunks"]
-                )
+                return ClassLabel(names=inp["names"], chunks=inp["chunks"])
         elif inp["type"] == "FeatureDict":
             d = {}
             for k, v in inp["items"].items():
@@ -47,7 +38,6 @@ def deserialize(inp):
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
                 encoding_format=inp["encoding_format"],
-                channels=inp["channels"],
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
             )
@@ -66,7 +56,7 @@ def deserialize(inp):
             )
         elif inp["type"] == "Segmentation":
             class_labels = deserialize(inp["class_labels"])
-            if hasattr(class_labels, '_num_classes'):
+            if hasattr(class_labels, "_num_classes"):
                 return Segmentation(
                     shape=inp["shape"],
                     dtype=deserialize(inp["dtype"]),
@@ -86,7 +76,7 @@ def deserialize(inp):
             return Sequence(
                 Tensor(shape=None, dtype=deserialize(inp["dtype"])),
                 length=inp["shape"][0],
-                chunks=inp["chunks"]
+                chunks=inp["chunks"],
             )
         elif inp["type"] == "Tensor":
             return Tensor(
