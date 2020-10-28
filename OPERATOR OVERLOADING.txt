@@ -1,0 +1,54 @@
+#include <iostream>
+using namespace std;
+
+class complex {
+    double re; double im;
+public:
+    complex(double r=0,double i=0) : re(r) , im(i)
+    {
+        //cout<<"CONSTRUCTOR CALLED";
+    } 
+    ~complex() {}
+    friend complex operator+(const complex& a,const complex& b)  //1
+    {
+        return complex(a.re+b.re,a.im+b.im);
+    }
+    friend complex operator+(const complex& a, double d)  //2
+    {
+        complex c(d);
+        return a+c;  //1 is called
+    }
+    friend complex operator+(double d, const complex& a) //3
+    {
+        complex b(d);
+        return a+b;  // 1 is called
+    }
+    
+    friend istream& operator >>(istream & is,complex& a)  //4
+    {
+        is>>a.re>>a.im;
+        return is;
+    }
+    
+    friend ostream& operator <<(ostream & os,complex& a)  //5
+    {
+        os<<a.re<<" +i"<<a.im<<endl;
+    }
+    void print()
+    {
+        cout<<re<<" + i"<<im<<endl;
+    }
+};
+
+
+
+int main() {
+    
+    complex c1(2.67,7.25),c2(1.43,2.41),c3 , c4;
+    c3=c1+c2;     c3.print();  //1 
+    c3 = 1.34 + c2; c3.print(); //3 
+    c3 = c1 + 6.79;  c3.print(); //2
+    cin>>c4>>c2;   c4.print();  //4
+    cout<<c4<<c2;                 //5
+    
+}
