@@ -14,7 +14,7 @@ To contribute a feature/fix:
 
 ## How you can help
 
-* Adding new datasets following [this example](https://github.com/activeloopai/Hub/blob/master/docs/dataset.md)
+* Adding new datasets following [this example](https://docs.activeloop.ai/en/latest/concepts/dataset.html#how-to-upload-a-dataset)
 * Fix an issue from Github Issues
 * Add a feature. For an extended feature please create an issue to discuss.
 
