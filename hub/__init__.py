@@ -14,6 +14,10 @@ def local_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_LOCAL_REST_ENDPOINT
 
 
+def dev_mode():
+    hub.config.HUB_DEV_REST_ENDPOINT = hub.config.HUB_DEV_REST_ENDPOINT
+
+
 def dtype(*args, **kwargs):
     return np.dtype(*args, **kwargs)
 
@@ -43,3 +47,6 @@ def open(url: str = None, mode: str = None, shape=None, dtype=None, token=None):
     return hub.api.dataset.Dataset(
         url, token=token, shape=shape, mode=mode, dtype=dtype
     )
+
+
+dev_mode()
