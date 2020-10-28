@@ -24,29 +24,21 @@ class TensorView:
                 self.nums.append(1)
                 self.offsets.append(it)
             elif isinstance(it, slice):
-                if it.start is None:
-                    ofs = 0
-                else:
-                    ofs = it.start
-
-                if it.stop is None:
-                    num = None
-                else:
-                    num = it.stop - ofs
-                # num, ofs = slice_extract_info(it)
+                ofs = it.start if it.start else 0
+                num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
 
-    # TODO Add support for incomplete paths
-
     def numpy(self):
+        """Gets the value from tensorview"""
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):
+        """Gets the value from tensorview"""
         return self.numpy()
 
-    # TODO Add slicing logic to tensorview
     def __getitem__(self, slice_):
+        """Gets a slice or slices from tensorview"""
         if isinstance(slice_, int):
             slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
             slice_ = [slice_]
@@ -66,12 +58,12 @@ class TensorView:
             raise TypeError(
                 "type {} isn't supported in dataset slicing".format(type(slice_))
             )
-
         if len(self.nums) > len(slice_):
             slice_ += self.slice_[len(slice_) - len(self.nums) :]
         return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_)
 
     def __setitem__(self, slice_, value):
+        """"Sets a slice or slices with a value"""
         if isinstance(slice_, int):
             slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
         elif isinstance(slice_, slice):
@@ -94,58 +86,35 @@ class TensorView:
         self.dataset._tensors[self.subpath][slice_] = value
 
     def _combine(self, slice_, num=None, ofs=0):
+        "combines a slice_ with the current num and offset present in tensorview"
         if isinstance(slice_, int):
-            if num is not None and slice_ >= num:
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(num)
-                )
+            check_slice_bounds(num=num, start=slice_)
             return ofs + slice_
         elif isinstance(slice_, slice):
-            if (
-                slice_.step is not None and slice_.step < 0
-            ):  # negative step not supported
-                raise ValueError("Negative step not supported in dataset slicing")
+            check_slice_bounds(num=num, start=slice_.start, stop=slice_.stop, step=slice_.step)
             if slice_.start is None and slice_.stop is None:
-                if num is None:
-                    return slice(ofs, None)
-                else:
-                    return slice(ofs, ofs + num)
-            elif slice_.start is not None and slice_.stop is None:
-                if num is None:
-                    return slice(ofs + slice_.start, None)
-                else:
-                    if slice_.start >= num:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                num
-                            )
-                        )
-                    return slice(ofs + slice_.start, ofs + num)
-            elif slice_.start is None and slice_.stop is not None:
-                if num is None:
-                    return slice(ofs, ofs + slice_.stop)
-                else:
-                    if slice_.stop > num:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                num
-                            )
-                        )
-                    return slice(ofs, ofs + slice_.stop)
+                return slice(ofs, None) if num is None else slice(ofs, ofs + num)
+            elif slice_.start and slice_.stop is None:
+                return slice(ofs + slice_.start, None) if num is None else slice(ofs + slice_.start, ofs + num)
+            elif slice_.start is None and slice_.stop:
+                return slice(ofs, ofs + slice_.stop)
             else:
-                if slice_.start > slice_.stop:
-                    raise IndexError("start index is greater than stop index")
-                if num is None:
-                    return slice(ofs + slice_.start, ofs + slice_.stop)
-                else:
-                    if slice_.stop > num:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                num
-                            )
-                        )
-                    return slice(ofs + slice_.start, ofs + slice_.stop)
+                return slice(ofs + slice_.start, ofs + slice_.stop)
         else:
             raise TypeError(
                 "type {} isn't supported in dataset slicing".format(type(slice_))
             )
+
+
+def check_slice_bounds(num=None, start=None, stop=None, step=None):
+    "checks whether the bounds of slice are in limits"
+    if (step and step < 0):  # negative step not supported
+        raise ValueError("Negative step not supported in dataset slicing")
+    if num and ((start and start >= num) or (stop and stop > num)):
+        raise IndexError(
+            "index out of bounds for dimension with length {}".format(
+                num
+            )
+        )
+    if start and stop and start > stop:
+        raise IndexError("start index is greater than stop index")
