@@ -2,6 +2,7 @@ from hub.store.cache import Cache
 import zarr
 import time
 import pytest
+import posixpath
 
 
 class SlowStore(zarr.MemoryStore):
@@ -25,7 +26,7 @@ def test_cache():
         z = zarr.zeros(
             (1000, 1000),
             chunks=(100, 100),
-            path=f"/first{i}",
+            path=posixpath.realpath(f"./data/test/test_cache/first{i}"),
             store=store,
             overwrite=True,
         )
