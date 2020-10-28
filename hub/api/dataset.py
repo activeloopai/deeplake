@@ -234,9 +234,6 @@ class Dataset:
                 "type {} isn't supported in dataset slicing".format(type(slice_))
             )
 
-    def __exit__(self, type, value, traceback):
-        raise NotImplementedError()
-
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
@@ -247,6 +244,12 @@ class Dataset:
     def commit(self):
         for t in self._tensors.values():
             t.commit()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.commit()
 
     @property
     def chunksize(self):

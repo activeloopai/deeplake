@@ -52,7 +52,6 @@ def test_dataset():
     ssds = sds[1:3, 4]
     sssds = ssds[1]
     assert (sssds.numpy() == 6 * np.ones((3))).all()
-    # ds.commit()
 
     sds = ds["/label", 5:15, "c"]
     sds[2:4, 4, :] = 98 * np.ones((2, 3))
@@ -63,6 +62,7 @@ def test_dataset():
     e = d["e"]
     e[:] = 77 * np.ones((4, 5, 3))
     assert (e.numpy() == 77 * np.ones((4, 5, 3))).all()
+    ds.commit()
 
 
 my_dtype_with_chunks = {
@@ -92,6 +92,28 @@ def test_dataset_with_chunks():
         ds["image", 5, 4, 100:200, 150:300, :].numpy()
         == np.ones((100, 150, 3), "uint8")
     ).all()
+
+
+def test_dataset_enter_exit():
+    with Dataset(
+        "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
+    ) as ds:
+        sds = ds[5]
+        sds["label/a", 50, 50] = 2
+        assert sds["label", 50, 50, "a"].numpy() == 2
+
+        ds["image", 5, 4, 100:200, 150:300, :] = np.ones((100, 150, 3), "uint8")
+        assert (
+            ds["image", 5, 4, 100:200, 150:300, :].numpy()
+            == np.ones((100, 150, 3), "uint8")
+        ).all()
+
+        ds["image", 8, 6, 500:550, 700:730] = np.ones((50, 30, 3))
+        subds = ds[3:15]
+        subsubds = subds[4:9]
+        assert (
+            subsubds["image", 1, 6, 500:550, 700:730].numpy() == np.ones((50, 30, 3))
+        ).all()
 
 
 if __name__ == "__main__":
