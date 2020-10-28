@@ -7,13 +7,13 @@ from hub.utils import batch
 
 class Transformer:
     def __init__(self, func, dtype, ds):
-        self._func = ray.remote(func)
+        self._func = func
         self._dtype = dtype
         self._ds = ds
 
     def __iter__(self):
         for item in self._ds:
-            yield self._func.remote(item)
+            yield self._func(item)
 
     def store(self, url, token=None):
         ds = hub.open(
@@ -21,9 +21,9 @@ class Transformer:
         )
 
         # Fire ray computes
-        results = [self._func.remote(item) for item in self._ds]
+        results = [self._func(item) for item in self._ds]
 
-        results = ray.get(results)
+        # results = ray.get(results)
         for i, result in enumerate(results):
             for key in result:
                 ds[key, i] = result[key]
