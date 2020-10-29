@@ -1,5 +1,6 @@
 from hub.api.tensorview import TensorView
-from hub.api.dataset_utils import slice_extract_info, slice_split_tuple
+from hub.api.dataset_utils import slice_extract_info, slice_split
+import collections.abc as abc
 
 
 class DatasetView:
@@ -13,182 +14,66 @@ class DatasetView:
         self.offset = offset
 
     def __getitem__(self, slice_):
-        if self.num_samples == 1:
-            if isinstance(slice_, tuple) or isinstance(slice_, list):
-                slice_ = tuple(slice_)
-                slice_ = (0,) + slice_
-            else:
-                slice_ = (0, slice_)
-
-        if isinstance(slice_, int):
-            # return Dataset with single sample
-            # doesn't handle negative right now
-            if slice_ >= self.num_samples:
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(
-                        self.num_samples
-                    )
-                )
-            return DatasetView(
-                dataset=self.dataset, num_samples=1, offset=self.offset + slice_
-            )
-
-        elif isinstance(slice_, slice):
-            # return Dataset with multiple samples
-            num, ofs = slice_extract_info(slice_, self.num_samples)
-            return DatasetView(
-                dataset=self.dataset, num_samples=num, offset=self.offset + ofs
-            )
-
-        elif isinstance(slice_, str):
-            subpath = slice_ if slice_.startswith("/") else "/" + slice_
-            # return TensorView object
-            if self.num_samples == 1:
-                slice_ = self.offset
-            else:
-                slice_ = slice(self.offset, self.offset + self.num_samples)
-
-            if subpath in self._tensors.keys():
+        """Gets a slice or slices from datasetview"""
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+        slice_ = list(slice_)
+        slice_ = [0] + slice_ if self.num_samples == 1 else slice_
+        subpath, slice_list = slice_split(slice_)
+        if not subpath:
+            if len(slice_list) > 1:
+                raise ValueError("Can't slice a dataset with multiple slices without subpath")
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
+            return DatasetView(dataset=self.dataset, num_samples=num, offset=ofs + self.offset)
+        elif not slice_list:
+            slice_ = slice(self.offset, self.offset + self.num_samples)
+            if subpath in self.dataset._tensors.keys():
                 return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
-            else:
-                d = {}
-                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
-                for key in self._tensors.keys():
-                    if key.startswith(post_subpath):
-                        suffix_key = key[len(post_subpath) :]
-                    else:
-                        continue
-                    split_key = suffix_key.split("/")
-                    cur = d
-                    for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = TensorView(
-                        dataset=self, subpath=key, slice_=slice_
-                    )
-
-                if len(d) == 0:
-                    raise KeyError(f"Key {subpath} was not found in dataset")
-                return d
-
-        elif isinstance(slice_, tuple):
-            # return tensor view object
-            subpath, slice_ = slice_split_tuple(slice_)
-
-            if len(slice_) == 0:
-                if self.num_samples == 1:
-                    slice_ = (0,)
-                else:
-                    slice_ = (slice(0, self.num_samples),)
-            d = {}
-            if subpath not in self.dataset._tensors.keys():
-                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
-                slice_ = list(slice_)
-                slice_[0] += self.offset
-                for key in self.dataset._tensors.keys():
-                    if key.startswith(post_subpath):
-                        suffix_key = key[len(post_subpath) :]
-                    else:
-                        continue
-                    split_key = suffix_key.split("/")
-                    cur = d
-                    for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = TensorView(
-                        dataset=self.dataset, subpath=key, slice_=slice_
-                    )
-                if len(d) == 0:
-                    raise KeyError(f"Key {subpath} was not found in dataset")
-
-            if len(slice_) <= 1:
-                if len(slice_) == 1:
-                    if isinstance(slice_[0], int) and slice_[0] >= self.num_samples:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                self.num_samples
-                            )
-                        )
-                    elif isinstance(slice_[0], slice):
-                        # will check slice limits and raise error if required
-                        num, ofs = slice_extract_info(slice_[0], self.num_samples)
-                if subpath in self.dataset._tensors.keys():
-                    slice_ = list(slice_)
-                    slice_[0] += self.offset
-                    return TensorView(
-                        dataset=self.dataset, subpath=subpath, slice_=slice_
-                    )
-                else:
-                    return d
-            else:
-                if subpath not in self.dataset._tensors.keys():
-                    raise ValueError("You can't slice a dictionary of Tensors")
-                elif isinstance(slice_[0], int):
-                    if slice_[0] >= self.num_samples:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                self.num_samples
-                            )
-                        )
-                    slice_ = list(slice_)
-                    slice_[0] += self.offset
-                elif isinstance(slice_[0], slice):
-                    num, ofs = slice_extract_info(slice_[0], self.num_samples)
-                    slice_ = list(slice_)
-                    if num == 1:
-                        slice_[0] = self.offset + ofs
-                    else:
-                        slice_[0] = slice(self.offset + ofs, self.offset + ofs + num)
-                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
+            return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
-            raise TypeError(
-                "type {} isn't supported in dataset slicing".format(type(slice_))
-            )
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
+            slice_list[0] = slice(ofs + self.offset, ofs + self.offset + num)
+            if subpath in self.dataset._tensors.keys():
+                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_list)
+            if len(slice_list) > 1:
+                raise ValueError("You can't slice a dictionary of Tensors")
+            return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
+        """"Sets a slice or slices with a value"""
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+        slice_ = list(slice_)
         if self.num_samples == 1:
-            if isinstance(slice_, tuple) or isinstance(slice_, list):
-                slice_ = tuple(slice_)
-                slice_ = (0,) + slice_
-            else:
-                slice_ = (0, slice_)
-
-        if isinstance(slice_, int):  # Not supported
-            raise TypeError("Can't assign to dataset indexed only with int")
-
-        elif isinstance(slice_, slice):  # Not supported
-            raise TypeError("Can't assign to dataset indexed only with slice")
-
-        elif isinstance(slice_, str):
-            slice_ = (
-                slice_ if slice_.startswith("/") else "/" + slice_
-            )  # return TensorView object
-            self.dataset._tensors[slice_][:] = value
-
-        elif isinstance(slice_, tuple):  # return tensor view object
-            subpath, slice_ = slice_split_tuple(slice_)
-            if len(slice_) == 0:
-                slice_ = slice(0, self.num_samples)
-            elif isinstance(slice_[0], int):
-                offset_slice = slice_[0] + self.offset
-                ls = list(slice_)
-                ls[0] = offset_slice
-                slice_ = tuple(ls)
-            elif isinstance(slice_[0], slice):
-                offset_slice = slice(
-                    slice_[0].start + self.offset, slice_[0].stop + self.offset
-                )
-                ls = list(slice_)
-                ls[0] = offset_slice
-                slice_ = tuple(ls)
-            self.dataset._tensors[subpath][slice_] = value
+            slice_ = [0] + slice_
+        subpath, slice_list = slice_split(slice_, all_slices=False)
+        if not subpath:
+            raise ValueError("Can't assign to dataset sliced without subpath")
+        elif not slice_list:
+            slice_ = self.offset if self.num_samples == 1 else slice(self.offset, self.offset + self.num_samples)
+            self.dataset._tensors[subpath][slice_] = value  # Add path check
         else:
-            raise TypeError(
-                "type {} isn't supported in dataset slicing".format(type(slice_))
-            )
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else 1, slice_list[0]
+            slice_list[0] = slice(ofs + self.offset, ofs + self.offset + num) if num > 1 else ofs + self.offset
+            self.dataset._tensors[subpath][slice_list] = value
+
+    def _get_dictionary(self, subpath, slice_=None):
+        """"Gets dictionary from dataset given incomplete subpath"""
+        tensor_dict = {}
+        subpath = subpath if subpath.endswith("/") else subpath + "/"
+        for key in self.dataset._tensors.keys():
+            if key.startswith(subpath):
+                suffix_key = key[len(subpath) :]
+                split_key = suffix_key.split("/")
+                cur = tensor_dict
+                for i in range(len(split_key) - 1):
+                    if split_key[i] not in cur.keys():
+                        cur[split_key[i]] = {}
+                    cur = cur[split_key[i]]
+                slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
+                cur[split_key[-1]] = TensorView(
+                    dataset=self.dataset, subpath=key, slice_=slice_
+                )
+        if len(tensor_dict) == 0:
+            raise KeyError(f"Key {subpath} was not found in dataset")
+        return tensor_dict
