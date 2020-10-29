@@ -76,7 +76,9 @@ def load_dataset(base_path):
             images_list = os.listdir(curr_path)
             for image in images_list:
                 image_info = {}
-                if image.lower().startswith(label):  # all images' name starts with the feature name (observation)
+                if image.lower().startswith(
+                    label
+                ):  # all images' name starts with the feature name (observation)
                     image_info["image_path"] = curr_path + "/" + image
                     image_info["image_label"] = labels_dict[label]
                     image_info["named_image_label"] = label
