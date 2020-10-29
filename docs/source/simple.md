@@ -22,7 +22,7 @@ mnist["data"][0:1000].compute()
 
 ## Train a model
 
-Load the data and directly train your model using pytorch
+Load the data and directly train your model using Pytorch
 
 ```python
 import hub
