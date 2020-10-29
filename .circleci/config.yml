@@ -46,6 +46,11 @@ jobs:
             pip install -r requirements.txt
             pip install -e .
       - run:
+          name: "Checking code style"
+          command: |
+            pip install black
+            black hub/ --check -v
+      - run:
           name: "Running tests"
           command: |
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
