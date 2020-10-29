@@ -62,11 +62,11 @@ def test_dynamic_tensor_4():
         "./data/test/test_dynamic_tensor_4",
         mode="w",
         shape=(5, None, None, None),
-        max_shape=(5, 100, 100, 100),
+        max_shape=(5, 100, 100, 10),
         dtype="int32",
     )
-    t[0, 6:8] = np.ones((2, 20, 30), dtype="int32")
-    assert (t[0, 6:8] == np.ones((2, 20, 30), dtype="int32")).all()
+    t[0, 6:8] = np.ones((2, 20, 10), dtype="int32")
+    assert (t[0, 6:8] == np.ones((2, 20, 10), dtype="int32")).all()
 
 
 def test_chunk_iterator():

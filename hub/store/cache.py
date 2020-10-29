@@ -27,7 +27,7 @@ class CacheStore(zarr.LMDBStore):
 
         """
         kwargs = {}
-        super(CacheStore, self).__init__(path, buffers=buffers, lock=False, **kwargs)
+        super(CacheStore, self).__init__(path, buffers=buffers, lock=True, **kwargs)
         self.namespace = namespace
         if cache_reset:
             self.clear()
