@@ -81,11 +81,9 @@ def _get_storage_map(fs, path):
 
 
 def get_storage_map(fs, path, memcache=2 ** 26):
-    # store = StorageMapWrapperWithCommit(_get_storage_map(fs, path)) # in case when cache is commented
     store = _get_storage_map(fs, path)
-    # cache_path = os.path.join("~/.activeloop/cache/", path)
-    # return store
-    return Cache(store, memcache)
+    cache_path = os.path.join("~/.activeloop/cache/", path)
+    return Cache(store, memcache, path=cache_path)
 
 
 class StorageMapWrapperWithCommit(MutableMapping):
