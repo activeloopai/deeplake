@@ -36,10 +36,10 @@ class DatasetGenerator(Transform):
         # here we specify the attributes of return type
         return {
             "image_label": {"shape": (1,), "dtype": "int", "dtag": "text"},
-            "named_image_label": {"shape": (1,), "dtype": "object", "dtag": "text"},
+            "named_image_label": {"shape": (1,), "dtype": "U25", "dtag": "text"},
             "image": {
                 "shape": (1,),
-                "dtype": "object",
+                "dtype": "uint32",
                 "chunksize": 100,
                 "dtag": "image",
             },
