@@ -15,11 +15,14 @@
     </a>
   </a>
 </p>
+<h4 align="center">
+Hacktoberfest is here. Check out our Hacktoberfest Project Dashboard to contribute!
+</h4>
 <h3 align="center">
 The fastest way to access and manage datasets for PyTorch and TensorFlow
 </h3>
 
-Hub provides fast access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow 
+Hub provides the fastest access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow.
 
 
 ### Contributors
@@ -90,6 +93,11 @@ import hub
 
 ds = hub.load("username/basic")
 ```
+### Look at Hub in action on Google Colab
+- MNIST Classification with Hub and PyTorch  
+&nbsp;
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
+
 For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
 ## Things you can do with Hub

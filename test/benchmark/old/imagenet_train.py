@@ -31,7 +31,8 @@ h_num_process = 8
 h_num_threads = 1
 chunk_size = 20
 
-class StandardTransform(object):
+
+class StandardTransform:
     def __init__(self, transform=None, target_transform=None):
         self.transform = transform
         self.target_transform = target_transform
@@ -45,19 +46,20 @@ class StandardTransform(object):
 
     def _format_transform_repr(self, transform, head):
         lines = transform.__repr__().splitlines()
-        return (["{}{}".format(head, lines[0])] +
-                ["{}{}".format(" " * len(head), line) for line in lines[1:]])
+        return ["{}{}".format(head, lines[0])] + [
+            "{}{}".format(" " * len(head), line) for line in lines[1:]
+        ]
 
     def __repr__(self):
         body = [self.__class__.__name__]
         if self.transform is not None:
-            body += self._format_transform_repr(self.transform,
-                                                "Transform: ")
+            body += self._format_transform_repr(self.transform, "Transform: ")
         if self.target_transform is not None:
-            body += self._format_transform_repr(self.target_transform,
-                                                "Target transform: ")
+            body += self._format_transform_repr(
+                self.target_transform, "Target transform: "
+            )
 
-        return '\n'.join(body)
+        return "\n".join(body)
 
 
 class VisionDataset(data.Dataset):
@@ -71,8 +73,10 @@ class VisionDataset(data.Dataset):
         has_transforms = transforms is not None
         has_separate_transform = transform is not None or target_transform is not None
         if has_transforms and has_separate_transform:
-            raise ValueError("Only transforms or transform/target_transform can "
-                             "be passed as argument")
+            raise ValueError(
+                "Only transforms or transform/target_transform can "
+                "be passed as argument"
+            )
 
         # for backwards-compatibility
         self.transform = transform
@@ -90,22 +94,24 @@ class VisionDataset(data.Dataset):
 
     def __repr__(self):
         head = "Dataset " + self.__class__.__name__
-        body = ["Number of datapoints: {}".format(self.__len__())]
+        body = [f"Number of datapoints: {self.__len__()}"]
         if self.root is not None:
-            body.append("Root location: {}".format(self.root))
+            body.append(f"Root location: {self.root}")
         body += self.extra_repr().splitlines()
         if hasattr(self, "transforms") and self.transforms is not None:
             body += [repr(self.transforms)]
         lines = [head] + [" " * self._repr_indent + line for line in body]
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def _format_transform_repr(self, transform, head):
         lines = transform.__repr__().splitlines()
-        return (["{}{}".format(head, lines[0])] +
-                ["{}{}".format(" " * len(head), line) for line in lines[1:]])
+        return ["{}{}".format(head, lines[0])] + [
+            "{}{}".format(" " * len(head), line) for line in lines[1:]
+        ]
 
     def extra_repr(self):
         return ""
+
 
 class FakeData(VisionDataset):
     """A fake dataset that returns randomly generated images and returns them as PIL images
@@ -121,10 +127,16 @@ class FakeData(VisionDataset):
             generate each image. Default: 0
     """
 
-    def __init__(self, size=1000, image_size=(3, 224, 224), num_classes=10,
-                 transform=None, target_transform=None, random_offset=0):
-        super(FakeData, self).__init__(None, transform=transform,
-                                       target_transform=target_transform)
+    def __init__(
+        self,
+        size=1000,
+        image_size=(3, 224, 224),
+        num_classes=10,
+        transform=None,
+        target_transform=None,
+        random_offset=0,
+    ):
+        super().__init__(None, transform=transform, target_transform=target_transform)
         self.size = size
         self.num_classes = num_classes
         self.image_size = image_size
@@ -132,11 +144,11 @@ class FakeData(VisionDataset):
         self.x = None
         self.batch = None
         self.indexbeta = 0
-        self.batch_size = chunk_size*h_num_threads
-        #self.avgTime = AverageMeter('Time', ':6.3f')
-        #self.progress = ProgressMeter(1,
-        #[self.avgTime],
-        #prefix="Epoch: ")
+        self.batch_size = chunk_size * h_num_threads
+        # self.avgTime = AverageMeter('Time', ':6.3f')
+        # self.progress = ProgressMeter(1,
+        # [self.avgTime],
+        # prefix="Epoch: ")
 
     def __getitem__(self, index):
         """
@@ -146,42 +158,41 @@ class FakeData(VisionDataset):
             tuple: (image, target) where target is class_index of the target class.
         """
         # create random image that is consistent with the index id
-        #if index >= len(self):
+        # if index >= len(self):
         #    raise IndexError("{} index out of range".format(self.__class__.__name__))
-        #rng_state = torch.get_rng_state()
-        #torch.manual_seed(index + self.random_offset)
-        #img = torch.randn(*self.image_size)
+        # rng_state = torch.get_rng_state()
+        # torch.manual_seed(index + self.random_offset)
+        # img = torch.randn(*self.image_size)
         target = torch.randint(0, self.num_classes, size=(1,), dtype=torch.long)[0]
-        #torch.set_rng_state(rng_state)
+        # torch.set_rng_state(rng_state)
 
         # convert to PIL Image
-        #from PIL import Image
+        # from PIL import Image
 
-        
-        #img = np.array(img)
-        #t1 = time.time()
+        # img = np.array(img)
+        # t1 = time.time()
         if not self.x:
-            self.x = hub.load('imagenet/benchmark:{}'.format(str(chunk_size)))
-            #print('loaded {}s'.format(time.time()-t1))
+            self.x = hub.load("imagenet/benchmark:{}".format(str(chunk_size)))
+            # print('loaded {}s'.format(time.time()-t1))
 
         if self.batch is None or self.indexbeta == self.batch_size:
             self.indexbeta = 0
-            #t3 = time.time()
-            self.batch = self.x[:self.batch_size]
-            #t4 = time.time()
-            #self.avgTime.update(self.batch.shape[0]/(t4-t3))
-            #if index % 10 == 0:
+            # t3 = time.time()
+            self.batch = self.x[: self.batch_size]
+            # t4 = time.time()
+            # self.avgTime.update(self.batch.shape[0]/(t4-t3))
+            # if index % 10 == 0:
             #    print(self.batch.shape)
             #    self.progress.display(index)
             #   print('{} img/sec'.format(self.batch.shape[0]/(t4-t3)))
-        
-        #if i % args.print_freq == 0:
-            
+
+        # if i % args.print_freq == 0:
+
         img = self.batch[self.indexbeta]
         self.indexbeta += 1
 
         img = transforms.ToPILImage()(img)
-        
+
         if self.transform is not None:
             img = self.transform(img)
         if self.target_transform is not None:
@@ -193,62 +204,124 @@ class FakeData(VisionDataset):
         return self.size
 
 
+model_names = sorted(
+    name
+    for name in models.__dict__
+    if name.islower() and not name.startswith("__") and callable(models.__dict__[name])
+)
 
-model_names = sorted(name for name in models.__dict__
-    if name.islower() and not name.startswith("__")
-    and callable(models.__dict__[name]))
-
-parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-parser.add_argument('data', metavar='DIR',
-                    help='path to dataset')
-parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet18',
-                    choices=model_names,
-                    help='model architecture: ' +
-                        ' | '.join(model_names) +
-                        ' (default: resnet18)')
-parser.add_argument('-j', '--workers', default=h_num_process, type=int, metavar='N',
-                    help='number of data loading workers (default: 4)')
-parser.add_argument('--epochs', default=90, type=int, metavar='N',
-                    help='number of total epochs to run')
-parser.add_argument('--start-epoch', default=0, type=int, metavar='N',
-                    help='manual epoch number (useful on restarts)')
-parser.add_argument('-b', '--batch-size', default=256, type=int,
-                    metavar='N',
-                    help='mini-batch size (default: 256), this is the total '
-                         'batch size of all GPUs on the current node when '
-                         'using Data Parallel or Distributed Data Parallel')
-parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
-                    metavar='LR', help='initial learning rate', dest='lr')
-parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
-                    help='momentum')
-parser.add_argument('--wd', '--weight-decay', default=1e-4, type=float,
-                    metavar='W', help='weight decay (default: 1e-4)',
-                    dest='weight_decay')
-parser.add_argument('-p', '--print-freq', default=10, type=int,
-                    metavar='N', help='print frequency (default: 10)')
-parser.add_argument('--resume', default='', type=str, metavar='PATH',
-                    help='path to latest checkpoint (default: none)')
-parser.add_argument('-e', '--evaluate', dest='evaluate', action='store_true',
-                    help='evaluate model on validation set')
-parser.add_argument('--pretrained', dest='pretrained', action='store_true',
-                    help='use pre-trained model')
-parser.add_argument('--world-size', default=-1, type=int,
-                    help='number of nodes for distributed training')
-parser.add_argument('--rank', default=-1, type=int,
-                    help='node rank for distributed training')
-parser.add_argument('--dist-url', default='tcp://224.66.41.62:23456', type=str,
-                    help='url used to set up distributed training')
-parser.add_argument('--dist-backend', default='nccl', type=str,
-                    help='distributed backend')
-parser.add_argument('--seed', default=None, type=int,
-                    help='seed for initializing training. ')
-parser.add_argument('--gpu', default=None, type=int,
-                    help='GPU id to use.')
-parser.add_argument('--multiprocessing-distributed', action='store_true',
-                    help='Use multi-processing distributed training to launch '
-                         'N processes per node, which has N GPUs. This is the '
-                         'fastest way to use PyTorch for either single node or '
-                         'multi node data parallel training')
+parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
+parser.add_argument("data", metavar="DIR", help="path to dataset")
+parser.add_argument(
+    "-a",
+    "--arch",
+    metavar="ARCH",
+    default="resnet18",
+    choices=model_names,
+    help="model architecture: " + " | ".join(model_names) + " (default: resnet18)",
+)
+parser.add_argument(
+    "-j",
+    "--workers",
+    default=h_num_process,
+    type=int,
+    metavar="N",
+    help="number of data loading workers (default: 4)",
+)
+parser.add_argument(
+    "--epochs", default=90, type=int, metavar="N", help="number of total epochs to run"
+)
+parser.add_argument(
+    "--start-epoch",
+    default=0,
+    type=int,
+    metavar="N",
+    help="manual epoch number (useful on restarts)",
+)
+parser.add_argument(
+    "-b",
+    "--batch-size",
+    default=256,
+    type=int,
+    metavar="N",
+    help="mini-batch size (default: 256), this is the total "
+    "batch size of all GPUs on the current node when "
+    "using Data Parallel or Distributed Data Parallel",
+)
+parser.add_argument(
+    "--lr",
+    "--learning-rate",
+    default=0.1,
+    type=float,
+    metavar="LR",
+    help="initial learning rate",
+    dest="lr",
+)
+parser.add_argument("--momentum", default=0.9, type=float, metavar="M", help="momentum")
+parser.add_argument(
+    "--wd",
+    "--weight-decay",
+    default=1e-4,
+    type=float,
+    metavar="W",
+    help="weight decay (default: 1e-4)",
+    dest="weight_decay",
+)
+parser.add_argument(
+    "-p",
+    "--print-freq",
+    default=10,
+    type=int,
+    metavar="N",
+    help="print frequency (default: 10)",
+)
+parser.add_argument(
+    "--resume",
+    default="",
+    type=str,
+    metavar="PATH",
+    help="path to latest checkpoint (default: none)",
+)
+parser.add_argument(
+    "-e",
+    "--evaluate",
+    dest="evaluate",
+    action="store_true",
+    help="evaluate model on validation set",
+)
+parser.add_argument(
+    "--pretrained", dest="pretrained", action="store_true", help="use pre-trained model"
+)
+parser.add_argument(
+    "--world-size",
+    default=-1,
+    type=int,
+    help="number of nodes for distributed training",
+)
+parser.add_argument(
+    "--rank", default=-1, type=int, help="node rank for distributed training"
+)
+parser.add_argument(
+    "--dist-url",
+    default="tcp://224.66.41.62:23456",
+    type=str,
+    help="url used to set up distributed training",
+)
+parser.add_argument(
+    "--dist-backend", default="nccl", type=str, help="distributed backend"
+)
+parser.add_argument(
+    "--seed", default=None, type=int, help="seed for initializing training. "
+)
+parser.add_argument("--gpu", default=None, type=int, help="GPU id to use.")
+parser.add_argument(
+    "--multiprocessing-distributed",
+    action="store_true",
+    help="Use multi-processing distributed training to launch "
+    "N processes per node, which has N GPUs. This is the "
+    "fastest way to use PyTorch for either single node or "
+    "multi node data parallel training",
+)
 
 best_acc1 = 0
 
@@ -260,15 +333,19 @@ def main():
         random.seed(args.seed)
         torch.manual_seed(args.seed)
         cudnn.deterministic = True
-        warnings.warn('You have chosen to seed training. '
-                      'This will turn on the CUDNN deterministic setting, '
-                      'which can slow down your training considerably! '
-                      'You may see unexpected behavior when restarting '
-                      'from checkpoints.')
+        warnings.warn(
+            "You have chosen to seed training. "
+            "This will turn on the CUDNN deterministic setting, "
+            "which can slow down your training considerably! "
+            "You may see unexpected behavior when restarting "
+            "from checkpoints."
+        )
 
     if args.gpu is not None:
-        warnings.warn('You have chosen a specific GPU. This will completely '
-                      'disable data parallelism.')
+        warnings.warn(
+            "You have chosen a specific GPU. This will completely "
+            "disable data parallelism."
+        )
 
     if args.dist_url == "env://" and args.world_size == -1:
         args.world_size = int(os.environ["WORLD_SIZE"])
@@ -293,7 +370,7 @@ def main_worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
 
     if args.gpu is not None:
-        print("Use GPU: {} for training".format(args.gpu))
+        print(f"Use GPU: {args.gpu} for training")
 
     if args.distributed:
         if args.dist_url == "env://" and args.rank == -1:
@@ -302,14 +379,18 @@ def main_worker(gpu, ngpus_per_node, args):
             # For multiprocessing distributed training, rank needs to be the
             # global rank among all the processes
             args.rank = args.rank * ngpus_per_node + gpu
-        dist.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
-                                world_size=args.world_size, rank=args.rank)
+        dist.init_process_group(
+            backend=args.dist_backend,
+            init_method=args.dist_url,
+            world_size=args.world_size,
+            rank=args.rank,
+        )
     # create model
     if args.pretrained:
-        print("=> using pre-trained model '{}'".format(args.arch))
+        print(f"=> using pre-trained model '{args.arch}'")
         model = models.__dict__[args.arch](pretrained=True)
     else:
-        print("=> creating model '{}'".format(args.arch))
+        print(f"=> creating model '{args.arch}'")
         model = models.__dict__[args.arch]()
 
     if args.distributed:
@@ -324,7 +405,9 @@ def main_worker(gpu, ngpus_per_node, args):
             # ourselves based on the total number of GPUs we have
             args.batch_size = int(args.batch_size / ngpus_per_node)
             args.workers = int((args.workers + ngpus_per_node - 1) / ngpus_per_node)
-            model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+            model = torch.nn.parallel.DistributedDataParallel(
+                model, device_ids=[args.gpu]
+            )
         else:
             model.cuda()
             # DistributedDataParallel will divide and allocate batch_size to all
@@ -335,7 +418,7 @@ def main_worker(gpu, ngpus_per_node, args):
         model = model.cuda(args.gpu)
     else:
         # DataParallel will divide and allocate batch_size to all available GPUs
-        if args.arch.startswith('alexnet') or args.arch.startswith('vgg'):
+        if args.arch.startswith("alexnet") or args.arch.startswith("vgg"):
             model.features = torch.nn.DataParallel(model.features)
             model.cuda()
         else:
@@ -344,62 +427,87 @@ def main_worker(gpu, ngpus_per_node, args):
     # define loss function (criterion) and optimizer
     criterion = nn.CrossEntropyLoss().cuda(args.gpu)
 
-    optimizer = torch.optim.SGD(model.parameters(), args.lr,
-                                momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        args.lr,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
+    )
 
     # optionally resume from a checkpoint
     if args.resume:
         if os.path.isfile(args.resume):
-            print("=> loading checkpoint '{}'".format(args.resume))
+            print(f"=> loading checkpoint '{args.resume}'")
             checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_acc1']
+            args.start_epoch = checkpoint["epoch"]
+            best_acc1 = checkpoint["best_acc1"]
             if args.gpu is not None:
                 # best_acc1 may be from a checkpoint from a different GPU
                 best_acc1 = best_acc1.to(args.gpu)
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+            model.load_state_dict(checkpoint["state_dict"])
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            print(
+                "=> loaded checkpoint '{}' (epoch {})".format(
+                    args.resume, checkpoint["epoch"]
+                )
+            )
         else:
-            print("=> no checkpoint found at '{}'".format(args.resume))
+            print(f"=> no checkpoint found at '{args.resume}'")
 
     cudnn.benchmark = True
 
     # Data loading code
-    traindir = os.path.join(args.data, 'train')
-    valdir = os.path.join(args.data, 'val')
-    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                     std=[0.229, 0.224, 0.225])
+    traindir = os.path.join(args.data, "train")
+    valdir = os.path.join(args.data, "val")
+    normalize = transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
 
     train_dataset = FakeData(
-        size=256*100, image_size=(3,224,224), num_classes=10,
-        transform=transforms.Compose([
-            transforms.RandomResizedCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            normalize,
-        ]))
+        size=256 * 100,
+        image_size=(3, 224, 224),
+        num_classes=10,
+        transform=transforms.Compose(
+            [
+                transforms.RandomResizedCrop(224),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                normalize,
+            ]
+        ),
+    )
 
     if args.distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     else:
         train_sampler = None
-    
+
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=(train_sampler is None),
-        num_workers=args.workers, pin_memory=True, sampler=train_sampler)
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=(train_sampler is None),
+        num_workers=args.workers,
+        pin_memory=True,
+        sampler=train_sampler,
+    )
 
     val_loader = torch.utils.data.DataLoader(
-        datasets.ImageFolder(valdir, transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.ToTensor(),
-            normalize,
-        ])),
-        batch_size=args.batch_size, shuffle=False,
-        num_workers=args.workers, pin_memory=True)
+        datasets.ImageFolder(
+            valdir,
+            transforms.Compose(
+                [
+                    transforms.Resize(256),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    normalize,
+                ]
+            ),
+        ),
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.workers,
+        pin_memory=True,
+    )
 
     if args.evaluate:
         validate(val_loader, model, criterion, args)
@@ -420,27 +528,32 @@ def main_worker(gpu, ngpus_per_node, args):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank % ngpus_per_node == 0):
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'arch': args.arch,
-                'state_dict': model.state_dict(),
-                'best_acc1': best_acc1,
-                'optimizer' : optimizer.state_dict(),
-            }, is_best)
+        if not args.multiprocessing_distributed or (
+            args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
+        ):
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "arch": args.arch,
+                    "state_dict": model.state_dict(),
+                    "best_acc1": best_acc1,
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best,
+            )
 
 
 def train(train_loader, model, criterion, optimizer, epoch, args):
-    batch_time = AverageMeter('Time', ':6.3f')
-    data_time = AverageMeter('Data', ':6.3f')
-    losses = AverageMeter('Loss', ':.4e')
-    top1 = AverageMeter('Acc@1', ':6.2f')
-    top5 = AverageMeter('Acc@5', ':6.2f')
+    batch_time = AverageMeter("Time", ":6.3f")
+    data_time = AverageMeter("Data", ":6.3f")
+    losses = AverageMeter("Loss", ":.4e")
+    top1 = AverageMeter("Acc@1", ":6.2f")
+    top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
         len(train_loader),
         [batch_time, data_time, losses, top1, top5],
-        prefix="Epoch: [{}]".format(epoch))
+        prefix=f"Epoch: [{epoch}]",
+    )
 
     # switch to train mode
     model.train()
@@ -449,7 +562,7 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
     for i, (images, target) in enumerate(train_loader):
         # measure data loading time
         data_time.update(time.time() - end)
-        
+
         if args.gpu is not None:
             images = images.cuda(args.gpu, non_blocking=True)
         target = target.cuda(args.gpu, non_blocking=True)
@@ -478,14 +591,13 @@ def train(train_loader, model, criterion, optimizer, epoch, args):
 
 
 def validate(val_loader, model, criterion, args):
-    batch_time = AverageMeter('Time', ':6.3f')
-    losses = AverageMeter('Loss', ':.4e')
-    top1 = AverageMeter('Acc@1', ':6.2f')
-    top5 = AverageMeter('Acc@5', ':6.2f')
+    batch_time = AverageMeter("Time", ":6.3f")
+    losses = AverageMeter("Loss", ":.4e")
+    top1 = AverageMeter("Acc@1", ":6.2f")
+    top5 = AverageMeter("Acc@5", ":6.2f")
     progress = ProgressMeter(
-        len(val_loader),
-        [batch_time, losses, top1, top5],
-        prefix='Test: ')
+        len(val_loader), [batch_time, losses, top1, top5], prefix="Test: "
+    )
 
     # switch to evaluate mode
     model.eval()
@@ -515,21 +627,23 @@ def validate(val_loader, model, criterion, args):
                 progress.display(i)
 
         # TODO: this should also be done with the ProgressMeter
-        print(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
-              .format(top1=top1, top5=top5))
+        print(
+            " * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}".format(top1=top1, top5=top5)
+        )
 
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
+def save_checkpoint(state, is_best, filename="checkpoint.pth.tar"):
     torch.save(state, filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(filename, "model_best.pth.tar")
 
 
-class AverageMeter(object):
+class AverageMeter:
     """Computes and stores the average and current value"""
-    def __init__(self, name, fmt=':f'):
+
+    def __init__(self, name, fmt=":f"):
         self.name = name
         self.fmt = fmt
         self.reset()
@@ -547,11 +661,11 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
     def __str__(self):
-        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
         return fmtstr.format(**self.__dict__)
 
 
-class ProgressMeter(object):
+class ProgressMeter:
     def __init__(self, num_batches, meters, prefix=""):
         self.batch_fmtstr = self._get_batch_fmtstr(num_batches)
         self.meters = meters
@@ -560,19 +674,19 @@ class ProgressMeter(object):
     def display(self, batch):
         entries = [self.prefix + self.batch_fmtstr.format(batch)]
         entries += [str(meter) for meter in self.meters]
-        print('\t'.join(entries))
+        print("\t".join(entries))
 
     def _get_batch_fmtstr(self, num_batches):
         num_digits = len(str(num_batches // 1))
-        fmt = '{:' + str(num_digits) + 'd}'
-        return '[' + fmt + '/' + fmt.format(num_batches) + ']'
+        fmt = "{:" + str(num_digits) + "d}"
+        return "[" + fmt + "/" + fmt.format(num_batches) + "]"
 
 
 def adjust_learning_rate(optimizer, epoch, args):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
     lr = args.lr * (0.1 ** (epoch // 30))
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        param_group["lr"] = lr
 
 
 def accuracy(output, target, topk=(1,)):
@@ -592,5 +706,5 @@ def accuracy(output, target, topk=(1,)):
         return res
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
