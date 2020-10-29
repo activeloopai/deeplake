@@ -46,6 +46,11 @@ jobs:
             pip install -r requirements.txt
             pip install -e .
       - run:
+          name: "Checking code style"
+          command: |
+            pip install flake8
+            flake8 . --count --exit-zero --max-complexity=10 --statistics
+      - run:
           name: "Running tests"
           command: |
             export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
