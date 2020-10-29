@@ -18,8 +18,8 @@ class DatasetView:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        slice_ = [0] + slice_ if self.num_samples == 1 else slice_
         subpath, slice_list = slice_split(slice_)
+        slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError("Can't slice a dataset with multiple slices without subpath")
@@ -31,8 +31,8 @@ class DatasetView:
                 return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
-            slice_list[0] = slice(ofs + self.offset, ofs + self.offset + num)
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else (1, slice_list[0])
+            slice_list[0] = ofs + self.offset if num == 1 else slice(ofs + self.offset, ofs + self.offset + num)
             if subpath in self.dataset._tensors.keys():
                 return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_list)
             if len(slice_list) > 1:
@@ -44,16 +44,15 @@ class DatasetView:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        if self.num_samples == 1:
-            slice_ = [0] + slice_
         subpath, slice_list = slice_split(slice_, all_slices=False)
+        slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
             slice_ = self.offset if self.num_samples == 1 else slice(self.offset, self.offset + self.num_samples)
             self.dataset._tensors[subpath][slice_] = value  # Add path check
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else 1, slice_list[0]
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else (1, slice_list[0])
             slice_list[0] = slice(ofs + self.offset, ofs + self.offset + num) if num > 1 else ofs + self.offset
             self.dataset._tensors[subpath][slice_list] = value
 
