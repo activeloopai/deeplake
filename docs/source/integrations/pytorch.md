@@ -1,6 +1,6 @@
 # PyTorch
 
-Here is an example to transform the dataset into pytorch form.
+Here is an example to transform the dataset into Pytorch form.
 
 ```
 import torch
@@ -9,7 +9,7 @@ from hub import dataset
 # Load data
 ds = dataset.load("mnist/mnist")
 
-# Transform into pytorch
+# Transform into Pytorch
 ds = ds.to_pytorch(transform=None)
 ds = torch.utils.data.DataLoader(
     ds, batch_size=8, num_workers=8, collate_fn=ds.collate_fn

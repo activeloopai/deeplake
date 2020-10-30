@@ -28,7 +28,7 @@ t = tensor.from_zeros(np.zeros((10, 512, 512)))
 
 ## Concat or Stack
 
-Concating or stacking tensors works as in other frameworks.
+Concatenating or stacking tensors works as in other frameworks.
 
 ```python
 from hub import tensor
