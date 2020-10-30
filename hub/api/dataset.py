@@ -2,7 +2,7 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 
-from hub.features import featurify, FeatureConnector, FlatTensor
+from hub.features.features import featurify, FeatureConnector, FlatTensor
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
