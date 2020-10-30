@@ -10,12 +10,13 @@ from hub.store.store import get_fs_and_path, get_storage_map
 
 from hub.exceptions import DynamicTensorNotFoundException
 from hub.api.dataset_utils import slice_extract_info
+
 StorageTensor = storage_tensor.StorageTensor
 
 Shape = Tuple[int, ...]
 
 
-class Tensor:
+class DynamicTensor:
     """Class for handling dynamic tensor
 
     This class adds dynamic nature to storage tensor.
@@ -168,7 +169,9 @@ class Tensor:
                 if isinstance(slice_[i], slice):
                     shape_offset += 1
             new_shape += value_shape[shape_offset:]
-            self._dynamic_tensor[slice_[0]] = list(np.maximum(self._dynamic_tensor[slice_[0]], new_shape))
+            self._dynamic_tensor[slice_[0]] = list(
+                np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
+            )
         else:
             raise ValueError("Setting shape across multiple dimensions isn't supported")
 

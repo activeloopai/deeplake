@@ -12,7 +12,7 @@ import json
 import hub.features.serialize
 import hub.features.deserialize
 
-from hub.api.tensor import Tensor
+from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.store.metastore import MetaStorage
@@ -76,7 +76,7 @@ class Dataset:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
             self._fs.makedirs(path)
-            yield t.path, Tensor(
+            yield t.path, DynamicTensor(
                 path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
@@ -93,7 +93,7 @@ class Dataset:
         for t in self._flat_tensors:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
-            yield t.path, Tensor(
+            yield t.path, DynamicTensor(
                 path,
                 mode=self.mode,
                 shape=self.shape + t.shape,
