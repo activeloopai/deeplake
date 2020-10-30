@@ -627,7 +627,7 @@ class Dataset:
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
-            output_shapes=output_shapes,
+            # output_shapes=output_shapes, # commenting out this so TF takes the shape whatever is passed
         )
 
 
