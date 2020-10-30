@@ -26,7 +26,10 @@ def test_s3_open():
         shape=[50, 100, 100],
         dtype="int32",
     )
+
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
+    tensor.commit()
+
     assert tensor.shape == (50, 100, 100)
     assert tensor.chunks == (50, 100, 100)
     assert tensor.dtype == "int32"
@@ -41,6 +44,7 @@ def test_gcs_open():
         dtype="int32",
     )
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
+    tensor.commit()
     assert tensor.shape == (50, 100, 100)
     assert tensor.chunks == (50, 100, 100)
     assert tensor.dtype == "int32"
@@ -79,7 +83,7 @@ def test_hubbackend():
 
 
 if __name__ == "__main__":
-    # test_s3_open()
+    test_s3_open()
     test_open()
     test_memcache()
     test_hubbackend()

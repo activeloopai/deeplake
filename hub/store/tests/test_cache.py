@@ -1,7 +1,6 @@
 from hub.store.cache import Cache
 import zarr
 import time
-import pytest
 import posixpath
 
 
@@ -17,7 +16,6 @@ class SlowStore(zarr.MemoryStore):
         super(SlowStore, self).__setitem__(key, value, **kwargs)
 
 
-# @pytest.mark.skipif(True, reason="requires ")
 def test_cache():
     store = SlowStore()
     store = Cache(store, max_size=1000000)
