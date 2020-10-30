@@ -43,7 +43,8 @@ class CocoGenerator(dataset.DatasetGenerator):
                         self._args.dataset_path,
                         get_image_name(self._args, self._tag, input["image_id"]),
                     )
-                ), dtype=np.uint32
+                ),
+                dtype=np.uint32,
             )
             ds["segmentation"] = np.empty(1, np.uint32)
             ds["area"] = np.empty(1, np.uint32)
