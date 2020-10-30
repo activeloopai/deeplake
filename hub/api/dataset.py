@@ -65,6 +65,7 @@ class Dataset:
             meta = {
                 "shape": shape,
                 "dtype": hub.features.serialize.serialize(self.dtype),
+                "version": 1,
             }
             fs_map[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
@@ -110,12 +111,16 @@ class Dataset:
         subpath, slice_list = slice_split(slice_)
         if not subpath:
             if len(slice_list) > 1:
-                raise ValueError("Can't slice a dataset with multiple slices without subpath")
+                raise ValueError(
+                    "Can't slice a dataset with multiple slices without subpath"
+                )
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
             return DatasetView(dataset=self, num_samples=num, offset=ofs)
         elif not slice_list:
             if subpath in self._tensors.keys():
-                return TensorView(dataset=self, subpath=subpath, slice_=slice(0, self.shape[0]))
+                return TensorView(
+                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
+                )
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
