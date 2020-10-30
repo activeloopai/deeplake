@@ -20,13 +20,13 @@ def test_open():
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_open():
-    StorageTensor(
+    tensor = StorageTensor(
         "s3://snark-test/test_storage_tensor/test_s3_open",
         mode="w",
         shape=[50, 100, 100],
         dtype="int32",
     )
-    tensor = StorageTensor("s3://snark-test/test_storage_tensor/test_s3_open", mode="r")
+    # tensor = StorageTensor("s3://snark-test/test_storage_tensor/test_s3_open", mode="r")
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
     assert tensor.shape == (50, 100, 100)
     assert tensor.chunks == (50, 100, 100)
@@ -35,15 +35,15 @@ def test_s3_open():
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_gcs_open():
-    StorageTensor(
+    tensor = StorageTensor(
         "gcs://snark-test/test_storage_tensor/test_gcs_open",
         mode="w",
         shape=[50, 100, 100],
         dtype="int32",
     )
-    tensor = StorageTensor(
-        "gcs://snark-test/test_storage_tensor/test_gcs_open", mode="r"
-    )
+    # tensor = StorageTensor(
+    #    "gcs://snark-test/test_storage_tensor/test_gcs_open", mode="r"
+    # )
     tensor[25:35, 10:20, 0] = np.ones((10, 10), dtype="int32")
     assert tensor.shape == (50, 100, 100)
     assert tensor.chunks == (50, 100, 100)
