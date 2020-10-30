@@ -9,7 +9,7 @@ import hub.store.storage_tensor as storage_tensor
 from hub.store.store import get_fs_and_path, get_storage_map
 
 from hub.exceptions import DynamicTensorNotFoundException
-
+from hub.api.dataset_utils import slice_extract_info
 StorageTensor = storage_tensor.StorageTensor
 
 Shape = Tuple[int, ...]
@@ -133,7 +133,8 @@ class Tensor:
                     real_shapes[r] = max(
                         real_shapes[r], self._get_slice_upper_boundary(slice_[i])
                     )
-        self.set_shape(slice_, value)
+        if self._dynamic_tensor:
+            self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
@@ -142,6 +143,8 @@ class Tensor:
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
+        if self._dynamic_tensor is None:
+            return self.shape
         final_shape = []
         shape_offset = 0
         for item in slice_[1:]:
@@ -153,6 +156,9 @@ class Tensor:
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
+        if isinstance(slice_[0], slice):
+            num, ofs = slice_extract_info(slice_[0], self.shape[0])
+            slice_[0] = ofs if num == 1 else slice_[0]
         if isinstance(slice_[0], int):
             value_shape = list(value.shape) if isinstance(value, np.ndarray) else [1]
             new_shape = []
