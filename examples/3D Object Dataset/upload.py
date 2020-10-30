@@ -47,8 +47,7 @@ class DatasetGenerator(Transform):
 
     def forward(self, image_info):
         # we need to return a dictionary of numpy arrays from here
-        ds = {}
-        ds["image_label"] = np.empty(1, dtype="int")
+        ds = {"image_label": np.empty(1, dtype="int")}
         ds["image_label"][0] = image_info["image_label"]
 
         ds["named_image_label"] = np.empty(1, dtype="object")
@@ -62,8 +61,7 @@ class DatasetGenerator(Transform):
 
 
 def map_labels(labels_list):
-    dic = {labels_list[i]: i for i in range(1, NUM_FEATURES + 1)}
-    return dic
+    return {labels_list[i]: i for i in range(1, NUM_FEATURES + 1)}
 
 
 def load_dataset(base_path):
