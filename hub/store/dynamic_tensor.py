@@ -20,7 +20,7 @@ class DynamicTensor:
     """Class for handling dynamic tensor
 
     This class adds dynamic nature to storage tensor.
-    The shape of tensor depends on the index of the first dim.
+    The shape of tensor depends only on the index of the first dim.
     """
 
     # TODO Make first dim is extensible as well
@@ -37,6 +37,36 @@ class DynamicTensor:
         fs=None,
         fs_map=None,
     ):
+        """Constructor
+        Parameters
+        ----------
+        url : str
+            Path of folder where tensor should be stored, can be remote s3, gcs, ... path
+        mode : str
+            Mode in which tensor is opened (default is "r"), can be used to overwrite or append
+        shape : Tuple[int | None]
+            Shape of tensor, (must be specified) can contains Nones meaning the shape might change
+        max_shape: Tuple[int | None]
+            Maximum possible shape of the tensor (must be specified)
+        dtype : str
+            Numpy analog dtype for this tensor
+        token : str | dict
+            Access token for s3 or gcs resource. Could be anything referencing to credentials
+            Could be filepath, str, dict
+        memcache : int
+            Number of bytes to use for caching this tensor
+        chunks : Tuple[int] | True
+            How to split the tensor into chunks (files) (default is True)
+            If chunks=True then chunksize will automatically be detected
+        fs : fsspec.AbstractFileSystem
+            What filesystem use for read/write
+            if not specified it will be generated from url and token
+        fs_map : MutableMap
+            Maps filesystem to MutableMap
+            If not specified will be generated from fs.
+            Note there is multiple ways so far to specify filesystem access
+            url + token, fs and url in that fs, fs_map
+        """
         fs, path = (fs, url) if fs else get_fs_and_path(url, token=token)
         if ("w" in mode or "a" in mode) and not fs.exists(path):
             fs.makedirs(path)
