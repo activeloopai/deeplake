@@ -25,7 +25,7 @@ class CocoGenerator(dataset.DatasetGenerator):
             "iscrowd": {"shape": (1,), "dtype": "uint8", "chunksize": 1000},
             "image_id": {"shape": (1,), "dtype": "int64"},
             "bbox": {"shape": (1,), "dtype": "uint16", "chunksize": 1000},
-            "category_id": {"shape": (1,), "dtype": "int64", "chunksize": 1000},
+            "category_id": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
             "id": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
             "image": {"shape": (1,), "dtype": "uint32", "chunksize": 100},
         }
@@ -36,7 +36,7 @@ class CocoGenerator(dataset.DatasetGenerator):
             # print(f"Image id: {input['image_id']}")
             ds["image_id"] = input["image_id"]
             info = input["info"]
-            ds["image"] = np.empty(1, np.uint32)
+            ds["image"] = np.empty(1, "uint32")
             ds["image"][0] = np.array(
                 Image.open(
                     os.path.join(
@@ -44,14 +44,14 @@ class CocoGenerator(dataset.DatasetGenerator):
                         get_image_name(self._args, self._tag, input["image_id"]),
                     )
                 ),
-                dtype=np.uint32,
+                dtype="uint32",
             )
-            ds["segmentation"] = np.empty(1, np.uint32)
-            ds["area"] = np.empty(1, np.uint32)
-            ds["iscrowd"] = np.empty(1, np.uint8)
-            ds["bbox"] = np.empty(1, np.np.uint16)
-            ds["category_id"] = np.empty(1, np.uint8)
-            ds["id"] = np.empty(1, np.uint32)
+            ds["segmentation"] = np.empty(1, "uint32")
+            ds["area"] = np.empty(1, "uint32")
+            ds["iscrowd"] = np.empty(1, "uint8")
+            ds["bbox"] = np.empty(1, "uint16")
+            ds["category_id"] = np.empty(1, "uint32")
+            ds["id"] = np.empty(1, "uint32")
 
             ds["segmentation"][0] = [anno["segmentation"] for anno in info]
             ds["area"][0] = [anno["area"] for anno in info]
