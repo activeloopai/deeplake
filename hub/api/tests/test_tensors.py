@@ -46,7 +46,7 @@ def test_dynamic_tensor_3():
 
 def test_dynamic_tensor_shapes():
     t = Tensor(
-        "./data/test/test_dynamic_tensor_4",
+        "./data/test/test_dynamic_tensor_5",
         mode="w",
         shape=(5, None, None),
         max_shape=(5, 100, 100),
@@ -59,7 +59,7 @@ def test_dynamic_tensor_shapes():
 
 def test_dynamic_tensor_4():
     t = Tensor(
-        "./data/test/test_dynamic_tensor_4",
+        "./data/test/test_dynamic_tensor_6",
         mode="w",
         shape=(5, None, None, None),
         max_shape=(5, 100, 100, 10),
@@ -71,7 +71,7 @@ def test_dynamic_tensor_4():
 
 def test_chunk_iterator():
     t = Tensor(
-        "./data/test/test_dynamic_tensor_4",
+        "./data/test/test_dynamic_tensor_7",
         mode="w",
         shape=(50, 100, 100, 100),
         max_shape=(50, 100, 100, 100),
