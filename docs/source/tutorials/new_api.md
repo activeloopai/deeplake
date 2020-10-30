@@ -6,7 +6,7 @@ Eventually we plan to migrate to this format and stick to it for long time.
 Here is some features of new hub: 
 1. Ability to modify datasets on fly. Datasets are no longer immutable and can be modified over time
 2. Larger datasets can now be uploaded as we removed some RAM limiting components from the hub 
-3. Caching is introduced so improve IO performance.
+3. Caching is introduced to improve IO performance.
 4. Dynamic shaping enables very large images/data support. You can have large images/data stored in hub. 
 
 More features coming: 

@@ -5,7 +5,7 @@ import ray
 from hub.utils import batch
 
 
-class Transformer:
+class Transform:
     def __init__(self, func, dtype, ds):
         self._func = func
         self._dtype = dtype
@@ -88,7 +88,7 @@ class Transformer:
 def transform(dtype):
     def wrapper(func):
         def inner(ds):
-            return Transformer(func, dtype, ds)
+            return Transform(func, dtype, ds)
 
         return inner
 
