@@ -16,7 +16,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
         arch: [x64]
 
     steps:
