@@ -72,13 +72,13 @@ class MPIIGenerator(dataset.DatasetGenerator):
             ds["dataset"][i] = input["dataset"]
             ds["isValidation"][i] = input["isValidation"]
             ds["img_paths"][i] = input["img_paths"]
-            ds['img_width'][i] = input["img_width"]
+            ds["img_width"][i] = input["img_width"]
             ds["img_height"][i] = input["img_height"]
             """
             Some features in input list has another list(more than one list) inside them.
             So they are converted to array using np.array(list(list()).
             """
-            ds["objpos"][i] = np.array(input["objpos"])   
+            ds["objpos"][i] = np.array(input["objpos"])
             ds["joint_self"][i] = np.array(input["joint_self"])
             ds["scale_provided"][i] = input["scale_provided"]
             ds["joint_others"][i] = np.array(input["joint_others"])
@@ -102,7 +102,7 @@ def load_dataset():
     in the list(annotations). Finally it returns the complete dataset with all examples.
     """
 
-    with open("/home/sanchit/mpii_annotations.json","r") as f:
+    with open("/home/sanchit/mpii_annotations.json", "r") as f:
 
         instances = json.load(f)
 
