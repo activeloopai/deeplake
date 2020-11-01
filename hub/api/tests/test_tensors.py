@@ -1,10 +1,10 @@
 import numpy as np
 
-from hub.api.tensor import Tensor
+from hub.store.dynamic_tensor import DynamicTensor
 
 
 def test_dynamic_tensor():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor",
         mode="w",
         shape=(5, 100, 100),
@@ -16,7 +16,7 @@ def test_dynamic_tensor():
 
 
 def test_dynamic_tensor_2():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor_2",
         mode="w",
         shape=(5, None, None),
@@ -31,7 +31,7 @@ def test_dynamic_tensor_2():
 
 
 def test_dynamic_tensor_3():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor_3",
         mode="w",
         shape=(5, None, None, None),
@@ -45,7 +45,7 @@ def test_dynamic_tensor_3():
 
 
 def test_dynamic_tensor_shapes():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor_5",
         mode="w",
         shape=(5, None, None),
@@ -58,7 +58,7 @@ def test_dynamic_tensor_shapes():
 
 
 def test_dynamic_tensor_4():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor_6",
         mode="w",
         shape=(5, None, None, None),
@@ -70,7 +70,7 @@ def test_dynamic_tensor_4():
 
 
 def test_chunk_iterator():
-    t = Tensor(
+    t = DynamicTensor(
         "./data/test/test_dynamic_tensor_7",
         mode="w",
         shape=(50, 100, 100, 100),
