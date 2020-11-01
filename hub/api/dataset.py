@@ -16,8 +16,14 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.store.metastore import MetaStorage
-import torch
-import tensorflow as tf
+try:
+    import torch
+except ImportError:
+    pass
+try:
+    import tensorflow as tf
+except ImportError:
+    pass
 
 
 class Dataset:
