@@ -30,11 +30,12 @@ def open(url: str = None, mode: str = None, shape=None, dtype=None, token=None):
     url: str
         The url where dataset is located/should be created
     mode: str
-        Python way to tell whether dataset is for read or write (ex. "r", "w", "w+")
+        Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
     shape: tuple, optional
         Tuple with (num_samples,) format, where num_samples is number of samples
     dtype: optional
         Describes the data of a single sample. Hub features are used for that
+        Required for 'a' and 'w' modes
     token: str or dict, optional
         If url is refering to a place where authorization is required,
         token is the parameter to pass the credentials, it can be filepath or dict

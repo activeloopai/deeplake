@@ -2,7 +2,14 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 
-from hub.features.features import Primitive, Tensor, FeatureDict, FeatureConnector, featurify, FlatTensor
+from hub.features.features import (
+    Primitive,
+    Tensor,
+    FeatureDict,
+    FeatureConnector,
+    featurify,
+    FlatTensor,
+)
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -16,6 +23,7 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.store.metastore import MetaStorage
+
 try:
     import torch
 except ImportError:
@@ -112,7 +120,18 @@ class Dataset:
             )
 
     def __getitem__(self, slice_):
-        """Gets a slice or slices from dataset"""
+        """Gets a slice or slices from dataset
+        Examples
+        --------
+        return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
+
+        images = ds["image"]
+        return images[5].compute() # returns numpy array
+
+        images = ds["image"]
+        image = images[5]
+        return image[0:1920, 0:1080, 0:3].compute()
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -139,7 +158,15 @@ class Dataset:
             return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        """"Sets a slice or slices with a value"""
+        """ "Sets a slice or slices with a value
+        Examples
+        --------
+        ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+
+        images = ds["image"]
+        image = images[5]
+        image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -168,7 +195,7 @@ class Dataset:
                             cur[split_key[i]] = {}
                             cur = cur[split_key[i]]
                     cur[split_key[-1]] = self._tensors[key][index]
-                yield(d)
+                yield (d)
 
         def dict_to_tf(my_dtype):
             d = {}
@@ -187,7 +214,9 @@ class Dataset:
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
             else:
-                print(my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor))
+                print(
+                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
+                )
 
         output_types = dtype_to_tf(self.dtype)
         print(output_types)
@@ -218,13 +247,18 @@ class Dataset:
         return tensor_dict
 
     def __iter__(self):
+        """ Returns Iterable over samples """
         for i in range(len(self)):
             yield self[i]
 
     def __len__(self):
+        """ Number of samples in the dataset """
         return self.shape[0]
 
     def commit(self):
+        """Save changes from cache to dataset final storage
+        This invalidates this object
+        """
         for t in self._tensors.values():
             t.commit()
 
@@ -285,5 +319,4 @@ class TorchDataset:
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
-            yield(d)
-
+            yield (d)
