@@ -102,6 +102,31 @@ def test_dataset_with_chunks():
     ).all()
 
 
+def test_dataset_dynamic_shaped():
+    dtype = {
+        "first": Tensor(
+            shape=(None, None),
+            dtype="int32",
+            max_shape=(100, 100),
+            chunks=(100, 100, 100),
+        )
+    }
+    ds = Dataset(
+        "./data/test/test_dataset_dynamic_shaped",
+        token=None,
+        shape=(1000,),
+        mode="w",
+        dtype=dtype,
+    )
+
+    ds["first", 50, 50:60, 50:60] = np.ones((10, 10), "int32")
+    assert (ds["first", 50, 50:60, 50:60].numpy() == np.ones((10, 10), "int32")).all()
+
+    ds["first", 0, :10, :10] = np.ones((10, 10), "int32")
+    ds["first", 0, 10:20, 10:20] = 5 * np.ones((10, 10), "int32")
+    assert (ds["first", 0, 0:10, 0:10].numpy() == np.ones((10, 10), "int32")).all()
+
+
 def test_dataset_enter_exit():
     with Dataset(
         "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
@@ -126,4 +151,4 @@ def test_dataset_enter_exit():
 
 if __name__ == "__main__":
     # test_dataset()
-    test_dataset2()
+    test_dataset_dynamic_shaped()

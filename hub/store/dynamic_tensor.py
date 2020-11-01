@@ -105,7 +105,6 @@ class DynamicTensor:
                     mode=mode,
                     memcache=2 ** 25,
                     fs=fs,
-                    fs_map=fs_map,
                 )
                 if self._dynamic_dims
                 else None
