@@ -42,6 +42,7 @@ jobs:
         pip install torch
         pip install tensorflow
         pip install recommonmark
+        pip install tools
         pip install pytest
         pip install pytest-cov
         pytest . --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
