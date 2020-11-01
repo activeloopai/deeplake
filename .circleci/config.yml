@@ -32,8 +32,6 @@ jobs:
   test:
     docker:
       - image: circleci/python:3.8
-    environment:
-      IMAGE_NAME: activeloopai/hub
     steps:
       - checkout
       - run:
@@ -70,6 +68,8 @@ jobs:
   deploy:
     docker:
       - image: circleci/python:3.8
+    environment:
+      IMAGE_NAME: snarkai/hub
     steps:
       - checkout
       - run:
