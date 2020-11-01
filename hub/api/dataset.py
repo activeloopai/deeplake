@@ -2,7 +2,7 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 
-from hub.features import featurify, FeatureConnector, FlatTensor
+from hub.features.features import Primitive, Tensor, FeatureDict, FeatureConnector, featurify, FlatTensor
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -16,6 +16,9 @@ from hub.api.tensor import Tensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import OverwriteIsNotSafeException
 from hub.store.metastore import MetaStorage
+import torch
+import tensorflow as tf
+
 
 
 class Dataset:
@@ -143,6 +146,51 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
+    def to_pytorch(self, Transform=None):
+        return TorchDataset(self, Transform)
+
+    def to_tensorflow(self):
+        def tf_gen():
+            for index in range(self.shape[0]):
+                d = {}
+                for key in self._tensors.keys():
+                    split_key = key.split("/")
+                    cur = d
+                    for i in range(1, len(split_key) - 1):
+                        if split_key[i] in cur.keys():
+                            cur = cur[split_key[i]]
+                        else:
+                            cur[split_key[i]] = {}
+                            cur = cur[split_key[i]]
+                    cur[split_key[-1]] = self._tensors[key][index]
+                yield(d)
+
+        def dict_to_tf(my_dtype):
+            d = {}
+            for k, v in my_dtype.dict_.items():
+                d[k] = dtype_to_tf(v)
+            return d
+
+        def tensor_to_tf(my_dtype):
+            return dtype_to_tf(my_dtype.dtype)
+
+        def dtype_to_tf(my_dtype):
+            if isinstance(my_dtype, FeatureDict):
+                return dict_to_tf(my_dtype)
+            elif isinstance(my_dtype, Tensor):
+                return tensor_to_tf(my_dtype)
+            elif isinstance(my_dtype, Primitive):
+                return str(my_dtype._dtype)
+            else:
+                print(my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor))
+
+        output_types = dtype_to_tf(self.dtype)
+        print(output_types)
+        return tf.data.Dataset.from_generator(
+            tf_gen,
+            output_types=output_types,
+        )
+
     def _get_dictionary(self, subpath, slice_=None):
         """"Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
@@ -192,3 +240,45 @@ def open(
     url: str = None, token=None, num_samples: int = None, mode: str = None
 ) -> Dataset:
     raise NotImplementedError()
+
+
+class TorchDataset:
+    def __init__(self, ds, transform=None):
+        self._ds = ds
+        self._transform = transform
+
+    def _do_transform(self, data):
+        return self._transform(data) if self._transform else data
+
+    def __len__(self):
+        return self._ds.shape[0]
+
+    def __getitem__(self, index):
+        d = {}
+        for key in self._ds._tensors.keys():
+            split_key = key.split("/")
+            cur = d
+            for i in range(1, len(split_key) - 1):
+                if split_key[i] in cur.keys():
+                    cur = cur[split_key[i]]
+                else:
+                    cur[split_key[i]] = {}
+                    cur = cur[split_key[i]]
+            cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+        return d
+
+    def __iter__(self):
+        for index in range(self.shape[0]):
+            d = {}
+            for key in self._ds._tensors.keys():
+                split_key = key.split("/")
+                cur = d
+                for i in range(1, len(split_key) - 1):
+                    if split_key[i] in cur.keys():
+                        cur = cur[split_key[i]]
+                    else:
+                        cur[split_key[i]] = {}
+                        cur = cur[split_key[i]]
+                cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
+            yield(d)
+
