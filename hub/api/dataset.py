@@ -45,9 +45,10 @@ class Dataset:
         fs=None,
         fs_map=None,
     ):
-        assert dtype is not None
-        assert shape is not None
-        assert len(tuple(shape)) == 1
+        # assert dtype is not None
+        # assert shape is not None
+        if shape is not None:
+            assert len(tuple(shape)) == 1
         assert url is not None
         assert mode is not None
 
@@ -70,14 +71,14 @@ class Dataset:
             fs.makedirs(path)
         exist = False if "w" in mode else bool(fs_map.get(".hub.dataset"))
         if exist:
-            meta = json.loads(str(fs_map[".hub.dataset"]))
-            self.shape = meta["shape"]
+            meta = json.loads(fs_map[".hub.dataset"].decode("utf-8"))
+            self.shape = tuple(meta["shape"])
             self.dtype = hub.features.deserialize.deserialize(meta["dtype"])
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
             self.dtype: FeatureConnector = featurify(dtype)
-            self.shape = shape
+            self.shape = tuple(shape)
             meta = {
                 "shape": shape,
                 "dtype": hub.features.serialize.serialize(self.dtype),

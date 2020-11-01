@@ -76,7 +76,7 @@ class DynamicTensor:
         #     raise OverwriteIsNotSafeException()
         exist = False if "w" in mode else exist_ is not None
         if exist:
-            meta = json.loads(str(fs_map.get(".hub.dynamic_tensor")))
+            meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
             shape = meta["shape"]
         else:
             meta = {"shape": shape}

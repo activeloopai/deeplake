@@ -57,9 +57,9 @@ class FeatureDict(FeatureConnector):
 
 class Tensor(FeatureConnector):
     def __init__(self, shape: Shape, dtype, max_shape: Shape = None, chunks=True):
-        self.shape = shape
+        self.shape = tuple(shape)
         self.dtype = featurify(dtype)
-        self.max_shape = max_shape or shape
+        self.max_shape = tuple(max_shape or shape)
         self.chunks = chunks
 
     def _flatten(self):
@@ -69,5 +69,6 @@ class Tensor(FeatureConnector):
                 self.shape + item.shape,
                 item.dtype,
                 self.max_shape + item.max_shape,
-                item.chunks,
+                # FIXME get chunks=None and write line below for that case
+                self.chunks if self.chunks is not True else item.chunks,
             )

@@ -99,7 +99,9 @@ class StorageTensor(Tensor):
                 overwrite=("w" in mode),
                 object_codec=numcodecs.Pickle() if str(dtype) == "object" else None,
             )
-            fs_map[".hub.storage_tensor"] = bytes(json.dumps(dict()), "utf-8")
+            fs_map[".hub.storage_tensor"] = bytes(
+                json.dumps({"storage_tensor": True}), "utf-8"
+            )
         self._shape = self._zarr.shape
         self._chunks = self._zarr.chunks
         self._dtype = self._zarr.dtype
