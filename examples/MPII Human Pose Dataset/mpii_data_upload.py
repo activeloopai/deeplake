@@ -93,6 +93,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
         except Exception as e:
             logger.error(e, exc_info=e, stack_info=True)
 
+
 def load_dataset():
     """
     This function is used to load json annotations in the form of dictionary and then
@@ -118,6 +119,7 @@ def load_dataset():
     print("Dataset generated.")
 
     return ds
+
 
 t1 = time.time()
 # Call the load_dataset function to generate the complete dataset
