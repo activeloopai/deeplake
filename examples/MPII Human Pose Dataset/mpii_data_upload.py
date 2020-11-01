@@ -117,11 +117,15 @@ def load_dataset():
     
     return ds
 
+def main():
 
-t1 = time.time()
-# Call the load_dataset function to generate the complete dataset.
-ds = load_dataset()
-# ds.store stores the dataset in "username/MPII_Human_Pose_Dataset"
-ds.store("MPII_Human_Pose_Dataset")
-t2 = time.time()
-print(f"Pipeline took {(t2 - t1) / 60} minutes")
+    t1 = time.time()
+    # Call the load_dataset function to generate the complete dataset.
+    ds = load_dataset()
+    # ds.store stores the dataset in "username/MPII_Human_Pose_Dataset"
+    ds.store("MPII_Human_Pose_Dataset")
+    t2 = time.time()
+    logger.info(f"Pipeline took {(t2 - t1) / 60} minutes")
+
+if __name__ == "__main__":
+    main()
