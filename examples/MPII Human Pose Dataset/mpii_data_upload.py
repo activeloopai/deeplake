@@ -14,7 +14,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
     Purpose of generator class is to return dictionary of arrays for the individual example.
     This class inherites from dataset.DatasetGenerator so it is called iteratively for the
     number of examples present in dataset.
-    We have defined two functions here:    
+    We have defined two functions here:
     meta: returns keys of the dictinary which are refered as features and labels of dataset.
     __call__ : this function takes the list of features(annotations in this case)as input and
     adds the features(or labels) according to the keys in a row of dataset.
@@ -36,8 +36,8 @@ class MPIIGenerator(dataset.DatasetGenerator):
             "scale_provided_other": {
                 "shape": (1,),
                 "dtype": "object",
-                "chunksize": 1000
-                },
+                "chunksize": 1000,
+            },
             "objpos_other": {"shape": (1,), "dtype": "object", "chunksize": 1000},
             "annolist_index": {"shape": (1,), "dtype": "object", "chunksize": 1000},
             "people_index": {"shape": (1,), "dtype": "object", "chunksize": 1000},
@@ -48,7 +48,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
 
         try:
             ds = {}
-            img_path = '/home/sanchit/images/'
+            img_path = "/home/sanchit/images/"
 
             n = 1  # for 1 row
             ds["image"] = np.empty(n, object)
@@ -68,25 +68,25 @@ class MPIIGenerator(dataset.DatasetGenerator):
             ds["numOtherPeople"] = np.empty(n, object)
 
             i = 0  # i = 0 for 1st row, i changes iteratively.
-            ds["image"][i] = np.array(Image.open(img_path + input['img_paths']))
-            ds["dataset"][i] = input['dataset']
-            ds["isValidation"][i] = input['isValidation']
-            ds["img_paths"][i] = input['img_paths']
-            ds['img_width'][i] = input['img_width']
-            ds["img_height"][i] = input['img_height']
+            ds["image"][i] = np.array(Image.open(img_path + input["img_paths"]))
+            ds["dataset"][i] = input["dataset"]
+            ds["isValidation"][i] = input["isValidation"]
+            ds["img_paths"][i] = input["img_paths"]
+            ds['img_width'][i] = input["img_width"]
+            ds["img_height"][i] = input["img_height"]
             """
             Some features in input list has another list(more than one list) inside them.
             So they are converted to array using np.array(list(list()).
             """
-            ds["objpos"][i] = np.array(input['objpos'])   
-            ds["joint_self"][i] = np.array(input['joint_self'])
-            ds["scale_provided"][i] = input['scale_provided']
-            ds["joint_others"][i] = np.array(input['joint_others'])
-            ds["scale_provided_other"][i] = np.array(input['scale_provided_other'])
-            ds["objpos_other"][i] = np.array(input['objpos_other'])
-            ds["annolist_index"][i] = input['annolist_index']
-            ds["people_index"][i] = input['people_index']
-            ds["numOtherPeople"][i] = input['numOtherPeople']
+            ds["objpos"][i] = np.array(input["objpos"])   
+            ds["joint_self"][i] = np.array(input["joint_self"])
+            ds["scale_provided"][i] = input["scale_provided"]
+            ds["joint_others"][i] = np.array(input["joint_others"])
+            ds["scale_provided_other"][i] = np.array(input["scale_provided_other"])
+            ds["objpos_other"][i] = np.array(input["objpos_other"])
+            ds["annolist_index"][i] = input["annolist_index"]
+            ds["people_index"][i] = input["people_index"]
+            ds["numOtherPeople"][i] = input["numOtherPeople"]
 
             return ds
 
@@ -102,7 +102,7 @@ def load_dataset():
     in the list(annotations). Finally it returns the complete dataset with all examples.
     """
 
-    with open('/home/sanchit/mpii_annotations.json',"r") as f:
+    with open("/home/sanchit/mpii_annotations.json","r") as f:
 
         instances = json.load(f)
 
