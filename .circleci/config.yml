@@ -19,7 +19,9 @@ workflows:
             branches:
               ignore: /.*/
       - deploy:
-          context: pypi
+          context: 
+            - pypi
+            - snark-docker
           requires:
             - test
           filters:
@@ -98,7 +100,7 @@ jobs:
       - run:
           name: "Deploy to Docker Hub"
           command: |
-            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
             IMAGE_TAG=${CIRCLE_TAG}
             docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
             docker push $IMAGE_NAME:latest
