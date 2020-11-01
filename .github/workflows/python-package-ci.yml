@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8]
         os: [ubuntu-latest, windows-latest]
         arch: [x64]
 
@@ -39,10 +39,9 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test unit- and coverage-test with pytest
       run: |
-        pip install torch
+        pip install torch==1.6.0 torchvision==0.7.0
         pip install tensorflow
         pip install recommonmark
-        pip install tools
         pip install pytest
         pip install pytest-cov
         pytest . --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
