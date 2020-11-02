@@ -33,8 +33,8 @@ def slice_extract_info(slice_, num):
             raise IndexError('index out of bounds for dimension with length {}'.format(num))
     if slice_.start is not None and slice_.stop is not None:
         num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
-    elif slice_.start is None and slice_.stop is not None:
+    elif slice_.stop is not None:
         num = slice_.stop
-    elif slice_.start is not None and slice_.stop is None:
+    elif slice_.start is not None:
         num = num - slice_.start
     return num, offset

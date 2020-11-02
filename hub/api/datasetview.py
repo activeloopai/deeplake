@@ -69,10 +69,10 @@ class DatasetView:
                     if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-                slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
+                slice_ = slice_ or slice(0, self.dataset.shape[0])
                 cur[split_key[-1]] = TensorView(
                     dataset=self.dataset, subpath=key, slice_=slice_
                 )
-        if len(tensor_dict) == 0:
+        if not tensor_dict:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict

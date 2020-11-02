@@ -156,10 +156,7 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         # real_shapes is dynamic shapes based on first dim index, only dynamic dims are stored, static ones are ommitted
-        if self._dynamic_tensor:
-            real_shapes = self._dynamic_tensor[slice_[0]]
-        else:
-            real_shapes = None
+        real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
         # Extend slice_ to dim count
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
@@ -171,8 +168,8 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
-        ranged_slice_count = len([i for i in slice_[1:] if isinstance(i, slice)])
         if real_shapes is not None:
+            ranged_slice_count = len([i for i in slice_[1:] if isinstance(i, slice)])
             for r, i in enumerate(self._dynamic_dims):
                 if i >= len(slice_):
                     real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]

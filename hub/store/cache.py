@@ -36,8 +36,7 @@ class CacheStore(zarr.LMDBStore):
     @property
     def _order(self):
         try:
-            order = json.loads(super().__getitem__("_order"))
-            return order
+            return json.loads(super().__getitem__("_order"))
         except KeyError:
             self._order = ["_order"]
         return []
@@ -95,8 +94,7 @@ class CacheStore(zarr.LMDBStore):
     def __getitem__(self, key):
         """On each new add, remember the order"""
         key = self._key_format(key)
-        el = super().__getitem__(key)
-        return el
+        return super().__getitem__(key)
 
     def __delitem__(self, key):
         """ Delete item """
@@ -119,7 +117,7 @@ class CacheStore(zarr.LMDBStore):
     def clear(self):
         """ Clean up the cache """
         for k in self.safety_wrapper(self.keys()):
-            if k != "_order" and k != "_values_cache":
+            if k not in ["_order", "_values_cache"]:
                 try:
                     del self[k]
                 except Exception as e:

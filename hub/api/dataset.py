@@ -264,18 +264,17 @@ class Dataset:
                     if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-                slice_ = slice_ if slice_ else slice(0, self.shape[0])
+                slice_ = slice_ or slice(0, self.shape[0])
                 cur[split_key[-1]] = TensorView(
                     dataset=self, subpath=key, slice_=slice_
                 )
-        if len(tensor_dict) == 0:
+        if not tensor_dict:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
 
     def __iter__(self):
         """ Returns Iterable over samples """
-        for i in range(len(self)):
-            yield self[i]
+        yield from self
 
     def __len__(self):
         """ Number of samples in the dataset """
@@ -324,11 +323,9 @@ class TorchDataset:
             split_key = key.split("/")
             cur = d
             for i in range(1, len(split_key) - 1):
-                if split_key[i] in cur.keys():
-                    cur = cur[split_key[i]]
-                else:
+                if split_key[i] not in cur.keys():
                     cur[split_key[i]] = {}
-                    cur = cur[split_key[i]]
+                cur = cur[split_key[i]]
             cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
@@ -339,10 +336,8 @@ class TorchDataset:
                 split_key = key.split("/")
                 cur = d
                 for i in range(1, len(split_key) - 1):
-                    if split_key[i] in cur.keys():
-                        cur = cur[split_key[i]]
-                    else:
+                    if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
-                        cur = cur[split_key[i]]
+                    cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
             yield (d)

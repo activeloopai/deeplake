@@ -27,7 +27,7 @@ class TensorView:
                 self.nums.append(1)
                 self.offsets.append(it)
             elif isinstance(it, slice):
-                ofs = it.start if it.start else 0
+                ofs = it.start or 0
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
@@ -91,9 +91,9 @@ class TensorView:
             self.check_slice_bounds(num=num, start=slice_.start, stop=slice_.stop, step=slice_.step)
             if slice_.start is None and slice_.stop is None:
                 return slice(ofs, None) if num is None else slice(ofs, ofs + num)
-            elif slice_.start is not None and slice_.stop is None:
+            elif slice_.stop is None:
                 return slice(ofs + slice_.start, None) if num is None else slice(ofs + slice_.start, ofs + num)
-            elif slice_.start is None and slice_.stop is not None:
+            elif slice_.start is None:
                 return slice(ofs, ofs + slice_.stop)
             else:
                 return slice(ofs + slice_.start, ofs + slice_.stop)
