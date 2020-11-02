@@ -1,5 +1,6 @@
 import json
 from collections.abc import MutableMapping
+import posixpath
 
 
 class MetaStorage(MutableMapping):
@@ -17,7 +18,8 @@ class MetaStorage(MutableMapping):
         self._path = path
 
     def __getitem__(self, k: str) -> bytes:
-        if k.startswith("."):
+        filename = posixpath.split(k)[1]
+        if filename.startswith("."):
             return bytes(
                 json.dumps(
                     json.loads(self.to_str(self._meta[".hub.dataset"]))[k][self._path]
@@ -28,7 +30,8 @@ class MetaStorage(MutableMapping):
             return self._fs_map[k]
 
     def get(self, k: str) -> bytes:
-        if k.startswith("."):
+        filename = posixpath.split(k)[1]
+        if filename.startswith("."):
             meta_ = self._meta.get(".hub.dataset")
             if not meta_:
                 return None
@@ -42,7 +45,8 @@ class MetaStorage(MutableMapping):
             return self._fs_map.get(k)
 
     def __setitem__(self, k: str, v: bytes):
-        if k.startswith("."):
+        filename = posixpath.split(k)[1]
+        if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
             meta[k] = meta.get(k) or {}
             meta[k][self._path] = json.loads(self.to_str(v))
@@ -58,7 +62,8 @@ class MetaStorage(MutableMapping):
         yield from self._fs_map
 
     def __delitem__(self, k: str):
-        if k.startswith("."):
+        filename = posixpath.split(k)[1]
+        if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
             meta[k] = meta.get(k) or dict()
             meta[k][self._path] = None

@@ -92,18 +92,16 @@ class Dataset:
         for t in self._flat_tensors:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
-            self._fs.makedirs(path)
+            self._fs.makedirs(posixpath.join(path, "--dynamic--"))
             yield t.path, DynamicTensor(
-                path,
+                fs_map=MetaStorage(
+                    t.path, get_storage_map(self._fs, path), self._fs_map
+                ),
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 max_shape=self.shape + t.max_shape,
                 dtype=t.dtype,
                 chunks=t.chunks,
-                fs=self._fs,
-                fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
-                ),
             )
 
     def _open_storage_tensors(self):
@@ -111,13 +109,11 @@ class Dataset:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
             yield t.path, DynamicTensor(
-                path,
-                mode=self.mode,
-                shape=self.shape + t.shape,
-                fs=self._fs,
                 fs_map=MetaStorage(
                     t.path, get_storage_map(self._fs, path), self._fs_map
                 ),
+                mode=self.mode,
+                shape=self.shape + t.shape,
             )
 
     def __getitem__(self, slice_):

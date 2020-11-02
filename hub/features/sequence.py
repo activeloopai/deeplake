@@ -13,15 +13,15 @@ class Sequence(Tensor):
     sequence = Sequence(Image(), length=NB_FRAME)
     ```
     """
+
     def __init__(self, feature: Tensor, length: int = None, chunks=True):
         """Construct a sequence of Tensors.
         Args:
         feature: the features to wrap
         length: `int`, length of the sequence if static and known in advance
         """
-        super(Sequence, self).__init__(shape=(length, ), dtype=feature.dtype, chunks=chunks)
+        super(Sequence, self).__init__(shape=(length,), dtype=feature, chunks=chunks)
 
     def get_attr_dict(self):
-        """Return class attributes
-        """
+        """Return class attributes"""
         return self.__dict__
