@@ -6,77 +6,77 @@ Hub Datasets are dictionaries containing tensors. You can think of them as folde
 ## Store
 To create and store dataset you would need to define tensors and specify the dataset dictionary. 
 
-    ```python
-    from hub import dataset, tensor
+```python
+from hub import dataset, tensor
 
-    tensor1 = tensor.from_zeros((20,512,512), dtype="uint8", dtag="image")
-    tensor2 = tensor.from_zeros((20), dtype="bool", dtag="label")
+tensor1 = tensor.from_zeros((20,512,512), dtype="uint8", dtag="image")
+tensor2 = tensor.from_zeros((20), dtype="bool", dtag="label")
 
-    dataset.from_tensors({"name1": tensor1, "name2": tensor2})
+dataset.from_tensors({"name1": tensor1, "name2": tensor2})
 
-    dataset.store("username/namespace")
-    ```
+dataset.store("username/namespace")
+```
 
 ## Load
 
 To load a dataset from a central repository
 
-    ```python
-    from hub import dataset
+```python
+from hub import dataset
 
-    ds = dataset.load("mnist/mnist")
-    ```
+ds = dataset.load("mnist/mnist")
+```
 
 ## Combine
 
 You could combine datasets or concat them.
 
-    ```python
-    from hub import dataset
+```python
+from hub import dataset
 
-    ... 
+... 
 
-    #vertical
-    dataset.concat(ds1, ds2)
+#vertical
+dataset.concat(ds1, ds2)
 
-    #horizontal
-    dataset.combine(ds1, ds2)
-    ```
+#horizontal
+dataset.combine(ds1, ds2)
+```
 
 ## Get text labels
 To get text labels from a dataset  
 
 ###### Pytorch
 
-    ```python
-    from hub import dataset
-    import torch
+```python
+from hub import dataset
+import torch
 
-    ds = dataset.load("mnist/fashion-mnist")
+ds = dataset.load("mnist/fashion-mnist")
 
-    ds = ds.to_pytorch()
+ds = ds.to_pytorch()
 
-    data_loader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+data_loader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
 
-    for batch in data_loader:
-        tl = dataset.get_text(batch['named_label'])
-    ```
+for batch in data_loader:
+    tl = dataset.get_text(batch['named_label'])
+```
     
 ###### Tensorflow  
 
-    ```python
-    from hub import dataset
-    import tensorflow as tf
+```python
+from hub import dataset
+import tensorflow as tf
 
-    ds = dataset.load("mnist/fashion-mnist")
+ds = dataset.load("mnist/fashion-mnist")
 
-    ds = ds.to_tensorflow()
+ds = ds.to_tensorflow()
 
-    dataset = ds.batch(BATCH_SIZE)
+dataset = ds.batch(BATCH_SIZE)
 
-    for batch in dataset:
-        tl = dataset.get_text(batch['named_label'])
-    ```
+for batch in dataset:
+    tl = dataset.get_text(batch['named_label'])
+```
 
 ## How to Upload a Dataset
 
@@ -115,29 +115,29 @@ For each tensor you would need to specify a dtag so that visualizer knows how dr
 
 2. Train a model using Pytorch
 
-    ```python
-    import hub
-    import pytorch
+```python
+import hub
+import pytorch
 
-    ds = hub.load("username/dataset")
-    ds = ds.to_pytorch()
+ds = hub.load("username/dataset")
+ds = ds.to_pytorch()
 
-    # Implement a training loop for the dataset in pytorch
-    ...
-    ```
+# Implement a training loop for the dataset in pytorch
+...
+```
 
 3. Train a model using Tensorflow 
 
-    ```python
-    import hub
-    import tensorflow
+```python
+import hub
+import tensorflow
 
-    ds = hub.load("username/dataset")
-    ds = ds.to_tensorflow()
+ds = hub.load("username/dataset")
+ds = ds.to_tensorflow()
 
-    # Implement a training loop for the dataset in tensorflow
-    ...
-    ```
+# Implement a training loop for the dataset in tensorflow
+...
+```
 
 4. Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
 
@@ -156,8 +156,7 @@ If you spot any trouble or have any question, please open a github issue.
 
 ## API
 
-    ```eval_rst
-    .. autoclass:: hub.dataset.Dataset
-       :members:
-    ```
-
+```eval_rst
+.. autoclass:: hub.dataset.Dataset
+   :members:
+```

@@ -2,7 +2,7 @@
 
 Here is an example to transform the dataset into Pytorch form.
 
-```
+```python
 import torch
 from hub import dataset
 
