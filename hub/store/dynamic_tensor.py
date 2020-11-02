@@ -1,23 +1,67 @@
 import collections.abc as abc
-from typing import Tuple
-import posixpath
 import json
+import math
 
 import numpy as np
 import zarr
 import numcodecs
-from zarr.storage import NestedDirectoryStore
 
-import hub.store.storage_tensor as storage_tensor
-from hub.store.store import get_fs_and_path, get_storage_map
+from hub.store.store import get_storage_map
 from hub.store.nested_store import NestedStore
 
 from hub.exceptions import DynamicTensorNotFoundException
 from hub.api.dataset_utils import slice_extract_info
 
-StorageTensor = storage_tensor.StorageTensor
 
-Shape = Tuple[int, ...]
+def _tuple_product(tuple_):
+    res = 1
+    for t in tuple_:
+        res *= t
+    return res
+
+
+def _determine_chunksizes(shape, dtype, block_size=2 ** 24):
+    """
+    Autochunking of tensors
+    Chunk is determined by 16MB blocks keeping left dimensions inside a chunk
+    Dimensions from left are kept until 16MB block is filled
+
+    Parameters
+    ----------
+    shape: tuple
+        the shape of the whole array
+    dtype: type
+        the type of the element (int, float)
+    block_size: int (optional)
+        how big the chunk size should be. Default to 16MB
+    """
+
+    sz = np.dtype(dtype).itemsize
+    elem_count_in_chunk = block_size / sz
+
+    # Get left most part which will be left static inside the chunk
+    a = list(shape)
+    a.reverse()
+    left_part = shape
+    prod = 1
+    for i, dim in enumerate(a):
+        prod *= dim
+        if elem_count_in_chunk < prod:
+            left_part = shape[-i:]
+            break
+
+    # If the tensor is smaller then the chunk size return
+    if len(left_part) == len(shape):
+        return list(left_part)
+
+    # Get the middle chunk size of dimension
+    els = math.ceil(elem_count_in_chunk / _tuple_product(left_part))
+
+    # Contruct the chunksize shape
+    chunksize = [els] + list(left_part)
+    if len(chunksize) < len(shape):
+        chunksize = [1] * (len(shape) - len(chunksize)) + chunksize
+    return list(chunksize)
 
 
 class DynamicTensor:
@@ -32,8 +76,8 @@ class DynamicTensor:
         self,
         fs_map: str,
         mode: str = "r",
-        shape: Shape = None,
-        max_shape: Shape = None,
+        shape=None,
+        max_shape=None,
         dtype="float64",
         chunks=None,
     ):
@@ -79,7 +123,7 @@ class DynamicTensor:
             self._storage_tensor = zarr.zeros(
                 max_shape,
                 dtype=dtype,
-                chunks=chunks or StorageTensor._determine_chunksizes(max_shape, dtype),
+                chunks=chunks or _determine_chunksizes(max_shape, dtype),
                 store=fs_map,
                 overwrite=("w" in mode),
                 object_codec=numcodecs.Pickle() if str(dtype) == "object" else None,

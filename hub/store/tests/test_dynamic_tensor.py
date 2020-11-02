@@ -1,10 +1,7 @@
-import os
 import posixpath
 
 import numpy as np
-import zarr
 import fsspec
-from zarr.storage import DirectoryStore
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import StorageMapWrapperWithCommit
