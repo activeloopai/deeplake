@@ -1,7 +1,9 @@
 import numpy as np
+import pytest
 
 import hub.api.dataset as dataset
 from hub.features import Tensor
+from hub.utils import gcp_creds_exist, s3_creds_exist
 
 Dataset = dataset.Dataset
 
@@ -24,10 +26,8 @@ def test_dataset2():
     assert ds["second"][0].numpy() != 2.3
 
 
-def test_dataset():
-    ds = Dataset(
-        "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
-    )
+def test_dataset(url="./data/test/dataset", token=None):
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", dtype=my_dtype)
 
     sds = ds[5]
     sds["label/a", 50, 50] = 2
@@ -149,6 +149,16 @@ def test_dataset_enter_exit():
         ).all()
 
 
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
+def test_dataset_gcs():
+    test_dataset("gcs://snark-test/test_dataset_gcs")
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_dataset_s3():
+    test_dataset("s3://snark-test/test_dataset_s3")
+
+
 if __name__ == "__main__":
     # test_dataset()
-    test_dataset_dynamic_shaped()
+    test_dataset()
