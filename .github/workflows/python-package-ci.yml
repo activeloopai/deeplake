@@ -42,9 +42,9 @@ jobs:
         pip install torch==1.6.0 torchvision==0.7.0
         pip install tensorflow
         pip install recommonmark
-        pip install pytest hub
+        pip install pytest
         pip install pytest-cov
-        pytest . --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+        pytest hub --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
     - name: Upload pytest test results
       uses: actions/upload-artifact@v2
       with:
