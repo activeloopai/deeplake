@@ -22,7 +22,7 @@ class MetaStorage(MutableMapping):
         if filename.startswith("."):
             return bytes(
                 json.dumps(
-                    json.loads(self.to_str(self._meta[".hub.dataset"]))[k][self._path]
+                    json.loads(self.to_str(self._meta["meta.json"]))[k][self._path]
                 ),
                 "utf-8",
             )
@@ -32,7 +32,7 @@ class MetaStorage(MutableMapping):
     def get(self, k: str) -> bytes:
         filename = posixpath.split(k)[1]
         if filename.startswith("."):
-            meta_ = self._meta.get(".hub.dataset")
+            meta_ = self._meta.get("meta.json")
             if not meta_:
                 return None
             meta = json.loads(self.to_str(meta_))
@@ -47,10 +47,10 @@ class MetaStorage(MutableMapping):
     def __setitem__(self, k: str, v: bytes):
         filename = posixpath.split(k)[1]
         if filename.startswith("."):
-            meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
+            meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or {}
             meta[k][self._path] = json.loads(self.to_str(v))
-            self._meta[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
+            self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
             self._fs_map[k] = v
 
@@ -64,10 +64,10 @@ class MetaStorage(MutableMapping):
     def __delitem__(self, k: str):
         filename = posixpath.split(k)[1]
         if filename.startswith("."):
-            meta = json.loads(self.to_str(self._meta[".hub.dataset"]))
+            meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or dict()
             meta[k][self._path] = None
-            self._meta[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
+            self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
             del self._fs_map[k]
 

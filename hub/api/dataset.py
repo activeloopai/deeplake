@@ -1,6 +1,9 @@
 from typing import Tuple
 import posixpath
 import collections.abc as abc
+import json
+
+import fsspec
 
 from hub.features.features import (
     Primitive,
@@ -15,13 +18,17 @@ from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split
 from hub.utils import compute_lcm
-import json
+
 import hub.features.serialize
 import hub.features.deserialize
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
-from hub.exceptions import OverwriteIsNotSafeException
+from hub.exceptions import (
+    HubDatasetNotFoundException,
+    NotHubDatasetToOverwriteException,
+    NotHubDatasetToAppendException,
+)
 from hub.store.metastore import MetaStorage
 
 try:
@@ -32,6 +39,10 @@ try:
     import tensorflow as tf
 except ImportError:
     pass
+
+
+def get_file_count(fs: fsspec.AbstractFileSystem, path):
+    return len(fs.listdir(path, detail=False))
 
 
 class Dataset:
@@ -56,22 +67,14 @@ class Dataset:
         self.token = token
         self.mode = mode
 
-        fs, path = (fs, url) if fs else get_fs_and_path(self.url, token=token)
-        if ("w" in mode or "a" in mode) and not fs.exists(path):
-            fs.makedirs(path)
-        fs_map = fs_map or get_storage_map(fs, path, 2 ** 20)
-        self._fs = fs
-        self._path = path
+        self._fs, self._path = (
+            (fs, url) if fs else get_fs_and_path(self.url, token=token)
+        )
+        needcreate = self._check_and_prepare_dir()
+        fs_map = fs_map or get_storage_map(self._fs, self._path, 2 ** 20)
         self._fs_map = fs_map
-        exist_ = bool(fs_map.get(".hub.dataset"))
-        if not exist_ and len(fs_map) > 0 and "w" in mode:
-            raise OverwriteIsNotSafeException()
-        if len(fs_map) > 0 and exist_ and "w" in mode:
-            fs.rm(path, recursive=True)
-            fs.makedirs(path)
-        exist = False if "w" in mode else bool(fs_map.get(".hub.dataset"))
-        if exist:
-            meta = json.loads(fs_map[".hub.dataset"].decode("utf-8"))
+        if not needcreate:
+            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
             self.dtype = hub.features.deserialize.deserialize(meta["dtype"])
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
@@ -84,9 +87,35 @@ class Dataset:
                 "dtype": hub.features.serialize.serialize(self.dtype),
                 "version": 1,
             }
-            fs_map[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
+            fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
             self._tensors = dict(self._generate_storage_tensors())
+
+    def _check_and_prepare_dir(self):
+        """Checks if input data is ok
+        Creates or overwrites dataset folder
+        Returns True dataset needs to be created opposed to read
+        """
+        fs, path, mode = self._fs, self._path, self.mode
+        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        if exist_meta:
+            if "w" in mode:
+                fs.rm(path, recursive=True)
+                fs.makedirs(path)
+                return True
+            return False
+        else:
+            if "r" in mode:
+                raise HubDatasetNotFoundException()
+            exist_dir = fs.exists(path)
+            if not exist_dir:
+                fs.makedirs(path)
+            elif get_file_count(fs, path) > 0:
+                if "w" in mode:
+                    raise NotHubDatasetToOverwriteException()
+                else:
+                    raise NotHubDatasetToAppendException()
+            return True
 
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:

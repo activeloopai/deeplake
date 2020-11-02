@@ -9,7 +9,8 @@ from hub.store.store import StorageMapWrapperWithCommit
 
 def create_store(path: str):
     fs: fsspec.AbstractFileSystem = fsspec.filesystem("file")
-    fs.rm(path, recursive=True)
+    if fs.exists(path):
+        fs.rm(path, recursive=True)
     fs.makedirs(posixpath.join(path, "--dynamic--"))
     mapper = fs.get_mapper(path)
     mapper["--dynamic--/hello.txt"] = bytes("Hello World", "utf-8")
@@ -17,7 +18,6 @@ def create_store(path: str):
 
 
 def test_dynamic_tensor():
-
     t = DynamicTensor(
         create_store("./data/test/test_dynamic_tensor"),
         mode="w",
