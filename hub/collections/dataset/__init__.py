@@ -41,7 +41,7 @@ def generate(generator: DatasetGenerator, input) -> Dataset:
     meta = _meta_preprocess(generator.meta())
     keys = sorted(meta.keys())
     tasks = [dask.delayed(_generate, nout=len(meta))(generator, i) for i in input]
-    if len(tasks) == 0:
+    if not tasks:
         return Dataset(
             {
                 key: Tensor(
@@ -100,7 +100,10 @@ def _meta_concat(metas: Tuple[Dict[str, object]]):
         assert _meta.get("dtag") == meta.get("dtag")
         assert _meta["dcompress"] == meta["dcompress"]
 
-    _meta["shape"] = (sum([meta["shape"][0] for meta in metas]),) + _meta["shape"][1:]
+    _meta["shape"] = (sum(meta["shape"][0] for meta in metas),) + _meta[
+        "shape"
+    ][1:]
+
     if _meta["shape"][0] < 0:
         _meta["shape"][0] = -1
 

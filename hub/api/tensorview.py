@@ -24,15 +24,8 @@ class TensorView:
                 self.nums.append(1)
                 self.offsets.append(it)
             elif isinstance(it, slice):
-                if it.start is None:
-                    ofs = 0
-                else:
-                    ofs = it.start
-
-                if it.stop is None:
-                    num = None
-                else:
-                    num = it.stop - ofs
+                ofs = 0 if it.start is None else it.start
+                num = None if it.stop is None else it.stop - ofs
                 # num, ofs = slice_extract_info(it)
                 self.nums.append(num)
                 self.offsets.append(ofs)
@@ -44,10 +37,7 @@ class TensorView:
 
     # TODO Add slicing logic to tensorview
     def __getitem__(self, slice_):
-        if isinstance(slice_, int):
-            slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
-            slice_ = [slice_]
-        elif isinstance(slice_, slice):
+        if isinstance(slice_, int) or isinstance(slice_, slice):
             slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
             slice_ = [slice_]
         elif isinstance(slice_, tuple):
@@ -67,9 +57,7 @@ class TensorView:
         return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_)
 
     def __setitem__(self, slice_, value):
-        if isinstance(slice_, int):
-            slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
-        elif isinstance(slice_, slice):
+        if isinstance(slice_, int) or isinstance(slice_, slice):
             slice_ = self._combine(slice_, self.nums[0], self.offsets[0])
         elif isinstance(slice_, tuple):
             new_nums = self.nums
@@ -99,28 +87,22 @@ class TensorView:
                     return slice(ofs, None)
                 else:
                     return slice(ofs, ofs + num)
-            elif slice_.start is not None and slice_.stop is None:
+            elif slice_.stop is None:
                 if num is None:
                     return slice(ofs + slice_.start, None)
                 else:
                     if slice_.start >= num:
                         raise IndexError('index out of bounds for dimension with length {}'.format(num))
                     return slice(ofs + slice_.start, ofs + num)
-            elif slice_.start is None and slice_.stop is not None:
-                if num is None:
-                    return slice(ofs, ofs + slice_.stop)
-                else:
-                    if slice_.stop > num:
-                        raise IndexError('index out of bounds for dimension with length {}'.format(num))
-                    return slice(ofs, ofs + slice_.stop)
+            elif slice_.start is None:
+                if num is not None and slice_.stop > num:
+                    raise IndexError('index out of bounds for dimension with length {}'.format(num))
+                return slice(ofs, ofs + slice_.stop)
             else:
                 if slice_.start > slice_.stop:
                     raise IndexError('start index is greater than stop index')
-                if num is None:
-                    return slice(ofs + slice_.start, ofs + slice_.stop)
-                else:
-                    if slice_.stop > num:
-                        raise IndexError('index out of bounds for dimension with length {}'.format(num))
-                    return slice(ofs + slice_.start, ofs + slice_.stop)
+                if num is not None and slice_.stop > num:
+                    raise IndexError('index out of bounds for dimension with length {}'.format(num))
+                return slice(ofs + slice_.start, ofs + slice_.stop)
         else:
             raise TypeError("type {} isn't supported in dataset slicing".format(type(slice_)))

@@ -527,8 +527,9 @@ def main_worker(gpu, ngpus_per_node, args):
         is_best = acc1 > best_acc1
         best_acc1 = max(acc1, best_acc1)
 
-        if not args.multiprocessing_distributed or (
-            args.multiprocessing_distributed and args.rank % ngpus_per_node == 0
+        if (
+            not args.multiprocessing_distributed
+            or args.rank % ngpus_per_node == 0
         ):
             save_checkpoint(
                 {

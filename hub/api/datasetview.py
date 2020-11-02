@@ -61,16 +61,14 @@ class DatasetView:
                     split_key = suffix_key.split("/")
                     cur = d
                     for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
+                        if split_key[i] not in cur.keys():
                             cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
+                        cur = cur[split_key[i]]
                     cur[split_key[-1]] = TensorView(
                         dataset=self, subpath=key, slice_=slice_
                     )
 
-                if len(d) == 0:
+                if not d:
                     raise KeyError(f"Key {subpath} was not found in dataset")
                 return d
 
@@ -79,10 +77,7 @@ class DatasetView:
             subpath, slice_ = slice_split_tuple(slice_)
 
             if len(slice_) == 0:
-                if self.num_samples == 1:
-                    slice_ = (0,)
-                else:
-                    slice_ = (slice(0, self.num_samples),)
+                slice_ = (0, ) if self.num_samples == 1 else (slice(0, self.num_samples), )
             d = {}
             if subpath not in self.dataset._tensors.keys():
                 post_subpath = subpath if subpath.endswith("/") else subpath + "/"
@@ -96,15 +91,13 @@ class DatasetView:
                     split_key = suffix_key.split("/")
                     cur = d
                     for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
+                        if split_key[i] not in cur.keys():
                             cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
+                        cur = cur[split_key[i]]
                     cur[split_key[-1]] = TensorView(
                         dataset=self.dataset, subpath=key, slice_=slice_
                     )
-                if len(d) == 0:
+                if not d:
                     raise KeyError(f"Key {subpath} was not found in dataset")
 
             if len(slice_) <= 1:

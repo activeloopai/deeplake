@@ -99,8 +99,7 @@ class LitMNIST(pl.LightningModule):
         return self.validation_step(batch, batch_idx)
 
     def configure_optimizers(self):
-        optimizer = self.optimizer(self.parameters(), lr=self.learning_rate)
-        return optimizer
+        return self.optimizer(self.parameters(), lr=self.learning_rate)
 
 
 @ray.remote(num_gpus=1, num_cpus=4, max_calls=1)

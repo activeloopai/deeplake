@@ -8,7 +8,7 @@ from hub.collections._chunk_utils import _tensor_chunksize, _logify_chunksize
 
 
 def _dask_shape_backward(shape: Tuple[int]):
-    if len(shape) == 0:
+    if not shape:
         return shape
     else:
         return (-1,) + (shape[1:]) if np.isnan(shape[0]) else shape

@@ -106,8 +106,7 @@ def dataset_loader(
     img.save(img_path)
 
     Dataset = PytorchDataset if pytorch else TensorflowDataset
-    ds = Dataset(samples=samples, load_image=read_from_fs, image_path=img_path)
-    return ds
+    return Dataset(samples=samples, load_image=read_from_fs, image_path=img_path)
 
 
 def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
@@ -138,7 +137,7 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
         ds = ds.batch(16)
 
     t1 = time.time()
-    for batch in ds:
+    for _ in ds:
         pass
     t2 = time.time()
 
