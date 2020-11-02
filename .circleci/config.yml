@@ -19,7 +19,9 @@ workflows:
             branches:
               ignore: /.*/
       - deploy:
-          context: pypi
+          context: 
+            - pypi
+            - snark-docker
           requires:
             - test
           filters:
@@ -68,6 +70,8 @@ jobs:
   deploy:
     docker:
       - image: circleci/python:3.8
+    environment:
+      IMAGE_NAME: snarkai/hub
     steps:
       - checkout
       - run:
@@ -89,6 +93,18 @@ jobs:
           name: "Upload dist to PyPi"
           command: |
             twine upload dist/*
+      - run:
+          name: "Build Docker Hub Image"
+          command: |
+            docker build -t $IMAGE_NAME:latest .
+      - run:
+          name: "Deploy to Docker Hub"
+          command: |
+            echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+            IMAGE_TAG=${CIRCLE_TAG}
+            docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+            docker push $IMAGE_NAME:latest
+            docker push $IMAGE_NAME:$IMAGE_TAG
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
