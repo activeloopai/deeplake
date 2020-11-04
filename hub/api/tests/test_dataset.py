@@ -149,6 +149,34 @@ def test_dataset_enter_exit():
         ).all()
 
 
+def test_dataset_bug():
+    from hub import Dataset, features
+
+    ds = Dataset(
+        "./data/test/test_dataset_bug",
+        shape=(4,),
+        mode="w",
+        schema={
+            "image": features.Tensor((512, 512), dtype="float"),
+            "label": features.Tensor((512, 512), dtype="float"),
+        },
+    )
+    try:
+        ds = Dataset("./data/test/test_dataset_bug", mode="w")
+    except Exception:
+        was_except = True
+    assert was_except
+    ds = Dataset(
+        "./data/test/test_dataset_bug",
+        shape=(4,),
+        mode="w",
+        schema={
+            "image": features.Tensor((512, 512), dtype="float"),
+            "label": features.Tensor((512, 512), dtype="float"),
+        },
+    )
+
+
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_dataset_gcs():
     test_dataset("gcs://snark-test/test_dataset_gcs")
