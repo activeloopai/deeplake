@@ -31,7 +31,7 @@ class DatasetView:
                 return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else (1, slice_list[0])
+            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             slice_list[0] = ofs + self.offset if num == 1 else slice(ofs + self.offset, ofs + self.offset + num)
             if subpath in self.dataset._tensors.keys():
                 return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_list)
@@ -44,7 +44,7 @@ class DatasetView:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        subpath, slice_list = slice_split(slice_, all_slices=False)
+        subpath, slice_list = slice_split(slice_)
         slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")

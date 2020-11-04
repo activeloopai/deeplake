@@ -3,6 +3,8 @@ import hub
 import ray
 
 from hub.utils import batch
+from collections import MutableMapping
+from hub.features.features import Primitive
 
 
 class Transform:
@@ -16,8 +18,11 @@ class Transform:
             yield self._func(item)
 
     def store(self, url, token=None):
+        shape = self._ds.shape if hasattr(self._ds, "shape") else (len(self._ds),)
+        # shape = self._ds.shape if hasattr(self._ds, "shape") else (3,)  # for testing with tfds mock, that has no length
+
         ds = hub.open(
-            url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token
+            url, mode="w", shape=shape, dtype=self._dtype, token=token
         )
 
         # Fire ray computes
@@ -25,8 +30,16 @@ class Transform:
 
         # results = ray.get(results)
         for i, result in enumerate(results):
-            for key in result:
-                ds[key, i] = result[key]
+            dic = self.flatten_dict(result)
+            for key in dic:
+                path_key = key.split("/")
+                if isinstance(self.dtype.dict_[path_key[0]], Primitive):
+                    ds[path_key[0], i] = result[path_key[0]]
+                else:
+                    val = result
+                    for path in path_key:
+                        val = val.get(path)
+                    ds[key, i] = val
         return ds
 
     def store_chunkwise(self, url, token=None):
@@ -57,6 +70,26 @@ class Transform:
 
         ray.get(results_batched)
         return ds
+
+    def flatten_dict(self, d, parent_key=''):
+        items = []
+        for k, v in d.items():
+            new_key = parent_key + '/' + k if parent_key else k
+            if isinstance(v, MutableMapping) and not isinstance(self.dtype_from_path(new_key), Primitive):
+                items.extend(self.flatten_dict(v, new_key).items())
+            else:
+                items.append((new_key, v))
+        return dict(items)
+
+    def dtype_from_path(self, path):
+        path = path.split('/')
+        cur_type = self.dtype
+        for subpath in path:
+            cur_type = cur_type.dict_
+            cur_type = cur_type[subpath]
+        return cur_type
+
+
 
     @ray.remote
     def _transfer_batch(self, ds, i, results):
@@ -93,3 +126,6 @@ def transform(dtype):
         return inner
 
     return wrapper
+
+
+

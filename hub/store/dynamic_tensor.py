@@ -169,21 +169,30 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
-        if real_shapes is not None:
-            self._dynamic_tensor[slice_[0]] = real_shapes
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
         if self._dynamic_tensor is None:
             return self.shape
-        final_shape = []
-        shape_offset = 0
-        for item in slice_[1:]:
-            if isinstance(item, slice):
-                final_shape += [item.stop - item.start]
-            shape_offset += 1
-        final_shape += list(self._dynamic_tensor[slice_[0]][shape_offset:])
-        return tuple(final_shape)
+        if isinstance(slice_[0], slice):
+            num, ofs = slice_extract_info(slice_[0], self.shape[0])
+            slice_[0] = ofs if num == 1 else slice_[0]
+        if isinstance(slice_[0], int):
+            final_shape = []
+            shape_offset = 0
+            for i in range(1, len(self.shape)):
+                if i < len(slice_):
+                    if isinstance(slice_[i], slice):
+                        final_shape.append(slice_[i].stop - slice_[i].start)
+                    shape_offset += 1
+                elif self.shape[i] is not None:
+                    final_shape.append(self.shape[i])
+                elif shape_offset < len(self._dynamic_tensor[slice_[0]]):
+                    final_shape.append(self._dynamic_tensor[slice_[0]][shape_offset])
+                    shape_offset += 1
+            return tuple(final_shape)
+        else:
+            raise ValueError("Getting shape across multiple dimensions isn't supported")
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
@@ -194,14 +203,21 @@ class DynamicTensor:
             value_shape = list(value.shape) if isinstance(value, np.ndarray) else [1]
             new_shape = []
             shape_offset = 0
-            for i in range(1, len(slice_)):
-                new_shape.append(0)
-                if isinstance(slice_[i], slice):
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is None:
+                    if i < len(slice_):
+                        if isinstance(slice_[i], slice):
+                            sl = slice_[i].stop - 1
+                            shape_offset += 1
+                        else:
+                            sl = slice_[i]
+                        new_shape.append(sl)
+                    else:
+                        new_shape.append(value_shape[shape_offset])
+                        shape_offset += 1
+                elif i < len(slice_) and isinstance(slice_[i], slice):
                     shape_offset += 1
-            new_shape += value_shape[shape_offset:]
-            self._dynamic_tensor[slice_[0]] = list(
-                np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
-            )
+            self._dynamic_tensor[slice_[0]] = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
         else:
             raise ValueError("Setting shape across multiple dimensions isn't supported")
 

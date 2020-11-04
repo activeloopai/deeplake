@@ -19,7 +19,8 @@ class Sequence(Tensor):
         feature: the features to wrap
         length: `int`, length of the sequence if static and known in advance
         """
-        super(Sequence, self).__init__(shape=(length, ), dtype=feature.dtype, chunks=chunks)
+        max_shape = (length, ) if length is not None else (10000,)
+        super(Sequence, self).__init__(shape=(length, ), dtype=feature.dtype, max_shape=max_shape, chunks=chunks)
 
     def get_attr_dict(self):
         """Return class attributes

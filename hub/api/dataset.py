@@ -143,7 +143,7 @@ class Dataset:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        subpath, slice_list = slice_split(slice_, all_slices=False)
+        subpath, slice_list = slice_split(slice_)
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:

@@ -48,7 +48,7 @@ class TensorView:
         slice_ = [0] + slice_ if self.nums[0] == 1 else slice_
         subpath, slice_list = slice_split(slice_)
         if subpath:
-            raise ValueError("Can't slice a dataset with multiple slices without subpath")
+            raise ValueError("Can't slice a Tensor with string")
         else:
             new_nums = self.nums.copy()
             new_offsets = self.offsets.copy()
@@ -56,7 +56,7 @@ class TensorView:
                 new_nums.extend([None] * (len(slice_list) - len(new_nums)))
                 new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
             for i in range(len(slice_list)):
-                slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
+                slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
             for i in range(len(slice_list), len(new_nums)):
                 slice_list.append(slice(new_offsets[i], new_offsets[i] + new_nums[i]))
             return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_list)
@@ -67,7 +67,7 @@ class TensorView:
             slice_ = [slice_]
         slice_ = list(slice_)
         slice_ = [0] + slice_ if self.nums[0] == 1 else slice_
-        subpath, slice_list = slice_split(slice_, all_slices=False)
+        subpath, slice_list = slice_split(slice_)
         if subpath:
             raise ValueError("Can't slice a dataset with multiple slices without subpath")
         else:
