@@ -161,7 +161,20 @@ def test_dataset_bug():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
-    ds = Dataset("./data/test/davit/basic7", mode="r")
+    try:
+        ds = Dataset("./data/test/test_dataset_bug", mode="w")
+    except Exception:
+        was_except = True
+    assert was_except
+    ds = Dataset(
+        "./data/test/test_dataset_bug",
+        shape=(4,),
+        mode="w",
+        schema={
+            "image": features.Tensor((512, 512), dtype="float"),
+            "label": features.Tensor((512, 512), dtype="float"),
+        },
+    )
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")

@@ -105,16 +105,20 @@ class Dataset:
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
-            self.schema: FeatureConnector = featurify(schema)
-            self.shape = tuple(shape)
-            meta = {
-                "shape": shape,
-                "schema": hub.features.serialize.serialize(self.schema),
-                "version": 1,
-            }
-            fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
-            self._tensors = dict(self._generate_storage_tensors())
+            try:
+                self.schema: FeatureConnector = featurify(schema)
+                self.shape = tuple(shape)
+                meta = {
+                    "shape": shape,
+                    "schema": hub.features.serialize.serialize(self.schema),
+                    "version": 1,
+                }
+                fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+                self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+                self._tensors = dict(self._generate_storage_tensors())
+            except Exception:
+                self._fs.rm(self._path, recursive=True)
+                raise
 
     def _check_and_prepare_dir(self):
         """Checks if input data is ok
