@@ -8,9 +8,9 @@ from hub.features.features import Primitive
 
 
 class Transform:
-    def __init__(self, func, dtype, ds):
+    def __init__(self, func, schema, ds):
         self._func = func
-        self._dtype = dtype
+        self._schema = schema
         self._ds = ds
 
     def __iter__(self):
@@ -21,8 +21,8 @@ class Transform:
         shape = self._ds.shape if hasattr(self._ds, "shape") else (len(self._ds),)
         # shape = self._ds.shape if hasattr(self._ds, "shape") else (3,)  # for testing with tfds mock, that has no length
 
-        ds = hub.open(
-            url, mode="w", shape=shape, dtype=self._dtype, token=token
+        ds = hub.Dataset(
+            url, mode="w", shape=shape, schema=self._schema, token=token
         )
 
         # Fire ray computes
@@ -46,8 +46,8 @@ class Transform:
         """
         mary chunks with compute
         """
-        ds = hub.open(
-            url, mode="w", shape=self._ds.shape, dtype=self._dtype, token=token
+        ds = hub.Dataset(
+            url, mode="w", shape=self._ds.shape, schema=self._schema, token=token
         )
 
         results = [self._func.remote(item) for item in self._ds]
@@ -114,14 +114,14 @@ class Transform:
         return self._ds.shape
 
     @property
-    def dtype(self):
-        return self._dtype
+    def schema(self):
+        return self._schema
 
 
-def transform(dtype):
+def transform(schema):
     def wrapper(func):
         def inner(ds):
-            return Transform(func, dtype, ds)
+            return Transform(func, schema, ds)
 
         return inner
 

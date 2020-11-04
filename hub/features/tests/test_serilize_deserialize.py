@@ -11,7 +11,6 @@ from hub.features.segmentation import Segmentation
 from hub.features.sequence import Sequence
 
 
-
 def test_serialize_deserialize():
     t = Tensor(
         shape=(100, 200),
@@ -32,8 +31,13 @@ def test_serialize_deserialize():
             "audio": Audio(shape=(120,), dtype="uint32"),
             "mask": Mask(shape=(5, 8), dtype="uint8", chunks=True),
             "polygon": Polygon(shape=(16, 2)),
-            "segmentation": Segmentation(shape=(5, 9, 1), dtype='uint8', names=("apple", "orange", "pineapple")),
-            "sequence": Sequence(feature=Tensor(shape=None, dtype="uint8"), length=10)
+            "segmentation": Segmentation(
+                shape=(5, 9, 1), dtype="uint8", names=("apple", "orange", "pineapple")
+            ),
+            # "sequence": Sequence(
+            #     feature=Tensor(shape=(None, None), max_shape=(100, 100), dtype="uint8"),
+            #     length=10,
+            # ),
         },
     )
     original_result = tuple(t._flatten())
