@@ -48,19 +48,40 @@ def get_file_count(fs: fsspec.AbstractFileSystem, path):
 class Dataset:
     def __init__(
         self,
-        url: str = None,
-        mode: str = None,
-        token=None,
+        url: str,
+        mode: str = "w",
+        safe_mode: bool = False,
         shape=None,
-        dtype=None,
+        schema=None,
+        token=None,
         fs=None,
         fs_map=None,
     ):
-        # assert dtype is not None
-        # assert shape is not None
+        """Open a new or existing dataset for read/write
+
+        Parameters
+        ----------
+        url: str
+            The url where dataset is located/should be created
+        mode: str, optional (default to "w")
+            Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
+        safe_mode: bool, optional
+            if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
+        shape: tuple, optional
+            Tuple with (num_samples,) format, where num_samples is number of samples
+        schema: optional
+            Describes the data of a single sample. Hub features are used for that
+            Required for 'a' and 'w' modes
+        token: str or dict, optional
+            If url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        fs: optional
+        fs_map: optional
+        """
+
+        shape = shape or (None,)
         if shape is not None:
             assert len(tuple(shape)) == 1
-        assert url is not None
         assert mode is not None
 
         self.url = url
@@ -73,22 +94,26 @@ class Dataset:
         needcreate = self._check_and_prepare_dir()
         fs_map = fs_map or get_storage_map(self._fs, self._path, 2 ** 20)
         self._fs_map = fs_map
+
+        if safe_mode and not needcreate:
+            mode = "r"
+
         if not needcreate:
             meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
-            self.dtype = hub.features.deserialize.deserialize(meta["dtype"])
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
+            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
-            self.dtype: FeatureConnector = featurify(dtype)
+            self.schema: FeatureConnector = featurify(schema)
             self.shape = tuple(shape)
             meta = {
                 "shape": shape,
-                "dtype": hub.features.serialize.serialize(self.dtype),
+                "schema": hub.features.serialize.serialize(self.schema),
                 "version": 1,
             }
             fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
+            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._generate_storage_tensors())
 
     def _check_and_prepare_dir(self):
@@ -244,7 +269,7 @@ class Dataset:
                     my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
                 )
 
-        output_types = dtype_to_tf(self.dtype)
+        output_types = dtype_to_tf(self.schema)
         print(output_types)
         return tf.data.Dataset.from_generator(
             tf_gen,
@@ -299,12 +324,6 @@ class Dataset:
         # FIXME assumes chunking is done on the first sample
         chunks = [t.chunksize[0] for t in self._tensors.values()]
         return compute_lcm(chunks)
-
-
-def open(
-    url: str = None, token=None, num_samples: int = None, mode: str = None
-) -> Dataset:
-    raise NotImplementedError()
 
 
 class TorchDataset:

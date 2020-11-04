@@ -7,7 +7,7 @@ from hub.utils import gcp_creds_exist, s3_creds_exist
 
 Dataset = dataset.Dataset
 
-my_dtype = {
+my_schema = {
     "image": Tensor((10, 1920, 1080, 3), "uint8"),
     "label": {
         "a": Tensor((100, 200), "int32"),
@@ -20,14 +20,14 @@ my_dtype = {
 
 def test_dataset2():
     dt = {"first": "float", "second": "float"}
-    ds = Dataset(dtype=dt, shape=(2,), url="./data/tests/models", mode="w")
+    ds = Dataset(schema=dt, shape=(2,), url="./data/test/model", mode="w")
 
     ds["first"][0] = 2.3
     assert ds["second"][0].numpy() != 2.3
 
 
 def test_dataset(url="./data/test/dataset", token=None):
-    ds = Dataset(url, token=token, shape=(10000,), mode="w", dtype=my_dtype)
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
 
     sds = ds[5]
     sds["label/a", 50, 50] = 2
@@ -73,7 +73,7 @@ def test_dataset(url="./data/test/dataset", token=None):
     ds.commit()
 
 
-my_dtype_with_chunks = {
+my_schema_with_chunks = {
     "image": Tensor((10, 1920, 1080, 3), "uint8", chunks=(6, 5, 1080, 1080, 3)),
     "label": {
         "a": Tensor((100, 200), "int32", chunks=(6, 100, 200)),
@@ -91,7 +91,7 @@ def test_dataset_with_chunks():
         token=None,
         shape=(10000,),
         mode="w",
-        dtype=my_dtype_with_chunks,
+        schema=my_schema_with_chunks,
     )
     ds["label/a", 5, 50, 50] = 8
     assert ds["label/a", 5, 50, 50].numpy() == 8
@@ -103,7 +103,7 @@ def test_dataset_with_chunks():
 
 
 def test_dataset_dynamic_shaped():
-    dtype = {
+    schema = {
         "first": Tensor(
             shape=(None, None),
             dtype="int32",
@@ -116,7 +116,7 @@ def test_dataset_dynamic_shaped():
         token=None,
         shape=(1000,),
         mode="w",
-        dtype=dtype,
+        schema=schema,
     )
 
     ds["first", 50, 50:60, 50:60] = np.ones((10, 10), "int32")
@@ -129,7 +129,7 @@ def test_dataset_dynamic_shaped():
 
 def test_dataset_enter_exit():
     with Dataset(
-        "./data/test/dataset", token=None, shape=(10000,), mode="w", dtype=my_dtype
+        "./data/test/dataset", token=None, shape=(10000,), mode="w", schema=my_schema
     ) as ds:
         sds = ds[5]
         sds["label/a", 50, 50] = 2
