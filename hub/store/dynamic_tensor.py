@@ -170,19 +170,10 @@ class DynamicTensor:
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
-        real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
-        ranged_slice_count = len([i for i in slice_[1:] if isinstance(i, slice)])
-        if real_shapes is not None:
-            for r, i in enumerate(self._dynamic_dims):
-                if i >= len(slice_):
-                    real_shapes[r] = value.shape[i - len(slice_) + ranged_slice_count]
-                else:
-                    real_shapes[r] = max(
-                        real_shapes[r], self._get_slice_upper_boundary(slice_[i])
-                    )
         if self._dynamic_tensor:
             self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
+        real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
         slice_ = self._get_slice(slice_, real_shapes)
         self._storage_tensor[slice_] = value
 
@@ -223,10 +214,10 @@ class DynamicTensor:
                 if self.shape[i] is None:
                     if i < len(slice_):
                         if isinstance(slice_[i], slice):
-                            sl = slice_[i].stop - 1
+                            sl = slice_[i].stop
                             shape_offset += 1
                         else:
-                            sl = slice_[i]
+                            sl = slice_[i] + 1
                         new_shape.append(sl)
                     else:
                         new_shape.append(value_shape[shape_offset])

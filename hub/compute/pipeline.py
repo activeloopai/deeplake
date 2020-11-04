@@ -3,7 +3,7 @@ import hub
 import ray
 
 from hub.utils import batch
-from collections import MutableMapping
+from collections.abc import MutableMapping
 from hub.features.features import Primitive
 
 
@@ -33,7 +33,7 @@ class Transform:
             dic = self.flatten_dict(result)
             for key in dic:
                 path_key = key.split("/")
-                if isinstance(self.dtype.dict_[path_key[0]], Primitive):
+                if isinstance(self._schema[path_key[0]], Primitive):
                     ds[path_key[0], i] = result[path_key[0]]
                 else:
                     val = result
@@ -83,13 +83,11 @@ class Transform:
 
     def dtype_from_path(self, path):
         path = path.split('/')
-        cur_type = self.dtype
-        for subpath in path:
-            cur_type = cur_type.dict_
+        cur_type = self._schema
+        for subpath in path[:-1]:
             cur_type = cur_type[subpath]
-        return cur_type
-
-
+            cur_type = cur_type.dict_
+        return cur_type[path[-1]]
 
     @ray.remote
     def _transfer_batch(self, ds, i, results):
@@ -126,6 +124,3 @@ def transform(schema):
         return inner
 
     return wrapper
-
-
-
