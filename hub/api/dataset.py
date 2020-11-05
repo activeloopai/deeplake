@@ -279,7 +279,7 @@ class Dataset:
                 )
 
         output_types = dtype_to_tf(self.schema)
-        print(output_types)
+
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
@@ -374,3 +374,12 @@ class TorchDataset:
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
             yield (d)
+
+    def collate_fn(self, batch):
+        batch = tuple(batch)
+        keys = tuple(batch[0].keys())
+        ans = {key: [item[key] for item in batch] for key in keys}
+        for key in keys:
+            ans[key] = torch.stack(ans[key], dim=0, out=None)
+
+        return ans
