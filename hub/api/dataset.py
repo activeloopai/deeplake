@@ -334,6 +334,13 @@ class Dataset:
         chunks = [t.chunksize[0] for t in self._tensors.values()]
         return compute_lcm(chunks)
 
+    @property
+    def keys(self):
+        """
+        Get Keys of the dataset
+        """
+        return self._tensors.keys()
+
 
 class TorchDataset:
     def __init__(self, ds, transform=None):

@@ -15,4 +15,4 @@ ds = ds.to_tensorflow().batch(8)
 
 # Iterate over the data
 for batch in ds:
-    print(batch["data"], batch["labels"])
+    print(batch["image"], batch["label"])

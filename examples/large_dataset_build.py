@@ -13,23 +13,18 @@ def create_large_dataset():
     array = np.random.random((10, 1920, 1080, 3))
 
     # Write the dataset
-    with hub.Dataset(
+    ds = hub.Dataset(
         "./data/examples/large_dataset_build",
         shape=(sample_count,),
         schema=schema,
-    ) as ds:
-        for i in range(len(ds) // 10):
-            ds["image", i * 10 : i * 10 + 10] = i * array
+    )
 
-    import time
+    for i in range(len(ds) // 10):
+        ds["image", i * 10 : i * 10 + 10] = i * array
 
     ds = hub.Dataset("./data/examples/large_dataset_build")
-    t1 = time.time()
-    print(ds["image"].shape)
-    # print(ds["image"].dtype)
-    t2 = time.time()
-    print(t2 - t1)
-    exit()
+    print(ds.keys, ds["image"].shape, ds["image"].dtype)
+
     # Read the dataset
     with hub.Dataset("./data/examples/large_dataset_build") as ds:
         for i in range(len(ds) // 10):
