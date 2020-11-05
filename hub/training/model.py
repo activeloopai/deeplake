@@ -100,16 +100,14 @@ class Model:
         else:
             fs, url = get_fs_and_path(model_dir)
         model_class = self._model.__class__
-        if "PYTORCH_MODEL_CLASSES" in globals() and issubclass(
-            model_class, PYTORCH_MODEL_CLASSES
-        ):
+        if (("PYTORCH_MODEL_CLASSES" in globals() and issubclass(
+            model_class, PYTORCH_MODEL_CLASSES)) or ("PYTORCH_LIGHTNING_MODEL_CLASSES" in globals()
+            and issubclass(model_class, PYTORCH_LIGHTNING_MODEL_CLASSES))):
             model_full_path = os.path.join(url, model_class.__name__ + ".pth")
             with fs.open(model_full_path, "wb") as opened_file:
-                torch.save(self._model, opened_file)
-        elif (("TENSORFLOW_MODEL_CLASSES" in globals() 
-            and issubclass(model_class, TENSORFLOW_MODEL_CLASSES)) or 
-            ("PYTORCH_LIGHTNING_MODEL_CLASSES" in globals() 
-            and issubclass(model_class, PYTORCH_LIGHTNING_MODEL_CLASSES))):
+                torch.save(self._model.state_dict(), opened_file)
+        elif "TENSORFLOW_MODEL_CLASSES" in globals() and issubclass(model_class,
+                                                                    TENSORFLOW_MODEL_CLASSES):
             model_full_path = os.path.join(url, model_class.__name__ + '.h5')
             io_h5 = io.BytesIO()
             self._model.save(io_h5)
