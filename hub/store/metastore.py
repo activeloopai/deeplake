@@ -71,16 +71,6 @@ class MetaStorage(MutableMapping):
         else:
             del self._fs_map[k]
 
-    # def listdir(self):
-    #     res = []
-    #     for i in self:
-    #         res += [i]
-    #     return res
-
-    # def rmdir(self):
-    #     for i in self.listdir():
-    #         del self[i]
-
     def commit(self):
         self._meta.commit()
         self._fs_map.commit()

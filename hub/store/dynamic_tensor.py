@@ -6,7 +6,6 @@ import numpy as np
 import zarr
 import numcodecs
 
-from hub.store.store import get_storage_map
 from hub.store.nested_store import NestedStore
 
 from hub.exceptions import DynamicTensorNotFoundException
@@ -224,7 +223,9 @@ class DynamicTensor:
                         shape_offset += 1
                 elif i < len(slice_) and isinstance(slice_[i], slice):
                     shape_offset += 1
-            self._dynamic_tensor[slice_[0]] = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
+            self._dynamic_tensor[slice_[0]] = np.maximum(
+                self._dynamic_tensor[slice_[0]], new_shape
+            )
         else:
             raise ValueError("Setting shape across multiple dimensions isn't supported")
 

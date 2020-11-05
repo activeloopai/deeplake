@@ -56,6 +56,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
+        cache: int = 2 ** 20,
     ):
         """Open a new or existing dataset for read/write
 
@@ -77,6 +78,8 @@ class Dataset:
             token is the parameter to pass the credentials, it can be filepath or dict
         fs: optional
         fs_map: optional
+        cache: int, optional
+            Size of the cache. Default is 2GB (2**20)
         """
 
         shape = shape or (None,)
@@ -91,8 +94,9 @@ class Dataset:
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
         )
+
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs, self._path, 2 ** 20)
+        fs_map = fs_map or get_storage_map(self._fs, self._path, cache)
         self._fs_map = fs_map
 
         if safe_mode and not needcreate:

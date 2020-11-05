@@ -55,19 +55,18 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
     else:
         # TOOD check if url is username/dataset:version
         url, creds = _connect(url)
-        return (
-            fsspec.filesystem(
-                "s3",
-                key=creds["access_key"],
-                secret=creds["secret_key"],
-                token=creds["session_token"],
-                client_kwargs={
-                    "endpoint_url": creds["endpoint"],
-                    "region_name": creds["region"],
-                },
-            ),
-            url,
+        fs = fsspec.filesystem(
+            "s3",
+            key=creds["access_key"],
+            secret=creds["secret_key"],
+            token=creds["session_token"],
+            client_kwargs={
+                "endpoint_url": creds["endpoint"],
+                "region_name": creds["region"],
+            },
         )
+
+        return (fs, url)
 
 
 def read_aws_creds(filepath: str):
@@ -77,10 +76,11 @@ def read_aws_creds(filepath: str):
 
 
 def _get_storage_map(fs, path):
-    return fs.get_mapper(path, check=False, create=False)
+    mapper = fsspec.FSMap(path, fs, check=False, create=False)
+    return mapper
 
 
-def get_storage_map(fs, path, memcache=2 ** 26):
+def get_storage_map(fs, path, memcache=2 ** 20):
     store = _get_storage_map(fs, path)
     cache_path = os.path.join("~/.activeloop/cache/", path)
     return Cache(store, memcache, path=cache_path)
