@@ -10,10 +10,6 @@ outdated==0.2.0
 lz4>=3,<4
 zarr==2.5
 lmdb==1.0.0
-boto3==1.14.29
+boto3==1.16.10
 ray==1.0.0
-#dev
-pytest
-pytest-cov
-flake8
-black
+
