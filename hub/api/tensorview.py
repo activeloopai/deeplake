@@ -31,6 +31,10 @@ class TensorView:
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
+        self.dtype = self.dtype_from_path(subpath)
+        tensor_shape = self.dtype.shape
+        print(tensor_shape)
+        self.shape = self.make_shape(tensor_shape)
 
     def numpy(self):
         """Gets the value from tensorview"""
@@ -45,7 +49,7 @@ class TensorView:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        slice_ = [0] + slice_ if self.nums[0] == 1 else slice_
+        slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
         if subpath:
             raise ValueError("Can't slice a Tensor with string")
@@ -66,10 +70,10 @@ class TensorView:
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        slice_ = [0] + slice_ if self.nums[0] == 1 else slice_
+        slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
         if subpath:
-            raise ValueError("Can't slice a dataset with multiple slices without subpath")
+            raise ValueError("Can't slice a Tensor with string")
         else:
             new_nums = self.nums.copy()
             new_offsets = self.offsets.copy()
@@ -114,3 +118,34 @@ class TensorView:
             )
         if start and stop and start > stop:
             raise IndexError("start index is greater than stop index")
+
+    def dtype_from_path(self, path):
+        path = path.split('/')
+        cur_type = self.dataset.schema.dict_
+        for subpath in path[1:-1]:
+            cur_type = cur_type[subpath]
+            cur_type = cur_type.dict_
+        return cur_type[path[-1]]
+
+    def slice_fill(self, slice_):
+        "fills the slice with zeroes for the dimensions that have single elements"
+        new_slice_ = []
+        offset = 0
+        for num in self.nums:
+            if num == 1:
+                new_slice_.append(0)
+            else:
+                new_slice_.append(slice_[offset])
+                offset += 1
+        new_slice_ = new_slice_ + slice_[offset:]
+        return new_slice_
+
+    def make_shape(self, shape):
+        final_shape = []
+        final_shape.append(self.nums[0])
+        for i in range(len(shape)):
+            if i + 1 < len(self.nums):
+                final_shape.append(self.nums[i + 1])
+            else:
+                final_shape.append(shape[i])
+        return final_shape
