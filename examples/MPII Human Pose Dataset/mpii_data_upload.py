@@ -23,25 +23,25 @@ class MPIIGenerator(dataset.DatasetGenerator):
     def meta(self):
 
         return {
-            "image": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "dataset": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "isValidation": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "img_paths": {"shape": (1,), "dtype": "str", "chunksize": 1000},
-            "img_width": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "img_height": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "objpos": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "joint_self": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "scale_provided": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "joint_others": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "image": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "dataset": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "isValidation": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "img_paths": {"shape": (1,), "dtype": "str", "chunksize": 5},
+            "img_width": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "img_height": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "objpos": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "joint_self": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "scale_provided": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "joint_others": {"shape": (1,), "dtype": "object", "chunksize": 5},
             "scale_provided_other": {
                 "shape": (1,),
                 "dtype": "object",
-                "chunksize": 1000,
+                "chunksize": 5,
             },
-            "objpos_other": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "annolist_index": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "people_index": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "numOtherPeople": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "objpos_other": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "annolist_index": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "people_index": {"shape": (1,), "dtype": "object", "chunksize": 5},
+            "numOtherPeople": {"shape": (1,), "dtype": "object", "chunksize": 5},
         }
 
     def __call__(self, input):
@@ -67,26 +67,25 @@ class MPIIGenerator(dataset.DatasetGenerator):
             ds["people_index"] = np.empty(n, object)
             ds["numOtherPeople"] = np.empty(n, object)
 
-            i = 0  # i = 0 for 1st row, i changes iteratively.
-            ds["image"][i] = np.array(Image.open(img_path + input["img_paths"]))
-            ds["dataset"][i] = input["dataset"]
-            ds["isValidation"][i] = input["isValidation"]
-            ds["img_paths"][i] = input["img_paths"]
-            ds["img_width"][i] = input["img_width"]
-            ds["img_height"][i] = input["img_height"]
+            ds["image"][0] = np.array(Image.open(img_path + input["img_paths"]))
+            ds["dataset"][0] = input["dataset"]
+            ds["isValidation"][0] = input["isValidation"]
+            ds["img_paths"][0] = input["img_paths"]
+            ds["img_width"][0] = input["img_width"]
+            ds["img_height"][0] = input["img_height"]
             """
             Some features in input list has another list(more than one list) inside them.
             So they are converted to array using np.array(list(list()).
             """
-            ds["objpos"][i] = np.array(input["objpos"])
-            ds["joint_self"][i] = np.array(input["joint_self"])
-            ds["scale_provided"][i] = input["scale_provided"]
-            ds["joint_others"][i] = np.array(input["joint_others"])
-            ds["scale_provided_other"][i] = np.array(input["scale_provided_other"])
-            ds["objpos_other"][i] = np.array(input["objpos_other"])
-            ds["annolist_index"][i] = input["annolist_index"]
-            ds["people_index"][i] = input["people_index"]
-            ds["numOtherPeople"][i] = input["numOtherPeople"]
+            ds["objpos"][0] = np.array(input["objpos"])
+            ds["joint_self"][0] = np.array(input["joint_self"])
+            ds["scale_provided"][0] = input["scale_provided"]
+            ds["joint_others"][0] = np.array(input["joint_others"])
+            ds["scale_provided_other"][0] = np.array(input["scale_provided_other"])
+            ds["objpos_other"][0] = np.array(input["objpos_other"])
+            ds["annolist_index"][0] = input["annolist_index"]
+            ds["people_index"][0] = input["people_index"]
+            ds["numOtherPeople"][0] = input["numOtherPeople"]
 
             return ds
 
@@ -124,7 +123,7 @@ def load_dataset():
 t1 = time.time()
 # Call the load_dataset function to generate the complete dataset
 ds = load_dataset()
-# ds.store stores the dataset in username/MPII_Human_Pose_Dataset
-ds.store("MPII_Human_Pose_Dataset")
+# ds.store stores the dataset in username/MPII_human_pose_data
+ds.store("MPII_human_pose_data")
 t2 = time.time()
-logger.info(f"Pipeline took {(t2 - t1) / 60} minutes")
+print(f"Pipeline took {(t2 - t1) / 60} minutes")
