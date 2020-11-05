@@ -80,7 +80,7 @@ def _get_storage_map(fs, path):
     return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
-def get_storage_map(fs, path, memcache=2 ** 20):
+def get_storage_map(fs, path, memcache=2 ** 26):
     store = _get_storage_map(fs, path)
     cache_path = os.path.join("~/.activeloop/cache/", path)
     return Cache(store, memcache, path=cache_path)
