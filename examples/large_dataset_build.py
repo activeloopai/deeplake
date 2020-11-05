@@ -4,7 +4,7 @@ from hub.features import Tensor
 
 
 def create_large_dataset():
-    sample_count = 30  # change this to big number to test
+    sample_count = 60  # change this to big number to test
 
     # Decide schema of the dataset
     schema = {
@@ -21,6 +21,15 @@ def create_large_dataset():
         for i in range(len(ds) // 10):
             ds["image", i * 10 : i * 10 + 10] = i * array
 
+    import time
+
+    ds = hub.Dataset("./data/examples/large_dataset_build")
+    t1 = time.time()
+    print(ds["image"].shape)
+    # print(ds["image"].dtype)
+    t2 = time.time()
+    print(t2 - t1)
+    exit()
     # Read the dataset
     with hub.Dataset("./data/examples/large_dataset_build") as ds:
         for i in range(len(ds) // 10):

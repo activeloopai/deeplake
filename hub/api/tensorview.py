@@ -36,6 +36,16 @@ class TensorView:
         """Gets the value from tensorview"""
         return self.dataset._tensors[self.subpath][self.slice_]
 
+    @property
+    def shape(self):
+        # FIXME get the shape without reading the data
+        return self.dataset._tensors[self.subpath][self.slice_].shape
+
+    @property
+    def dtype(self):
+        # FIXME get the dtype of the tensor without reading the data
+        return self.dataset._tensors[self.subpath][self.slice_].dtype
+
     def compute(self):
         """Gets the value from tensorview"""
         return self.numpy()
@@ -56,10 +66,14 @@ class TensorView:
                 new_nums.extend([None] * (len(slice_list) - len(new_nums)))
                 new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
             for i in range(len(slice_list)):
-                slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
+                slice_list[i] = self._combine(
+                    slice_list[i], new_nums[i], new_offsets[i]
+                )
             for i in range(len(slice_list), len(new_nums)):
                 slice_list.append(slice(new_offsets[i], new_offsets[i] + new_nums[i]))
-            return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_list)
+            return TensorView(
+                dataset=self.dataset, subpath=self.subpath, slice_=slice_list
+            )
 
     def __setitem__(self, slice_, value):
         """"Sets a slice or slices with a value"""
@@ -69,7 +83,9 @@ class TensorView:
         slice_ = [0] + slice_ if self.nums[0] == 1 else slice_
         subpath, slice_list = slice_split(slice_)
         if subpath:
-            raise ValueError("Can't slice a dataset with multiple slices without subpath")
+            raise ValueError(
+                "Can't slice a dataset with multiple slices without subpath"
+            )
         else:
             new_nums = self.nums.copy()
             new_offsets = self.offsets.copy()
@@ -88,11 +104,17 @@ class TensorView:
             self.check_slice_bounds(num=num, start=slice_)
             return ofs + slice_
         elif isinstance(slice_, slice):
-            self.check_slice_bounds(num=num, start=slice_.start, stop=slice_.stop, step=slice_.step)
+            self.check_slice_bounds(
+                num=num, start=slice_.start, stop=slice_.stop, step=slice_.step
+            )
             if slice_.start is None and slice_.stop is None:
                 return slice(ofs, None) if num is None else slice(ofs, ofs + num)
             elif slice_.start is not None and slice_.stop is None:
-                return slice(ofs + slice_.start, None) if num is None else slice(ofs + slice_.start, ofs + num)
+                return (
+                    slice(ofs + slice_.start, None)
+                    if num is None
+                    else slice(ofs + slice_.start, ofs + num)
+                )
             elif slice_.start is None and slice_.stop is not None:
                 return slice(ofs, ofs + slice_.stop)
             else:
@@ -104,13 +126,11 @@ class TensorView:
 
     def check_slice_bounds(self, num=None, start=None, stop=None, step=None):
         "checks whether the bounds of slice are in limits"
-        if (step and step < 0):  # negative step not supported
+        if step and step < 0:  # negative step not supported
             raise ValueError("Negative step not supported in dataset slicing")
         if num and ((start and start >= num) or (stop and stop > num)):
             raise IndexError(
-                "index out of bounds for dimension with length {}".format(
-                    num
-                )
+                "index out of bounds for dimension with length {}".format(num)
             )
         if start and stop and start > stop:
             raise IndexError("start index is greater than stop index")
