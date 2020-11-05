@@ -125,7 +125,8 @@ class Dataset:
                 raise
 
     def _check_and_prepare_dir(self):
-        """Checks if input data is ok
+        """
+        Checks if input data is ok
         Creates or overwrites dataset folder
         Returns True dataset needs to be created opposed to read
         """

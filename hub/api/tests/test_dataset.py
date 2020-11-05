@@ -48,6 +48,7 @@ def test_dataset(url="./data/test/dataset", token=None):
 
     subds = ds[5:7]
     ds["image", 6, 3:5, 100:135, 700:720] = 5 * np.ones((2, 35, 20, 3))
+
     assert (
         subds["image", 1, 3:5, 100:135, 700:720].numpy() == 5 * np.ones((2, 35, 20, 3))
     ).all()

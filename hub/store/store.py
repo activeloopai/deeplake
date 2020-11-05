@@ -1,3 +1,4 @@
+from requests.adapters import ProxyError
 from hub.store.cache import Cache
 
 from hub.client.hub_control import HubControlClient
@@ -76,8 +77,7 @@ def read_aws_creds(filepath: str):
 
 
 def _get_storage_map(fs, path):
-    mapper = fsspec.FSMap(path, fs, check=False, create=False)
-    return mapper
+    return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
 def get_storage_map(fs, path, memcache=2 ** 20):
@@ -89,6 +89,7 @@ def get_storage_map(fs, path, memcache=2 ** 20):
 class StorageMapWrapperWithCommit(MutableMapping):
     def __init__(self, map):
         self._map = map
+        self.root = self._map.root
 
     def __getitem__(self, slice_):
         return self._map[slice_]

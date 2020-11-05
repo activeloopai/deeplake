@@ -175,19 +175,13 @@ class Cache(zarr.LRUStoreCache):
 
     def __setitem__(self, key, value):
         """On each new add, remember the order"""
-        # print(key)
-        # key = f"{self.root}/{key}"
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
         """On each new add, remember the order"""
-        # print(key)
-        # key = f"{self.root}/{key}"
         el = super().__getitem__(key)
         return el
 
     def __delitem__(self, key):
         """ Delete item """
-        # print(key)
-        # key = f"{self.root}/{key}"
         super().__delitem__(key)
