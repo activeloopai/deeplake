@@ -1,96 +1,170 @@
-from hub.features.features import Primitive
 from typing import Tuple
 import posixpath
+import collections.abc as abc
+import json
 
-# import fsspec
+import fsspec
 
-from hub.features import featurify, FeatureConnector, FlatTensor
+from hub.features.features import (
+    Primitive,
+    Tensor,
+    FeatureDict,
+    FeatureConnector,
+    featurify,
+    FlatTensor,
+)
 
-# from hub.store.storage_tensor import StorageTensor
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import slice_extract_info, slice_split_tuple
+from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.utils import compute_lcm
 
-# import hub.collections.dataset.core as core
-import json
 import hub.features.serialize
 import hub.features.deserialize
-import hub.dynamic_tensor as dynamic_tensor
+
+from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
-from hub.exceptions import OverwriteIsNotSafeException
+from hub.exceptions import (
+    HubDatasetNotFoundException,
+    NotHubDatasetToOverwriteException,
+    NotHubDatasetToAppendException,
+)
 from hub.store.metastore import MetaStorage
 
-DynamicTensor = dynamic_tensor.DynamicTensor
+try:
+    import torch
+except ImportError:
+    pass
+try:
+    import tensorflow as tf
+except ImportError:
+    pass
+
+
+def get_file_count(fs: fsspec.AbstractFileSystem, path):
+    return len(fs.listdir(path, detail=False))
 
 
 class Dataset:
     def __init__(
         self,
-        url: str = None,
-        mode: str = None,
-        token=None,
+        url: str,
+        mode: str = "a",
+        safe_mode: bool = False,
         shape=None,
-        dtype=None,
+        schema=None,
+        token=None,
         fs=None,
         fs_map=None,
+        cache: int = 2 ** 20,
     ):
-        assert dtype is not None
-        assert shape is not None
-        assert len(tuple(shape)) == 1
-        assert url is not None
+        """Open a new or existing dataset for read/write
+
+        Parameters
+        ----------
+        url: str
+            The url where dataset is located/should be created
+        mode: str, optional (default to "w")
+            Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
+        safe_mode: bool, optional
+            if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
+        shape: tuple, optional
+            Tuple with (num_samples,) format, where num_samples is number of samples
+        schema: optional
+            Describes the data of a single sample. Hub features are used for that
+            Required for 'a' and 'w' modes
+        token: str or dict, optional
+            If url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        fs: optional
+        fs_map: optional
+        cache: int, optional
+            Size of the cache. Default is 2GB (2**20)
+        """
+
+        shape = shape or (None,)
+        if shape is not None:
+            assert len(tuple(shape)) == 1
         assert mode is not None
 
         self.url = url
         self.token = token
         self.mode = mode
 
-        fs, path = (fs, url) if fs else get_fs_and_path(self.url, token=token)
-        if ("w" in mode or "a" in mode) and not fs.exists(path):
-            fs.makedirs(path)
-        fs_map = fs_map or get_storage_map(fs, path, 2 ** 20)
-        self._fs = fs
-        self._path = path
+        self._fs, self._path = (
+            (fs, url) if fs else get_fs_and_path(self.url, token=token)
+        )
+
+        needcreate = self._check_and_prepare_dir()
+        fs_map = fs_map or get_storage_map(self._fs, self._path, cache)
         self._fs_map = fs_map
-        exist_ = bool(fs_map.get(".hub.dataset"))
-        if not exist_ and len(fs_map) > 0 and "w" in mode:
-            raise OverwriteIsNotSafeException()
-        if len(fs_map) > 0 and exist_ and "w" in mode:
-            fs.rm(path, recursive=True)
-            fs.makedirs(path)
-        exist = False if "w" in mode else bool(fs_map.get(".hub.dataset"))
-        if exist:
-            meta = json.loads(str(fs_map[".hub.dataset"]))
-            self.shape = meta["shape"]
-            self.dtype = hub.features.deserialize.deserialize(meta["dtype"])
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
+
+        if safe_mode and not needcreate:
+            mode = "r"
+
+        if not needcreate:
+            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.shape = tuple(meta["shape"])
+            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
-            self.dtype: FeatureConnector = featurify(dtype)
-            self.shape = shape
-            meta = {
-                "shape": shape,
-                "dtype": hub.features.serialize.serialize(self.dtype),
-            }
-            fs_map[".hub.dataset"] = bytes(json.dumps(meta), "utf-8")
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.dtype._flatten())
-            self._tensors = dict(self._generate_storage_tensors())
+            try:
+                self.schema: FeatureConnector = featurify(schema)
+                self.shape = tuple(shape)
+                meta = {
+                    "shape": shape,
+                    "schema": hub.features.serialize.serialize(self.schema),
+                    "version": 1,
+                }
+                fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+                self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+                self._tensors = dict(self._generate_storage_tensors())
+            except Exception:
+                self._fs.rm(self._path, recursive=True)
+                raise
+
+    def _check_and_prepare_dir(self):
+        """
+        Checks if input data is ok
+        Creates or overwrites dataset folder
+        Returns True dataset needs to be created opposed to read
+        """
+        fs, path, mode = self._fs, self._path, self.mode
+        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        if exist_meta:
+            if "w" in mode:
+                fs.rm(path, recursive=True)
+                fs.makedirs(path)
+                return True
+            return False
+        else:
+            if "r" in mode:
+                raise HubDatasetNotFoundException()
+            exist_dir = fs.exists(path)
+            if not exist_dir:
+                fs.makedirs(path)
+            elif get_file_count(fs, path) > 0:
+                if "w" in mode:
+                    raise NotHubDatasetToOverwriteException()
+                else:
+                    raise NotHubDatasetToAppendException()
+            return True
 
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
-            self._fs.makedirs(path)
+            self._fs.makedirs(posixpath.join(path, "--dynamic--"))
             yield t.path, DynamicTensor(
-                path,
+                fs_map=MetaStorage(
+                    t.path, get_storage_map(self._fs, path), self._fs_map
+                ),
                 mode=self.mode,
                 shape=self.shape + t.shape,
                 max_shape=self.shape + t.max_shape,
                 dtype=t.dtype,
                 chunks=t.chunks,
-                fs=self._fs,
-                fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
-                ),
             )
 
     def _open_storage_tensors(self):
@@ -98,156 +172,205 @@ class Dataset:
             t: FlatTensor = t
             path = posixpath.join(self._path, t.path[1:])
             yield t.path, DynamicTensor(
-                path,
-                mode=self.mode,
-                shape=self.shape + t.shape,
-                fs=self._fs,
                 fs_map=MetaStorage(
                     t.path, get_storage_map(self._fs, path), self._fs_map
                 ),
+                mode=self.mode,
+                shape=self.shape + t.shape,
             )
 
     def __getitem__(self, slice_):
-        if isinstance(slice_, int):  # return Dataset with single sample
-            # doesn't handle negative right now
-            if slice_ >= self.shape[0]:
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(
-                        self.shape[0]
-                    )
+        """Gets a slice or slices from dataset
+        Examples
+        --------
+        return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
+
+        images = ds["image"]
+        return images[5].compute() # returns numpy array
+
+        images = ds["image"]
+        image = images[5]
+        return image[0:1920, 0:1080, 0:3].compute()
+        """
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+        slice_ = list(slice_)
+        subpath, slice_list = slice_split(slice_)
+        if not subpath:
+            if len(slice_list) > 1:
+                raise ValueError(
+                    "Can't slice a dataset with multiple slices without subpath"
                 )
-            return DatasetView(dataset=self, num_samples=1, offset=slice_)
-
-        elif isinstance(slice_, slice):  # return Dataset with multiple samples
-            num, ofs = slice_extract_info(slice_, self.shape[0])
+            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
             return DatasetView(dataset=self, num_samples=num, offset=ofs)
-
-        elif isinstance(slice_, str):
-            subpath = (
-                slice_ if slice_.startswith("/") else "/" + slice_
-            )  # return TensorView object
+        elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(
                     dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
                 )
-            else:
-                d = {}
-                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
-                for key in self._tensors.keys():
-                    if key.startswith(post_subpath):
-                        suffix_key = key[len(post_subpath) :]
-                    else:
-                        continue
-                    split_key = suffix_key.split("/")
-                    cur = d
-                    for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = TensorView(
-                        dataset=self, subpath=key, slice_=slice(0, self.shape[0])
-                    )
-                if len(d) == 0:
-                    raise KeyError(f"Key {subpath} was not found in dataset")
-                return d
-
-        elif isinstance(slice_, tuple):  # return tensor view object
-            subpath, slice_ = slice_split_tuple(slice_)
-            if len(slice_) == 0:
-                slice_ = (slice(0, self.shape[0]),)
-            d = {}
-            if subpath not in self._tensors.keys():
-                post_subpath = subpath if subpath.endswith("/") else subpath + "/"
-                for key in self._tensors.keys():
-                    if key.startswith(post_subpath):
-                        suffix_key = key[len(post_subpath) :]
-                    else:
-                        continue
-                    split_key = suffix_key.split("/")
-                    cur = d
-                    for i in range(len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = TensorView(
-                        dataset=self, subpath=key, slice_=slice_
-                    )
-                if len(d) == 0:
-                    raise KeyError(f"Key {subpath} was not found in dataset")
-
-            if len(slice_) <= 1:
-                if len(slice_) == 1:
-                    if isinstance(slice_[0], int) and slice_[0] >= self.shape[0]:
-                        raise IndexError(
-                            "index out of bounds for dimension with length {}".format(
-                                self.shape[0]
-                            )
-                        )
-                    elif isinstance(slice_[0], slice):
-                        # will check slice limits and raise error if required
-                        num, ofs = slice_extract_info(slice_[0], self.shape[0])
-                if subpath in self._tensors.keys():
-                    return TensorView(dataset=self, subpath=subpath, slice_=slice_)
-                else:
-                    return d
-            else:
-                if subpath not in self._tensors.keys():
-                    raise ValueError("You can't slice a dictionary of Tensors")
-                elif isinstance(slice_[0], int) and slice_[0] >= self.shape[0]:
-                    raise IndexError(
-                        "index out of bounds for dimension with length {}".format(
-                            self.shape[0]
-                        )
-                    )
-                elif isinstance(slice_[0], slice):
-                    num, ofs = slice_extract_info(slice_[0], self.shape[0])
-                    ls = list(slice_)
-                    ls[0] = slice(ofs, ofs + num)
-                    slice_ = tuple(ls)
-                return TensorView(dataset=self, subpath=subpath, slice_=slice_)
+            return self._get_dictionary(subpath)
         else:
-            raise TypeError(
-                "type {} isn't supported in dataset slicing".format(type(slice_))
-            )
+            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+            if subpath in self._tensors.keys():
+                return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
+            if len(slice_list) > 1:
+                raise ValueError("You can't slice a dictionary of Tensors")
+            return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        if isinstance(slice_, int):  # Not supported
-            raise TypeError("Can't assign to dataset indexed only with int")
+        """ "Sets a slice or slices with a value
+        Examples
+        --------
+        ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
 
-        elif isinstance(slice_, slice):  # Not supported
-            raise TypeError("Can't assign to dataset indexed only with slice")
-
-        elif isinstance(slice_, str):
-            slice_ = (
-                slice_ if slice_.startswith("/") else "/" + slice_
-            )  # return TensorView object
-            self._tensors[slice_][:] = value
-
-        elif isinstance(slice_, tuple):  # return tensor view object
-            subpath, slice_ = slice_split_tuple(slice_)
-            self._tensors[subpath][slice_] = value
-
+        images = ds["image"]
+        image = images[5]
+        image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+        """
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+        slice_ = list(slice_)
+        subpath, slice_list = slice_split(slice_)
+        if not subpath:
+            raise ValueError("Can't assign to dataset sliced without subpath")
+        elif not slice_list:
+            self._tensors[subpath][:] = value  # Add path check
         else:
-            raise TypeError(
-                "type {} isn't supported in dataset slicing".format(type(slice_))
-            )
+            self._tensors[subpath][slice_list] = value
 
-    def __exit__(self, type, value, traceback):
-        raise NotImplementedError()
+    def to_pytorch(self, Transform=None):
+        return TorchDataset(self, Transform)
+
+    def to_tensorflow(self):
+        def tf_gen():
+            for index in range(self.shape[0]):
+                d = {}
+                for key in self._tensors.keys():
+                    split_key = key.split("/")
+                    cur = d
+                    for i in range(1, len(split_key) - 1):
+                        if split_key[i] in cur.keys():
+                            cur = cur[split_key[i]]
+                        else:
+                            cur[split_key[i]] = {}
+                            cur = cur[split_key[i]]
+                    cur[split_key[-1]] = self._tensors[key][index]
+                yield (d)
+
+        def dict_to_tf(my_dtype):
+            d = {}
+            for k, v in my_dtype.dict_.items():
+                d[k] = dtype_to_tf(v)
+            return d
+
+        def tensor_to_tf(my_dtype):
+            return dtype_to_tf(my_dtype.dtype)
+
+        def dtype_to_tf(my_dtype):
+            if isinstance(my_dtype, FeatureDict):
+                return dict_to_tf(my_dtype)
+            elif isinstance(my_dtype, Tensor):
+                return tensor_to_tf(my_dtype)
+            elif isinstance(my_dtype, Primitive):
+                return str(my_dtype._dtype)
+            else:
+                print(
+                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
+                )
+
+        output_types = dtype_to_tf(self.schema)
+        print(output_types)
+        return tf.data.Dataset.from_generator(
+            tf_gen,
+            output_types=output_types,
+        )
+
+    def _get_dictionary(self, subpath, slice_=None):
+        """"Gets dictionary from dataset given incomplete subpath"""
+        tensor_dict = {}
+        subpath = subpath if subpath.endswith("/") else subpath + "/"
+        for key in self._tensors.keys():
+            if key.startswith(subpath):
+                suffix_key = key[len(subpath) :]
+                split_key = suffix_key.split("/")
+                cur = tensor_dict
+                for i in range(len(split_key) - 1):
+                    if split_key[i] not in cur.keys():
+                        cur[split_key[i]] = {}
+                    cur = cur[split_key[i]]
+                slice_ = slice_ if slice_ else slice(0, self.shape[0])
+                cur[split_key[-1]] = TensorView(
+                    dataset=self, subpath=key, slice_=slice_
+                )
+        if len(tensor_dict) == 0:
+            raise KeyError(f"Key {subpath} was not found in dataset")
+        return tensor_dict
 
     def __iter__(self):
-        raise NotImplementedError()
+        """ Returns Iterable over samples """
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        """ Number of samples in the dataset """
+        return self.shape[0]
 
     def commit(self):
+        """Save changes from cache to dataset final storage
+        This invalidates this object
+        """
         for t in self._tensors.values():
             t.commit()
 
+    def __enter__(self):
+        return self
 
-def open(
-    url: str = None, token=None, num_samples: int = None, mode: str = None
-) -> Dataset:
-    raise NotImplementedError()
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.commit()
+
+    @property
+    def chunksize(self):
+        # FIXME assumes chunking is done on the first sample
+        chunks = [t.chunksize[0] for t in self._tensors.values()]
+        return compute_lcm(chunks)
+
+
+class TorchDataset:
+    def __init__(self, ds, transform=None):
+        self._ds = ds
+        self._transform = transform
+
+    def _do_transform(self, data):
+        return self._transform(data) if self._transform else data
+
+    def __len__(self):
+        return self._ds.shape[0]
+
+    def __getitem__(self, index):
+        d = {}
+        for key in self._ds._tensors.keys():
+            split_key = key.split("/")
+            cur = d
+            for i in range(1, len(split_key) - 1):
+                if split_key[i] in cur.keys():
+                    cur = cur[split_key[i]]
+                else:
+                    cur[split_key[i]] = {}
+                    cur = cur[split_key[i]]
+            cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+        return d
+
+    def __iter__(self):
+        for index in range(self.shape[0]):
+            d = {}
+            for key in self._ds._tensors.keys():
+                split_key = key.split("/")
+                cur = d
+                for i in range(1, len(split_key) - 1):
+                    if split_key[i] in cur.keys():
+                        cur = cur[split_key[i]]
+                    else:
+                        cur[split_key[i]] = {}
+                        cur = cur[split_key[i]]
+                cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
+            yield (d)

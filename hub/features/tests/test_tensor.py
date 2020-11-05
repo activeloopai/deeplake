@@ -1,6 +1,4 @@
-import hub.features as features
-
-Tensor = features.Tensor
+from hub.features import Tensor
 
 
 def test_tensor_flattening():

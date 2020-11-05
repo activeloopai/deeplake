@@ -26,7 +26,8 @@ class CacheStore(zarr.LMDBStore):
             Keyword arguments passed through to the `lmdb.open` function.
 
         """
-        super(CacheStore, self).__init__(path, buffers=False, lock=False, **kwargs)
+        kwargs = {}
+        super(CacheStore, self).__init__(path, buffers=buffers, lock=True, **kwargs)
         self.namespace = namespace
         if cache_reset:
             self.clear()
@@ -113,7 +114,7 @@ class CacheStore(zarr.LMDBStore):
             except StopIteration:
                 break
             except Exception as e:
-                pass
+                logger.debug(e)
 
     def clear(self):
         """ Clean up the cache """
@@ -174,19 +175,13 @@ class Cache(zarr.LRUStoreCache):
 
     def __setitem__(self, key, value):
         """On each new add, remember the order"""
-        # print(key)
-        # key = f"{self.root}/{key}"
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
         """On each new add, remember the order"""
-        # print(key)
-        # key = f"{self.root}/{key}"
         el = super().__getitem__(key)
         return el
 
     def __delitem__(self, key):
         """ Delete item """
-        # print(key)
-        # key = f"{self.root}/{key}"
         super().__delitem__(key)
