@@ -30,11 +30,11 @@ class DatasetView:
         self.offset = offset
 
     def __getitem__(self, slice_):
-        """Gets a slice or slices from DatasetView
-        Examples
-        --------
-        ds_view = ds[5:15]
-        return ds_view["image", 7, 0:1920, 0:1080, 0:3].compute() # returns numpy array of 12th image
+        """| Gets a slice or slices from DatasetView
+        | Usage:
+        
+        >>> ds_view = ds[5:15]
+        >>> return ds_view["image", 7, 0:1920, 0:1080, 0:3].compute() # returns numpy array of 12th image
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -61,11 +61,11 @@ class DatasetView:
             return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        """"Sets a slice or slices with a value
-        Examples
-        --------
-        ds_view = ds[5:15]
-        ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
+        """| Sets a slice or slices with a value
+        | Usage:
+
+        >>> ds_view = ds[5:15]
+        >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
