@@ -366,7 +366,7 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self._ds is None:
-            self._ds = Dataset(self._url, token=self._token, lock=False)
+            self._ds = Dataset(self._url, token=self._token, lock_cache=False)
 
     def __len__(self):
         self._init_ds()

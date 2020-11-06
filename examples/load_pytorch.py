@@ -5,7 +5,7 @@ from hub import Dataset, features
 def main():
     # Create dataset
     ds = Dataset(
-        "./data/example/pytorch",
+        "davitb/pytorch_example",
         shape=(640,),
         mode="w",
         schema={
@@ -13,6 +13,8 @@ def main():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
+    # ds["image"][:] = 1
+    # ds["label"][:] = 2
 
     # Load to pytorch
     ds = ds.to_pytorch()
