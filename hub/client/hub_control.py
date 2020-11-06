@@ -78,17 +78,19 @@ class HubControlClient(HubHttpClient):
         try:
             tag = f"{username}/{dataset_name}"
             repo = f"public/{username}" if public else f"private/{username}"
-            self.request(
+            print(tag, repo, public)
+            r = self.request(
                 "POST",
                 config.CREATE_DATASET_SUFFIX,
                 json={
                     "tag": tag,
                     "repository": repo,
                     "public": public,
-                    "meta": {}
+                    "rewrite": True
                 },
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
+            print(r)
             print("Dataset entry created")
         except Exception as e:
             print("Unable to create Dataset entry")

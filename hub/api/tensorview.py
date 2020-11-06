@@ -31,9 +31,8 @@ class TensorView:
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
-        self.dtype = self.dtype_from_path(subpath)
-        tensor_shape = self.dtype.shape
-        print(tensor_shape)
+        self.dtype = self.primitve_from_path(subpath).dtype
+        tensor_shape = self.primitve_from_path(subpath).shape
         self.shape = self.make_shape(tensor_shape)
 
     def numpy(self):
@@ -119,7 +118,7 @@ class TensorView:
         if start and stop and start > stop:
             raise IndexError("start index is greater than stop index")
 
-    def dtype_from_path(self, path):
+    def primitve_from_path(self, path):
         path = path.split('/')
         cur_type = self.dataset.schema.dict_
         for subpath in path[1:-1]:
