@@ -56,7 +56,8 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 2 ** 20,
+        cache: int = 2 ** 26,
+        lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
 
@@ -80,6 +81,8 @@ class Dataset:
         fs_map: optional
         cache: int, optional
             Size of the cache. Default is 2GB (2**20)
+        lock_cache: bool, optional
+            Lock the cache for avoiding multiprocessing errors
         """
 
         shape = shape or (None,)
@@ -94,9 +97,11 @@ class Dataset:
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
         )
+        self.cache = cache
+        self.lock_cache = lock_cache
 
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs, self._path, cache)
+        fs_map = fs_map or get_storage_map(self._fs, self._path, cache, lock=lock_cache)
         self._fs_map = fs_map
 
         if safe_mode and not needcreate:
@@ -158,7 +163,9 @@ class Dataset:
             self._fs.makedirs(posixpath.join(path, "--dynamic--"))
             yield t.path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
+                    t.path,
+                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    self._fs_map,
                 ),
                 mode=self.mode,
                 shape=self.shape + t.shape,
@@ -173,7 +180,9 @@ class Dataset:
             path = posixpath.join(self._path, t.path[1:])
             yield t.path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
+                    t.path,
+                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    self._fs_map,
                 ),
                 mode=self.mode,
                 shape=self.shape + t.shape,
@@ -344,16 +353,27 @@ class Dataset:
 
 class TorchDataset:
     def __init__(self, ds, transform=None):
-        self._ds = ds
+        self._ds = None
+        self._url = ds.url
+        self._token = ds.token
         self._transform = transform
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
 
+    def _init_ds(self):
+        """
+        For each process, dataset should be independently loaded
+        """
+        if self._ds is None:
+            self._ds = Dataset(self._url, token=self._token, lock=False)
+
     def __len__(self):
+        self._init_ds()
         return self._ds.shape[0]
 
     def __getitem__(self, index):
+        self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
             split_key = key.split("/")
@@ -364,10 +384,12 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
+
             cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):
+        self._init_ds()
         for index in range(self.shape[0]):
             d = {}
             for key in self._ds._tensors.keys():
@@ -381,12 +403,3 @@ class TorchDataset:
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
             yield (d)
-
-    def collate_fn(self, batch):
-        batch = tuple(batch)
-        keys = tuple(batch[0].keys())
-        ans = {key: [item[key] for item in batch] for key in keys}
-        for key in keys:
-            ans[key] = torch.stack(ans[key], dim=0, out=None)
-
-        return ans

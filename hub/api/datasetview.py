@@ -22,9 +22,13 @@ class DatasetView:
         slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             if len(slice_list) > 1:
-                raise ValueError("Can't slice a dataset with multiple slices without subpath")
+                raise ValueError(
+                    "Can't slice a dataset with multiple slices without subpath"
+                )
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
-            return DatasetView(dataset=self.dataset, num_samples=num, offset=ofs + self.offset)
+            return DatasetView(
+                dataset=self.dataset, num_samples=num, offset=ofs + self.offset
+            )
         elif not slice_list:
             slice_ = slice(self.offset, self.offset + self.num_samples)
             if subpath in self.dataset._tensors.keys():
@@ -32,9 +36,15 @@ class DatasetView:
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
-            slice_list[0] = ofs + self.offset if num == 1 else slice(ofs + self.offset, ofs + self.offset + num)
+            slice_list[0] = (
+                ofs + self.offset
+                if num == 1
+                else slice(ofs + self.offset, ofs + self.offset + num)
+            )
             if subpath in self.dataset._tensors.keys():
-                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_list)
+                return TensorView(
+                    dataset=self.dataset, subpath=subpath, slice_=slice_list
+                )
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -49,11 +59,23 @@ class DatasetView:
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
-            slice_ = self.offset if self.num_samples == 1 else slice(self.offset, self.offset + self.num_samples)
+            slice_ = (
+                self.offset
+                if self.num_samples == 1
+                else slice(self.offset, self.offset + self.num_samples)
+            )
             self.dataset._tensors[subpath][slice_] = value  # Add path check
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples) if isinstance(slice_list[0], slice) else (1, slice_list[0])
-            slice_list[0] = slice(ofs + self.offset, ofs + self.offset + num) if num > 1 else ofs + self.offset
+            num, ofs = (
+                slice_extract_info(slice_list[0], self.num_samples)
+                if isinstance(slice_list[0], slice)
+                else (1, slice_list[0])
+            )
+            slice_list[0] = (
+                slice(ofs + self.offset, ofs + self.offset + num)
+                if num > 1
+                else ofs + self.offset
+            )
             self.dataset._tensors[subpath][slice_list] = value
 
     def _get_dictionary(self, subpath, slice_=None):
