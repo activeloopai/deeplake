@@ -108,21 +108,21 @@ class Dataset:
             mode = "r"
 
         if not needcreate:
-            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(meta["shape"])
-            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.shape = tuple(self.meta["shape"])
+            self.schema = hub.features.deserialize.deserialize(self.meta["schema"])
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
             try:
                 self.schema: FeatureConnector = featurify(schema)
                 self.shape = tuple(shape)
-                meta = {
+                self.meta = {
                     "shape": shape,
                     "schema": hub.features.serialize.serialize(self.schema),
                     "version": 1,
                 }
-                fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+                fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
                 self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
                 self._tensors = dict(self._generate_storage_tensors())
             except Exception:
