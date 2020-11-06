@@ -17,8 +17,17 @@ class Transform:
         for item in self._ds:
             yield self._func(item)
 
-    def store(self, url, token=None):
-        shape = self._ds.shape if hasattr(self._ds, "shape") else (len(self._ds),)
+    def store(self, url, token=None, length=None):
+        shape = self._ds.shape if hasattr(self._ds, "shape") else None
+        if shape is None:
+            if length is not None:
+                shape = (length,)
+            else:
+                try:
+                    shape = (len(self._ds),)
+                except Exception as e:
+                    raise e
+
         # shape = self._ds.shape if hasattr(self._ds, "shape") else (3,)  # for testing with tfds mock, that has no length
 
         ds = hub.Dataset(

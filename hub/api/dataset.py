@@ -282,16 +282,28 @@ class Dataset:
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
-            else:
-                print(
-                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
-                )
+
+        def get_output_shapes(my_dtype):
+            if isinstance(my_dtype, FeatureDict):
+                return output_shapes_from_dict(my_dtype)
+            elif isinstance(my_dtype, Tensor):
+                return my_dtype.shape
+            elif isinstance(my_dtype, Primitive):
+                return ()
+        
+        def output_shapes_from_dict(my_dtype):
+            d = {}
+            for k, v in my_dtype.dict_.items():
+                d[k] = get_output_shapes(v)
+            return d
 
         output_types = dtype_to_tf(self.schema)
-
+        output_shapes = get_output_shapes(self.schema)
+        # print(output_shapes)
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
+            output_shapes=output_shapes
         )
 
     def _get_dictionary(self, subpath, slice_=None):
@@ -403,3 +415,49 @@ class TorchDataset:
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
             yield (d)
+
+
+def from_tensorflow(ds):
+    def generate_schema(ds):
+        if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
+            return tf_to_hub({"data": ds._structure}).dict_
+        return tf_to_hub(ds._structure).dict_
+
+    def tf_to_hub(tf_dt):
+        if isinstance(tf_dt, dict):
+            return dict_to_hub(tf_dt)
+        elif isinstance(tf_dt, tf.python.framework.tensor_spec.TensorSpec):
+            return TensorSpec_to_hub(tf_dt)
+
+    def TensorSpec_to_hub(tf_dt):
+        shape = tf_dt.shape if tf_dt.shape.rank is not None else (None,)
+        return Tensor(shape=shape, dtype=tf_dt.dtype.name)
+
+    def dict_to_hub(tf_dt):
+        d = {key.replace('/', '_'): tf_to_hub(value) for key, value in tf_dt.items()}
+        return FeatureDict(d)
+
+    my_schema = generate_schema(ds)
+
+    def transform_numpy(sample):
+        d = {}
+        for k, v in sample.items():
+            k = k.replace('/', '_')
+            if not isinstance(v, dict):
+                if isinstance(v, tuple) or isinstance(v, list):
+                    new_v = list(v)
+                    for i in range(len(new_v)):
+                        new_v[i] = new_v[i].numpy()
+                    d[k] = tuple(new_v) if isinstance(v, tuple) else new_v
+                else:
+                    d[k] = v.numpy()
+            else:
+                d[k] = transform_numpy(v)
+        return d
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample):
+        sample = sample if isinstance(sample, dict) else {"data": sample}
+        return transform_numpy(sample)
+    
+    return my_transform(ds)
