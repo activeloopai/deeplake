@@ -4,7 +4,23 @@ import collections.abc as abc
 
 
 class DatasetView:
-    def __init__(self, dataset=None, num_samples=None, offset=None):
+    def __init__(
+        self,
+        dataset=None,
+        num_samples=None,
+        offset=None
+    ):
+        """Creates a DatasetView object for a subset of the Dataset
+
+        Parameters
+        ----------
+        dataset: hub.api.dataset.Dataset object
+            The dataset whose DatasetView is being created
+        num_samples: int
+            The number of samples in this DatasetView
+        offset: int
+            The offset from which the DatasetView starts
+        """
         assert dataset is not None
         assert num_samples is not None
         assert offset is not None
@@ -14,7 +30,12 @@ class DatasetView:
         self.offset = offset
 
     def __getitem__(self, slice_):
-        """Gets a slice or slices from datasetview"""
+        """Gets a slice or slices from DatasetView
+        Examples
+        --------
+        ds_view = ds[5:15]
+        return ds_view["image", 7, 0:1920, 0:1080, 0:3].compute() # returns numpy array of 12th image
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -40,7 +61,12 @@ class DatasetView:
             return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        """"Sets a slice or slices with a value"""
+        """"Sets a slice or slices with a value
+        Examples
+        --------
+        ds_view = ds[5:15]
+        ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)

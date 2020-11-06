@@ -236,7 +236,7 @@ class Dataset:
             return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        """ "Sets a slice or slices with a value
+        """Sets a slice or slices with a value
         Examples
         --------
         ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
@@ -257,13 +257,16 @@ class Dataset:
             self._tensors[subpath][slice_list] = value
 
     def to_pytorch(self, Transform=None):
+        """Converts the dataset into a pytorch compatible format"""
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException('torch')
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
+        """Converts the dataset into a tensorflow compatible format"""
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException('tensorflow')
+        
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}

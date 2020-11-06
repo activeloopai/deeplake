@@ -9,6 +9,17 @@ class TensorView:
         subpath=None,
         slice_=None,
     ):
+        """Creates a TensorView object for a particular tensor in the dataset
+
+        Parameters
+        ----------
+        dataset: hub.api.dataset.Dataset object
+            The dataset whose TensorView is being created
+        subpath: str
+            The full path to the particular Tensor in the Dataset
+        slice_: optional
+            The slice_ of this Tensor that needs to be accessed
+        """
 
         assert dataset is not None
         assert subpath is not None
@@ -41,7 +52,12 @@ class TensorView:
         return self.numpy()
 
     def __getitem__(self, slice_):
-        """Gets a slice or slices from tensorview"""
+        """Gets a slice or slices from tensorview
+        Examples
+        --------
+        images_tensorview = ds["image"]
+        return images_tensorview[7, 0:1920, 0:1080, 0:3].compute() # returns numpy array of 7th image
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -62,7 +78,12 @@ class TensorView:
             return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_list)
 
     def __setitem__(self, slice_, value):
-        """"Sets a slice or slices with a value"""
+        """"Sets a slice or slices with a value
+        Examples
+        --------
+        images_tensorview = ds["image"]
+        images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
+        """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -83,7 +104,7 @@ class TensorView:
             self.dataset._tensors[self.subpath][slice_list] = value
 
     def _combine(self, slice_, num=None, ofs=0):
-        "combines a slice_ with the current num and offset present in tensorview"
+        "combines slice_ with corresponding num and offset present in tensorview and returns combined slice"
         if isinstance(slice_, int):
             self.check_slice_bounds(num=num, start=slice_)
             return ofs + slice_
