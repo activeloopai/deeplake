@@ -1,4 +1,3 @@
-from requests.adapters import ProxyError
 from hub.store.cache import Cache
 
 from hub.client.hub_control import HubControlClient
@@ -80,10 +79,10 @@ def _get_storage_map(fs, path):
     return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
-def get_storage_map(fs, path, memcache=2 ** 26):
+def get_storage_map(fs, path, memcache=2 ** 26, lock=True):
     store = _get_storage_map(fs, path)
     cache_path = os.path.join("~/.activeloop/cache/", path)
-    return Cache(store, memcache, path=cache_path)
+    return Cache(store, memcache, path=cache_path, lock=lock)
 
 
 class StorageMapWrapperWithCommit(MutableMapping):
