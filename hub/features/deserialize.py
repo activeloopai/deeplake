@@ -37,14 +37,14 @@ def deserialize(inp):
             return Image(
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
-                encoding_format=inp["encoding_format"],
+                # TODO uncomment back when image encoding will be added
+                # encoding_format=inp["encoding_format"],
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
             )
         elif inp["type"] == "Mask":
             return Mask(
                 shape=inp["shape"],
-                dtype=deserialize(inp["dtype"]),
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
             )

@@ -4,23 +4,22 @@ from hub.features.features import Tensor
 
 def _load_names_from_file(names_filepath):
     with open(names_filepath, "r") as f:
-        return [
-            name.strip()
-            for name in f.read().split("\n")
-            if name.strip()
-        ]
+        return [name.strip() for name in f.read().split("\n") if name.strip()]
 
 
 class ClassLabel(Tensor):
-    """`FeatureConnector` for integer class labels."""
+    """`HubFeature` for integer class labels."""
 
     def __init__(
-        self, num_classes: int = None,
+        self,
+        num_classes: int = None,
         names: List[str] = None,
         names_file: str = None,
-        chunks=True
+        chunks=None,
+        compress="lz4",
+        compresslevel=None,
     ):
-        """Constructs a ClassLabel FeatureConnector.
+        """Constructs a ClassLabel HubFeature.
         There are 3 ways to define a ClassLabel, which correspond to the 3
         arguments:
         * `num_classes`: create 0 to (num_classes-1) labels
@@ -45,7 +44,13 @@ class ClassLabel(Tensor):
         Raises:
         ValueError: If more than one argument is provided
         """
-        super(ClassLabel, self).__init__(shape=(), dtype='int64', chunks=chunks)
+        super().__init__(
+            shape=(),
+            dtype="int64",
+            chunks=chunks,
+            compress=compress,
+            compresslevel=compresslevel,
+        )
 
         self._num_classes = None
         self._str2int = None
@@ -56,7 +61,8 @@ class ClassLabel(Tensor):
 
         if sum(a is not None for a in (num_classes, names, names_file)) != 1:
             raise ValueError(
-                "Only a single labeling argument of ClassLabel() should be provided.")
+                "Only a single labeling argument of ClassLabel() should be provided."
+            )
 
         if num_classes is not None:
             if isinstance(num_classes, int):
@@ -82,13 +88,15 @@ class ClassLabel(Tensor):
         if self._int2str is not None and self._int2str != int2str:
             raise ValueError(
                 "Trying to overwrite already defined ClassLabel names. Previous: {} "
-                ", new: {}".format(self._int2str, int2str))
+                ", new: {}".format(self._int2str, int2str)
+            )
 
         self._int2str = int2str
         self._str2int = {name: i for i, name in enumerate(self._int2str)}
         if len(self._int2str) != len(self._str2int):
             raise ValueError(
-                "Some label names are duplicated. Each label name should be unique.")
+                "Some label names are duplicated. Each label name should be unique."
+            )
 
         num_classes = len(self._str2int)
         if self._num_classes is None:
@@ -96,8 +104,7 @@ class ClassLabel(Tensor):
         elif self._num_classes != num_classes:
             raise ValueError(
                 "ClassLabel number of names do not match the defined num_classes. "
-                "Got {} names VS {} num_classes".format(
-                    num_classes, self._num_classes)
+                "Got {} names VS {} num_classes".format(num_classes, self._num_classes)
             )
 
     def str2int(self, str_value: str):

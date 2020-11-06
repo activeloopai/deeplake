@@ -1,10 +1,12 @@
 from typing import Tuple
 
+import numpy as np
+
 from hub.features.features import Tensor
 
 
 class Image(Tensor):
-    """`FeatureConnector` for images
+    """`HubFeature` for images
     Output:
     `tf.Tensor` of type `tf.uint8` and shape `[height, width, num_channels]`
     for BMP, JPEG, and PNG images
@@ -20,9 +22,11 @@ class Image(Tensor):
         self,
         shape: Tuple[int, ...] = (None, None, 3),
         dtype="uint8",
-        encoding_format: str = "png",
+        # TODO Add back encoding_format (probably named compress) when support for png and jpg support will be added
         max_shape: Tuple[int, ...] = None,
-        chunks=True,
+        chunks=None,
+        compress="lz4",
+        compresslevel=None,
     ):
         """Construct the connector.
         Args:
@@ -38,8 +42,15 @@ class Image(Tensor):
         ValueError: If the shape, dtype or encoding formats are invalid
         """
         self._set_dtype(dtype)
-        super(Image, self).__init__(shape, dtype, max_shape=max_shape, chunks=chunks)
-        self._set_encoding_format(encoding_format)
+        super().__init__(
+            shape,
+            dtype,
+            max_shape=max_shape,
+            chunks=chunks,
+            compress=compress,
+            compresslevel=compresslevel,
+        )
+        # self._set_encoding_format(encoding_format)
 
     def _set_encoding_format(self, encoding_format):
         """Set the encoding format."""
@@ -49,6 +60,7 @@ class Image(Tensor):
 
     def _set_dtype(self, dtype):
         """Set the dtype."""
+        dtype = str(np.dtype(dtype))
         if dtype not in ("uint8", "uint16"):
             raise ValueError(f"Not supported dtype for {self.__class__.__name__}")
         self.dtype = dtype

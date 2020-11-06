@@ -9,7 +9,7 @@ from hub.features.features import (
     Primitive,
     Tensor,
     FeatureDict,
-    FeatureConnector,
+    HubFeature,
     featurify,
     FlatTensor,
 )
@@ -21,6 +21,7 @@ from hub.utils import compute_lcm
 
 import hub.features.serialize
 import hub.features.deserialize
+from hub.features.features import flatten
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -106,11 +107,11 @@ class Dataset:
             meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
             self.schema = hub.features.deserialize.deserialize(meta["schema"])
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+            self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
             try:
-                self.schema: FeatureConnector = featurify(schema)
+                self.schema: HubFeature = featurify(schema)
                 self.shape = tuple(shape)
                 meta = {
                     "shape": shape,
@@ -118,7 +119,7 @@ class Dataset:
                     "version": 1,
                 }
                 fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
-                self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+                self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
             except Exception:
                 self._fs.rm(self._path, recursive=True)
@@ -151,32 +152,41 @@ class Dataset:
                     raise NotHubDatasetToAppendException()
             return True
 
+    def _get_dynamic_tensor_dtype(self, t_dtype):
+        if isinstance(t_dtype, Primitive):
+            return t_dtype.dtype
+        elif isinstance(t_dtype.dtype, Primitive):
+            return t_dtype.dtype.dtype
+        else:
+            return "object"
+
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
-            t: FlatTensor = t
-            path = posixpath.join(self._path, t.path[1:])
+            t_dtype, t_path = t
+            path = posixpath.join(self._path, t_path[1:])
             self._fs.makedirs(posixpath.join(path, "--dynamic--"))
-            yield t.path, DynamicTensor(
+            yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
+                    t_path, get_storage_map(self._fs, path), self._fs_map
                 ),
                 mode=self.mode,
-                shape=self.shape + t.shape,
-                max_shape=self.shape + t.max_shape,
-                dtype=t.dtype,
-                chunks=t.chunks,
+                shape=self.shape + t_dtype.shape,
+                max_shape=self.shape + t_dtype.max_shape,
+                dtype=self._get_dynamic_tensor_dtype(t_dtype),
+                chunks=t_dtype.chunks,
             )
 
     def _open_storage_tensors(self):
         for t in self._flat_tensors:
-            t: FlatTensor = t
-            path = posixpath.join(self._path, t.path[1:])
-            yield t.path, DynamicTensor(
+            t_dtype, t_path = t
+            path = posixpath.join(self._path, t_path[1:])
+            yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path, get_storage_map(self._fs, path), self._fs_map
+                    t_path, get_storage_map(self._fs, path), self._fs_map
                 ),
                 mode=self.mode,
-                shape=self.shape + t.shape,
+                # FIXME We don't need argument below here
+                shape=self.shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):

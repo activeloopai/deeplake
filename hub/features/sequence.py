@@ -2,7 +2,7 @@ from hub.features.features import Tensor
 
 
 class Sequence(Tensor):
-    """`Sequence` correspond to sequence of `features.FeatureConnector`.
+    """`Sequence` correspond to sequence of `features.HubFeature`.
     At generation time, a list for each of the sequence element is given. The output
     of `Dataset` will batch all the elements of the sequence together.
     If the length of the sequence is static and known in advance, it should be
@@ -14,13 +14,29 @@ class Sequence(Tensor):
     ```
     """
 
-    def __init__(self, feature: Tensor, length: int = None, chunks=True):
+    def __init__(
+        self, shape=(None,), dtype=None, chunks=None, compress="lz4", compresslevel=None
+    ):
         """Construct a sequence of Tensors.
-        Args:
-        feature: the features to wrap
-        length: `int`, length of the sequence if static and known in advance
+        Parameters
+        ----------
+        shape : Tuple[int] | int
+            Single integer element tuple representing length of sequence
+            If None then dynamic
+        dtype : str | HubFeature
+            Datatype of each element in sequence
+        chunks : Tuple[int] | int
+            Number of elements in chunk
+            Works only for top level sequence
+            You can also include number of samples in a single chunk
         """
-        super(Sequence, self).__init__(shape=(length,), dtype=feature, chunks=chunks)
+        super().__init__(
+            shape=shape,
+            dtype=dtype,
+            chunks=chunks,
+            compress=compress,
+            compresslevel=compresslevel,
+        )
 
     def get_attr_dict(self):
         """Return class attributes"""

@@ -6,8 +6,8 @@ from hub.features.class_label import ClassLabel
 
 
 class Segmentation(Tensor):
-    """`FeatureConnector` for segmentation
-    """
+    """`HubFeature` for segmentation"""
+
     def __init__(
         self,
         shape: Tuple[int, ...] = None,
@@ -16,10 +16,12 @@ class Segmentation(Tensor):
         names: Tuple[str] = None,
         names_file: str = None,
         max_shape: Tuple[int, ...] = None,
-        chunks=True
+        chunks=None,
+        compress="lz4",
+        compresslevel=None,
     ):
-        """Constructs a Segmentation FeatureConnector.
-        Also constructs ClassLabel FeatureConnector for Segmentation classes.
+        """Constructs a Segmentation HubFeature.
+        Also constructs ClassLabel HubFeature for Segmentation classes.
         Args:
         shape: tuple of ints or None: (height, width, 1)
         dtype: dtype of segmentation array: `uint16` or `uint8`
@@ -29,8 +31,15 @@ class Segmentation(Tensor):
         names_file: `str`, path to a file with names for the integer
                     classes, one per line.
         """
-        super(Segmentation, self).__init__(shape, dtype, max_shape=max_shape, chunks=chunks)
-        self.class_labels = ClassLabel(num_classes=num_classes, names=names, names_file=names_file, chunks=chunks)
+        super().__init__(shape, dtype, max_shape=max_shape, chunks=chunks)
+        self.class_labels = ClassLabel(
+            num_classes=num_classes,
+            names=names,
+            names_file=names_file,
+            chunks=chunks,
+            compress="lz4",
+            compresslevel=compresslevel,
+        )
 
     def get_segmentation_classes(self):
         class_indices = np.unique(self)

@@ -125,7 +125,9 @@ class DynamicTensor:
                 chunks=chunks or _determine_chunksizes(max_shape, dtype),
                 store=fs_map,
                 overwrite=("w" in mode),
-                object_codec=numcodecs.Pickle() if str(dtype) == "object" else None,
+                object_codec=numcodecs.Pickle(protocol=3)
+                if str(dtype) == "object"
+                else None,
             )
             self._dynamic_tensor = (
                 zarr.zeros(

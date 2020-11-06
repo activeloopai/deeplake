@@ -4,15 +4,18 @@ from hub.features.features import Tensor
 
 
 class Polygon(Tensor):
-    """`FeatureConnector` for polygon
-    """
+    """`HubFeature` for polygon"""
+
     def __init__(
         self,
         shape: Tuple[int, ...] = None,
+        dtype="int32",
         max_shape: Tuple[int, ...] = None,
-        chunks=True
+        chunks=None,
+        compress="lz4",
+        compresslevel=None,
     ):
-        """Constructs a Polygon FeatureConnector.
+        """Constructs a Polygon HubFeature.
         Args:
         shape: tuple of ints or None, i.e (None, 2)
 
@@ -25,8 +28,17 @@ class Polygon(Tensor):
         Raises:
         ValueError: If the shape is invalid
         """
+        if isinstance(chunks, int):
+            chunks = (chunks,)
         self._check_shape(shape)
-        super(Polygon, self).__init__(shape, dtype='uint32', max_shape=max_shape, chunks=chunks)
+        super().__init__(
+            shape,
+            dtype=dtype,
+            max_shape=max_shape,
+            chunks=chunks,
+            compress=compress,
+            compresslevel=compresslevel,
+        )
 
     def _check_shape(self, shape):
         if len(shape) != 2 or shape[-1] != 2:
