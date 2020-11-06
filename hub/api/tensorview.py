@@ -31,8 +31,8 @@ class TensorView:
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
-        self.dtype = self.primitve_from_path(subpath).dtype
-        tensor_shape = self.primitve_from_path(subpath).shape
+        self.dtype = self.dtype_from_path(subpath)
+        tensor_shape = self.dtype.shape if hasattr(self.dtype, "shape") else (1,)
         self.shape = self.make_shape(tensor_shape)
 
     def numpy(self):
@@ -61,7 +61,8 @@ class TensorView:
             for i in range(len(slice_list)):
                 slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
             for i in range(len(slice_list), len(new_nums)):
-                slice_list.append(slice(new_offsets[i], new_offsets[i] + new_nums[i]))
+                cur_slice = slice(new_offsets[i], new_offsets[i] + new_nums[i]) if new_nums[i] > 1 else new_offsets[i]
+                slice_list.append(cur_slice)
             return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_list)
 
     def __setitem__(self, slice_, value):
@@ -82,7 +83,8 @@ class TensorView:
             for i in range(len(slice_list)):
                 slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
             for i in range(len(slice_list), len(new_nums)):
-                slice_list.append(slice(new_offsets[i], new_offsets[i] + new_nums[i]))
+                cur_slice = slice(new_offsets[i], new_offsets[i] + new_nums[i]) if new_nums[i] > 1 else new_offsets[i]
+                slice_list.append(cur_slice)
             self.dataset._tensors[self.subpath][slice_list] = value
 
     def _combine(self, slice_, num=None, ofs=0):
@@ -118,7 +120,8 @@ class TensorView:
         if start and stop and start > stop:
             raise IndexError("start index is greater than stop index")
 
-    def primitve_from_path(self, path):
+    def dtype_from_path(self, path):
+        "gets the dtype of the Tensorview by traversing the schema"
         path = path.split('/')
         cur_type = self.dataset.schema.dict_
         for subpath in path[1:-1]:
@@ -140,11 +143,13 @@ class TensorView:
         return new_slice_
 
     def make_shape(self, shape):
-        final_shape = []
-        final_shape.append(self.nums[0])
+        "combines the Tensorview slice and underlying shape to get the shape represented by it"
+        shape = []
+        shape.append(self.nums[0])
         for i in range(len(shape)):
             if i + 1 < len(self.nums):
-                final_shape.append(self.nums[i + 1])
+                shape.append(self.nums[i + 1])
             else:
-                final_shape.append(shape[i])
-        return final_shape
+                shape.append(shape[i])
+        final_shape = [dim for dim in shape if dim != 1]
+        return tuple(final_shape)

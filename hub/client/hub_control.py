@@ -79,7 +79,7 @@ class HubControlClient(HubHttpClient):
             tag = f"{username}/{dataset_name}"
             repo = f"public/{username}" if public else f"private/{username}"
             print(tag, repo, public)
-            r = self.request(
+            self.request(
                 "POST",
                 config.CREATE_DATASET_SUFFIX,
                 json={
@@ -90,8 +90,6 @@ class HubControlClient(HubHttpClient):
                 },
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
-            print(r)
-            print("Dataset entry created")
         except Exception as e:
             print("Unable to create Dataset entry")
             print(e)
@@ -109,9 +107,8 @@ class HubControlClient(HubHttpClient):
                 },
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
-            print("state updated")
         except Exception as e:
-            print("Unable to update dataset state")
+            print("Unable to update Dataset entry state")
             print(e)
 
     def delete_dataset_entry(self, username, dataset_name):
@@ -123,7 +120,6 @@ class HubControlClient(HubHttpClient):
                 suffix,
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
-            print("Dataset deleted")
         except Exception as e:
-            print("Unable to delete Dataset")
+            print("Unable to delete Dataset entry")
             print(e)

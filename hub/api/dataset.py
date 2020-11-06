@@ -132,8 +132,9 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(self.username, self.dataset_name, meta)
-            HubControlClient().update_dataset_state(self.username, self.dataset_name, "CREATED")
+            if "w" in mode:
+                HubControlClient().create_dataset_entry(self.username, self.dataset_name, meta)
+                HubControlClient().update_dataset_state(self.username, self.dataset_name, "CREATED")
 
     def _check_and_prepare_dir(self):
         """
@@ -250,9 +251,9 @@ class Dataset:
             self._tensors[subpath][slice_list] = value
 
     def delete(self):
-        fs, path, mode = self._fs, self._path, self.mode
+        fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
-        if exist_meta and "w" in mode:
+        if exist_meta:
             fs.rm(path, recursive=True)
             if self.username is not None:
                 HubControlClient().delete_dataset_entry(self.username, self.dataset_name)
@@ -294,13 +295,8 @@ class Dataset:
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
-            else:
-                print(
-                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
-                )
 
         output_types = dtype_to_tf(self.schema)
-        print(output_types)
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
