@@ -73,3 +73,53 @@ class HubControlClient(HubHttpClient):
         os.makedirs(path.parent, exist_ok=True)
         with open(config.STORE_CONFIG_PATH, "w") as file:
             file.writelines(json.dumps(details))
+
+    def create_dataset_entry(self, username, dataset_name, meta, public=True):
+        try:
+            tag = f"{username}/{dataset_name}"
+            repo = f"public/{username}" if public else f"private/{username}"
+            print(tag, repo, public)
+            self.request(
+                "POST",
+                config.CREATE_DATASET_SUFFIX,
+                json={
+                    "tag": tag,
+                    "repository": repo,
+                    "public": public,
+                    "rewrite": True
+                },
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            print("Unable to create Dataset entry")
+            print(e)
+
+    def update_dataset_state(self, username, dataset_name, state, progress=0):
+        try:
+            tag = f"{username}/{dataset_name}"
+            self.request(
+                "POST",
+                config.UPDATE_STATE_SUFFIX,
+                json={
+                    "tag": tag,
+                    "state": state,
+                    "progress": progress,
+                },
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            print("Unable to update Dataset entry state")
+            print(e)
+
+    def delete_dataset_entry(self, username, dataset_name):
+        try:
+            tag = f"{username}/{dataset_name}"
+            suffix = f"{config.DATASET_SUFFIX}/{tag}"
+            self.request(
+                "DELETE",
+                suffix,
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            print("Unable to delete Dataset entry")
+            print(e)

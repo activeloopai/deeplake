@@ -30,7 +30,7 @@ from hub.exceptions import (
     NotHubDatasetToAppendException,
 )
 from hub.store.metastore import MetaStorage
-
+from hub.client.hub_control import HubControlClient
 try:
     import torch
 except ImportError:
@@ -128,6 +128,18 @@ class Dataset:
             except Exception:
                 self._fs.rm(self._path, recursive=True)
                 raise
+        self.username = None
+        self.dataset_name = None
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/"):
+            subpath = self._path[5:]
+            spl = subpath.split('/')
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            self.username = spl[-2]
+            self.dataset_name = spl[-1]
+            if "w" in mode:
+                HubControlClient().create_dataset_entry(self.username, self.dataset_name, meta)
+                HubControlClient().update_dataset_state(self.username, self.dataset_name, "CREATED")
 
     def _check_and_prepare_dir(self):
         """
@@ -247,6 +259,16 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
+    def delete(self):
+        fs, path = self._fs, self._path
+        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        if exist_meta:
+            fs.rm(path, recursive=True)
+            if self.username is not None:
+                HubControlClient().delete_dataset_entry(self.username, self.dataset_name)
+            return True
+        return False
+
     def to_pytorch(self, Transform=None):
         return TorchDataset(self, Transform)
 
@@ -282,13 +304,8 @@ class Dataset:
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
-            else:
-                print(
-                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
-                )
 
         output_types = dtype_to_tf(self.schema)
-
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
@@ -330,6 +347,8 @@ class Dataset:
         """
         for t in self._tensors.values():
             t.commit()
+        if self.username is not None:
+            HubControlClient().update_dataset_state(self.username, self.dataset_name, "UPLOADED")
 
     def __enter__(self):
         return self
