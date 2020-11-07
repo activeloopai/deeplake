@@ -2,6 +2,8 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
+import sys
+import os
 
 import fsspec
 
@@ -28,6 +30,10 @@ from hub.exceptions import (
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
+    ShapeArgumentNotFoundException,
+    SchemaArgumentNotFoundException,
+    ModuleNotInstalledException,
+    WrongUsernameException
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -86,6 +92,8 @@ class Dataset:
         """
 
         shape = shape or (None,)
+        if isinstance(shape, int): 
+            shape = [shape]
         if shape is not None:
             assert len(tuple(shape)) == 1
         assert mode is not None
@@ -115,6 +123,10 @@ class Dataset:
             self._tensors = dict(self._open_storage_tensors())
         else:
             try:
+                if shape[0] is None:
+                    raise ShapeArgumentNotFoundException()
+                if schema is None:
+                    raise SchemaArgumentNotFoundException()
                 self.schema: FeatureConnector = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = {
@@ -148,6 +160,12 @@ class Dataset:
         Returns True dataset needs to be created opposed to read
         """
         fs, path, mode = self._fs, self._path, self.mode
+        if path.startswith('s3://'):
+            with open(os.path.expanduser('~/.activeloop/store'), 'rb') as f:
+                stored_username = json.load(f)['_id']
+            current_username = path.split('/')[-2]
+            if stored_username != current_username:
+                raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
@@ -157,7 +175,7 @@ class Dataset:
             return False
         else:
             if "r" in mode:
-                raise HubDatasetNotFoundException()
+                raise HubDatasetNotFoundException(path)
             exist_dir = fs.exists(path)
             if not exist_dir:
                 fs.makedirs(path)
@@ -270,9 +288,13 @@ class Dataset:
         return False
 
     def to_pytorch(self, Transform=None):
+        if "torch" not in sys.modules:
+            raise ModuleNotInstalledException('torch')
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
+        if "tensorflow" not in sys.modules:
+            raise ModuleNotInstalledException('tensorflow')
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}

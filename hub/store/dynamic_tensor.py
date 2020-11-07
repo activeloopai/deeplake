@@ -8,7 +8,7 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 
-from hub.exceptions import DynamicTensorNotFoundException
+from hub.exceptions import DynamicTensorNotFoundException, ValueShapeError
 from hub.api.dataset_utils import slice_extract_info
 
 
@@ -184,6 +184,13 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
         slice_ = self._get_slice(slice_, real_shapes)
+
+        if None not in self.shape and not all([isinstance(sh, int) for sh in slice_]):
+            expected_value_shape = tuple([len(range(*slice_shape.indices(self.shape[i])))                                       
+                                        for i, slice_shape in enumerate(slice_) 
+                                        if not isinstance(slice_shape, int)])
+            if type(value) in (np.ndarray, list) and np.array(value).shape != expected_value_shape:
+                raise ValueShapeError(expected_value_shape, value.shape)
         self._storage_tensor[slice_] = value
 
     def get_shape(self, slice_):
