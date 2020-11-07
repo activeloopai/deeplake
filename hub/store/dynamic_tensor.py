@@ -105,14 +105,22 @@ class DynamicTensor:
         if "r" in mode and not exist:
             raise DynamicTensorNotFoundException()
 
+        synchronizer = None
+        # syncrhonizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         # if tensor exists and mode is read or append
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
             shape = meta["shape"]
             self._dynamic_dims = get_dynamic_dims(shape)
-            self._storage_tensor = zarr.open_array(store=fs_map, mode=mode)
+            self._storage_tensor = zarr.open_array(
+                store=fs_map, mode=mode, synchronizer=synchronizer
+            )
             self._dynamic_tensor = (
-                zarr.open_array(NestedStore(fs_map, "--dynamic--"), mode=mode)
+                zarr.open_array(
+                    NestedStore(fs_map, "--dynamic--"),
+                    mode=mode,
+                    synchronizer=synchronizer,
+                )
                 if self._dynamic_dims
                 else None
             )
@@ -126,6 +134,7 @@ class DynamicTensor:
                 store=fs_map,
                 overwrite=("w" in mode),
                 object_codec=numcodecs.Pickle() if str(dtype) == "object" else None,
+                synchronizer=synchronizer,
             )
             self._dynamic_tensor = (
                 zarr.zeros(
@@ -133,6 +142,7 @@ class DynamicTensor:
                     mode=mode,
                     dtype=np.int32,
                     store=NestedStore(fs_map, "--dynamic--"),
+                    synchronizer=synchronizer,
                 )
                 if self._dynamic_dims
                 else None
