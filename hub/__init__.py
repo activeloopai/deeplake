@@ -14,9 +14,8 @@ from hub.log import logger
 def local_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_LOCAL_REST_ENDPOINT
 
-
 def dev_mode():
-    hub.config.HUB_DEV_REST_ENDPOINT = hub.config.HUB_DEV_REST_ENDPOINT
+    hub.config.HUB_REST_ENDPOINT = hub.config.HUB_DEV_REST_ENDPOINT
 
 
 def dtype(*args, **kwargs):

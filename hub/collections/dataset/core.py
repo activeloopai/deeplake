@@ -678,9 +678,9 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     fs: fsspec.AbstractFileSystem = fs
     path_2 = f"{path}/meta.json"
     if not fs.exists(path):
-        from hub.exceptions import DatasetNotFound
+        from hub.exceptions import HubDatasetNotFoundException
 
-        raise DatasetNotFound(tag)
+        raise HubDatasetNotFoundException(tag)
 
     with fs.open(path_2, "r") as f:
         ds_meta = json.loads(f.read())

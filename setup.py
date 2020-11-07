@@ -1,11 +1,9 @@
 import os
-import sys
 
 from setuptools import find_packages, setup
-from setuptools.command.install import install
 
 project = "hub"
-VERSION = "1.0.0"
+VERSION = "1.0.0a4"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:

@@ -2,6 +2,8 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
+import sys
+import os
 
 import fsspec
 
@@ -13,6 +15,7 @@ from hub.features.features import (
     featurify,
     FlatTensor,
 )
+from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -28,9 +31,13 @@ from hub.exceptions import (
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
+    ShapeArgumentNotFoundException,
+    SchemaArgumentNotFoundException,
+    ModuleNotInstalledException,
+    WrongUsernameException
 )
 from hub.store.metastore import MetaStorage
-
+from hub.client.hub_control import HubControlClient
 try:
     import torch
 except ImportError:
@@ -86,6 +93,8 @@ class Dataset:
         """
 
         shape = shape or (None,)
+        if isinstance(shape, int): 
+            shape = [shape]
         if shape is not None:
             assert len(tuple(shape)) == 1
         assert mode is not None
@@ -115,6 +124,10 @@ class Dataset:
             self._tensors = dict(self._open_storage_tensors())
         else:
             try:
+                if shape[0] is None:
+                    raise ShapeArgumentNotFoundException()
+                if schema is None:
+                    raise SchemaArgumentNotFoundException()
                 self.schema: FeatureConnector = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = {
@@ -125,9 +138,20 @@ class Dataset:
                 fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
                 self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
                 self._tensors = dict(self._generate_storage_tensors())
-            except Exception:
+            except Exception as e:
                 self._fs.rm(self._path, recursive=True)
-                raise
+                logger.error("Deleting the dataset "+ traceback.format_exc() + str(e))
+
+        self.username = None
+        self.dataset_name = None
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/"):
+            subpath = self._path[5:]
+            spl = subpath.split('/')
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            self.username = spl[-2]
+            self.dataset_name = spl[-1]
+            HubControlClient().create_dataset_entry(self.username, self.dataset_name, self.meta)
 
     def _check_and_prepare_dir(self):
         """
@@ -136,6 +160,12 @@ class Dataset:
         Returns True dataset needs to be created opposed to read
         """
         fs, path, mode = self._fs, self._path, self.mode
+        if path.startswith('s3://'):
+            with open(os.path.expanduser('~/.activeloop/store'), 'rb') as f:
+                stored_username = json.load(f)['_id']
+            current_username = path.split('/')[-2]
+            if stored_username != current_username:
+                raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
@@ -145,7 +175,7 @@ class Dataset:
             return False
         else:
             if "r" in mode:
-                raise HubDatasetNotFoundException()
+                raise HubDatasetNotFoundException(path)
             exist_dir = fs.exists(path)
             if not exist_dir:
                 fs.makedirs(path)
@@ -247,10 +277,24 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
+    def delete(self):
+        fs, path = self._fs, self._path
+        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        if exist_meta:
+            fs.rm(path, recursive=True)
+            if self.username is not None:
+                HubControlClient().delete_dataset_entry(self.username, self.dataset_name)
+            return True
+        return False
+
     def to_pytorch(self, Transform=None):
+        if "torch" not in sys.modules:
+            raise ModuleNotInstalledException('torch')
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
+        if "tensorflow" not in sys.modules:
+            raise ModuleNotInstalledException('tensorflow')
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}
@@ -342,6 +386,8 @@ class Dataset:
         """
         for t in self._tensors.values():
             t.commit()
+        if self.username is not None:
+            HubControlClient().update_dataset_state(self.username, self.dataset_name, "UPLOADED")
 
     def __enter__(self):
         return self
