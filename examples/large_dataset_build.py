@@ -21,9 +21,11 @@ def create_large_dataset():
 
     for i in range(len(ds) // 10):
         ds["image", i * 10 : i * 10 + 10] = i * array
-
+    ds.commit()
+    
     ds = hub.Dataset("./data/examples/large_dataset_build")
     print(ds.keys, ds["image"].shape, ds["image"].dtype)
+    
 
     # Read the dataset
     with hub.Dataset("./data/examples/large_dataset_build") as ds:
