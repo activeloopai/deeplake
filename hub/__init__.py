@@ -17,7 +17,6 @@ def local_mode():
 def dev_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_DEV_REST_ENDPOINT
 
-local_mode()
 
 def dtype(*args, **kwargs):
     return np.dtype(*args, **kwargs)
