@@ -15,6 +15,7 @@ from hub.features.features import (
     featurify,
     FlatTensor,
 )
+from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -137,9 +138,10 @@ class Dataset:
                 fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
                 self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
                 self._tensors = dict(self._generate_storage_tensors())
-            except Exception:
+            except Exception as e:
                 self._fs.rm(self._path, recursive=True)
-                raise
+                logger.error("Deleting the dataset "+ traceback.format_exc() + str(e))
+
         self.username = None
         self.dataset_name = None
         if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/"):
@@ -149,9 +151,7 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            if "w" in mode:
-                HubControlClient().create_dataset_entry(self.username, self.dataset_name, meta)
-                HubControlClient().update_dataset_state(self.username, self.dataset_name, "CREATED")
+            HubControlClient().create_dataset_entry(self.username, self.dataset_name, self.meta)
 
     def _check_and_prepare_dir(self):
         """

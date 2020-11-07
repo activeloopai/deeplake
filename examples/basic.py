@@ -1,5 +1,6 @@
 from hub import Dataset, features
 import numpy as np
+from hub import dev_mode
 
 # Tag is set {Username}/{Dataset}
 tag = "davitb/basic11"
@@ -13,6 +14,7 @@ ds = Dataset(
         "label": features.Tensor((512, 512), dtype="float"),
     },
 )
+
 
 # Upload Data
 ds["image"][:] = np.ones((4, 512, 512))

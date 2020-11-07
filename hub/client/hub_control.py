@@ -7,7 +7,8 @@ from hub.client.auth import AuthClient
 from pathlib import Path
 
 from hub.exceptions import NotFoundException
-
+from hub.log import logger
+import traceback
 
 class HubControlClient(HubHttpClient):
     """
@@ -26,9 +27,9 @@ class HubControlClient(HubHttpClient):
                 params={"tag": tag},
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
+            
         except NotFoundException:
             dataset = None
-
         return dataset
 
     def get_credentials(self):
@@ -78,7 +79,7 @@ class HubControlClient(HubHttpClient):
         try:
             tag = f"{username}/{dataset_name}"
             repo = f"public/{username}" if public else f"private/{username}"
-            print(tag, repo, public)
+
             self.request(
                 "POST",
                 config.CREATE_DATASET_SUFFIX,
@@ -91,8 +92,7 @@ class HubControlClient(HubHttpClient):
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            print("Unable to create Dataset entry")
-            print(e)
+            logger.error("Unable to create Dataset entry" + traceback.format_exc() + str(e))
 
     def update_dataset_state(self, username, dataset_name, state, progress=0):
         try:
@@ -108,8 +108,7 @@ class HubControlClient(HubHttpClient):
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            print("Unable to update Dataset entry state")
-            print(e)
+            logger.error("Unable to update Dataset entry state "+ traceback.format_exc() + str(e))
 
     def delete_dataset_entry(self, username, dataset_name):
         try:
@@ -121,5 +120,4 @@ class HubControlClient(HubHttpClient):
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            print("Unable to delete Dataset entry")
-            print(e)
+            logger.error("Unable to delete Dataset entry" + traceback.format_exc() + str(e))
