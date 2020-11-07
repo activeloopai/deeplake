@@ -39,16 +39,6 @@ class TensorView:
         """Gets the value from tensorview"""
         return self.dataset._tensors[self.subpath][self.slice_]
 
-    @property
-    def shape(self):
-        # FIXME get the shape without reading the data
-        return self.dataset._tensors[self.subpath][self.slice_].shape
-
-    @property
-    def dtype(self):
-        # FIXME get the dtype of the tensor without reading the data
-        return self.dataset._tensors[self.subpath][self.slice_].dtype
-
     def compute(self):
         """Gets the value from tensorview"""
         return self.numpy()

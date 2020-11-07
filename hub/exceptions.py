@@ -143,7 +143,7 @@ class LockedException(HubException):
 class HubDatasetNotFoundException(HubException):
     def __init__(self, response):
         message = f"The dataset with tag {response} was not found"
-        super(DatasetNotFound, self).__init__(message=message)
+        super(HubDatasetNotFoundException, self).__init__(message=message)
 
 
 class PermissionException(HubException):
