@@ -38,12 +38,19 @@ from hub.exceptions import (
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
+from hub.features.image import Image
+from hub.features.class_label import ClassLabel
+import traceback
 try:
     import torch
 except ImportError:
     pass
 try:
     import tensorflow as tf
+except ImportError:
+    pass
+try:
+    import tensorflow_datasets as tfds
 except ImportError:
     pass
 
@@ -93,7 +100,7 @@ class Dataset:
         """
 
         shape = shape or (None,)
-        if isinstance(shape, int): 
+        if isinstance(shape, int):
             shape = [shape]
         if shape is not None:
             assert len(tuple(shape)) == 1
@@ -140,7 +147,7 @@ class Dataset:
                 self._tensors = dict(self._generate_storage_tensors())
             except Exception as e:
                 self._fs.rm(self._path, recursive=True)
-                logger.error("Deleting the dataset "+ traceback.format_exc() + str(e))
+                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
 
         self.username = None
         self.dataset_name = None
@@ -295,6 +302,7 @@ class Dataset:
     def to_tensorflow(self):
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException('tensorflow')
+
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}
@@ -334,7 +342,7 @@ class Dataset:
                 return my_dtype.shape
             elif isinstance(my_dtype, Primitive):
                 return ()
-        
+
         def output_shapes_from_dict(my_dtype):
             d = {}
             for k, v in my_dtype.dict_.items():
@@ -464,6 +472,30 @@ class TorchDataset:
 
 
 def from_tensorflow(ds):
+    """Converts a tensorflow dataset into hub format
+    Parameters
+    ----------
+    dataset:
+        The tensorflow dataset object that needs to be converted into hub format
+    Examples
+    --------
+    ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
+    out_ds = dataset.from_tensorflow(ds)
+    res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+
+    ds = tf.data.Dataset.from_tensor_slices({'a': [1, 2], 'b': [5, 6]})
+    out_ds = dataset.from_tensorflow(ds)
+    res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+
+    ds = dataset.Dataset(schema=my_schema, shape=(1000,), url="username/dataset_name", mode="w")
+    ds = ds.to_tensorflow()
+    out_ds = dataset.from_tensorflow(ds)
+    res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+
+    """
+    if "tensorflow" not in sys.modules:
+        raise ModuleNotInstalledException('tensorflow')
+
     def generate_schema(ds):
         if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
             return tf_to_hub({"data": ds._structure}).dict_
@@ -505,5 +537,102 @@ def from_tensorflow(ds):
     def my_transform(sample):
         sample = sample if isinstance(sample, dict) else {"data": sample}
         return transform_numpy(sample)
-    
+
+    return my_transform(ds)
+
+
+def from_tfds(dataset, split=None, num=-1):
+    """Converts a TFDS Dataset into hub format
+    Parameters
+    ----------
+    dataset: str
+        The name of the tfds dataset that needs to be converted into hub format
+    split: str, optional
+        A string representing the splits of the dataset that are required such as "train" or "test+train"
+        If not present, all the splits of the dataset are used.
+    num: int, optional
+        The number of samples required. If not present, all the samples are taken.
+        If count is -1, or if count is greater than the size of this dataset, the new dataset will contain all elements of this dataset.
+    Examples
+    --------
+    out_ds = from_tfds('mnist', split='test+train', num=1000)
+    res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
+    """
+    if "tensorflow_datasets" not in sys.modules:
+        raise ModuleNotInstalledException('tensorflow_datasets')
+    ds_info = tfds.load(dataset, with_info=True)
+    if split is None:
+        all_splits = ds_info[1].splits.keys()
+        split = "+".join(all_splits)
+    ds = tfds.load(dataset, split=split)
+    ds = ds.take(num)
+
+    def generate_schema(ds):
+        tf_schema = ds[1].features
+        schema = to_hub(tf_schema).dict_
+        return schema
+
+    def to_hub(tf_dt):
+        if isinstance(tf_dt, tfds.features.FeaturesDict):
+            return fdict_to_hub(tf_dt)
+        elif isinstance(tf_dt, tfds.features.Tensor):
+            return tensor_to_hub(tf_dt)
+        elif isinstance(tf_dt, tfds.features.Image):
+            return image_to_hub(tf_dt)
+        elif isinstance(tf_dt, tfds.features.ClassLabel):
+            return class_label_to_hub(tf_dt)
+        elif isinstance(tf_dt, tfds.features.Text):
+            return text_to_hub(tf_dt)
+        elif isinstance(tf_dt, tfds.features.Sequence):
+            return sequence_to_hub(tf_dt)
+        else:
+            if tf_dt.dtype.name != 'string':
+                return tf_dt.dtype.name
+
+    def fdict_to_hub(tf_dt):
+        d = {key.replace('/', '_'): to_hub(value) for key, value in tf_dt.items()}
+        return FeatureDict(d)
+
+    def tensor_to_hub(tf_dt):
+        dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+        max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+
+    def image_to_hub(tf_dt):
+        dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+        max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+
+    def class_label_to_hub(tf_dt):
+        dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+        max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        if hasattr(tf_dt, "_num_classes"):
+            return ClassLabel(shape=tf_dt.shape, dtype=dt, num_classes=tf_dt.num_classes, max_shape=max_shape)
+        else:
+            return ClassLabel(shape=tf_dt.shape, dtype=dt, names=tf_dt.names, max_shape=max_shape)
+
+    def text_to_hub(tf_dt):
+        max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+        return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+
+    def sequence_to_hub(tf_dt):
+        return "object"
+
+    my_schema = generate_schema(ds_info)
+
+    def transform_numpy(sample):
+        d = {}
+        for k, v in sample.items():
+            k = k.replace('/', '_')
+            if not isinstance(v, dict):
+                d[k] = v.numpy()
+            else:
+                d[k] = transform_numpy(v)
+        return d
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample):
+        return transform_numpy(sample)
+
     return my_transform(ds)
