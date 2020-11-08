@@ -6,7 +6,13 @@ from hub.log import logger
 
 class CacheStore(zarr.LMDBStore):
     def __init__(
-        self, path, buffers=True, namespace="namespace", cache_reset=True, **kwargs
+        self,
+        path,
+        buffers=True,
+        namespace="namespace",
+        lock=True,
+        cache_reset=True,
+        **kwargs,
     ):
         """
         Extends zarr.LMDB store to support Ordered Dictionary map
@@ -20,6 +26,8 @@ class CacheStore(zarr.LMDBStore):
             reducing memory copies.
         cache_reset: bool, optional
             cleans up the cach
+        lock: bool, optional
+            argument for lmdb cache to for multiprocessing
         namespace: str, optional
             For creating namespaces for keys
         **kwargs
@@ -27,7 +35,7 @@ class CacheStore(zarr.LMDBStore):
 
         """
         kwargs = {}
-        super(CacheStore, self).__init__(path, buffers=buffers, lock=True, **kwargs)
+        super(CacheStore, self).__init__(path, buffers=buffers, lock=lock, **kwargs)
         self.namespace = namespace
         if cache_reset:
             self.clear()
@@ -127,7 +135,7 @@ class CacheStore(zarr.LMDBStore):
 
 
 class Cache(zarr.LRUStoreCache):
-    def __init__(self, store, max_size, path="~/.activeloop/cache"):
+    def __init__(self, store, max_size, path="~/.activeloop/cache", lock=True):
         """
         Extends zarr.LRUStoreCache with LMBD Cache that could be shared across
 
@@ -143,11 +151,15 @@ class Cache(zarr.LRUStoreCache):
         max_size : int
             The maximum size that the cache may grow to, in number of bytes. Provide `None`
             if you would like the cache to have unlimited size.
+        lock: bool, optional
+            Lock the cache for avoiding multiprocessing issues
         """
         super(Cache, self).__init__(store, max_size)
         self.path = os.path.expanduser(path)
         os.makedirs(self.path, exist_ok=True)
-        self._values_cache = CacheStore(self.path, buffers=False, namespace=store.root)
+        self._values_cache = CacheStore(
+            self.path, buffers=False, lock=lock, namespace=store.root
+        )
         self.cache_key = "_current_size"
         self.root = store.root
 
