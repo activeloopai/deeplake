@@ -155,9 +155,9 @@ class Dataset:
 
     def _check_and_prepare_dir(self):
         """
-        Checks if input data is ok
-        Creates or overwrites dataset folder
-        Returns True dataset needs to be created opposed to read
+        Checks if input data is ok.
+        Creates or overwrites dataset folder.
+        Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
         if path.startswith('s3://'):
@@ -219,17 +219,17 @@ class Dataset:
             )
 
     def __getitem__(self, slice_):
-        """Gets a slice or slices from dataset
-        Examples
-        --------
-        return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
+        """| Gets a slice or slices from dataset
+        | Usage: 
+               
+        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
 
-        images = ds["image"]
-        return images[5].compute() # returns numpy array
+        >>> images = ds["image"]
+        >>> return images[5].numpy() # returns numpy array
 
-        images = ds["image"]
-        image = images[5]
-        return image[0:1920, 0:1080, 0:3].compute()
+        >>> images = ds["image"]
+        >>> image = images[5]
+        >>> return image[0:1920, 0:1080, 0:3].numpy()
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -257,14 +257,14 @@ class Dataset:
             return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
-        """ "Sets a slice or slices with a value
-        Examples
-        --------
-        ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+        """| Sets a slice or slices with a value
+        | Usage
 
-        images = ds["image"]
-        image = images[5]
-        image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+
+        >>> images = ds["image"]
+        >>> image = images[5]
+        >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -288,13 +288,16 @@ class Dataset:
         return False
 
     def to_pytorch(self, Transform=None):
+        """Converts the dataset into a pytorch compatible format"""
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException('torch')
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
+        """Converts the dataset into a tensorflow compatible format"""
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException('tensorflow')
+        
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}

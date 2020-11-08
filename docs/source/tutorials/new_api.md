@@ -1,4 +1,6 @@
-## **Intro**
+## New API
+
+### **Intro**
 
 Today we introduce our new API/format for hub package. It is currently in alpha stage, yet it is very promising.
 Eventually we plan to migrate to this format and stick to it for long time. 
@@ -16,7 +18,7 @@ More features coming:
  4. Better and simplified transformers.
  5. Better dynamic shaping for handling complex metadata.
 
-## **Getting Started**
+### **Getting Started**
 1) Install alpha version
 ```
 pip3 install hub==1.0.0a4
@@ -65,7 +67,7 @@ res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
 ```
 
 
-## Notes 
+### Notes 
 New hub mimics TFDS data types. Before creating dataset you have to mention the details of what type of data does it contain. This enables us to compress, process and visualize data more efficiently.
 
 This code creates dataset in *"./data/examples/new_api_intro"* folder with overwrite mode. Dataset has 1000 samples. In each sample there is an *image* and a *label*.
@@ -73,7 +75,7 @@ This code creates dataset in *"./data/examples/new_api_intro"* folder with overw
 After this we can loop over dataset and read/write from it.
 
 
-## **Why commit?**
+### **Why commit?**
 
 Since caching is in place, you need to tell program to push final changes to permanent storage. 
 
