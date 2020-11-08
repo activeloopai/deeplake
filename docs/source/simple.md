@@ -7,7 +7,7 @@
 We’ve talked the talk, now let’s walk through how it works: 
 
 ```
-pip3 install hub
+pip3 install hub==1.0.0a4
 ```
 
 You can access public datasets with a few lines of code.

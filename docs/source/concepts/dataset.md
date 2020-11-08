@@ -1,163 +1,88 @@
 # Dataset
 
-Hub Datasets are dictionaries containing tensors. You can think of them as folders in the cloud. To store tensor in the cloud we first should put it in dataset and then store the dataset. 
+
+## Create
+To create and store dataset you would need to define shape and specify the dataset structure(schema). 
+
+For example, to create a dataset `basic` with 4 samples containing images and labels with shape (512, 512) of dtype 'float' in account `username`:
+
+```python
+from hub import Dataset, features
+tag = "username/basic"
+
+ds = Dataset(
+    tag,
+    shape=(4,),
+    schema={
+        "image": features.Tensor((512, 512), dtype="float"),
+        "label": features.Tensor((512, 512), dtype="float"),
+    },
+)
+```
+
+## Upload the Data
+
+To add data to the dataset:
+
+```python
+ds["image"][:] = np.ones((4, 512, 512))
+ds["label"][:] = np.ones((4, 512, 512))
+ds.commit()
+```
+
+## Load the data
+
+```python
+ds = Dataset('username/basic')
+
+# Use .numpy() to get the numpy array of the element
+print(ds["image"][0].numpy())
+print(ds["label", 100:110].numpy())
+```
 
 
-## Store
-To create and store dataset you would need to define tensors and specify the dataset dictionary. 
+## Convert to Pytorch
 
-    ```python
-    from hub import dataset, tensor
+```python
+ds = ds.to_pytorch()
+ds = torch.utils.data.DataLoader(
+    ds,
+    batch_size=8,
+    num_workers=2,
+)
 
-    tensor1 = tensor.from_zeros((20,512,512), dtype="uint8", dtag="image")
-    tensor2 = tensor.from_zeros((20), dtype="bool", dtag="label")
-
-    dataset.from_tensors({"name1": tensor1, "name2": tensor2})
-
-    dataset.store("username/namespace")
-    ```
-
-## Load
-
-To load a dataset from a central repository
-
-    ```python
-    from hub import dataset
-
-    ds = dataset.load("mnist/mnist")
-    ```
-
-## Combine
-
-You could combine datasets or concat them.
-
-    ```python
-    from hub import dataset
-
-    ... 
-
-    #vertical
-    dataset.concat(ds1, ds2)
-
-    #horizontal
-    dataset.combine(ds1, ds2)
-    ```
-
-## Get text labels
-To get text labels from a dataset  
-
-###### Pytorch
-
-    ```python
-    from hub import dataset
-    import torch
-
-    ds = dataset.load("mnist/fashion-mnist")
-
-    ds = ds.to_pytorch()
-
-    data_loader = torch.utils.data.DataLoader(ds, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
-
-    for batch in data_loader:
-        tl = dataset.get_text(batch['named_label'])
-    ```
+# Iterate over the data
+for batch in ds:
+    print(batch["image"], batch["label"])
+```
     
-###### Tensorflow  
+## Convert to Tensorflow  
 
-    ```python
-    from hub import dataset
-    import tensorflow as tf
+```python
+ds = ds.to_tensorflow().batch(8)
 
-    ds = dataset.load("mnist/fashion-mnist")
+# Iterate over the data
+for batch in ds:
+    print(batch["image"], batch["label"])
+```
 
-    ds = ds.to_tensorflow()
+## Visualize
 
-    dataset = ds.batch(BATCH_SIZE)
-
-    for batch in dataset:
-        tl = dataset.get_text(batch['named_label'])
-    ```
-
-## How to Upload a Dataset
-
-For small datasets that would fit into your RAM you can directly upload by converting a numpy array into hub tensor. For complete example please check [Uploading MNIST](https://github.com/activeloopai/Hub/blob/master/examples/mnist/upload.py) and [Uploading CIFAR](https://github.com/activeloopai/Hub/blob/master/examples/cifar/upload_cifar10.py)
-
-For larger datasets you would need to define a dataset generator and apply the transformation iteratively. Please see an example below [Uploading COCO](https://github.com/activeloopai/Hub/blob/master/examples/coco/upload_coco2017.py).
-Please pay careful attention to `meta(...)` function where you describe each tensor properties. Please pay careful attention providing full meta description including shape, dtype, dtag, chunk_shape etc.
-
-### Dtag
-For each tensor you would need to specify a dtag so that visualizer knows how draw it or transformations have context how to transform it.
-
-| Dtag          |      Shape      |  Types  |
-|---------------|:---------------:|--------:|
-| default       |    any array    |   any   |
-| image         |    (width, height), (channel, width, height) or (width, height, channel)                  | int, float |
-| text          |   used for label   | str or object  |
-| box           |  [(4)]          |   int32   |
-| mask          | (width, height) |    bool  |
-| segmentation  | (width, height), (channel, width, height) or (width, height, channel)|   int  |
-| video          |     (sequence, width, height, channel) or (sequence, channel, width, height)          |    int, float      |
-| embedding      |               |          |
-| tabular        |               |          |
-| time    |               |          |
-| event     |               |          |
-| audio          |               |          |
-| pointcloud    |               |          |
-| landmark      |               |          |
-| polygon        |               |          |
-| mesh           |               |          |
-| document       |               |          |
+Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
 
 
-
-### Guidelines
-1. Fork the github repo and create a folder under `examples/dataset`
-
-2. Train a model using Pytorch
-
-    ```python
-    import hub
-    import pytorch
-
-    ds = hub.load("username/dataset")
-    ds = ds.to_pytorch()
-
-    # Implement a training loop for the dataset in pytorch
-    ...
-    ```
-
-3. Train a model using Tensorflow 
-
-    ```python
-    import hub
-    import tensorflow
-
-    ds = hub.load("username/dataset")
-    ds = ds.to_tensorflow()
-
-    # Implement a training loop for the dataset in tensorflow
-    ...
-    ```
-
-4. Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
-
-### Final Checklist
-So here is the checklist, the pull request.
-- Accessible using the sdk
-- Trainable on Tensorflow
-- Trainable on PyTorch 
-- Visualizable at [app.activeloop.ai](https://app.activeloop.ai)
-- Pull Request merged into master
-
-### Issues
+## Issues
 
 If you spot any trouble or have any question, please open a github issue.
 
 
 ## API
 
-    ```eval_rst
-    .. autoclass:: hub.dataset.Dataset
-       :members:
-    ```
+```eval_rst
+.. autoclass:: hub.Dataset
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
 

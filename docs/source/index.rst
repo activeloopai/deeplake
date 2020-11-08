@@ -48,7 +48,6 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
 
    concepts/features.md
    concepts/dataset.md
-   concepts/transform.md
 
 .. toctree::
    :maxdepth: 3
@@ -56,6 +55,12 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
 
    integrations/pytorch.md
    integrations/tensorflow.md
+
+.. toctree::
+   :maxdepth: 3
+   :caption: Tutorials
+
+   tutorials/new_api.md
    
 * :ref:`genindex`
 * :ref:`modindex`

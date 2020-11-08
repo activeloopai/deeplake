@@ -222,14 +222,14 @@ class Dataset:
         """| Gets a slice or slices from dataset
         | Usage: 
                
-        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
+        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
 
         >>> images = ds["image"]
-        >>> return images[5].compute() # returns numpy array
+        >>> return images[5].numpy() # returns numpy array
 
         >>> images = ds["image"]
         >>> image = images[5]
-        >>> return image[0:1920, 0:1080, 0:3].compute()
+        >>> return image[0:1920, 0:1080, 0:3].numpy()
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]

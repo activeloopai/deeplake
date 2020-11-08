@@ -1,4 +1,4 @@
-# Setup Credentials
+## Setup Credentials
 
 This guide will walk you through setting up your credentials so you can start using Snark: Dataflow right away.
 
