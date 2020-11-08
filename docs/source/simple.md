@@ -1,42 +1,51 @@
 # Getting Started with Hub
 
+### **Intro**
 
+Today we introduce our new API/format for hub package. It is currently in alpha stage, yet it is very promising.
+Eventually we plan to migrate to this format and stick to it for long time. 
 
-## Access public data. Fast
+Here is some features of new hub: 
+1. Ability to modify datasets on fly. Datasets are no longer immutable and can be modified over time
+2. Larger datasets can now be uploaded as we removed some RAM limiting components from the hub 
+3. Caching is introduced to improve IO performance.
+4. Dynamic shaping enables very large images/data support. You can have large images/data stored in hub. 
 
-We’ve talked the talk, now let’s walk through how it works: 
+More features coming: 
+ 1. Dynamically sized datasets. Soon you will be able to increase number of samples dynamically.
+ 2. Tensors can be added to dataset on the fly.
+ 3. Parallelisation to improve IO and data processing.
+ 4. Better and simplified transformers.
+ 5. Better dynamic shaping for handling complex metadata.
 
+### **Getting Started**
+1) Install alpha version
 ```
 pip3 install hub==1.0.0a4
 ```
 
-You can access public datasets with a few lines of code.
-
-## Log in to hub
-
-Register a free account at [Activeloop](https://app.activeloop.ai)
-
-Then log in to your account by running the following command:
+2) Register and authenticate to uploade datasests 
 ```
+hub register
 hub login
 ```
 
-## Create and store dataset
-
-Then create a dataset. It can be stored in your local directory or in your hub account.
+3) Lets start by creating dataset
 
 ```python
 import numpy as np
 
-from hub import Dataset
+import hub
 from hub.features import ClassLabel, Image
 
-schema = {
+ds_type = {
     "image": Image((28, 28)),
     "label": ClassLabel(num_classes=10),
 }
-ds = Dataset("username/dataset", shape=(1000,), schema=schema)
 
+url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
+
+ds = hub.Dataset(url, mode="w", shape=(1000,), dtype=ds_type)
 for i in range(len(ds)):
     ds["image", i] = np.ones((28, 28), dtype="uint8")
     ds["label", i] = 3
@@ -46,14 +55,27 @@ print(ds["label", 100:110].numpy())
 ds.commit()
 ```
 
-Hub mimics TFDS data types. Before creating dataset you have to mention the details of its shape and features.
-This enables more efficient compression, processing and visualizion of the data.
+4) Transferring from TFSDS
 
-This code creates dataset in *"username/dataset"* folder with overwrite mode. Dataset has 1000 samples. 
-In each sample there is an *image* and a *label*.
+In `hub==1.0.0a5` we would also have 
+```python
+import hub
+import tensorflow as tf
+
+out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
+```
+
+
+### Notes 
+New hub mimics TFDS data types. Before creating dataset you have to mention the details of what type of data does it contain. This enables us to compress, process and visualize data more efficiently.
+
+This code creates dataset in *"./data/examples/new_api_intro"* folder with overwrite mode. Dataset has 1000 samples. In each sample there is an *image* and a *label*.
+
 After this we can loop over dataset and read/write from it.
 
-## **Why commit?**
+
+### **Why commit?**
 
 Since caching is in place, you need to tell program to push final changes to permanent storage. 
 
@@ -62,6 +84,8 @@ NOTE: This action invalidates dataset.
 Alternatively you can use following style.
 
 ```python
-with hub.open(...) as ds:
+with hub.Dataset(...) as ds:
     pass
 ```
+
+This works as well.

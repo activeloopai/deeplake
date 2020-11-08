@@ -114,12 +114,3 @@
    :private-members:
    :special-members:
 ```
-
-## Exceptions
-```eval_rst
-.. automodule:: hub.exceptions
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-```
