@@ -56,7 +56,7 @@ ds.commit()
 4) Transferring from TFSDS
 
 In `hub==1.0.0a5` we would also have 
-```
+```python
 from hub import Dataset
 
 ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
