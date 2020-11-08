@@ -179,7 +179,9 @@ class DynamicTensor:
             expected_value_shape = tuple([len(range(*slice_shape.indices(self.shape[i])))                                       
                                         for i, slice_shape in enumerate(slice_) 
                                         if not isinstance(slice_shape, int)])
-            if type(value) in (np.ndarray, list) and np.array(value).shape != expected_value_shape:
+            if isinstance(value, list):
+                value = np.array(value)
+            if value.shape != expected_value_shape:
                 raise ValueShapeError(expected_value_shape, value.shape)
         self._storage_tensor[slice_] = value
 
