@@ -60,9 +60,8 @@ In `hub==1.0.0a5` we would also have
 import hub
 import tensorflow as tf
 
-ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
-out_ds = hub.Dataset.from_tensorflow(ds)
-res_ds = out_ds.store("username/new_dataset")
+out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
 ```
 
 
