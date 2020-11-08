@@ -32,6 +32,8 @@ ds.commit()
 
 ## Load the data
 
+Load the dataset and access its elements:
+
 ```python
 ds = Dataset('username/basic')
 
