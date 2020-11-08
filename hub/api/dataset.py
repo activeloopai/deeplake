@@ -130,11 +130,11 @@ class Dataset:
             self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
             self._tensors = dict(self._open_storage_tensors())
         else:
+            if shape[0] is None:
+                raise ShapeArgumentNotFoundException()
+            if schema is None:
+                raise SchemaArgumentNotFoundException()
             try:
-                if shape[0] is None:
-                    raise ShapeArgumentNotFoundException()
-                if schema is None:
-                    raise SchemaArgumentNotFoundException()
                 self.schema: FeatureConnector = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = {
@@ -147,7 +147,9 @@ class Dataset:
                 self._tensors = dict(self._generate_storage_tensors())
             except Exception as e:
                 self._fs.rm(self._path, recursive=True)
-                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
+                logger.error("Deleting the dataset ...")
+                raise e
+                
 
         self.username = None
         self.dataset_name = None
