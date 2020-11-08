@@ -57,13 +57,16 @@ ds.commit()
 
 In `hub==1.0.0a5` we would also have 
 ```python
-from hub import Dataset
+import hub
+import tensorflow as tf
 
 ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
 out_ds = hub.Dataset.from_tensorflow(ds)
 res_ds = out_ds.store("username/new_dataset")
 ```
 
+
+## Notes 
 New hub mimics TFDS data types. Before creating dataset you have to mention the details of what type of data does it contain. This enables us to compress, process and visualize data more efficiently.
 
 This code creates dataset in *"./data/examples/new_api_intro"* folder with overwrite mode. Dataset has 1000 samples. In each sample there is an *image* and a *label*.
