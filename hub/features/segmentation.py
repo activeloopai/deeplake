@@ -17,8 +17,7 @@ class Segmentation(Tensor):
         names_file: str = None,
         max_shape: Tuple[int, ...] = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         """Constructs a Segmentation HubFeature.
         Also constructs ClassLabel HubFeature for Segmentation classes.
@@ -37,8 +36,7 @@ class Segmentation(Tensor):
             names=names,
             names_file=names_file,
             chunks=chunks,
-            compress="lz4",
-            compresslevel=compresslevel,
+            compressor="lz4",
         )
 
     def get_segmentation_classes(self):

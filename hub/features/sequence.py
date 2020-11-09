@@ -15,7 +15,11 @@ class Sequence(Tensor):
     """
 
     def __init__(
-        self, shape=(None,), dtype=None, chunks=None, compress="lz4", compresslevel=None
+        self,
+        shape=(None,),
+        dtype=None,
+        chunks=None,
+        compressor="lz4",
     ):
         """Construct a sequence of Tensors.
         Parameters
@@ -34,8 +38,7 @@ class Sequence(Tensor):
             shape=shape,
             dtype=dtype,
             chunks=chunks,
-            compress=compress,
-            compresslevel=compresslevel,
+            compressor=compressor,
         )
 
     def get_attr_dict(self):

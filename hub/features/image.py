@@ -25,8 +25,7 @@ class Image(Tensor):
         # TODO Add back encoding_format (probably named compress) when support for png and jpg support will be added
         max_shape: Tuple[int, ...] = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         """Construct the connector.
         Args:
@@ -47,8 +46,7 @@ class Image(Tensor):
             dtype,
             max_shape=max_shape,
             chunks=chunks,
-            compress=compress,
-            compresslevel=compresslevel,
+            compressor=compressor,
         )
         # self._set_encoding_format(encoding_format)
 

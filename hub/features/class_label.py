@@ -16,8 +16,7 @@ class ClassLabel(Tensor):
         names: List[str] = None,
         names_file: str = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         """Constructs a ClassLabel HubFeature.
         There are 3 ways to define a ClassLabel, which correspond to the 3
@@ -48,8 +47,7 @@ class ClassLabel(Tensor):
             shape=(),
             dtype="int64",
             chunks=chunks,
-            compress=compress,
-            compresslevel=compresslevel,
+            compressor=compressor,
         )
 
         self._num_classes = None

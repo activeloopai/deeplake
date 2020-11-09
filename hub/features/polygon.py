@@ -12,8 +12,7 @@ class Polygon(Tensor):
         dtype="int32",
         max_shape: Tuple[int, ...] = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         """Constructs a Polygon HubFeature.
         Args:
@@ -36,8 +35,7 @@ class Polygon(Tensor):
             dtype=dtype,
             max_shape=max_shape,
             chunks=chunks,
-            compress=compress,
-            compresslevel=compresslevel,
+            compressor=compressor,
         )
 
     def _check_shape(self, shape):

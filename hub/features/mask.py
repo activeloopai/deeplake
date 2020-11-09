@@ -15,8 +15,7 @@ class Mask(Tensor):
         shape: Tuple[int, ...] = None,
         max_shape: Tuple[int, ...] = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         """Constructs a Mask HubFeature.
 
@@ -33,8 +32,7 @@ class Mask(Tensor):
             "bool_",
             max_shape=max_shape,
             chunks=chunks,
-            compress=compress,
-            compresslevel=compresslevel,
+            compressor=compressor,
         )
 
     def get_attr_dict(self):
