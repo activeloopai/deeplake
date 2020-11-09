@@ -30,7 +30,7 @@ hub register
 hub login
 ```
 
-3) Lets start by creating dataset
+3) Let's start by creating dataset
 
 ```python
 import numpy as np
