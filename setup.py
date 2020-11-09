@@ -51,6 +51,6 @@ setup(
             "hub-local = hub.cli.local:cli",
             "hub-dev = hub.cli.dev:cli",
         ]
-    },
+    }
     tests_require=["pytest", "mock>=1.0.1"],
 )
