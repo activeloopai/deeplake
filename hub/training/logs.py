@@ -21,6 +21,7 @@ class _SingletonWrapper:
     def __init__(self, cls):
         self.__wrapped__ = cls
         self._instance = None
+        self.__doc__ = cls.__doc__
 
     def __call__(self, *args, **kwargs):
         """Returns a single instance of decorated class"""
@@ -37,7 +38,7 @@ def singleton(cls):
     return _SingletonWrapper(cls)
 
 
-@singleton
+# @singleton
 class Track(object):
     """
     Manage tracking logic
@@ -50,10 +51,14 @@ class Track(object):
     def __init__(self, logs: Dataset=None, dir='./data/logs', id=None): 
         """Creates Track using given logs dataset
 
-        Arguments:
-        logs: Dataset object with predefined metrics which should be tracked during training.
-        dir: Directory to store tensorboard logs, if necessary
-        id: Unique id of the tensoboard logs
+        Parameters
+        ----------
+        logs: Dataset
+            Dataset object with predefined metrics which should be tracked during training.
+        dir: str
+            Directory to store tensorboard logs, if necessary
+        id: str
+            Unique id of the tensoboard logs
         """
         super().__init__()
         if id == None:
@@ -81,11 +86,14 @@ class Track(object):
     def display(self, iter=None, num_batches=0, cls=None):
         """Display logs
 
-        Arguments: 
-        iter: Number of iteration to display a logs of.
-        num_batches: Show `num_batches` logs at once
-        cls: Single metric name to be displayed
-
+        Parameters
+        ---------- 
+        iter: int 
+            Number of iteration to display a logs of.
+        num_batches: int
+            Show `num_batches` logs at once
+        cls: str
+            Single metric name to be displayed
         """
         if iter == None:
             iter = self.step
@@ -100,11 +108,15 @@ class Track(object):
     def add_scalar(self, tag: str, el, frequency_upload=1):
         """Add a scalar value to metric
 
-        Arguments:
-        tag: Name of tag to add a scalar too, i.e 'train'
-        el: Dict or Tuple with metric names and values to be stored in logs
-        frequence_upload: Frequency of storing the collected metrics to logs.
-                          Default value: 1.
+        Parameters
+        ----------
+        tag: str
+            Name of tag to add a scalar too, i.e 'train'
+        el: Dict or Tuple 
+            Metric names and values to be stored in logs
+        frequence_upload: int
+            Frequency of storing the collected metrics to logs.
+            Default value: 1.
         """
         self.counter += 1 
         if isinstance(el,dict):
@@ -128,10 +140,14 @@ class Track(object):
     def track(self, label: str, tag: str, el):  
         """Add a new value(s) to metrics
 
-        Arguments: 
-        label: Type of values. Currently supported type: Track.scalar
-        tag: Name of tag to add a scalar too, i.e 'train'
-        el: Dict or Tuple with metric names and values to be stored in logs
+        Parameters
+        ---------- 
+        label: str
+            Type of values. Currently supported type: Track.scalar
+        tag: str
+            Name of tag to add a scalar too, i.e 'train'
+        el: Dict or Tuple 
+            Metric names and values to be stored in logs
         """
         if label == self.scalar:
             self.add_scalar(tag, el)

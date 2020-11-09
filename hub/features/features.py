@@ -89,9 +89,9 @@ class Tensor(FeatureConnector):
         max_shape : Tuple[int]
             Maximum shape of tensor shape if tensor is dynamic
         chunks : Tuple[int] | True
-            Describes how to split tensor dimentions into chunks (files) to store them efficiently.
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
             It is anticipated that each file should be ~16MB.
-            Sample Count is also in the list of tensor's dimentions (first dimention)
+            Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
         self.shape = tuple(shape)
