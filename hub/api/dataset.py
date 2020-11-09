@@ -2,6 +2,9 @@ from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
+import sys
+import os
+import traceback
 
 import fsspec
 import numcodecs
@@ -16,6 +19,7 @@ from hub.features.features import (
     featurify,
     FlatTensor,
 )
+from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -32,8 +36,13 @@ from hub.exceptions import (
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
+    ShapeArgumentNotFoundException,
+    SchemaArgumentNotFoundException,
+    ModuleNotInstalledException,
+    WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
+from hub.client.hub_control import HubControlClient
 
 try:
     import torch
@@ -60,7 +69,8 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 2 ** 20,
+        cache: int = 2 ** 26,
+        lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
 
@@ -84,9 +94,13 @@ class Dataset:
         fs_map: optional
         cache: int, optional
             Size of the cache. Default is 2GB (2**20)
+        lock_cache: bool, optional
+            Lock the cache for avoiding multiprocessing errors
         """
 
         shape = shape or (None,)
+        if isinstance(shape, int):
+            shape = [shape]
         if shape is not None:
             assert len(tuple(shape)) == 1
         assert mode is not None
@@ -98,9 +112,11 @@ class Dataset:
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
         )
+        self.cache = cache
+        self.lock_cache = lock_cache
 
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs, self._path, cache)
+        fs_map = fs_map or get_storage_map(self._fs, self._path, cache, lock=lock_cache)
         self._fs_map = fs_map
 
         if safe_mode and not needcreate:
@@ -114,19 +130,39 @@ class Dataset:
             self._tensors = dict(self._open_storage_tensors())
         else:
             try:
+                if shape is None:
+                    raise ShapeArgumentNotFoundException()
+                if schema is None:
+                    raise SchemaArgumentNotFoundException()
                 self.schema: HubFeature = featurify(schema)
                 self.shape = tuple(shape)
-                meta = {
+                self.meta = {
                     "shape": shape,
                     "schema": hub.features.serialize.serialize(self.schema),
                     "version": 1,
                 }
-                fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+                fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
-            except Exception:
+            except Exception as e:
                 self._fs.rm(self._path, recursive=True)
+                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
+
+        self.username = None
+        self.dataset_name = None
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
+        ):
+            subpath = self._path[5:]
+            spl = subpath.split("/")
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            self.username = spl[-2]
+            self.dataset_name = spl[-1]
+            HubControlClient().create_dataset_entry(
+                self.username, self.dataset_name, self.meta
+            )
 
     def _check_and_prepare_dir(self):
         """
@@ -135,6 +171,12 @@ class Dataset:
         Returns True dataset needs to be created opposed to read
         """
         fs, path, mode = self._fs, self._path, self.mode
+        if path.startswith("s3://"):
+            with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
+                stored_username = json.load(f)["_id"]
+            current_username = path.split("/")[-2]
+            if stored_username != current_username:
+                raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
@@ -144,7 +186,7 @@ class Dataset:
             return False
         else:
             if "r" in mode:
-                raise HubDatasetNotFoundException()
+                raise HubDatasetNotFoundException(path)
             exist_dir = fs.exists(path)
             if not exist_dir:
                 fs.makedirs(path)
@@ -180,7 +222,9 @@ class Dataset:
             self._fs.makedirs(posixpath.join(path, "--dynamic--"))
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t_path, get_storage_map(self._fs, path), self._fs_map
+                    t_path,
+                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    self._fs_map,
                 ),
                 mode=self.mode,
                 shape=self.shape + t_dtype.shape,
@@ -196,7 +240,9 @@ class Dataset:
             path = posixpath.join(self._path, t_path[1:])
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t_path, get_storage_map(self._fs, path), self._fs_map
+                    t_path,
+                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    self._fs_map,
                 ),
                 mode=self.mode,
                 # FIXME We don't need argument below here
@@ -262,10 +308,27 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
+    def delete(self):
+        fs, path = self._fs, self._path
+        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        if exist_meta:
+            fs.rm(path, recursive=True)
+            if self.username is not None:
+                HubControlClient().delete_dataset_entry(
+                    self.username, self.dataset_name
+                )
+            return True
+        return False
+
     def to_pytorch(self, Transform=None):
+        if "torch" not in sys.modules:
+            raise ModuleNotInstalledException("torch")
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
+        if "tensorflow" not in sys.modules:
+            raise ModuleNotInstalledException("tensorflow")
+
         def tf_gen():
             for index in range(self.shape[0]):
                 d = {}
@@ -297,13 +360,8 @@ class Dataset:
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
                 return str(my_dtype._dtype)
-            else:
-                print(
-                    my_dtype, type(my_dtype), type(Tensor), isinstance(my_dtype, Tensor)
-                )
 
         output_types = dtype_to_tf(self.schema)
-        print(output_types)
         return tf.data.Dataset.from_generator(
             tf_gen,
             output_types=output_types,
@@ -345,6 +403,10 @@ class Dataset:
         """
         for t in self._tensors.values():
             t.commit()
+        if self.username is not None:
+            HubControlClient().update_dataset_state(
+                self.username, self.dataset_name, "UPLOADED"
+            )
 
     def __enter__(self):
         return self
@@ -358,19 +420,37 @@ class Dataset:
         chunks = [t.chunksize[0] for t in self._tensors.values()]
         return compute_lcm(chunks)
 
+    @property
+    def keys(self):
+        """
+        Get Keys of the dataset
+        """
+        return self._tensors.keys()
+
 
 class TorchDataset:
     def __init__(self, ds, transform=None):
-        self._ds = ds
+        self._ds = None
+        self._url = ds.url
+        self._token = ds.token
         self._transform = transform
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
 
+    def _init_ds(self):
+        """
+        For each process, dataset should be independently loaded
+        """
+        if self._ds is None:
+            self._ds = Dataset(self._url, token=self._token, lock_cache=False)
+
     def __len__(self):
+        self._init_ds()
         return self._ds.shape[0]
 
     def __getitem__(self, index):
+        self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
             split_key = key.split("/")
@@ -381,10 +461,12 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
+
             cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):
+        self._init_ds()
         for index in range(self.shape[0]):
             d = {}
             for key in self._ds._tensors.keys():

@@ -8,7 +8,7 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 
-from hub.exceptions import DynamicTensorNotFoundException
+from hub.exceptions import DynamicTensorNotFoundException, ValueShapeError
 from hub.api.dataset_utils import slice_extract_info
 
 
@@ -106,14 +106,22 @@ class DynamicTensor:
         if "r" in mode and not exist:
             raise DynamicTensorNotFoundException()
 
+        synchronizer = None
+        # syncrhonizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         # if tensor exists and mode is read or append
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
             shape = meta["shape"]
             self._dynamic_dims = get_dynamic_dims(shape)
-            self._storage_tensor = zarr.open_array(store=fs_map, mode=mode)
+            self._storage_tensor = zarr.open_array(
+                store=fs_map, mode=mode, synchronizer=synchronizer
+            )
             self._dynamic_tensor = (
-                zarr.open_array(NestedStore(fs_map, "--dynamic--"), mode=mode)
+                zarr.open_array(
+                    NestedStore(fs_map, "--dynamic--"),
+                    mode=mode,
+                    synchronizer=synchronizer,
+                )
                 if self._dynamic_dims
                 else None
             )
@@ -130,6 +138,7 @@ class DynamicTensor:
                 if str(dtype) == "object"
                 else None,
                 compressor=compressor,
+                synchronizer=synchronizer,
             )
             self._dynamic_tensor = (
                 zarr.zeros(
@@ -137,6 +146,7 @@ class DynamicTensor:
                     mode=mode,
                     dtype=np.int32,
                     store=NestedStore(fs_map, "--dynamic--"),
+                    synchronizer=synchronizer,
                 )
                 if self._dynamic_dims
                 else None
@@ -178,6 +188,20 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
         slice_ = self._get_slice(slice_, real_shapes)
+
+        if None not in self.shape and not all([isinstance(sh, int) for sh in slice_]):
+            expected_value_shape = tuple(
+                [
+                    len(range(*slice_shape.indices(self.shape[i])))
+                    for i, slice_shape in enumerate(slice_)
+                    if not isinstance(slice_shape, int)
+                ]
+            )
+            if (
+                type(value) in (np.ndarray, list)
+                and np.array(value).shape != expected_value_shape
+            ):
+                raise ValueShapeError(expected_value_shape, value.shape)
         self._storage_tensor[slice_] = value
 
     def get_shape(self, slice_):

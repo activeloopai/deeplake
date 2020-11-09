@@ -143,13 +143,51 @@ class LockedException(HubException):
 class HubDatasetNotFoundException(HubException):
     def __init__(self, response):
         message = f"The dataset with tag {response} was not found"
-        super(DatasetNotFound, self).__init__(message=message)
+        super(HubDatasetNotFoundException, self).__init__(message=message)
 
 
 class PermissionException(HubException):
     def __init__(self, response):
         message = f"No permision to store the dataset at {response}"
         super(PermissionException, self).__init__(message=message)
+
+class ShapeArgumentNotFoundException(HubException):
+    def __init__(self):
+        message = f"Parameter 'shape' should be provided for Dataset creation."
+        super(HubException, self).__init__(message=message)
+
+class SchemaArgumentNotFoundException(HubException):
+    def __init__(self):
+        message = f"Parameter 'schema' should be provided for Dataset creation."
+        super(HubException, self).__init__(message=message)
+
+class ValueShapeError(HubException):
+    def __init__(self, correct_shape, wrong_shape):
+        message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
+        super(HubException, self).__init__(message=message)
+
+class ModuleNotInstalledException(HubException):
+    def __init__(self, module_name):
+        message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
+        super(HubException, self).__init__(message=message)
+
+class WrongUsernameException(HubException):
+    def __init__(self, username):
+        message = f"The username {username} was not found. Make sure that the username provided in the url " \
+                   "matches the one used during login."
+        super(HubException, self).__init__(message=message)
+
+class NotHubDatasetToOverwriteException(HubException):
+    def __init__(self):
+        message = "Unable to overwrite the dataset. "  \
+                "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        super(HubException, self).__init__(message=message)
+
+class NotHubDatasetToAppendException(HubException):
+    def __init__(self):
+        message = "Unable to append to the dataset. "  \
+                  "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        super(HubException, self).__init__(message=message)
 
 
 class NotZarrFolderException(Exception):
@@ -161,12 +199,4 @@ class StorageTensorNotFoundException(Exception):
 
 
 class DynamicTensorNotFoundException(Exception):
-    pass
-
-
-class NotHubDatasetToOverwriteException(Exception):
-    pass
-
-
-class NotHubDatasetToAppendException(Exception):
     pass
