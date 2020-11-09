@@ -79,6 +79,7 @@ class DynamicTensor:
         max_shape=None,
         dtype="float64",
         chunks=None,
+        compressor="default",
     ):
         """Constructor
         Parameters
@@ -128,6 +129,7 @@ class DynamicTensor:
                 object_codec=numcodecs.Pickle(protocol=3)
                 if str(dtype) == "object"
                 else None,
+                compressor=compressor,
             )
             self._dynamic_tensor = (
                 zarr.zeros(

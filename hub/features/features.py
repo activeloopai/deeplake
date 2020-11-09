@@ -29,11 +29,12 @@ def featurify(feature) -> HubFeature:
 
 
 class Primitive(HubFeature):
-    def __init__(self, dtype, chunks=True):
+    def __init__(self, dtype, chunks=True, compressor="lz4"):
         self._dtype = hub.dtype(dtype)
         self.chunks = chunks
         self.shape = self.max_shape = ()
         self.dtype = self._dtype
+        self.compressor = compressor
 
     def _flatten(self):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
@@ -64,8 +65,7 @@ class Tensor(HubFeature):
         dtype="float64",
         max_shape: Shape = None,
         chunks=None,
-        compress="lz4",
-        compresslevel=None,
+        compressor="lz4",
     ):
         shape = (shape,) if isinstance(shape, int) else tuple(shape)
         chunks = (chunks,) if isinstance(chunks, int) else tuple(shape)
@@ -79,8 +79,7 @@ class Tensor(HubFeature):
         self.dtype = featurify(dtype)
         self.max_shape = max_shape
         self.chunks = chunks
-        self.compress = compress
-        self.compresslevel = compresslevel
+        self.compressor = compressor
 
     def _flatten(self):
         for item in self.dtype._flatten():

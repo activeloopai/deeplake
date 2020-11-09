@@ -4,6 +4,9 @@ import collections.abc as abc
 import json
 
 import fsspec
+import numcodecs
+import numcodecs.lz4
+import numcodecs.zstd
 
 from hub.features.features import (
     Primitive,
@@ -160,6 +163,16 @@ class Dataset:
         else:
             return "object"
 
+    def _get_compressor(self, compressor: str):
+        if compressor.lower() == "lz4":
+            return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
+        elif compressor.lower() == "zstd":
+            return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+        else:
+            raise ValueError(
+                f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
+            )
+
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t_dtype, t_path = t
@@ -174,6 +187,7 @@ class Dataset:
                 max_shape=self.shape + t_dtype.max_shape,
                 dtype=self._get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
+                compressor=self._get_compressor(t_dtype.compressor),
             )
 
     def _open_storage_tensors(self):
