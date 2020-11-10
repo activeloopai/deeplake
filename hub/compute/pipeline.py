@@ -1,8 +1,5 @@
 import hub
 
-import ray
-
-from hub.utils import batch
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 
@@ -25,10 +22,8 @@ class Transform:
             url, mode="w", shape=shape, schema=self._schema, token=token
         )
 
-        # Fire ray computes
         results = [self._func(item) for item in self._ds]
 
-        # results = ray.get(results)
         for i, result in enumerate(results):
             dic = self.flatten_dict(result)
             for key in dic:
@@ -40,35 +35,6 @@ class Transform:
                     for path in path_key:
                         val = val.get(path)
                     ds[key, i] = val
-        return ds
-
-    def store_chunkwise(self, url, token=None):
-        """
-        mary chunks with compute
-        """
-        ds = hub.Dataset(
-            url, mode="w", shape=self._ds.shape, schema=self._schema, token=token
-        )
-
-        results = [self._func.remote(item) for item in self._ds]
-
-        # Chunkwise compute
-        batch_size = ds.chunksize
-
-        @ray.remote(num_returns=int(len(ds) / batch_size))
-        def batchify(results):
-            return tuple(batch(results, batch_size))
-
-        results_batched = batchify.remote(results)
-        if isinstance(results_batched, list):
-            results = [
-                self._transfer_batch.remote(self, ds, i, result)
-                for i, result in enumerate(results_batched)
-            ]
-        else:
-            self._transfer_batch.remote(self, ds, 0, results_batched)
-
-        ray.get(results_batched)
         return ds
 
     def flatten_dict(self, d, parent_key=''):
@@ -88,13 +54,6 @@ class Transform:
             cur_type = cur_type[subpath]
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
-
-    @ray.remote
-    def _transfer_batch(self, ds, i, results):
-        for j, result in enumerate(results[0]):
-            print(result)
-            for key in result:
-                ds[key, i * ds.chunksize + j] = result[key]
 
     def _transfer(self, from_, to):
         assert isinstance(from_, dict)

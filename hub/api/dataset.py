@@ -47,6 +47,7 @@ try:
 except ImportError:
     pass
 
+import time
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
@@ -88,6 +89,7 @@ class Dataset:
         fs_map: optional
         cache: int, optional
             Size of the cache. Default is 2GB (2**20)
+            if zero or flase, then cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
         """
@@ -266,16 +268,24 @@ class Dataset:
         image = images[5]
         image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        t0 = time.time()
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
+        t1 = time.time()
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
+        t3 = t4 = t2 = time.time()
+        
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
             self._tensors[subpath][:] = value  # Add path check
+            t3 = time.time()
         else:
             self._tensors[subpath][slice_list] = value
+            t4 = time.time()
+        print("Dataset", t4-t2,t3-t2, t2-t1, t1-t0)
+        exit()
 
     def delete(self):
         fs, path = self._fs, self._path
