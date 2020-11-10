@@ -38,14 +38,14 @@ import numpy as np
 import hub
 from hub.features import ClassLabel, Image
 
-ds_type = {
+schema = {
     "image": Image((28, 28)),
     "label": ClassLabel(num_classes=10),
 }
 
 url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
 
-ds = hub.Dataset(url, mode="w", shape=(1000,), dtype=ds_type)
+ds = hub.Dataset(url, mode="w", shape=(1000,), schema=ds_type)
 for i in range(len(ds)):
     ds["image", i] = np.ones((28, 28), dtype="uint8")
     ds["label", i] = 3
