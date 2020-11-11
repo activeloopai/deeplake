@@ -2,21 +2,29 @@
 
 Here is an example to transform the dataset into pytorch form.
 
-```
-import torch
-from hub import dataset
+```python
+from hub import Dataset
 
-# Load data
-ds = dataset.load("mnist/mnist")
-
-# Transform into pytorch
-ds = ds.to_pytorch(transform=None)
-ds = torch.utils.data.DataLoader(
-    ds, batch_size=8, num_workers=8, collate_fn=ds.collate_fn
+# Create dataset
+ds = Dataset(
+    "username/pytorch_example",
+    shape=(640,),
+    mode="w",
+    schema={
+        "image": features.Tensor((512, 512), dtype="float"),
+        "label": features.Tensor((512, 512), dtype="float"),
+    },
 )
 
-# Iterate over the data
+# Load to pytorch
+ds = ds.to_pytorch()
+ds = torch.utils.data.DataLoader(
+    ds,
+    batch_size=8,
+    num_workers=2,
+)
+
+# Iterate
 for batch in ds:
-    print(batch["data"], batch["labels"])
+    print(batch["image"], batch["label"])
 ```
-Please make sure that `collate_fn` is provided from the dataset `ds.collate_fn` to stack tensors together since they are in dictionary form

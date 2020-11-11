@@ -23,8 +23,14 @@ if tensorflow_spec is not None:
 
 
 class Model:
-    def __init__(self, model = None, metainfo: Dict = dict()):
-        """ Creates model with meta given metainfo.
+    def __init__(self, model=None, metainfo: Dict = dict()):
+        """Creates model with given metainfo.
+        
+        Parameters
+        ----------
+        model: PyTorch, Tensorflow or Pytorch Lightning model object
+        metainfo: dict
+            Dictionary of model meta information
         """
         self._metainfo = metainfo
         self._model = model
@@ -37,16 +43,23 @@ class Model:
  
     def load(self, model_path: str, token: str = None):
         """Loads a Pytorch or Tensorflow model
-        Usage:
-        >>> loaded_model = load('path/to/model/file')
-        
-        Arguments:
-        model_path: Path(local or s3) to model file. Should be of type '.h5'
-                    for Tensorflow models and of type '.pth' or '.pt' for PyTorch models.
-        token: Path to aws credentials if `model_path` is aws s3 path. 
-            default: os.environ['AWS_CONFIG_FILE'] 
 
-        Returns:
+        Usage
+        ----------
+
+        >>> loaded_model = load('path/to/model/file')
+
+        Parameters
+        ----------
+        model_path: str
+            Path(local or s3) to model file. Should be of type '.h5'
+                    for Tensorflow models and of type '.pth' or '.pt' for PyTorch models.
+        token: str
+            Path to aws credentials if `model_path` is aws s3 path.
+            default: os.environ['AWS_CONFIG_FILE']
+
+        Returns
+        ----------
         Pytorch or tf.keras(compiled if saved model was compiled) models
         """
         if model_path.startswith('s3://'):
@@ -80,16 +93,24 @@ class Model:
 
     def store(self, model_dir: str, token: str = None): 
         """Saves an object to a file.
-        Usage:
-        >>> store(/dir/to/save/model/, model)
-        
-        Arguments:
-        model_dir: Path(local or s3) to folder where model will be saved.
-        model: PyTorch or tf.Keras model
-        token: Path to aws credentials if `model_dir` is aws s3 path. 
-            default: os.environ['AWS_CONFIG_FILE'] 
 
-        Raises: ValueError if model type is not supported(supported types:
+        Usage
+        ----------
+
+        >>> store(/dir/to/save/model/, model)
+
+        Parameters
+        ----------
+        model_dir: str
+            Path(local or s3) to folder where model will be saved.
+        model: PyTorch or tf.Keras model
+        token: str
+            Path to aws credentials if `model_dir` is aws s3 path.
+            default: os.environ['AWS_CONFIG_FILE']
+
+        Raises
+        ----------
+        ValueError: If model type is not supported(supported types:
                 torch.nn.Module, tf.keras.Model, tf.keras.Sequential)
         """
         if model_dir.startswith('s3://'):

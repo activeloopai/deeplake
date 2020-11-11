@@ -162,6 +162,7 @@ def test_dataset_bug():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
+    was_except = False
     try:
         ds = Dataset("./data/test/test_dataset_bug", mode="w")
     except Exception:
