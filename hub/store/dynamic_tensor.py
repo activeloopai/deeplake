@@ -174,20 +174,37 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
         slice_ = self._get_slice(slice_, real_shapes)
-
-        if None not in self.shape and not all([isinstance(sh, int) for sh in slice_]):
-            expected_value_shape = tuple(
-                [
-                    len(range(*slice_shape.indices(self.shape[i])))
-                    for i, slice_shape in enumerate(slice_)
-                    if not isinstance(slice_shape, int)
-                ]
-            )
-            if isinstance(value, list):
-                value = np.array(value)
-            if value.shape != expected_value_shape:
-                raise ValueShapeError(expected_value_shape, value.shape)
+        value = self.check_value_shape(value, slice_)
         self._storage_tensor[slice_] = value
+
+    def check_value_shape(self, value, slice_):
+        """Checks if value can be set to the slice"""
+        if None not in self.shape:
+            if not all([isinstance(sh, int) for sh in slice_]):
+                expected_value_shape = tuple(
+                    [
+                        len(range(*slice_shape.indices(self.shape[i])))
+                        for i, slice_shape in enumerate(slice_)
+                        if not isinstance(slice_shape, int)
+                    ]
+                )
+                if isinstance(value, list):
+                    value = np.array(value)
+                if expected_value_shape[0] == 1 and len(expected_value_shape) > 1:
+                    expected_value_shape = expected_value_shape[1:]
+                if value.shape[0] == 1 and expected_value_shape[0] != 1:
+                    value = np.squeeze(value, axis=0)
+                if value.shape[-1] == 1 and expected_value_shape[-1] != 1:
+                    value = np.squeeze(value, axis=-1)
+                if value.shape != expected_value_shape:
+                    raise ValueShapeError(expected_value_shape, value.shape)
+            else:
+                if isinstance(value, list):
+                    value = np.array(value)
+                expected_value_shape = (1, )
+                if value.shape != expected_value_shape:                    
+                    raise ValueShapeError(expected_value_shape, value.shape)
+            return value
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
