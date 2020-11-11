@@ -25,7 +25,7 @@ class FeatureConnector:
 
 
 def featurify(feature) -> FeatureConnector:
-    """This functions converts naked primitive datatypes and ditcs into Primitives and FeatureDicts
+    """This functions converts naked primitive datatypes and dicts into Primitives and FeatureDicts
     That way every node in dtype tree is a FeatureConnector type object
     """
     if isinstance(feature, dict):
