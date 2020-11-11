@@ -5,7 +5,7 @@ import json
 import tempfile
 import io
 
-from hub.utils import get_fs_and_path
+from hub.store.store import get_fs_and_path
 
 import importlib
 torch_spec = importlib.util.find_spec("torch")
