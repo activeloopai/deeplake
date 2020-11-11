@@ -203,12 +203,13 @@ class DynamicTensor:
 
                 if isinstance(value, list):
                     value = np.array(value)
-                if value.shape[0] == 1 and expected_value_shape[0] != 1:
-                    value = np.squeeze(value, axis=0)
-                if value.shape[-1] == 1 and expected_value_shape[-1] != 1:
-                    value = np.squeeze(value, axis=-1)
-                if isinstance(value, np.ndarray) and value.shape != expected_value_shape:
-                    raise ValueShapeError(expected_value_shape, value.shape)
+                if isinstance(value, np.ndarray):
+                    if value.shape[0] == 1 and expected_value_shape[0] != 1:
+                        value = np.squeeze(value, axis=0)
+                    if value.shape[-1] == 1 and expected_value_shape[-1] != 1:
+                        value = np.squeeze(value, axis=-1)
+                    if value.shape != expected_value_shape:
+                        raise ValueShapeError(expected_value_shape, value.shape)
             else:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
