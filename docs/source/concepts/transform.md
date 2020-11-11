@@ -81,8 +81,3 @@ Let's say you have a set of images and want to crop the center and then flip the
 
 Special care need to be taken for `meta` information and output dimensions of each sample in `forward` pass. We are planning to simplify this process. Any recommendation as Git issue would be greatly appreciated. 
 
-## API
-```eval_rst
-.. autoclass:: hub.Transform
-   :members:
-```

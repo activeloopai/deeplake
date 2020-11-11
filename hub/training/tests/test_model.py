@@ -41,7 +41,6 @@ def test_store_load_torch():
     reason="requires tensorflow to be loaded",
 )
 def test_store_load_tf():
-
     def get_model():
         inputs = tf.keras.Input(shape=(32,))
         outputs = tf.keras.layers.Dense(1)(inputs)
@@ -52,9 +51,9 @@ def test_store_load_tf():
     model_arch = get_model()
     model_init = Model(model_arch)
     test_input = np.random.random((128, 32))
-    model_init.store("/tmp/")
+    model_init.store("./data/tmp/")
     loaded_model = Model()
-    loaded_model.load(f"/tmp/{model_init._model.__class__.__name__}.h5")
+    loaded_model.load(f"./data/tmp/{model_init._model.__class__.__name__}.h5")
     np.testing.assert_allclose(
         model_init._model.predict(test_input), loaded_model._model.predict(test_input)
     )
