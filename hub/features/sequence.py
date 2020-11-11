@@ -8,17 +8,22 @@ class Sequence(Tensor):
     If the length of the sequence is static and known in advance, it should be
     specified in the constructor using the `length` param.
 
-    Example:
-    ```
-    sequence = Sequence(Image(), length=NB_FRAME)
-    ```
+    | Usage:
+    ----------
+
+    >>> sequence = Sequence(Image(), length=NB_FRAME)
     """
 
     def __init__(self, feature: Tensor, length: int = None, chunks=True):
         """Construct a sequence of Tensors.
-        Args:
-        feature: the features to wrap
-        length: `int`, length of the sequence if static and known in advance
+
+        Parameters
+        ----------
+
+        feature: Tensor
+            The features to wrap
+        length: int
+            Length of the sequence if static and known in advance
         """
         super(Sequence, self).__init__(shape=(length,), dtype=feature, chunks=chunks)
 

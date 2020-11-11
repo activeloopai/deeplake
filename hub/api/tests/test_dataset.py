@@ -162,12 +162,14 @@ def test_dataset_bug():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
+
     was_except = False
     try:
         ds = Dataset("./data/test/test_dataset_bug", mode="w")
     except Exception:
         was_except = True
     assert was_except
+
     ds = Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
@@ -191,4 +193,5 @@ def test_dataset_s3():
 
 if __name__ == "__main__":
     # test_dataset()
-    test_dataset()
+    # test_dataset()
+    test_dataset_bug()
