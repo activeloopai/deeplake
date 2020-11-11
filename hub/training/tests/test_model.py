@@ -1,5 +1,7 @@
-from hub.training.model import Model
 import numpy as np 
+import pytest
+from hub.utils import pytorch_loaded, tensorflow_loaded
+from hub.training.model import Model
 
 import importlib
 torch_spec = importlib.util.find_spec("torch")
@@ -10,6 +12,10 @@ if tensorflow_spec is not None:
     import tensorflow as tf
 
 
+@pytest.mark.skipif(
+    not pytorch_loaded(),
+    reason="requires pytorch to be loaded",
+)
 def test_store_load_torch():
     if torch_spec is None:
         raise ModuleNotFoundError("Module 'torch' is not installed")
@@ -28,7 +34,10 @@ def test_store_load_torch():
         assert p1[0] == p2[0]
         assert torch.equal(p1[1].data, p2[1].data)
 
-    
+@pytest.mark.skipif(
+    not tensorflow_loaded(),
+    reason="requires tensorflow to be loaded",
+)
 def test_store_load_tf():
     if tensorflow_spec is None:
         raise ModuleNotFoundError("Module 'tensorflow' is not installed")    
