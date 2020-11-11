@@ -1,5 +1,10 @@
 import hub
 
+try:
+    import ray
+except: 
+    pass
+from hub.utils import batch
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 
@@ -54,6 +59,13 @@ class Transform:
             cur_type = cur_type[subpath]
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
+
+    # @ray.remote
+    def _transfer_batch(self, ds, i, results):
+        for j, result in enumerate(results[0]):
+            print(result)
+            for key in result:
+                ds[key, i * ds.chunksize + j] = result[key]
 
     def _transfer(self, from_, to):
         assert isinstance(from_, dict)

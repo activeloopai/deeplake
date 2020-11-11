@@ -7,7 +7,10 @@ import zarr
 import hub
 
 from hub.features import Tensor
-from hub.utils import ray_loaded
+try:
+    import ray
+except:
+    pass
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4), chunks=(28, 28, 4)),
@@ -24,6 +27,7 @@ def my_transform(sample):
 
 
 def test_pipeline_basic():
+    #ray.init(local_mode=True)
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema, cache=0
     )
