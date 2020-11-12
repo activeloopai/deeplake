@@ -3,6 +3,7 @@
     <img src="https://raw.githubusercontent.com/snarkai/Hub/master/docs/logo/hub_logo.png" width="50%"/>
     </br>
 </p>
+
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -10,13 +11,12 @@
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://pypi.org/project/hub/"><img src="https://img.shields.io/pypi/dm/hub.svg" alt="PyPI version" height="18"></a>
     <a href="https://app.circleci.com/pipelines/github/activeloopai/Hub">
-    <img alt="CircleCI" src="https://img.shields.io/circleci/build/github/activeloopai/Hub?logo=circleci">
-    </a>
+    <img alt="CircleCI" src="https://img.shields.io/circleci/build/github/activeloopai/Hub?logo=circleci"> </a>
+     <a href="https://github.com/activeloopai/Hub/issues">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/master"><img src="https://codecov.io/gh/activeloopai/Hub/branch/master/graph/badge.svg" alt="codecov" height="18"></a>
     <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"> 
-        <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social">
-    </a>  
-    <br />
+        <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social"> </a>  
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" />
     </a>
@@ -26,11 +26,12 @@
 </a>
 </p>
 
-Activeloop's Hacktoberfest is extended till Nov 27! Check out our [Hacktoberfest Project Dashboard](https://github.com/activeloopai/Hub/projects/2) to contribute!
+
+Activeloop's Hacktoberfest is extended till Nov 27! Check out our [Hacktoberfest Project Dashboard](https://github.com/activeloopai/Hub/projects/2) to contribute! 
 
 
 <h3 align="center"> The Docker Hub for datasets. </h3>
-<h4 align="center"> Hub is the fastest way to access and manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
+<h4 align="center"> Hub is the fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
 
 ---
 
