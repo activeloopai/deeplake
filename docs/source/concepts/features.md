@@ -50,7 +50,7 @@ schema = {"image": Image(shape=(None, None),
 
 ### ClassLabel
 
-Integer representation of feature labels. Can be constructed from number of labels, label names or a text file with asingle label name in each line.
+Integer representation of feature labels. Can be constructed from number of labels, label names or a text file with a single label name in each line.
 
 ```python
 from hub.features import ClassLabel
