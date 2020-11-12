@@ -41,9 +41,9 @@ class Primitive(HubFeature):
     All numpy primitive data types like int32, float64, etc... should be wrapped around this class
     """
 
-    def __init__(self, dtype, chunks=True, compressor="lz4"):
+    def __init__(self, dtype, chunks=None, compressor="lz4"):
         self._dtype = hub.dtype(dtype)
-        self.chunks = chunks
+        self.chunks = _normalize_chunks(chunks)
         self.shape = self.max_shape = ()
         self.dtype = self._dtype
         self.compressor = compressor
@@ -73,6 +73,12 @@ class FeatureDict(HubFeature):
                     item.max_shape,
                     item.chunks,
                 )
+
+
+def _normalize_chunks(chunks):
+    chunks = (chunks,) if isinstance(chunks, int) else chunks
+    chunks = tuple(chunks) if chunks else None
+    return chunks
 
 
 class Tensor(HubFeature):
@@ -105,7 +111,7 @@ class Tensor(HubFeature):
             If default value is chosen, automatically detects how to split into chunks
         """
         shape = (shape,) if isinstance(shape, int) else tuple(shape)
-        chunks = (chunks,) if isinstance(chunks, int) else tuple(shape)
+        chunks = _normalize_chunks(chunks)
         max_shape = max_shape or shape
         if len(shape) != len(max_shape):
             raise ValueError(
