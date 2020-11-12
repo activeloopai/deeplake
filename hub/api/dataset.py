@@ -4,14 +4,18 @@ import collections.abc as abc
 import json
 import sys
 import os
+import traceback
 
 import fsspec
+import numcodecs
+import numcodecs.lz4
+import numcodecs.zstd
 
 from hub.features.features import (
     Primitive,
     Tensor,
     FeatureDict,
-    FeatureConnector,
+    HubFeature,
     featurify,
     FlatTensor,
 )
@@ -24,6 +28,7 @@ from hub.utils import compute_lcm
 
 import hub.features.serialize
 import hub.features.deserialize
+from hub.features.features import flatten
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -34,13 +39,14 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    WrongUsernameException
+    WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
 import traceback
+
 try:
     import torch
 except ImportError:
@@ -124,10 +130,10 @@ class Dataset:
             mode = "r"
 
         if not needcreate:
-            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(self.meta["shape"])
-            self.schema = hub.features.deserialize.deserialize(self.meta["schema"])
-            self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.shape = tuple(meta["shape"])
+            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
             if shape[0] is None:
@@ -135,7 +141,11 @@ class Dataset:
             if schema is None:
                 raise SchemaArgumentNotFoundException()
             try:
-                self.schema: FeatureConnector = featurify(schema)
+                if shape is None:
+                    raise ShapeArgumentNotFoundException()
+                if schema is None:
+                    raise SchemaArgumentNotFoundException()
+                self.schema: HubFeature = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = {
                     "shape": shape,
@@ -143,24 +153,27 @@ class Dataset:
                     "version": 1,
                 }
                 fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
-                self._flat_tensors: Tuple[FlatTensor] = tuple(self.schema._flatten())
+                self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
             except Exception as e:
                 self._fs.rm(self._path, recursive=True)
-                logger.error("Deleting the dataset ...")
-                raise e
-                
+                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
+                raise
 
         self.username = None
         self.dataset_name = None
-        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/"):
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
+        ):
             subpath = self._path[5:]
-            spl = subpath.split('/')
+            spl = subpath.split("/")
             if len(spl) < 4:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(self.username, self.dataset_name, self.meta)
+            HubControlClient().create_dataset_entry(
+                self.username, self.dataset_name, self.meta
+            )
 
     def _check_and_prepare_dir(self):
         """
@@ -169,10 +182,10 @@ class Dataset:
         Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
-        if path.startswith('s3://'):
-            with open(os.path.expanduser('~/.activeloop/store'), 'rb') as f:
-                stored_username = json.load(f)['_id']
-            current_username = path.split('/')[-2]
+        if path.startswith("s3://"):
+            with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
+                stored_username = json.load(f)["_id"]
+            current_username = path.split("/")[-2]
             if stored_username != current_username:
                 raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
@@ -195,42 +208,62 @@ class Dataset:
                     raise NotHubDatasetToAppendException()
             return True
 
+    def _get_dynamic_tensor_dtype(self, t_dtype):
+        if isinstance(t_dtype, Primitive):
+            return t_dtype.dtype
+        elif isinstance(t_dtype.dtype, Primitive):
+            return t_dtype.dtype.dtype
+        else:
+            return "object"
+
+    def _get_compressor(self, compressor: str):
+        if compressor.lower() == "lz4":
+            return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
+        elif compressor.lower() == "zstd":
+            return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+        else:
+            raise ValueError(
+                f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
+            )
+
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
-            t: FlatTensor = t
-            path = posixpath.join(self._path, t.path[1:])
+            t_dtype, t_path = t
+            path = posixpath.join(self._path, t_path[1:])
             self._fs.makedirs(posixpath.join(path, "--dynamic--"))
-            yield t.path, DynamicTensor(
+            yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path,
+                    t_path,
                     get_storage_map(self._fs, path, self.cache, self.lock_cache),
                     self._fs_map,
                 ),
                 mode=self.mode,
-                shape=self.shape + t.shape,
-                max_shape=self.shape + t.max_shape,
-                dtype=t.dtype,
-                chunks=t.chunks,
+                shape=self.shape + t_dtype.shape,
+                max_shape=self.shape + t_dtype.max_shape,
+                dtype=self._get_dynamic_tensor_dtype(t_dtype),
+                chunks=t_dtype.chunks,
+                compressor=self._get_compressor(t_dtype.compressor),
             )
 
     def _open_storage_tensors(self):
         for t in self._flat_tensors:
-            t: FlatTensor = t
-            path = posixpath.join(self._path, t.path[1:])
-            yield t.path, DynamicTensor(
+            t_dtype, t_path = t
+            path = posixpath.join(self._path, t_path[1:])
+            yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
-                    t.path,
+                    t_path,
                     get_storage_map(self._fs, path, self.cache, self.lock_cache),
                     self._fs_map,
                 ),
                 mode=self.mode,
-                shape=self.shape + t.shape,
+                # FIXME We don't need argument below here
+                shape=self.shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from dataset
-        | Usage: 
-               
+        | Usage:
+
         >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
 
         >>> images = ds["image"]
@@ -292,20 +325,22 @@ class Dataset:
         if exist_meta:
             fs.rm(path, recursive=True)
             if self.username is not None:
-                HubControlClient().delete_dataset_entry(self.username, self.dataset_name)
+                HubControlClient().delete_dataset_entry(
+                    self.username, self.dataset_name
+                )
             return True
         return False
 
     def to_pytorch(self, Transform=None):
         """Converts the dataset into a pytorch compatible format"""
         if "torch" not in sys.modules:
-            raise ModuleNotInstalledException('torch')
+            raise ModuleNotInstalledException("torch")
         return TorchDataset(self, Transform)
 
     def to_tensorflow(self):
         """Converts the dataset into a tensorflow compatible format"""
         if "tensorflow" not in sys.modules:
-            raise ModuleNotInstalledException('tensorflow')
+            raise ModuleNotInstalledException("tensorflow")
 
         def tf_gen():
             for index in range(self.shape[0]):
@@ -357,9 +392,7 @@ class Dataset:
         output_shapes = get_output_shapes(self.schema)
         # print(output_shapes)
         return tf.data.Dataset.from_generator(
-            tf_gen,
-            output_types=output_types,
-            output_shapes=output_shapes
+            tf_gen, output_types=output_types, output_shapes=output_shapes
         )
 
     def _get_dictionary(self, subpath, slice_=None):
@@ -399,7 +432,9 @@ class Dataset:
         for t in self._tensors.values():
             t.commit()
         if self.username is not None:
-            HubControlClient().update_dataset_state(self.username, self.dataset_name, "UPLOADED")
+            HubControlClient().update_dataset_state(
+                self.username, self.dataset_name, "UPLOADED"
+            )
 
     def __enter__(self):
         return self
@@ -444,7 +479,7 @@ class Dataset:
 
         """
         if "tensorflow" not in sys.modules:
-            raise ModuleNotInstalledException('tensorflow')
+            raise ModuleNotInstalledException("tensorflow")
 
         def generate_schema(ds):
             if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
@@ -462,7 +497,9 @@ class Dataset:
             return Tensor(shape=shape, dtype=tf_dt.dtype.name)
 
         def dict_to_hub(tf_dt):
-            d = {key.replace('/', '_'): tf_to_hub(value) for key, value in tf_dt.items()}
+            d = {
+                key.replace("/", "_"): tf_to_hub(value) for key, value in tf_dt.items()
+            }
             return FeatureDict(d)
 
         my_schema = generate_schema(ds)
@@ -470,7 +507,7 @@ class Dataset:
         def transform_numpy(sample):
             d = {}
             for k, v in sample.items():
-                k = k.replace('/', '_')
+                k = k.replace("/", "_")
                 if not isinstance(v, dict):
                     if isinstance(v, tuple) or isinstance(v, list):
                         new_v = list(v)
@@ -509,7 +546,7 @@ class Dataset:
         res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
         if "tensorflow_datasets" not in sys.modules:
-            raise ModuleNotInstalledException('tensorflow_datasets')
+            raise ModuleNotInstalledException("tensorflow_datasets")
         ds_info = tfds.load(dataset, with_info=True)
         if split is None:
             all_splits = ds_info[1].splits.keys()
@@ -536,34 +573,41 @@ class Dataset:
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
             else:
-                if tf_dt.dtype.name != 'string':
+                if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
 
         def fdict_to_hub(tf_dt):
-            d = {key.replace('/', '_'): to_hub(value) for key, value in tf_dt.items()}
+            d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
             return FeatureDict(d)
 
         def tensor_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def image_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def class_label_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
             if hasattr(tf_dt, "_num_classes"):
-                return ClassLabel(shape=tf_dt.shape, dtype=dt, num_classes=tf_dt.num_classes, max_shape=max_shape)
+                return ClassLabel(
+                    shape=tf_dt.shape,
+                    dtype=dt,
+                    num_classes=tf_dt.num_classes,
+                    max_shape=max_shape,
+                )
             else:
-                return ClassLabel(shape=tf_dt.shape, dtype=dt, names=tf_dt.names, max_shape=max_shape)
+                return ClassLabel(
+                    shape=tf_dt.shape, dtype=dt, names=tf_dt.names, max_shape=max_shape
+                )
 
         def text_to_hub(tf_dt):
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != 'string' else "object"
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def sequence_to_hub(tf_dt):
@@ -574,7 +618,7 @@ class Dataset:
         def transform_numpy(sample):
             d = {}
             for k, v in sample.items():
-                k = k.replace('/', '_')
+                k = k.replace("/", "_")
                 if not isinstance(v, dict):
                     d[k] = v.numpy()
                 else:

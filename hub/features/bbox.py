@@ -4,17 +4,18 @@ from hub.features.features import Tensor
 
 
 class BBox(Tensor):
-    """| `FeatureConnector` for a normalized bounding box.
-    | Output:
-    | bbox: Tensor of type `float32` and shape `[4,]` which contains the normalized coordinates
-          of the bounding box `[ymin, xmin, ymax, xmax]` 
+    """`HubFeature` for a normalized bounding box.
+    Output:
+    bbox: Tensor of type `float32` and shape `[4,]` which contains the
+          normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`
     """
-    def __init__(self, dtype=None, chunks=True):
+
+    def __init__(self, dtype="float64", chunks=None):
         """Construct the connector.
 
         Parameters
         ----------
-        dtype : str 
+        dtype : str
                 dtype of bbox coordinates. Default: 'float32'
         chunks : Tuple[int] | True
             Describes how to split tensor dimensions into chunks (files) to store them efficiently.
@@ -22,8 +23,6 @@ class BBox(Tensor):
             Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
-        if not dtype:
-            dtype = 'float32'
         super(BBox, self).__init__(shape=(4,), dtype=dtype, chunks=chunks)
 
     def get_attr_dict(self):
