@@ -13,7 +13,7 @@
     <img alt="CircleCI" src="https://img.shields.io/circleci/build/github/activeloopai/Hub?logo=circleci">
     </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/master"><img src="https://codecov.io/gh/activeloopai/Hub/branch/master/graph/badge.svg" alt="codecov" height="18"></a>
-    <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,sqlforimages,activeloop"> 
+    <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"> 
         <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social">
     </a>  
     <br />
@@ -21,17 +21,17 @@
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" />
 </a>
 
-  </a>
+---
+
+</a>
 </p>
 <h4 align="center">
-Activeloop's Hacktoberfest is extended till Nov 15! Check out our Hacktoberfest Project Dashboard to contribute!
+Activeloop's Hacktoberfest is extended till Nov 27! Check out our [Hacktoberfest Project Dashboard](https://github.com/activeloopai/Hub/projects/2) to contribute!
 </h4>
-<h3 align="center">
-The fastest way to access and manage datasets for PyTorch and TensorFlow
-</h3>
+<h3 align="center"> The Docker Hub for datasets. 
+Hub is the fastest way to access and manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h3>
 
-Hub provides the fastest access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow.
-
+---
 
 ### Contributors
 
