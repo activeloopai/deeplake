@@ -18,29 +18,40 @@ class ClassLabel(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """Constructs a ClassLabel HubFeature.
-        There are 3 ways to define a ClassLabel, which correspond to the 3
-        arguments:
-        * `num_classes`: create 0 to (num_classes-1) labels
-        * `names`: a list of label strings
-        * `names_file`: a file containing the list of labels.
-        Note: On python2, the strings are encoded as utf-8.
-        Args:
-        num_classes: `int`, number of classes. All labels must be < num_classes.
-        names: `list<str>`, string names for the integer classes. The
-            order in which the names are provided is kept.
-        names_file: `str`, path to a file with names for the integer
-            classes, one per line.
-        Example:
-        ```python
-        class_label_tensor = ClassLabel(num_classes=10)
-        class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
-        class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
-        ```
+        """| Constructs a ClassLabel HubFeature.
+        | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
+        | * `num_classes`: create 0 to (num_classes-1) labels
+        | * `names`: a list of label strings
+        | * `names_file`: a file containing the list of labels.
+        Note: In python2, the strings are encoded as utf-8.
 
-        Note: Only num_classes argument can be filled, providing number of classes,
+        | Usage:
+        ----------
+        >>> class_label_tensor = ClassLabel(num_classes=10)
+        >>> class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
+        >>> class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
+
+        Parameters
+        ----------
+        num_classes: `int`
+            number of classes. All labels must be < num_classes.
+        names: `list<str>`
+            string names for the integer classes. The order in which the names are provided is kept.
+        names_file: `str`
+            path to a file with names for the integer classes, one per line.
+        max_shape : Tuple[int]
+            Maximum shape of tensor shape if tensor is dynamic
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
+
+        | Note: Only num_classes argument can be filled, providing number of classes,
               names or names file
-        Raises:
+
+        Raises
+        ----------
         ValueError: If more than one argument is provided
         """
         super().__init__(

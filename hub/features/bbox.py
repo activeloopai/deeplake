@@ -12,9 +12,16 @@ class BBox(Tensor):
 
     def __init__(self, dtype="float64", chunks=None):
         """Construct the connector.
-        Args:
-        dtype: dtype of bbox coordinates.
-        Default: 'float64'
+
+        Parameters
+        ----------
+        dtype : str
+                dtype of bbox coordinates. Default: 'float32'
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
         """
         super(BBox, self).__init__(shape=(4,), dtype=dtype, chunks=chunks)
 

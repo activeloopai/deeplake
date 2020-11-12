@@ -17,15 +17,24 @@ class Audio(Tensor):
         chunks=True,
     ):
         """Constructs the connector.
-        Args:
-        file_format: `str`, the audio file format. Can be any format ffmpeg
+
+        Parameters
+        ----------
+        file_format: `str`
+            the audio file format. Can be any format ffmpeg
             understands. If `None`, will attempt to infer from the file extension.
-        shape: `tuple`, shape of the data.
-        dtype: The dtype of the data.
-        sample_rate: `int`, additional metadata exposed to the user through
+        shape: `tuple`
+             shape of the data.
+        dtype: str
+            The dtype of the data.
+        sample_rate: `int`
+            additional metadata exposed to the user through
             `info.features['audio'].sample_rate`. This value isn't used neither in
             encoding nor decoding.
-        Raises:
+        
+
+        Raises
+        ----------
         ValueError: If the shape is invalid
         """
         self.file_format = file_format

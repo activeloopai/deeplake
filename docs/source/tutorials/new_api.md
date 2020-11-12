@@ -1,4 +1,6 @@
-## **Intro**
+## New API
+
+### **Intro**
 
 Today we introduce our new API/format for hub package. It is currently in alpha stage, yet it is very promising.
 Eventually we plan to migrate to this format and stick to it for long time. 
@@ -16,9 +18,19 @@ More features coming:
  4. Better and simplified transformers.
  5. Better dynamic shaping for handling complex metadata.
 
-## **Getting Started**
+### **Getting Started**
+1) Install alpha version
+```
+pip3 install hub==1.0.0a4
+```
 
-Lets start by creating dataset
+2) Register and authenticate to uploade datasests 
+```
+hub register
+hub login
+```
+
+3) Lets start by creating dataset
 
 ```python
 import numpy as np
@@ -31,7 +43,9 @@ ds_type = {
     "label": ClassLabel(num_classes=10),
 }
 
-ds = hub.open("./data/examples/new_api_intro", mode="w", shape=(1000,), dtype=ds_type)
+url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
+
+ds = hub.Dataset(url, mode="w", shape=(1000,), dtype=ds_type)
 for i in range(len(ds)):
     ds["image", i] = np.ones((28, 28), dtype="uint8")
     ds["label", i] = 3
@@ -41,6 +55,19 @@ print(ds["label", 100:110].numpy())
 ds.commit()
 ```
 
+4) Transferring from TFSDS
+
+In `hub==1.0.0a5` we would also have 
+```python
+import hub
+import tensorflow as tf
+
+out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
+```
+
+
+### Notes 
 New hub mimics TFDS data types. Before creating dataset you have to mention the details of what type of data does it contain. This enables us to compress, process and visualize data more efficiently.
 
 This code creates dataset in *"./data/examples/new_api_intro"* folder with overwrite mode. Dataset has 1000 samples. In each sample there is an *image* and a *label*.
@@ -48,7 +75,7 @@ This code creates dataset in *"./data/examples/new_api_intro"* folder with overw
 After this we can loop over dataset and read/write from it.
 
 
-## **Why commit?**
+### **Why commit?**
 
 Since caching is in place, you need to tell program to push final changes to permanent storage. 
 
@@ -57,7 +84,7 @@ NOTE: This action invalidates dataset.
 Alternatively you can use following style.
 
 ```python
-with hub.open(...) as ds:
+with hub.Dataset(...) as ds:
     pass
 ```
 

@@ -8,7 +8,12 @@ from hub.features.features import Tensor
 
 
 class Mask(Tensor):
-    """`HubFeature` for mask"""
+    """`HubFeature` for mask
+
+    | Usage:
+    ----------
+    >>> mask_tensor = Mask(shape=(300, 300, 1))
+    """
 
     def __init__(
         self,
@@ -19,13 +24,20 @@ class Mask(Tensor):
     ):
         """Constructs a Mask HubFeature.
 
-        shape: tuple of ints or None: (height, width, 1)
-        dtype: dtype of mask array. Default: `uint8`
+        Parameters
+        ----------
+        shape: tuple of ints or None
+            Shape in format (height, width, 1)
+        dtype: str
+            Dtype of mask array. Default: `uint8`
+        max_shape : Tuple[int]
+            Maximum shape of tensor shape if tensor is dynamic
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
 
-        Example:
-        ```python
-        mask_tensor = Mask(shape=(300, 300, 1))
-        ```
         """
         super().__init__(
             shape,

@@ -11,9 +11,11 @@ class Video(Sequence):
 
     The connector accepts as input a 4 dimensional `uint8` array
     representing a video.
-    Output:
-        video: Tensor of type `uint8` and shape
-        [num_frames, height, width, channels], where channels must be 1 or 3
+
+    Returns
+    ----------
+    Tensor: `uint8` and shape [num_frames, height, width, channels],
+         where channels must be 1 or 3
     """
 
     def __init__(
@@ -24,13 +26,20 @@ class Video(Sequence):
         chunks=True,
     ):
         """Initializes the connector.
-        Args:
-        shape: tuple of ints, the shape of the video (num_frames, height, width,
+
+        Parameters
+        ----------
+
+        shape: tuple of ints
+            The shape of the video (num_frames, height, width,
             channels), where channels is 1 or 3.
-        encoding_format: The video is stored as a sequence of encoded images.
+        encoding_format: str
+            The video is stored as a sequence of encoded images.
             You can use any encoding format supported by Image.
-        dtype: `uint16` or `uint8` (default).
-        Raises:
+        dtype: `uint16` or `uint8` (default)
+
+        Raises
+        ----------
         ValueError: If the shape, dtype or encoding formats are invalid
         """
         super(Video, self).__init__(

@@ -4,7 +4,14 @@ from hub.features.features import Tensor
 
 
 class Polygon(Tensor):
-    """`HubFeature` for polygon"""
+    """`HubFeature` for polygon
+
+    | Usage:
+    ----------
+
+    >>> polygon_tensor = Polygon(shape=(10, 2))
+    >>> polygon_tensor = Polygon(shape=(None, 2))
+    """
 
     def __init__(
         self,
@@ -18,13 +25,20 @@ class Polygon(Tensor):
         Args:
         shape: tuple of ints or None, i.e (None, 2)
 
-        Example:
-        ```python
-        polygon_tensor = Polygon(shape=(10, 2))
-        polygon_tensor = Polygon(shape=(None, 2))
-        ```
+        Parameters
+        ----------
+        shape: tuple of ints or None
+            Shape in format (None, 2)
+        max_shape : Tuple[int]
+            Maximum shape of tensor shape if tensor is dynamic
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
 
-        Raises:
+        Raises
+        ----------
         ValueError: If the shape is invalid
         """
         if isinstance(chunks, int):
@@ -39,6 +53,7 @@ class Polygon(Tensor):
         )
 
     def _check_shape(self, shape):
+        """Check if provided shape  maches polygon characteristics."""
         if len(shape) != 2 or shape[-1] != 2:
             raise ValueError("Wrong polygon shape provided")
 

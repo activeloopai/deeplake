@@ -57,6 +57,16 @@ def tensorflow_loaded():
     return True
 
 
+def tfds_loaded():
+    try:
+        import tensorflow_datasets
+
+        tensorflow_datasets.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def compute_lcm(a):
     """
     Lowest Common Multiple of a list a
