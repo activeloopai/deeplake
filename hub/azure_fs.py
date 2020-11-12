@@ -89,11 +89,6 @@ class AzureBlobFileSystem(AbstractFileSystem):
         except Exception as e:
             raise ValueError(f"unable to connect to account for {e}")
 
-    # def exists(self, path):
-    #     spl = path.split('/')
-    #     rest = "/".join(spl[1:])
-    #     return self.service_client.get_blob_client(spl[0], rest).exists()
-
     def exists(self, path):
         spl = path.split('/')
         rest = "/".join(spl[1:])
@@ -109,23 +104,6 @@ class AzureBlobFileSystem(AbstractFileSystem):
         container = self.service_client.get_container_client(container)
         it = container.list_blobs(name_starts_with=rest)
         return [item["name"] for item in it]
-        # return self.service_client.get_blob_client(spl[0], rest).exists()
-
-    # def rm(self, path, recursive=False, maxdepth=None):
-    #     spl = path.split('/')
-    #     rest = "/".join(spl[1:])
-    #     self.service_client.get_blob_client(spl[0], rest).delete_blob()
-
-    # def rm2(self, path):
-    #     spl = path.split('/')
-    #     containername = spl[0]
-    #     rest = "/".join(spl[1:])
-    #     folders = [blob.name for blob in blob_client.list_blobs(containername, prefix=foldername)]
-    #     folders.sort(reverse=True, key=len)
-    #     if len(folders) > 0:
-    #         for folder in folders:
-    #             blob_client.delete_blob(containername, folder)
-    #             print("deleted folder",folder)
 
     def rm(self, path, recursive=False, maxdepth=None):
         spl = path.split('/')
