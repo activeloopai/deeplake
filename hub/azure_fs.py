@@ -94,59 +94,75 @@ class AzureBlobFileSystem(AbstractFileSystem):
             raise ValueError(f"unable to connect to account for {e}")
 
     def exists(self, path):
-        spl = path.split('/')
-        rest = "/".join(spl[1:])
-        container = spl[0]
-        container = self.service_client.get_container_client(container)
-        it = container.list_blobs(name_starts_with=rest)
+        """
+        Checks whether the given path exists in the File System
+
+        Returns
+        -------
+        Boolean
+        """
+        split_path = path.split('/')
+        container_name = split_path[0]
+        sub_path = "/".join(split_path[1:])
+        container = self.service_client.get_container_client(container_name)
+        it = container.list_blobs(name_starts_with=sub_path)
         return len(list(it)) > 0
 
     def find(self, path):
-        spl = path.split('/')
-        rest = "/".join(spl[1:])
-        container = spl[0]
-        container = self.service_client.get_container_client(container)
-        it = container.list_blobs(name_starts_with=rest)
+        """
+        Finds all the files in the given path in the File System
+
+        Returns
+        -------
+        List of full paths of all files found in given path
+        """
+        split_path = path.split('/')
+        container_name = split_path[0]
+        sub_path = "/".join(split_path[1:])
+        container = self.service_client.get_container_client(container_name)
+        it = container.list_blobs(name_starts_with=sub_path)
         return [item["name"] for item in it]
 
     def rm(self, path, recursive=False, maxdepth=None):
-        spl = path.split('/')
-        rest = "/".join(spl[1:])
-        container = spl[0]
-        container = self.service_client.get_container_client(container)
-        it = container.list_blobs(name_starts_with=rest)
+        """Removes all the files in the given path"""
+        split_path = path.split('/')
+        container_name = split_path[0]
+        sub_path = "/".join(split_path[1:])
+        container = self.service_client.get_container_client(container_name)
+        it = container.list_blobs(name_starts_with=sub_path)
         for item in it:
             container.delete_blob(item)
 
     def makedirs(self, path, exist_ok=False):
+        """Recursively creates directories in path"""
         # in azure empty directories have no meaning, so makedirs not needed
         return
 
     def get_mapper(self, root, check=False, create=False):
+        """Create key-value interface for given root"""
         return FSMap(root, self)
 
     def upload(self, path, value):
-        spl = path.split('/')
-        rest = "/".join(spl[1:])
-        container = spl[0]
-        bc = self.service_client.get_blob_client(container, rest)
-        bc.upload_blob(value, overwrite=True)
+        """Uploads value to the given path"""
+        split_path = path.split('/')
+        container_name = split_path[0]
+        sub_path = "/".join(split_path[1:])
+        blob_client = self.service_client.get_blob_client(container_name, sub_path)
+        blob_client.upload_blob(value, overwrite=True)
 
     def download(self, path):
-        spl = path.split('/')
-        rest = "/".join(spl[1:])
-        container = spl[0]
-        bc = self.service_client.get_blob_client(container, rest)
-        return bc.download_blob().readall()
+        """Downloads the value from the given path"""
+        split_path = path.split('/')
+        container_name = split_path[0]
+        sub_path = "/".join(split_path[1:])
+        blob_client = self.service_client.get_blob_client(container_name, sub_path)
+        return blob_client.download_blob().readall()
 
 
 class FSMap(MutableMapping):
     def __init__(self, root, fs, check=False, create=False, missing_exceptions=None):
         self.fs = fs
         self.root = root
-        if create:
-            if not self.fs.exists(root):
-                self.fs.mkdir(root)
         if check and not create:
             if not self.fs.exists(root):
                 raise ValueError(
@@ -189,9 +205,11 @@ class FSMap(MutableMapping):
         self.fs.upload(key, value)
 
     def __iter__(self):
+        """iterating over the structure"""
         return (self._str_to_key(x) for x in self.fs.find(self.root))
 
     def __len__(self):
+        """returns length of the structure"""
         return len(self.fs.find(self.root))
 
     def __delitem__(self, key):
