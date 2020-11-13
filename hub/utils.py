@@ -36,6 +36,16 @@ def s3_creds_exist():
     return True
 
 
+def azure_creds_exist():
+    """Checks if credentials exists"""
+
+    import os
+    env = os.getenv("ACCOUNT_KEY")
+    if env is not None:
+        return True
+    return False
+
+
 def pytorch_loaded():
     try:
         import torch
