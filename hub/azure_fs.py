@@ -148,6 +148,8 @@ class AzureBlobFileSystem(AbstractFileSystem):
 
     def download(self, path):
         """Downloads the value from the given path"""
+        if not self.exists(path):
+            raise KeyError()
         split_path = path.split('/')
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
@@ -159,6 +161,13 @@ class FSMap(MutableMapping):
     def __init__(self, root, fs, check=False, create=False, missing_exceptions=None):
         self.fs = fs
         self.root = root
+        if missing_exceptions is None:
+            missing_exceptions = (
+                FileNotFoundError,
+                IsADirectoryError,
+                NotADirectoryError,
+            )
+        self.missing_exceptions = missing_exceptions
         if check and not create:
             if not self.fs.exists(root):
                 raise ValueError(
