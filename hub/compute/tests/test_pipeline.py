@@ -14,10 +14,10 @@ except:
     pass
 
 
-from hub.utils import ray_loaded
+from hub.utils import ray_loaded, Timer
 
 my_schema = {
-    "image": Tensor((28, 28, 4), "int32", (28, 28, 4), chunks=(28, 28, 4)),
+    "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
     "label": "<U20",
 }
 
@@ -32,9 +32,9 @@ def my_transform(sample):
 
 def test_pipeline_basic():
     ds = hub.Dataset(
-        "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema, cache=0
+        "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
     )
-
+    
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
@@ -53,19 +53,43 @@ def test_pipeline_basic():
 def test_pipeline_ray():
     pass
 
-def benchmark():
-    arr = np.zeros((100, 28, 28, 4), dtype="int32")
-    zarr_arr = zarr.zeros((100, 28, 28, 4), dtype="int32", store=zarr.storage.LMDBStore("./data/array"), overwrite=True)
 
-    t0 = time.time()
-    for i in range(100):
-        # ds["image", i] = np.ones((28, 28, 4), dtype="int32")
-        # ds["label", i] = f"hello {i}"
-        # arr[i] = np.ones((28, 28, 4), dtype="int32")
-        zarr_arr[i] = np.ones((28, 28, 4), dtype="int32")
-    t1 = time.time()
-    print(t1-t0)
+def benchmark(sample_size=100, width=100, channels=4, dtype="int8"):
+    numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
+    zarr_fs = zarr.zeros((sample_size, width, width, channels), dtype=dtype, store=zarr.storage.FSStore("./data/test/array"), overwrite=True)
+    zarr_lmdb = zarr.zeros((sample_size, width, width, channels), dtype=dtype, store=zarr.storage.LMDBStore("./data/test/array2"), overwrite=True)
+    
+    my_schema = {
+        "image": Tensor((width, width, channels), dtype, (width, width, channels)),
+    }
 
+    ds_fs = hub.Dataset(
+        "./data/test/test_pipeline_basic_3", mode="w", shape=(sample_size,), schema=my_schema, cache=0
+    )
+
+    #ds_fs_cache = hub.Dataset(
+    #    "./data/test/test_pipeline_basic_2", mode="w", shape=(sample_size,), schema=my_schema
+    #)
+    if False:
+        print(f"~~~ Sequential write of {sample_size}x{width}x{width}x{channels} random arrays ~~~")
+        for name, arr in [("Numpy", numpy_arr), ("Zarr FS", zarr_fs), 
+                        ("Zarr LMDB", zarr_lmdb), ("Hub FS", ds_fs["image"]), 
+                        ("Hub FS+Cache", ds_fs_cache["image"])]:
+            with Timer(name):
+                for i in range(sample_size):
+                    arr[i] = (np.random.rand(width, width, channels) * 255).astype(dtype)
+
+    print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays~~~")
+    for name, processes in [("single", 1), ("pathos", 10), ("ray", 10), ("green", 10), ("dask", 10)]:
+        @hub.transform(schema=my_schema, scheduler=name, processes=processes)
+        def my_transform(sample):
+            return {
+                "image": (np.random.rand(width, width, channels) * 255).astype(dtype),
+            }
+
+        with Timer(name):
+            out_ds = my_transform(ds_fs)
+            res_ds = out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
 if __name__ == "__main__":
     # test_pipeline_basic()

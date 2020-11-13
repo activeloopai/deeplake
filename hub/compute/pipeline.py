@@ -30,10 +30,8 @@ class Transform:
                 except Exception as e:
                     raise e
 
-        # shape = self._ds.shape if hasattr(self._ds, "shape") else (3,)  # for testing with tfds mock, that has no length
-
         ds = hub.Dataset(
-            url, mode="w", shape=shape, schema=self._schema, token=token
+            url, mode="w", shape=shape, schema=self._schema, token=token, cache=False, 
         )
 
         results = [self._func(item) for item in self._ds]
@@ -95,7 +93,7 @@ class Transform:
         return self._schema
 
 
-def transform(schema):
+def transform(schema, scheduler="single", processes=1):
     def wrapper(func):
         def inner(ds):
             return Transform(func, schema, ds)
