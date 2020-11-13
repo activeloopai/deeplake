@@ -1,19 +1,9 @@
 import pytest
-import time
 import numpy as np
-
 import zarr
 
 import hub
-
 from hub.features import Tensor
-
-try:
-    import ray
-except:
-    pass
-
-
 from hub.utils import ray_loaded, Timer
 
 my_schema = {

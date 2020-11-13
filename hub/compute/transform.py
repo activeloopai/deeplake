@@ -1,10 +1,4 @@
 import hub
-
-try:
-    import ray
-except: 
-    pass
-from hub.utils import batch
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 
@@ -69,7 +63,6 @@ class Transform:
 
     def _transfer_batch(self, ds, i, results):
         for j, result in enumerate(results[0]):
-            print(result)
             for key in result:
                 ds[key, i * ds.chunksize + j] = result[key]
 
@@ -91,13 +84,3 @@ class Transform:
     @property
     def schema(self):
         return self._schema
-
-
-def transform(schema, scheduler="single", processes=1):
-    def wrapper(func):
-        def inner(ds):
-            return Transform(func, schema, ds)
-
-        return inner
-
-    return wrapper

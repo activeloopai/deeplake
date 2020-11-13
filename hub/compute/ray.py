@@ -1,7 +1,11 @@
-import ray
 import hub
 from hub.utils import batch
-from hub.compute.pipeline import Transform
+from hub.compute import Transform
+
+try:
+    import ray
+except Exception:
+    pass
 
 
 class RayTransform(Transform):
@@ -9,7 +13,6 @@ class RayTransform(Transform):
     @ray.remote
     def _transfer_batch(self, ds, i, results):
         for j, result in enumerate(results[0]):
-            print(result)
             for key in result:
                 ds[key, i * ds.chunksize + j] = result[key]
 
