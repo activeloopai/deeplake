@@ -1,11 +1,7 @@
 from fsspec import AbstractFileSystem
 import array
 from collections.abc import MutableMapping
-
-try:
-    from azure.storage.blob import BlobServiceClient
-except ImportError:
-    pass
+from azure.storage.blob import BlobServiceClient
 
 
 class AzureBlobFileSystem(AbstractFileSystem):
