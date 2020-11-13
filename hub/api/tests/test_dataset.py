@@ -10,8 +10,8 @@ Dataset = dataset.Dataset
 my_schema = {
     "image": Tensor((10, 1920, 1080, 3), "uint8"),
     "label": {
-        "a": Tensor((100, 200), "int32"),
-        "b": Tensor((100, 400), "int64"),
+        "a": Tensor((100, 200), "int32", compressor="lz4"),
+        "b": Tensor((100, 400), "int64", compressor="zstd"),
         "c": Tensor((5, 3), "uint8"),
         "d": {"e": Tensor((5, 3), "uint8")},
     },
@@ -162,12 +162,14 @@ def test_dataset_bug():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
+
     was_except = False
     try:
         ds = Dataset("./data/test/test_dataset_bug", mode="w")
     except Exception:
         was_except = True
     assert was_except
+
     ds = Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
@@ -191,4 +193,4 @@ def test_dataset_s3():
 
 if __name__ == "__main__":
     # test_dataset()
-    test_dataset()
+    test_dataset2()

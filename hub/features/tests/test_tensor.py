@@ -1,44 +1,28 @@
-from hub.features import Tensor
+from hub.features import Tensor, Image, Primitive
+from hub.features.features import flatten
 
 
 def test_tensor_flattening():
-    t = Tensor(
-        shape=(100, 200),
-        dtype={
-            "image": Tensor(shape=(300, 400, 3), dtype="uint8"),
-            "label": Tensor(
-                shape=(5000,),
-                dtype={
-                    "first": {
-                        "a": "<U20",
-                        "b": "uint32",
-                        "c": Tensor(shape=(13, 17), dtype="float32"),
-                    },
-                    "second": "float64",
-                },
-            ),
+    t = {
+        "image": Image(shape=(300, 400, 3), dtype="uint8"),
+        "label": Tensor(
+            shape=(5000,),
+            dtype="<U20",
+        ),
+        "gradient": {
+            "x": "int32",
+            "y": "int32",
         },
-    )
-    result = tuple(t._flatten())
-    paths = [r.path for r in result]
-    shapes = [r.shape for r in result]
-    dtypes = [str(r.dtype) for r in result]
+    }
+    result = tuple(flatten(t))
+    paths = [r[1] for r in result]
+    dtypes = [r[0] for r in result]
 
-    assert paths == [
-        "/image",
-        "/label/first/a",
-        "/label/first/b",
-        "/label/first/c",
-        "/label/second",
-    ]
-    assert shapes == [
-        (100, 200, 300, 400, 3),
-        (100, 200, 5000),
-        (100, 200, 5000),
-        (100, 200, 5000, 13, 17),
-        (100, 200, 5000),
-    ]
-    assert dtypes == ["uint8", "<U20", "uint32", "float32", "float64"]
+    assert paths == ["/image", "/label", "/gradient/x", "/gradient/y"]
+    assert isinstance(dtypes[0], Image)
+    assert isinstance(dtypes[1], Tensor)
+    assert isinstance(dtypes[2], Primitive)
+    assert isinstance(dtypes[3], Primitive)
 
 
 if __name__ == "__main__":

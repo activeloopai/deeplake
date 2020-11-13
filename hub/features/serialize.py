@@ -1,22 +1,22 @@
 import copy
 
 from hub.features.features import Primitive, Tensor, FeatureDict
-# from hub.features.class_label import ClassLabel
-# from hub.features.sequence import Sequence
 
 
-def serialize(s):
-    if isinstance(s, Tensor):
-        return serialize_tensor(s)
-    elif isinstance(s, FeatureDict):
-        return serialize_featuredict(s)
-    elif isinstance(s, Primitive):
-        return serialize_primitive(s)
+def serialize(input):
+    "Converts the input into a serializable format"
+    if isinstance(input, Tensor):
+        return serialize_tensor(input)
+    elif isinstance(input, FeatureDict):
+        return serialize_featuredict(input)
+    elif isinstance(input, Primitive):
+        return serialize_primitive(input)
     else:
-        raise TypeError("Unknown type", type(s))
+        raise TypeError("Unknown type", type(input))
 
 
 def serialize_tensor(tensor):
+    "Converts Tensor and its derivatives into a serializable format"
     d = copy.deepcopy(tensor.__dict__)
     d["type"] = type(tensor).__name__
     if hasattr(tensor, 'dtype'):
@@ -27,6 +27,7 @@ def serialize_tensor(tensor):
 
 
 def serialize_featuredict(fdict):
+    "Converts FeatureDict into a serializable format"
     d = {}
     d["type"] = "FeatureDict"
     d["items"] = {}
@@ -36,4 +37,5 @@ def serialize_featuredict(fdict):
 
 
 def serialize_primitive(primitive):
+    "Converts Primitive into a serializable format"
     return str(primitive._dtype)

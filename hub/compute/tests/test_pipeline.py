@@ -7,10 +7,14 @@ import zarr
 import hub
 
 from hub.features import Tensor
+
 try:
     import ray
 except:
     pass
+
+
+from hub.utils import ray_loaded
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4), chunks=(28, 28, 4)),
@@ -27,17 +31,17 @@ def my_transform(sample):
 
 
 def test_pipeline_basic():
-    #ray.init(local_mode=True)
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema, cache=0
     )
 
+    for i in range(len(ds)):
+        ds["image", i] = np.ones((28, 28, 4), dtype="int32")
+        ds["label", i] = f"hello {i}"
+
     out_ds = my_transform(ds)
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
-    t2 = time.time()
     
-    print("writing", t1 - t0, "transform", t2 - t1)
-    exit()
     assert res_ds["label", 5].numpy() == "hello 5"
     assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
 
