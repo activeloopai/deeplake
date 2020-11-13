@@ -44,7 +44,7 @@ def test_pipeline_ray():
     pass
 
 
-def benchmark(sample_size=100, width=100, channels=4, dtype="int8"):
+def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
     zarr_fs = zarr.zeros((sample_size, width, width, channels), dtype=dtype, store=zarr.storage.FSStore("./data/test/array"), overwrite=True)
     zarr_lmdb = zarr.zeros((sample_size, width, width, channels), dtype=dtype, store=zarr.storage.LMDBStore("./data/test/array2"), overwrite=True)
@@ -57,9 +57,9 @@ def benchmark(sample_size=100, width=100, channels=4, dtype="int8"):
         "./data/test/test_pipeline_basic_3", mode="w", shape=(sample_size,), schema=my_schema, cache=0
     )
 
-    #ds_fs_cache = hub.Dataset(
-    #    "./data/test/test_pipeline_basic_2", mode="w", shape=(sample_size,), schema=my_schema
-    #)
+    ds_fs_cache = hub.Dataset(
+        "./data/test/test_pipeline_basic_2", mode="w", shape=(sample_size,), schema=my_schema
+    )
     if False:
         print(f"~~~ Sequential write of {sample_size}x{width}x{width}x{channels} random arrays ~~~")
         for name, arr in [("Numpy", numpy_arr), ("Zarr FS", zarr_fs), 
@@ -69,8 +69,8 @@ def benchmark(sample_size=100, width=100, channels=4, dtype="int8"):
                 for i in range(sample_size):
                     arr[i] = (np.random.rand(width, width, channels) * 255).astype(dtype)
 
-    print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays~~~")
-    for name, processes in [("single", 1), ("pathos", 10), ("ray", 10), ("green", 10), ("dask", 10)]:
+    print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays ~~~")
+    for name, processes in [("single", 1), ("pathos", 10)]: # , ("ray", 10), ("green", 10), ("dask", 10)]:
         @hub.transform(schema=my_schema, scheduler=name, processes=processes)
         def my_transform(sample):
             return {
