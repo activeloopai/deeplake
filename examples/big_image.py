@@ -24,6 +24,7 @@ def main():
         ds["image", 3, 0:2048, 0:2048] = np.ones(
             (2048, 2048, 4), dtype="uint8"
         )  # single chunk read/write
+        print(ds._tensors["/image"].get_shape((3,)))
         ds.commit()
 
 
