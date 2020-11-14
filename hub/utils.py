@@ -103,11 +103,11 @@ def compute_lcm(a):
     """
     lcm = a[0]
     for i in a[1:]:
-        lcm = lcm * i / gcd(lcm, i)
+        lcm = lcm * i // gcd(lcm, i)
     return int(lcm)
 
 
-def batch(iterable, n=1):
+def batchify(iterable, n=1):
     """
     Batchify an iteratable
     """

@@ -1,5 +1,5 @@
 import hub
-from hub.utils import batch
+from hub.utils import batchify
 from hub.compute.transform import Transform
 
 try:
@@ -19,24 +19,25 @@ class PathosTransform(Transform):
         mary chunks with compute
         """
         ds = hub.Dataset(
-            url, mode="w", shape=self._ds.shape, schema=self._schema, token=token, cache=False
+            url, mode="w", shape=(len(self._ds),), schema=self._schema, token=token, cache=False
         )
 
         # Chunkwise compute
         batch_size = ds.chunksize
 
-        def batchify(ds):
-            return tuple(batch(ds, batch_size))
+        def batchify_remote(ds):
+            return tuple(batchify(ds, batch_size))
 
         def batched_func(i_xs):
             i, xs = i_xs
-            print(i)
+            print(xs)
             xs = [self._func(x) for x in xs]
             self._transfer_batch(ds, i, xs)
 
-        batched = batchify(ds)
-
+        batched = batchify_remote(ds)
         results = self.map(batched_func, enumerate(batched))
+
+        #uploading can be done per chunk per item
         results = list(results)
         return ds
 

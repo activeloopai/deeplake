@@ -1,5 +1,5 @@
 import hub
-from hub.utils import batch
+from hub.utils import batchify
 from hub.compute import Transform
 
 try:
@@ -40,10 +40,10 @@ class RayTransform(Transform):
         batch_size = ds.chunksize
 
         @remote(num_returns=int(len(ds) / batch_size))
-        def batchify(results):
-            return tuple(batch(results, batch_size))
+        def batchify_remote(results):
+            return tuple(batchify(results, batch_size))
 
-        results_batched = batchify.remote(results)
+        results_batched = batchify_remote.remote(results)
         if isinstance(results_batched, list):
             results = [
                 self._transfer_batch.remote(self, ds, i, result)

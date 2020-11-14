@@ -449,6 +449,7 @@ class Dataset:
     def chunksize(self):
         # FIXME assumes chunking is done on the first sample
         chunks = [t.chunksize[0] for t in self._tensors.values()]
+        print(chunks)
         return compute_lcm(chunks)
 
     @property

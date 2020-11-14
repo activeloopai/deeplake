@@ -1,6 +1,8 @@
 import hub
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
+from tqdm import tqdm
+from hub.utils import batchify
 
 
 class Transform:
@@ -28,19 +30,17 @@ class Transform:
             url, mode="w", shape=shape, schema=self._schema, token=token, cache=False, 
         )
 
+        # apply transformation and some rewrapping
         results = [self._func(item) for item in self._ds]
-
-        for i, result in enumerate(results):
-            dic = self.flatten_dict(result)
-            for key in dic:
-                path_key = key.split("/")
-                if isinstance(self._schema[path_key[0]], Primitive):
-                    ds[path_key[0], i] = result[path_key[0]]
-                else:
-                    val = result
-                    for path in path_key:
-                        val = val.get(path)
-                    ds[key, i] = val
+        results = [self.flatten_dict(r) for r in results]
+        results = self.split_list_to_dicts(results)
+ 
+        # batchified upload
+        for key, value in results.items():
+            length = ds[key].chunksize[0]
+            batched_values = batchify(value, length)
+            for i, batch in enumerate(batched_values):
+                ds[key, i * length:(i + 1) * length] = batch
         return ds
 
     def flatten_dict(self, d, parent_key=''):
@@ -52,6 +52,22 @@ class Transform:
             else:
                 items.append((new_key, v))
         return dict(items)
+
+        
+    def split_list_to_dicts(self, xs):
+        """
+        Transform list of dicts into dicts of lists
+        """
+        xs_new = {}
+        for x in xs:
+            for key, value in x.items():
+                if key in xs_new:
+                    xs_new[key].append(value)
+                else: 
+                    xs_new[key] = [value]
+        return xs_new
+
+
 
     def dtype_from_path(self, path):
         path = path.split('/')
