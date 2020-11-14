@@ -1,6 +1,9 @@
 import hub
 
-import ray
+try:
+    import ray
+except:
+    pass
 
 from hub.utils import batch
 from collections.abc import MutableMapping
@@ -64,7 +67,7 @@ class Transform:
         # Chunkwise compute
         batch_size = ds.chunksize
 
-        @ray.remote(num_returns=int(len(ds) / batch_size))
+        # @ray.remote(num_returns=int(len(ds) / batch_size))
         def batchify(results):
             return tuple(batch(results, batch_size))
 
@@ -98,7 +101,7 @@ class Transform:
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
 
-    @ray.remote
+    # @ray.remote
     def _transfer_batch(self, ds, i, results):
         for j, result in enumerate(results[0]):
             print(result)

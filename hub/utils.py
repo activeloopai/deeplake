@@ -1,4 +1,5 @@
 from math import gcd
+import time
 
 
 def _flatten(list_):
@@ -93,3 +94,14 @@ def batch(iterable, n=1):
     ls = len(iterable)
     for ndx in range(0, ls, n):
         yield iterable[ndx : min(ndx + n, ls)]
+
+
+class Timer:
+    def __init__(self, text):
+        self._text = text
+
+    def __enter__(self):
+        self._start = time.time()
+
+    def __exit__(self, *args):
+        print(f"{self._text}: {time.time() - self._start}s")

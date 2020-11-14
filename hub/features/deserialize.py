@@ -37,22 +37,25 @@ def deserialize(inp):
             return Image(
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
-                encoding_format=inp["encoding_format"],
+                # TODO uncomment back when image encoding will be added
+                # encoding_format=inp["encoding_format"],
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
+                compressor=inp["compressor"],
             )
         elif inp["type"] == "Mask":
             return Mask(
                 shape=inp["shape"],
-                dtype=deserialize(inp["dtype"]),
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
+                compressor=inp["compressor"],
             )
         elif inp["type"] == "Polygon":
             return Polygon(
                 shape=tuple(inp["shape"]),
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
+                compressor=inp["compressor"],
             )
         elif inp["type"] == "Segmentation":
             class_labels = deserialize(inp["class_labels"])
@@ -63,6 +66,7 @@ def deserialize(inp):
                     num_classes=class_labels._num_classes,
                     max_shape=inp["max_shape"],
                     chunks=inp["chunks"],
+                    compressor=inp["compressor"],
                 )
             else:
                 return Segmentation(
@@ -71,6 +75,7 @@ def deserialize(inp):
                     names=class_labels.names,
                     max_shape=inp["max_shape"],
                     chunks=inp["chunks"],
+                    compressor=inp["compressor"],
                 )
         elif inp["type"] == "Sequence":
             return Sequence(
@@ -84,6 +89,7 @@ def deserialize(inp):
                 deserialize(inp["dtype"]),
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
+                compressor=inp["compressor"],
             )
         elif inp["type"] == "Video":
             return Video()
