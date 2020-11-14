@@ -5,12 +5,12 @@ from hub.compute import Transform
 try:
     import ray
 except Exception:
-    pass
+    ray = None
 
 
 class RayTransform(Transform):
 
-    # @ray.remote
+    @ray.remote
     def _transfer_batch(self, ds, i, results):
         for j, result in enumerate(results[0]):
             for key in result:
