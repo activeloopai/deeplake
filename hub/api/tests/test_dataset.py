@@ -3,7 +3,7 @@ import pytest
 
 import hub.api.dataset as dataset
 from hub.features import Tensor
-from hub.utils import gcp_creds_exist, s3_creds_exist
+from hub.utils import gcp_creds_exist, s3_creds_exist, azure_creds_exist
 
 Dataset = dataset.Dataset
 
@@ -189,6 +189,13 @@ def test_dataset_gcs():
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_dataset_s3():
     test_dataset("s3://snark-test/test_dataset_s3")
+
+
+@pytest.mark.skipif(not azure_creds_exist(), reason="requires azure credentials")
+def test_dataset_azure():
+    import os
+    token = {"account_key": os.getenv("ACCOUNT_KEY")}
+    test_dataset("https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure", token=token)
 
 
 if __name__ == "__main__":

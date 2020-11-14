@@ -1,4 +1,10 @@
 import hub
+
+try:
+    import ray
+except:
+    pass
+
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 from tqdm import tqdm

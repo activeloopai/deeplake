@@ -6,6 +6,7 @@ from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
+from hub.azure_fs import AzureBlobFileSystem
 import os
 
 
@@ -42,9 +43,13 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
         )
     elif url.startswith("gcs://"):
         return gcsfs.GCSFileSystem(token=token), url[6:]
-    elif url.startswith("abs://"):
-        # TODO: Azure
-        raise NotImplementedError()
+    elif url.find("blob.core.windows.net/") != -1:
+        account_name = url.split('.')[0]
+        account_name = account_name[8:] if url.startswith("https://") else account_name
+        return AzureBlobFileSystem(
+            account_name=account_name,
+            account_key=token.get("account_key"),
+        ), url[url.find("blob.core.windows.net/") + 22:]
     elif (
         url.startswith("../")
         or url.startswith("./")
@@ -65,7 +70,6 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
                 "region_name": creds["region"],
             },
         )
-
         return (fs, url)
 
 
