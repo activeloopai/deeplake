@@ -4,13 +4,23 @@ from hub.compute import Transform
 
 try:
     import ray
+    remote = ray.remote
 except Exception:
-    ray = None
+    def remote(template, **kwargs):
+        """
+        remote template
+        """
+        def wrapper(func):
+            def inner(**kwargs):
+                return func
+            return inner
+
+        return wrapper
 
 
 class RayTransform(Transform):
 
-    @ray.remote
+    @remote
     def _transfer_batch(self, ds, i, results):
         for j, result in enumerate(results[0]):
             for key in result:
@@ -29,7 +39,7 @@ class RayTransform(Transform):
         # Chunkwise compute
         batch_size = ds.chunksize
 
-        @ray.remote(num_returns=int(len(ds) / batch_size))
+        @remote(num_returns=int(len(ds) / batch_size))
         def batchify(results):
             return tuple(batch(results, batch_size))
 

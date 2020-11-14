@@ -3,8 +3,7 @@ from hub.utils import batch
 from hub.compute.transform import Transform
 
 try:
-    from pathos.pools import ProcessPool
-    from pathos.pools import ThreadPool
+    from pathos.pools import ProcessPool, ThreadPool
 except Exception:
     pass
 
@@ -12,7 +11,8 @@ except Exception:
 class PathosTransform(Transform):
     def __init__(self, func, schema, ds):
         Transform.__init__(self, func, schema, ds)
-        self.map = ThreadPool(nodes=8).map
+        Pool = ProcessPool or ThreadPool
+        self.map = ThreadPool(nodes=2).map
 
     def store(self, url, token=None):
         """
@@ -30,6 +30,7 @@ class PathosTransform(Transform):
 
         def batched_func(i_xs):
             i, xs = i_xs
+            print(i)
             xs = [self._func(x) for x in xs]
             self._transfer_batch(ds, i, xs)
 

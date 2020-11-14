@@ -1,10 +1,10 @@
-import pytest
 import numpy as np
+import pytest
 import zarr
 
 import hub
 from hub.features import Tensor
-from hub.utils import ray_loaded, Timer
+from hub.utils import ray_loaded, pathos_loaded, Timer
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
@@ -44,6 +44,31 @@ def test_pipeline_ray():
     pass
 
 
+@pytest.mark.skipif(
+    not pathos_loaded(),
+    reason="requires pathos to be loaded",
+)
+def test_pathos(sample_size=100, width=100, channels=4, dtype="uint8"):
+
+    my_schema = {
+        "image": Tensor((width, width, channels), dtype, (width, width, channels), chunks=(sample_size // 20, width, width, channels)),
+    }
+
+    with Timer("pathos"):
+        @hub.transform(schema=my_schema, scheduler="pathos", processes=1)
+        def my_transform(x):
+            return {
+                "image": (np.ones((width, width, channels), dtype=dtype) * 255),
+            }
+        
+        ds = hub.Dataset(
+            "./data/test/test_pipeline_basic_3", mode="w", shape=(sample_size,), schema=my_schema, cache=0
+        )
+
+        ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
+
+    assert (ds_t["image", :].numpy() == 255).all()
+
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
     zarr_fs = zarr.zeros((sample_size, width, width, channels), dtype=dtype, store=zarr.storage.FSStore("./data/test/array"), overwrite=True)
@@ -70,7 +95,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
                     arr[i] = (np.random.rand(width, width, channels) * 255).astype(dtype)
 
     print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays ~~~")
-    for name, processes in [("single", 1), ("pathos", 10)]: # , ("ray", 10), ("green", 10), ("dask", 10)]:
+    for name, processes in [("single", 1), ("pathos", 10)]:  # , ("ray", 10), ("green", 10), ("dask", 10)]:
         @hub.transform(schema=my_schema, scheduler=name, processes=processes)
         def my_transform(sample):
             return {
@@ -83,4 +108,5 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 if __name__ == "__main__":
     # test_pipeline_basic()
-    benchmark()
+    test_pathos()
+    # benchmark()

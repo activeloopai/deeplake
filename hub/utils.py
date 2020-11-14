@@ -46,6 +46,7 @@ def pytorch_loaded():
         return False
     return True
 
+
 def ray_loaded():
     try:
         import ray
@@ -55,6 +56,7 @@ def ray_loaded():
         return False
     return True
 
+
 def dask_loaded():
     try:
         import ray
@@ -63,6 +65,7 @@ def dask_loaded():
     except ImportError:
         return False
     return True
+
 
 def tensorflow_loaded():
     try:
@@ -79,6 +82,16 @@ def tfds_loaded():
         import tensorflow_datasets
 
         tensorflow_datasets.__version__
+    except ImportError:
+        return False
+    return True
+
+
+def pathos_loaded():
+    try:
+        import pathos
+
+        pathos.__version__
     except ImportError:
         return False
     return True
