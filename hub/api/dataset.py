@@ -311,7 +311,7 @@ class Dataset:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-        
+
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
@@ -319,7 +319,6 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
- 
     def delete(self):
         fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
@@ -373,6 +372,8 @@ class Dataset:
             elif isinstance(my_dtype, Tensor):
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
+                if str(my_dtype._dtype) == "object":
+                    return "string"
                 return str(my_dtype._dtype)
 
         def get_output_shapes(my_dtype):
@@ -616,7 +617,7 @@ class Dataset:
             return "object"
 
         my_schema = generate_schema(ds_info)
-        
+
         def transform_numpy(sample):
             d = {}
             for k, v in sample.items():
@@ -667,8 +668,8 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-
-            cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+            if not isinstance(self._ds._tensors[key][index], bytes):
+                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):
