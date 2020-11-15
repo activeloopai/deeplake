@@ -56,6 +56,7 @@ def test_to_from_tensorflow():
         ).all()
         assert (
             res_ds["named_label", i].numpy().decode('utf-8') == 'try' + str(i)
+        )
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
