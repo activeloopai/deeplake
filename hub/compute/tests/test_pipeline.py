@@ -17,13 +17,13 @@ my_schema = {
 
 
 @hub.transform(schema=my_schema)
-def my_transform(sample):
+def my_transform(sample, multiplier: int = 2):
     return {
-        "image": sample["image"].numpy() * 2,
+        "image": sample["image"].numpy() * multiplier,
         "label": sample["label"].numpy(),
     }
 
-@pytest.mark.skipif(True, reason="requires tfds to be loaded")
+
 def test_pipeline_basic():
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
@@ -33,7 +33,7 @@ def test_pipeline_basic():
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
 
-    out_ds = my_transform(ds)
+    out_ds = my_transform(ds, multiplier=2)
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
     
     assert res_ds["label", 5].numpy() == "hello 5"
