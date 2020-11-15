@@ -124,3 +124,9 @@ class DatasetView:
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
+
+    def to_tensorflow(self):
+        return self.dataset.to_tensorflow(num=self.num_samples, ofs=self.offset)
+
+    def to_pytorch(self, Transform=None):
+        return self.dataset.to_pytorch(Transform=Transform, num=self.num_samples, ofs=self.offset)
