@@ -38,7 +38,9 @@ def test_pipeline_basic():
     
     assert res_ds["label", 5].numpy() == "hello 5"
     assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
-
+    assert len(res_ds) == len(out_ds)
+    assert res_ds.shape[0] == out_ds.shape[0] 
+    assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
 
 @pytest.mark.skipif(
     not ray_loaded(),

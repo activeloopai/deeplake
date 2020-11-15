@@ -26,10 +26,6 @@ class Transform:
         self._ds = ds
         self.kwargs = kwargs
 
-    def __iter__(self):
-        for item in self._ds:
-            yield self._func(item)
-
     def _determine_shape(self, length: int):
         """
         Helper function to determine the shape of the newly created dataset
@@ -167,6 +163,10 @@ class Transform:
 
     def __len__(self):
         return self.shape[0]
+
+    def __iter__(self):
+        for item in self._ds:
+            yield self._func(item)
 
     @property
     def shape(self):
