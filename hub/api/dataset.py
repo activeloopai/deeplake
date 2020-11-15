@@ -163,7 +163,7 @@ class Dataset:
 
         self.username = None
         self.dataset_name = None
-        if (self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/")) and needcreate:
+        if needcreate and (self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/")):
             subpath = self._path[5:]
             spl = subpath.split("/")
             if len(spl) < 4:
