@@ -30,7 +30,6 @@ class PathosTransform(Transform):
 
         def batched_func(i_xs):
             i, xs = i_xs
-            print(xs)
             xs = [self._func(x) for x in xs]
             self._transfer_batch(ds, i, xs)
 

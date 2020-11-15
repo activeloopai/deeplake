@@ -618,7 +618,7 @@ class Dataset:
             return "object"
 
         my_schema = generate_schema(ds_info)
-
+        
         def transform_numpy(sample):
             d = {}
             for k, v in sample.items():

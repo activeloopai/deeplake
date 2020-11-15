@@ -184,3 +184,7 @@ class TensorView:
     @property
     def chunksize(self):
         return self.dataset._tensors[self.subpath].chunksize
+
+    @property
+    def is_dynamic(self):
+        return not self.dataset._tensors[self.subpath]._dynamic_tensor is None

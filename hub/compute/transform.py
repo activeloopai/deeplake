@@ -5,6 +5,7 @@ try:
 except:
     pass
 
+import numpy as np
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 from tqdm import tqdm
@@ -40,15 +41,33 @@ class Transform:
         results = [self._func(item) for item in self._ds]
         results = [self.flatten_dict(r) for r in results]
         results = self.split_list_to_dicts(results)
- 
-        # batchified upload
+        ds = self.upload(ds, results)
+
+        return ds
+
+    def upload(self, ds, results):
+        """ Batchified upload of results 
+        For each tensor batchify based on its chunk and upload
+        If tensor is dynamic then still upload element by element
+
+        Parameters
+        ----------
+        dataset: hub.Dataset
+            Dataset object that should be written to
+        results: 
+            output of transform function
+        """
         for key, value in results.items():
             length = ds[key].chunksize[0]
             batched_values = batchify(value, length)
-            for i, batch in enumerate(batched_values):
-                ds[key, i * length:(i + 1) * length] = batch
-        return ds
 
+            for i, batch in enumerate(batched_values):
+                if not ds[key].is_dynamic:
+                    ds[key, i * length : (i + 1) * length] = batch
+                else:
+                    for k, el in enumerate(batch):
+                        ds[key, i * length + k] = el
+        return ds
     def flatten_dict(self, d, parent_key=''):
         items = []
         for k, v in d.items():
