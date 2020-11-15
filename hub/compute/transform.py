@@ -1,14 +1,6 @@
 import hub
-
-try:
-    import ray
-except:
-    pass
-
-import numpy as np
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
-from tqdm import tqdm
 from hub.utils import batchify
 
 
@@ -62,8 +54,8 @@ class Transform:
             batched_values = batchify(value, length)
 
             for i, batch in enumerate(batched_values):
+                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
                 if not ds[key].is_dynamic:
-
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
                     else:
@@ -72,7 +64,6 @@ class Transform:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
         return ds
-
 
     def flatten_dict(self, d, parent_key=''):
         items = []
@@ -83,7 +74,6 @@ class Transform:
             else:
                 items.append((new_key, v))
         return dict(items)
-
         
     def split_list_to_dicts(self, xs):
         """
@@ -97,8 +87,6 @@ class Transform:
                 else: 
                     xs_new[key] = [value]
         return xs_new
-
-
 
     def dtype_from_path(self, path):
         path = path.split('/')
