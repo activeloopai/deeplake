@@ -80,7 +80,6 @@ class Dataset:
         lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
-
         Parameters
         ----------
         url: str
@@ -101,6 +100,7 @@ class Dataset:
         fs_map: optional
         cache: int, optional
             Size of the cache. Default is 2GB (2**20)
+            if zero or flase, then cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
         """
@@ -261,12 +261,9 @@ class Dataset:
     def __getitem__(self, slice_):
         """| Gets a slice or slices from dataset
         | Usage:
-
         >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
-
         >>> images = ds["image"]
         >>> return images[5].numpy() # returns numpy array
-
         >>> images = ds["image"]
         >>> image = images[5]
         >>> return image[0:1920, 0:1080, 0:3].numpy()
@@ -299,9 +296,7 @@ class Dataset:
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
         | Usage
-
          >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
-
         >>> images = ds["image"]
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
@@ -310,6 +305,7 @@ class Dataset:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
@@ -329,19 +325,21 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None):
+    def to_pytorch(self, Transform=None, ofs=None, num=None):
         """Converts the dataset into a pytorch compatible format"""
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
-        return TorchDataset(self, Transform)
+        return TorchDataset(self, Transform, ofs=ofs, num=num)
 
-    def to_tensorflow(self):
+    def to_tensorflow(self, ofs=None, num=None):
         """Converts the dataset into a tensorflow compatible format"""
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        ofs = 0 if ofs is None else ofs
+        num = self.shape[0] if num is None else num
 
         def tf_gen():
-            for index in range(self.shape[0]):
+            for index in range(ofs, ofs + num):
                 d = {}
                 for key in self._tensors.keys():
                     split_key = key.split("/")
@@ -370,6 +368,8 @@ class Dataset:
             elif isinstance(my_dtype, Tensor):
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
+                if str(my_dtype._dtype) == "object":
+                    return "string"
                 return str(my_dtype._dtype)
 
         def get_output_shapes(my_dtype):
@@ -388,7 +388,7 @@ class Dataset:
 
         output_types = dtype_to_tf(self.schema)
         output_shapes = get_output_shapes(self.schema)
-        # print(output_shapes)
+
         return tf.data.Dataset.from_generator(
             tf_gen, output_types=output_types, output_shapes=output_shapes
         )
@@ -474,7 +474,6 @@ class Dataset:
         ds = ds.to_tensorflow()
         out_ds = hub.Dataset.from_tensorflow(ds)
         res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
-
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
@@ -491,8 +490,9 @@ class Dataset:
                 return TensorSpec_to_hub(tf_dt)
 
         def TensorSpec_to_hub(tf_dt):
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             shape = tf_dt.shape if tf_dt.shape.rank is not None else (None,)
-            return Tensor(shape=shape, dtype=tf_dt.dtype.name)
+            return Tensor(shape=shape, dtype=dt)
 
         def dict_to_hub(tf_dt):
             d = {
@@ -631,11 +631,13 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None):
+    def __init__(self, ds, transform=None, num=None, ofs=None):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
         self._transform = transform
+        self.num = num
+        self.ofs = ofs
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -649,9 +651,10 @@ class TorchDataset:
 
     def __len__(self):
         self._init_ds()
-        return self._ds.shape[0]
+        return self.num if self.num is not None else self._ds.shape[0]
 
     def __getitem__(self, index):
+        index = index + self.ofs if self.ofs is not None else index
         self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
@@ -663,8 +666,8 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-
-            cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+            if not isinstance(self._ds._tensors[key][index], bytes):
+                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):
