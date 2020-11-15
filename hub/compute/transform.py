@@ -1,14 +1,6 @@
 import hub
-
-try:
-    import ray
-except:
-    pass
-
-import numpy as np
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
-from tqdm import tqdm
 from hub.utils import batchify
 
 
@@ -46,7 +38,7 @@ class Transform:
         return ds
 
     def upload(self, ds, results):
-        """ Batchified upload of results 
+        """ Batchified upload of results
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
 
@@ -54,7 +46,7 @@ class Transform:
         ----------
         dataset: hub.Dataset
             Dataset object that should be written to
-        results: 
+        results:
             output of transform function
         """
         for key, value in results.items():
@@ -62,12 +54,17 @@ class Transform:
             batched_values = batchify(value, length)
 
             for i, batch in enumerate(batched_values):
+                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
                 if not ds[key].is_dynamic:
-                    ds[key, i * length : (i + 1) * length] = batch
+                    if len(batch) != 1:
+                        ds[key, i * length : (i + 1) * length] = batch
+                    else:
+                        ds[key, i * length] = batch
                 else:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
         return ds
+
     def flatten_dict(self, d, parent_key=''):
         items = []
         for k, v in d.items():
@@ -77,7 +74,6 @@ class Transform:
             else:
                 items.append((new_key, v))
         return dict(items)
-
         
     def split_list_to_dicts(self, xs):
         """
@@ -91,8 +87,6 @@ class Transform:
                 else: 
                     xs_new[key] = [value]
         return xs_new
-
-
 
     def dtype_from_path(self, path):
         path = path.split('/')
