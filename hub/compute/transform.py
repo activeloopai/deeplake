@@ -46,7 +46,7 @@ class Transform:
         return ds
 
     def upload(self, ds, results):
-        """ Batchified upload of results 
+        """ Batchified upload of results
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
 
@@ -54,7 +54,7 @@ class Transform:
         ----------
         dataset: hub.Dataset
             Dataset object that should be written to
-        results: 
+        results:
             output of transform function
         """
         for key, value in results.items():
@@ -63,11 +63,17 @@ class Transform:
 
             for i, batch in enumerate(batched_values):
                 if not ds[key].is_dynamic:
-                    ds[key, i * length : (i + 1) * length] = batch
+
+                    if len(batch) != 1:
+                        ds[key, i * length : (i + 1) * length] = batch
+                    else:
+                        ds[key, i * length] = batch
                 else:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
         return ds
+
+
     def flatten_dict(self, d, parent_key=''):
         items = []
         for k, v in d.items():
