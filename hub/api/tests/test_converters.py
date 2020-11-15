@@ -50,11 +50,13 @@ def test_to_from_tensorflow():
             "d": {"e": Tensor((5, 3), "uint8")},
             "f": "float"
         },
+        "named_label": "object"
     }
 
     ds = hub.Dataset(schema=my_schema, shape=(10,), url="./data/test_from_tf/ds3", mode="w")
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
+        ds["named_label", i] = 'try' + str(i)
     ds = ds.to_tensorflow()
     out_ds = hub.Dataset.from_tensorflow(ds)
     res_ds = out_ds.store("./data/test_from_tf/ds4", length=10)  # generator has no length, argument needed
@@ -62,6 +64,9 @@ def test_to_from_tensorflow():
         assert (
             res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))
         ).all()
+        assert (
+            res_ds["named_label", i].numpy().decode('utf-8') == 'try' + str(i)
+        )
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
