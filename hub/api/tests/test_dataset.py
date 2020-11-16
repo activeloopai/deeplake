@@ -20,10 +20,33 @@ my_schema = {
 
 def test_dataset2():
     dt = {"first": "float", "second": "float"}
-    ds = Dataset(schema=dt, shape=(2,), url="./data/test/model", mode="w")
+    ds = Dataset(schema=dt, shape=(2,), url="./data/test/test_dataset2", mode="w")
 
     ds["first"][0] = 2.3
     assert ds["second"][0].numpy() != 2.3
+
+
+def test_dataset_append_and_read():
+    dt = {"first": "float", "second": "float"}
+    ds = Dataset(
+        schema=dt,
+        shape=(2,),
+        url="./data/test/test_dataset_append_and_read",
+        mode="a",
+    )
+
+    ds["first"][0] = 2.3
+    assert ds["second"][0].numpy() != 2.3
+    ds.commit()
+
+    ds = Dataset(
+        url="./data/test/test_dataset_append_and_read",
+        mode="r",
+    )
+    ds.delete()
+    ds.commit()
+
+    # TODO Add case when non existing dataset is opened in read mode
 
 
 def test_dataset(url="./data/test/dataset", token=None):
@@ -194,8 +217,12 @@ def test_dataset_s3():
 @pytest.mark.skipif(not azure_creds_exist(), reason="requires azure credentials")
 def test_dataset_azure():
     import os
+
     token = {"account_key": os.getenv("ACCOUNT_KEY")}
-    test_dataset("https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure", token=token)
+    test_dataset(
+        "https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure",
+        token=token,
+    )
 
 
 if __name__ == "__main__":

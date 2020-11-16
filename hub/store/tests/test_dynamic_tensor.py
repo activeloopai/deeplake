@@ -2,19 +2,42 @@ import posixpath
 
 import numpy as np
 import fsspec
+from zarr.creation import create
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import StorageMapWrapperWithCommit
 
 
-def create_store(path: str):
+def create_store(path: str, overwrite=True):
     fs: fsspec.AbstractFileSystem = fsspec.filesystem("file")
-    if fs.exists(path):
+    if fs.exists(path) and overwrite:
         fs.rm(path, recursive=True)
-    fs.makedirs(posixpath.join(path, "--dynamic--"))
+    dynpath = posixpath.join(path, "--dynamic--")
+    if not fs.exists(dynpath):
+        fs.makedirs(dynpath)
     mapper = fs.get_mapper(path)
     mapper["--dynamic--/hello.txt"] = bytes("Hello World", "utf-8")
     return StorageMapWrapperWithCommit(mapper)
+
+
+def test_read_and_append_modes():
+    t = DynamicTensor(
+        create_store("./data/test/test_read_and_append_modes"),
+        mode="a",
+        shape=(5, 100, 100),
+        max_shape=(5, 100, 100),
+        dtype="int32",
+    )
+    t[0, 80:, 80:] = np.ones((20, 20), dtype="int32")
+    assert t[0, -5, 90:].tolist() == [1] * 10
+    t.commit()
+    t = DynamicTensor(
+        create_store("./data/test/test_read_and_append_modes", overwrite=False),
+        mode="r",
+    )
+    t.get_shape(0) == (100, 100)
+    assert t[0, -5, 90:].tolist() == [1] * 10
+    t.commit()
 
 
 def test_dynamic_tensor():
@@ -42,6 +65,11 @@ def test_dynamic_tensor_2():
     assert t[0, 5, :].tolist() == [1] * 10
     t[0, 6] = 2 * np.ones((20,), dtype="int32")
     assert t[0, 5, :].tolist() == [1] * 10 + [0] * 10
+    assert t.get_shape([0]) == (
+        10,
+        20,
+    )  # FIXME This is a bug accessing [0], should be just 0
+    assert t.get_shape([slice(0, 1)]) == (10, 20)  # FIXME This is also a bug
 
 
 def test_dynamic_tensor_3():
@@ -69,6 +97,7 @@ def test_dynamic_tensor_shapes():
     t[0] = np.ones((5, 10), dtype="int32")
     t[0, 6] = 2 * np.ones((20,), dtype="int32")
     assert t[0, -1].tolist() == [2] * 20
+    t.commit()
 
 
 def test_dynamic_tensor_4():
@@ -97,6 +126,6 @@ def test_chunk_iterator():
 
 
 if __name__ == "__main__":
-    test_dynamic_tensor_2()
+    test_read_and_append_modes()
     # test_chunk_iterator()
     # test_dynamic_tensor_shapes()

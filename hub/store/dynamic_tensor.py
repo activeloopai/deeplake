@@ -8,10 +8,11 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 
-from hub.exceptions import (DynamicTensorNotFoundException, 
-ValueShapeError,
-DynamicTensorShapeException
-) 
+from hub.exceptions import (
+    DynamicTensorNotFoundException,
+    ValueShapeError,
+    DynamicTensorShapeException,
+)
 from hub.api.dataset_utils import slice_extract_info
 
 
@@ -159,14 +160,14 @@ class DynamicTensor:
         self.max_shape = self._storage_tensor.shape
         self.dtype = self._storage_tensor.dtype
         if len(self.shape) != len(self.max_shape):
-            raise DynamicTensorShapeException('length')
+            raise DynamicTensorShapeException("length")
         for item in self.max_shape:
             if item is None:
-                raise DynamicTensorShapeException('none')
+                raise DynamicTensorShapeException("none")
         for item in zip(self.shape, self.max_shape):
             if item[0] is not None:
                 if item[0] != item[1]:
-                    raise DynamicTensorShapeException('not_equal')
+                    raise DynamicTensorShapeException("not_equal")
 
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
@@ -198,7 +199,7 @@ class DynamicTensor:
 
     def check_value_shape(self, value, slice_):
         """Checks if value can be set to the slice"""
-        if None not in self.shape and self.dtype != 'O':
+        if None not in self.shape and self.dtype != "O":
             if not all([isinstance(sh, int) for sh in slice_]):
                 expected_value_shape = tuple(
                     [
@@ -206,7 +207,7 @@ class DynamicTensor:
                         for i, slice_shape in enumerate(slice_)
                         if not isinstance(slice_shape, int)
                     ]
-                )                
+                )
                 if expected_value_shape[0] == 1 and len(expected_value_shape) > 1:
                     expected_value_shape = expected_value_shape[1:]
 
@@ -222,8 +223,11 @@ class DynamicTensor:
             else:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
-                    value = np.array(value)                
-                if isinstance(value, np.ndarray) and value.shape != expected_value_shape:                    
+                    value = np.array(value)
+                if (
+                    isinstance(value, np.ndarray)
+                    and value.shape != expected_value_shape
+                ):
                     raise ValueShapeError(expected_value_shape, value.shape)
         return value
 
@@ -295,6 +299,7 @@ class DynamicTensor:
                     )
         return tuple(slice_)
 
+    # FIXME I don't see this class being used anywhere
     @classmethod
     def _get_slice_upper_boundary(cls, slice_):
         if isinstance(slice_, slice):
