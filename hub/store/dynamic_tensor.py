@@ -8,7 +8,10 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 
-from hub.exceptions import DynamicTensorNotFoundException, ValueShapeError
+from hub.exceptions import (DynamicTensorNotFoundException, 
+ValueShapeError,
+DynamicTensorShapeException
+) 
 from hub.api.dataset_utils import slice_extract_info
 
 
@@ -155,13 +158,15 @@ class DynamicTensor:
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
         self.dtype = self._storage_tensor.dtype
-        assert len(self.shape) == len(self.max_shape)
+        if len(self.shape) != len(self.max_shape):
+            raise DynamicTensorShapeException('length')
         for item in self.max_shape:
-            assert item is not None
+            if item is None:
+                raise DynamicTensorShapeException('none')
         for item in zip(self.shape, self.max_shape):
             if item[0] is not None:
-                # FIXME throw an error and explain whats wrong
-                assert item[0] == item[1]
+                if item[0] != item[1]:
+                    raise DynamicTensorShapeException('not_equal')
 
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
