@@ -44,7 +44,6 @@ class DatasetView:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-        slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError(
@@ -85,7 +84,6 @@ class DatasetView:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-        slice_list = [0] + slice_list if self.num_samples == 1 else slice_list
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
