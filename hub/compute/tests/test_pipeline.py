@@ -18,7 +18,6 @@ dynamic_schema = {
 }
 
 
-
 def test_pipeline_basic():
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
@@ -36,9 +35,8 @@ def test_pipeline_basic():
         }
 
     out_ds = my_transform(ds, multiplier=2)
-
-    assert (out_ds[0]["image"] == 2).all()
-    assert len(list(out_ds)) == 100
+    assert (out_ds["image", 0:2].numpy() == 2).all()
+    # assert len(list(out_ds)) == 100
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
 
     assert res_ds["label", 5].numpy() == "hello 5"
@@ -138,6 +136,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             res_ds = out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
 if __name__ == "__main__":
+    test_pipeline_basic()
     test_pipeline_dynamic()
     # test_pipeline_basic()
     

@@ -124,3 +124,11 @@ class DatasetView:
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
+        
+    def __iter__(self):
+        """ Returns Iterable over samples """
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        return self.num_samples

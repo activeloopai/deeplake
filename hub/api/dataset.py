@@ -1,4 +1,3 @@
-from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
@@ -17,14 +16,12 @@ from hub.features.features import (
     FeatureDict,
     HubFeature,
     featurify,
-    FlatTensor,
 )
 from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split
-from hub.utils import compute_lcm
 
 import hub.features.serialize
 import hub.features.deserialize
@@ -45,7 +42,6 @@ from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
-import traceback
 
 try:
     import torch
@@ -311,7 +307,7 @@ class Dataset:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-        
+
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
@@ -319,7 +315,6 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = value
 
- 
     def delete(self):
         fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
@@ -442,13 +437,6 @@ class Dataset:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.commit()
-
-    @property
-    def chunksize(self):
-        # FIXME assumes chunking is done on the first sample
-        chunks = [t.chunksize[0] for t in self._tensors.values()]
-        print(chunks)
-        return compute_lcm(chunks)
 
     @property
     def keys(self):
@@ -616,7 +604,7 @@ class Dataset:
             return "object"
 
         my_schema = generate_schema(ds_info)
-        
+
         def transform_numpy(sample):
             d = {}
             for k, v in sample.items():
