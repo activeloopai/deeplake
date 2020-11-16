@@ -187,4 +187,4 @@ class TensorView:
 
     @property
     def is_dynamic(self):
-        return not self.dataset._tensors[self.subpath]._dynamic_tensor is None
+        return self.dataset._tensors[self.subpath].is_dynamic

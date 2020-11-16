@@ -334,6 +334,10 @@ class DynamicTensor:
         if self._dynamic_tensor:
             self._dynamic_tensor.store.commit()
 
+    @property
+    def is_dynamic(self):
+        return False if self._dynamic_tensor is None else True
+
 
 def get_dynamic_dims(shape):
     return [i for i, s in enumerate(shape) if s is None]

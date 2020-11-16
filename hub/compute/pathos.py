@@ -12,14 +12,14 @@ class PathosTransform(Transform):
     def __init__(self, func, schema, ds):
         Transform.__init__(self, func, schema, ds)
         Pool = ProcessPool or ThreadPool
-        self.map = ThreadPool(nodes=2).map
+        self.map = Pool(nodes=2).map
 
     def store(self, url, token=None):
         """
         mary chunks with compute
         """
         ds = hub.Dataset(
-            url, mode="w", shape=(len(self._ds),), schema=self._schema, token=token, cache=False
+            url, mode="w", shape=(len(self._ds),), schema=self.schema, token=token, cache=False
         )
 
         # Chunkwise compute

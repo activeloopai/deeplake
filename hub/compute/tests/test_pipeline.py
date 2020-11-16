@@ -6,22 +6,17 @@ import hub
 from hub.features import Tensor
 from hub.utils import ray_loaded, pathos_loaded, Timer
 
-try:
-    import ray
-except:
-    pass
+
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
     "label": "<U20",
 }
 
+dynamic_schema = {
+    "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
+    "label": "<U20",
+}
 
-@hub.transform(schema=my_schema)
-def my_transform(sample, multiplier: int = 2):
-    return {
-        "image": sample["image"].numpy() * multiplier,
-        "label": sample["label"].numpy(),
-    }
 
 
 def test_pipeline_basic():
@@ -33,14 +28,43 @@ def test_pipeline_basic():
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
 
+    @hub.transform(schema=my_schema)
+    def my_transform(sample, multiplier: int = 2):
+        return {
+            "image": sample["image"].numpy() * multiplier,
+            "label": sample["label"].numpy(),
+        }
+
     out_ds = my_transform(ds, multiplier=2)
+    assert (out_ds[0]["image"] == 2).all()
+    assert len(list(out_ds)) == 100
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
-    
+
     assert res_ds["label", 5].numpy() == "hello 5"
     assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
     assert len(res_ds) == len(out_ds)
     assert res_ds.shape[0] == out_ds.shape[0] 
     assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
+
+
+def test_pipeline_dynamic():
+    ds = hub.Dataset(
+        "./data/test/test_pipeline_dynamic3", mode="w", shape=(1,), schema=dynamic_schema, cache=False
+    )
+    
+    ds["image", 0] = np.ones((30, 32, 3))
+
+    @hub.transform(schema=dynamic_schema)
+    def dynamic_transform(sample, multiplier: int = 2):
+        return {
+            "image": sample["image"].numpy() * multiplier,
+            "label": sample["label"].numpy(),
+        }
+
+    out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
+
+    assert (out_ds["image", 0].numpy() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
+
 
 @pytest.mark.skipif(
     not ray_loaded(),
@@ -113,6 +137,8 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             res_ds = out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
 if __name__ == "__main__":
+    test_pipeline_dynamic()
     # test_pipeline_basic()
-    test_pathos()
+    
+    # test_pathos()
     # benchmark()

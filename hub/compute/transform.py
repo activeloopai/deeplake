@@ -22,7 +22,7 @@ class Transform:
             additional arguments that will be passed to func as static argument for all samples
         """
         self._func = func
-        self._schema = schema
+        self.schema = schema
         self._ds = ds
         self.kwargs = kwargs
 
@@ -89,7 +89,7 @@ class Transform:
         Helper function to get the dtype from the path
         """
         path = path.split('/')
-        cur_type = self._schema
+        cur_type = self.schema
         for subpath in path[:-1]:
             cur_type = cur_type[subpath]
             cur_type = cur_type.dict_
@@ -117,12 +117,12 @@ class Transform:
             batched_values = batchify(value, length)
 
             for i, batch in enumerate(batched_values):
-                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
+                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batchs
                 if not ds[key].is_dynamic:
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
                     else:
-                        ds[key, i * length] = batch
+                        ds[key, i * length] = batch[0]
                 else:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
@@ -148,7 +148,7 @@ class Transform:
         """
         shape = self._determine_shape(length)
         ds = hub.Dataset(
-            url, mode="w", shape=shape, schema=self._schema, token=token, cache=False,
+            url, mode="w", shape=shape, schema=self.schema, token=token, cache=False,
         )
 
         results = [self._func(item, **self.kwargs) for item in self._ds]
@@ -159,19 +159,26 @@ class Transform:
         return ds
 
     def __getitem__(self, slice_):
-        raise NotImplementedError()
+        """
+        Get an item to be compute without iterating on the whole dataset
+
+        slice_: int
+            currently stands for index, but need to add advanced slicing as if it is a dataset
+        """
+        # TODO add advanced slicing as if the transform of the dataset has access to any element
+        if not isinstance(slice_, int):
+            raise Exception("Advanced slicing is not supported, only support index")
+
+        return self._func(self._ds[slice_], **self.kwargs)
 
     def __len__(self):
         return self.shape[0]
 
     def __iter__(self):
         for item in self._ds:
-            yield self._func(item)
+            yield self._func(item, **self.kwargs)
 
     @property
     def shape(self):
         return self._ds.shape
 
-    @property
-    def schema(self):
-        return self._schema
