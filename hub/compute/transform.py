@@ -118,12 +118,9 @@ class Transform:
             batched_values = batchify(value, length)
 
             for i, batch in enumerate(batched_values):
-                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batchs
+                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
                 if not ds[key].is_dynamic:
-                    if len(batch) != 1:
-                        ds[key, i * length : (i + 1) * length] = batch
-                    else:
-                        ds[key, i * length] = batch[0]
+                    ds[key, i * length : (i + 1) * length] = batch
                 else:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
