@@ -1,6 +1,8 @@
-from hub.api.dataset import Dataset
+import os
 from typing import Dict
+
 import hub
+from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
@@ -203,7 +205,8 @@ class Transform:
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
         ds_view = DatasetView(dataset=self._ds, num_samples=num, offset=ofs)
 
-        new_ds = self.store("~/.activeloop/tmp/array", length=num, ds=ds_view, progressbar=True)
+        path = os.path.expanduser("~/.activeloop/tmp")
+        new_ds = self.store(path, length=num, ds=ds_view, progressbar=True)
         slice_[1] = slice(None, None, None)  # Get all shape dimension since we already sliced
         return new_ds[slice_]
 

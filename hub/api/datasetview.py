@@ -1,5 +1,6 @@
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.exceptions import NoneValueException
 import collections.abc as abc
 
 
@@ -21,9 +22,12 @@ class DatasetView:
         offset: int
             The offset from which the DatasetView starts
         """
-        assert dataset is not None
-        assert num_samples is not None
-        assert offset is not None
+        if dataset is None:
+            raise NoneValueException('dataset')
+        if num_samples is None:
+            raise NoneValueException('num_samples')
+        if offset is None:
+            raise NoneValueException('offset')
 
         self.dataset = dataset
         self.num_samples = num_samples
@@ -132,3 +136,12 @@ class DatasetView:
 
     def __len__(self):
         return self.num_samples
+
+    def to_tensorflow(self):
+        """Converts the dataset into a tensorflow compatible format"""
+        return self.dataset.to_tensorflow(num_samples=self.num_samples, offset=self.offset)
+
+    def to_pytorch(self, Transform=None):
+        """Converts the dataset into a pytorch compatible format"""
+        return self.dataset.to_pytorch(Transform=Transform, num_samples=self.num_samples, offset=self.offset)
+
