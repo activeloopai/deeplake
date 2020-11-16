@@ -35,7 +35,7 @@ def test_pipeline_basic():
         }
 
     out_ds = my_transform(ds, multiplier=2)
-    assert (out_ds["image", 0:2].numpy() == 2).all()
+    assert (out_ds["image", 0].numpy() == 2).all()
     # assert len(list(out_ds)) == 100
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
 
