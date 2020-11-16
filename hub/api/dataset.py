@@ -39,7 +39,8 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    WrongUsernameException,
+    NoneValueException,
+    ShapeLengthException
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -109,8 +110,10 @@ class Dataset:
         if isinstance(shape, int):
             shape = [shape]
         if shape is not None:
-            assert len(tuple(shape)) == 1
-        assert mode is not None
+            if len(tuple(shape)) != 1:
+                raise ShapeLengthException
+        if mode is None:
+            raise NoneValueException('mode')
 
         self.url = url
         self.token = token
@@ -180,12 +183,6 @@ class Dataset:
         Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
-        if path.startswith("s3://"):
-            with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
-                stored_username = json.load(f)["_id"]
-            current_username = path.split("/")[-2]
-            if stored_username != current_username:
-                raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
