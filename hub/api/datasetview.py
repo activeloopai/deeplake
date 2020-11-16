@@ -126,7 +126,9 @@ class DatasetView:
         return tensor_dict
 
     def to_tensorflow(self):
-        return self.dataset.to_tensorflow(num=self.num_samples, ofs=self.offset)
+        """Converts the dataset into a tensorflow compatible format"""
+        return self.dataset.to_tensorflow(num_samples=self.num_samples, offset=self.offset)
 
     def to_pytorch(self, Transform=None):
-        return self.dataset.to_pytorch(Transform=Transform, num=self.num_samples, ofs=self.offset)
+        """Converts the dataset into a pytorch compatible format"""
+        return self.dataset.to_pytorch(Transform=Transform, num_samples=self.num_samples, offset=self.offset)

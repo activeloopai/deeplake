@@ -325,21 +325,35 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None, ofs=None, num=None):
-        """Converts the dataset into a pytorch compatible format"""
+    def to_pytorch(self, Transform=None, offset=None, num_samples=None):
+        """Converts the dataset into a pytorch compatible format
+        Parameters
+        ----------
+        offset: int, optional
+            The offset from which dataset needs to be converted
+        num_samples: int, optional
+            The number of samples required of the dataset that needs to be converted
+        """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
-        return TorchDataset(self, Transform, ofs=ofs, num=num)
+        return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
-    def to_tensorflow(self, ofs=None, num=None):
-        """Converts the dataset into a tensorflow compatible format"""
+    def to_tensorflow(self, offset=None, num_samples=None):
+        """Converts the dataset into a tensorflow compatible format
+        Parameters
+        ----------
+        offset: int, optional
+            The offset from which dataset needs to be converted
+        num_samples: int, optional
+            The number of samples required of the dataset that needs to be converted
+        """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
-        ofs = 0 if ofs is None else ofs
-        num = self.shape[0] if num is None else num
+        offset = 0 if offset is None else offset
+        num_samples = self.shape[0] if num_samples is None else num_samples
 
         def tf_gen():
-            for index in range(ofs, ofs + num):
+            for index in range(offset, offset + num_samples):
                 d = {}
                 for key in self._tensors.keys():
                     split_key = key.split("/")
@@ -631,13 +645,13 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None, num=None, ofs=None):
+    def __init__(self, ds, transform=None, num_samples=None, offset=None):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
         self._transform = transform
-        self.num = num
-        self.ofs = ofs
+        self.num_samples = num_samples
+        self.offset = offset
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -651,10 +665,10 @@ class TorchDataset:
 
     def __len__(self):
         self._init_ds()
-        return self.num if self.num is not None else self._ds.shape[0]
+        return self.num_samples if self.num_samples is not None else self._ds.shape[0]
 
     def __getitem__(self, index):
-        index = index + self.ofs if self.ofs is not None else index
+        index = index + self.offset if self.offset is not None else index
         self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
