@@ -1,6 +1,8 @@
 from hub.compute.transform import Transform
 from hub.compute.pathos import PathosTransform
 from hub.compute.ray import RayTransform
+from collections.abc import Iterable
+from hub.exceptions import NotIterable
 
 
 def transform(schema, scheduler="single", processes=1):
@@ -16,6 +18,9 @@ def transform(schema, scheduler="single", processes=1):
     """
     def wrapper(func):
         def inner(ds, **kwargs):
+            if not isinstance(ds, Iterable) and not isinstance(ds, str):
+                raise NotIterable
+
             if scheduler == "pathos":
                 return PathosTransform(func, schema, ds, **kwargs)
 

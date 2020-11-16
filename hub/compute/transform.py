@@ -3,6 +3,7 @@ import hub
 from collections.abc import MutableMapping
 from hub.features.features import Primitive
 from hub.utils import batchify
+from hub.exceptions import AdvancedSlicingNotSupported
 
 
 class Transform:
@@ -167,7 +168,7 @@ class Transform:
         """
         # TODO add advanced slicing as if the transform of the dataset has access to any element
         if not isinstance(slice_, int):
-            raise Exception("Advanced slicing is not supported, only support index")
+            raise AdvancedSlicingNotSupported
 
         return self._func(self._ds[slice_], **self.kwargs)
 
