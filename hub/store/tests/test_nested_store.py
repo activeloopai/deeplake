@@ -14,9 +14,9 @@ def test_nested_store():
     assert len(store) == 2
     assert tuple(store) == ("item1", "item2")
     try:
-        store.commit()
+        store.close()
     except AttributeError as ex:
-        assert "'MemoryStore' object has no attribute 'commit'" in str(ex)
+        assert "object has no attribute 'close'" in str(ex)
 
 
 if __name__ == "__main__":

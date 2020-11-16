@@ -27,5 +27,14 @@ class NestedStore(MutableMapping):
     def __len__(self):
         return sum(1 for _ in self)
 
-    def commit(self):
-        self._storage.commit()
+    def flush(self):
+        self._storage.flush()
+
+    def close(self):
+        self._storage.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()

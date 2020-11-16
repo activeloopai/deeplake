@@ -339,10 +339,21 @@ class DynamicTensor:
         for slice_chunk in slices:
             yield self.__getitem__(*slice_chunk)
 
-    def commit(self):
-        self._storage_tensor.store.commit()
+    def flush(self):
+        self._storage_tensor.store.flush()
         if self._dynamic_tensor:
-            self._dynamic_tensor.store.commit()
+            self._dynamic_tensor.store.flush()
+
+    def close(self):
+        self._storage_tensor.store.close()
+        if self._dynamic_tensor:
+            self._dynamic_tensor.store.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
 
 def get_dynamic_dims(shape):

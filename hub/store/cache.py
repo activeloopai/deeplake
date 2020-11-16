@@ -181,9 +181,19 @@ class Cache(zarr.LRUStoreCache):
             x, length=32, byteorder="big", signed=True
         )
 
-    def commit(self):
+    def flush(self):
+        """ flushes the cache db """
+        self._values_cache.flush()
+
+    def close(self):
         """ closes the cache db """
         self._values_cache.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
     def __setitem__(self, key, value):
         """On each new add, remember the order"""

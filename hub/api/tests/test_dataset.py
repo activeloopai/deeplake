@@ -37,14 +37,14 @@ def test_dataset_append_and_read():
 
     ds["first"][0] = 2.3
     assert ds["second"][0].numpy() != 2.3
-    ds.commit()
+    ds.close()
 
     ds = Dataset(
         url="./data/test/test_dataset_append_and_read",
         mode="r",
     )
     ds.delete()
-    ds.commit()
+    ds.close()
 
     # TODO Add case when non existing dataset is opened in read mode
 
@@ -84,6 +84,7 @@ def test_dataset(url="./data/test/dataset", token=None):
     ssds = sds[1:3, 4]
     sssds = ssds[1]
     assert (sssds.numpy() == 6 * np.ones((3))).all()
+    ds.flush()
 
     sds = ds["/label", 5:15, "c"]
     sds[2:4, 4, :] = 98 * np.ones((2, 3))
@@ -94,7 +95,7 @@ def test_dataset(url="./data/test/dataset", token=None):
     e = d["e"]
     e[:] = 77 * np.ones((4, 5, 3))
     assert (e.numpy() == 77 * np.ones((4, 5, 3))).all()
-    ds.commit()
+    ds.close()
 
 
 my_schema_with_chunks = {

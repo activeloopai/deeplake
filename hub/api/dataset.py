@@ -40,7 +40,7 @@ from hub.exceptions import (
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
     NoneValueException,
-    ShapeLengthException
+    ShapeLengthException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -113,7 +113,7 @@ class Dataset:
             if len(tuple(shape)) != 1:
                 raise ShapeLengthException
         if mode is None:
-            raise NoneValueException('mode')
+            raise NoneValueException("mode")
 
         self.url = url
         self.token = token
@@ -165,7 +165,10 @@ class Dataset:
 
         self.username = None
         self.dataset_name = None
-        if needcreate and (self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/")):
+        if needcreate and (
+            self._path.startswith("s3://snark-hub-dev/")
+            or self._path.startswith("s3://snark-hub/")
+        ):
             subpath = self._path[5:]
             spl = subpath.split("/")
             if len(spl) < 4:
@@ -434,12 +437,23 @@ class Dataset:
         """ Number of samples in the dataset """
         return self.shape[0]
 
-    def commit(self):
+    def flush(self):
+        """Save changes from cache to dataset final storage
+        Does not invalidate this object
+        """
+        for t in self._tensors.values():
+            t.flush()
+        self._update_dataset_state()
+
+    def close(self):
         """Save changes from cache to dataset final storage
         This invalidates this object
         """
         for t in self._tensors.values():
-            t.commit()
+            t.close()
+        self._update_dataset_state()
+
+    def _update_dataset_state(self):
         if self.username is not None:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
@@ -449,7 +463,7 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.commit()
+        self.close()
 
     @property
     def chunksize(self):
