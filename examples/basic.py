@@ -1,19 +1,10 @@
 from hub import Dataset, features
 import numpy as np
 
+
 def main():
     # Tag is set {Username}/{Dataset}
     tag = "davitb/basic11"
-
-    # Create dataset
-    ds = Dataset(
-        tag,
-        shape=(4,),
-        schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
-        },
-    )
 
     # Create dataset
     ds = Dataset(
@@ -33,6 +24,7 @@ def main():
     # Load the data
     ds = Dataset(tag)
     print(ds["image"][0].compute())
+
 
 if __name__ == "__main__":
     main()
