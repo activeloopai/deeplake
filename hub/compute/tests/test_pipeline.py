@@ -75,7 +75,7 @@ def test_pipeline_multiple():
     
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema)
+    @hub.transform(schema=dynamic_schema, scheduler="threaded", nodes=8)
     def dynamic_transform(sample, multiplier: int = 2):
         return [{
             "image": sample["image"].compute() * multiplier,
@@ -96,30 +96,32 @@ def test_pipeline_ray():
     pass
 
 
-@pytest.mark.skipif(
-    not pathos_loaded(),
-    reason="requires pathos to be loaded",
-)
-def test_pathos(sample_size=100, width=100, channels=4, dtype="uint8"):
+def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8"):
 
     my_schema = {
         "image": Tensor((width, width, channels), dtype, (width, width, channels), chunks=(sample_size // 20, width, width, channels)),
     }
 
-    with Timer("pathos"):
-        @hub.transform(schema=my_schema, scheduler="pathos", processes=1)
+    with Timer("multiprocesing"):
+        @hub.transform(schema=my_schema, scheduler="processed", nodes=2)
         def my_transform(x):
+
+            a = np.random.random((width, width, channels))
+            for i in range(10):
+                a *= np.random.random((width, width, channels))
+
             return {
                 "image": (np.ones((width, width, channels), dtype=dtype) * 255),
             }
         
         ds = hub.Dataset(
-            "./data/test/test_pipeline_basic_3", mode="w", shape=(sample_size,), schema=my_schema, cache=0
+            "./data/test/test_pipeline_basic_4", mode="w", shape=(sample_size,), schema=my_schema, cache=0
         )
 
         ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
 
     assert (ds_t["image", :].compute() == 255).all()
+
 
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
@@ -147,7 +149,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
                     arr[i] = (np.random.rand(width, width, channels) * 255).astype(dtype)
 
     print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays ~~~")
-    for name, processes in [("single", 1), ("pathos", 10)]:  # , ("ray", 10), ("green", 10), ("dask", 10)]:
+    for name, processes in [("single", 1), ("processed", 10)]:  # , ("ray", 10), ("green", 10), ("dask", 10)]:
         @hub.transform(schema=my_schema, scheduler=name, processes=processes)
         def my_transform(sample):
             return {
@@ -159,6 +161,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
 if __name__ == "__main__":
+    test_multiprocessing()
     test_pipeline_basic()
     test_pipeline_dynamic()
 

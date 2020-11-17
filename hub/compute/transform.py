@@ -1,7 +1,5 @@
 import os
 from typing import Dict, Iterable
-
-import hub
 from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
@@ -10,10 +8,11 @@ from hub.utils import batchify
 from hub.api.dataset_utils import slice_extract_info, slice_split
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
+from pathos.pools import ProcessPool, ThreadPool
 
 
 class Transform:
-    def __init__(self, func, schema, ds, **kwargs):
+    def __init__(self, func, schema, ds, scheduler: str = "single", nodes: int = 1, **kwargs):
         """
         Transform applies a user defined function to each sample in single threaded manner
 
@@ -25,6 +24,10 @@ class Transform:
             the structure of the final dataset that will be created
         ds: Iterative
             input dataset or a list that can be iterated
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        nodes: int
+            how many threads or processes to use 
         **kwargs:
             additional arguments that will be passed to func as static argument for all samples
         """
@@ -32,7 +35,15 @@ class Transform:
         self.schema = schema
         self._ds = ds
         self.kwargs = kwargs
-        self.map = map
+
+        if scheduler == "threaded" or (scheduler == "single" and nodes > 1):
+            self.map = ThreadPool(nodes=nodes).map
+        elif scheduler == "processed":
+            self.map = ProcessPool(nodes=nodes).map
+        elif scheduler == "single":
+            self.map = map
+        else:
+            raise Exception(f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'")
 
     def _flatten_dict(self, d: Dict, parent_key=''):
         """
@@ -102,7 +113,7 @@ class Transform:
         """
 
         shape = (len(list(results.values())[0]),)
-        ds = hub.Dataset(
+        ds = Dataset(
             url, mode="w", shape=shape, schema=self.schema, token=token, cache=False,
         )
 
@@ -124,6 +135,7 @@ class Transform:
                         ds[key, i * length + k] = el
 
             list(self.map(upload_chunk, self._pbar(progressbar)(enumerate(batched_values), desc=f"Storing {key} tensor", total=len(value) // length)))
+        ds.commit()
         return ds
 
     def _pbar(self, show: bool = True):
@@ -132,7 +144,8 @@ class Transform:
         """
         def _empty_pbar(xs, **kwargs):
             return xs
-        return tqdm if show else _empty_pbar
+        single_threaded = self.map == map
+        return tqdm if show and single_threaded else _empty_pbar
 
     def _unwrap(self, results):
         """
@@ -146,7 +159,7 @@ class Transform:
                 items.extend(r)
         return items
 
-    def store(self, url: str, token: dict = None, length: int = None, ds: abc.Iterable = None, progressbar: bool = True):
+    def store(self, url: str, token: dict = None, length: int = None, ds: Iterable = None, progressbar: bool = True):
         """
         The function to apply the transformation for each element in batchified manner
 
@@ -159,7 +172,7 @@ class Transform:
             token is the parameter to pass the credentials, it can be filepath or dict
         length: int
             in case shape is None, user can provide length
-        ds: abc.Iterable
+        ds: Iterable
         progressbar: bool
             Show progress bar
         Returns
@@ -172,13 +185,13 @@ class Transform:
         
         def _func_argd(item):
             return self._func(item, **self.kwargs)
-        
+
         results = self.map(_func_argd, self._pbar(progressbar)(_ds, desc="Computing the transormation"))
         results = self._unwrap(results) 
         results = self.map(self._flatten_dict, results)
         results = self._split_list_to_dicts(results)
+
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
-        ds.commit()
         return ds
 
     def __len__(self):

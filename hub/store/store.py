@@ -6,7 +6,7 @@ from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
-from hub.azure_fs import AzureBlobFileSystem
+from hub.store.azure_fs import AzureBlobFileSystem
 import os
 
 
