@@ -1,12 +1,15 @@
 import hub
 import torch
 
-if __name__ == "__main__":
+
+def main():
     ds = hub.Dataset("eurosat/eurosat-rgb")
 
     # 26000 samples in dataset, accessing values
     print(ds["image"][10].numpy())
-    print(ds["label", 15].numpy())  # alternate way to access, by specifying both key and sample number at once
+    print(
+        ds["label", 15].numpy()
+    )  # alternate way to access, by specifying both key and sample number at once
     print(ds["filename", 20:22].numpy())  # accessing multiple elements at once
 
     # Splitting into train and test sets
@@ -31,11 +34,19 @@ if __name__ == "__main__":
     train_loader = torch.utils.data.DataLoader(train_pt_ds, batch_size=2)
 
     for batch in train_loader:
-        print(batch["label"], batch["image"])  # pytorch tensors don't support text labels such as filename
+        print(
+            batch["label"], batch["image"]
+        )  # pytorch tensors don't support text labels such as filename
         break
 
     test_pt_ds = test_ds.to_pytorch()
     test_loader = torch.utils.data.DataLoader(test_pt_ds, batch_size=2)
     for batch in test_loader:
-        print(batch["label"], batch["image"])  # pytorch tensors don't support text labels such as filename
+        print(
+            batch["label"], batch["image"]
+        )  # pytorch tensors don't support text labels such as filename
         break
+
+
+if __name__ == "__main__":
+    main()
