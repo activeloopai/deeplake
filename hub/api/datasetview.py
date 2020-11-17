@@ -9,7 +9,8 @@ class DatasetView:
         self,
         dataset=None,
         num_samples=None,
-        offset=None
+        offset=None,
+        squeeze_dim=False,
     ):
         """Creates a DatasetView object for a subset of the Dataset
 
@@ -21,6 +22,8 @@ class DatasetView:
             The number of samples in this DatasetView
         offset: int
             The offset from which the DatasetView starts
+        squuze_dim: bool
+            For slicing with integers we would love to remove the first dimension to make it nicer
         """
         if dataset is None:
             raise NoneValueException('dataset')
@@ -32,6 +35,7 @@ class DatasetView:
         self.dataset = dataset
         self.num_samples = num_samples
         self.offset = offset
+        self.squeeze_dim = squeeze_dim
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from DatasetView
@@ -42,8 +46,12 @@ class DatasetView:
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
+
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
+       
+        slice_list = [0] + slice_list if self.squeeze_dim else slice_list
+
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError(
@@ -51,7 +59,7 @@ class DatasetView:
                 )
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             return DatasetView(
-                dataset=self.dataset, num_samples=num, offset=ofs + self.offset
+                dataset=self.dataset, num_samples=num, offset=ofs + self.offset, squeeze_dim=isinstance(slice_list[0], int)
             )
         elif not slice_list:
             slice_ = slice(self.offset, self.offset + self.num_samples)
@@ -84,6 +92,7 @@ class DatasetView:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
+        slice_list = [0] + slice_list if self.squeeze_dim else slice_list
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
@@ -129,6 +138,11 @@ class DatasetView:
         
     def __iter__(self):
         """ Returns Iterable over samples """
+        if self.squeeze_dim: 
+            assert len(self) == 1
+            yield self
+            return
+
         for i in range(len(self)):
             yield self[i]
 

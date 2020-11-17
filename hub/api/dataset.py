@@ -271,7 +271,7 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without subpath"
                 )
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            return DatasetView(dataset=self, num_samples=num, offset=ofs)
+            return DatasetView(dataset=self, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(

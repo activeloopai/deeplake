@@ -30,8 +30,8 @@ def test_dataset(url="./data/test/dataset", token=None):
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
 
     sds = ds[5]
-    sds["label/a", 0, 50, 50] = 2
-    assert sds["label", 0, 50, 50, "a"].numpy() == 2
+    sds["label/a", 50, 50] = 2
+    assert sds["label", 50, 50, "a"].numpy() == 2
 
     ds["image", 5, 4, 100:200, 150:300, :] = np.ones((100, 150, 3), "uint8")
     assert (
@@ -133,8 +133,8 @@ def test_dataset_enter_exit():
         "./data/test/dataset", token=None, shape=(10000,), mode="w", schema=my_schema
     ) as ds:
         sds = ds[5]
-        sds["label/a", 0, 50, 50] = 2
-        assert sds["label", 0, 50, 50, "a"].numpy() == 2
+        sds["label/a", 50, 50] = 2
+        assert sds["label", 50, 50, "a"].numpy() == 2
 
         ds["image", 5, 4, 100:200, 150:300, :] = np.ones((100, 150, 3), "uint8")
         assert (
@@ -198,6 +198,17 @@ def test_dataset_azure():
     test_dataset("https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure", token=token)
 
 
+def test_datasetview_slicing():
+    dt = {"first": Tensor((100, 100))}
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+
+    assert ds["first", 0].numpy().shape == (100, 100)
+    assert ds["first", 0:1].numpy().shape == (1, 100, 100) 
+    assert ds[0]["first"].numpy().shape == (100, 100)
+    assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
+
+
 if __name__ == "__main__":
+    test_datasetview_slicing()
     test_dataset()
     test_dataset2()

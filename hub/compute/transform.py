@@ -1,5 +1,5 @@
 import os
-from typing import Dict
+from typing import Dict, Iterable
 
 import hub
 from hub.api.dataset import Dataset
@@ -103,7 +103,7 @@ class Transform:
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
 
-    def upload(self, ds, results, progressbar: bool = True):
+    def upload(self, results, url: str, token: dict, progressbar: bool = True):
         """ Batchified upload of results
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
@@ -120,6 +120,12 @@ class Transform:
         ds: hub.Dataset
             Uploaded dataset
         """
+
+        shape = (len(list(results.values())[0]),)
+        ds = hub.Dataset(
+            url, mode="w", shape=shape, schema=self.schema, token=token, cache=False,
+        )
+
         for key, value in results.items():
             length = ds[key].chunksize[0]
             batched_values = batchify(value, length)
@@ -131,6 +137,7 @@ class Transform:
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
                     else:
+                        # print("~", ds[key, i * length].compute(), batch)
                         ds[key, i * length] = batch[0]
                 else:
                     for k, el in enumerate(batch):
@@ -146,6 +153,18 @@ class Transform:
         def _empty_pbar(xs, **kwargs):
             return xs
         return tqdm if show else _empty_pbar
+
+    def _unwrap(self, results):
+        """
+        If there is any list then unwrap it into its elements
+        """
+        items = []
+        for r in results:
+            if isinstance(r, dict):
+                items.append(r)
+            else:
+                items.extend(r)
+        return items
 
     def store(self, url: str, token: dict = None, length: int = None, ds: abc.Iterable = None, progressbar: bool = True):
         """
@@ -170,18 +189,15 @@ class Transform:
         """
 
         _ds = ds or self._ds
-        shape = self._determine_shape(_ds, length)
-        ds = hub.Dataset(
-            url, mode="w", shape=shape, schema=self.schema, token=token, cache=False,
-        )
-
+        
         def _func_argd(item):
             return self._func(item, **self.kwargs)
-
+        
         results = self.map(_func_argd, self._pbar(progressbar)(_ds, desc="Computing the transormation"))
+        results = self._unwrap(results) 
         results = self.map(self._flatten_dict, results)
         results = self._split_list_to_dicts(results)
-        ds = self.upload(ds, results, progressbar)
+        ds = self.upload(results, url=url, token=token, progressbar=progressbar)
         ds.commit()
         return ds
 
@@ -203,11 +219,13 @@ class Transform:
         subpath, slice_list = slice_split(slice_)
 
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-        ds_view = DatasetView(dataset=self._ds, num_samples=num, offset=ofs)
+        ds_view = DatasetView(dataset=self._ds, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
 
         path = os.path.expanduser("~/.activeloop/tmp")
         new_ds = self.store(path, length=num, ds=ds_view, progressbar=True)
-        slice_[1] = slice(None, None, None)  # Get all shape dimension since we already sliced
+
+        index = 1 if len(slice_) > 1 else 0
+        slice_[index] = slice(None, None, None)  # Get all shape dimension since we already sliced
         return new_ds[slice_]
 
     def __iter__(self):

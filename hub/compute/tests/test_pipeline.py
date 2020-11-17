@@ -30,17 +30,17 @@ def test_pipeline_basic():
     @hub.transform(schema=my_schema)
     def my_transform(sample, multiplier: int = 2):
         return {
-            "image": sample["image"].numpy() * multiplier,
-            "label": sample["label"].numpy(),
+            "image": sample["image"].compute() * multiplier,
+            "label": sample["label"].compute(),
         }
 
     out_ds = my_transform(ds, multiplier=2)
-    assert (out_ds["image", 0].numpy() == 2).all()
+    assert (out_ds["image", 0].compute() == 2).all()
     assert len(list(out_ds)) == 100
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
 
-    assert res_ds["label", 5].numpy() == "hello 5"
-    assert (res_ds["image", 4].numpy() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
+    assert res_ds["label", 5].compute() == "hello 5"
+    assert (res_ds["image", 4].compute() == 2 * np.ones((28, 28, 4), dtype="int32")).all()
     assert len(res_ds) == len(out_ds)
     assert res_ds.shape[0] == out_ds.shape[0] 
     assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
@@ -56,13 +56,13 @@ def test_pipeline_dynamic():
     @hub.transform(schema=dynamic_schema)
     def dynamic_transform(sample, multiplier: int = 2):
         return {
-            "image": sample["image"].numpy() * multiplier,
-            "label": sample["label"].numpy(),
+            "image": sample["image"].compute() * multiplier,
+            "label": sample["label"].compute(),
         }
 
     out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
 
-    assert (out_ds["image", 0].numpy() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
+    assert (out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
 
 
 @pytest.mark.skipif(
@@ -96,7 +96,7 @@ def test_pathos(sample_size=100, width=100, channels=4, dtype="uint8"):
 
         ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
 
-    assert (ds_t["image", :].numpy() == 255).all()
+    assert (ds_t["image", :].compute() == 255).all()
 
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
