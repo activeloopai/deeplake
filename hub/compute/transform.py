@@ -221,7 +221,7 @@ class Transform:
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
         ds_view = DatasetView(dataset=self._ds, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
 
-        path = os.path.expanduser("~/.activeloop/tmp")
+        path = os.path.expanduser("~/.activeloop/tmparray")
         new_ds = self.store(path, length=num, ds=ds_view, progressbar=True)
 
         index = 1 if len(slice_) > 1 else 0
