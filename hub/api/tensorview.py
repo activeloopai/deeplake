@@ -183,3 +183,11 @@ class TensorView:
                 shape.append(shape[i])
         final_shape = [dim for dim in shape if dim != 1]
         return tuple(final_shape)
+
+    @property
+    def chunksize(self):
+        return self.dataset._tensors[self.subpath].chunksize
+
+    @property
+    def is_dynamic(self):
+        return self.dataset._tensors[self.subpath].is_dynamic

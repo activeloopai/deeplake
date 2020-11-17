@@ -6,7 +6,7 @@ from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
-from hub.azure_fs import AzureBlobFileSystem
+from hub.store.azure_fs import AzureBlobFileSystem
 import os
 
 
@@ -86,6 +86,8 @@ def _get_storage_map(fs, path):
 def get_storage_map(fs, path, memcache=2 ** 26, lock=True):
     store = _get_storage_map(fs, path)
     cache_path = os.path.join("~/.activeloop/cache/", path)
+    if memcache == 0 or memcache is False:
+        return store
     return Cache(store, memcache, path=cache_path, lock=lock)
 
 

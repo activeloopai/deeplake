@@ -316,28 +316,14 @@ class DynamicTensor:
                 return i, self.shape[i], self.chunksize[i]
         return 0, self.shape[0], self.chunksize[0]
 
-    def chunk_slice_iterator(self):
-        """
-        Get an iterator over chunk coordinates
-        """
-        # FIXME assume chunking is done in one dimension
-        nth, shpd, chnkd = self._get_chunking_dim()
-        n_els = int(shpd / chnkd)
-        for i in range(n_els):
-            yield [1] * nth + [slice(i * chnkd, (i + 1) * chnkd)]
-
-    def chunk_iterator(self):
-        """
-        Get an iterator over chunks
-        """
-        slices = self.chunk_slice_iterator()
-        for slice_chunk in slices:
-            yield self.__getitem__(*slice_chunk)
-
     def commit(self):
         self._storage_tensor.store.commit()
         if self._dynamic_tensor:
             self._dynamic_tensor.store.commit()
+
+    @property
+    def is_dynamic(self):
+        return False if self._dynamic_tensor is None else True
 
 
 def get_dynamic_dims(shape):

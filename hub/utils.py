@@ -57,6 +57,26 @@ def pytorch_loaded():
     return True
 
 
+def ray_loaded():
+    try:
+        import ray
+
+        ray.__version__
+    except ImportError:
+        return False
+    return True
+
+
+def dask_loaded():
+    try:
+        import ray
+
+        ray.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def tensorflow_loaded():
     try:
         import tensorflow
@@ -77,17 +97,27 @@ def tfds_loaded():
     return True
 
 
+def pathos_loaded():
+    try:
+        import pathos
+
+        pathos.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def compute_lcm(a):
     """
     Lowest Common Multiple of a list a
     """
     lcm = a[0]
     for i in a[1:]:
-        lcm = lcm * i / gcd(lcm, i)
+        lcm = lcm * i // gcd(lcm, i)
     return int(lcm)
 
 
-def batch(iterable, n=1):
+def batchify(iterable, n=1):
     """
     Batchify an iteratable
     """

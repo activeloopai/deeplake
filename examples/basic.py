@@ -1,6 +1,5 @@
 from hub import Dataset, features
 import numpy as np
-from hub import dev_mode
 
 
 def main():

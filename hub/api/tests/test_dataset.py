@@ -198,6 +198,17 @@ def test_dataset_azure():
     test_dataset("https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure", token=token)
 
 
+def test_datasetview_slicing():
+    dt = {"first": Tensor((100, 100))}
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+
+    assert ds["first", 0].numpy().shape == (100, 100)
+    assert ds["first", 0:1].numpy().shape == (1, 100, 100) 
+    assert ds[0]["first"].numpy().shape == (100, 100)
+    assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
+
+
 if __name__ == "__main__":
-    # test_dataset()
+    test_datasetview_slicing()
+    test_dataset()
     test_dataset2()

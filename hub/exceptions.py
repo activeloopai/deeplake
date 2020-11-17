@@ -151,15 +151,18 @@ class PermissionException(HubException):
         message = f"No permision to store the dataset at {response}"
         super(PermissionException, self).__init__(message=message)
 
+
 class ShapeArgumentNotFoundException(HubException):
     def __init__(self):
         message = f"Parameter 'shape' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
+
 class SchemaArgumentNotFoundException(HubException):
     def __init__(self):
         message = f"Parameter 'schema' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
+
 
 class ValueShapeError(HubException):
     def __init__(self, correct_shape, wrong_shape):
@@ -181,17 +184,20 @@ class ModuleNotInstalledException(HubException):
         message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
         super(HubException, self).__init__(message=message)
 
+
 class WrongUsernameException(HubException):
     def __init__(self, username):
         message = f"The username {username} was not found. Make sure that the username provided in the url " \
                    "matches the one used during login."
         super(HubException, self).__init__(message=message)
 
+
 class NotHubDatasetToOverwriteException(HubException):
     def __init__(self):
         message = "Unable to overwrite the dataset. "  \
                 "The provided directory is not empty and doesn't contain information about any Hub Dataset "
         super(HubException, self).__init__(message=message)
+
 
 class NotHubDatasetToAppendException(HubException):
     def __init__(self):
@@ -215,6 +221,18 @@ class DynamicTensorShapeException(Exception):
         else:
             message = "Wrong 'shape' or 'max_shape' values"
         super(HubException, self).__init__(message=message)
+
+class NotIterable(HubException):
+    def __init__(self):
+        message = "First argument to transform function should be iterable"
+        super(HubException, self).__init__(message=message)
+
+
+class AdvancedSlicingNotSupported(HubException):
+    def __init__(self):
+        message = "Advanced slicing is not supported, only support index"
+        super(HubException, self).__init__(message=message)
+
 
 class NotZarrFolderException(Exception):
     pass
