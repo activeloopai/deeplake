@@ -40,7 +40,7 @@ from hub.exceptions import (
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
     NoneValueException,
-    ShapeLengthException
+    ShapeLengthException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -113,7 +113,7 @@ class Dataset:
             if len(tuple(shape)) != 1:
                 raise ShapeLengthException
         if mode is None:
-            raise NoneValueException('mode')
+            raise NoneValueException("mode")
 
         self.url = url
         self.token = token
@@ -165,7 +165,10 @@ class Dataset:
 
         self.username = None
         self.dataset_name = None
-        if needcreate and (self._path.startswith("s3://snark-hub-dev/") or self._path.startswith("s3://snark-hub/")):
+        if needcreate and (
+            self._path.startswith("s3://snark-hub-dev/")
+            or self._path.startswith("s3://snark-hub/")
+        ):
             subpath = self._path[5:]
             spl = subpath.split("/")
             if len(spl) < 4:
@@ -216,6 +219,8 @@ class Dataset:
             return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
         elif compressor.lower() == "zstd":
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+        elif compressor.lower() == "default":
+            return "default"
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
