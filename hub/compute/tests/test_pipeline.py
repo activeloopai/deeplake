@@ -10,6 +10,7 @@ from hub.utils import ray_loaded, pathos_loaded, Timer
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
     "label": "<U20",
+    "confidence": "float",
 }
 
 dynamic_schema = {
@@ -26,12 +27,14 @@ def test_pipeline_basic():
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
+        ds["confidence", i] = 0.2
 
     @hub.transform(schema=my_schema)
     def my_transform(sample, multiplier: int = 2):
         return {
             "image": sample["image"].compute() * multiplier,
             "label": sample["label"].compute(),
+            "confidence": sample["confidence"].compute() * multiplier
         }
 
     out_ds = my_transform(ds, multiplier=2)
@@ -63,6 +66,26 @@ def test_pipeline_dynamic():
     out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
 
     assert (out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
+
+
+def test_pipeline_multiple():
+    ds = hub.Dataset(
+        "./data/test/test_pipeline_dynamic3", mode="w", shape=(1,), schema=dynamic_schema, cache=False
+    )
+    
+    ds["image", 0] = np.ones((30, 32, 3))
+
+    @hub.transform(schema=dynamic_schema)
+    def dynamic_transform(sample, multiplier: int = 2):
+        return [{
+            "image": sample["image"].compute() * multiplier,
+            "label": sample["label"].compute(),
+        } for i in range(4)]
+
+    out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
+    assert len(out_ds) == 4 
+    assert (out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
+
 
 
 @pytest.mark.skipif(

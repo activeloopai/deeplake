@@ -34,26 +34,6 @@ class Transform:
         self.kwargs = kwargs
         self.map = map
 
-    def _determine_shape(self, ds: Dataset, length: int):
-        """
-        Helper function to determine the shape of the newly created dataset
-
-        Parameters
-        ----------
-        length: int
-            in case shape is None, user can provide length
-        """
-        shape = ds.shape if hasattr(ds, "shape") else None
-        if shape is None:
-            if length is not None:
-                shape = (length,)
-            else:
-                try:
-                    shape = (len(ds),)
-                except Exception as e:
-                    raise e
-        return shape
-
     def _flatten_dict(self, d: Dict, parent_key=''):
         """
         Helper function to flatten dictionary of a recursive tensor
