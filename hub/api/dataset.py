@@ -1,4 +1,3 @@
-from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
@@ -17,14 +16,12 @@ from hub.features.features import (
     FeatureDict,
     HubFeature,
     featurify,
-    FlatTensor,
 )
 from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split
-from hub.utils import compute_lcm
 
 import hub.features.serialize
 import hub.features.deserialize
@@ -39,13 +36,13 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    WrongUsernameException,
+    NoneValueException,
+    ShapeLengthException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
-import traceback
 
 try:
     import torch
@@ -80,7 +77,6 @@ class Dataset:
         lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
-
         Parameters
         ----------
         url: str
@@ -101,6 +97,7 @@ class Dataset:
         fs_map: optional
         cache: int, optional
             Size of the cache. Default is 2GB (2**20)
+            if zero or flase, then cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
         """
@@ -109,8 +106,10 @@ class Dataset:
         if isinstance(shape, int):
             shape = [shape]
         if shape is not None:
-            assert len(tuple(shape)) == 1
-        assert mode is not None
+            if len(tuple(shape)) != 1:
+                raise ShapeLengthException
+        if mode is None:
+            raise NoneValueException("mode")
 
         self.url = url
         self.token = token
@@ -162,8 +161,9 @@ class Dataset:
 
         self.username = None
         self.dataset_name = None
-        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
-            "s3://snark-hub/"
+        if needcreate and (
+            self._path.startswith("s3://snark-hub-dev/")
+            or self._path.startswith("s3://snark-hub/")
         ):
             subpath = self._path[5:]
             spl = subpath.split("/")
@@ -182,12 +182,6 @@ class Dataset:
         Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
-        if path.startswith("s3://"):
-            with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
-                stored_username = json.load(f)["_id"]
-            current_username = path.split("/")[-2]
-            if stored_username != current_username:
-                raise WrongUsernameException(current_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
@@ -221,6 +215,8 @@ class Dataset:
             return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
         elif compressor.lower() == "zstd":
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+        elif compressor.lower() == "default":
+            return "default"
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
@@ -263,12 +259,9 @@ class Dataset:
     def __getitem__(self, slice_):
         """| Gets a slice or slices from dataset
         | Usage:
-
         >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
-
         >>> images = ds["image"]
         >>> return images[5].numpy() # returns numpy array
-
         >>> images = ds["image"]
         >>> image = images[5]
         >>> return image[0:1920, 0:1080, 0:3].numpy()
@@ -283,7 +276,7 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without subpath"
                 )
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            return DatasetView(dataset=self, num_samples=num, offset=ofs)
+            return DatasetView(dataset=self, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(
@@ -301,9 +294,7 @@ class Dataset:
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
         | Usage
-
          >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
-
         >>> images = ds["image"]
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
@@ -312,6 +303,7 @@ class Dataset:
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
@@ -331,19 +323,35 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None):
-        """Converts the dataset into a pytorch compatible format"""
+    def to_pytorch(self, Transform=None, offset=None, num_samples=None):
+        """Converts the dataset into a pytorch compatible format
+        Parameters
+        ----------
+        offset: int, optional
+            The offset from which dataset needs to be converted
+        num_samples: int, optional
+            The number of samples required of the dataset that needs to be converted
+        """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
-        return TorchDataset(self, Transform)
+        return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
-    def to_tensorflow(self):
-        """Converts the dataset into a tensorflow compatible format"""
+    def to_tensorflow(self, offset=None, num_samples=None):
+        """Converts the dataset into a tensorflow compatible format
+        Parameters
+        ----------
+        offset: int, optional
+            The offset from which dataset needs to be converted
+        num_samples: int, optional
+            The number of samples required of the dataset that needs to be converted
+        """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        offset = 0 if offset is None else offset
+        num_samples = self.shape[0] if num_samples is None else num_samples
 
         def tf_gen():
-            for index in range(self.shape[0]):
+            for index in range(offset, offset + num_samples):
                 d = {}
                 for key in self._tensors.keys():
                     split_key = key.split("/")
@@ -372,6 +380,8 @@ class Dataset:
             elif isinstance(my_dtype, Tensor):
                 return tensor_to_tf(my_dtype)
             elif isinstance(my_dtype, Primitive):
+                if str(my_dtype._dtype) == "object":
+                    return "string"
                 return str(my_dtype._dtype)
 
         def get_output_shapes(my_dtype):
@@ -390,7 +400,7 @@ class Dataset:
 
         output_types = dtype_to_tf(self.schema)
         output_shapes = get_output_shapes(self.schema)
-        # print(output_shapes)
+
         return tf.data.Dataset.from_generator(
             tf_gen, output_types=output_types, output_shapes=output_shapes
         )
@@ -443,12 +453,6 @@ class Dataset:
         self.commit()
 
     @property
-    def chunksize(self):
-        # FIXME assumes chunking is done on the first sample
-        chunks = [t.chunksize[0] for t in self._tensors.values()]
-        return compute_lcm(chunks)
-
-    @property
     def keys(self):
         """
         Get Keys of the dataset
@@ -476,7 +480,6 @@ class Dataset:
         ds = ds.to_tensorflow()
         out_ds = hub.Dataset.from_tensorflow(ds)
         res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
-
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
@@ -493,8 +496,9 @@ class Dataset:
                 return TensorSpec_to_hub(tf_dt)
 
         def TensorSpec_to_hub(tf_dt):
+            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
             shape = tf_dt.shape if tf_dt.shape.rank is not None else (None,)
-            return Tensor(shape=shape, dtype=tf_dt.dtype.name)
+            return Tensor(shape=shape, dtype=dt)
 
         def dict_to_hub(tf_dt):
             d = {
@@ -633,11 +637,13 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None):
+    def __init__(self, ds, transform=None, num_samples=None, offset=None):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
         self._transform = transform
+        self.num_samples = num_samples
+        self.offset = offset
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -651,9 +657,10 @@ class TorchDataset:
 
     def __len__(self):
         self._init_ds()
-        return self._ds.shape[0]
+        return self.num_samples if self.num_samples is not None else self._ds.shape[0]
 
     def __getitem__(self, index):
+        index = index + self.offset if self.offset is not None else index
         self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
@@ -665,8 +672,8 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-
-            cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+            if not isinstance(self._ds._tensors[key][index], bytes):
+                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):

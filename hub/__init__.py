@@ -7,7 +7,7 @@ from .collections.dataset import load as load_v0
 from .collections.client_manager import init
 import hub.config
 from hub.api.dataset import Dataset
-from hub.compute.pipeline import transform
+from hub.compute import transform
 from hub.log import logger
 
 

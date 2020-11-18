@@ -8,7 +8,10 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 
-from hub.exceptions import DynamicTensorNotFoundException, ValueShapeError
+from hub.exceptions import (DynamicTensorNotFoundException, 
+ValueShapeError,
+DynamicTensorShapeException
+) 
 from hub.api.dataset_utils import slice_extract_info
 
 
@@ -155,13 +158,15 @@ class DynamicTensor:
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
         self.dtype = self._storage_tensor.dtype
-        assert len(self.shape) == len(self.max_shape)
+        if len(self.shape) != len(self.max_shape):
+            raise DynamicTensorShapeException('length')
         for item in self.max_shape:
-            assert item is not None
+            if item is None:
+                raise DynamicTensorShapeException('none')
         for item in zip(self.shape, self.max_shape):
             if item[0] is not None:
-                # FIXME throw an error and explain whats wrong
-                assert item[0] == item[1]
+                if item[0] != item[1]:
+                    raise DynamicTensorShapeException('not_equal')
 
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
@@ -315,28 +320,14 @@ class DynamicTensor:
                 return i, self.shape[i], self.chunksize[i]
         return 0, self.shape[0], self.chunksize[0]
 
-    def chunk_slice_iterator(self):
-        """
-        Get an iterator over chunk coordinates
-        """
-        # FIXME assume chunking is done in one dimension
-        nth, shpd, chnkd = self._get_chunking_dim()
-        n_els = int(shpd / chnkd)
-        for i in range(n_els):
-            yield [1] * nth + [slice(i * chnkd, (i + 1) * chnkd)]
-
-    def chunk_iterator(self):
-        """
-        Get an iterator over chunks
-        """
-        slices = self.chunk_slice_iterator()
-        for slice_chunk in slices:
-            yield self.__getitem__(*slice_chunk)
-
     def commit(self):
         self._storage_tensor.store.commit()
         if self._dynamic_tensor:
             self._dynamic_tensor.store.commit()
+
+    @property
+    def is_dynamic(self):
+        return False if self._dynamic_tensor is None else True
 
 
 def get_dynamic_dims(shape):

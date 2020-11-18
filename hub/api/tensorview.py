@@ -1,5 +1,6 @@
 import collections.abc as abc
 from hub.api.dataset_utils import slice_split
+from hub.exceptions import NoneValueException
 
 
 class TensorView:
@@ -21,8 +22,10 @@ class TensorView:
             The `slice_` of this Tensor that needs to be accessed
         """
 
-        assert dataset is not None
-        assert subpath is not None
+        if dataset is None:
+            raise NoneValueException('dataset')
+        if subpath is None:
+            raise NoneValueException('subpath')
 
         self.dataset = dataset
         self.subpath = subpath
@@ -172,3 +175,11 @@ class TensorView:
                 offset += 1
         new_slice_ = new_slice_ + slice_[offset:]
         return new_slice_
+
+    @property
+    def chunksize(self):
+        return self.dataset._tensors[self.subpath].chunksize
+
+    @property
+    def is_dynamic(self):
+        return self.dataset._tensors[self.subpath].is_dynamic
