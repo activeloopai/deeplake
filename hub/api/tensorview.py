@@ -51,7 +51,6 @@ class TensorView:
         self.nums[0] = self.dataset.shape[0] - self.offsets[0] if self.nums[0] is None else self.nums[0]
         self.dtype = self.dtype_from_path(subpath)
         self.set_shape()
-        a = 1
 
     def numpy(self):
         """Gets the value from tensorview"""
@@ -175,6 +174,12 @@ class TensorView:
                 offset += 1
         new_slice_ = new_slice_ + slice_[offset:]
         return new_slice_
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        return "TensorView(" + str(self.dtype) + ", subpath=" + "\'" + self.subpath + "\', slice=" + str(self.slice_) + ")"
 
     def set_shape(self):
         if self.is_dynamic:

@@ -31,7 +31,7 @@ class Audio(Tensor):
             additional metadata exposed to the user through
             `info.features['audio'].sample_rate`. This value isn't used neither in
             encoding nor decoding.
-        
+
 
         Raises
         ----------
@@ -44,10 +44,21 @@ class Audio(Tensor):
             )
         # self._shape = shape
         self.sample_rate = sample_rate
-        super(Audio, self).__init__(
+        super().__init__(
             shape=shape, dtype=dtype, max_shape=max_shape, chunks=chunks
         )
 
     def get_attr_dict(self):
         """Return class attributes."""
         return self.__dict__
+
+    def __str__(self):
+        out = super().__str__()
+        out = "Audio" + out[6: -1]
+        out = out + ", file_format=" + self.file_format if self.file_format is not None else out
+        out = out + ", sample_rate=" + self.sample_rate if self.sample_rate is not None else out
+        out += ")"
+        return out
+
+    def __repr__(self):
+        return self.__str__()

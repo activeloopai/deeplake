@@ -446,6 +446,13 @@ class Dataset:
                 self.username, self.dataset_name, "UPLOADED"
             )
 
+    def __str__(self):
+        out = "Dataset(schema=" + str(self.schema) + "url=" + "\'" + self.url + "\'" + ", shape=" + str(self.shape) + ", mode=" + "\'" + self.mode + "\')"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
+
     def __enter__(self):
         return self
 
