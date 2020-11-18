@@ -48,6 +48,7 @@ class TensorView:
             self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
         else:
             self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
+            self.shape = self.shape[0] if len(self.shape) == 1 else self.shape
 
     def numpy(self):
         """Gets the value from tensorview"""
