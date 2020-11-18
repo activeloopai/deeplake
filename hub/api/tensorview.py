@@ -42,9 +42,12 @@ class TensorView:
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
+        self.nums[0] = self.dataset.shape[0] - self.offsets[0] if self.nums[0] is None else self.nums[0]
         self.dtype = self.dtype_from_path(subpath)
-        tensor_shape = self.dtype.shape if hasattr(self.dtype, "shape") else (1,)
-        self.shape = self.make_shape(tensor_shape)
+        if self.dataset._tensors[self.subpath]._dynamic_tensor is None:
+            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
+        else:
+            self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
 
     def numpy(self):
         """Gets the value from tensorview"""
@@ -168,15 +171,3 @@ class TensorView:
                 offset += 1
         new_slice_ = new_slice_ + slice_[offset:]
         return new_slice_
-
-    def make_shape(self, shape):
-        "Combines the Tensorview slice and underlying shape to get the shape represented by it"
-        shape = []
-        shape.append(self.nums[0])
-        for i in range(len(shape)):
-            if i + 1 < len(self.nums):
-                shape.append(self.nums[i + 1])
-            else:
-                shape.append(shape[i])
-        final_shape = [dim for dim in shape if dim != 1]
-        return tuple(final_shape)
