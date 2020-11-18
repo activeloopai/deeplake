@@ -203,12 +203,28 @@ def test_datasetview_slicing():
     ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
 
     assert ds["first", 0].numpy().shape == (100, 100)
-    assert ds["first", 0:1].numpy().shape == (1, 100, 100) 
+    assert ds["first", 0:1].numpy().shape == (1, 100, 100)
     assert ds[0]["first"].numpy().shape == (100, 100)
     assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
 
 
+def test_tensorview_slicing():
+    dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+    tv = ds["first", 5:6, 7:10, 9:10]
+    assert(tv.numpy().shape == (1, 3, 1))
+    assert(tv.numpy().shape == tv.shape)
+    tv2 = ds["first", 5:6, 7:10, 9]
+    assert(tv2.numpy().shape == (1, 3))
+    assert(tv2.numpy().shape == tv2.shape)
+    tv3 = ds["first", 5:10, 2, 3:39]
+    tv4 = tv3[3:5, 5:17]
+    assert (tv4.numpy().shape == (2, 36))
+    assert(tv2.numpy().shape == [(36,), (36,)])  # for dynamic_tensor multiple shapes are returned as list of shapes
+
+
 if __name__ == "__main__":
+    test_tensorview_slicing()
     test_datasetview_slicing()
     test_dataset()
     test_dataset2()

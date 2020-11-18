@@ -36,18 +36,22 @@ class TensorView:
             self.slice_ = list(slice_)
         self.nums = []
         self.offsets = []
+        self.squeeze_dims = []
         for it in self.slice_:
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
+                self.squeeze_dims.append(True)
             elif isinstance(it, slice):
                 ofs = it.start if it.start else 0
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
+                self.squeeze_dims.append(False)
         self.nums[0] = self.dataset.shape[0] - self.offsets[0] if self.nums[0] is None else self.nums[0]
         self.dtype = self.dtype_from_path(subpath)
         self.set_shape()
+        a = 1
 
     def numpy(self):
         """Gets the value from tensorview"""
@@ -160,26 +164,26 @@ class TensorView:
         return cur_type[path[-1]]
 
     def slice_fill(self, slice_):
-        "Fills the slice with zeroes for the dimensions that have single elements"
+        "Fills the slice with zeroes for the dimensions that have single elements and squeeze_dims true"
         new_slice_ = []
         offset = 0
-        for num in self.nums:
-            if num == 1:
+        for i, num in enumerate(self.nums):
+            if num == 1 and self.squeeze_dims[i]:
                 new_slice_.append(0)
-            else:
+            elif offset < len(slice_):
                 new_slice_.append(slice_[offset])
                 offset += 1
         new_slice_ = new_slice_ + slice_[offset:]
         return new_slice_
 
     def set_shape(self):
-        if self.dataset._tensors[self.subpath]._dynamic_tensor is None:
-            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
-        else:
+        if self.is_dynamic:
             self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
             if len(self.shape) == 1:
                 self.shape = self.shape[0]
                 self.shape = (1,) + self.shape if isinstance(self.slice_[0], slice) else self.shape
+        else:
+            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
     @property
     def chunksize(self):
