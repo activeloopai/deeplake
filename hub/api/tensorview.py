@@ -47,11 +47,7 @@ class TensorView:
                 self.offsets.append(ofs)
         self.nums[0] = self.dataset.shape[0] - self.offsets[0] if self.nums[0] is None else self.nums[0]
         self.dtype = self.dtype_from_path(subpath)
-        if self.dataset._tensors[self.subpath]._dynamic_tensor is None:
-            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
-        else:
-            self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
-            self.shape = self.shape[0] if len(self.shape) == 1 else self.shape
+        self.set_shape()
 
     def numpy(self):
         """Gets the value from tensorview"""
@@ -175,6 +171,15 @@ class TensorView:
                 offset += 1
         new_slice_ = new_slice_ + slice_[offset:]
         return new_slice_
+
+    def set_shape(self):
+        if self.dataset._tensors[self.subpath]._dynamic_tensor is None:
+            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
+        else:
+            self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
+            if len(self.shape) == 1:
+                self.shape = self.shape[0]
+                self.shape = (1,) + self.shape if isinstance(self.slice_[0], slice) else self.shape
 
     @property
     def chunksize(self):
