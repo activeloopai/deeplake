@@ -25,7 +25,9 @@ def test_tensorview_shapes_2(url="./data/test/dataset", token=None):
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds["image", 4] = np.ones((7, 10, 20))
     assert(ds["image", 4, 3:6].shape == (3, 10, 20))
-    assert(ds["fixed", 4, 7:11].shape == (4, 50, 100))
+    assert(ds["image", 4, 3:6, 5:6].shape == (3, 1, 20))
+    assert(ds["fixed", 4, 7:11, 8:9].shape == (4, 1, 100))
+    assert(ds["fixed", 4, 7:11, 8].shape == (4, 100))
 
 
 if __name__ == "__main__":
