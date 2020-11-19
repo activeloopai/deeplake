@@ -144,6 +144,30 @@ def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8")
     assert (ds_t["image", :].compute() == 255).all()
 
 
+def test_pipeline():
+    ds = hub.Dataset(
+        "./data/test/test_pipeline_multiple", mode="w", shape=(100,), schema=my_schema
+    )
+
+    for i in range(len(ds)):
+        ds["image", i] = np.ones((28, 28, 4), dtype="int32")
+        ds["label", i] = f"hello {i}"
+        ds["confidence", i] = 0.2
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample, multiplier: int = 2):
+        return {
+            "image": sample["image"].compute() * multiplier,
+            "label": sample["label"].compute(),
+            "confidence": sample["confidence"].compute() * multiplier,
+        }
+
+    out_ds = my_transform(ds, multiplier=2)
+    out_ds = my_transform(out_ds, multiplier=2)
+    out_ds.store("./data/test/test_pipeline_multiple_2")
+    assert (out_ds["image", 0].compute() == 4).all()
+
+
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
     zarr_fs = zarr.zeros(
@@ -212,9 +236,11 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
+    test_pipeline()
     test_pipeline_basic()
-    # test_multiprocessing()
-
-    # test_pipeline_dynamic()
-    # test_pathos()
+    test_multiprocessing()
+    test_pipeline_dynamic()
     # benchmark()
+    
+
+

@@ -36,7 +36,9 @@ class RayTransform(Transform):
         """
         Remote wrapper for user defined function
         """
-        _ds.squeeze_dim = False
+        if isinstance(_ds, Dataset):
+            _ds.squeeze_dim = False
+            
         item = _ds[index]
         item = _func(item, **kwargs)
         # item = self._unwrap(item) <- this will not work, need some tricks with ray

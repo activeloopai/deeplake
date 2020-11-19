@@ -1,4 +1,5 @@
 import os
+import zarr
 from typing import Dict, Iterable
 from hub.api.dataset import Dataset
 from tqdm import tqdm
@@ -9,6 +10,7 @@ import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
 from hub.features import Primitive
+
 
 try:
     from ray.util.multiprocessing import Pool as RayPool
@@ -141,6 +143,7 @@ class Transform:
             shape=shape,
             schema=self.schema,
             token=token,
+            fs=zarr.storage.MemoryStore() if "tmp" in url else None,
             cache=False,
         )
 
@@ -270,8 +273,8 @@ class Transform:
         new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
 
         index = 1 if len(slice_) > 1 else 0
-        slice_[index] = slice(
-            None, None, None
+        slice_[index] = (
+            slice(None, None, None) if not isinstance(slice_list[0], int) else 0
         )  # Get all shape dimension since we already sliced
         return new_ds[slice_]
 

@@ -9,6 +9,7 @@ class TensorView:
         dataset=None,
         subpath=None,
         slice_=None,
+        squeeze_dims=[],
     ):
         """Creates a TensorView object for a particular tensor in the dataset
 
@@ -36,8 +37,10 @@ class TensorView:
             self.slice_ = list(slice_)
         self.nums = []
         self.offsets = []
+
         self.squeeze_dims = []
         for it in self.slice_:
+            
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
@@ -72,6 +75,7 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if subpath:
             raise ValueError("Can't slice a Tensor with string")
         else:
@@ -101,6 +105,7 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if subpath:
             raise ValueError("Can't slice a Tensor with multiple slices without subpath")
         else:

@@ -64,7 +64,7 @@ class DatasetView:
         elif not slice_list:
             slice_ = slice(self.offset, self.offset + self.num_samples)
             if subpath in self.dataset._tensors.keys():
-                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
+                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_, squeeze_dims=[True] if self.squeeze_dim else [])
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
@@ -75,7 +75,7 @@ class DatasetView:
             )
             if subpath in self.dataset._tensors.keys():
                 return TensorView(
-                    dataset=self.dataset, subpath=subpath, slice_=slice_list
+                    dataset=self.dataset, subpath=subpath, slice_=slice_list, squeeze_dims=[True] if self.squeeze_dim else []
                 )
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
@@ -130,7 +130,7 @@ class DatasetView:
                     cur = cur[split_key[i]]
                 slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
                 cur[split_key[-1]] = TensorView(
-                    dataset=self.dataset, subpath=key, slice_=slice_
+                    dataset=self.dataset, subpath=key, slice_=slice_, squeeze_dims=[True] if self.squeeze_dim else []
                 )
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
