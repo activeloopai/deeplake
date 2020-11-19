@@ -9,9 +9,7 @@ import numpy as np
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
     "label": "<U20",
-    "confidence": {
-        "confidence": "float"
-    },
+    "confidence": {"confidence": "float"},
 }
 
 
@@ -21,9 +19,13 @@ my_schema = {
 )
 def test_pipeline_ray():
     ds = hub.Dataset(
-        "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema, cache=False
+        "./data/test/test_pipeline_basic",
+        mode="w",
+        shape=(100,),
+        schema=my_schema,
+        cache=False,
     )
-    
+
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28, 4), dtype="int32")
         ds["label", i] = f"hello {i}"
@@ -36,13 +38,13 @@ def test_pipeline_ray():
             "label": sample["label"].compute(),
             "confidence": {
                 "confidence": sample["confidence/confidence"].compute() * multiplier
-            }
+            },
         }
 
     out_ds = my_transform(ds, multiplier=2)
     assert (out_ds["image", 0].compute() == 2).all()
     assert len(list(out_ds)) == 100
-    res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
+    out_ds.store("./data/test/test_pipeline_basic_output")
 
 
 if __name__ == "__main__":

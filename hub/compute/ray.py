@@ -5,6 +5,7 @@ from typing import Iterable
 
 try:
     import ray
+
     remote = ray.remote
 except Exception:
 
@@ -12,9 +13,11 @@ except Exception:
         """
         remote template
         """
+
         def wrapper(func):
             def inner(**kwargs):
                 return func
+
             return inner
 
         return wrapper
@@ -22,12 +25,14 @@ except Exception:
 
 class RayTransform(Transform):
     def __init__(self, func, schema, ds, scheduler="ray", nodes=1, **kwargs):
-        super(RayTransform, self).__init__(func, schema, ds, scheduler="single", nodes=nodes, **kwargs)
+        super(RayTransform, self).__init__(
+            func, schema, ds, scheduler="single", nodes=nodes, **kwargs
+        )
         if not ray.is_initialized():
             ray.init()
 
     @remote
-    def _func_argd(_func, index, _ds, **kwargs):
+    def _func_argd(_func, index, _ds, schema, **kwargs):
         """
         Remote wrapper for user defined function
         """
@@ -35,10 +40,17 @@ class RayTransform(Transform):
         item = _ds[index]
         item = _func(item, **kwargs)
         # item = self._unwrap(item) <- this will not work, need some tricks with ray
-        item = Transform._flatten_dict(item)
+        item = Transform._flatten_dict(item, schema=schema)
         return list(item.values())
 
-    def store(self, url: str, token: dict = None, length: int = None, ds: Iterable = None, progressbar: bool = True):
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        length: int = None,
+        ds: Iterable = None,
+        progressbar: bool = True,
+    ):
         """
         The function to apply the transformation for each element in batchified manner
 
@@ -62,8 +74,13 @@ class RayTransform(Transform):
 
         _ds = ds or self._ds
 
-        num_returns = len(self._flatten_dict(self.schema).keys())
-        results = [self._func_argd.options(num_returns=num_returns).remote(self._func, el, _ds, **self.kwargs) for el in range(len(_ds))]
+        num_returns = len(self._flatten_dict(self.schema, schema=self.schema).keys())
+        results = [
+            self._func_argd.options(num_returns=num_returns).remote(
+                self._func, el, _ds, schema=self.schema, **self.kwargs
+            )
+            for el in range(len(_ds))
+        ]
         results = self._split_list_to_dicts(results)
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
         return ds
@@ -78,7 +95,7 @@ class RayTransform(Transform):
 
         if not isinstance(batch, dict):
             batch = ray.get(batch)
-        
+
         # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
         if not ds[key].is_dynamic:
             if len(batch) != 1:
@@ -90,7 +107,7 @@ class RayTransform(Transform):
                 ds[key, i * length + k] = el
 
     def upload(self, results, url: str, token: dict, progressbar: bool = True):
-        """ Batchified upload of results
+        """Batchified upload of results
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
 
@@ -109,21 +126,27 @@ class RayTransform(Transform):
 
         shape = (len(list(results.values())[0]),)
         ds = Dataset(
-            url, mode="w", shape=shape, schema=self.schema, token=token, cache=False,
+            url,
+            mode="w",
+            shape=shape,
+            schema=self.schema,
+            token=token,
+            cache=False,
         )
-        
+
         tasks = []
         for key, value in results.items():
             length = ds[key].chunksize[0]
             batched_values = batchify(value, length)
-                
+
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
-            results = [self.upload_chunk.remote(el, key=key, ds=ds) for el in index_batched_values]
+            results = [
+                self.upload_chunk.remote(el, key=key, ds=ds)
+                for el in index_batched_values
+            ]
             tasks.extend(results)
 
         ray.get(tasks)
         ds.commit()
         return ds
-
-    
