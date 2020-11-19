@@ -135,10 +135,10 @@ class DatasetView:
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
-        
+
     def __iter__(self):
         """ Returns Iterable over samples """
-        if self.squeeze_dim: 
+        if self.squeeze_dim:
             assert len(self) == 1
             yield self
             return
@@ -148,6 +148,15 @@ class DatasetView:
 
     def __len__(self):
         return self.num_samples
+
+    def __str__(self):
+        out = "DatasetView(" + str(self.dataset) + ", slice="
+        out = out + str(self.offset) if self.squeeze_dim else out + str(slice(self.offset, self.offset + self.num_samples))
+        out += ")"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
 
     def to_tensorflow(self):
         """Converts the dataset into a tensorflow compatible format"""
