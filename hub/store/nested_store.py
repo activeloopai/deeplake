@@ -30,6 +30,10 @@ class NestedStore(MutableMapping):
     def flush(self):
         self._storage.flush()
 
+    def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
     def close(self):
         self._storage.close()
 

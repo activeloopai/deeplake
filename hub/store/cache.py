@@ -185,6 +185,10 @@ class Cache(zarr.LRUStoreCache):
         """ flushes the cache db """
         self._values_cache.flush()
 
+    def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
     def close(self):
         """ closes the cache db """
         self._values_cache.close()

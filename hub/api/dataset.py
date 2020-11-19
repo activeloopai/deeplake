@@ -445,6 +445,10 @@ class Dataset:
             t.flush()
         self._update_dataset_state()
 
+    def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
     def close(self):
         """Save changes from cache to dataset final storage
         This invalidates this object

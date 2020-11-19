@@ -115,6 +115,10 @@ class StorageMapWrapperWithCommit(MutableMapping):
     def flush(self):
         pass
 
+    def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
     def close(self):
         pass
 
