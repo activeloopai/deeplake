@@ -75,13 +75,20 @@ hub login
 
 2. Then create a dataset and upload
 ```python
-from hub import tensor, dataset
+from hub import Dataset, features
+import numpy as np
 
-images = tensor.from_array(np.zeros((4, 512, 512)))
-labels = tensor.from_array(np.zeros((4, 512, 512)))
+ds = Dataset(
+    "username/basic",
+    schema={
+        "image": features.Tensor((512, 512), dtype="float"),
+        "label": features.Tensor((512, 512), dtype="float"),
+    },
+)
 
-ds = dataset.from_tensors({"images": images, "labels": labels})
-ds.store("username/basic")
+ds["image"][:] = np.zeros((4, 512, 512))
+ds["label"][:] = np.zeros((4, 512, 512))
+ds.commit()
 ```
 
 3. Access it from anywhere else in the world, on any device having a command line.

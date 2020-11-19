@@ -1,4 +1,4 @@
-# Install Dataflow
+## Using Docker
 
 ### Installing Dataflow using Docker
 
@@ -18,7 +18,7 @@ You can easily login by running the following command:
 docker login -u <USERNAME> -p <PASSWORD>
 ```
 
-## Setup your project environment
+### Setup your project environment
 
 We can now begin our project setup process. First, create a directory for your project anywhere you see fit.
 

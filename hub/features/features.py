@@ -6,6 +6,8 @@ Shape = Tuple[int, ...]
 
 
 class FlatTensor:
+    """ Tensor metadata after applying flatten function """
+
     def __init__(self, path: str, shape: Shape, dtype, max_shape: Shape, chunks: Shape):
         self.path = path
         self.shape = shape
@@ -14,32 +16,56 @@ class FlatTensor:
         self.chunks = chunks
 
 
-class FeatureConnector:
+class HubFeature:
+    """ Base class for all datatypes"""
+
     def _flatten(self) -> Iterable[FlatTensor]:
+        """ Flattens dtype into list of tensors that will need to be stored seperately """
         raise NotImplementedError()
 
 
-def featurify(feature) -> FeatureConnector:
+def featurify(feature) -> HubFeature:
+    """This functions converts naked primitive datatypes and ditcs into Primitives and FeatureDicts
+    That way every node in dtype tree is a FeatureConnector type object
+    """
     if isinstance(feature, dict):
         return FeatureDict(feature)
-    elif isinstance(feature, FeatureConnector):
+    elif isinstance(feature, HubFeature):
         return feature
     else:
         return Primitive(feature)
 
 
-class Primitive(FeatureConnector):
-    def __init__(self, dtype, chunks=True):
+class Primitive(HubFeature):
+    """Class for handling primitive datatypes
+    All numpy primitive data types like int32, float64, etc... should be wrapped around this class
+    """
+
+    def __init__(self, dtype, chunks=None, compressor="lz4"):
         self._dtype = hub.dtype(dtype)
-        self.chunks = chunks
+        self.chunks = _normalize_chunks(chunks)
+        self.shape = self.max_shape = ()
+        self.dtype = self._dtype
+        self.compressor = compressor
 
     def _flatten(self):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
 
+    def __str__(self):
+        return "\'" + str(self.dtype) + "\'"
 
-class FeatureDict(FeatureConnector):
+    def __repr__(self):
+        return self.__str__()
+
+
+class FeatureDict(HubFeature):
+    """Class for dict branching of a datatype
+    FeatureDict dtype contains str -> dtype associations
+    This way you can describe complex datatypes
+    """
+
     def __init__(self, dict_):
-        self.dict_: Dict[str, FeatureConnector] = {
+        self.dict_: Dict[str, HubFeature] = {
             key: featurify(value) for key, value in dict_.items()
         }
 
@@ -54,13 +80,66 @@ class FeatureDict(FeatureConnector):
                     item.chunks,
                 )
 
+    def __str__(self):
+        out = "FeatureDict("
+        for k, v in self.dict_.items():
+            out += '\n\t' + k + ": " + str(v) + ','
+        out = out[:-1] + "\n"
+        out += "), "
+        return out
 
-class Tensor(FeatureConnector):
-    def __init__(self, shape: Shape, dtype, max_shape: Shape = None, chunks=True):
+    def __repr__(self):
+        return self.__str__()
+
+
+def _normalize_chunks(chunks):
+    chunks = (chunks,) if isinstance(chunks, int) else chunks
+    chunks = tuple(chunks) if chunks else None
+    return chunks
+
+
+class Tensor(HubFeature):
+    """Tensor type in features
+    Has np-array like structure contains any type of elements (Primitive and non-Primitive)
+    """
+
+    def __init__(
+        self,
+        shape: Shape = (None,),
+        dtype="float64",
+        max_shape: Shape = None,
+        chunks=None,
+        compressor="lz4",
+    ):
+        """
+        Parameters
+        ----------
+        shape : Tuple[int]
+            Shape of tensor, can contains None(s) meaning the shape can be dynamic
+            Dynamic shape means it can change during editing the dataset
+        dtype : FeatureConnector or str
+            dtype of each element in Tensor. Can be Primitive and non-Primitive type
+        max_shape : Tuple[int]
+            Maximum shape of tensor shape if tensor is dynamic
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
+        """
+        shape = (shape,) if isinstance(shape, int) else tuple(shape)
+        chunks = _normalize_chunks(chunks)
+        max_shape = max_shape or shape
+        if len(shape) != len(max_shape):
+            raise ValueError(
+                f"Length of shape ({len(shape)}) and max_shape ({len(max_shape)}) does not match"
+            )
+        # TODO add errors if shape and max_shape have wrong values
         self.shape = tuple(shape)
         self.dtype = featurify(dtype)
-        self.max_shape = tuple(max_shape or shape)
+        self.max_shape = max_shape
         self.chunks = chunks
+        self.compressor = compressor
 
     def _flatten(self):
         for item in self.dtype._flatten():
@@ -69,6 +148,25 @@ class Tensor(FeatureConnector):
                 self.shape + item.shape,
                 item.dtype,
                 self.max_shape + item.max_shape,
-                # FIXME get chunks=None and write line below for that case
-                self.chunks if self.chunks is not True else item.chunks,
+                self.chunks or item.chunks,
             )
+
+    def __str__(self):
+        out = "Tensor(shape=" + str(self.shape) + ", dtype=" + str(self.dtype)
+        out = out + ", max_shape=" + str(self.max_shape) if self.max_shape != self.shape else out
+        out = out + ", chunks=" + str(self.chunks) if self.chunks is not None else out
+        out += ")"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
+
+
+def flatten(dtype, root=""):
+    """ Flattens nested dictionary and returns tuple (dtype, path) """
+    dtype = featurify(dtype)
+    if isinstance(dtype, FeatureDict):
+        for key, value in dtype.dict_.items():
+            yield from flatten(value, root + "/" + key)
+    else:
+        yield (dtype, root)

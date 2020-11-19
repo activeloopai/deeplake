@@ -4,48 +4,62 @@ from hub.features.features import Tensor
 
 def _load_names_from_file(names_filepath):
     with open(names_filepath, "r") as f:
-        return [
-            name.strip()
-            for name in f.read().split("\n")
-            if name.strip()
-        ]
+        return [name.strip() for name in f.read().split("\n") if name.strip()]
 
 
 class ClassLabel(Tensor):
-    """`FeatureConnector` for integer class labels."""
+    """`HubFeature` for integer class labels."""
 
     def __init__(
-        self, num_classes: int = None,
+        self,
+        num_classes: int = None,
         names: List[str] = None,
         names_file: str = None,
-        chunks=True
+        chunks=None,
+        compressor="lz4",
     ):
-        """Constructs a ClassLabel FeatureConnector.
-        There are 3 ways to define a ClassLabel, which correspond to the 3
-        arguments:
-        * `num_classes`: create 0 to (num_classes-1) labels
-        * `names`: a list of label strings
-        * `names_file`: a file containing the list of labels.
-        Note: On python2, the strings are encoded as utf-8.
-        Args:
-        num_classes: `int`, number of classes. All labels must be < num_classes.
-        names: `list<str>`, string names for the integer classes. The
-            order in which the names are provided is kept.
-        names_file: `str`, path to a file with names for the integer
-            classes, one per line.
-        Example:
-        ```python
-        class_label_tensor = ClassLabel(num_classes=10)
-        class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
-        class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
-        ```
+        """| Constructs a ClassLabel HubFeature.
+        | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
+        | * `num_classes`: create 0 to (num_classes-1) labels
+        | * `names`: a list of label strings
+        | * `names_file`: a file containing the list of labels.
+        Note: In python2, the strings are encoded as utf-8.
 
-        Note: Only num_classes argument can be filled, providing number of classes,
+        | Usage:
+        ----------
+        >>> class_label_tensor = ClassLabel(num_classes=10)
+        >>> class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
+        >>> class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
+
+        Parameters
+        ----------
+        num_classes: `int`
+            number of classes. All labels must be < num_classes.
+        names: `list<str>`
+            string names for the integer classes. The order in which the names are provided is kept.
+        names_file: `str`
+            path to a file with names for the integer classes, one per line.
+        max_shape : Tuple[int]
+            Maximum shape of tensor shape if tensor is dynamic
+        chunks : Tuple[int] | True
+            Describes how to split tensor dimensions into chunks (files) to store them efficiently.
+            It is anticipated that each file should be ~16MB.
+            Sample Count is also in the list of tensor's dimensions (first dimension)
+            If default value is chosen, automatically detects how to split into chunks
+
+        | Note: Only num_classes argument can be filled, providing number of classes,
               names or names file
-        Raises:
+
+        Raises
+        ----------
         ValueError: If more than one argument is provided
         """
-        super(ClassLabel, self).__init__(shape=(), dtype='int64', chunks=chunks)
+        super().__init__(
+            shape=(),
+            dtype="int64",
+            chunks=chunks,
+            compressor=compressor,
+        )
 
         self._num_classes = None
         self._str2int = None
@@ -56,15 +70,12 @@ class ClassLabel(Tensor):
 
         if sum(a is not None for a in (num_classes, names, names_file)) != 1:
             raise ValueError(
-                "Only a single labeling argument of ClassLabel() should be provided.")
+                "Only a single labeling argument of ClassLabel() should be provided."
+            )
 
         if num_classes is not None:
             if isinstance(num_classes, int):
                 self._num_classes = num_classes
-            # elif isinstance(num_classes, List):
-            #     names = num_classes
-            # elif isinstance(num_classes, str):
-            #     names_file = num_classes
         elif names is not None:
             self.names = names
         else:
@@ -82,13 +93,15 @@ class ClassLabel(Tensor):
         if self._int2str is not None and self._int2str != int2str:
             raise ValueError(
                 "Trying to overwrite already defined ClassLabel names. Previous: {} "
-                ", new: {}".format(self._int2str, int2str))
+                ", new: {}".format(self._int2str, int2str)
+            )
 
         self._int2str = int2str
         self._str2int = {name: i for i, name in enumerate(self._int2str)}
         if len(self._int2str) != len(self._str2int):
             raise ValueError(
-                "Some label names are duplicated. Each label name should be unique.")
+                "Some label names are duplicated. Each label name should be unique."
+            )
 
         num_classes = len(self._str2int)
         if self._num_classes is None:
@@ -96,8 +109,7 @@ class ClassLabel(Tensor):
         elif self._num_classes != num_classes:
             raise ValueError(
                 "ClassLabel number of names do not match the defined num_classes. "
-                "Got {} names VS {} num_classes".format(
-                    num_classes, self._num_classes)
+                "Got {} names VS {} num_classes".format(num_classes, self._num_classes)
             )
 
     def str2int(self, str_value: str):
@@ -126,3 +138,14 @@ class ClassLabel(Tensor):
     def get_attr_dict(self):
         """Return class attributes."""
         return self.__dict__
+
+    def __str__(self):
+        out = super().__str__()
+        out = "ClassLabel" + out[6: -1]
+        out = out + ", names=" + self.names if self.names is not None else out
+        out = out + ", num_classes=" + self.num_classes if self.num_classes is not None else out
+        out += ")"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
