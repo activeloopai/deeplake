@@ -52,6 +52,7 @@ class Transform:
         else:
             raise Exception(f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'")
 
+    @classmethod
     def _flatten_dict(self, d: Dict, parent_key=''):
         """
         Helper function to flatten dictionary of a recursive tensor
@@ -63,7 +64,7 @@ class Transform:
         items = []
         for k, v in d.items():
             new_key = parent_key + '/' + k if parent_key else k
-            if isinstance(v, MutableMapping) and not isinstance(self.dtype_from_path(new_key), Primitive):
+            if isinstance(v, MutableMapping): # and not isinstance(self.dtype_from_path(new_key), Primitive):
                 items.extend(self._flatten_dict(v, new_key).items())
             else:
                 items.append((new_key, v))
@@ -83,7 +84,7 @@ class Transform:
         """
         xs_new = {}
         for x in xs:
-            if isinstance(x, Iterable):
+            if isinstance(x, list):
                 x = dict(zip(self._flatten_dict(self.schema).keys(), x))
 
             for key, value in x.items():
@@ -134,6 +135,7 @@ class Transform:
             def upload_chunk(i_batch):
                 i, batch = i_batch
                 # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
+
                 if not ds[key].is_dynamic:
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
