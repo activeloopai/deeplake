@@ -10,6 +10,11 @@ import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
 
+try:
+    from ray.util.multiprocessing import Pool as RayPool
+except Exception:
+    pass
+
 
 class Transform:
     def __init__(self, func, schema, ds, scheduler: str = "single", nodes: int = 1, **kwargs):
@@ -42,6 +47,8 @@ class Transform:
             self.map = ProcessPool(nodes=nodes).map
         elif scheduler == "single":
             self.map = map
+        elif scheduler == "ray":
+            self.map = RayPool().map
         else:
             raise Exception(f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'")
 
@@ -76,6 +83,9 @@ class Transform:
         """
         xs_new = {}
         for x in xs:
+            if isinstance(x, Iterable):
+                x = dict(zip(self._flatten_dict(self.schema).keys(), x))
+
             for key, value in x.items():
                 if key in xs_new:
                     xs_new[key].append(value)
@@ -128,13 +138,15 @@ class Transform:
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
                     else:
-                        # print("~", ds[key, i * length].compute(), batch)
                         ds[key, i * length] = batch[0]
                 else:
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
 
-            list(self.map(upload_chunk, self._pbar(progressbar)(enumerate(batched_values), desc=f"Storing {key} tensor", total=len(value) // length)))
+            index_batched_values = list(zip(list(range(len(batched_values))), batched_values))
+            index_batched_values = self._pbar(progressbar)(index_batched_values, desc=f"Storing {key} tensor", total=len(value) // length)
+            list(self.map(upload_chunk, index_batched_values))
+            
         ds.commit()
         return ds
 
@@ -187,7 +199,7 @@ class Transform:
             return self._func(item, **self.kwargs)
 
         results = self.map(_func_argd, self._pbar(progressbar)(_ds, desc="Computing the transormation"))
-        results = self._unwrap(results) 
+        results = self._unwrap(results)
         results = self.map(self._flatten_dict, results)
         results = self._split_list_to_dicts(results)
 
@@ -215,7 +227,7 @@ class Transform:
         ds_view = DatasetView(dataset=self._ds, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
 
         path = os.path.expanduser("~/.activeloop/tmparray")
-        new_ds = self.store(path, length=num, ds=ds_view, progressbar=True)
+        new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
 
         index = 1 if len(slice_) > 1 else 0
         slice_[index] = slice(None, None, None)  # Get all shape dimension since we already sliced

@@ -1,10 +1,9 @@
 import numpy as np
-import pytest
 import zarr
 
 import hub
 from hub.features import Tensor
-from hub.utils import ray_loaded, pathos_loaded, Timer
+from hub.utils import Timer
 
 
 my_schema = {
@@ -87,15 +86,6 @@ def test_pipeline_multiple():
     assert (out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")).all()
 
 
-
-@pytest.mark.skipif(
-    not ray_loaded(),
-    reason="requires ray to be loaded",
-)
-def test_pipeline_ray():
-    pass
-
-
 def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8"):
 
     my_schema = {
@@ -103,11 +93,11 @@ def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8")
     }
 
     with Timer("multiprocesing"):
-        @hub.transform(schema=my_schema, scheduler="processed", nodes=2)
+        @hub.transform(schema=my_schema, scheduler="single", nodes=2)
         def my_transform(x):
 
             a = np.random.random((width, width, channels))
-            for i in range(10):
+            for i in range(100):
                 a *= np.random.random((width, width, channels))
 
             return {
@@ -160,11 +150,12 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             out_ds = my_transform(ds_fs)
             out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
+
 if __name__ == "__main__":
     test_multiprocessing()
-    test_pipeline_basic()
-    test_pipeline_dynamic()
 
+    # test_pipeline_basic()
+    # test_pipeline_dynamic()
     # test_pathos()
     # benchmark()
 

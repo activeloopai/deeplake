@@ -73,7 +73,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 2 ** 26,
+        cache: int = 0, # 2 ** 26,
         lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
