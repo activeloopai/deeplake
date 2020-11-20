@@ -15,7 +15,7 @@ def test_serialize_deserialize():
     t = Tensor(
         shape=(100, 200),
         dtype={
-            "image": Image(shape=(300, 400, 3), dtype="uint8", encoding_format="jpeg"),
+            "image": Image(shape=(300, 400, 3), dtype="uint8"),
             "label": Tensor(
                 shape=(5000,),
                 dtype={
@@ -29,7 +29,7 @@ def test_serialize_deserialize():
             ),
             "bbox": BBox(dtype="float64", chunks=False),
             "audio": Audio(shape=(120,), dtype="uint32"),
-            "mask": Mask(shape=(5, 8), dtype="uint8", chunks=True),
+            "mask": Mask(shape=(5, 8), chunks=True),
             "polygon": Polygon(shape=(16, 2)),
             "segmentation": Segmentation(
                 shape=(5, 9, 1), dtype="uint8", names=("apple", "orange", "pineapple")

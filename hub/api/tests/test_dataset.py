@@ -3,15 +3,15 @@ import pytest
 
 import hub.api.dataset as dataset
 from hub.features import Tensor
-from hub.utils import gcp_creds_exist, s3_creds_exist
+from hub.utils import gcp_creds_exist, s3_creds_exist, azure_creds_exist
 
 Dataset = dataset.Dataset
 
 my_schema = {
     "image": Tensor((10, 1920, 1080, 3), "uint8"),
     "label": {
-        "a": Tensor((100, 200), "int32"),
-        "b": Tensor((100, 400), "int64"),
+        "a": Tensor((100, 200), "int32", compressor="lz4"),
+        "b": Tensor((100, 400), "int64", compressor="zstd"),
         "c": Tensor((5, 3), "uint8"),
         "d": {"e": Tensor((5, 3), "uint8")},
     },
@@ -153,7 +153,7 @@ def test_dataset_enter_exit():
 def test_dataset_bug():
     from hub import Dataset, features
 
-    ds = Dataset(
+    Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
@@ -162,13 +162,15 @@ def test_dataset_bug():
             "label": features.Tensor((512, 512), dtype="float"),
         },
     )
+
     was_except = False
     try:
-        ds = Dataset("./data/test/test_dataset_bug", mode="w")
+        Dataset("./data/test/test_dataset_bug", mode="w")
     except Exception:
         was_except = True
     assert was_except
-    ds = Dataset(
+
+    Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
@@ -189,6 +191,45 @@ def test_dataset_s3():
     test_dataset("s3://snark-test/test_dataset_s3")
 
 
+@pytest.mark.skipif(not azure_creds_exist(), reason="requires azure credentials")
+def test_dataset_azure():
+    import os
+
+    token = {"account_key": os.getenv("ACCOUNT_KEY")}
+    test_dataset(
+        "https://activeloop.blob.core.windows.net/activeloop-hub/test_dataset_azure",
+        token=token,
+    )
+
+
+def test_datasetview_slicing():
+    dt = {"first": Tensor((100, 100))}
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+
+    assert ds["first", 0].numpy().shape == (100, 100)
+    assert ds["first", 0:1].numpy().shape == (1, 100, 100)
+    assert ds[0]["first"].numpy().shape == (100, 100)
+    assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
+
+
+def test_tensorview_slicing():
+    dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+    tv = ds["first", 5:6, 7:10, 9:10]
+    assert tv.numpy().shape == tv.shape == (1, 3, 1)
+    tv2 = ds["first", 5:6, 7:10, 9]
+    assert tv2.numpy().shape == tv2.shape == (1, 3)
+    tv3 = ds["first", 5:10, 2, 3:39]
+    tv4 = tv3[3:5, 5:17]
+    assert tv4.numpy().shape == (2, 12)
+    assert tv4.shape == [
+        (12,),
+        (12,),
+    ]  # for dynamic_tensor multiple shapes are returned as list of shapes
+
+
 if __name__ == "__main__":
-    # test_dataset()
+    test_tensorview_slicing()
+    test_datasetview_slicing()
     test_dataset()
+    test_dataset2()
