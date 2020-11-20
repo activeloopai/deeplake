@@ -9,6 +9,7 @@ class TensorView:
         dataset=None,
         subpath=None,
         slice_=None,
+        squeeze_dims=[],
     ):
         """Creates a TensorView object for a particular tensor in the dataset
 
@@ -23,9 +24,9 @@ class TensorView:
         """
 
         if dataset is None:
-            raise NoneValueException('dataset')
+            raise NoneValueException("dataset")
         if subpath is None:
-            raise NoneValueException('subpath')
+            raise NoneValueException("subpath")
 
         self.dataset = dataset
         self.subpath = subpath
@@ -36,8 +37,10 @@ class TensorView:
             self.slice_ = list(slice_)
         self.nums = []
         self.offsets = []
+
         self.squeeze_dims = []
         for it in self.slice_:
+
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
@@ -48,7 +51,11 @@ class TensorView:
                 self.nums.append(num)
                 self.offsets.append(ofs)
                 self.squeeze_dims.append(False)
-        self.nums[0] = self.dataset.shape[0] - self.offsets[0] if self.nums[0] is None else self.nums[0]
+        self.nums[0] = (
+            self.dataset.shape[0] - self.offsets[0]
+            if self.nums[0] is None
+            else self.nums[0]
+        )
         self.dtype = self.dtype_from_path(subpath)
         self.set_shape()
 
@@ -72,6 +79,7 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if subpath:
             raise ValueError("Can't slice a Tensor with string")
         else:
@@ -85,9 +93,15 @@ class TensorView:
                     slice_list[i], new_nums[i], new_offsets[i]
                 )
             for i in range(len(slice_list), len(new_nums)):
-                cur_slice = slice(new_offsets[i], new_offsets[i] + new_nums[i]) if new_nums[i] > 1 else new_offsets[i]
+                cur_slice = (
+                    slice(new_offsets[i], new_offsets[i] + new_nums[i])
+                    if new_nums[i] > 1
+                    else new_offsets[i]
+                )
                 slice_list.append(cur_slice)
-            return TensorView(dataset=self.dataset, subpath=self.subpath, slice_=slice_list)
+            return TensorView(
+                dataset=self.dataset, subpath=self.subpath, slice_=slice_list
+            )
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
@@ -101,8 +115,11 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
+
         if subpath:
-            raise ValueError("Can't slice a Tensor with multiple slices without subpath")
+            raise ValueError(
+                "Can't slice a Tensor with multiple slices without subpath"
+            )
         else:
             new_nums = self.nums.copy()
             new_offsets = self.offsets.copy()
@@ -112,7 +129,11 @@ class TensorView:
             for i in range(len(slice_list)):
                 slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
             for i in range(len(slice_list), len(new_nums)):
-                cur_slice = slice(new_offsets[i], new_offsets[i] + new_nums[i]) if new_nums[i] > 1 else new_offsets[i]
+                cur_slice = (
+                    slice(new_offsets[i], new_offsets[i] + new_nums[i])
+                    if new_nums[i] > 1
+                    else new_offsets[i]
+                )
                 slice_list.append(cur_slice)
             self.dataset._tensors[self.subpath][slice_list] = value
 
@@ -144,7 +165,7 @@ class TensorView:
 
     def check_slice_bounds(self, num=None, start=None, stop=None, step=None):
         "Checks whether the bounds of slice are in limits"
-        if (step and step < 0):  # negative step not supported
+        if step and step < 0:  # negative step not supported
             raise ValueError("Negative step not supported in dataset slicing")
         if num and ((start and start >= num) or (stop and stop > num)):
             raise IndexError(
@@ -155,7 +176,7 @@ class TensorView:
 
     def dtype_from_path(self, path):
         "Gets the dtype of the Tensorview by traversing the schema"
-        path = path.split('/')
+        path = path.split("/")
         cur_type = self.dataset.schema.dict_
         for subpath in path[1:-1]:
             cur_type = cur_type[subpath]
@@ -179,14 +200,30 @@ class TensorView:
         return self.__str__()
 
     def __str__(self):
-        return "TensorView(" + str(self.dtype) + ", subpath=" + "\'" + self.subpath + "\', slice=" + str(self.slice_) + ")"
+        return (
+            "TensorView("
+            + str(self.dtype)
+            + ", subpath="
+            + "'"
+            + self.subpath
+            + "', slice="
+            + str(self.slice_)
+            + ")"
+        )
 
     def set_shape(self):
         if self.is_dynamic:
-            self.shape = [self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:]) for i in range(self.offsets[0], self.offsets[0] + self.nums[0])]
+            self.shape = [
+                self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:])
+                for i in range(self.offsets[0], self.offsets[0] + self.nums[0])
+            ]
             if len(self.shape) == 1:
                 self.shape = self.shape[0]
-                self.shape = (1,) + self.shape if isinstance(self.slice_[0], slice) else self.shape
+                self.shape = (
+                    (1,) + self.shape
+                    if isinstance(self.slice_[0], slice)
+                    else self.shape
+                )
         else:
             self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
