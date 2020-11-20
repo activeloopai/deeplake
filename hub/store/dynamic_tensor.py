@@ -280,7 +280,7 @@ class DynamicTensor:
         new_shape = []
         shape_offset = 0
         if isinstance(slice_[0], int):
-            value_shape = list(value.shape) if isinstance(value, np.ndarray) else [1]
+            value_shape = list(value.shape) if hasattr(value, "shape") else [1]
             for i in range(1, len(self.shape)):
                 if self.shape[i] is None:
                     if i < len(slice_):
