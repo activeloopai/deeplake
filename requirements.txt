@@ -13,3 +13,4 @@ lmdb==1.0.0
 boto3==1.16.10
 azure-storage-blob==12.5.0
 tqdm==4.51
+pathos>=0.2.2

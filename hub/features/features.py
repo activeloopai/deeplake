@@ -51,6 +51,12 @@ class Primitive(HubFeature):
     def _flatten(self):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
 
+    def __str__(self):
+        return "\'" + str(self.dtype) + "\'"
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class FeatureDict(HubFeature):
     """Class for dict branching of a datatype
@@ -73,6 +79,17 @@ class FeatureDict(HubFeature):
                     item.max_shape,
                     item.chunks,
                 )
+
+    def __str__(self):
+        out = "FeatureDict("
+        for k, v in self.dict_.items():
+            out += '\n\t' + k + ": " + str(v) + ','
+        out = out[:-1] + "\n"
+        out += "), "
+        return out
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def _normalize_chunks(chunks):
@@ -133,6 +150,16 @@ class Tensor(HubFeature):
                 self.max_shape + item.max_shape,
                 self.chunks or item.chunks,
             )
+
+    def __str__(self):
+        out = "Tensor(shape=" + str(self.shape) + ", dtype=" + str(self.dtype)
+        out = out + ", max_shape=" + str(self.max_shape) if self.max_shape != self.shape else out
+        out = out + ", chunks=" + str(self.chunks) if self.chunks is not None else out
+        out += ")"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
 
 
 def flatten(dtype, root=""):

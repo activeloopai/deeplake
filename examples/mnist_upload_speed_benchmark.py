@@ -21,13 +21,14 @@ def main():
             mode="w",
             schema=schema,
             shape=(sample_count,),
+            cache=2**26,
         )
 
         arr = (np.random.rand(step, 28, 28) * 100).astype("uint8")
 
         for i in range(0, sample_count, step):
-            with Timer(f"Sample {i}"):
-                ds["image", i : i + step] = arr
+            # with Timer(f"Sample {i}"):
+            ds["image", i : i + step] = arr
 
         ds.commit()
 

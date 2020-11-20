@@ -122,8 +122,10 @@ def batchify(iterable, n=1):
     Batchify an iteratable
     """
     ls = len(iterable)
+    batches = []
     for ndx in range(0, ls, n):
-        yield iterable[ndx : min(ndx + n, ls)]
+        batches.append(iterable[ndx : min(ndx + n, ls)])
+    return batches
 
 
 class Timer:
