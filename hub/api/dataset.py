@@ -1,4 +1,3 @@
-from typing import Tuple
 import posixpath
 import collections.abc as abc
 import json
@@ -17,14 +16,12 @@ from hub.features.features import (
     FeatureDict,
     HubFeature,
     featurify,
-    FlatTensor,
 )
 from hub.log import logger
 
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split
-from hub.utils import compute_lcm
 
 import hub.features.serialize
 import hub.features.deserialize
@@ -46,7 +43,6 @@ from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
-import traceback
 
 try:
     import torch
@@ -219,6 +215,8 @@ class Dataset:
             return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
         elif compressor.lower() == "zstd":
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+        elif compressor.lower() == "default":
+            return "default"
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
@@ -278,7 +276,7 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without subpath"
                 )
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            return DatasetView(dataset=self, num_samples=num, offset=ofs)
+            return DatasetView(dataset=self, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(
@@ -463,17 +461,18 @@ class Dataset:
                 self.username, self.dataset_name, "UPLOADED"
             )
 
+    def __str__(self):
+        out = "Dataset(schema=" + str(self.schema) + "url=" + "\'" + self.url + "\'" + ", shape=" + str(self.shape) + ", mode=" + "\'" + self.mode + "\')"
+        return out
+
+    def __repr__(self):
+        return self.__str__()
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.close()
-
-    @property
-    def chunksize(self):
-        # FIXME assumes chunking is done on the first sample
-        chunks = [t.chunksize[0] for t in self._tensors.values()]
-        return compute_lcm(chunks)
 
     @property
     def keys(self):

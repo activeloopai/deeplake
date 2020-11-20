@@ -6,13 +6,23 @@ import pytest
 
 
 @pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
-def test_from_tfds():
+def test_from_tfds_mnist():
     import tensorflow_datasets as tfds
-    with tfds.testing.mock_data():
+    with tfds.testing.mock_data(num_examples=5):
         ds = hub.Dataset.from_tfds('mnist', num=5)
         res_ds = ds.store("./data/test_tfds/mnist", length=5)  # mock data doesn't have length, so explicitly provided
-        assert res_ds["label"].numpy().tolist() == [1, 0, 0, 0, 0]
+        assert res_ds["label"].numpy().tolist() == [1, 9, 2, 5, 3]
 
+
+@pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
+def test_from_tfds_coco():
+    import tensorflow_datasets as tfds
+    with tfds.testing.mock_data(num_examples=5):
+        ds = hub.Dataset.from_tfds('coco', num=5)
+        res_ds = ds.store("./data/test_tfds/coco", length=5)  # mock data doesn't have length, so explicitly provided
+        assert res_ds["image_filename"].numpy().tolist() == [b'f dhgfdgeichbdba', b'dhibdaajeghaefeijch', b'ghd h afjj igecea', b'iccbhgaaehgad', b'dahehcihidgaifeicd']
+        assert res_ds["image_id"].numpy().tolist() == [90, 38, 112, 194, 105]
+        assert res_ds["objects"].numpy()[0]["label"][0:5].tolist() == [12, 15, 33, 23, 12]
 
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_from_tensorflow():
@@ -86,7 +96,8 @@ def test_to_pytorch():
 
 
 if __name__ == "__main__":
-    test_from_tfds()
+    test_from_tfds_mnist()
+    test_from_tfds_coco()
     test_from_tensorflow()
     test_to_from_tensorflow()
     test_to_pytorch()

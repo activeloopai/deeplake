@@ -234,6 +234,18 @@ class DynamicTensorShapeException(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class NotIterable(HubException):
+    def __init__(self):
+        message = "First argument to transform function should be iterable"
+        super(HubException, self).__init__(message=message)
+
+
+class AdvancedSlicingNotSupported(HubException):
+    def __init__(self):
+        message = "Advanced slicing is not supported, only support index"
+        super(HubException, self).__init__(message=message)
+
+
 class NotZarrFolderException(Exception):
     pass
 

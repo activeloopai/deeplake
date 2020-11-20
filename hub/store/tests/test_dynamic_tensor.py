@@ -113,19 +113,6 @@ def test_dynamic_tensor_4():
     assert (t[0, 6:8] == np.ones((2, 20, 10), dtype="int32")).all()
 
 
-def test_chunk_iterator():
-    t = DynamicTensor(
-        create_store("./data/test/test_dynamic_tensor_7"),
-        mode="w",
-        shape=(50, 100, 100, 100),
-        max_shape=(50, 100, 100, 100),
-        dtype="int32",
-    )
-
-    assert t.chunksize == (5, 100, 100, 100)
-    assert list(t.chunk_iterator())[0].shape == t.chunksize
-
-
 if __name__ == "__main__":
     test_read_and_append_modes()
     # test_chunk_iterator()

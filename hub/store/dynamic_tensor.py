@@ -190,9 +190,15 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         if self._dynamic_tensor:
-            self.set_shape(slice_, value)
+            if isinstance(slice_[0], slice):
+                start = slice_[0].start if slice_[0].start is not None else 0
+                stop = slice_[0].stop if slice_[0].stop is not None else start + value.shape[0]
+                for i in range(start, stop):
+                    self.set_shape([i] + slice_[1:], value)
+            else:
+                self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
-        real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor else None
+        real_shapes = self._dynamic_tensor[slice_[0]] if self._dynamic_tensor and isinstance(slice_[0], int) else None
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
         self._storage_tensor[slice_] = value
@@ -224,6 +230,7 @@ class DynamicTensor:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
                     value = np.array(value)
+                    
                 if (
                     isinstance(value, np.ndarray)
                     and value.shape != expected_value_shape
@@ -233,19 +240,20 @@ class DynamicTensor:
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
-        if self._dynamic_tensor is None:
-            return self.shape
-        if isinstance(slice_[0], slice):
-            num, ofs = slice_extract_info(slice_[0], self.shape[0])
-            slice_[0] = ofs if num == 1 else slice_[0]
-        if isinstance(slice_[0], int):
+        if isinstance(slice_[0], int) or self._dynamic_tensor is None:
             final_shape = []
             shape_offset = 0
-            for i in range(1, len(self.shape)):
+            for i in range(len(self.shape)):
                 if i < len(slice_):
                     if isinstance(slice_[i], slice):
-                        final_shape.append(slice_[i].stop - slice_[i].start)
-                    shape_offset += 1
+                        sl = slice_[i].stop
+                        if sl is None and self._dynamic_tensor is not None:
+                            sl = self._dynamic_tensor[slice_[0]][shape_offset]
+                        if sl is not None and slice_[i].start is not None:
+                            sl -= slice_[i].start
+                        sl = self.shape[i] if slice_[i].stop is None and slice_[i].start is None else sl
+                        final_shape.append(sl)
+                    shape_offset = shape_offset + 1 if i != 0 else shape_offset
                 elif self.shape[i] is not None:
                     final_shape.append(self.shape[i])
                 elif shape_offset < len(self._dynamic_tensor[slice_[0]]):
@@ -253,17 +261,14 @@ class DynamicTensor:
                     shape_offset += 1
             return tuple(final_shape)
         else:
-            raise ValueError("Getting shape across multiple dimensions isn't supported")
+            raise ValueError("Getting shape across multiple dimensions isn't supported right now")
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
-        if isinstance(slice_[0], slice):
-            num, ofs = slice_extract_info(slice_[0], self.shape[0])
-            slice_[0] = ofs if num == 1 else slice_[0]
+        new_shape = []
+        shape_offset = 0
         if isinstance(slice_[0], int):
             value_shape = list(value.shape) if isinstance(value, np.ndarray) else [1]
-            new_shape = []
-            shape_offset = 0
             for i in range(1, len(self.shape)):
                 if self.shape[i] is None:
                     if i < len(slice_):
@@ -281,8 +286,6 @@ class DynamicTensor:
             self._dynamic_tensor[slice_[0]] = np.maximum(
                 self._dynamic_tensor[slice_[0]], new_shape
             )
-        else:
-            raise ValueError("Setting shape across multiple dimensions isn't supported")
 
     def _get_slice(self, slice_, real_shapes):
         # Makes slice_ which is uses relative indices (ex [:-5]) into precise slice_ (ex [10:40])
@@ -321,29 +324,6 @@ class DynamicTensor:
                 return i, self.shape[i], self.chunksize[i]
         return 0, self.shape[0], self.chunksize[0]
 
-    def chunk_slice_iterator(self):
-        """
-        Get an iterator over chunk coordinates
-        """
-        # FIXME assume chunking is done in one dimension
-        nth, shpd, chnkd = self._get_chunking_dim()
-        n_els = int(shpd / chnkd)
-        for i in range(n_els):
-            yield [1] * nth + [slice(i * chnkd, (i + 1) * chnkd)]
-
-    def chunk_iterator(self):
-        """
-        Get an iterator over chunks
-        """
-        slices = self.chunk_slice_iterator()
-        for slice_chunk in slices:
-            yield self.__getitem__(*slice_chunk)
-
-    def flush(self):
-        self._storage_tensor.store.flush()
-        if self._dynamic_tensor:
-            self._dynamic_tensor.store.flush()
-
     def commit(self):
         """ Deprecated alias to flush()"""
         self.flush()
@@ -358,6 +338,10 @@ class DynamicTensor:
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         self.close()
+
+    @property
+    def is_dynamic(self):
+        return False if self._dynamic_tensor is None else True
 
 
 def get_dynamic_dims(shape):
