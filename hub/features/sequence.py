@@ -44,3 +44,11 @@ class Sequence(Tensor):
     def get_attr_dict(self):
         """Return class attributes"""
         return self.__dict__
+
+    def __str__(self):
+        out = super().__str__()
+        out = "Sequence" + out[6:]
+        return out
+
+    def __repr__(self):
+        return self.__str__()

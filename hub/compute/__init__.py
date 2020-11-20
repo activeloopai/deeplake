@@ -1,5 +1,4 @@
 from hub.compute.transform import Transform
-from hub.compute.pathos import PathosTransform
 from hub.compute.ray import RayTransform
 from collections.abc import Iterable
 from hub.exceptions import NotIterable
@@ -24,7 +23,7 @@ def transform(schema, scheduler="single", nodes=1):
                 raise NotIterable
 
             if scheduler == "ray":
-                return RayTransform(func, schema, ds, **kwargs)
+                return RayTransform(func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs)
 
             if scheduler == "dask":
                 raise NotImplementedError
