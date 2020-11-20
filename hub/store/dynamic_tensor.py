@@ -246,6 +246,9 @@ class DynamicTensor:
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
+        if isinstance(slice_, int):
+            slice_ = [slice_]
+
         if isinstance(slice_[0], int) or self._dynamic_tensor is None:
             final_shape = []
             shape_offset = 0
