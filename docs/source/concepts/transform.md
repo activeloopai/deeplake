@@ -3,81 +3,102 @@
 Data pipelines are usually a series of data transformations on datasets. User needs to implement the transformation in the dataset generator form. 
 
 ## Transform
-Hub Transform are user-defined classes that implement Hub Transform interface. You can think of them as user-defined data transformations that stand as nodes from which the data pipelines are constructed.
+Hub Transform provides a functionality to modify the samples of the dataset or create a new dataset from the existing one. 
 
-Transform interface looks like this.
-```python
-class Transform:
+## Examples
 
-    def forward(self, input):
-        raise NotImplementedError()
-​
-    def meta(self):
-        raise NotImplementedError()
-```
-
-then you can apply the function on a list or a `hub.dataset` object. `.generate()` function returns a dataset object. Note that all computations are done in lazy mode, and in order to get the final dataset we need to call the compute method. 
+Basic transform pipeline creation:
 
 ```python
-from hub import dataset
+my_schema = {
+    "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
+    "label": "<U20",
+    "confidence": "float",
+}
 
-ids = [1,2,3] 
-croped_images = dataset.generate(Transform(), ids)
-croped_images.compute()
+ds = hub.Dataset(
+   "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
+)
+
+for i in range(len(ds)):
+   ds["image", i] = np.ones((28, 28, 4), dtype="int32")
+   ds["label", i] = f"hello {i}"
+   ds["confidence", i] = 0.2
+
+@hub.transform(schema=my_schema)
+def my_transform(sample, multiplier: int = 2):
+   return {
+      "image": sample["image"].compute() * multiplier,
+      "label": sample["label"].compute(),
+      "confidence": sample["confidence"].compute() * multiplier
+   }
+
+out_ds = my_transform(ds, multiplier=2)
+res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
 ```
 
-You can stack multiple transformations together before calling compute function.
+Transormation function can return either a dictionary that corresponds to the provided schema or a list of such dictionaries. In that case the number of samples in the final dataset will be equal to the number of all the returned dictionaries:
 
 ```python
-from hub import dataset
+dynamic_schema = {
+    "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
+    "label": "<U20",
+}
 
-ids = [1,2,3] 
-croped_images = dataset.generate(Transform1(), croped_images)
-flipped_images = dataset.generate(Transform2(), ids)
-flipped_images.compute()
+ds = hub.Dataset(
+        "./data/test/test_pipeline_dynamic3", mode="w", shape=(1,), schema=dynamic_schema, cache=False
+    )
+    
+ds["image", 0] = np.ones((30, 32, 3))
+
+@hub.transform(schema=dynamic_schema, scheduler="threaded", nodes=8)
+def dynamic_transform(sample, multiplier: int = 2):
+   return [{
+      "image": sample["image"].compute() * multiplier,
+      "label": sample["label"].compute(),
+   } for i in range(4)]
+
+out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
 ```
 
-To make it easier to comprehend, let's discuss an example.
+You can use transform with multuple processes by adding `scheduler` and `nodes` arguments:
 
-## Example
+```python
 
-Let's say you have a set of images and want to crop the center and then flip them. You also want to execute this data pipeline in parallel on all samples of your dataset.
+my_schema = {
+   "image": Tensor((width, width, channels), dtype, (width, width, channels), chunks=(sample_size // 20, width, width, channels)),
+}
 
-1. Implement `Crop(Transform)` class that describes how to crop one image.
+@hub.transform(schema=my_schema, scheduler="processed", nodes=2)
+def my_transform(x):
 
-   We assume we want to crop 256 * 256 rectangle. Then meta should indicate that in output we are going to have one 2 dimensional array with 256 * 256 shape. The call function should implement the actual crop functionality.
+   a = np.random.random((width, width, channels))
+   for i in range(10):
+         a *= np.random.random((width, width, channels))
 
-   ```python
-   from hub import Transform
+   return {
+         "image": (np.ones((width, width, channels), dtype=dtype) * 255),
+   }
 
-   class Crop(Transform):
-      def forward(self, input):
-         return {"image": input[0:1, :256, :256]}
+ds = hub.Dataset(
+   "./data/test/test_pipeline_basic_4", mode="w", shape=(sample_size,), schema=my_schema, cache=0
+)
 
-      def meta(self):
-         return {"image": {"shape": (1, 256, 256), "dtype": "uint8"}}
-   ```
+ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
+```
 
-2. Implement `Flip(Transform)` class that describes how to flip one image.
-   ```python
-   class Flip(Transform):
-      def forward(self, input):
-         img = np.expand_dims(input["image"], axis=0)
-         img = np.flip(img, axis=(1, 2))
-         return {"image": img}
-
-      def meta(self):
-         return {"image": {"shape": (1, 256, 256), "dtype": "uint8"}}
-   ```
-3. Apply those transformations on the dataset. 
-   ```python
-   from hub import dataset
-
-   images = [np.ones((1, 512, 512), dtype="uint8") for i in range(20)]
-   ds = dataset.generate(Crop(), images)
-   ds = dataset.generate(Flip(), ds)
-   ds.store("/tmp/cropflip")
-   ```
-
-Special care need to be taken for `meta` information and output dimensions of each sample in `forward` pass. We are planning to simplify this process. Any recommendation as Git issue would be greatly appreciated. 
-
+## API
+```eval_rst
+.. automodule:: hub.compute
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+```eval_rst
+.. autoclass:: hub.compute.transform.Transform
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
