@@ -71,6 +71,20 @@ class MetaStorage(MutableMapping):
         else:
             del self._fs_map[k]
 
+    def flush(self):
+        self._meta.flush()
+        self._fs_map.flush()
+
     def commit(self):
-        self._meta.commit()
-        self._fs_map.commit()
+        """ Deprecated alias to flush()"""
+        self.flush()
+
+    def close(self):
+        self._meta.close()
+        self._fs_map.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
