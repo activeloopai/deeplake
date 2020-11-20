@@ -117,7 +117,6 @@ def test_to_pytorch():
     for i, batch in enumerate(ds):
         assert (batch["label"]["d"]["e"].numpy() == i * np.ones((5, 3))).all()
 
-
 if __name__ == "__main__":
     test_from_tfds_mnist()
     test_from_tfds_coco()

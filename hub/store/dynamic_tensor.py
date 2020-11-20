@@ -237,10 +237,6 @@ class DynamicTensor:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
                     value = np.array(value)
-<<<<<<< HEAD
-                    
-=======
->>>>>>> release/v1.0.0-beta
                 if (
                     isinstance(value, np.ndarray)
                     and value.shape != expected_value_shape
