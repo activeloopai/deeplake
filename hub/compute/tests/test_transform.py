@@ -50,6 +50,44 @@ def test_pipeline_basic():
     assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
 
 
+def test_threaded():
+    init_schema = {
+        "image": Tensor(
+            shape=(None, None, None), max_shape=(4, 224, 224), dtype="float32"
+        )
+    }
+    schema = {
+        "image": Tensor(
+            shape=(None, None, None), max_shape=(4, 224, 224), dtype="float32"
+        ),
+        "label": Tensor(shape=(None,), max_shape=(6,), dtype="uint8"),
+        "text_label": "<U14",
+        "flight_code": "<U10",
+    }
+
+    ds_init = hub.Dataset(
+        "./data/hub/new_pipeline", shape=(10,), schema=init_schema, cache=False
+    )
+
+    for i in range(len(ds_init)):
+        ds_init["image", i] = np.ones((4, 224, 224))
+
+    @hub.transform(schema=schema, scheduler="threaded", nodes=4)
+    def create_classification_dataset(sample):
+        ts = sample["image"].numpy()
+        return [
+            {
+                "image": ts,
+                "label": np.ones((6,)),
+                "text_label": "PLANTED",
+                "flight_code": "UYKNTHNXR",
+            }
+            for _ in range(5)
+        ]
+
+    create_classification_dataset(ds_init).store("./data/hub/new_pipeline_final")
+
+
 def test_pipeline_dynamic():
     ds = hub.Dataset(
         "./data/test/test_pipeline_dynamic3",
@@ -156,6 +194,7 @@ def test_pipeline():
         ds["confidence", i] = 0.2
 
     with Timer("multiple pipes"):
+
         @hub.transform(schema=my_schema)
         def my_transform(sample, multiplier: int = 2):
             return {
@@ -169,6 +208,7 @@ def test_pipeline():
         out_ds = out_ds.store("./data/test/test_pipeline_multiple_2")
 
         assert (out_ds["image", 0].compute() == 4).all()
+
 
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
@@ -238,8 +278,9 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
-    test_pipeline()
+    test_threaded()
 
+    test_pipeline()
     test_multiprocessing()
     test_pipeline_basic()
     test_pipeline_dynamic()
