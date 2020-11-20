@@ -148,13 +148,15 @@ class Transform:
         )
 
         for key, value in results.items():
+
             length = ds[key].chunksize[0]
+            if length == 0:
+                length = 1
+
             batched_values = batchify(value, length)
 
             def upload_chunk(i_batch):
                 i, batch = i_batch
-                # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
-
                 if not ds[key].is_dynamic:
                     if len(batch) != 1:
                         ds[key, i * length : (i + 1) * length] = batch
@@ -261,7 +263,11 @@ class Transform:
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
 
+        if len(slice_list) == 0:
+            slice_list = [slice(None, None, None)]
+        
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+        
         ds_view = DatasetView(
             dataset=self._ds,
             num_samples=num,

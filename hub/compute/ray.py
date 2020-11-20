@@ -1,4 +1,5 @@
 from hub import Dataset
+from hub.api.datasetview import DatasetView
 from hub.utils import batchify
 from hub.compute import Transform
 from typing import Iterable
@@ -36,9 +37,9 @@ class RayTransform(Transform):
         """
         Remote wrapper for user defined function
         """
-        if isinstance(_ds, Dataset):
+        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView) :
             _ds.squeeze_dim = False
-            
+
         item = _ds[index]
         item = _func(item, **kwargs)
         # item = self._unwrap(item) <- this will not work, need some tricks with ray

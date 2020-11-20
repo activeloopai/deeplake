@@ -2,7 +2,6 @@ import posixpath
 import collections.abc as abc
 import json
 import sys
-import os
 import traceback
 
 import fsspec
@@ -73,7 +72,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 0, # 2 ** 26,
+        cache: int = 0,  # 2 ** 26,
         lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
@@ -276,7 +275,12 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without subpath"
                 )
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            return DatasetView(dataset=self, num_samples=num, offset=ofs, squeeze_dim=isinstance(slice_list[0], int))
+            return DatasetView(
+                dataset=self,
+                num_samples=num,
+                offset=ofs,
+                squeeze_dim=isinstance(slice_list[0], int),
+            )
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(
@@ -447,7 +451,20 @@ class Dataset:
             )
 
     def __str__(self):
-        out = "Dataset(schema=" + str(self.schema) + "url=" + "\'" + self.url + "\'" + ", shape=" + str(self.shape) + ", mode=" + "\'" + self.mode + "\')"
+        out = (
+            "Dataset(schema="
+            + str(self.schema)
+            + "url="
+            + "'"
+            + self.url
+            + "'"
+            + ", shape="
+            + str(self.shape)
+            + ", mode="
+            + "'"
+            + self.mode
+            + "')"
+        )
         return out
 
     def __repr__(self):

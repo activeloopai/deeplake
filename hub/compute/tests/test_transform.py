@@ -2,7 +2,7 @@ import numpy as np
 import zarr
 
 import hub
-from hub.features import Tensor
+from hub.features import Tensor, Image
 from hub.utils import Timer
 
 
@@ -107,20 +107,21 @@ def test_pipeline_multiple():
     ).all()
 
 
-def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8"):
+def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
 
     my_schema = {
-        "image": Tensor(
+        "image": Image(
             (width, width, channels),
             dtype,
             (width, width, channels),
             chunks=(sample_size // 20, width, width, channels),
+            compressor="LZ4",
         ),
     }
 
     with Timer("multiprocesing"):
 
-        @hub.transform(schema=my_schema, scheduler="single", nodes=2)
+        @hub.transform(schema=my_schema, scheduler="threaded", nodes=4)
         def my_transform(x):
 
             a = np.random.random((width, width, channels))
@@ -136,7 +137,7 @@ def test_multiprocessing(sample_size=1000, width=100, channels=4, dtype="uint8")
             mode="w",
             shape=(sample_size,),
             schema=my_schema,
-            cache=0,
+            cache=2 * 26,
         )
 
         ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
@@ -154,19 +155,20 @@ def test_pipeline():
         ds["label", i] = f"hello {i}"
         ds["confidence", i] = 0.2
 
-    @hub.transform(schema=my_schema)
-    def my_transform(sample, multiplier: int = 2):
-        return {
-            "image": sample["image"].compute() * multiplier,
-            "label": sample["label"].compute(),
-            "confidence": sample["confidence"].compute() * multiplier,
-        }
+    with Timer("multiple pipes"):
+        @hub.transform(schema=my_schema)
+        def my_transform(sample, multiplier: int = 2):
+            return {
+                "image": sample["image"].compute() * multiplier,
+                "label": sample["label"].compute(),
+                "confidence": sample["confidence"].compute() * multiplier,
+            }
 
-    out_ds = my_transform(ds, multiplier=2)
-    out_ds = my_transform(out_ds, multiplier=2)
-    out_ds.store("./data/test/test_pipeline_multiple_2")
-    assert (out_ds["image", 0].compute() == 4).all()
+        out_ds = my_transform(ds, multiplier=2)
+        out_ds = my_transform(out_ds, multiplier=2)
+        out_ds = out_ds.store("./data/test/test_pipeline_multiple_2")
 
+        assert (out_ds["image", 0].compute() == 4).all()
 
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
@@ -237,10 +239,8 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 if __name__ == "__main__":
     test_pipeline()
-    test_pipeline_basic()
+
     test_multiprocessing()
+    test_pipeline_basic()
     test_pipeline_dynamic()
     # benchmark()
-    
-
-
