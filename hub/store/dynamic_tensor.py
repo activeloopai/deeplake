@@ -193,7 +193,7 @@ class DynamicTensor:
 
     def check_value_shape(self, value, slice_):
         """Checks if value can be set to the slice"""
-        if None not in self.shape and self.dtype != 'O':
+        if None not in self.shape and self.dtype != "O":
             if not all([isinstance(sh, int) for sh in slice_]):
                 expected_value_shape = tuple(
                     [
@@ -201,9 +201,7 @@ class DynamicTensor:
                         for i, slice_shape in enumerate(slice_)
                         if not isinstance(slice_shape, int)
                     ]
-                )                
-                if expected_value_shape[0] == 1 and len(expected_value_shape) > 1:
-                    expected_value_shape = expected_value_shape[1:]
+                )
 
                 if isinstance(value, list):
                     value = np.array(value)
@@ -217,8 +215,11 @@ class DynamicTensor:
             else:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
-                    value = np.array(value)                
-                if isinstance(value, np.ndarray) and value.shape != expected_value_shape:                    
+                    value = np.array(value)
+                if (
+                    isinstance(value, np.ndarray)
+                    and value.shape != expected_value_shape
+                ):
                     raise ValueShapeError(expected_value_shape, value.shape)
         return value
 
@@ -267,7 +268,7 @@ class DynamicTensor:
                     else:
                         new_shape.append(value_shape[shape_offset])
                         shape_offset += 1
-                elif i < len(slice_) and isinstance(slice_[i], slice):
+                elif i >= len(slice_) or isinstance(slice_[i], slice):
                     shape_offset += 1
             self._dynamic_tensor[slice_[0]] = np.maximum(
                 self._dynamic_tensor[slice_[0]], new_shape
