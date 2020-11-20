@@ -340,6 +340,11 @@ class DynamicTensor:
         """ Deprecated alias to flush()"""
         self.flush()
 
+    def flush(self):
+        self._storage_tensor.store.flush()
+        if self._dynamic_tensor:
+            self._dynamic_tensor.store.flush()
+
     def close(self):
         self._storage_tensor.store.close()
         if self._dynamic_tensor:
