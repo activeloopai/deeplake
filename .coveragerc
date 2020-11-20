@@ -1,3 +1,2 @@
 [run]
-omit = */tests/*
-
+omit = */tests/*, hub/collections/*, hub/codec/*

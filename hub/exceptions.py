@@ -169,15 +169,18 @@ class ValueShapeError(HubException):
         message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
         super(HubException, self).__init__(message=message)
 
+
 class NoneValueException(HubException):
     def __init__(self, param):
         message = f"Parameter '{param}' should be provided"
         super(HubException, self).__init__(message=message)
 
+
 class ShapeLengthException(HubException):
     def __init__(self):
         message = f"Parameter 'shape' should be a tuple of length 1"
         super(HubException, self).__init__(message=message)
+
 
 class ModuleNotInstalledException(HubException):
     def __init__(self, module_name):
@@ -187,40 +190,49 @@ class ModuleNotInstalledException(HubException):
 
 class WrongUsernameException(HubException):
     def __init__(self, username):
-        message = f"The username {username} was not found. Make sure that the username provided in the url " \
-                   "matches the one used during login."
+        message = (
+            f"The username {username} was not found. Make sure that the username provided in the url "
+            "matches the one used during login."
+        )
         super(HubException, self).__init__(message=message)
 
 
 class NotHubDatasetToOverwriteException(HubException):
     def __init__(self):
-        message = "Unable to overwrite the dataset. "  \
-                "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        message = (
+            "Unable to overwrite the dataset. "
+            "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        )
         super(HubException, self).__init__(message=message)
 
 
 class NotHubDatasetToAppendException(HubException):
     def __init__(self):
-        message = "Unable to append to the dataset. "  \
-                  "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        message = (
+            "Unable to append to the dataset. "
+            "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        )
         super(HubException, self).__init__(message=message)
 
-class DynamicTensorNotFoundException(Exception):
+
+class DynamicTensorNotFoundException(HubException):
     def __init__(self):
         message = f"Unable to find dynamic tensor"
         super(HubException, self).__init__(message=message)
 
-class DynamicTensorShapeException(Exception):
+
+class DynamicTensorShapeException(HubException):
     def __init__(self, exc_type):
-        if exc_type == 'none':
+        if exc_type == "none":
             message = f"Parameter 'max_shape' shouldn't contain any 'None' value"
-        elif exc_type == 'length':
+        elif exc_type == "length":
             message = "Lengths of 'shape' and 'max_shape' should be equal"
-        elif exc_type == 'not_equal':
+        elif exc_type == "not_equal":
             message = "All not-None values from 'shape' should be equal to the corresponding values in 'max_shape'"
         else:
             message = "Wrong 'shape' or 'max_shape' values"
         super(HubException, self).__init__(message=message)
+
 
 class NotIterable(HubException):
     def __init__(self):
@@ -236,6 +248,7 @@ class AdvancedSlicingNotSupported(HubException):
 
 class NotZarrFolderException(Exception):
     pass
+
 
 class StorageTensorNotFoundException(Exception):
     pass
