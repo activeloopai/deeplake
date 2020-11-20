@@ -160,11 +160,39 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             out_ds = my_transform(ds_fs)
             out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
-if __name__ == "__main__":
+def test_threaded():
+    init_schema = {'image': Tensor(shape=(None, None, None), max_shape=(4, 224, 224), dtype='float32')}
+    schema = {'image': Tensor(shape=(None, None, None), max_shape=(4, 224, 224), dtype='float32'),
+            'label': Tensor(shape=(None, ), max_shape=(6, ), dtype='uint8'),
+            'text_label': '<U14',
+            'flight_code': '<U10'}
+
+    ds_init = hub.Dataset(
+        "./data/hub/new_pipeline", shape=(10,), schema=init_schema, cache=False)
+
+    for i in range(len(ds_init)):
+        ds_init['image', i] = np.ones((4, 224, 224))
+
+    def random_sample(sample, num_samples):
+        ds = []
+        for _ in range(num_samples):
+            ds.append({'image': sample['image'].numpy(),
+                       'label': np.ones((6, )),
+                       'text_label': 'PLANTED',
+                       'flight_code': "UYKNTHNXR"})
+        return ds
+
+    @hub.transform(schema=schema, scheduler='threaded', nodes=4)
+    def create_classification_dataset(sample):
+        return random_sample(sample, 5)
+
+    out_ds = create_classification_dataset(ds_init).store("./data/hub/new_pipeline_final")
+
+if __name__ == "__main__":    
     test_multiprocessing()
     test_pipeline_basic()
     test_pipeline_dynamic()
-
+    test_threaded()
     # test_pathos()
     # benchmark()
 
