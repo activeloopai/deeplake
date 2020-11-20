@@ -2,7 +2,7 @@
 
 ### Intro
 
-Today we introduce our new API/format for hub package. It is currently in alpha stage, yet it is very promising.
+Today we introduce our new API/format for hub package. It is currently in beta stage, yet it is very promising.
 Eventually we plan to migrate to this format and stick to it for long time. 
 
 Here is some features of new hub:
@@ -15,14 +15,12 @@ More features coming:
 1. Dynamically sized datasets. Soon you will be able to increase number of samples dynamically.
 2. Tensors can be added to dataset on the fly.
 3. Parallelisation to improve IO and data processing.
-4. Better and simplified transformers.
-5. Better dynamic shaping for handling complex metadata.
 
 ### Getting Started
 
-1. Install alpha version
+1. Install beta version
     ```
-    pip3 install hub==1.0.0a4
+    pip3 install hub==1.0.0b4
     ```
 
 2. Register and authenticate to uploade datasests
@@ -38,14 +36,14 @@ More features coming:
     import hub
     from hub.features import ClassLabel, Image
 
-    ds_type = {
+    my_schema = {
         "image": Image((28, 28)),
         "label": ClassLabel(num_classes=10),
     }
 
     url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
 
-    ds = hub.Dataset(url, mode="w", shape=(1000,), dtype=ds_type)
+    ds = hub.Dataset(url, mode="w", shape=(1000,), schema=my_schema)
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28), dtype="uint8")
         ds["label", i] = 3
@@ -54,6 +52,15 @@ More features coming:
     print(ds["label", 100:110].numpy())
     ds.commit()
     ```
+
+You can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*. :
+
+```python
+url = 's3://new_dataset'  # s3
+url = 'gcs://new_dataset' # gcloud
+url = 'https://activeloop.blob.core.windows.net/activeloop-hub/new_dataset' # Azure
+```
+
 
 4. Transferring from TFDS
     In `hub==1.0.0a5` we would also have 
