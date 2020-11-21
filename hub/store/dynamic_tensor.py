@@ -223,8 +223,6 @@ class DynamicTensor:
                         if not isinstance(slice_shape, int)
                     ]
                 )
-                if expected_value_shape[0] == 1 and len(expected_value_shape) > 1:
-                    expected_value_shape = expected_value_shape[1:]
 
                 if isinstance(value, list):
                     value = np.array(value)
@@ -295,7 +293,7 @@ class DynamicTensor:
                     else:
                         new_shape.append(value_shape[shape_offset])
                         shape_offset += 1
-                elif i < len(slice_) and isinstance(slice_[i], slice):
+                elif i >= len(slice_) or isinstance(slice_[i], slice):
                     shape_offset += 1
 
             new_shape = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
