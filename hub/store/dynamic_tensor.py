@@ -110,7 +110,7 @@ class DynamicTensor:
             raise DynamicTensorNotFoundException()
 
         synchronizer = None
-        # syncrhonizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
+        # synchronizer = zarr.ThreadSynchronizer()  # "~/activeloop/sync/example.sync")
         # if tensor exists and mode is read or append
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
@@ -150,6 +150,7 @@ class DynamicTensor:
                     dtype=np.int32,
                     store=NestedStore(fs_map, "--dynamic--"),
                     synchronizer=synchronizer,
+                    compressor=None,
                 )
                 if self._dynamic_dims
                 else None
@@ -201,6 +202,7 @@ class DynamicTensor:
             else:
                 self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
+
         real_shapes = (
             self._dynamic_tensor[slice_[0]]
             if self._dynamic_tensor and isinstance(slice_[0], int)
@@ -295,9 +297,9 @@ class DynamicTensor:
                         shape_offset += 1
                 elif i < len(slice_) and isinstance(slice_[i], slice):
                     shape_offset += 1
-            self._dynamic_tensor[slice_[0]] = np.maximum(
-                self._dynamic_tensor[slice_[0]], new_shape
-            )
+
+            new_shape = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
+            self._dynamic_tensor[slice_[0]] = new_shape
 
     def _get_slice(self, slice_, real_shapes):
         # Makes slice_ which is uses relative indices (ex [:-5]) into precise slice_ (ex [10:40])

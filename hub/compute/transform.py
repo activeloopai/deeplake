@@ -265,9 +265,9 @@ class Transform:
 
         if len(slice_list) == 0:
             slice_list = [slice(None, None, None)]
-        
+
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-        
+
         ds_view = DatasetView(
             dataset=self._ds,
             num_samples=num,

@@ -66,13 +66,13 @@ def test_threaded():
     }
 
     ds_init = hub.Dataset(
-        "./data/hub/new_pipeline", shape=(10,), schema=init_schema, cache=False
+        "./data/hub/new_pipeline_threaded", shape=(10,), schema=init_schema, cache=False
     )
 
     for i in range(len(ds_init)):
         ds_init["image", i] = np.ones((4, 224, 224))
 
-    @hub.transform(schema=schema, scheduler="threaded", nodes=4)
+    @hub.transform(schema=schema, scheduler="threaded", nodes=2)
     def create_classification_dataset(sample):
         ts = sample["image"].numpy()
         return [
@@ -85,7 +85,9 @@ def test_threaded():
             for _ in range(5)
         ]
 
-    create_classification_dataset(ds_init).store("./data/hub/new_pipeline_final")
+    create_classification_dataset(ds_init).store(
+        "./data/hub/new_pipeline_threaded_final"
+    )
 
 
 def test_pipeline_dynamic():
@@ -184,8 +186,9 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
 
 
 def test_pipeline():
+
     ds = hub.Dataset(
-        "./data/test/test_pipeline_multiple", mode="w", shape=(100,), schema=my_schema
+        "./data/test/test_pipeline_multiple2", mode="w", shape=(100,), schema=my_schema
     )
 
     for i in range(len(ds)):
@@ -205,7 +208,7 @@ def test_pipeline():
 
         out_ds = my_transform(ds, multiplier=2)
         out_ds = my_transform(out_ds, multiplier=2)
-        out_ds = out_ds.store("./data/test/test_pipeline_multiple_2")
+        out_ds = out_ds.store("./data/test/test_pipeline_multiple_4")
 
         assert (out_ds["image", 0].compute() == 4).all()
 
@@ -279,7 +282,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 if __name__ == "__main__":
     test_threaded()
-
+    exit()
     test_pipeline()
     test_multiprocessing()
     test_pipeline_basic()
