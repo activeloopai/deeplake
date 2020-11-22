@@ -150,6 +150,7 @@ def main():
     )
     
     args = parser.parse_args()
+    ds = load_dataset(args)
     ds.store(f"{args.output_path}")
     t2 = time.time()
     logger.info(f"Pipeline took {(t2 - t1) / 60} minutes")
