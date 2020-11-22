@@ -1,3 +1,12 @@
+"""
+Folder Structure:
+mpii_human_pose_v1
+  -images
+  -mpii_annotations.json
+"""
+
+
+import argparse
 import os
 import json
 import time
@@ -48,8 +57,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
 
         try:
             ds = {}
-            img_path = "/home/sanchit/images/"
-
+            
             n = 1  # for 1 row
             ds["image"] = np.empty(n, object)
             ds["dataset"] = np.empty(n, object)
@@ -67,7 +75,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
             ds["people_index"] = np.empty(n, object)
             ds["numOtherPeople"] = np.empty(n, object)
 
-            ds["image"][0] = np.array(Image.open(img_path + input["img_paths"]))
+            ds["image"][0] = np.array(Image.open(os.path.join(self._args.dataset_path,"images",input["img_paths"])))
             ds["dataset"][0] = input["dataset"]
             ds["isValidation"][0] = input["isValidation"]
             ds["img_paths"][0] = input["img_paths"]
@@ -93,7 +101,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
             logger.error(e, exc_info=e, stack_info=True)
 
 
-def load_dataset():
+def load_dataset(args):
     """
     This function is used to load json annotations in the form of dictionary and then
     appending all the dictionaries(25205 examples) in the list named annotations.
@@ -102,7 +110,7 @@ def load_dataset():
     in the list(annotations). Finally it returns the complete dataset with all examples.
     """
 
-    with open("/home/sanchit/mpii_annotations.json", "r") as f:
+    with open(os.path.join(args.dataset_path,"mpii_annotations.json"), "r") as f:
 
         instances = json.load(f)
 
@@ -119,11 +127,29 @@ def load_dataset():
 
     return ds
 
+def main():
+    t1 = time.time()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "dataset_path",
+        metavar="P",
+        type=str,
+        help="Path to MPII Human Pose Dataset",
+        default="./mpii_human_pose_v1",
+    )
+    parser.add_argument(
+        "output_path",
+        metavar="N",
+        type=str,
+        help="Dataset output path",
+        default="MPII_human_pose_data",
+    )
+    
+    args = parser.parse_args()
+    ds.store(f"{args.output_path}")
+    t2 = time.time()
+    logger.info(f"Pipeline took {(t2 - t1) / 60} minutes")
 
-t1 = time.time()
-# Call the load_dataset function to generate the complete dataset
-ds = load_dataset()
-# ds.store stores the dataset in username/MPII_human_pose_data
-ds.store("MPII_human_pose_data")
-t2 = time.time()
-print(f"Pipeline took {(t2 - t1) / 60} minutes")
+
+if __name__ == "__main__":
+    main()
