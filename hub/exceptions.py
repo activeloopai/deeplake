@@ -89,7 +89,7 @@ class AuthorizationException(HubException):
 class NotFoundException(HubException):
     def __init__(
         self,
-        message="The resource you are looking for was not found. Check if the name or id is correct.",
+        message="The username or id has already been used, please try another one.",
     ):
         super(NotFoundException, self).__init__(message=message)
 
