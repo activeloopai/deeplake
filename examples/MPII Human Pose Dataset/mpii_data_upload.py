@@ -77,7 +77,7 @@ class MPIIGenerator(dataset.DatasetGenerator):
 
             ds["image"][0] = np.array(
                 Image.open(
-                    os.path.join(self._args.dataset_path,"images",input["img_paths"])
+                    os.path.join(self._args.dataset_path, "images", input["img_paths"])
                 )
             )
             ds["dataset"][0] = input["dataset"]
