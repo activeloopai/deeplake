@@ -75,7 +75,11 @@ class MPIIGenerator(dataset.DatasetGenerator):
             ds["people_index"] = np.empty(n, object)
             ds["numOtherPeople"] = np.empty(n, object)
 
-            ds["image"][0] = np.array(Image.open(os.path.join(self._args.dataset_path,"images",input["img_paths"])))
+            ds["image"][0] = np.array(
+                Image.open(
+                    os.path.join(self._args.dataset_path,"images",input["img_paths"])
+                )
+            )
             ds["dataset"][0] = input["dataset"]
             ds["isValidation"][0] = input["isValidation"]
             ds["img_paths"][0] = input["img_paths"]
@@ -110,7 +114,7 @@ def load_dataset(args):
     in the list(annotations). Finally it returns the complete dataset with all examples.
     """
 
-    with open(os.path.join(args.dataset_path,"mpii_annotations.json"), "r") as f:
+    with open(os.path.join(args.dataset_path, "mpii_annotations.json"), "r") as f:
 
         instances = json.load(f)
 
