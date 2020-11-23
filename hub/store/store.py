@@ -8,6 +8,7 @@ import fsspec
 import gcsfs
 from hub.store.azure_fs import AzureBlobFileSystem
 import os
+import re
 
 
 def _connect(tag):
@@ -58,6 +59,11 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
         or url.startswith("./")
         or url.startswith("/")
         or url.startswith("~/")
+    ):
+        return fsspec.filesystem("file"), url
+    elif (
+        # windows local file system
+        re.search("^[A-Za-z]:", url)
     ):
         return fsspec.filesystem("file"), url
     else:
