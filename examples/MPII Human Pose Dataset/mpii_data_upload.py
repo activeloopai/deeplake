@@ -56,7 +56,6 @@ class MPIIGenerator(dataset.DatasetGenerator):
 
         try:
             ds = {}
-            
             n = 1  # for 1 row
             ds["image"] = np.empty(n, object)
             ds["dataset"] = np.empty(n, object)
@@ -148,7 +147,7 @@ def main():
         help="Dataset output path",
         default="MPII_human_pose_data",
     )
-    
+
     args = parser.parse_args()
     ds = load_dataset(args)
     ds.store(f"{args.output_path}")
