@@ -50,6 +50,10 @@ def test_pipeline_basic():
     assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
 
 
+@pytest.mark.skipif(
+    False,
+    reason="requires ray to be loaded",
+)
 def test_threaded():
     init_schema = {
         "image": Tensor(
