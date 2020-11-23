@@ -4,7 +4,7 @@ import zarr
 import hub
 from hub.features import Tensor, Image
 from hub.utils import Timer
-
+import pytest
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
