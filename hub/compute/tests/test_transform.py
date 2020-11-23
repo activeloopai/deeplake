@@ -51,7 +51,7 @@ def test_pipeline_basic():
 
 
 @pytest.mark.skipif(
-    False,
+    True,
     reason="requires ray to be loaded",
 )
 def test_threaded():
