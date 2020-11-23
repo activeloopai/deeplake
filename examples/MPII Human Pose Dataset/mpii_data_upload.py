@@ -13,7 +13,6 @@ import time
 import numpy as np
 from PIL import Image
 
-import hub
 from hub.collections import dataset
 from hub.log import logger
 
@@ -130,6 +129,7 @@ def load_dataset(args):
     print("Dataset generated.")
 
     return ds
+
 
 def main():
     t1 = time.time()
