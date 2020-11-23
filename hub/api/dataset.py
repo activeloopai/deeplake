@@ -590,8 +590,6 @@ class Dataset:
         def to_hub(tf_dt):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
                 return fdict_to_hub(tf_dt)
-            elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Image):
                 return image_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
@@ -600,6 +598,8 @@ class Dataset:
                 return text_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
+            elif isinstance(tf_dt, tfds.features.Tensor):
+                return tensor_to_hub(tf_dt)
             else:
                 if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
@@ -619,18 +619,13 @@ class Dataset:
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def class_label_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
             if hasattr(tf_dt, "_num_classes"):
                 return ClassLabel(
-                    shape=tf_dt.shape,
-                    dtype=dt,
                     num_classes=tf_dt.num_classes,
-                    max_shape=max_shape,
                 )
             else:
                 return ClassLabel(
-                    shape=tf_dt.shape, dtype=dt, names=tf_dt.names, max_shape=max_shape
+                    names=tf_dt.names
                 )
 
         def text_to_hub(tf_dt):

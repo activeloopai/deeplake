@@ -9,7 +9,7 @@ import pytest
 def test_from_tfds_mnist():
     import tensorflow_datasets as tfds
 
-    with tfds.testing.mock_data(num_examples=5):
+    with tfds.testing.mock_data(num_examples=5, data_dir="./tfds_meta/mnist"):
         ds = hub.Dataset.from_tfds("mnist", num=5)
         res_ds = ds.store(
             "./data/test_tfds/mnist", length=5
