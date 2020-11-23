@@ -246,6 +246,9 @@ class DynamicTensor:
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
+        if isinstance(slice_, int) or isinstance(slice_, slice):
+            slice_ = [slice_]
+
         if isinstance(slice_[0], int) or self._dynamic_tensor is None:
             final_shape = []
             shape_offset = 0
@@ -314,6 +317,7 @@ class DynamicTensor:
                     )
         return tuple(slice_)
 
+    # FIXME I don't see this class being used anywhere
     @classmethod
     def _get_slice_upper_boundary(cls, slice_):
         if isinstance(slice_, slice):
@@ -336,9 +340,24 @@ class DynamicTensor:
         return 0, self.shape[0], self.chunksize[0]
 
     def commit(self):
-        self._storage_tensor.store.commit()
+        """ Deprecated alias to flush()"""
+        self.flush()
+
+    def flush(self):
+        self._storage_tensor.store.flush()
         if self._dynamic_tensor:
-            self._dynamic_tensor.store.commit()
+            self._dynamic_tensor.store.flush()
+
+    def close(self):
+        self._storage_tensor.store.close()
+        if self._dynamic_tensor:
+            self._dynamic_tensor.store.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
     @property
     def is_dynamic(self):

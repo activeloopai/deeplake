@@ -13,7 +13,7 @@ What is Hub?
 Hub provides fast access to the state-of-the-art datasets for Deep Learning, enabling data scientists to manage them, build scalable data pipelines and connect to Pytorch and Tensorflow 
 
 Problems with Current Workflows
-------------------------
+---------------------------------
 
 We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size. 
 
@@ -48,6 +48,7 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
 
    concepts/features.md
    concepts/dataset.md
+   concepts/transform.md
 
 .. toctree::
    :maxdepth: 3

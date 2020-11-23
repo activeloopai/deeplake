@@ -44,12 +44,15 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
     elif url.startswith("gcs://"):
         return gcsfs.GCSFileSystem(token=token), url[6:]
     elif url.find("blob.core.windows.net/") != -1:
-        account_name = url.split('.')[0]
+        account_name = url.split(".")[0]
         account_name = account_name[8:] if url.startswith("https://") else account_name
-        return AzureBlobFileSystem(
-            account_name=account_name,
-            account_key=token.get("account_key"),
-        ), url[url.find("blob.core.windows.net/") + 22:]
+        return (
+            AzureBlobFileSystem(
+                account_name=account_name,
+                account_key=token.get("account_key"),
+            ),
+            url[url.find("blob.core.windows.net/") + 22 :],
+        )
     elif (
         url.startswith("../")
         or url.startswith("./")
@@ -111,5 +114,18 @@ class StorageMapWrapperWithCommit(MutableMapping):
     def __iter__(self):
         yield from self._map
 
-    def commit(self):
+    def flush(self):
         pass
+
+    def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
+    def close(self):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()

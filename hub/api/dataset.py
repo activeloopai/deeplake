@@ -439,12 +439,27 @@ class Dataset:
         """ Number of samples in the dataset """
         return self.shape[0]
 
+    def flush(self):
+        """Save changes from cache to dataset final storage
+        Does not invalidate this object
+        """
+        for t in self._tensors.values():
+            t.flush()
+        self._update_dataset_state()
+
     def commit(self):
+        """ Deprecated alias to flush()"""
+        self.flush()
+
+    def close(self):
         """Save changes from cache to dataset final storage
         This invalidates this object
         """
         for t in self._tensors.values():
-            t.commit()
+            t.close()
+        self._update_dataset_state()
+
+    def _update_dataset_state(self):
         if self.username is not None:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
@@ -474,7 +489,7 @@ class Dataset:
         return self
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.commit()
+        self.close()
 
     @property
     def keys(self):

@@ -31,7 +31,22 @@
 ## Pipelines
 ### Transform
 ```eval_rst
-.. autoclass:: hub.compute.pipeline.Transform
+.. automodule:: hub.compute
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+```eval_rst
+.. autoclass:: hub.compute.transform.Transform
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+### RayTransform
+```eval_rst
+.. autoclass:: hub.compute.ray.RayTransform
    :members:
    :no-undoc-members:
    :private-members:

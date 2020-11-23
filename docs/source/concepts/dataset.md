@@ -2,7 +2,7 @@
 
 
 ## Create
-To create and store dataset you would need to define shape and specify the dataset structure(schema). 
+To create and store dataset you would need to define shape and specify the dataset structure (schema). 
 
 For example, to create a dataset `basic` with 4 samples containing images and labels with shape (512, 512) of dtype 'float' in account `username`:
 

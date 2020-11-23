@@ -1,5 +1,4 @@
 tensorflow==2.2.0
 tensorflow-datasets>=3.0,<4
 torch>=1,<2
-waymo-open-dataset-tf-1-15-0
-ray=1.0.0
+ray>=1.0

@@ -138,13 +138,8 @@ def test_from_pytorch():
             landmarks = 7 * np.ones((10, 10, 10))
             named = "testing text labels"
             sample = {
-                "data": {
-                    'image': image,
-                    'landmarks': landmarks
-                },
-                "labels": {
-                    "named": named
-                }
+                "data": {"image": image, "landmarks": landmarks},
+                "labels": {"named": named},
             }
 
             if self.transform:
@@ -153,10 +148,10 @@ def test_from_pytorch():
 
     tds = TestDataset()
     ds = hub.Dataset.from_pytorch(tds)
-    ds = ds.store("./data/test_from_pytorch/test1")
-    assert(ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
-    assert(ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
-    assert(ds["labels", "named", 5].numpy() == "testing text labels")
+    ds = ds.store("./data//test1")
+    assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
+    assert (ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
+    assert ds["labels", "named", 5].numpy() == "testing text labels"
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
@@ -176,9 +171,7 @@ def test_to_from_pytorch():
         ds["label", "d", "e", i] = i * np.ones((5, 3))
     ds = ds.to_pytorch()
     out_ds = hub.Dataset.from_pytorch(ds)
-    res_ds = out_ds.store(
-        "./data/test_from_pytorch/test3"
-    )
+    res_ds = out_ds.store("./data/test_from_pytorch/test3")
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
