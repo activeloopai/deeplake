@@ -255,45 +255,60 @@ class DynamicTensor:
                     current = self._dynamic_tensor[samples][shape_offset]
                     shape_offset += 1
                 shape.append(current)
-            return shape
+            return np.array(shape)
         elif isinstance(samples, slice):
-            start = samples.start if samples.start is not None else 0
-            stop = samples.stop if samples.stop is not None else self.shape[0]
-            shapes = [self.get_shape_samples(i) for i in range(start, stop)]
+            shapes = self._dynamic_tensor[samples]
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is not None:
+                    shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
             return shapes
 
     def combine_shape(self, shape, slice_):
         """Combines given shape with slice to get final shape"""
-        new_shape = []
-        if len(slice_) > len(shape):
+        if len(slice_) > shape.shape[-1]:
             raise ValueError("Slice can't be longer than shape")
-        for i in range(len(shape)):
-            if i < len(slice_) and isinstance(slice_[i], slice):
-                start = slice_[i].start if slice_[i].start is not None else 0
-                stop = slice_[i].stop if slice_[i].stop is not None else shape[i]
-                if stop == 0:
-                    new_shape.append(0)
-                else:
-                    new_shape.append(stop - start)
-            elif i >= len(slice_):
-                new_shape.append(shape[i])
-        return tuple(new_shape)
+        if shape.ndim == 1:
+            new_shape = np.ones((0))
+            for i in range(shape.shape[-1]):
+                if i < len(slice_) and isinstance(slice_[i], slice):
+                    start = slice_[i].start if slice_[i].start is not None else 0
+                    stop = slice_[i].stop if slice_[i].stop is not None else shape[i]
+                    sl = stop - start if stop != 0 else 0
+                    new_shape = np.append(new_shape, sl)
+                elif i >= len(slice_):
+                    new_shape = np.append(new_shape, shape[i])
+        else:
+            new_shape = np.ones((shape.shape[0], 0))
+            for i in range(shape.shape[-1]):
+                if i < len(slice_) and isinstance(slice_[i], slice):
+                    start = slice_[i].start if slice_[i].start is not None else 0
+                    stop = slice_[i].stop
+                    if stop is None:
+                        sh = shape[:, i : i + 1] - start
+                        sh[sh < 0] = 0
+                        new_shape = np.append(new_shape, sh, axis=1)
+                    else:
+                        sl = stop - start if stop != 0 else 0
+                        new_shape = np.insert(new_shape, new_shape.shape[1], sl, axis=1)
+                elif i >= len(slice_):
+                    new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
+        return new_shape
 
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
         if isinstance(slice_, int) or isinstance(slice_, slice):
             slice_ = [slice_]
-        if self._dynamic_tensor is None:  # returns tuple
-            return self.combine_shape(self.shape, slice_)
-        elif isinstance(slice_[0], int):  # returns tuple
+        if self._dynamic_tensor is None:  # returns 1D array
+            return self.combine_shape(np.array(self.shape), slice_)
+        elif isinstance(slice_[0], int):  # returns 1D array
             sample_shape = self.get_shape_samples(slice_[0])
             return self.combine_shape(sample_shape, slice_[1:])
         elif isinstance(slice_[0], slice):
             sample_shapes = self.get_shape_samples(slice_[0])
-            final_shapes = [self.combine_shape(sample_shape, slice_[1:]) for sample_shape in sample_shapes]
+            final_shapes = self.combine_shape(sample_shapes, slice_[1:])
             if len(final_shapes) == 1:
-                return (1,) + final_shapes[0]  # returns tuple
-            return final_shapes  # returns list of tuples for slice_ containg multiple samples
+                return np.insert(final_shapes[0], 0, 1)  # returns 1D array
+            return final_shapes  # returns 2D array
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
