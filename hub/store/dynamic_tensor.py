@@ -259,9 +259,7 @@ class DynamicTensor:
         elif isinstance(samples, slice):
             start = samples.start if samples.start is not None else 0
             stop = samples.stop if samples.stop is not None else self.shape[0]
-            shapes = []
-            for i in range(start, stop):
-                shapes.append(self.get_shape_samples(i))
+            shapes = [self.get_shape_samples(i) for i in range(start, stop)]
             return shapes
 
     def combine_shape(self, shape, slice_):
@@ -291,10 +289,8 @@ class DynamicTensor:
             sample_shape = self.get_shape_samples(slice_[0])
             return self.combine_shape(sample_shape, slice_[1:])
         elif isinstance(slice_[0], slice):
-            final_shapes = []
             sample_shapes = self.get_shape_samples(slice_[0])
-            for sample_shape in sample_shapes:
-                final_shapes.append(self.combine_shape(sample_shape, slice_[1:]))
+            final_shapes = [self.combine_shape(sample_shape, slice_[1:]) for sample_shape in sample_shapes]
             if len(final_shapes) == 1:
                 return (1,) + final_shapes[0]  # returns tuple
             return final_shapes  # returns list of tuples for slice_ containg multiple samples
