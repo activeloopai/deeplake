@@ -605,8 +605,6 @@ class Dataset:
         def to_hub(tf_dt):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
                 return fdict_to_hub(tf_dt)
-            elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Image):
                 return image_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
@@ -615,6 +613,8 @@ class Dataset:
                 return text_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
+            elif isinstance(tf_dt, tfds.features.Tensor):
+                return tensor_to_hub(tf_dt)
             else:
                 if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
@@ -634,18 +634,13 @@ class Dataset:
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def class_label_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
             if hasattr(tf_dt, "_num_classes"):
                 return ClassLabel(
-                    shape=tf_dt.shape,
-                    dtype=dt,
                     num_classes=tf_dt.num_classes,
-                    max_shape=max_shape,
                 )
             else:
                 return ClassLabel(
-                    shape=tf_dt.shape, dtype=dt, names=tf_dt.names, max_shape=max_shape
+                    names=tf_dt.names
                 )
 
         def text_to_hub(tf_dt):
@@ -673,6 +668,51 @@ class Dataset:
             return transform_numpy(sample)
 
         return my_transform(ds)
+
+    @staticmethod
+    def from_pytorch(dataset):
+        """Converts a pytorch dataset object into hub format
+        Parameters
+        ----------
+        dataset:
+            The pytorch dataset object that needs to be converted into hub format"""
+        def generate_schema(dataset):
+            sample = dataset[0]
+            return dict_to_hub(sample).dict_
+
+        def dict_to_hub(d):
+            for k, v in d.items():
+                k = k.replace('/', '_')
+                if isinstance(v, dict):
+                    d[k] = dict_to_hub(v)
+                else:
+                    value_shape = v.shape if hasattr(v, "shape") else ()
+                    shape = tuple([None for it in value_shape])
+                    max_shape = tuple([10000 for it in value_shape])
+                    if isinstance(v, torch.Tensor):
+                        v = v.numpy()
+                    dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
+                    dtype = "object" if isinstance(v, str) else dtype
+                    d[k] = Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
+            return FeatureDict(d)
+
+        my_schema = generate_schema(dataset)
+
+        def transform_numpy(sample):
+            d = {}
+            for k, v in sample.items():
+                k = k.replace("/", "_")
+                if not isinstance(v, dict):
+                    d[k] = v
+                else:
+                    d[k] = transform_numpy(v)
+            return d
+
+        @hub.transform(schema=my_schema)
+        def my_transform(sample):
+            return transform_numpy(sample)
+
+        return my_transform(dataset)
 
 
 class TorchDataset:
@@ -711,13 +751,14 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-            if not isinstance(self._ds._tensors[key][index], bytes):
+            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(self._ds._tensors[key][index], str):
                 cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
     def __iter__(self):
         self._init_ds()
-        for index in range(self.shape[0]):
+        start = self.offset if self.offset is not None else 0
+        for index in range(start, start + self.__len__()):
             d = {}
             for key in self._ds._tensors.keys():
                 split_key = key.split("/")
@@ -728,5 +769,5 @@ class TorchDataset:
                     else:
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
-                cur[split_key[-1]] = torch.tensor(self._tensors[key][index])
+                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
             yield (d)
