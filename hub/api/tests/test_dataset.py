@@ -253,7 +253,7 @@ def test_tensorview_slicing():
 
 
 if __name__ == "__main__":
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
+    # test_tensorview_slicing()
+    # test_datasetview_slicing()
+    # test_dataset()
     test_dataset2()

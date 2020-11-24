@@ -20,7 +20,7 @@ class LRUCache(MutableMapping):
         self._actual_storage = actual_storage
         self._total_cached = 0
         self._cached_items = OrderedDict()
-        assert len(self._cache_storage) == 0, "Initially cache storage should be empty"
+        # assert len(self._cache_storage) == 0, "Initially cache storage should be empty"
 
     @property
     def cache_storage(self):
@@ -49,9 +49,17 @@ class LRUCache(MutableMapping):
 
     def flush(self):
         self._flush_dirty()
+        if hasattr(self._cache_storage, "flush"):
+            self._cache_storage.flush()
+        if hasattr(self._actual_storage, "flush"):
+            self._actual_storage.flush()
 
     def close(self):
         self._flush_dirty()
+        if hasattr(self._cache_storage, "close"):
+            self._cache_storage.close()
+        if hasattr(self._actual_storage, "close"):
+            self._actual_storage.close()
 
     def commit(self):
         self.close()
