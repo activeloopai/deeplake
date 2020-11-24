@@ -233,6 +233,14 @@ class Transform:
 
         _ds = ds or self._ds
 
+        if isinstance(_ds, Transform):
+            # FIXME Windows issue below
+            _ds = _ds.store(
+                "{}/{}".format(url, _ds._func.__name__),
+                token=token,
+                progressbar=progressbar,
+            )
+
         def _func_argd(item):
             return self._func(item, **self.kwargs)
 

@@ -37,7 +37,7 @@ class RayTransform(Transform):
         """
         Remote wrapper for user defined function
         """
-        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView) :
+        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView):
             _ds.squeeze_dim = False
 
         item = _ds[index]
@@ -76,6 +76,13 @@ class RayTransform(Transform):
         """
 
         _ds = ds or self._ds
+        if isinstance(_ds, Transform):
+            # FIXME Windows issue below
+            _ds = _ds.store(
+                "{}/{}".format(url, _ds._func.__name__),
+                token=token,
+                progressbar=progressbar,
+            )
 
         num_returns = len(self._flatten_dict(self.schema, schema=self.schema).keys())
         results = [
