@@ -42,6 +42,7 @@ from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
+from hub.features.sequence import Sequence
 
 try:
     import torch
@@ -649,7 +650,7 @@ class Dataset:
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def sequence_to_hub(tf_dt):
-            return "object"
+            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
 
         my_schema = generate_schema(ds_info)
 

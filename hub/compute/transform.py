@@ -10,6 +10,7 @@ import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
 from hub.features import Primitive
+from hub.features.sequence import Sequence
 
 
 try:
@@ -71,7 +72,7 @@ class Transform:
         for k, v in d.items():
             new_key = parent_key + "/" + k if parent_key else k
             if isinstance(v, MutableMapping) and not isinstance(
-                self.dtype_from_path(new_key, schema), Primitive
+                self.dtype_from_path(new_key, schema), Sequence
             ):
                 items.extend(
                     self._flatten_dict(v, parent_key=new_key, schema=schema).items()
@@ -265,9 +266,9 @@ class Transform:
 
         if len(slice_list) == 0:
             slice_list = [slice(None, None, None)]
-        
+
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-        
+
         ds_view = DatasetView(
             dataset=self._ds,
             num_samples=num,

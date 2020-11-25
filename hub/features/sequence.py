@@ -16,7 +16,8 @@ class Sequence(Tensor):
 
     def __init__(
         self,
-        shape=(None,),
+        shape=(),
+        max_shape=(),
         dtype=None,
         chunks=None,
         compressor="lz4",
@@ -39,6 +40,7 @@ class Sequence(Tensor):
             dtype=dtype,
             chunks=chunks,
             compressor=compressor,
+            max_shape=max_shape
         )
 
     def get_attr_dict(self):

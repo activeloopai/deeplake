@@ -82,10 +82,8 @@ class FeatureDict(HubFeature):
 
     def __str__(self):
         out = "FeatureDict("
-        for k, v in self.dict_.items():
-            out += '\n\t' + k + ": " + str(v) + ','
-        out = out[:-1] + "\n"
-        out += "), "
+        out += str(self.dict_)
+        out += ")"
         return out
 
     def __repr__(self):
