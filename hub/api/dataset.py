@@ -364,6 +364,7 @@ class Dataset:
         """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
+        self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
     def to_tensorflow(self, offset=None, num_samples=None):
@@ -667,9 +668,7 @@ class Dataset:
                     num_classes=tf_dt.num_classes,
                 )
             else:
-                return ClassLabel(
-                    names=tf_dt.names
-                )
+                return ClassLabel(names=tf_dt.names)
 
         def text_to_hub(tf_dt):
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
@@ -704,13 +703,14 @@ class Dataset:
         ----------
         dataset:
             The pytorch dataset object that needs to be converted into hub format"""
+
         def generate_schema(dataset):
             sample = dataset[0]
             return dict_to_hub(sample).dict_
 
         def dict_to_hub(d):
             for k, v in d.items():
-                k = k.replace('/', '_')
+                k = k.replace("/", "_")
                 if isinstance(v, dict):
                     d[k] = dict_to_hub(v)
                 else:
@@ -779,7 +779,9 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(self._ds._tensors[key][index], str):
+            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
+                self._ds._tensors[key][index], str
+            ):
                 cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
