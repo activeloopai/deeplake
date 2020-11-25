@@ -47,8 +47,8 @@ def train_model_tune(model: pl.LightningModule, dataloaders: Tuple, num_epochs: 
     model_obj.store(model_output_dir)
 
 
-def fit(model: pl.LightningModule, dataloaders: Tuple, num_epochs: int = 3, 
-        num_gpus: int = 1, num_cpus: int = multiprocessing.cpu_count()):
+def fit(model: pl.LightningModule, dataloaders: Tuple, num_epochs: int = 3, model_output_dir: str = '.', 
+        num_gpus: int = 1, num_cpus: int = multiprocessing.cpu_count(), **kwargs):
     """Fit dataloaders into model using remote Ray function
 
     Arguments:
@@ -62,7 +62,7 @@ def fit(model: pl.LightningModule, dataloaders: Tuple, num_epochs: int = 3,
     ray.init()
 
     g = train_model_tune.options(num_gpus=num_gpus, num_cpus=num_cpus)
-    ray.get(g.remote(model=model, dataloaders=dataloaders))
+    ray.get(g.remote(model=model, dataloaders=dataloaders, model_output_dir=model_output_dir, **kwargs))
 
 
 if __name__ == "__main__":
