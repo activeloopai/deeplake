@@ -72,7 +72,8 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 0,  # 2 ** 26,
+        cache: int = 2 ** 26,
+        storage_cache: int = 2 ** 28,
         lock_cache=True,
     ):
         """Open a new or existing dataset for read/write
@@ -95,8 +96,11 @@ class Dataset:
         fs: optional
         fs_map: optional
         cache: int, optional
-            Size of the cache. Default is 2GB (2**20)
-            if zero or flase, then cache is not used
+            Size of the memory cache. Default is 64MB (2**26)
+            if 0, False or None, then cache is not used
+        storage_cache: int, optional
+            Size of the storage cache. Default is 256MB (2**28)
+            if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
         """
@@ -110,6 +114,9 @@ class Dataset:
         if mode is None:
             raise NoneValueException("mode")
 
+        if not cache:
+            storage_cache = False
+
         self.url = url
         self.token = token
         self.mode = mode
@@ -118,15 +125,19 @@ class Dataset:
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
         )
         self.cache = cache
+        self._storage_cache = storage_cache
         self.lock_cache = lock_cache
 
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs, self._path, cache, lock=lock_cache)
+        fs_map = fs_map or get_storage_map(
+            self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
+        )
         self._fs_map = fs_map
 
         if safe_mode and not needcreate:
             mode = "r"
-
+        self.username = None
+        self.dataset_name = None
         if not needcreate:
             meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
@@ -153,13 +164,16 @@ class Dataset:
                 fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
+                self.flush()
             except Exception as e:
+                try:
+                    self.close()
+                except Exception:
+                    pass
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
 
-        self.username = None
-        self.dataset_name = None
         if needcreate and (
             self._path.startswith("s3://snark-hub-dev/")
             or self._path.startswith("s3://snark-hub/")
@@ -229,7 +243,13 @@ class Dataset:
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
-                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    get_storage_map(
+                        self._fs,
+                        path,
+                        self.cache,
+                        self.lock_cache,
+                        storage_cache=self._storage_cache,
+                    ),
                     self._fs_map,
                 ),
                 mode=self.mode,
@@ -247,7 +267,13 @@ class Dataset:
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
-                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    get_storage_map(
+                        self._fs,
+                        path,
+                        self.cache,
+                        self.lock_cache,
+                        storage_cache=self._storage_cache,
+                    ),
                     self._fs_map,
                 ),
                 mode=self.mode,
@@ -338,6 +364,7 @@ class Dataset:
         """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
+        self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
     def to_tensorflow(self, offset=None, num_samples=None):
@@ -445,6 +472,7 @@ class Dataset:
         """
         for t in self._tensors.values():
             t.flush()
+        self._fs_map.flush()
         self._update_dataset_state()
 
     def commit(self):
@@ -457,6 +485,7 @@ class Dataset:
         """
         for t in self._tensors.values():
             t.close()
+        self._fs_map.close()
         self._update_dataset_state()
 
     def _update_dataset_state(self):
@@ -639,9 +668,7 @@ class Dataset:
                     num_classes=tf_dt.num_classes,
                 )
             else:
-                return ClassLabel(
-                    names=tf_dt.names
-                )
+                return ClassLabel(names=tf_dt.names)
 
         def text_to_hub(tf_dt):
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
@@ -676,13 +703,14 @@ class Dataset:
         ----------
         dataset:
             The pytorch dataset object that needs to be converted into hub format"""
+
         def generate_schema(dataset):
             sample = dataset[0]
             return dict_to_hub(sample).dict_
 
         def dict_to_hub(d):
             for k, v in d.items():
-                k = k.replace('/', '_')
+                k = k.replace("/", "_")
                 if isinstance(v, dict):
                     d[k] = dict_to_hub(v)
                 else:
@@ -751,7 +779,9 @@ class TorchDataset:
                 else:
                     cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(self._ds._tensors[key][index], str):
+            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
+                self._ds._tensors[key][index], str
+            ):
                 cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
         return d
 
