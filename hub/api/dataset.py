@@ -114,6 +114,9 @@ class Dataset:
         if mode is None:
             raise NoneValueException("mode")
 
+        if not cache:
+            storage_cache = False
+
         self.url = url
         self.token = token
         self.mode = mode
@@ -122,10 +125,13 @@ class Dataset:
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
         )
         self.cache = cache
+        self._storage_cache = storage_cache
         self.lock_cache = lock_cache
 
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs, self._path, cache, lock=lock_cache)
+        fs_map = fs_map or get_storage_map(
+            self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
+        )
         self._fs_map = fs_map
 
         if safe_mode and not needcreate:
@@ -237,7 +243,13 @@ class Dataset:
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
-                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    get_storage_map(
+                        self._fs,
+                        path,
+                        self.cache,
+                        self.lock_cache,
+                        storage_cache=self._storage_cache,
+                    ),
                     self._fs_map,
                 ),
                 mode=self.mode,
@@ -255,7 +267,13 @@ class Dataset:
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
-                    get_storage_map(self._fs, path, self.cache, self.lock_cache),
+                    get_storage_map(
+                        self._fs,
+                        path,
+                        self.cache,
+                        self.lock_cache,
+                        storage_cache=self._storage_cache,
+                    ),
                     self._fs_map,
                 ),
                 mode=self.mode,
