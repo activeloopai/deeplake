@@ -191,8 +191,8 @@ class ModuleNotInstalledException(HubException):
 class WrongUsernameException(HubException):
     def __init__(self, username):
         message = (
-            f"The username {username} was not found. Make sure that the username provided in the url "
-            "matches the one used during login."
+            f"Username {username} doesn't have access to the given url. Please check your permissions " 
+            "or make sure that the username provided in the url matches the one used during login or ."
         )
         super(HubException, self).__init__(message=message)
 

@@ -1,3 +1,4 @@
+import os
 import posixpath
 import collections.abc as abc
 import json
@@ -37,6 +38,7 @@ from hub.exceptions import (
     ModuleNotInstalledException,
     NoneValueException,
     ShapeLengthException,
+    WrongUsernameException
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -181,6 +183,15 @@ class Dataset:
         Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
+        if path.startswith("s3://"):
+            with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
+                stored_username = json.load(f)["_id"]
+            current_username = path.split("/")[-2]
+            if stored_username != current_username:
+                try:
+                    fs.listdir(path)
+                except:
+                    raise WrongUsernameException(stored_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
