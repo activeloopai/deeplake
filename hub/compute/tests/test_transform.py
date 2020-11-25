@@ -285,9 +285,9 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
-    test_pipeline()
-    # test_threaded()
+    test_threaded()
     exit()
+    test_pipeline()
     test_multiprocessing()
     test_pipeline_basic()
     test_pipeline_dynamic()

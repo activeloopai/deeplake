@@ -110,7 +110,8 @@ class DynamicTensor:
             raise DynamicTensorNotFoundException()
 
         synchronizer = None
-        # synchronizer = zarr.ThreadSynchronizer()  # "~/activeloop/sync/example.sync")
+        # synchronizer = zarr.ThreadSynchronizer()
+        # synchronizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         # if tensor exists and mode is read or append
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))

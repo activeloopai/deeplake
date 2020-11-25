@@ -1,5 +1,5 @@
 from hub.compute.transform import Transform
-from hub.compute.ray import RayTransform
+from hub.compute.ray import RayTransform, RayGeneratorTransform
 from collections.abc import Iterable
 from hub.exceptions import NotIterable
 
@@ -15,20 +15,28 @@ def transform(schema, scheduler="single", nodes=1):
         scheduler: str
             "single" - for single threaded, "threaded" using multiple threads, "processed", "ray" scheduler, "dask" scheduler
         nodes: int
-            how many nodes will be started for the process 
+            how many nodes will be started for the process
     """
+
     def wrapper(func):
         def inner(ds, **kwargs):
             if not isinstance(ds, Iterable) and not isinstance(ds, str):
                 raise NotIterable
 
             if scheduler == "ray":
-                return RayTransform(func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs)
+                return RayTransform(
+                    func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+                )
 
-            if scheduler == "dask":
-                raise NotImplementedError
+            if scheduler == "generator":
+                return RayGeneratorTransform(
+                    func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+                )
 
-            return Transform(func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs)
+            return Transform(
+                func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+            )
+
         return inner
 
     return wrapper

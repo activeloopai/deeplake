@@ -42,7 +42,7 @@ class RayTransform(Transform):
 
         item = _ds[index]
         item = _func(item, **kwargs)
-        # item = self._unwrap(item) <- this will not work, need some tricks with ray
+        # item = Transform._flatten(item, schema)
         item = Transform._flatten_dict(item, schema=schema)
         return list(item.values())
 
@@ -91,6 +91,7 @@ class RayTransform(Transform):
             )
             for el in range(len(_ds))
         ]
+
         results = self._split_list_to_dicts(results)
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
         return ds
@@ -103,9 +104,10 @@ class RayTransform(Transform):
         i, batch = i_batch
         length = len(batch)
 
-        if not isinstance(batch, dict):
+        if not isinstance(batch, dict) and isinstance(batch[0], ray.ObjectRef):
             batch = ray.get(batch)
 
+        # TODO some sort of syncronizer across nodes
         # FIXME replace below 8 lines with ds[key, i * length : (i + 1) * length] = batch
         if not ds[key].is_dynamic:
             if len(batch) != 1:
@@ -133,12 +135,11 @@ class RayTransform(Transform):
         ds: hub.Dataset
             Uploaded dataset
         """
-
         shape = (len(list(results.values())[0]),)
         ds = Dataset(
             url,
             mode="w",
-            shape=shape,
+            shape=shape,  # unkownn
             schema=self.schema,
             token=token,
             cache=False,
@@ -160,3 +161,97 @@ class RayTransform(Transform):
         ray.get(tasks)
         ds.commit()
         return ds
+
+
+class TransformShard:
+    def __init__(self, ds, func, schema, **kwargs):
+
+        if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
+            ds.squeeze_dim = False
+
+        self._ds = ds
+        self._func = func
+        self.schema = schema
+        self.kwargs = kwargs
+        self.token = None
+
+    def __call__(self, ids):
+        """
+        For each shard, transform each sample and then store inside shared memory of ray
+        """
+        for index in ids:
+            item = self._ds[index]
+            item = self._func(item, **self.kwargs)
+
+            for item in Transform._unwrap(item):
+                yield Transform._flatten_dict(item, schema=self.schema)
+
+
+class RayGeneratorTransform(RayTransform):
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        length: int = None,
+        ds: Iterable = None,
+        progressbar: bool = True,
+    ):
+        """
+        The function to apply the transformation for each element by sharding the dataset
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        ds: Iterable
+        progressbar: bool
+            Show progress bar
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+        _ds = ds or self._ds
+        if isinstance(_ds, Transform):
+            # FIXME Windows issue below
+            _ds = _ds.store(
+                "{}/{}".format(url, _ds._func.__name__),
+                token=token,
+                progressbar=progressbar,
+            )
+
+        results = ray.util.iter.from_range(len(_ds), num_shards=4).transform(
+            TransformShard(ds=_ds, func=self._func, schema=self.schema, **self.kwargs)
+        )
+
+        @remote
+        def upload_shard(i, shard_results):
+            """
+            Create a seperate dataset per shard
+            """
+            shard_results = self._split_list_to_dicts(shard_results)
+
+            if len(shard_results) == 0:
+                return None
+
+            ds = self.upload(
+                shard_results,
+                url=f"{url}/shard_{i}",
+                token=token,
+                progressbar=progressbar,
+            )
+            return ds
+
+        work = [
+            upload_shard.remote(i, shard) for i, shard in enumerate(results.shards())
+        ]
+
+        datasets = ray.get(work)
+        datasets = [d for d in datasets if d]
+        # FIXME merge datasets shards
+        return datasets[0]

@@ -81,6 +81,24 @@ class Transform:
         return dict(items)
 
     @classmethod
+    def _flatten(cls, items, schema):
+        """
+        Takes a dictionary or list of dictionary
+        Returns a dictionary of concatenated values
+        Dictionary follows schema
+        """
+        final_item = {}
+        for item in cls._unwrap(items):
+            item = cls._flatten_dict(item, schema=schema)
+
+            for k, v in item.items():
+                if k in final_item:
+                    final_item[k].append(v)
+                else:
+                    final_item[k] = [v]
+        return final_item
+
+    @classmethod
     def dtype_from_path(cls, path, schema):
         """
         Helper function to get the dtype from the path
@@ -150,6 +168,7 @@ class Transform:
         for key, value in results.items():
 
             length = ds[key].chunksize[0]
+
             if length == 0:
                 length = 1
 
@@ -190,7 +209,8 @@ class Transform:
         single_threaded = self.map == map
         return tqdm if show and single_threaded else _empty_pbar
 
-    def _unwrap(self, results):
+    @classmethod
+    def _unwrap(cls, results):
         """
         If there is any list then unwrap it into its elements
         """

@@ -5,6 +5,10 @@ import pytest
 
 import numpy as np
 
+dynamic_schema = {
+    "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
+    "label": "<U20",
+}
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
@@ -47,5 +51,40 @@ def test_pipeline_ray():
     out_ds.store("./data/test/test_pipeline_basic_output")
 
 
+@pytest.mark.skipif(
+    not ray_loaded(),
+    reason="requires ray to be loaded",
+)
+def test_ray_pipeline_multiple():
+
+    ds = hub.Dataset(
+        "./data/test/test_pipeline_dynamic10",
+        mode="w",
+        shape=(1,),
+        schema=dynamic_schema,
+        cache=False,
+    )
+
+    ds["image", 0] = np.ones((30, 32, 3))
+
+    @hub.transform(schema=dynamic_schema, scheduler="generator")
+    def dynamic_transform(sample, multiplier: int = 2):
+        return [
+            {
+                "image": sample["image"].compute() * multiplier,
+                "label": sample["label"].compute(),
+            }
+            for _ in range(4)
+        ]
+
+    out_ds = dynamic_transform(ds, multiplier=4).store(
+        "./data/test/test_pipeline_dynamic_output2"
+    )
+    assert len(out_ds) == 4
+    assert (
+        out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
+    ).all()
+
+
 if __name__ == "__main__":
-    test_pipeline_ray()
+    test_ray_pipeline_multiple()
