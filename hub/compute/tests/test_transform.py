@@ -290,5 +290,5 @@ if __name__ == "__main__":
     test_pipeline()
     test_multiprocessing()
     test_pipeline_basic()
-    test_pipeline_dynamic()
+    # test_pipeline_dynamic()
     # benchmark()

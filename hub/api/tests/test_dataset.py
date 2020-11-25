@@ -205,6 +205,24 @@ def test_dataset_bug():
     )
 
 
+def test_dataset_bug_1(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor(
+            (None, 1920, 1080, None), "uint8", max_shape=(10, 1920, 1080, 4)
+        ),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds["image", 1] = np.ones((2, 1920, 1080, 1))
+
+
+def test_dataset_bug_2(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds["image", 0:1] = [np.zeros((100, 100))]
+
+
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_dataset_gcs():
     test_dataset("gcs://snark-test/test_dataset_gcs")
@@ -240,20 +258,17 @@ def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
     ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
-    assert tv.numpy().shape == tv.shape == (1, 3, 1)
+    assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
-    assert tv2.numpy().shape == tv2.shape == (1, 3)
+    assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
     tv3 = ds["first", 5:10, 2, 3:39]
     tv4 = tv3[3:5, 5:17]
     assert tv4.numpy().shape == (2, 12)
-    assert tv4.shape == [
-        (12,),
-        (12,),
-    ]  # for dynamic_tensor multiple shapes are returned as list of shapes
+    assert (tv4.shape == np.array([[12], [12]])).all()
 
 
 if __name__ == "__main__":
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
+    # test_tensorview_slicing()
+    # test_datasetview_slicing()
+    # test_dataset()
     test_dataset2()

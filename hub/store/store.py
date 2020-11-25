@@ -1,4 +1,7 @@
+import posixpath
+import shutil
 from hub.store.cache import Cache
+from hub.store.lru_cache import LRUCache
 
 from hub.client.hub_control import HubControlClient
 import configparser
@@ -6,8 +9,10 @@ from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
+import zarr
 from hub.store.azure_fs import AzureBlobFileSystem
 import os
+import re
 
 
 def _connect(tag):
@@ -60,6 +65,11 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
         or url.startswith("~/")
     ):
         return fsspec.filesystem("file"), url
+    elif (
+        # windows local file system
+        re.search("^[A-Za-z]:", url)
+    ):
+        return fsspec.filesystem("file"), url
     else:
         # TOOD check if url is username/dataset:version
         url, creds = _connect(url)
@@ -86,12 +96,17 @@ def _get_storage_map(fs, path):
     return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
-def get_storage_map(fs, path, memcache=2 ** 26, lock=True):
+def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
-    cache_path = os.path.join("~/.activeloop/cache/", path)
-    if memcache == 0 or memcache is False:
-        return store
-    return Cache(store, memcache, path=cache_path, lock=lock)
+    cache_path = posixpath.expanduser(posixpath.join("~/.activeloop/cache/", path))
+    if storage_cache and storage_cache > 0:
+        os.makedirs(cache_path, exist_ok=True)
+        store = LRUCache(
+            zarr.LMDBStore(cache_path, buffers=True, lock=lock), store, storage_cache
+        )
+    if memcache and memcache > 0:
+        store = LRUCache(zarr.MemoryStore(), store, memcache)
+    return store
 
 
 class StorageMapWrapperWithCommit(MutableMapping):

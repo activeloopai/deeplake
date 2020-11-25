@@ -245,46 +245,78 @@ class DynamicTensor:
                     raise ValueShapeError(expected_value_shape, value.shape)
         return value
 
+    def get_shape_samples(self, samples):
+        """Gets full shape of dynamic_tensor(s)"""
+        if isinstance(samples, int):
+            shape, shape_offset = [], 0
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is not None:
+                    current = self.shape[i]
+                else:
+                    current = self._dynamic_tensor[samples][shape_offset]
+                    shape_offset += 1
+                shape.append(current)
+            return np.array(shape)
+        elif isinstance(samples, slice):
+            shapes = self._dynamic_tensor[samples]
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is not None:
+                    shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
+            return shapes
+
+    def combine_shape(self, shape, slice_):
+        """Combines given shape with slice to get final shape"""
+        if len(slice_) > shape.shape[-1]:
+            raise ValueError("Slice can't be longer than shape")
+        if shape.ndim == 1:  # single shape accessed
+            new_shape = np.ones((0))
+            for i in range(shape.shape[-1]):
+                if i < len(slice_) and isinstance(slice_[i], slice):
+                    start = slice_[i].start if slice_[i].start is not None else 0
+                    stop = slice_[i].stop if slice_[i].stop is not None else shape[i]
+                    sl = stop - start if stop != 0 else 0
+                    new_shape = np.append(new_shape, sl)
+                elif i >= len(slice_):
+                    new_shape = np.append(new_shape, shape[i])
+        else:  # slice of shapes accessed
+            new_shape = np.ones((shape.shape[0], 0))  # new shape with rows equal to number of shapes accessed
+            for i in range(shape.shape[-1]):
+                if i < len(slice_) and isinstance(slice_[i], slice):
+                    start = slice_[i].start if slice_[i].start is not None else 0
+                    stop = slice_[i].stop
+                    if stop is None:
+                        sh = shape[:, i : i + 1] - start
+                        sh[sh < 0] = 0  # if negative in shape, replace with 0
+                        new_shape = np.append(new_shape, sh, axis=1)
+                    else:
+                        sl = stop - start if stop != 0 else 0
+                        new_shape = np.insert(new_shape, new_shape.shape[1], sl, axis=1)  # inserted as last column
+                elif i >= len(slice_):
+                    new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
+        return new_shape
+
     def get_shape(self, slice_):
         """Gets the shape of the slice from tensor"""
         if isinstance(slice_, int) or isinstance(slice_, slice):
             slice_ = [slice_]
-
-        if isinstance(slice_[0], int) or self._dynamic_tensor is None:
-            final_shape = []
-            shape_offset = 0
-            for i in range(len(self.shape)):
-                if i < len(slice_):
-                    if isinstance(slice_[i], slice):
-                        sl = slice_[i].stop
-                        if sl is None and self._dynamic_tensor is not None:
-                            sl = self._dynamic_tensor[slice_[0]][shape_offset]
-                        if sl is not None and slice_[i].start is not None:
-                            sl -= slice_[i].start
-                        sl = (
-                            self.shape[i]
-                            if slice_[i].stop is None and slice_[i].start is None
-                            else sl
-                        )
-                        final_shape.append(sl)
-                    shape_offset = shape_offset + 1 if i != 0 else shape_offset
-                elif self.shape[i] is not None:
-                    final_shape.append(self.shape[i])
-                elif shape_offset < len(self._dynamic_tensor[slice_[0]]):
-                    final_shape.append(self._dynamic_tensor[slice_[0]][shape_offset])
-                    shape_offset += 1
-            return tuple(final_shape)
-        else:
-            raise ValueError(
-                "Getting shape across multiple dimensions isn't supported right now"
-            )
+        if self._dynamic_tensor is None:  # returns 1D np array
+            return self.combine_shape(np.array(self.shape), slice_)
+        elif isinstance(slice_[0], int):  # returns 1D np array
+            sample_shape = self.get_shape_samples(slice_[0])
+            return self.combine_shape(sample_shape, slice_[1:])
+        elif isinstance(slice_[0], slice):
+            sample_shapes = self.get_shape_samples(slice_[0])
+            final_shapes = self.combine_shape(sample_shapes, slice_[1:])
+            if len(final_shapes) == 1:
+                return np.insert(final_shapes[0], 0, 1)  # returns 1D np array
+            return final_shapes  # returns 2D np array
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
         new_shape = []
         shape_offset = 0
         if isinstance(slice_[0], int):
-            value_shape = list(value.shape) if isinstance(value, np.ndarray) else [1]
+            value_shape = list(value.shape) if hasattr(value, "shape") else [1]
             for i in range(1, len(self.shape)):
                 if self.shape[i] is None:
                     if i < len(slice_):

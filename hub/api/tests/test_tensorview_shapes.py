@@ -13,9 +13,9 @@ def test_tensorview_shapes_1(url="./data/test/dataset", token=None):
     ds = Dataset(url, token=token, shape=(100,), mode="w", schema=my_schema)
     ds["image", 1] = np.ones((8, 345, 75, 2))
     ds["image", 2] = np.ones((5, 345, 90, 3))
-    assert ds["image", 1:3, 2:4, 300:330].shape == [(2, 30, 75, 2), (2, 30, 90, 3)]
-    assert ds["image", 0].shape == (0, 0, 0, 0)
-    assert ds["label", 5:50].shape == (45,)
+    assert ds["image", 1:3, 2:4, 300:330].shape.tolist() == [[2, 30, 75, 2], [2, 30, 90, 3]]
+    assert ds["image", 0].shape.tolist() == [0, 0, 0, 0]
+    assert ds["label", 5:50].shape.tolist() == [45]
 
 
 def test_tensorview_shapes_2(url="./data/test/dataset", token=None):
@@ -26,10 +26,10 @@ def test_tensorview_shapes_2(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(100,), mode="w", schema=my_schema)
     ds["image", 4] = np.ones((7, 10, 20))
-    assert ds["image", 4, 3:6].shape == (3, 10, 20)
-    assert ds["image", 4, 3:6, 5:6].shape == (3, 1, 20)
-    assert ds["fixed", 4, 7:11, 8:9].shape == (4, 1, 100)
-    assert ds["fixed", 4, 7:11, 8].shape == (4, 100)
+    assert ds["image", 4, 3:6].shape.tolist() == [3, 10, 20]
+    assert ds["image", 4, 3:6, 5:6].shape.tolist() == [3, 1, 20]
+    assert ds["fixed", 4, 7:11, 8:9].shape.tolist() == [4, 1, 100]
+    assert ds["fixed", 4, 7:11, 8].shape.tolist() == [4, 100]
 
 
 if __name__ == "__main__":

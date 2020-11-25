@@ -117,9 +117,71 @@ def test_to_pytorch():
     for i, batch in enumerate(ds):
         assert (batch["label"]["d"]["e"].numpy() == i * np.ones((5, 3))).all()
 
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_from_pytorch():
+    from torch.utils.data import Dataset
+
+    class TestDataset(Dataset):
+        def __init__(self, transform=None):
+            self.transform = transform
+
+        def __len__(self):
+            return 12
+
+        def __iter__(self):
+            for i in range(len(self)):
+                yield self[i]
+
+        def __getitem__(self, idx):
+            image = 5 * np.ones((50, 50))
+            landmarks = 7 * np.ones((10, 10, 10))
+            named = "testing text labels"
+            sample = {
+                "data": {
+                    'image': image,
+                    'landmarks': landmarks
+                },
+                "labels": {
+                    "named": named
+                }
+            }
+
+            if self.transform:
+                sample = self.transform(sample)
+            return sample
+
+    tds = TestDataset()
+    ds = hub.Dataset.from_pytorch(tds)
+    ds = ds.store("./data/test_from_pytorch/test1")
+    assert(ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
+    assert(ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
+    assert(ds["labels", "named", 5].numpy() == "testing text labels")
+
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_from_pytorch():
+    my_schema = {
+        "image": Tensor((10, 10, 3), "uint8"),
+        "label": {
+            "c": Tensor((5, 3), "uint8"),
+            "d": {"e": Tensor((5, 3), "uint8")},
+            "f": "float",
+        },
+    }
+    ds = hub.Dataset(
+        schema=my_schema, shape=(10,), url="./data/test_from_pytorch/test2", mode="w"
+    )
+    for i in range(10):
+        ds["label", "d", "e", i] = i * np.ones((5, 3))
+    ds = ds.to_pytorch()
+    out_ds = hub.Dataset.from_pytorch(ds)
+    res_ds = out_ds.store(
+        "./data/test_from_pytorch/test3"
+    )
+    for i in range(10):
+        assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
+
+
 if __name__ == "__main__":
-    test_from_tfds_mnist()
-    test_from_tfds_coco()
-    test_from_tensorflow()
-    test_to_from_tensorflow()
-    test_to_pytorch()
+    test_to_from_pytorch()
