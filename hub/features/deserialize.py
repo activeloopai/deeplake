@@ -83,9 +83,9 @@ def deserialize(inp):
                 )
         elif inp["type"] == "Sequence":
             return Sequence(
-                Tensor(shape=None, dtype=deserialize(inp["dtype"])),
-                length=inp["shape"][0],
-                chunks=inp["chunks"],
+                shape=inp["shape"],
+                dtype=deserialize(inp["dtype"]),
+                chunks=inp["chunks"]
             )
         elif inp["type"] == "Tensor":
             return Tensor(
