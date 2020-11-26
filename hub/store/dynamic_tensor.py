@@ -206,12 +206,13 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
         real_shapes = (
-            list(value.shape)
-            if hasattr(value, "shape")
-            else [1]
+            self._dynamic_tensor[slice_[0]]
             if self._dynamic_tensor and isinstance(slice_[0], int)
             else None
         )
+
+        if not self._enabled_dynamicness:
+            real_shapes = list(value.shape) if hasattr(value, "shape") else [1]
 
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
