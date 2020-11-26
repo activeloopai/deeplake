@@ -30,28 +30,28 @@ More features coming:
     ```
 
 3. Lets start by creating dataset
-    ```python
-    import numpy as np
+```python
+import numpy as np
 
-    import hub
-    from hub.features import ClassLabel, Image
+import hub
+from hub.features import ClassLabel, Image
 
-    my_schema = {
-        "image": Image((28, 28)),
-        "label": ClassLabel(num_classes=10),
-    }
+my_schema = {
+    "image": Image((28, 28)),
+    "label": ClassLabel(num_classes=10),
+}
 
-    url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
+url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
 
-    ds = hub.Dataset(url, mode="w", shape=(1000,), schema=my_schema)
-    for i in range(len(ds)):
-        ds["image", i] = np.ones((28, 28), dtype="uint8")
-        ds["label", i] = 3
+ds = hub.Dataset(url, mode="w", shape=(1000,), schema=my_schema)
+for i in range(len(ds)):
+    ds["image", i] = np.ones((28, 28), dtype="uint8")
+    ds["label", i] = 3
 
-    print(ds["image", 5].numpy())
-    print(ds["label", 100:110].numpy())
-    ds.commit()
-    ```
+print(ds["image", 5].compute())
+print(ds["label", 100:110].compute())
+ds.commit()
+```
 
 You can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*. :
 
