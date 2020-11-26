@@ -68,7 +68,7 @@ def test_ray_pipeline_multiple():
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="generator")
+    @hub.transform(schema=dynamic_schema, scheduler="ray_generator", workers=4)
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
