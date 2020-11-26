@@ -628,7 +628,7 @@ class Dataset:
                 return text_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
-            elif isinstance(tf_dt, tfds.features.BBox):
+            elif isinstance(tf_dt, tfds.features.BBoxFeature):
                 return bbox_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Tensor):
                 return tensor_to_hub(tf_dt)
