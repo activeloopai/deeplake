@@ -3,6 +3,8 @@ from hub.api.datasetview import DatasetView
 from hub.utils import batchify
 from hub.compute import Transform
 from typing import Iterable
+from hub.api.sharded_datasetview import ShardedDatasetView
+import hub
 
 try:
     import ray
@@ -25,9 +27,9 @@ except Exception:
 
 
 class RayTransform(Transform):
-    def __init__(self, func, schema, ds, scheduler="ray", nodes=1, **kwargs):
+    def __init__(self, func, schema, ds, scheduler="ray", workers=1, **kwargs):
         super(RayTransform, self).__init__(
-            func, schema, ds, scheduler="single", nodes=nodes, **kwargs
+            func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
         if not ray.is_initialized():
             ray.init()
@@ -77,9 +79,8 @@ class RayTransform(Transform):
 
         _ds = ds or self._ds
         if isinstance(_ds, Transform):
-            # FIXME Windows issue below
             _ds = _ds.store(
-                "{}/{}".format(url, _ds._func.__name__),
+                "{}_{}".format(url, _ds._func.__name__),
                 token=token,
                 progressbar=progressbar,
             )
@@ -218,9 +219,8 @@ class RayGeneratorTransform(RayTransform):
         """
         _ds = ds or self._ds
         if isinstance(_ds, Transform):
-            # FIXME Windows issue below
             _ds = _ds.store(
-                "{}/{}".format(url, _ds._func.__name__),
+                "{}_{}".format(url, _ds._func.__name__),
                 token=token,
                 progressbar=progressbar,
             )
@@ -241,7 +241,7 @@ class RayGeneratorTransform(RayTransform):
 
             ds = self.upload(
                 shard_results,
-                url=f"{url}/shard_{i}",
+                url=f"{url}_shard_{i}",
                 token=token,
                 progressbar=progressbar,
             )
@@ -253,5 +253,37 @@ class RayGeneratorTransform(RayTransform):
 
         datasets = ray.get(work)
         datasets = [d for d in datasets if d]
-        # FIXME merge datasets shards
-        return datasets[0]
+        ds = self.merge_sharded_dataset(datasets, url, token=token)
+        return ds
+
+    def merge_sharded_dataset(
+        self,
+        datasets,
+        url,
+        token=None,
+    ):
+        """
+        Creates a sharded dataset and then applies ray transform to upload it
+        """
+        sharded_ds = ShardedDatasetView(datasets)
+
+        def identity(sample):
+            d = {}
+            for k in sample.keys:
+                v = sample[k]
+                if not isinstance(v, dict):
+                    d[k] = v.compute()
+                else:
+                    d[k] = identity(v)
+            return d
+
+        @hub.transform(schema=self.schema, scheduler="ray")
+        def transform_identity(sample):
+            return identity(sample)
+
+        ds = transform_identity(sharded_ds).store(
+            url,
+            token=token,
+        )
+
+        return ds

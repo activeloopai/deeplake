@@ -8,6 +8,7 @@ import numpy as np
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
     "label": "<U20",
+    "confidence": {"confidence": "float"},
 }
 
 my_schema = {
@@ -60,7 +61,7 @@ def test_ray_pipeline_multiple():
     ds = hub.Dataset(
         "./data/test/test_pipeline_dynamic10",
         mode="w",
-        shape=(1,),
+        shape=(10,),
         schema=dynamic_schema,
         cache=False,
     )
@@ -80,7 +81,7 @@ def test_ray_pipeline_multiple():
     out_ds = dynamic_transform(ds, multiplier=4).store(
         "./data/test/test_pipeline_dynamic_output2"
     )
-    assert len(out_ds) == 4
+    assert len(out_ds) == 40
     assert (
         out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
     ).all()

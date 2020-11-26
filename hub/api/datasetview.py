@@ -126,6 +126,13 @@ class DatasetView:
             )
             self.dataset._tensors[subpath][slice_list] = value
 
+    @property
+    def keys(self):
+        """
+        Get Keys of the dataset
+        """
+        return self.dataset._tensors.keys()
+
     def _get_dictionary(self, subpath, slice_=None):
         """"Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}

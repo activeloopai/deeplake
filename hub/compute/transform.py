@@ -20,7 +20,7 @@ except Exception:
 
 class Transform:
     def __init__(
-        self, func, schema, ds, scheduler: str = "single", nodes: int = 1, **kwargs
+        self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
     ):
         """
         Transform applies a user defined function to each sample in single threaded manner
@@ -35,7 +35,7 @@ class Transform:
             input dataset or a list that can be iterated
         scheduler: str
             choice between "single", "threaded", "processed"
-        nodes: int
+        workers: int
             how many threads or processes to use
         **kwargs:
             additional arguments that will be passed to func as static argument for all samples
@@ -45,10 +45,10 @@ class Transform:
         self._ds = ds
         self.kwargs = kwargs
 
-        if scheduler == "threaded" or (scheduler == "single" and nodes > 1):
-            self.map = ThreadPool(nodes=nodes).map
+        if scheduler == "threaded" or (scheduler == "single" and workers > 1):
+            self.map = ThreadPool(nodes=workers).map
         elif scheduler == "processed":
-            self.map = ProcessPool(nodes=nodes).map
+            self.map = ProcessPool(nodes=workers).map
         elif scheduler == "single":
             self.map = map
         elif scheduler == "ray":
@@ -252,11 +252,9 @@ class Transform:
         """
 
         _ds = ds or self._ds
-
         if isinstance(_ds, Transform):
-            # FIXME Windows issue below
             _ds = _ds.store(
-                "{}/{}".format(url, _ds._func.__name__),
+                "{}_{}".format(url, _ds._func.__name__),
                 token=token,
                 progressbar=progressbar,
             )

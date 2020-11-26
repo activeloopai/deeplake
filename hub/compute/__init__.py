@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from hub.exceptions import NotIterable
 
 
-def transform(schema, scheduler="single", nodes=1):
+def transform(schema, scheduler="single", workers=1):
     """
     Transform is a decorator of a function. The function should output a dictionary per sample
 
@@ -14,8 +14,8 @@ def transform(schema, scheduler="single", nodes=1):
             The output format of the transformed dataset
         scheduler: str
             "single" - for single threaded, "threaded" using multiple threads, "processed", "ray" scheduler, "dask" scheduler
-        nodes: int
-            how many nodes will be started for the process
+        workers: int
+            how many workers will be started for the process
     """
 
     def wrapper(func):
@@ -25,16 +25,16 @@ def transform(schema, scheduler="single", nodes=1):
 
             if scheduler == "ray":
                 return RayTransform(
-                    func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+                    func, schema, ds, scheduler=scheduler, workers=workers, **kwargs
                 )
 
             if scheduler == "generator":
                 return RayGeneratorTransform(
-                    func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+                    func, schema, ds, scheduler=scheduler, workers=workers, **kwargs
                 )
 
             return Transform(
-                func, schema, ds, scheduler=scheduler, nodes=nodes, **kwargs
+                func, schema, ds, scheduler=scheduler, workers=workers, **kwargs
             )
 
         return inner

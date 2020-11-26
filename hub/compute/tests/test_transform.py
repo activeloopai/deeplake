@@ -76,7 +76,7 @@ def test_threaded():
     for i in range(len(ds_init)):
         ds_init["image", i] = np.ones((4, 224, 224))
 
-    @hub.transform(schema=schema, scheduler="threaded", nodes=2)
+    @hub.transform(schema=schema, scheduler="threaded", workers=2)
     def create_classification_dataset(sample):
         ts = sample["image"].numpy()
         return [
@@ -132,7 +132,7 @@ def test_pipeline_multiple():
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="threaded", nodes=8)
+    @hub.transform(schema=dynamic_schema, scheduler="threaded", workers=8)
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
@@ -165,7 +165,7 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
 
     with Timer("multiprocesing"):
 
-        @hub.transform(schema=my_schema, scheduler="threaded", nodes=4)
+        @hub.transform(schema=my_schema, scheduler="threaded", workers=4)
         def my_transform(x):
 
             a = np.random.random((width, width, channels))
