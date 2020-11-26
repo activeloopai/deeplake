@@ -8,6 +8,7 @@ from hub.features.mask import Mask
 from hub.features.segmentation import Segmentation
 from hub.features.sequence import Sequence
 from hub.features.video import Video
+from hub.features.text import Text
 
 
 def _get_compressor(inp):
@@ -94,6 +95,13 @@ def deserialize(inp):
                 max_shape=inp["max_shape"],
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
+            )
+        elif inp["type"] == "Text":
+            return Text(
+                tuple(inp["shape"]),
+                deserialize(inp["dtype"]),
+                max_shape=inp["max_shape"],
+                chunks=inp["chunks"],
             )
         elif inp["type"] == "Video":
             return Video()

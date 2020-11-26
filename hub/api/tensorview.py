@@ -1,6 +1,10 @@
+import hub
 import collections.abc as abc
 from hub.api.dataset_utils import slice_split
 from hub.exceptions import NoneValueException
+from transformers import AutoTokenizer
+import numpy as np
+tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 
 class TensorView:
@@ -61,6 +65,8 @@ class TensorView:
 
     def numpy(self):
         """Gets the value from tensorview"""
+        if isinstance(self.dtype, hub.features.text.Text):
+            return tokenizer.decode(self.dataset._tensors[self.subpath][self.slice_].tolist())
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):
@@ -110,6 +116,14 @@ class TensorView:
         >>> images_tensorview = ds["image"]
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
+        # handling strings and bytes
+        value = value.decode("utf-8") if isinstance(value, bytes) else value
+        if (isinstance(value, np.ndarray) and value.dtype.type is np.bytes_) or (isinstance(value, list) and isinstance(value[0], bytes)):
+            value = [item.decode("utf-8") for item in value]
+        value = np.array(tokenizer(value, add_special_tokens=False)["input_ids"]) if isinstance(value, str) else value
+        if isinstance(value, list) and value and isinstance(value[0], str):
+            value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in value]
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)

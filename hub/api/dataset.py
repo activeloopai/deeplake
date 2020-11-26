@@ -43,6 +43,7 @@ from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
 from hub.features.sequence import Sequence
+from hub.features.text import Text
 
 try:
     import torch
@@ -56,6 +57,11 @@ try:
     import tensorflow_datasets as tfds
 except ImportError:
     pass
+
+from transformers import AutoTokenizer
+import numpy as np
+from hub.features.bbox import BBox
+tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -304,6 +310,14 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        # handling strings and bytes
+        value = value.decode("utf-8") if isinstance(value, bytes) else value
+        if (isinstance(value, np.ndarray) and value.dtype.type is np.bytes_) or (isinstance(value, list) and isinstance(value[0], bytes)):
+            value = [item.decode("utf-8") for item in value]
+        value = np.array(tokenizer(value, add_special_tokens=False)["input_ids"]) if isinstance(value, str) else value
+        if isinstance(value, list) and value and isinstance(value[0], str):
+            value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in value]
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -614,6 +628,8 @@ class Dataset:
                 return text_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
+            elif isinstance(tf_dt, tfds.features.BBox):
+                return bbox_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Tensor):
                 return tensor_to_hub(tf_dt)
             else:
@@ -645,9 +661,13 @@ class Dataset:
                 )
 
         def text_to_hub(tf_dt):
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+            max_shape = (10000,)
+            dt = "int64"
+            return Text(shape=(None,), dtype=dt, max_shape=max_shape)
+
+        def bbox_to_hub(tf_dt):
+            dt = tf_dt.dtype.name
+            return BBox(dtype=dt)
 
         def sequence_to_hub(tf_dt):
             return Sequence(dtype=to_hub(tf_dt._feature), shape=())

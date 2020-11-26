@@ -2,6 +2,9 @@ from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import slice_extract_info, slice_split
 from hub.exceptions import NoneValueException
 import collections.abc as abc
+from transformers import AutoTokenizer
+import numpy as np
+tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 
 class DatasetView:
@@ -99,6 +102,14 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        # handling strings and bytes
+        value = value.decode("utf-8") if isinstance(value, bytes) else value
+        if (isinstance(value, np.ndarray) and value.dtype.type is np.bytes_) or (isinstance(value, list) and isinstance(value[0], bytes)):
+            value = [item.decode("utf-8") for item in value]
+        value = np.array(tokenizer(value, add_special_tokens=False)["input_ids"]) if isinstance(value, str) else value
+        if isinstance(value, list) and value and isinstance(value[0], str):
+            value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in value]
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
