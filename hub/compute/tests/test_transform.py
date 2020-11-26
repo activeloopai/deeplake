@@ -4,7 +4,6 @@ import zarr
 import hub
 from hub.features import Tensor, Image
 from hub.utils import Timer
-import pytest
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
@@ -135,7 +134,7 @@ def test_pipeline_multiple():
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="threaded", workers=8)
+    @hub.transform(schema=dynamic_schema, scheduler="threaded", workers=2)
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
