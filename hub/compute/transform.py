@@ -140,6 +140,7 @@ class Transform:
         """Batchified upload of results
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
+        For dynamic tensors, it disable dynamicness and then enables it back
 
         Parameters
         ----------
@@ -193,7 +194,16 @@ class Transform:
                 desc=f"Storing {key} tensor",
                 total=len(value) // length,
             )
+
+            # Disable dynamic arrays
+            ds._tensors[f"/{key}"].disable_dynamicness()
+
             list(self.map(upload_chunk, index_batched_values))
+
+            # Enable and rewrite shapes
+            if ds._tensors[f"/{key}"].is_dynamic:
+                ds._tensors[f"/{key}"].enable_dynamicness()
+                [ds._tensors[f"/{key}"].set_shape([i], v) for i, v in enumerate(value)]
 
         ds.commit()
         return ds

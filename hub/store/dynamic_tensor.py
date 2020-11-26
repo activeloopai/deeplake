@@ -169,6 +169,7 @@ class DynamicTensor:
             if item[0] is not None:
                 if item[0] != item[1]:
                     raise DynamicTensorShapeException("not_equal")
+        self._enabled_dynamicness = True
 
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
@@ -190,7 +191,7 @@ class DynamicTensor:
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
-        if self._dynamic_tensor:
+        if self._dynamic_tensor and self._enabled_dynamicness:
             if isinstance(slice_[0], slice):
                 start = slice_[0].start if slice_[0].start is not None else 0
                 stop = (
@@ -205,10 +206,13 @@ class DynamicTensor:
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
         real_shapes = (
-            self._dynamic_tensor[slice_[0]]
+            list(value.shape)
+            if hasattr(value, "shape")
+            else [1]
             if self._dynamic_tensor and isinstance(slice_[0], int)
             else None
         )
+
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
         self._storage_tensor[slice_] = value
@@ -279,7 +283,9 @@ class DynamicTensor:
                 elif i >= len(slice_):
                     new_shape = np.append(new_shape, shape[i])
         else:  # slice of shapes accessed
-            new_shape = np.ones((shape.shape[0], 0))  # new shape with rows equal to number of shapes accessed
+            new_shape = np.ones(
+                (shape.shape[0], 0)
+            )  # new shape with rows equal to number of shapes accessed
             for i in range(shape.shape[-1]):
                 if i < len(slice_) and isinstance(slice_[i], slice):
                     start = slice_[i].start if slice_[i].start is not None else 0
@@ -290,7 +296,9 @@ class DynamicTensor:
                         new_shape = np.append(new_shape, sh, axis=1)
                     else:
                         sl = stop - start if stop != 0 else 0
-                        new_shape = np.insert(new_shape, new_shape.shape[1], sl, axis=1)  # inserted as last column
+                        new_shape = np.insert(
+                            new_shape, new_shape.shape[1], sl, axis=1
+                        )  # inserted as last column
                 elif i >= len(slice_):
                     new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
         return new_shape
@@ -313,6 +321,9 @@ class DynamicTensor:
 
     def set_shape(self, slice_, value):
         """Sets the shape of the slice of tensor"""
+        if not self._enabled_dynamicness:
+            return
+
         new_shape = []
         shape_offset = 0
         if isinstance(slice_[0], int):
@@ -395,6 +406,12 @@ class DynamicTensor:
     @property
     def is_dynamic(self):
         return False if self._dynamic_tensor is None else True
+
+    def disable_dynamicness(self):
+        self._enabled_dynamicness = False
+
+    def enable_dynamicness(self):
+        self._enabled_dynamicness = True
 
 
 def get_dynamic_dims(shape):

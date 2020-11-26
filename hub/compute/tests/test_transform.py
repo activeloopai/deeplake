@@ -51,7 +51,7 @@ def test_pipeline_basic():
 
 
 @pytest.mark.skipif(
-    True,
+    False,
     reason="requires ray to be loaded",
 )
 def test_threaded():
@@ -70,11 +70,16 @@ def test_threaded():
     }
 
     ds_init = hub.Dataset(
-        "./data/hub/new_pipeline_threaded", shape=(10,), schema=init_schema, cache=False
+        "./data/hub/new_pipeline_threaded2",
+        mode="w",
+        shape=(10,),
+        schema=init_schema,
+        cache=False,
     )
 
     for i in range(len(ds_init)):
-        ds_init["image", i] = np.ones((4, 224, 224))
+        ds_init["image", i] = np.ones((4, 220, 224))
+        ds_init["image", i] = np.ones((4, 221, 224))
 
     @hub.transform(schema=schema, scheduler="threaded", workers=2)
     def create_classification_dataset(sample):
@@ -89,9 +94,11 @@ def test_threaded():
             for _ in range(5)
         ]
 
-    create_classification_dataset(ds_init).store(
+    ds = create_classification_dataset(ds_init).store(
         "./data/hub/new_pipeline_threaded_final"
     )
+
+    assert ds["image", 0].shape[1] == 221
 
 
 def test_pipeline_dynamic():
