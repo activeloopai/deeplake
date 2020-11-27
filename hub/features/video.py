@@ -3,10 +3,10 @@
 from typing import Tuple
 
 from hub.features.image import Image
-from hub.features.sequence import Sequence
+from hub.features import Tensor
 
 
-class Video(Sequence):
+class Video(Tensor):
     """`HubFeature` for videos, encoding frames individually on disk.
 
     The connector accepts as input a 4 dimensional `uint8` array
@@ -23,7 +23,9 @@ class Video(Sequence):
         shape: Tuple[int, ...] = None,
         dtype: str = "uint8",
         encoding_format: str = "png",
-        chunks=True,
+        max_shape: Tuple[int, ...] = None,
+        # ffmpeg_extra_args=(),
+        chunks=None,
     ):
         """Initializes the connector.
 
@@ -43,10 +45,11 @@ class Video(Sequence):
         ValueError: If the shape, dtype or encoding formats are invalid
         """
         super(Video, self).__init__(
-            feature=Image(
+            dtype=Image(
                 shape=shape[1:], dtype=dtype, encoding_format=encoding_format
             ),
-            length=shape[0],
+            shape=shape[0],
+            max_shape=max_shape[0],
             chunks=chunks,
         )
 
