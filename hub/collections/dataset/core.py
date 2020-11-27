@@ -3,7 +3,12 @@ from configparser import ConfigParser
 import json
 import os
 from typing import Dict, Tuple
-import dask
+
+try:
+    import dask
+except ImportError:
+    pass
+
 import fsspec
 import numpy as np
 import traceback
@@ -15,7 +20,7 @@ from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
 from hub.collections.client_manager import get_client
 from hub.log import logger
-from hub.exceptions import PermissionException
+from hub.exceptions import PermissionException, HubDatasetNotFoundException
 
 from hub.utils import _flatten
 
@@ -231,6 +236,7 @@ class Dataset:
             if shape is None or tensor.ndim > len(shape):
                 shape = tensor.shape
             self._len = tensor.count
+        self.verison = "0.x"
 
     def __len__(self) -> int:
         """len of dataset (len of tensors across axis 0, yes, they all should be = to each other)
@@ -678,8 +684,6 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     fs: fsspec.AbstractFileSystem = fs
     path_2 = f"{path}/meta.json"
     if not fs.exists(path):
-        from hub.exceptions import HubDatasetNotFoundException
-
         raise HubDatasetNotFoundException(tag)
 
     with fs.open(path_2, "r") as f:
@@ -689,8 +693,13 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
         assert fs.exists(
             f"{path}/{name}"
         ), f"Tensor {name} of {tag} dataset does not exist"
+
+    import dask
+    import dask.array
+
     if ds_meta["len"] == 0:
         logger.warning("The dataset is empty (has 0 samples)")
+
         return Dataset(
             {
                 name: Tensor(

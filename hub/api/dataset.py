@@ -127,6 +127,7 @@ class Dataset:
         self.cache = cache
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
+        self.verison = "1.x"
 
         needcreate = self._check_and_prepare_dir()
         fs_map = fs_map or get_storage_map(
