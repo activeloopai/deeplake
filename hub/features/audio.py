@@ -1,6 +1,3 @@
-# FIXME NOT WORKING YET, NEED SOME CHANGES
-# DONT INCLUDE INTO __init__.py YET
-
 from typing import Tuple
 
 from hub.features.features import Tensor
@@ -14,7 +11,8 @@ class Audio(Tensor):
         file_format=None,
         sample_rate: int = None,
         max_shape: Tuple[int, ...] = None,
-        chunks=True,
+        chunks=None,
+        compressor="lz4",
     ):
         """Constructs the connector.
 
@@ -45,7 +43,7 @@ class Audio(Tensor):
         # self._shape = shape
         self.sample_rate = sample_rate
         super().__init__(
-            shape=shape, dtype=dtype, max_shape=max_shape, chunks=chunks
+            shape=shape, dtype=dtype, max_shape=max_shape, chunks=chunks, compressor=compressor
         )
 
     def get_attr_dict(self):
@@ -55,8 +53,8 @@ class Audio(Tensor):
     def __str__(self):
         out = super().__str__()
         out = "Audio" + out[6: -1]
-        out = out + ", file_format=" + self.file_format if self.file_format is not None else out
-        out = out + ", sample_rate=" + self.sample_rate if self.sample_rate is not None else out
+        out = out + ", file_format=" + str(self.file_format) if self.file_format is not None else out
+        out = out + ", sample_rate=" + str(self.sample_rate) if self.sample_rate is not None else out
         out += ")"
         return out
 

@@ -1,7 +1,11 @@
-from .features import Tensor, Primitive
+from .features import Tensor, Primitive, FeatureDict
+from .audio import Audio
+from .bbox import BBox
 from .class_label import ClassLabel
 from .image import Image
 from .mask import Mask
-from .segmentation import Segmentation
-from .bbox import BBox
 from .polygon import Polygon
+from .segmentation import Segmentation
+from .sequence import Sequence
+from .text import Text
+from .video import Video

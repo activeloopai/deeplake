@@ -10,7 +10,12 @@ class BBox(Tensor):
           normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`
     """
 
-    def __init__(self, dtype="float64", chunks=None):
+    def __init__(
+        self,
+        dtype="float64",
+        chunks=None,
+        compressor="lz4"
+    ):
         """Construct the connector.
 
         Parameters
@@ -23,7 +28,7 @@ class BBox(Tensor):
             Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
-        super(BBox, self).__init__(shape=(4,), dtype=dtype, chunks=chunks)
+        super(BBox, self).__init__(shape=(4,), dtype=dtype, chunks=chunks, compressor=compressor)
 
     def get_attr_dict(self):
         """Return class attributes."""

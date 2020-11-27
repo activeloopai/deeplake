@@ -1,9 +1,7 @@
-# FIXME NOT WORKING YET, NEED SOME CHANGES
-# DONT INCLUDE INTO __init__.py YET
 from typing import Tuple
 
-from hub.features.image import Image
 from hub.features import Tensor
+from hub.features.image import Image
 
 
 class Video(Tensor):
@@ -22,10 +20,11 @@ class Video(Tensor):
         self,
         shape: Tuple[int, ...] = None,
         dtype: str = "uint8",
-        encoding_format: str = "png",
+        # TODO Add back encoding_format (probably named compress) when support for png and jpg support will be added
         max_shape: Tuple[int, ...] = None,
         # ffmpeg_extra_args=(),
         chunks=None,
+        compressor="lz4"
     ):
         """Initializes the connector.
 
@@ -45,14 +44,21 @@ class Video(Tensor):
         ValueError: If the shape, dtype or encoding formats are invalid
         """
         super(Video, self).__init__(
-            dtype=Image(
-                shape=shape[1:], dtype=dtype, encoding_format=encoding_format
-            ),
-            shape=shape[0],
-            max_shape=max_shape[0],
+            dtype=dtype,
+            shape=shape,
+            max_shape=max_shape,
             chunks=chunks,
+            compressor=compressor
         )
 
     def get_attr_dict(self):
         """Return class attributes."""
         return self.__dict__
+
+    def __str__(self):
+        out = super().__str__()
+        out = "Video" + out[6:]
+        return out
+
+    def __repr__(self):
+        return self.__str__()

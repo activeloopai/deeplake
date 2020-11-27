@@ -40,10 +40,15 @@ from hub.exceptions import (
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
-from hub.features.image import Image
-from hub.features.class_label import ClassLabel
-from hub.features.sequence import Sequence
-from hub.features.text import Text
+from hub.features import (
+    Audio,
+    BBox,
+    ClassLabel,
+    Image,
+    Sequence,
+    Text,
+    Video
+)
 
 try:
     import torch
@@ -60,7 +65,6 @@ except ImportError:
 
 from transformers import AutoTokenizer
 import numpy as np
-from hub.features.bbox import BBox
 tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 
@@ -624,12 +628,16 @@ class Dataset:
                 return image_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
                 return class_label_to_hub(tf_dt)
+            elif isinstance(tf_dt, tfds.features.Video):
+                return video_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Text):
                 return text_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Sequence):
                 return sequence_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.BBoxFeature):
                 return bbox_to_hub(tf_dt)
+            elif isinstance(tf_dt, tfds.features.Audio):
+                return audio_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Tensor):
                 return tensor_to_hub(tf_dt)
             else:
@@ -637,17 +645,22 @@ class Dataset:
                     return tf_dt.dtype.name
 
         def fdict_to_hub(tf_dt):
-            d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
+            # d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
+            d = {}
+            for key, value in tf_dt.items():
+                d[key.replace("/", "_")] = to_hub(value)
             return FeatureDict(d)
 
         def tensor_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+            if tf_dt.dtype.name == "string":
+                return Text(shape=(None,), dtype="int64", max_shape=(100000,))
+            dt = tf_dt.dtype.name
+            max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def image_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+            dt = tf_dt.dtype.name
+            max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def class_label_to_hub(tf_dt):
@@ -661,7 +674,7 @@ class Dataset:
                 )
 
         def text_to_hub(tf_dt):
-            max_shape = (10000,)
+            max_shape = (100000,)
             dt = "int64"
             return Text(shape=(None,), dtype=dt, max_shape=max_shape)
 
@@ -671,6 +684,16 @@ class Dataset:
 
         def sequence_to_hub(tf_dt):
             return Sequence(dtype=to_hub(tf_dt._feature), shape=())
+
+        def audio_to_hub(tf_dt):
+            max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
+            dt = tf_dt.dtype.name
+            return Audio(shape=tf_dt.shape, dtype=dt, max_shape=max_shape, file_format=tf_dt._file_format, sample_rate=tf_dt._sample_rate)
+
+        def video_to_hub(tf_dt):
+            max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
+            dt = tf_dt.dtype.name
+            return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         my_schema = generate_schema(ds_info)
 
@@ -709,7 +732,7 @@ class Dataset:
                 else:
                     value_shape = v.shape if hasattr(v, "shape") else ()
                     shape = tuple([None for it in value_shape])
-                    max_shape = tuple([10000 for it in value_shape])
+                    max_shape = tuple([100000 for it in value_shape])
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
