@@ -99,14 +99,11 @@ def test_dataset(url="./data/test/dataset", token=None):
 
 
 my_schema_with_chunks = {
-    "image": Tensor((10, 1920, 1080, 3), "uint8", chunks=(6, 5, 1080, 1080, 3)),
+    "image": Tensor((10, 1920, 1080, 3), "uint8", chunks=(1, 5, 1080, 1080, 3)),
     "label": {
-        "a": Tensor((100, 200), "int32", chunks=(6, 100, 200)),
-        "b": Tensor((100, 400), "int64", chunks=(6, 50, 200)),
+        "a": Tensor((100, 200), "int32", chunks=(6,)),
+        "b": Tensor((100, 400), "int64", chunks=6),
     },
-    "another_thing": Tensor(
-        (100, 200), Tensor((100, 200), "uint32", chunks=(6, 100, 100, 100, 100))
-    ),
 }
 
 
@@ -133,7 +130,7 @@ def test_dataset_dynamic_shaped():
             shape=(None, None),
             dtype="int32",
             max_shape=(100, 100),
-            chunks=(100, 100, 100),
+            chunks=(100,),
         )
     }
     ds = Dataset(
