@@ -98,7 +98,8 @@ def _get_storage_map(fs, path):
 
 def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
-    cache_path = posixpath.expanduser(posixpath.join("~/.activeloop/cache/", path))
+    cache_path = os.path.expanduser(posixpath.join("~/.activeloop/cache/", path))
+    print(cache_path)
     if storage_cache and storage_cache > 0:
         os.makedirs(cache_path, exist_ok=True)
         store = LRUCache(
