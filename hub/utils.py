@@ -41,6 +41,7 @@ def azure_creds_exist():
     """Checks if credentials exists"""
 
     import os
+
     env = os.getenv("ACCOUNT_KEY")
     if env is not None:
         return True
@@ -69,9 +70,9 @@ def ray_loaded():
 
 def dask_loaded():
     try:
-        import ray
+        import dask
 
-        ray.__version__
+        dask.__version__
     except ImportError:
         return False
     return True

@@ -188,6 +188,12 @@ class ModuleNotInstalledException(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class DaskModuleNotInstalledException(HubException):
+    def __init__(self, message=""):
+        message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
+        super(HubException, self).__init__(message=message)
+
+
 class WrongUsernameException(HubException):
     def __init__(self, username):
         message = (

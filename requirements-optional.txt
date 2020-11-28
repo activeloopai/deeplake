@@ -1,3 +1,4 @@
 tensorflow==2.2.0
 torch>=1,<2
 ray>=1.0
+dask[complete]>=2.30

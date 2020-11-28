@@ -1,8 +1,12 @@
 import itertools
 from typing import Iterable, Tuple, Dict
 
-import dask
-import dask.array
+try:
+    import dask
+    import dask.array
+except ImportError:
+    pass
+
 import numpy as np
 
 from .core import Dataset, DatasetGenerator, load, _dask_shape, get_text

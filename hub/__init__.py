@@ -1,3 +1,4 @@
+from math import e
 import numpy as np
 
 from .collections import dataset
@@ -9,10 +10,13 @@ import hub.config
 from hub.api.dataset import Dataset
 from hub.compute import transform
 from hub.log import logger
+import traceback
+from hub.exceptions import DaskModuleNotInstalledException
 
 
 def local_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_LOCAL_REST_ENDPOINT
+
 
 def dev_mode():
     hub.config.HUB_REST_ENDPOINT = hub.config.HUB_DEV_REST_ENDPOINT
@@ -41,7 +45,10 @@ def load(tag):
             "Deprecated Warning: Given dataset is using deprecated format v0.x. Please convert to v1.x version upon availability."
         )
         return ds
-    except:
+    except ImportError:
+        raise DaskModuleNotInstalledException
+    except Exception as e:
         pass
+        # logger.warning(traceback.format_exc() + str(e))
 
     return Dataset(tag)
