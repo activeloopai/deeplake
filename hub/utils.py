@@ -69,9 +69,9 @@ def ray_loaded():
 
 def dask_loaded():
     try:
-        import ray
+        import dask
 
-        ray.__version__
+        dask.__version__
     except ImportError:
         return False
     return True
@@ -111,6 +111,8 @@ def compute_lcm(a):
     """
     Lowest Common Multiple of a list a
     """
+    if not a:
+        return None
     lcm = a[0]
     for i in a[1:]:
         lcm = lcm * i // gcd(lcm, i)
