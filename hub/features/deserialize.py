@@ -23,7 +23,7 @@ def deserialize(inp):
                 dtype=deserialize(inp["dtype"]),
                 file_format=inp["file_format"],
                 sample_rate=inp["sample_rate"],
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
@@ -57,21 +57,21 @@ def deserialize(inp):
                 dtype=deserialize(inp["dtype"]),
                 # TODO uncomment back when image encoding will be added
                 # encoding_format=inp["encoding_format"],
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
         elif inp["type"] == "Mask":
             return Mask(
                 shape=tuple(inp["shape"]),
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
         elif inp["type"] == "Polygon":
             return Polygon(
                 shape=tuple(inp["shape"]),
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 dtype=deserialize(inp["dtype"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
@@ -83,7 +83,7 @@ def deserialize(inp):
                     shape=tuple(inp["shape"]),
                     dtype=deserialize(inp["dtype"]),
                     num_classes=class_labels._num_classes,
-                    max_shape=inp["max_shape"],
+                    max_shape=tuple(inp["max_shape"]),
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
@@ -92,7 +92,7 @@ def deserialize(inp):
                     shape=tuple(inp["shape"]),
                     dtype=deserialize(inp["dtype"]),
                     names=class_labels.names,
-                    max_shape=inp["max_shape"],
+                    max_shape=tuple(inp["max_shape"]),
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
@@ -100,7 +100,7 @@ def deserialize(inp):
             return Sequence(
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp)
             )
@@ -108,7 +108,7 @@ def deserialize(inp):
             return Tensor(
                 tuple(inp["shape"]),
                 deserialize(inp["dtype"]),
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
@@ -116,7 +116,7 @@ def deserialize(inp):
             return Text(
                 tuple(inp["shape"]),
                 deserialize(inp["dtype"]),
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
@@ -126,7 +126,7 @@ def deserialize(inp):
                 dtype=deserialize(inp["dtype"]),
                 # TODO uncomment back when image encoding will be added
                 # encoding_format=inp["encoding_format"],
-                max_shape=inp["max_shape"],
+                max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
