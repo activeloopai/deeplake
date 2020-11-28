@@ -645,10 +645,7 @@ class Dataset:
                     return tf_dt.dtype.name
 
         def fdict_to_hub(tf_dt):
-            # d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
-            d = {}
-            for key, value in tf_dt.items():
-                d[key.replace("/", "_")] = to_hub(value)
+            d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
             return FeatureDict(d)
 
         def tensor_to_hub(tf_dt):
