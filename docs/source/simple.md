@@ -2,8 +2,7 @@
 
 ### Intro
 
-Today we introduce our new API/format for hub package. It is currently in beta stage, yet it is very promising.
-Eventually we plan to migrate to this format and stick to it for long time. 
+Today we introduce our new API/format for hub package.  
 
 Here is some features of new hub:
 1. Ability to modify datasets on fly. Datasets are no longer immutable and can be modified over time.
@@ -14,13 +13,12 @@ Here is some features of new hub:
 More features coming:
 1. Dynamically sized datasets. Soon you will be able to increase number of samples dynamically.
 2. Tensors can be added to dataset on the fly.
-3. Parallelisation to improve IO and data processing.
 
 ### Getting Started
 
 1. Install beta version
     ```
-    pip3 install hub==1.0.0b4
+    pip3 install hub==1.0.0
     ```
 
 2. Register and authenticate to uploade datasests
@@ -34,7 +32,7 @@ More features coming:
 import numpy as np
 
 import hub
-from hub.features import ClassLabel, Image
+from hub.schema import ClassLabel, Image
 
 my_schema = {
     "image": Image((28, 28)),
@@ -43,14 +41,14 @@ my_schema = {
 
 url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
 
-ds = hub.Dataset(url, mode="w", shape=(1000,), schema=my_schema)
+ds = hub.Dataset(url, shape=(1000,), schema=my_schema)
 for i in range(len(ds)):
     ds["image", i] = np.ones((28, 28), dtype="uint8")
     ds["label", i] = 3
 
 print(ds["image", 5].compute())
 print(ds["label", 100:110].compute())
-ds.commit()
+ds.close()
 ```
 
 You can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*. :
@@ -63,7 +61,7 @@ url = 'https://activeloop.blob.core.windows.net/activeloop-hub/new_dataset' # Az
 
 
 4. Transferring from TFDS
-    In `hub==1.0.0a5` we would also have 
+    In `hub==1.0.0` we would also have 
     ```python
     import hub
     import tensorflow as tf
@@ -85,9 +83,11 @@ After this we can loop over dataset and read/write from it.
 
 Since caching is in place, you need to tell program to push final changes to permanent storage. 
 
-NOTE: This action invalidates dataset.
+`.close()` saves changes from cache to dataset final storage and does not invalidate dataset object.
+On the other hand, `.flush()` saves changes to dataset, but invalidates it.
 
-Alternatively you can use following style.
+
+Alternatively you can use the following style.
 
 ```python
 with hub.Dataset(...) as ds:
