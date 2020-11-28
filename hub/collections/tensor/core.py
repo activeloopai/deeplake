@@ -1,14 +1,11 @@
+import sys
 from typing import Tuple
-
-try:
-    import dask
-except ImportError:
-    pass
 
 import numpy as np
 
 from hub.collections._store_version import CURRENT_STORE_VERSION
 from hub.collections._chunk_utils import _tensor_chunksize, _logify_chunksize
+from hub.exceptions import ModuleNotInstalledException
 
 
 def _dask_shape_backward(shape: Tuple[int]):
@@ -20,6 +17,14 @@ def _dask_shape_backward(shape: Tuple[int]):
 
 class Tensor:
     def __init__(self, meta: dict, daskarray, delayed_objs: tuple = None):
+        if "dask" not in sys.modules:
+            raise ModuleNotInstalledException("dask")
+        else:
+            import dask
+            import dask.array
+
+            global dask
+
         if not meta.get("preprocessed"):
             meta = Tensor._preprocess_meta(meta, daskarray)
         self._meta = meta

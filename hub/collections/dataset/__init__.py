@@ -1,11 +1,6 @@
 import itertools
 from typing import Iterable, Tuple, Dict
-
-try:
-    import dask
-    import dask.array
-except ImportError:
-    pass
+import sys
 
 import numpy as np
 
@@ -42,8 +37,17 @@ def generate(generator: DatasetGenerator, input) -> Dataset:
     For every element in input runs generators __call__ function.
     That function should return dict of numpy arrays containing single or multiple outputs for axis 0 of generating dataset
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
+
     meta = _meta_preprocess(generator.meta())
     keys = sorted(meta.keys())
+
     tasks = [dask.delayed(_generate, nout=len(meta))(generator, i) for i in input]
     if len(tasks) == 0:
         return Dataset(
@@ -115,6 +119,14 @@ def concat(datasets: Iterable[Dataset]) -> Dataset:
     """Concats multiple datasets into one along axis 0
     This is equivalent to concat every tensor with the same key
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
+
     keys = [sorted(dataset._tensors.keys()) for dataset in datasets]
     for key in keys:
         assert key == keys[0]

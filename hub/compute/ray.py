@@ -1,30 +1,35 @@
+import sys
 from hub import Dataset
 from hub.api.datasetview import DatasetView
 from hub.utils import batchify
 from hub.compute import Transform
 from typing import Iterable
+from hub.exceptions import ModuleNotInstalledException
 
-try:
-    import ray
 
-    remote = ray.remote
-except Exception:
+def remote(template, **kwargs):
+    """
+    remote template
+    """
 
-    def remote(template, **kwargs):
-        """
-        remote template
-        """
+    def wrapper(func):
+        def inner(**kwargs):
+            return func
 
-        def wrapper(func):
-            def inner(**kwargs):
-                return func
+        return inner
 
-            return inner
-
-        return wrapper
+    return wrapper
 
 
 class RayTransform(Transform):
+    if "ray" not in sys.modules:
+        raise ModuleNotInstalledException("ray")
+    else:
+        import ray
+
+        global ray
+        remote = ray.remote
+
     def __init__(self, func, schema, ds, scheduler="ray", nodes=1, **kwargs):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", nodes=nodes, **kwargs
@@ -37,7 +42,7 @@ class RayTransform(Transform):
         """
         Remote wrapper for user defined function
         """
-        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView) :
+        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView):
             _ds.squeeze_dim = False
 
         item = _ds[index]
