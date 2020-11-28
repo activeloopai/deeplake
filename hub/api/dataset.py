@@ -43,19 +43,6 @@ from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
 
-try:
-    import torch
-except ImportError:
-    pass
-try:
-    import tensorflow as tf
-except ImportError:
-    pass
-try:
-    import tensorflow_datasets as tfds
-except ImportError:
-    pass
-
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
@@ -364,6 +351,11 @@ class Dataset:
         """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
+        else:
+            import torch
+
+            global torch
+
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
@@ -378,6 +370,11 @@ class Dataset:
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        else:
+            import tensorflow as tf
+
+            global tf
+
         offset = 0 if offset is None else offset
         num_samples = self.shape[0] if num_samples is None else num_samples
 
@@ -551,6 +548,10 @@ class Dataset:
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        else:
+            import tensorflow as tf
+
+            global tf
 
         def generate_schema(ds):
             if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
@@ -619,6 +620,11 @@ class Dataset:
         """
         if "tensorflow_datasets" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow_datasets")
+        else:
+            import tensorflow_datasets as tfds
+
+            global tfds
+
         ds_info = tfds.load(dataset, with_info=True)
         if split is None:
             all_splits = ds_info[1].splits.keys()
@@ -703,6 +709,13 @@ class Dataset:
         ----------
         dataset:
             The pytorch dataset object that needs to be converted into hub format"""
+
+        if "torch" not in sys.modules:
+            raise ModuleNotInstalledException("torch")
+        else:
+            import torch
+
+            global torch
 
         def generate_schema(dataset):
             sample = dataset[0]

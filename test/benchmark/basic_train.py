@@ -116,11 +116,15 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
     """
     if "hub" in backend:
         ds = get_dataset_from_hub(
-            samples=samples, read_from_fs=read_from_fs, pytorch="pytorch" in backend,
+            samples=samples,
+            read_from_fs=read_from_fs,
+            pytorch="pytorch" in backend,
         )
     else:
         ds = dataset_loader(
-            samples=samples, read_from_fs=read_from_fs, pytorch="pytorch" in backend,
+            samples=samples,
+            read_from_fs=read_from_fs,
+            pytorch="pytorch" in backend,
         )
 
     if "pytorch" in backend:

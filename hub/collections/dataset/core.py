@@ -20,12 +20,6 @@ from hub.exceptions import PermissionException
 from hub.utils import _flatten
 
 
-try:
-    import torch
-except ImportError:
-    pass
-
-
 class Transform:
     def __init__(self):
         pass
@@ -550,6 +544,12 @@ class Dataset:
         max_text_len: integer
             the maximum length of text strings that would be stored. Strings longer than this would be snipped
         """
+        try:
+            import torch
+
+            global torch
+        except ImportError:
+            pass
         return TorchDataset(self, transform, max_text_len)
 
     def to_tensorflow(self, max_text_len=30):
