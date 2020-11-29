@@ -183,10 +183,25 @@ def test_to_from_pytorch():
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
+from hub.utils import Timer
+
 if __name__ == "__main__":
-    # test_from_tensorflow()
-    # test_from_tensorflow()
-    # test_to_from_pytorch()
-    # test_to_from_tensorflow()
-    test_to_from_pytorch()
-    test_from_pytorch()
+
+    with Timer("Test Converters"):
+        with Timer("from MNIST"):
+            test_from_tfds_mnist()
+
+        with Timer("from COCO"):
+            test_from_tfds_coco()
+
+        with Timer("from TF"):
+            test_from_tensorflow()
+
+        with Timer("To From TF"):
+            test_to_from_tensorflow()
+
+        with Timer("To From PyTorch"):
+            test_to_from_pytorch()
+
+        with Timer("Pytorch"):
+            test_from_pytorch()
