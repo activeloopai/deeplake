@@ -124,6 +124,7 @@ class DatasetView:
                 if num > 1
                 else ofs + self.offset
             )
+
             self.dataset._tensors[subpath][slice_list] = value
 
     @property

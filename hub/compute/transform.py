@@ -210,7 +210,7 @@ class Transform:
                     else:
                         ds[key, i * length] = batch[0]
                 else:
-                    print(key, len(batch))
+
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
 
@@ -277,7 +277,7 @@ class Transform:
         results = list(results)
 
         results = self._split_list_to_dicts(results)
-        # print(results)
+
         results_values = list(results.values())
         if len(results_values) == 0:
             return 0
@@ -333,13 +333,13 @@ class Transform:
                 progressbar=progressbar,
             )
 
-        # compute sample size
+        # compute shard lenght
         n_samples = get_sample_size_in_memory(self.schema)
         n_samples = min(10000, n_samples)
         length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         if length < n_samples:
             n_samples = length
-        n_samples = 10
+
         ds_out = self.create_dataset(url, length=length, token=token)
 
         start = 0

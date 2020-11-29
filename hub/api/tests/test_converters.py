@@ -165,14 +165,14 @@ def test_to_from_pytorch():
         },
     }
     ds = hub.Dataset(
-        schema=my_schema, shape=(10,), url="./data/test_from_pytorch/test2", mode="w"
+        schema=my_schema, shape=(10,), url="./data/test_from_pytorch/test20", mode="w"
     )
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
 
     ds = ds.to_pytorch()
     out_ds = hub.Dataset.from_pytorch(ds)
-    res_ds = out_ds.store("./data/test_from_pytorch/test3")
+    res_ds = out_ds.store("./data/test_from_pytorch/test30")
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
