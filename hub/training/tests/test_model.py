@@ -26,9 +26,9 @@ def test_store_load_torch():
         torch.nn.Linear(100, 10),
     )
     model_init = Model(model_arch)
-    model_init.store("~/tmp/")
+    model_init.store("./data/")
     loaded_model = Model()
-    loaded_model.load(f"~/tmp/{model_init._model.__class__.__name__}.pth")
+    loaded_model.load(f"./data/{model_init._model.__class__.__name__}.pth")
     assert repr(model_init._model) == repr(loaded_model._model)
     for (p1, p2) in zip(
         model_init._model.named_parameters(), loaded_model._model.named_parameters()
