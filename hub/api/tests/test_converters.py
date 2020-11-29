@@ -159,24 +159,34 @@ def test_to_from_pytorch():
     my_schema = {
         "image": Tensor((10, 10, 3), "uint8"),
         "label": {
-            "c": Tensor((5, 3), "uint8"),
+            # "c": Tensor((5, 3), "uint8"),
             "d": {"e": Tensor((5, 3), "uint8")},
-            "f": "float",
+            # "f": "float",
         },
     }
     ds = hub.Dataset(
-        schema=my_schema, shape=(10,), url="./data/test_from_pytorch/test20", mode="w"
+        schema=my_schema,
+        shape=(10,),
+        url="./data/test_from_pytorch/test20",
+        mode="w",
+        cache=False,
     )
     for i in range(10):
+        ds["image", i] = i * np.ones((10, 10, 3))
         ds["label", "d", "e", i] = i * np.ones((5, 3))
 
     ds = ds.to_pytorch()
     out_ds = hub.Dataset.from_pytorch(ds)
     res_ds = out_ds.store("./data/test_from_pytorch/test30")
+
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
 if __name__ == "__main__":
     # test_from_tensorflow()
+    # test_from_tensorflow()
+    # test_to_from_pytorch()
+    # test_to_from_tensorflow()
     test_to_from_pytorch()
+    test_from_pytorch()

@@ -191,7 +191,7 @@ class Transform:
         ds: hub.Dataset
             Uploaded dataset
         """
-        # ds_out = self.create_dataset(url, len(list(results.values())[0]), token)
+
         for key, value in results.items():
 
             length = ds[key].chunksize[0]
@@ -210,7 +210,6 @@ class Transform:
                     else:
                         ds[key, i * length] = batch[0]
                 else:
-
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
 
@@ -227,7 +226,7 @@ class Transform:
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
                 [
-                    ds.dataset._tensors[f"/{key}"].set_shape([i], v)
+                    ds.dataset._tensors[f"/{key}"].set_shape([i + ds.offset], v)
                     for i, v in enumerate(value)
                 ]
 
@@ -303,6 +302,7 @@ class Transform:
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
+        sample_per_shard=None,
     ):
         """
         The function to apply the transformation for each element in batchified manner
@@ -319,6 +319,8 @@ class Transform:
         ds: Iterable
         progressbar: bool
             Show progress bar
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
         Returns
         ----------
         ds: hub.Dataset
@@ -333,14 +335,28 @@ class Transform:
                 progressbar=progressbar,
             )
 
-        # compute shard lenght
-        n_samples = get_sample_size_in_memory(self.schema)
-        n_samples = min(10000, n_samples)
+        # compute shard length
+        if sample_per_shard is None:
+            n_samples = get_sample_size_in_memory(self.schema)
+            n_samples = min(10000, n_samples)
+            n_samples = max(100, n_samples)
+        else:
+            n_samples = sample_per_shard
+
         length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         if length < n_samples:
             n_samples = length
 
         ds_out = self.create_dataset(url, length=length, token=token)
+
+        def batchify_generator(iterator: Iterable, size: int):
+            batch = []
+            for el in iterator:
+                batch.append(el)
+                if len(batch) >= size:
+                    yield batch
+                    batch = []
+            yield batch
 
         start = 0
         total = 0
@@ -350,10 +366,11 @@ class Transform:
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
-            while True:
-                ds_in_shard = itertools.islice(ds_in, start, start + n_samples)
+            for ds_in_shard in batchify_generator(ds_in, n_samples):
+
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
+
                 if n_results < n_samples or n_results == 0:
                     break
                 start += n_samples

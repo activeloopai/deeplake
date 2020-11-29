@@ -748,6 +748,9 @@ class Dataset:
             for k, v in sample.items():
                 k = k.replace("/", "_")
                 if not isinstance(v, dict):
+                    # if isinstance(v, torch.Tensor):
+                    #    d[k] = v.numpy()
+                    # else:
                     d[k] = v
                 else:
                     d[k] = transform_numpy(v)
