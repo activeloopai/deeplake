@@ -5,7 +5,6 @@ import hub
 from hub.features import Tensor, Image
 from hub.utils import Timer
 
-
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
     "label": "<U20",
@@ -50,6 +49,53 @@ def test_pipeline_basic():
     assert "image" in res_ds.schema.dict_ and "label" in res_ds.schema.dict_
 
 
+def test_threaded():
+    init_schema = {
+        "image": Tensor(
+            shape=(None, None, None), max_shape=(4, 224, 224), dtype="float32"
+        )
+    }
+    schema = {
+        "image": Tensor(
+            shape=(None, None, None), max_shape=(4, 224, 224), dtype="float32"
+        ),
+        "label": Tensor(shape=(None,), max_shape=(6,), dtype="uint8"),
+        "text_label": "<U14",
+        "flight_code": "<U10",
+    }
+
+    ds_init = hub.Dataset(
+        "./data/hub/new_pipeline_threaded2",
+        mode="w",
+        shape=(10,),
+        schema=init_schema,
+        cache=False,
+    )
+
+    for i in range(len(ds_init)):
+        ds_init["image", i] = np.ones((4, 220, 224))
+        ds_init["image", i] = np.ones((4, 221, 224))
+
+    @hub.transform(schema=schema, scheduler="threaded", workers=2)
+    def create_classification_dataset(sample):
+        ts = sample["image"].numpy()
+        return [
+            {
+                "image": ts,
+                "label": np.ones((6,)),
+                "text_label": "PLANTED",
+                "flight_code": "UYKNTHNXR",
+            }
+            for _ in range(5)
+        ]
+
+    ds = create_classification_dataset(ds_init).store(
+        "./data/hub/new_pipeline_threaded_final"
+    )
+
+    assert ds["image", 0].shape[1] == 221
+
+
 def test_pipeline_dynamic():
     ds = hub.Dataset(
         "./data/test/test_pipeline_dynamic3",
@@ -88,7 +134,7 @@ def test_pipeline_multiple():
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="threaded", nodes=8)
+    @hub.transform(schema=dynamic_schema, scheduler="threaded", workers=2)
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
@@ -121,7 +167,7 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
 
     with Timer("multiprocesing"):
 
-        @hub.transform(schema=my_schema, scheduler="threaded", nodes=4)
+        @hub.transform(schema=my_schema, scheduler="threaded", workers=4)
         def my_transform(x):
 
             a = np.random.random((width, width, channels))
@@ -146,8 +192,9 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
 
 
 def test_pipeline():
+
     ds = hub.Dataset(
-        "./data/test/test_pipeline_multiple", mode="w", shape=(100,), schema=my_schema
+        "./data/test/test_pipeline_multiple2", mode="w", shape=(100,), schema=my_schema
     )
 
     for i in range(len(ds)):
@@ -167,7 +214,7 @@ def test_pipeline():
 
         out_ds = my_transform(ds, multiplier=2)
         out_ds = my_transform(out_ds, multiplier=2)
-        out_ds = out_ds.store("./data/test/test_pipeline_multiple_2")
+        out_ds = out_ds.store("./data/test/test_pipeline_multiple_4")
 
         assert (out_ds["image", 0].compute() == 4).all()
 
@@ -240,9 +287,10 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
-    # test_pipeline()
-
-    # test_multiprocessing()
+    test_threaded()
+    exit()
+    test_pipeline()
+    test_multiprocessing()
     test_pipeline_basic()
     # test_pipeline_dynamic()
     # benchmark()

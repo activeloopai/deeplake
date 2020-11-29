@@ -41,6 +41,7 @@ def azure_creds_exist():
     """Checks if credentials exists"""
 
     import os
+
     env = os.getenv("ACCOUNT_KEY")
     if env is not None:
         return True
