@@ -267,8 +267,20 @@ def test_tensorview_slicing():
     assert (tv4.shape == np.array([[12], [12]])).all()
 
 
+def test_append_dataset():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    ds = Dataset(schema=dt, shape=(100,), url="./data/test/model", mode="w")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    assert ds["first"].shape[0] == 120
+    assert ds["first", 5:10].shape[0] == 5
+    assert ds["second"].shape[0] == 120
+
+
 if __name__ == "__main__":
     # test_tensorview_slicing()
     # test_datasetview_slicing()
     # test_dataset()
+    test_append_dataset()
+    exit()
     test_dataset2()

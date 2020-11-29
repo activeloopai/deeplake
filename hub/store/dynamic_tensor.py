@@ -250,6 +250,22 @@ class DynamicTensor:
                     raise ValueShapeError(expected_value_shape, value.shape)
         return value
 
+    def _resize_shape(self, tensor: zarr.Array, size: int) -> None:
+        """append first dimension of single array"""
+
+        shape = list(tensor.shape)
+        shape[0] = size
+        tensor.resize(*shape)
+
+    def resize_shape(self, size: int) -> None:
+        """append shape of storage and dynamic tensors"""
+        self.shape = (size,) + self.shape[1:]
+        self.max_shape = (size,) + self.max_shape[1:]
+        self._resize_shape(self._storage_tensor, size)
+
+        if self._dynamic_tensor:
+            self._resize_shape(self._dynamic_tensor, size)
+
     def get_shape_samples(self, samples):
         """Gets full shape of dynamic_tensor(s)"""
         if isinstance(samples, int):
@@ -305,6 +321,7 @@ class DynamicTensor:
         return new_shape
 
     def get_shape(self, slice_):
+
         """Gets the shape of the slice from tensor"""
         if isinstance(slice_, int) or isinstance(slice_, slice):
             slice_ = [slice_]
