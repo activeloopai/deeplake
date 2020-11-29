@@ -339,7 +339,7 @@ class Transform:
         length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         if length < n_samples:
             n_samples = length
-
+        n_samples = 10
         ds_out = self.create_dataset(url, length=length, token=token)
 
         start = 0
