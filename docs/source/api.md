@@ -111,21 +111,3 @@
    :private-members:
    :special-members:
 ```
-
-## Training
-### Model
-```eval_rst
-.. autoclass:: hub.training.model.Model
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-```
-### Logs
-```eval_rst
-.. autoclass:: hub.training.logs.Track
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-```
