@@ -257,9 +257,9 @@ def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
     ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
-    assert tv.numpy().shape == tv.shape == (1, 3, 1)
+    assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
-    assert tv2.numpy().shape == tv2.shape == (1, 3)
+    assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
 
 
 def test_text_dataset():
@@ -283,10 +283,21 @@ def test_text_dataset_tokenizer():
     assert(ds["names", 4].numpy() == text)
 
 
+def test_append_dataset():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    ds = Dataset(schema=dt, shape=(100,), url="./data/test/model", mode="w")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    assert ds["first"].shape[0] == 120
+    assert ds["first", 5:10].shape[0] == 5
+    assert ds["second"].shape[0] == 120
+
+
 if __name__ == "__main__":
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
+    # test_tensorview_slicing()
+    # test_datasetview_slicing()
+    # test_dataset()
+    test_append_dataset()
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()

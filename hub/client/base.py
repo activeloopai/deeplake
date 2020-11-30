@@ -28,7 +28,7 @@ def urljoin(*args):
     return "/".join(map(lambda x: str(x).strip("/"), args))
 
 
-class HubHttpClient(object):
+class HubHttpClient:
     """
     Basic communication with Hub AI Controller rest API
     """
@@ -60,7 +60,7 @@ class HubHttpClient(object):
             headers["Authorization"] = self.auth_header
 
         try:
-            logger.debug("Sending: Headers {}, Json: {}".format(headers, json))
+            logger.debug(f"Sending: Headers {headers}, Json: {json}")
             response = requests.request(
                 method,
                 request_url,
@@ -99,9 +99,7 @@ class HubHttpClient(object):
             except Exception:
                 message = " "
 
-            logger.debug(
-                'Error received: status code: {}, message: "{}"'.format(code, message)
-            )
+            logger.debug(f'Error received: status code: {code}, message: "{message}"')
             if code == 400:
                 raise BadRequestException(response)
             elif response.status_code == 401:

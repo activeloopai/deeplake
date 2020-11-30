@@ -58,7 +58,7 @@ class TensorView:
             else self.nums[0]
         )
         self.dtype = self.dtype_from_path(subpath)
-        self.set_shape()
+        self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
     def numpy(self):
         """Gets the value from tensorview"""

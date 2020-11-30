@@ -1,11 +1,12 @@
-import dask
 import numpy as np
 
 from .core import Tensor
+import sys
+from hub.exceptions import ModuleNotInstalledException
 
 
 def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
-    """ Generates tensor from arraylike object
+    """Generates tensor from arraylike object
     Parameters
     ----------
     array : np.ndarray
@@ -22,6 +23,13 @@ def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
     Tensor
         newly generated tensor itself
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
     meta = {
         "dtype": array.dtype,
         "dtag": dtag,
@@ -36,21 +44,21 @@ def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
 
 
 def concat(tensors, axis=0, chunksize=-1):
-    """ Concats multiple tensors on axis into one tensor
+    """Concats multiple tensors on axis into one tensor
     All input tensors should have same dtag, dtype, dcompress
     """
     raise NotImplementedError()
 
 
 def stack(tensors, axis=0, chunksize=-1):
-    """ Stack multiple tesnors into new axis
+    """Stack multiple tesnors into new axis
     All input tensors should have same dtag, dtype, dcompress
     """
     raise NotImplementedError()
 
 
 def from_zeros(shape, dtype, dtag=None, dcompress=None, chunksize=-1) -> Tensor:
-    """ Generates tensor from 0 filled array
+    """Generates tensor from 0 filled array
     Parameters
     ----------
     shape : Iterable

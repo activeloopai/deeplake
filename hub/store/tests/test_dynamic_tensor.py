@@ -66,17 +66,8 @@ def test_dynamic_tensor_2():
     assert t[0, 5, :].tolist() == [1] * 10
     t[0, 6] = 2 * np.ones((20,), dtype="int32")
     assert t[0, 5, :].tolist() == [1] * 10 + [0] * 10
-    assert t.get_shape(0) == (
-        10,
-        20,
-    )
-    try:
-        t.get_shape(slice(0, 1))
-    except ValueError as ex:
-        assert (
-            "Getting shape across multiple dimensions isn't supported right now"
-            in str(ex)
-        )  # FIXME This is a bug/feature to implement
+    assert t.get_shape(0).tolist() == [10, 20]
+    assert t.get_shape(slice(0, 1)).tolist() == [1, 10, 20]
 
 
 def test_dynamic_tensor_3():

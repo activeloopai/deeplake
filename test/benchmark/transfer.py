@@ -53,4 +53,3 @@ if __name__ == "__main__":
     r2 = aws_cli_copy(samples, chunksize=chunksize)
 
     report([r1, r2])
-

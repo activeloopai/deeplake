@@ -21,7 +21,7 @@ def main():
             mode="w",
             schema=schema,
             shape=(sample_count,),
-            cache=2**26,
+            cache=2 ** 26,
         )
 
         arr = (np.random.rand(step, 28, 28) * 100).astype("uint8")

@@ -71,7 +71,7 @@ ds["input", 1:3] =  np.ones((2, 25, 25))
 ```
 
 ## Idea of chunking 
-Chunks are the most important part of Hub arrays. Imagine that you have a really large array stored in the cloud and want to access only some significantly smaller part of it. Let us say you have an array of 100000 images with shape ```(100000, 1024, 1024, 3)```. If we stored this array wholly without dividing into multiple chunks then in order to request only few images from it we would need to load the entire array into RAM which would be impossible and even if some computer would have that big RAM, downloading the whole array would take a lot of time. Instead we store the array in chunks and we only downlaod the chunks that contain the requested part of the array.  
+Chunks are the most important part of Hub arrays. Imagine that you have a really large array stored in the cloud and want to access only some significantly smaller part of it. Let us say you have an array of 100000 images with shape ```(100000, 1024, 1024, 3)```. If we stored this array wholly without dividing into multiple chunks then in order to request only few images from it we would need to load the entire array into RAM which would be impossible and even if some computer would have that big RAM, downloading the whole array would take a lot of time. Instead we store the array in chunks and we only download the chunks that contain the requested part of the array.  
 
 ## How to choose a proper chunk size
 Choosing a proper chunk size is crucial for performance. The chunks must be much bigger and take longer time to download than the overhead of request to cloud ~1ms. Chunks also should be small enough to fit multiple chunks into RAM. Usually, we can have up to 1 chunk per thread. 
@@ -91,7 +91,7 @@ Compresslevel is a float number from 0 to 1. Where 1 is the fastest and 0 is the
 You can easily find about all of our supported compressors, their effectiveness, and performance in the internet.  
 
 ## Integration with Pytorch and TensorFlow
-Hub datasets can easily be transformed into Pytoch and Tensorflow formats.
+Hub datasets can easily be transformed into Pytorch and Tensorflow formats.
 Pytorch:
 ```python
     datahub = hub.fs("./data/cache").connect()

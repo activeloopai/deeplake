@@ -1,6 +1,6 @@
 # Pytorch Integration
 
-In this tutorial we will retreive our dataset from the local cache and integrate it with `Pytorch` for further use.
+In this tutorial we will retrieve our dataset from the local cache and integrate it with `Pytorch` for further use.
 
 For a detailed guide on dataset generation and storage see [this tutorial](samples.md).
 

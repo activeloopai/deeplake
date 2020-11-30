@@ -128,13 +128,8 @@ def test_from_pytorch():
             landmarks = 7 * np.ones((10, 10, 10))
             named = "testing text labels"
             sample = {
-                "data": {
-                    'image': image,
-                    'landmarks': landmarks
-                },
-                "labels": {
-                    "named": named
-                }
+                "data": {"image": image, "landmarks": landmarks},
+                "labels": {"named": named},
             }
 
             if self.transform:
@@ -144,9 +139,9 @@ def test_from_pytorch():
     tds = TestDataset()
     ds = hub.Dataset.from_pytorch(tds)
     ds = ds.store("./data/test_from_pytorch/test1")
-    assert(ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
-    assert(ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
-    assert(ds["labels", "named", 5].numpy() == "testing text labels")
+    assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
+    assert (ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
+    assert ds["labels", "named", 5].numpy() == "testing text labels"
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
@@ -154,24 +149,49 @@ def test_to_from_pytorch():
     my_schema = {
         "image": Tensor((10, 10, 3), "uint8"),
         "label": {
-            "c": Tensor((5, 3), "uint8"),
+            # "c": Tensor((5, 3), "uint8"),
             "d": {"e": Tensor((5, 3), "uint8")},
-            "f": "float",
+            # "f": "float",
         },
     }
     ds = hub.Dataset(
-        schema=my_schema, shape=(10,), url="./data/test_from_pytorch/test2", mode="w"
+        schema=my_schema,
+        shape=(10,),
+        url="./data/test_from_pytorch/test20",
+        mode="w",
+        cache=False,
     )
     for i in range(10):
+        ds["image", i] = i * np.ones((10, 10, 3))
         ds["label", "d", "e", i] = i * np.ones((5, 3))
+
     ds = ds.to_pytorch()
     out_ds = hub.Dataset.from_pytorch(ds)
-    res_ds = out_ds.store(
-        "./data/test_from_pytorch/test3"
-    )
+    res_ds = out_ds.store("./data/test_from_pytorch/test30")
+
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
+from hub.utils import Timer
+
 if __name__ == "__main__":
-    test_to_from_pytorch()
+
+    with Timer("Test Converters"):
+        with Timer("from MNIST"):
+            test_from_tfds_mnist()
+
+        with Timer("from COCO"):
+            test_from_tfds_coco()
+
+        with Timer("from TF"):
+            test_from_tensorflow()
+
+        with Timer("To From TF"):
+            test_to_from_tensorflow()
+
+        with Timer("To From PyTorch"):
+            test_to_from_pytorch()
+
+        with Timer("Pytorch"):
+            test_from_pytorch()

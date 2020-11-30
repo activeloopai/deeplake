@@ -1,9 +1,10 @@
 # PyTorch
 
-Here is an example to transform the dataset into pytorch form.
+Here is an example to transform the dataset into Pytorch form.
 
 ```python
-from hub import Dataset
+import torch
+from hub import dataset
 
 # Create dataset
 ds = Dataset(
@@ -16,8 +17,8 @@ ds = Dataset(
     },
 )
 
-# Load to pytorch
-ds = ds.to_pytorch()
+# Transform into Pytorch
+ds = ds.to_pytorch(transform=None)
 ds = torch.utils.data.DataLoader(
     ds,
     batch_size=8,

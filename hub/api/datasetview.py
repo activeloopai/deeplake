@@ -130,6 +130,13 @@ class DatasetView:
             )
             self.dataset._tensors[subpath][slice_list] = assign_value
 
+    @property
+    def keys(self):
+        """
+        Get Keys of the dataset
+        """
+        return self.dataset._tensors.keys()
+
     def _get_dictionary(self, subpath, slice_=None):
         """"Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
@@ -191,3 +198,11 @@ class DatasetView:
         return self.dataset.to_pytorch(
             Transform=Transform, num_samples=self.num_samples, offset=self.offset
         )
+
+    def resize_shape(self, size: int) -> None:
+        """Resize dataset shape, not DatasetView"""
+        self.dataset.reisze_shape(size)
+
+    def commit(self) -> None:
+        """Commit dataset"""
+        self.dataset.commit()

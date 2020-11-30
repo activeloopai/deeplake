@@ -1,4 +1,7 @@
+import posixpath
+import shutil
 from hub.store.cache import Cache
+from hub.store.lru_cache import LRUCache
 
 from hub.client.hub_control import HubControlClient
 import configparser
@@ -6,6 +9,7 @@ from typing import MutableMapping, Tuple
 
 import fsspec
 import gcsfs
+import zarr
 from hub.store.azure_fs import AzureBlobFileSystem
 import os
 import re
@@ -92,12 +96,40 @@ def _get_storage_map(fs, path):
     return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
-def get_storage_map(fs, path, memcache=2 ** 26, lock=True):
+def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
+    if (
+        path.startswith("s3://")
+        or path.startswith("gcs://")
+    ):
+        path = '//'.join(path.split("//")[1:])
+    elif (
+        path.startswith("../")
+        or path.startswith("./")
+        or path.startswith("/")
+        or path.startswith("~/")
+    ):
+        path = "/".join(path.split("/")[1:])
+    elif path.find("://") != -1:
+        path = path.split("://")[-1]
+    elif path.find(":\\") != -1:
+        path = path.split(":\\")[-1]
+    else:
+        # path is username/dataset or username/dataset:version
+        path = path.replace(':', '/')
+    return os.path.expanduser(posixpath.join(cache_folder, path))
+
+
+def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
-    cache_path = os.path.join("~/.activeloop/cache/", path)
-    if memcache == 0 or memcache is False:
-        return store
-    return Cache(store, memcache, path=cache_path, lock=lock)
+    cache_path = get_cache_path(path)
+    if storage_cache and storage_cache > 0:
+        os.makedirs(cache_path, exist_ok=True)
+        store = LRUCache(
+            zarr.LMDBStore(cache_path, buffers=True, lock=lock), store, storage_cache
+        )
+    if memcache and memcache > 0:
+        store = LRUCache(zarr.MemoryStore(), store, memcache)
+    return store
 
 
 class StorageMapWrapperWithCommit(MutableMapping):

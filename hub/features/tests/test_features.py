@@ -1,4 +1,7 @@
 from hub.features.class_label import ClassLabel, _load_names_from_file
+from hub.features.features import HubFeature, FeatureDict
+import pytest
+
 
 names_file = "./hub/features/tests/class_label_names.txt"
 
@@ -24,3 +27,31 @@ def test_class_label():
     assert bel1.num_classes == 4
     assert bel2.num_classes == 3
     bel1.get_attr_dict()
+
+
+def test_hub_feature_flatten():
+    base_object = HubFeature()
+    with pytest.raises(NotImplementedError):
+        base_object._flatten()
+
+
+def test_feature_dict_str():
+    input_dict = {"myint": int, "mystr": str}
+    feature_dict_object = FeatureDict(input_dict)
+    expected_output = "FeatureDict({'myint': 'int64', 'mystr': '<U0'})"
+    assert expected_output == feature_dict_object.__str__()
+
+
+def test_feature_dict_repr():
+    input_dict = {"myint": int, "mystr": str}
+    feature_dict_object = FeatureDict(input_dict)
+    expected_output = "FeatureDict({'myint': 'int64', 'mystr': '<U0'})"
+    assert expected_output == feature_dict_object.__repr__()
+
+
+if __name__ == "__main__":
+    test_load_names_from_file()
+    test_class_label()
+    test_hub_feature_flatten()
+    test_feature_dict_str()
+    test_feature_dict_repr()

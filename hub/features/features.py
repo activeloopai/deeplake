@@ -52,7 +52,7 @@ class Primitive(HubFeature):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
 
     def __str__(self):
-        return "\'" + str(self.dtype) + "\'"
+        return "'" + str(self.dtype) + "'"
 
     def __repr__(self):
         return self.__str__()
@@ -151,7 +151,11 @@ class Tensor(HubFeature):
 
     def __str__(self):
         out = "Tensor(shape=" + str(self.shape) + ", dtype=" + str(self.dtype)
-        out = out + ", max_shape=" + str(self.max_shape) if self.max_shape != self.shape else out
+        out = (
+            out + ", max_shape=" + str(self.max_shape)
+            if self.max_shape != self.shape
+            else out
+        )
         out = out + ", chunks=" + str(self.chunks) if self.chunks is not None else out
         out += ")"
         return out
