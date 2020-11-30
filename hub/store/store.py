@@ -96,9 +96,32 @@ def _get_storage_map(fs, path):
     return StorageMapWrapperWithCommit(fs.get_mapper(path, check=False, create=False))
 
 
+def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
+    if (
+        path.startswith("s3://")
+        or path.startswith("gcs://")
+    ):
+        path = '//'.join(path.split("//")[1:])
+    elif (
+        path.startswith("../")
+        or path.startswith("./")
+        or path.startswith("/")
+        or path.startswith("~/")
+    ):
+        path = "/".join(path.split("/")[1:])
+    elif path.find("://") != -1:
+        path = path.split("://")[-1]
+    elif path.find(":\\") != -1:
+        path = path.split(":\\")[-1]
+    else:
+        # path is username/dataset or username/dataset:version
+        path = path.replace(':', '/')
+    return os.path.expanduser(posixpath.join(cache_folder, path))
+
+
 def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
-    cache_path = posixpath.expanduser(posixpath.join("~/.activeloop/cache/", path))
+    cache_path = get_cache_path(path)
     if storage_cache and storage_cache > 0:
         os.makedirs(cache_path, exist_ok=True)
         store = LRUCache(
