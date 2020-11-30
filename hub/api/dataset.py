@@ -655,12 +655,13 @@ class Dataset:
         out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
         res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
-        if "tensorflow_datasets" not in sys.modules:
-            raise ModuleNotInstalledException("tensorflow_datasets")
-        else:
+        try:
             import tensorflow_datasets as tfds
 
             global tfds
+        except Exception:
+            raise ModuleNotInstalledException("tensorflow_datasets")
+
 
         ds_info = tfds.load(dataset, with_info=True)
         if split is None:
