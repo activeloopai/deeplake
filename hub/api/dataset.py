@@ -42,6 +42,7 @@ from hub.exceptions import (
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from collections import defaultdict
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -634,7 +635,7 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_tfds(dataset, split=None, num=-1):
+    def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
         """Converts a TFDS Dataset into hub format
         Parameters
         ----------
@@ -646,6 +647,9 @@ class Dataset:
         num: int, optional
             The number of samples required. If not present, all the samples are taken.
             If count is -1, or if count is greater than the size of this dataset, the new dataset will contain all elements of this dataset.
+        sampling_amount: float, optional
+            a value from 0 to 1, that specifies how much of the dataset would be sampled to determinte feature shapes
+            value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
         Examples
         --------
         out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -665,51 +669,88 @@ class Dataset:
         ds = tfds.load(dataset, split=split)
         ds = ds.take(num)
 
+        max_dict = defaultdict(lambda: None)
+
+        def sampling(ds):
+            subset_len = max(int(len(ds) * sampling_amount), 5)
+            samples = ds.take(subset_len)
+            for smp in samples:
+                dict_sampling(smp)
+
+        def dict_sampling(d):
+            for k, v in d.items():
+                k = k.replace("/", "_")
+                if isinstance(v, dict):
+                    dict_sampling(v)
+                elif hasattr(v, "shape"):
+                    if k not in max_dict.keys():
+                        max_dict[k] = v.shape
+                    else:
+                        max_dict[k] = tuple(
+                            [max(value) for value in zip(max_dict[k], v.shape)]
+                        )
+
+        if sampling_amount > 0:
+            sampling(ds)
+
         def generate_schema(ds):
             tf_schema = ds[1].features
             schema = to_hub(tf_schema).dict_
             return schema
 
-        def to_hub(tf_dt):
+        def to_hub(tf_dt, max_shape=None):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
                 return fdict_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Image):
-                return image_to_hub(tf_dt)
+                return image_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
-                return class_label_to_hub(tf_dt)
+                return class_label_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Video):
-                return video_to_hub(tf_dt)
+                return video_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Text):
-                return text_to_hub(tf_dt)
+                return text_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(tf_dt)
+                return sequence_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.BBoxFeature):
-                return bbox_to_hub(tf_dt)
+                return bbox_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Audio):
-                return audio_to_hub(tf_dt)
+                return audio_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt)
+                return tensor_to_hub(tf_dt, max_shape=max_shape)
             else:
                 if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
 
         def fdict_to_hub(tf_dt):
-            d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
+            d = {
+                key.replace("/", "_"): to_hub(value, max_dict[key])
+                for key, value in tf_dt.items()
+            }
             return FeatureDict(d)
 
-        def tensor_to_hub(tf_dt):
+        def tensor_to_hub(tf_dt, max_shape=None):
             if tf_dt.dtype.name == "string":
                 return Text(shape=(None,), dtype="int64", max_shape=(100000,))
             dt = tf_dt.dtype.name
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
-        def image_to_hub(tf_dt):
+        def image_to_hub(tf_dt, max_shape=None):
             dt = tf_dt.dtype.name
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
-        def class_label_to_hub(tf_dt):
+        def class_label_to_hub(tf_dt, max_shape=None):
             if hasattr(tf_dt, "_num_classes"):
                 return ClassLabel(
                     num_classes=tf_dt.num_classes,
@@ -717,20 +758,25 @@ class Dataset:
             else:
                 return ClassLabel(names=tf_dt.names)
 
-        def text_to_hub(tf_dt):
+        def text_to_hub(tf_dt, max_shape=None):
             max_shape = (100000,)
             dt = "int64"
             return Text(shape=(None,), dtype=dt, max_shape=max_shape)
 
-        def bbox_to_hub(tf_dt):
+        def bbox_to_hub(tf_dt, max_shape=None):
             dt = tf_dt.dtype.name
             return BBox(dtype=dt)
 
-        def sequence_to_hub(tf_dt):
+        def sequence_to_hub(tf_dt, max_shape=None):
             return Sequence(dtype=to_hub(tf_dt._feature), shape=())
 
-        def audio_to_hub(tf_dt):
-            max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
+        def audio_to_hub(tf_dt, max_shape=None):
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                100000 if dim is None else dim for dim in tf_dt.shape
+            )
             dt = tf_dt.dtype.name
             return Audio(
                 shape=tf_dt.shape,
@@ -740,12 +786,18 @@ class Dataset:
                 sample_rate=tf_dt._sample_rate,
             )
 
-        def video_to_hub(tf_dt):
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        def video_to_hub(tf_dt, max_shape=None):
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
             dt = tf_dt.dtype.name
             return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         my_schema = generate_schema(ds_info)
+        print(my_schema)
 
         def transform_numpy(sample):
             d = {}
