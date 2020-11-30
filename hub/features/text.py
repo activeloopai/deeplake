@@ -6,8 +6,7 @@ from hub.features.features import Tensor
 
 
 class Text(Tensor):
-    """`HubFeature` for text
-    """
+    """`HubFeature` for text"""
 
     def __init__(
         self,

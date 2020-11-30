@@ -181,10 +181,15 @@ class DynamicTensor:
         if self._dynamic_tensor:
             if isinstance(slice_[0], int):
                 real_shapes = self._dynamic_tensor[slice_[0]]
-            elif slice_[0].stop is not None and slice_[0].stop - (slice_[0].start or 0) == 1:
+            elif (
+                slice_[0].stop is not None
+                and slice_[0].stop - (slice_[0].start or 0) == 1
+            ):
                 real_shapes = self._dynamic_tensor[slice_[0].start]
             else:
-                raise ValueError("Getting item across multiitem slices is not supported for tensors with dynamic shapes, access them item by item")
+                raise ValueError(
+                    "Getting item across multiitem slices is not supported for tensors with dynamic shapes, access them item by item"
+                )
         else:
             real_shapes = None
         # Extend slice_ to dim count

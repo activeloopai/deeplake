@@ -66,7 +66,8 @@ class TensorView:
             value = self.dataset._tensors[self.subpath][self.slice_]
             if self.dataset.tokenizer is not None:
                 from transformers import AutoTokenizer
-                tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+
+                tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
                 if value.ndim == 1:
                     return tokenizer.decode(value.tolist())
             else:
@@ -249,3 +250,6 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
+
+
+s = 5

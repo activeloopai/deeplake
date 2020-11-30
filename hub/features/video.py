@@ -24,7 +24,7 @@ class Video(Tensor):
         max_shape: Tuple[int, ...] = None,
         # ffmpeg_extra_args=(),
         chunks=None,
-        compressor="lz4"
+        compressor="lz4",
     ):
         """Initializes the connector.
 
@@ -48,7 +48,7 @@ class Video(Tensor):
             shape=shape,
             max_shape=max_shape,
             chunks=chunks,
-            compressor=compressor
+            compressor=compressor,
         )
 
     def get_attr_dict(self):

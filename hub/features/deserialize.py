@@ -38,13 +38,13 @@ def deserialize(inp):
                 return ClassLabel(
                     num_classes=inp["_num_classes"],
                     chunks=inp["chunks"],
-                    compressor=_get_compressor(inp)
+                    compressor=_get_compressor(inp),
                 )
             else:
                 return ClassLabel(
                     names=inp["names"],
                     chunks=inp["chunks"],
-                    compressor=_get_compressor(inp)
+                    compressor=_get_compressor(inp),
                 )
         elif inp["type"] == "FeatureDict":
             d = {}
@@ -102,7 +102,7 @@ def deserialize(inp):
                 dtype=deserialize(inp["dtype"]),
                 max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
-                compressor=_get_compressor(inp)
+                compressor=_get_compressor(inp),
             )
         elif inp["type"] == "Tensor":
             return Tensor(

@@ -41,15 +41,7 @@ from hub.exceptions import (
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
-from hub.features import (
-    Audio,
-    BBox,
-    ClassLabel,
-    Image,
-    Sequence,
-    Text,
-    Video
-)
+from hub.features import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -70,7 +62,7 @@ class Dataset:
         cache: int = 2 ** 26,
         storage_cache: int = 2 ** 28,
         lock_cache=True,
-        tokenizer=None
+        tokenizer=None,
     ):
         """Open a new or existing dataset for read/write
         Parameters
@@ -740,7 +732,13 @@ class Dataset:
         def audio_to_hub(tf_dt):
             max_shape = tuple(100000 if dim is None else dim for dim in tf_dt.shape)
             dt = tf_dt.dtype.name
-            return Audio(shape=tf_dt.shape, dtype=dt, max_shape=max_shape, file_format=tf_dt._file_format, sample_rate=tf_dt._sample_rate)
+            return Audio(
+                shape=tf_dt.shape,
+                dtype=dt,
+                max_shape=max_shape,
+                file_format=tf_dt._file_format,
+                sample_rate=tf_dt._sample_rate,
+            )
 
         def video_to_hub(tf_dt):
             max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
@@ -797,7 +795,11 @@ class Dataset:
                         v = v.numpy()
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
                     dtype = "int64" if isinstance(v, str) else dtype
-                    d[k] = Tensor(shape=shape, dtype=dtype, max_shape=max_shape) if not isinstance(v, str) else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
+                    d[k] = (
+                        Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
+                        if not isinstance(v, str)
+                        else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
+                    )
             return FeatureDict(d)
 
         my_schema = generate_schema(dataset)
