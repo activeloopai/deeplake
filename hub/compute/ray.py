@@ -23,19 +23,22 @@ def remote(template, **kwargs):
     return wrapper
 
 
+try:
+    import ray
+
+    remote = ray.remote
+except Exception:
+    pass
+
+
 class RayTransform(Transform):
-    if "ray" not in sys.modules:
-        raise ModuleNotInstalledException("ray")
-    else:
-        import ray
-
-        global ray
-        remote = ray.remote
-
     def __init__(self, func, schema, ds, scheduler="ray", workers=1, **kwargs):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
+        if "ray" not in sys.modules:
+            raise ModuleNotInstalledException("ray")
+
         if not ray.is_initialized():
             ray.init()
 
