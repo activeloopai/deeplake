@@ -70,9 +70,9 @@ def ray_loaded():
 
 def dask_loaded():
     try:
-        import ray
+        import dask
 
-        ray.__version__
+        dask.__version__
     except ImportError:
         return False
     return True

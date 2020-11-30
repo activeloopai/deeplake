@@ -154,13 +154,13 @@ class PermissionException(HubException):
 
 class ShapeArgumentNotFoundException(HubException):
     def __init__(self):
-        message = f"Parameter 'shape' should be provided for Dataset creation."
+        message = "Parameter 'shape' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
 
 class SchemaArgumentNotFoundException(HubException):
     def __init__(self):
-        message = f"Parameter 'schema' should be provided for Dataset creation."
+        message = "Parameter 'schema' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
 
@@ -178,13 +178,19 @@ class NoneValueException(HubException):
 
 class ShapeLengthException(HubException):
     def __init__(self):
-        message = f"Parameter 'shape' should be a tuple of length 1"
+        message = "Parameter 'shape' should be a tuple of length 1"
         super(HubException, self).__init__(message=message)
 
 
 class ModuleNotInstalledException(HubException):
     def __init__(self, module_name):
         message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
+        super(HubException, self).__init__(message=message)
+
+
+class DaskModuleNotInstalledException(HubException):
+    def __init__(self, message=""):
+        message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
         super(HubException, self).__init__(message=message)
 
 
@@ -217,14 +223,14 @@ class NotHubDatasetToAppendException(HubException):
 
 class DynamicTensorNotFoundException(HubException):
     def __init__(self):
-        message = f"Unable to find dynamic tensor"
+        message = "Unable to find dynamic tensor"
         super(HubException, self).__init__(message=message)
 
 
 class DynamicTensorShapeException(HubException):
     def __init__(self, exc_type):
         if exc_type == "none":
-            message = f"Parameter 'max_shape' shouldn't contain any 'None' value"
+            message = "Parameter 'max_shape' shouldn't contain any 'None' value"
         elif exc_type == "length":
             message = "Lengths of 'shape' and 'max_shape' should be equal"
         elif exc_type == "not_equal":

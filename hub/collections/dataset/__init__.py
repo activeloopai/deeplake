@@ -1,8 +1,7 @@
 import itertools
 from typing import Iterable, Tuple, Dict
+import sys
 
-import dask
-import dask.array
 import numpy as np
 
 from .core import Dataset, DatasetGenerator, load, _dask_shape, get_text
@@ -34,12 +33,21 @@ def _meta_preprocess(meta: dict):
 
 
 def generate(generator: DatasetGenerator, input) -> Dataset:
-    """ Generates dataset based on DatabaseGenerator class instance and iterable input
+    """Generates dataset based on DatabaseGenerator class instance and iterable input
     For every element in input runs generators __call__ function.
     That function should return dict of numpy arrays containing single or multiple outputs for axis 0 of generating dataset
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
+
     meta = _meta_preprocess(generator.meta())
     keys = sorted(meta.keys())
+
     tasks = [dask.delayed(_generate, nout=len(meta))(generator, i) for i in input]
     if len(tasks) == 0:
         return Dataset(
@@ -80,8 +88,7 @@ def from_tensors(
     citation: str = None,
     howtoload: str = None,
 ) -> Dataset:
-    """ Creates a dataset from dict of tensors
-    """
+    """Creates a dataset from dict of tensors"""
     return Dataset(
         tensors,
         metainfo={
@@ -109,9 +116,17 @@ def _meta_concat(metas: Tuple[Dict[str, object]]):
 
 
 def concat(datasets: Iterable[Dataset]) -> Dataset:
-    """ Concats multiple datasets into one along axis 0
+    """Concats multiple datasets into one along axis 0
     This is equivalent to concat every tensor with the same key
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
+
     keys = [sorted(dataset._tensors.keys()) for dataset in datasets]
     for key in keys:
         assert key == keys[0]
@@ -138,8 +153,7 @@ def concat(datasets: Iterable[Dataset]) -> Dataset:
 
 
 def merge(datasets: Iterable[Dataset]) -> Dataset:
-    """ Merges multiple datasets that have distinct keys into one big datasets containing all keys
-    """
+    """Merges multiple datasets that have distinct keys into one big datasets containing all keys"""
     tensors = {}
     for dataset in datasets:
         for tname, tvalue in dataset._tensors.items():
