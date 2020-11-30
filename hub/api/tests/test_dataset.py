@@ -2,9 +2,8 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.features import Tensor
-from hub.utils import gcp_creds_exist, s3_creds_exist, azure_creds_exist
-
+from hub.features import Tensor, Text
+from hub.utils import gcp_creds_exist, s3_creds_exist, azure_creds_exist, transformers_loaded
 Dataset = dataset.Dataset
 
 my_schema = {
@@ -261,13 +260,27 @@ def test_tensorview_slicing():
     assert tv.numpy().shape == tv.shape == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
     assert tv2.numpy().shape == tv2.shape == (1, 3)
-    tv3 = ds["first", 5:10, 2, 3:39]
-    tv4 = tv3[3:5, 5:17]
-    assert tv4.numpy().shape == (2, 12)
-    assert tv4.shape == [
-        (12,),
-        (12,),
-    ]  # for dynamic_tensor multiple shapes are returned as list of shapes
+
+
+def test_text_dataset():
+    schema = {
+        "names" : Text(shape=(None,), max_shape=(1000,), dtype="int64"),
+    }
+    ds = Dataset("./data/test/testing_text", mode="w", schema=schema, shape=(10,))
+    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    ds["names", 4] = text
+    assert(ds["names", 4].numpy() == text)
+
+
+@pytest.mark.skipif(not transformers_loaded(), reason="requires transformers to be loaded")
+def test_text_dataset_tokenizer():
+    schema = {
+        "names" : Text(shape=(None,), max_shape=(1000,), dtype="int64"),
+    }
+    ds = Dataset("./data/test/testing_text", mode="w", schema=schema, shape=(10,), tokenizer=True)
+    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    ds["names", 4] = text
+    assert(ds["names", 4].numpy() == text)
 
 
 if __name__ == "__main__":
@@ -275,3 +288,5 @@ if __name__ == "__main__":
     test_datasetview_slicing()
     test_dataset()
     test_dataset2()
+    test_text_dataset()
+    test_text_dataset_tokenizer()

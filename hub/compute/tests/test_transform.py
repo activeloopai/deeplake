@@ -2,19 +2,19 @@ import numpy as np
 import zarr
 
 import hub
-from hub.features import Tensor, Image
+from hub.features import Tensor, Image, Text
 from hub.utils import Timer
 
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
     "confidence": "float",
 }
 
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
 }
 
 
@@ -170,6 +170,7 @@ def test_pipeline():
 
         assert (out_ds["image", 0].compute() == 4).all()
 
+
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
     zarr_fs = zarr.zeros(
@@ -239,7 +240,6 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 if __name__ == "__main__":
     test_pipeline()
-
     test_multiprocessing()
     test_pipeline_basic()
     test_pipeline_dynamic()

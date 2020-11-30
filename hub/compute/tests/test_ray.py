@@ -1,6 +1,6 @@
 import hub
 from hub.utils import ray_loaded
-from hub.features import Tensor
+from hub.features import Tensor, Text
 import pytest
 
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
     "confidence": {"confidence": "float"},
 }
 

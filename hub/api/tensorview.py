@@ -1,10 +1,7 @@
 import hub
 import collections.abc as abc
-from hub.api.dataset_utils import slice_split
+from hub.api.dataset_utils import slice_split, str_to_int
 from hub.exceptions import NoneValueException
-from transformers import AutoTokenizer
-import numpy as np
-tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
 
 
 class TensorView:
@@ -66,7 +63,15 @@ class TensorView:
     def numpy(self):
         """Gets the value from tensorview"""
         if isinstance(self.dtype, hub.features.text.Text):
-            return tokenizer.decode(self.dataset._tensors[self.subpath][self.slice_].tolist())
+            value = self.dataset._tensors[self.subpath][self.slice_]
+            if self.dataset.tokenizer is not None:
+                from transformers import AutoTokenizer
+                tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+                if value.ndim == 1:
+                    return tokenizer.decode(value.tolist())
+            else:
+                if value.ndim == 1:
+                    return "".join(chr(it) for it in value.tolist())
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):
@@ -117,12 +122,8 @@ class TensorView:
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
         # handling strings and bytes
-        value = value.decode("utf-8") if isinstance(value, bytes) else value
-        if (isinstance(value, np.ndarray) and value.dtype.type is np.bytes_) or (isinstance(value, list) and isinstance(value[0], bytes)):
-            value = [item.decode("utf-8") for item in value]
-        value = np.array(tokenizer(value, add_special_tokens=False)["input_ids"]) if isinstance(value, str) else value
-        if isinstance(value, list) and value and isinstance(value[0], str):
-            value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in value]
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]

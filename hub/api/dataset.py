@@ -17,10 +17,9 @@ from hub.features.features import (
     featurify,
 )
 from hub.log import logger
-
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 
 import hub.features.serialize
 import hub.features.deserialize
@@ -63,10 +62,6 @@ try:
 except ImportError:
     pass
 
-from transformers import AutoTokenizer
-import numpy as np
-tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
-
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
@@ -85,6 +80,7 @@ class Dataset:
         fs_map=None,
         cache: int = 0,  # 2 ** 26,
         lock_cache=True,
+        tokenizer=None
     ):
         """Open a new or existing dataset for read/write
         Parameters
@@ -124,6 +120,7 @@ class Dataset:
         self.url = url
         self.token = token
         self.mode = mode
+        self.tokenizer = tokenizer
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
@@ -315,12 +312,8 @@ class Dataset:
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
         # handling strings and bytes
-        value = value.decode("utf-8") if isinstance(value, bytes) else value
-        if (isinstance(value, np.ndarray) and value.dtype.type is np.bytes_) or (isinstance(value, list) and isinstance(value[0], bytes)):
-            value = [item.decode("utf-8") for item in value]
-        value = np.array(tokenizer(value, add_special_tokens=False)["input_ids"]) if isinstance(value, str) else value
-        if isinstance(value, list) and value and isinstance(value[0], str):
-            value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in value]
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -330,9 +323,9 @@ class Dataset:
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
-            self._tensors[subpath][:] = value  # Add path check
+            self._tensors[subpath][:] = assign_value  # Add path check
         else:
-            self._tensors[subpath][slice_list] = value
+            self._tensors[subpath][slice_list] = assign_value
 
     def delete(self):
         fs, path = self._fs, self._path
@@ -733,11 +726,12 @@ class Dataset:
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
-                    dtype = "object" if isinstance(v, str) else dtype
-                    d[k] = Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
+                    dtype = "int64" if isinstance(v, str) else dtype
+                    d[k] = Tensor(shape=shape, dtype=dtype, max_shape=max_shape) if not isinstance(v, str) else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
             return FeatureDict(d)
 
         my_schema = generate_schema(dataset)
+        print(my_schema)
 
         def transform_numpy(sample):
             d = {}

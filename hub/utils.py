@@ -97,6 +97,16 @@ def tfds_loaded():
     return True
 
 
+def transformers_loaded():
+    try:
+        import transformers
+
+        transformers.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def pathos_loaded():
     try:
         import pathos
