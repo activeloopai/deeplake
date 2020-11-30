@@ -1,4 +1,6 @@
 import numpy as np
+import sys
+from hub.exceptions import ModuleNotInstalledException
 
 
 def slice_split(slice_):
@@ -57,12 +59,21 @@ def slice_extract_info(slice_, num):
 
 
 def str_to_int(assign_value, tokenizer):
-    assign_value = assign_value.decode("utf-8") if isinstance(assign_value, bytes) else assign_value
+    if isinstance(assign_value, bytes):
+        try:
+            assign_value = assign_value.decode("utf-8")
+        except Exception:
+            raise ValueError("Bytes couldn't be decoded to string. Other encodings of bytes are currently not supported")
     if (isinstance(assign_value, np.ndarray) and assign_value.dtype.type is np.bytes_) or (isinstance(assign_value, list) and isinstance(assign_value[0], bytes)):
         assign_value = [item.decode("utf-8") for item in assign_value]
     if tokenizer is not None:
-        from transformers import AutoTokenizer
-        tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+        if "transformers" not in sys.modules:
+            raise ModuleNotInstalledException("transformers")
+        else:
+            import transformers
+
+            global transformers
+        tokenizer = transformers.AutoTokenizer.from_pretrained('bert-base-cased')
         assign_value = np.array(tokenizer(assign_value, add_special_tokens=False)["input_ids"]) if isinstance(assign_value, str) else assign_value
         if isinstance(assign_value, list) and assign_value and isinstance(assign_value[0], str):
             assign_value = [np.array(tokenizer(item, add_special_tokens=False)["input_ids"]) for item in assign_value]

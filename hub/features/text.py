@@ -12,7 +12,7 @@ class Text(Tensor):
     def __init__(
         self,
         shape: Tuple[int, ...] = (None,),
-        dtype="uint8",
+        dtype="int64",
         max_shape: Tuple[int, ...] = (None,),
         chunks=None,
         compressor="lz4",
@@ -22,9 +22,7 @@ class Text(Tensor):
         Parameters
         ----------
         shape: tuple of ints or None
-            The shape of decoded image:
-            (height, width, channels) where height and width can be None.
-            Defaults to (None, None, 3).
+            The shape of the text
         dtype: str
             the dtype for storage.
         max_shape : Tuple[int]
