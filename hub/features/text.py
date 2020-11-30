@@ -26,9 +26,7 @@ class Text(Tensor):
             (height, width, channels) where height and width can be None.
             Defaults to (None, None, 3).
         dtype: str
-            the dtype for storage
-        encoding_format: 'jpeg' or 'png' (default)
-             Format to serialize np.ndarray images on disk.
+            the dtype for storage.
         max_shape : Tuple[int]
             Maximum number of words in the text
         chunks : Tuple[int] | True
