@@ -97,11 +97,8 @@ def _get_storage_map(fs, path):
 
 
 def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
-    if (
-        path.startswith("s3://")
-        or path.startswith("gcs://")
-    ):
-        path = '//'.join(path.split("//")[1:])
+    if path.startswith("s3://") or path.startswith("gcs://"):
+        path = "//".join(path.split("//")[1:])
     elif (
         path.startswith("../")
         or path.startswith("./")
@@ -115,7 +112,7 @@ def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
         path = path.split(":\\")[-1]
     else:
         # path is username/dataset or username/dataset:version
-        path = path.replace(':', '/')
+        path = path.replace(":", "/")
     return os.path.expanduser(posixpath.join(cache_folder, path))
 
 
