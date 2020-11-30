@@ -40,7 +40,7 @@ class Sequence(Tensor):
             dtype=dtype,
             chunks=chunks,
             compressor=compressor,
-            max_shape=max_shape
+            max_shape=max_shape,
         )
 
     def get_attr_dict(self):
