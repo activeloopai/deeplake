@@ -52,9 +52,17 @@ class Audio(Tensor):
 
     def __str__(self):
         out = super().__str__()
-        out = "Audio" + out[6: -1]
-        out = out + ", file_format=" + str(self.file_format) if self.file_format is not None else out
-        out = out + ", sample_rate=" + str(self.sample_rate) if self.sample_rate is not None else out
+        out = "Audio" + out[6:-1]
+        out = (
+            out + ", file_format=" + self.file_format
+            if self.file_format is not None
+            else out
+        )
+        out = (
+            out + ", sample_rate=" + self.sample_rate
+            if self.sample_rate is not None
+            else out
+        )
         out += ")"
         return out
 
