@@ -7,7 +7,7 @@ import torch.optim as optim
 
 class CNN(nn.Module):
     def __init__(self):
-        super(CNN, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 10, kernel_size=5)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
         self.conv2_drop = nn.Dropout2d()
@@ -49,13 +49,19 @@ def test(model, test_loader):
             labels = batch["labels"]
             labels = labels.type(torch.LongTensor)
             output = model(data)
-            test_loss += F.nll_loss(output, labels, reduction='sum').item()
+            test_loss += F.nll_loss(output, labels, reduction="sum").item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(labels.data.view_as(pred)).sum()
 
     test_loss /= len(test_loader.dataset)
-    print('Test set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset), 100. * correct / len(test_loader.dataset)))
+    print(
+        "Test set: Avg. loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
+            test_loss,
+            correct,
+            len(test_loader.dataset),
+            100.0 * correct / len(test_loader.dataset),
+        )
+    )
 
 
 def main():
@@ -78,29 +84,33 @@ def main():
     train_dataset = torch.utils.data.Subset(ds, range(60000))
     test_dataset = torch.utils.data.Subset(ds, range(60000, 70000))
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn)
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn
+    )
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset, batch_size=BATCH_SIZE, collate_fn=ds.collate_fn
+    )
 
     model = CNN()
     optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
 
     for epoch in range(EPOCHS):
-        print("Starting Training Epoch {}".format(epoch))
+        print(f"Starting Training Epoch {epoch}")
         train(model, train_loader, optimizer)
-        print("Training Epoch {} finished\n".format(epoch))
+        print(f"Training Epoch {epoch} finished\n")
         test(model, test_loader)
 
     # sanity check to see outputs of model
     for batch in test_loader:
-        print("\nNamed Labels:",dataset.get_text(batch["named_labels"]))
-        print("\nLabels:",batch["labels"])
+        print("\nNamed Labels:", dataset.get_text(batch["named_labels"]))
+        print("\nLabels:", batch["labels"])
 
         data = batch["data"]
         data = torch.unsqueeze(data, 1)
 
         output = model(data)
         pred = output.data.max(1)[1]
-        print("\nPredictions:",pred)
+        print("\nPredictions:", pred)
         break
 
 

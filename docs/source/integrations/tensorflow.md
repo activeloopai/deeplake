@@ -1,6 +1,6 @@
 # Tensorflow
 
-Here is an example to transform the dataset into tensorflow form.
+Here is an example to transform the dataset into Tensorflow form.
 
 ```python
 from hub import Dataset
@@ -15,7 +15,7 @@ ds = Dataset(
     },
 )
 
-# tansform into Tensorflow dataset
+# transform into Tensorflow dataset
 ds = ds.to_tensorflow().batch(8)
 
 # Iterate over the data

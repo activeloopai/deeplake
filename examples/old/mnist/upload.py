@@ -52,7 +52,11 @@ def main():
         default="./data/mnist",
     )
     parser.add_argument(
-        "-o", "--output_name", type=str, help="Dataset output name", default="mnist",
+        "-o",
+        "--output_name",
+        type=str,
+        help="Dataset output name",
+        default="mnist",
     )
     args = parser.parse_args()
     files = ["training", "testing"]

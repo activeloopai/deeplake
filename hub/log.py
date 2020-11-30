@@ -1,6 +1,6 @@
 import logging
 
-logger = logging.getLogger('hub')
+logger = logging.getLogger("hub")
 
 
 def configure_logger(debug=0):

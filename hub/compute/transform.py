@@ -1,5 +1,3 @@
-import posix
-import itertools
 import zarr
 import numpy as np
 import math
@@ -343,7 +341,11 @@ class Transform:
         else:
             n_samples = sample_per_shard
 
-        length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+        try:
+            length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+        except Exception:
+            length = n_samples
+
         if length < n_samples:
             n_samples = length
 
