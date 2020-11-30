@@ -16,6 +16,7 @@ from pathos.pools import ProcessPool, ThreadPool
 from hub.features import Primitive
 from hub.features.features import featurify
 import posixpath
+from hub.defaults import OBJECT_CHUNK
 
 
 def get_sample_size_in_memory(schema):
@@ -29,12 +30,15 @@ def get_sample_size_in_memory(schema):
             shp = [1]
 
         sz = np.dtype(feature.dtype).itemsize
+        if feature.dtype == "object":
+            sz = (16 * 1024 * 1024 * 8) / 128
+
         sample_size += math.prod(shp) * sz
 
     if sample_size > mem.total:
         return 1
 
-    return mem.total // sample_size
+    return int(mem.total // sample_size)
 
 
 class Transform:
@@ -206,13 +210,10 @@ class Transform:
                 if not ds[key].is_dynamic:
                     batch_length = len(batch)
                     if batch_length != 1:
-                        print("209")
                         ds[key, i * length : i * length + batch_length] = batch
                     else:
-                        print("210")
                         ds[key, i * length] = batch[0]
                 else:
-                    print("214")
                     for k, el in enumerate(batch):
                         ds[key, i * length + k] = el
 
@@ -222,7 +223,6 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-
             list(self.map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
@@ -289,6 +289,7 @@ class Transform:
             return 0
 
         additional = max(offset + n_results - ds_out.shape[0], 0)
+
         ds_out.append_shape(additional)
 
         self.upload(
@@ -342,7 +343,7 @@ class Transform:
         if sample_per_shard is None:
             n_samples = get_sample_size_in_memory(self.schema)
             n_samples = min(10000, n_samples)
-            n_samples = max(500, n_samples)
+            n_samples = max(512, n_samples)
         else:
             n_samples = sample_per_shard
 

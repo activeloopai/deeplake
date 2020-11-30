@@ -2,10 +2,12 @@ import math
 
 import numpy as np
 
-from hub.defaults import CHUNK_DEFAULT_SIZE
+from hub.defaults import CHUNK_DEFAULT_SIZE, OBJECT_CHUNK
 
 
 class ShapeDetector:
+    # TODO replace asserts with appropriate errors, not clear what to do if it misses the alert
+    # TODO move this to hub/store
     def __init__(
         self,
         shape,
@@ -13,10 +15,14 @@ class ShapeDetector:
         chunks=None,
         dtype="float64",
         chunksize=CHUNK_DEFAULT_SIZE,
+        object_chunking=OBJECT_CHUNK,
     ):
         self._int32max = np.iinfo(np.dtype("int32")).max
+
         self._dtype = dtype = np.dtype(dtype)
         self._chunksize = chunksize
+        self._object_chunking = object_chunking
+
         self._shape = shape = self._get_shape(shape)
         self._max_shape = max_shape = self._get_max_shape(shape, max_shape)
         self._chunks = chunks = self._get_chunks(
@@ -47,8 +53,12 @@ class ShapeDetector:
     def _get_chunks(self, shape, max_shape, chunks, dtype, chunksize):
         if chunks is None:
             prod = self._tuple_product(max_shape[1:])
+            if dtype == "object":
+                return (self._object_chunking,) + max_shape[1:]
             if prod <= 2 * chunksize:
-                chunks = int(math.ceil(chunksize / prod))
+                # FIXME not properly handled object type, U type, and so on.
+                sz = dtype.itemsize
+                chunks = int(math.ceil(chunksize / (prod * sz)))
                 return (chunks,) + max_shape[1:]
             else:
                 return (1,) + self._determine_chunksizes(

@@ -61,11 +61,13 @@ class DynamicTensor:
             If chunks=True then chunksize will automatically be detected
 
         """
-        shapeDt = ShapeDetector(shape, max_shape, chunks, dtype)
-        shape = shapeDt.shape
-        max_shape = shapeDt.max_shape
-        chunks = shapeDt.chunks
-        # print(f"shape: {shape}, max_shape: {max_shape}, chunks: {chunks}")
+        if not (shape is None):
+            # otherwise shape detector fails
+            shapeDt = ShapeDetector(shape, max_shape, chunks, dtype)
+            shape = shapeDt.shape
+            max_shape = shapeDt.max_shape
+            chunks = shapeDt.chunks
+
         exist_ = fs_map.get(".hub.dynamic_tensor")
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
@@ -125,6 +127,7 @@ class DynamicTensor:
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
         self.dtype = self._storage_tensor.dtype
+
         if len(self.shape) != len(self.max_shape):
             raise DynamicTensorShapeException("length")
         for item in self.max_shape:
