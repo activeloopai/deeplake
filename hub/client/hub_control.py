@@ -10,6 +10,7 @@ from hub.exceptions import NotFoundException
 from hub.log import logger
 import traceback
 
+
 class HubControlClient(HubHttpClient):
     """
     Controlling Hub through rest api
@@ -27,7 +28,7 @@ class HubControlClient(HubHttpClient):
                 params={"tag": tag},
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
-            
+
         except NotFoundException:
             dataset = None
         return dataset
@@ -89,12 +90,14 @@ class HubControlClient(HubHttpClient):
                     "tag": tag,
                     "repository": repo,
                     "public": public,
-                    "rewrite": True
+                    "rewrite": True,
                 },
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            logger.error("Unable to create Dataset entry" + traceback.format_exc() + str(e))
+            logger.error(
+                "Unable to create Dataset entry" + traceback.format_exc() + str(e)
+            )
 
     def update_dataset_state(self, username, dataset_name, state, progress=0):
         try:
@@ -110,7 +113,11 @@ class HubControlClient(HubHttpClient):
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            logger.error("Unable to update Dataset entry state "+ traceback.format_exc() + str(e))
+            logger.error(
+                "Unable to update Dataset entry state "
+                + traceback.format_exc()
+                + str(e)
+            )
 
     def delete_dataset_entry(self, username, dataset_name):
         try:
@@ -122,4 +129,6 @@ class HubControlClient(HubHttpClient):
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
-            logger.error("Unable to delete Dataset entry" + traceback.format_exc() + str(e))
+            logger.error(
+                "Unable to delete Dataset entry" + traceback.format_exc() + str(e)
+            )

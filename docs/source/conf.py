@@ -17,7 +17,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-sys.path.insert(0, os.path.abspath('../features'))
+sys.path.insert(0, os.path.abspath("../features"))
 
 # -- Project information -----------------------------------------------------
 
@@ -40,7 +40,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "recommonmark",
     "sphinx.ext.napoleon",
-    "sphinx_markdown_tables"
+    "sphinx_markdown_tables",
 ]
 
 autosummary_generate = True
