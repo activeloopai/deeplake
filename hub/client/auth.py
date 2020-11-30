@@ -10,10 +10,10 @@ class AuthClient(HubHttpClient):
     """
 
     def __init__(self):
-        super(AuthClient, self).__init__()
+        super().__init__()
 
     def check_token(self, access_token):
-        auth = "Bearer {}".format(access_token)
+        auth = f"Bearer {access_token}"
         response = self.request(
             "GET", config.CHECK_TOKEN_REST_SUFFIX, headers={"Authorization": auth}
         )
@@ -22,7 +22,7 @@ class AuthClient(HubHttpClient):
             response_dict = response.json()
             is_valid = response_dict["is_valid"]
         except Exception as e:
-            logger.error("Exception occured while validating token: {}.".format(e))
+            logger.error(f"Exception occured while validating token: {e}.")
             raise HubException(
                 "Error while validating the token. \
                                   Please try logging in using username ans password."
@@ -41,7 +41,7 @@ class AuthClient(HubHttpClient):
             token_dict = response.json()
             token = token_dict["token"]
         except Exception as e:
-            logger.error("Exception occured while getting token: {}.".format(e))
+            logger.error(f"Exception occured while getting token: {e}.")
             raise HubException(
                 "Error while loggin in. \
                                   Please try logging in using access token."

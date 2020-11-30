@@ -1,29 +1,34 @@
+import sys
 from hub import Dataset
 from hub.api.datasetview import DatasetView
 from hub.utils import batchify
 from hub.compute import Transform
 from typing import Iterable
+from hub.exceptions import ModuleNotInstalledException
 from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
+
+
+def remote(template, **kwargs):
+    """
+    remote template
+    """
+
+    def wrapper(func):
+        def inner(**kwargs):
+            return func
+
+        return inner
+
+    return wrapper
+
 
 try:
     import ray
 
     remote = ray.remote
 except Exception:
-
-    def remote(template, **kwargs):
-        """
-        remote template
-        """
-
-        def wrapper(func):
-            def inner(**kwargs):
-                return func
-
-            return inner
-
-        return wrapper
+    pass
 
 
 class RayTransform(Transform):
@@ -31,6 +36,9 @@ class RayTransform(Transform):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
+        if "ray" not in sys.modules:
+            raise ModuleNotInstalledException("ray")
+
         if not ray.is_initialized():
             ray.init()
 

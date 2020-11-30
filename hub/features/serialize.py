@@ -19,9 +19,9 @@ def serialize_tensor(tensor):
     "Converts Tensor and its derivatives into a serializable format"
     d = copy.deepcopy(tensor.__dict__)
     d["type"] = type(tensor).__name__
-    if hasattr(tensor, 'dtype'):
+    if hasattr(tensor, "dtype"):
         d["dtype"] = serialize(tensor.dtype)
-    if hasattr(tensor, 'class_labels'):
+    if hasattr(tensor, "class_labels"):
         d["class_labels"] = serialize(tensor.class_labels)
     return d
 

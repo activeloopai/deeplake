@@ -42,8 +42,10 @@ def get_proxy_command(proxy):
     ssh_proxy = ""
     if proxy and proxy != " " and proxy != "None" and proxy != "":
         if check_program_exists("ncat"):
-            ssh_proxy = '-o "ProxyCommand=ncat --proxy-type socks5 --proxy {} %h %p"'.format(
-                proxy
+            ssh_proxy = (
+                '-o "ProxyCommand=ncat --proxy-type socks5 --proxy {} %h %p"'.format(
+                    proxy
+                )
             )
         else:
             raise HubException(
