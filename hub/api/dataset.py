@@ -144,12 +144,7 @@ class Dataset:
                     raise SchemaArgumentNotFoundException()
                 self.schema: HubFeature = featurify(schema)
                 self.shape = tuple(shape)
-                self.meta = {
-                    "shape": shape,
-                    "schema": hub.features.serialize.serialize(self.schema),
-                    "version": 1,
-                }
-                fs_map["meta.json"] = bytes(json.dumps(self.meta), "utf-8")
+                self.meta = self._store_meta()
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
                 self.flush()
@@ -175,6 +170,15 @@ class Dataset:
             HubControlClient().create_dataset_entry(
                 self.username, self.dataset_name, self.meta
             )
+
+    def _store_meta(self) -> dict:
+        meta = {
+            "shape": self.shape,
+            "schema": hub.features.serialize.serialize(self.schema),
+            "version": 1,
+        }
+        self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+        return meta
 
     def _check_and_prepare_dir(self):
         """
@@ -328,6 +332,19 @@ class Dataset:
             self._tensors[subpath][:] = value  # Add path check
         else:
             self._tensors[subpath][slice_list] = value
+
+    def resize_shape(self, size: int) -> None:
+        """ Resize the shape of the dataset by resizing each tensor first dimension"""
+        self.shape = (size,)
+        for t in self._tensors.values():
+            t.resize_shape(size)
+        self.meta = self._store_meta()
+        self._update_dataset_state()
+
+    def append_shape(self, size: int):
+        """ Append the shape """
+        size += self.shape[0]
+        self.resize_shape(size)
 
     def delete(self):
         fs, path = self._fs, self._path
@@ -745,6 +762,9 @@ class Dataset:
             for k, v in sample.items():
                 k = k.replace("/", "_")
                 if not isinstance(v, dict):
+                    # if isinstance(v, torch.Tensor):
+                    #    d[k] = v.numpy()
+                    # else:
                     d[k] = v
                 else:
                     d[k] = transform_numpy(v)
