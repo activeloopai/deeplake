@@ -33,7 +33,13 @@ def get_sample_size_in_memory(schema):
         if feature.dtype == "object":
             sz = (16 * 1024 * 1024 * 8) / 128
 
-        sample_size += math.prod(shp) * sz
+        def prod(shp):
+            res = 1
+            for s in shp:
+                res *= s
+            return res
+
+        sample_size += prod(shp) * sz
 
     if sample_size > mem.total:
         return 1

@@ -126,6 +126,7 @@ class DynamicTensor:
 
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
+        self.chunks = self._storage_tensor.chunks
         self.dtype = self._storage_tensor.dtype
 
         if len(self.shape) != len(self.max_shape):
@@ -330,6 +331,10 @@ class DynamicTensor:
                     shape_offset += 1
 
             new_shape = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
+            new_appended_shape = list(self.shape)
+            for i, dim in enumerate(self._dynamic_dims):
+                new_appended_shape[dim] = new_shape[i]
+            self._delete_chunks_after_reshape(slice_[0], new_appended_shape[1:])
             self._dynamic_tensor[slice_[0]] = new_shape
 
     def _get_slice(self, slice_, real_shapes):
@@ -356,7 +361,7 @@ class DynamicTensor:
             return
 
         if isinstance(samples, slice):
-            samples_shape = self.get_shape_samples(samples)
+            samples_shape = self.get_shape([samples])
             for sample in range(slice.start, slice.stop, slice.step):
                 self._delete_chunks_after_reshape_single_sample(
                     sample, samples_shape[sample], new_shape
@@ -364,14 +369,17 @@ class DynamicTensor:
         else:
             assert isinstance(samples, int)
             self._delete_chunks_after_reshape_single_sample(
-                samples, self.get_shape_samples(samples), new_shape
+                samples, self.get_shape([samples]), new_shape
             )
 
     def _delete_chunks_after_reshape_single_sample(
         self, sample, sample_shape, new_shape
     ):
+        if (sample_shape <= new_shape).all():
+            return
+
         shapes = sample_shape
-        assert shapes.dims + 1 == len(self.shape)
+        assert len(shapes.shape) + 1 == len(self.shape)
         chunks = self._storage_tensor.chunks[1:]
 
         div = np.ceil(shapes / chunks).astype("int32")
