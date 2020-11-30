@@ -38,7 +38,7 @@ from hub.exceptions import (
     ModuleNotInstalledException,
     NoneValueException,
     ShapeLengthException,
-    WrongUsernameException
+    WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient

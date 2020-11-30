@@ -1,11 +1,6 @@
 from collections import OrderedDict
 from collections.abc import MutableMapping
 
-# from multiprocessing import Lock
-
-import hashlib
-import uuid
-
 
 class DummyLock:
     def __init__(self):
