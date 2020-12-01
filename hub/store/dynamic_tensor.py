@@ -212,7 +212,13 @@ class DynamicTensor:
             real_shapes = None
 
         if not self._enabled_dynamicness:
-            real_shapes = list(value.shape) if hasattr(value, "shape") else real_shapes
+            real_shapes = (
+                list(value.shape)
+                if hasattr(value, "shape")
+                else real_shapes
+                if real_shapes is not None
+                else [1]
+            )
 
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
