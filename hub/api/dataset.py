@@ -667,17 +667,24 @@ class Dataset:
             raise ModuleNotInstalledException("tensorflow_datasets")
 
         ds_info = tfds.load(dataset, with_info=True)
+
         if split is None:
             all_splits = ds_info[1].splits.keys()
             split = "+".join(all_splits)
         ds = tfds.load(dataset, split=split)
+
         ds = ds.take(num)
 
         max_dict = defaultdict(lambda: None)
 
         def sampling(ds):
             # FIXME len(ds), does not work for all iteratables
-            subset_len = 5  # max(int(len(ds) * sampling_amount), 5)
+            try:
+                subset_len = len(ds) if hasattr(ds, "__len__") else num
+            except Exception:
+                subset_len = 5
+
+            subset_len = max(subset_len * sampling_amount, 5)
             samples = ds.take(subset_len)
             for smp in samples:
                 dict_sampling(smp)
