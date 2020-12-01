@@ -130,9 +130,9 @@ class Dataset:
         self.username = None
         self.dataset_name = None
         if not needcreate:
-            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(meta["shape"])
-            self.schema = hub.schema.deserialize.deserialize(meta["schema"])
+            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.shape = tuple(self.meta["shape"])
+            self.schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
@@ -675,6 +675,7 @@ class Dataset:
         ds = tfds.load(dataset, split=split)
         ds = ds.take(num)
         max_dict = defaultdict(lambda: None)
+        bytes_dict = defaultdict(lambda: None)
 
         def sampling(ds):
             try:
@@ -691,14 +692,23 @@ class Dataset:
             for k, v in d.items():
                 k = k.replace("/", "_")
                 if isinstance(v, dict):
+                    if k not in bytes_dict.keys():
+                        bytes_dict[k] = [v.__sizeof__()]
+                    else:
+                        bytes_dict[k].append(v.__sizeof__())
                     dict_sampling(v)
-                elif hasattr(v, "shape"):
+                elif hasattr(v, "shape") and v.dtype != "string":
                     if k not in max_dict.keys():
                         max_dict[k] = v.shape
                     else:
                         max_dict[k] = tuple(
                             [max(value) for value in zip(max_dict[k], v.shape)]
                         )
+                elif hasattr(v, "shape") and v.dtype == "string":
+                    if k not in max_dict.keys():
+                        max_dict[k] = (len(v.numpy()),)
+                    else:
+                        max_dict[k] = max(((len(v.numpy()),), max_dict[k]))
 
         if sampling_amount > 0:
             sampling(ds)
@@ -708,7 +718,7 @@ class Dataset:
             schema = to_hub(tf_schema).dict_
             return schema
 
-        def to_hub(tf_dt, max_shape=None):
+        def to_hub(tf_dt, max_shape=None, byte_sizes=None):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
                 return fdict_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Image):
@@ -720,7 +730,9 @@ class Dataset:
             elif isinstance(tf_dt, tfds.features.Text):
                 return text_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(tf_dt, max_shape=max_shape)
+                return sequence_to_hub(
+                    tf_dt, max_shape=max_shape, byte_sizes=byte_sizes
+                )
             elif isinstance(tf_dt, tfds.features.BBoxFeature):
                 return bbox_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Audio):
@@ -733,13 +745,18 @@ class Dataset:
 
         def fdict_to_hub(tf_dt):
             d = {
-                key.replace("/", "_"): to_hub(value, max_dict[key])
+                key.replace("/", "_"): to_hub(
+                    value,
+                    max_dict[key.replace("/", "_")],
+                    bytes_dict[key.replace("/", "_")],
+                )
                 for key, value in tf_dt.items()
             }
             return SchemaDict(d)
 
         def tensor_to_hub(tf_dt, max_shape=None):
             if tf_dt.dtype.name == "string":
+                max_shape = max_shape or (100000,)
                 return Text(shape=(None,), dtype="int64", max_shape=(100000,))
             dt = tf_dt.dtype.name
             if max_shape and len(max_shape) > len(tf_dt.shape):
@@ -769,7 +786,7 @@ class Dataset:
                 return ClassLabel(names=tf_dt.names)
 
         def text_to_hub(tf_dt, max_shape=None):
-            max_shape = (100000,)
+            max_shape = max_shape or (100000,)
             dt = "int64"
             return Text(shape=(None,), dtype=dt, max_shape=max_shape)
 
@@ -777,8 +794,10 @@ class Dataset:
             dt = tf_dt.dtype.name
             return BBox(dtype=dt)
 
-        def sequence_to_hub(tf_dt, max_shape=None):
-            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
+        def sequence_to_hub(tf_dt, max_shape=None, byte_sizes=None):
+            avg = (sum(byte_sizes) / len(byte_sizes)) if byte_sizes else None
+            chunks = int(1048576 / avg) if avg else None
+            return Sequence(dtype=to_hub(tf_dt._feature), shape=(), chunks=chunks)
 
         def audio_to_hub(tf_dt, max_shape=None):
             if max_shape and len(max_shape) > len(tf_dt.shape):
