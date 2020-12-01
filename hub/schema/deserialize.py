@@ -46,7 +46,7 @@ def deserialize(inp):
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
-        elif inp["type"] == "SchemaDict":
+        elif inp["type"] == "SchemaDict" or inp["type"] == "FeatureDict":
             d = {}
             for k, v in inp["items"].items():
                 d[k] = deserialize(v)
