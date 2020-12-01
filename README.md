@@ -1,6 +1,6 @@
 <p align="center">
     <br>
-    <img src="https://raw.githubusercontent.com/snarkai/Hub/master/docs/logo/hub_logo.png" width="50%"/>
+    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/hub_logo_explainer.png" width="50%"/>
     </br>
 </p>
 
