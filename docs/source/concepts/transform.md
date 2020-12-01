@@ -88,6 +88,36 @@ ds = hub.Dataset(
 ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
 ```
 
+## Ray Transform
+
+There is also an option of using `ray` as a scheduler. In this case `RayTransform` will be applied to samples.
+
+```python
+ds = hub.Dataset(
+   "./data/ray/ray_pipeline_basic",
+   mode="w",
+   shape=(100,),
+   schema=my_schema,
+   cache=False,
+)
+
+for i in range(len(ds)):
+   ds["image", i] = np.ones((28, 28, 4), dtype="int32")
+   ds["label", i] = f"hello {i}"
+   ds["confidence/confidence", i] = 0.2
+
+@hub.transform(schema=my_schema, scheduler="ray")
+def my_transform(sample, multiplier: int = 2):
+   return {
+      "image": sample["image"].compute() * multiplier,
+      "label": sample["label"].compute(),
+      "confidence": {
+            "confidence": sample["confidence/confidence"].compute() * multiplier
+      },
+   }
+
+out_ds = my_transform(ds, multiplier=2)
+```
 ## API
 ```eval_rst
 .. automodule:: hub.compute
@@ -98,6 +128,13 @@ ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
 ```
 ```eval_rst
 .. autoclass:: hub.compute.transform.Transform
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+```eval_rst
+.. autoclass:: hub.compute.ray.RayTransform
    :members:
    :no-undoc-members:
    :private-members:
