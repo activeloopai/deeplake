@@ -1,14 +1,14 @@
-from hub.features.features import Tensor
-from hub.features.serialize import serialize
-from hub.features.deserialize import deserialize
-from hub.features.image import Image
-from hub.features.class_label import ClassLabel
-from hub.features.bbox import BBox
-from hub.features.audio import Audio
-from hub.features.mask import Mask
-from hub.features.polygon import Polygon
-from hub.features.segmentation import Segmentation
-from hub.features.sequence import Sequence
+from hub.schema.features import Tensor
+from hub.schema.serialize import serialize
+from hub.schema.deserialize import deserialize
+from hub.schema.image import Image
+from hub.schema.class_label import ClassLabel
+from hub.schema.bbox import BBox
+from hub.schema.audio import Audio
+from hub.schema.mask import Mask
+from hub.schema.polygon import Polygon
+from hub.schema.segmentation import Segmentation
+from hub.schema.sequence import Sequence
 
 
 def test_serialize_deserialize():

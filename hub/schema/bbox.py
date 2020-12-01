@@ -1,10 +1,10 @@
 # from typing import Tuple
 
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class BBox(Tensor):
-    """`HubFeature` for a normalized bounding box.
+    """`HubSchema` for a normalized bounding box.
     Output:
     bbox: Tensor of type `float32` and shape `[4,]` which contains the
           normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`

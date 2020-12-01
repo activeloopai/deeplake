@@ -2,7 +2,7 @@
 
 ## Overview
 
-Hub features:
+Hub Schema:
 
 - Define the structure, shapes, dtypes of the final Dataset
 - Add additional meta information(image channels, class names, etc.)
@@ -10,14 +10,14 @@ Hub features:
 
 
 
-## Available Features
+## Available Schemas
 
 ### Primitive 
 
 Wrapper to the numpy primitive data types like int32, float64, etc...
 
 ```python
-from hub.features import Primitive
+from hub.schema import Primitive
 
 schema = { "scalar": Primitive(dtype="float32") }
 ```
@@ -27,7 +27,7 @@ schema = { "scalar": Primitive(dtype="float32") }
 Np-array like structure that contains any type of elements (Primitive and non-Primitive).
 
 ```python
-from hub.features import Tensor
+from hub.schema import Tensor
 
 schema = {"tensor_1": Tensor((100, 200), "int32"),
           "tensor_2": Tensor((100, 400), "int64", chunks=(6, 50, 200)) }
@@ -40,7 +40,7 @@ Array representation of image of arbitrary shape and primitive data type.
 Default encoding format - `png` (`jpeg` is also supported).
 
 ```python
-from hub.features import Image
+from hub.schema import Image
 
 schema = {"image": Image(shape=(None, None),
                          dtype="int32",
@@ -53,7 +53,7 @@ schema = {"image": Image(shape=(None, None),
 Integer representation of feature labels. Can be constructed from number of labels, label names or a text file with a single label name in each line.
 
 ```python
-from hub.features import ClassLabel
+from hub.schema import ClassLabel
 
 schema = {"class_label_1": ClassLabel(num_classes=10),
           "class_label_2": ClassLabel(names=['class1', 'class2', 'class3', ...]),
@@ -66,7 +66,7 @@ schema = {"class_label_1": ClassLabel(num_classes=10),
 Array representation of binary mask. The shape of mask should have format: (height, width, 1).
 
 ```python
-from hub.features import Image
+from hub.schema import Image
 
 schema = {"mask": Mask(shape=(244, 244, 1))}
 ```
@@ -105,51 +105,51 @@ Argument `chunks` describes how to split tensor dimensions into chunks (files) t
 
 ## API
 ```eval_rst
-.. autoclass:: hub.features.audio.Audio
+.. autoclass:: hub.schema.audio.Audio
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.bbox.BBox
+.. autoclass:: hub.schema.bbox.BBox
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:   
-.. autoclass:: hub.features.class_label.ClassLabel
+.. autoclass:: hub.schema.class_label.ClassLabel
    :members:
    :no-undoc-members:
    :private-members:
    :special-members: 
-.. autoclass:: hub.features.image.Image
+.. autoclass:: hub.schema.image.Image
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. automodule:: hub.features.features
+.. automodule:: hub.schema.features
    :members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.mask.Mask
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-.. autoclass:: hub.features.polygon.Polygon
+.. autoclass:: hub.schema.mask.Mask
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.segmentation.Segmentation
+.. autoclass:: hub.schema.polygon.Polygon
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.sequence.Sequence
+.. autoclass:: hub.schema.segmentation.Segmentation
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.video.Video
+.. autoclass:: hub.schema.sequence.Sequence
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+.. autoclass:: hub.schema.video.Video
    :members:
    :no-undoc-members:
    :private-members:

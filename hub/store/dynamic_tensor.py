@@ -1,5 +1,5 @@
 import collections.abc as abc
-from hub.features.features import Shape
+from hub.schema.features import Shape
 import json
 import math
 
@@ -16,7 +16,7 @@ from hub.exceptions import (
     ValueShapeError,
     DynamicTensorShapeException,
 )
-from hub.features.sequence import Sequence
+from hub.schema.sequence import Sequence
 
 
 def _tuple_product(tuple_):

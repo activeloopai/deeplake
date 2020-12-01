@@ -10,11 +10,11 @@ import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
 
-from hub.features.features import (
+from hub.schema.features import (
     Primitive,
     Tensor,
-    FeatureDict,
-    HubFeature,
+    SchemaDict,
+    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -22,9 +22,9 @@ from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 
-import hub.features.serialize
-import hub.features.deserialize
-from hub.features.features import flatten
+import hub.schema.serialize
+import hub.schema.deserialize
+from hub.schema.features import flatten
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -41,7 +41,7 @@ from hub.exceptions import (
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
-from hub.features import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from collections import defaultdict
 
 
@@ -77,7 +77,7 @@ class Dataset:
         shape: tuple, optional
             Tuple with (num_samples,) format, where num_samples is number of samples
         schema: optional
-            Describes the data of a single sample. Hub features are used for that
+            Describes the data of a single sample. Hub schemas are used for that
             Required for 'a' and 'w' modes
         token: str or dict, optional
             If url is refering to a place where authorization is required,
@@ -132,7 +132,7 @@ class Dataset:
         if not needcreate:
             meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
-            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self.schema = hub.schema.deserialize.deserialize(meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
@@ -145,7 +145,7 @@ class Dataset:
                     raise ShapeArgumentNotFoundException()
                 if schema is None:
                     raise SchemaArgumentNotFoundException()
-                self.schema: HubFeature = featurify(schema)
+                self.schema: HubSchema = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = self._store_meta()
                 self._flat_tensors = tuple(flatten(self.schema))
@@ -177,7 +177,7 @@ class Dataset:
     def _store_meta(self) -> dict:
         meta = {
             "shape": self.shape,
-            "schema": hub.features.serialize.serialize(self.schema),
+            "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
@@ -441,7 +441,7 @@ class Dataset:
             return dtype_to_tf(my_dtype.dtype)
 
         def dtype_to_tf(my_dtype):
-            if isinstance(my_dtype, FeatureDict):
+            if isinstance(my_dtype, SchemaDict):
                 return dict_to_tf(my_dtype)
             elif isinstance(my_dtype, Tensor):
                 return tensor_to_tf(my_dtype)
@@ -451,7 +451,7 @@ class Dataset:
                 return str(my_dtype._dtype)
 
         def get_output_shapes(my_dtype):
-            if isinstance(my_dtype, FeatureDict):
+            if isinstance(my_dtype, SchemaDict):
                 return output_shapes_from_dict(my_dtype)
             elif isinstance(my_dtype, Tensor):
                 return my_dtype.shape
@@ -611,7 +611,7 @@ class Dataset:
             d = {
                 key.replace("/", "_"): tf_to_hub(value) for key, value in tf_dt.items()
             }
-            return FeatureDict(d)
+            return SchemaDict(d)
 
         my_schema = generate_schema(ds)
 
@@ -671,10 +671,9 @@ class Dataset:
         if split is None:
             all_splits = ds_info[1].splits.keys()
             split = "+".join(all_splits)
+
         ds = tfds.load(dataset, split=split)
-
         ds = ds.take(num)
-
         max_dict = defaultdict(lambda: None)
 
         def sampling(ds):
@@ -738,7 +737,7 @@ class Dataset:
                 key.replace("/", "_"): to_hub(value, max_dict[key])
                 for key, value in tf_dt.items()
             }
-            return FeatureDict(d)
+            return SchemaDict(d)
 
         def tensor_to_hub(tf_dt, max_shape=None):
             if tf_dt.dtype.name == "string":
@@ -863,7 +862,7 @@ class Dataset:
                         if not isinstance(v, str)
                         else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
                     )
-            return FeatureDict(d)
+            return SchemaDict(d)
 
         my_schema = generate_schema(dataset)
 

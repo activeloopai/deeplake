@@ -62,7 +62,7 @@ class TensorView:
 
     def numpy(self):
         """Gets the value from tensorview"""
-        if isinstance(self.dtype, hub.features.text.Text):
+        if isinstance(self.dtype, hub.schema.text.Text):
             value = self.dataset._tensors[self.subpath][self.slice_]
             if self.dataset.tokenizer is not None:
                 from transformers import AutoTokenizer

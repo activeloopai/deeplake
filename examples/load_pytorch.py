@@ -1,5 +1,5 @@
 import torch
-from hub import Dataset, features
+from hub import Dataset, schema
 
 
 def main():
@@ -9,8 +9,8 @@ def main():
         shape=(640,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
     # ds["image"][:] = 1

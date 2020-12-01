@@ -12,8 +12,8 @@ ds = Dataset(
     shape=(640,),
     mode="w",
     schema={
-        "image": features.Tensor((512, 512), dtype="float"),
-        "label": features.Tensor((512, 512), dtype="float"),
+        "image": schema.Tensor((512, 512), dtype="float"),
+        "label": schema.Tensor((512, 512), dtype="float"),
     },
 )
 

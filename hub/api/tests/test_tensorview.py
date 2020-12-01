@@ -1,7 +1,7 @@
 from hub import Dataset
 from hub.api.tensorview import TensorView
 from hub.exceptions import NoneValueException
-from hub.features import Tensor
+from hub.schema import Tensor
 
 import numpy as np
 import pytest

@@ -11,9 +11,9 @@ from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
-from hub.features import Primitive
-from hub.features.sequence import Sequence
-from hub.features.features import featurify
+from hub.schema import Primitive
+from hub.schema.sequence import Sequence
+from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 

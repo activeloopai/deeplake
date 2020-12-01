@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.features import Tensor, Text
+from hub.schema import Tensor, Text
 from hub.utils import (
     gcp_creds_exist,
     s3_creds_exist,
@@ -177,15 +177,15 @@ def test_dataset_enter_exit():
 
 
 def test_dataset_bug():
-    from hub import Dataset, features
+    from hub import Dataset, schema
 
     Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -201,8 +201,8 @@ def test_dataset_bug():
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 

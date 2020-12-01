@@ -1,11 +1,11 @@
 from typing import Tuple
 
-from hub.features import Tensor
-from hub.features.image import Image
+from hub.schema import Tensor
+from hub.schema.image import Image
 
 
 class Video(Tensor):
-    """`HubFeature` for videos, encoding frames individually on disk.
+    """`HubSchema` for videos, encoding frames individually on disk.
 
     The connector accepts as input a 4 dimensional `uint8` array
     representing a video.

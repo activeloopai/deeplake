@@ -1,4 +1,4 @@
-from hub import Dataset, features
+from hub import Dataset, schema
 
 
 def main():
@@ -7,8 +7,8 @@ def main():
         "./data/example/pytorch",
         shape=(64,),
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 

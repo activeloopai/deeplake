@@ -1,6 +1,6 @@
 import numpy as np
 from hub import Dataset
-from hub.features import Tensor
+from hub.schema import Tensor
 
 
 def test_tensorview_shapes_1(url="./data/test/dataset", token=None):

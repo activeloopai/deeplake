@@ -1,6 +1,6 @@
 import hub
 from hub.utils import ray_loaded
-from hub.features import Tensor, Text
+from hub.schema import Tensor, Text
 import pytest
 
 import numpy as np
