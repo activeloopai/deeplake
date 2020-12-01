@@ -345,15 +345,19 @@ class Dataset:
             self._tensors[subpath][slice_list] = value
 
     def resize_shape(self, size: int) -> None:
-        """ Resize the shape of the dataset by resizing each tensor first dimension"""
+        """ Resize the shape of the dataset by resizing each tensor first dimension """
+        if size == self.shape[0]:
+            return
+
         self.shape = (size,)
         for t in self._tensors.values():
             t.resize_shape(size)
+
         self.meta = self._store_meta()
         self._update_dataset_state()
 
     def append_shape(self, size: int):
-        """ Append the shape """
+        """ Append the shape: Heavy Operation """
         size += self.shape[0]
         self.resize_shape(size)
 

@@ -14,6 +14,7 @@ from pathos.pools import ProcessPool, ThreadPool
 from hub.features import Primitive
 from hub.features.features import featurify
 import posixpath
+from hub.defaults import OBJECT_CHUNK
 
 
 def get_sample_size_in_memory(schema):
@@ -27,12 +28,21 @@ def get_sample_size_in_memory(schema):
             shp = [1]
 
         sz = np.dtype(feature.dtype).itemsize
-        sample_size += math.prod(shp) * sz
+        if feature.dtype == "object":
+            sz = (16 * 1024 * 1024 * 8) / 128
+
+        def prod(shp):
+            res = 1
+            for s in shp:
+                res *= s
+            return res
+
+        sample_size += prod(shp) * sz
 
     if sample_size > mem.total:
         return 1
 
-    return mem.total // sample_size
+    return int(mem.total // sample_size)
 
 
 class Transform:
@@ -217,7 +227,6 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-
             list(self.map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
@@ -284,6 +293,7 @@ class Transform:
             return 0
 
         additional = max(offset + n_results - ds_out.shape[0], 0)
+
         ds_out.append_shape(additional)
 
         self.upload(
@@ -337,7 +347,7 @@ class Transform:
         if sample_per_shard is None:
             n_samples = get_sample_size_in_memory(self.schema)
             n_samples = min(10000, n_samples)
-            n_samples = max(100, n_samples)
+            n_samples = max(512, n_samples)
         else:
             n_samples = sample_per_shard
 
@@ -362,21 +372,24 @@ class Transform:
 
         start = 0
         total = 0
-        with tqdm(
-            total=total,
-            unit_scale=True,
-            unit=" items",
-            desc="Computing the transormation",
-        ) as pbar:
-            for ds_in_shard in batchify_generator(ds_in, n_samples):
+        if False:
+            with tqdm(
+                total=total,
+                unit_scale=True,
+                unit=" items",
+                desc="Computing the transormation",
+            ) as pbar:
+                pass
 
-                n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
-                total += n_results
+        for ds_in_shard in batchify_generator(ds_in, n_samples):
 
-                if n_results < n_samples or n_results == 0:
-                    break
-                start += n_samples
-                pbar.update(n_samples)
+            n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
+            total += n_results
+
+            if n_results < n_samples or n_results == 0:
+                break
+            start += n_samples
+            # pbar.update(n_samples)
 
         ds_out.resize_shape(total)
         ds_out.commit()

@@ -32,6 +32,7 @@ def test_read_and_append_modes():
     assert t[0, -5, 90:].tolist() == [1] * 10
     t.flush()
     t.close()
+
     t = DynamicTensor(
         create_store("./data/test/test_read_and_append_modes", overwrite=False),
         mode="r",
