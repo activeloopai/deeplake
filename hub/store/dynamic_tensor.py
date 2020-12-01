@@ -196,14 +196,29 @@ class DynamicTensor:
             for item in value:
                 max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
             for i in range(len(value)):
-                pad = [(0, max_shape[dim] - value[i].shape[dim]) for dim in range(value[i].ndim)]
+                pad = [
+                    (0, max_shape[dim] - value[i].shape[dim])
+                    for dim in range(value[i].ndim)
+                ]
                 value[i] = np.pad(value[i], pad)
-            real_shapes = np.array([max_shape[i] for i in range(len(max_shape)) if i + 1 in self._dynamic_dims])
+            real_shapes = np.array(
+                [
+                    max_shape[i]
+                    for i in range(len(max_shape))
+                    if i + 1 in self._dynamic_dims
+                ]
+            )
         else:
             real_shapes = None
 
         if not self._enabled_dynamicness:
-            real_shapes = list(value.shape) if hasattr(value, "shape") else [1]
+            real_shapes = (
+                list(value.shape)
+                if hasattr(value, "shape")
+                else real_shapes
+                if real_shapes is not None
+                else [1]
+            )
 
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
@@ -254,17 +269,7 @@ class DynamicTensor:
         self._resize_shape(self._storage_tensor, size)
 
         if self._dynamic_tensor:
-            print(
-                "-> write before",
-                self._dynamic_tensor.shape,
-                self._dynamic_tensor.chunks,
-            )
             self._resize_shape(self._dynamic_tensor, size)
-            print(
-                "-> write after",
-                self._dynamic_tensor.shape,
-                self._dynamic_tensor.chunks,
-            )
 
         self.fs_map[".hub.dynamic_tensor"] = bytes(
             json.dumps({"shape": self.shape}), "utf-8"
