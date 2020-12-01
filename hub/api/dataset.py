@@ -683,7 +683,7 @@ class Dataset:
             except Exception:
                 subset_len = 5
 
-            subset_len = max(subset_len * sampling_amount, 5)
+            subset_len = int(max(subset_len * sampling_amount, 5))
             samples = ds.take(subset_len)
             for smp in samples:
                 dict_sampling(smp)
