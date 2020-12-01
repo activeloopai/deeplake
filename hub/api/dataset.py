@@ -130,9 +130,9 @@ class Dataset:
         self.username = None
         self.dataset_name = None
         if not needcreate:
-            meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(meta["shape"])
-            self.schema = hub.schema.deserialize.deserialize(meta["schema"])
+            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.shape = tuple(self.meta["shape"])
+            self.schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
