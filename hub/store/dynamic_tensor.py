@@ -1,12 +1,15 @@
 import collections.abc as abc
+from hub.features.features import Shape
 import json
 import math
 
 import numpy as np
+from numpy.lib.arraysetops import isin
 import zarr
 import numcodecs
 
 from hub.store.nested_store import NestedStore
+from hub.shape_detector import ShapeDetector
 
 from hub.exceptions import (
     DynamicTensorNotFoundException,
@@ -21,50 +24,6 @@ def _tuple_product(tuple_):
     for t in tuple_:
         res *= t
     return res
-
-
-def _determine_chunksizes(shape, dtype, block_size=2 ** 24):
-    """
-    Autochunking of tensors
-    Chunk is determined by 16MB blocks keeping left dimensions inside a chunk
-    Dimensions from left are kept until 16MB block is filled
-
-    Parameters
-    ----------
-    shape: tuple
-        the shape of the whole array
-    dtype: type
-        the type of the element (int, float)
-    block_size: int (optional)
-        how big the chunk size should be. Default to 16MB
-    """
-
-    sz = np.dtype(dtype).itemsize
-    elem_count_in_chunk = block_size / sz
-
-    # Get left most part which will be left static inside the chunk
-    a = list(shape)
-    a.reverse()
-    left_part = shape
-    prod = 1
-    for i, dim in enumerate(a):
-        prod *= dim
-        if elem_count_in_chunk < prod:
-            left_part = shape[-i:]
-            break
-
-    # If the tensor is smaller then the chunk size return
-    if len(left_part) == len(shape):
-        return list(left_part)
-
-    # Get the middle chunk size of dimension
-    els = math.ceil(elem_count_in_chunk / _tuple_product(left_part))
-
-    # Contruct the chunksize shape
-    chunksize = [els] + list(left_part)
-    if len(chunksize) < len(shape):
-        chunksize = [1] * (len(shape) - len(chunksize)) + chunksize
-    return list(chunksize)
 
 
 class DynamicTensor:
@@ -103,6 +62,13 @@ class DynamicTensor:
             If chunks=True then chunksize will automatically be detected
 
         """
+        if not (shape is None):
+            # otherwise shape detector fails
+            shapeDt = ShapeDetector(shape, max_shape, chunks, dtype)
+            shape = shapeDt.shape
+            max_shape = shapeDt.max_shape
+            chunks = shapeDt.chunks
+
         exist_ = fs_map.get(".hub.dynamic_tensor")
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
@@ -136,7 +102,7 @@ class DynamicTensor:
             self._storage_tensor = zarr.zeros(
                 max_shape,
                 dtype=dtype,
-                chunks=chunks or _determine_chunksizes(max_shape, dtype),
+                chunks=chunks,
                 store=fs_map,
                 overwrite=("w" in mode),
                 object_codec=numcodecs.Pickle(protocol=3)
@@ -158,9 +124,12 @@ class DynamicTensor:
                 else None
             )
             fs_map[".hub.dynamic_tensor"] = bytes(json.dumps({"shape": shape}), "utf-8")
+
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
+        self.chunks = self._storage_tensor.chunks
         self.dtype = self._storage_tensor.dtype
+
         if len(self.shape) != len(self.max_shape):
             raise DynamicTensorShapeException("length")
         for item in self.max_shape:
@@ -373,6 +342,10 @@ class DynamicTensor:
                     shape_offset += 1
 
             new_shape = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
+            new_appended_shape = list(self.shape)
+            for i, dim in enumerate(self._dynamic_dims):
+                new_appended_shape[dim] = new_shape[i]
+            self._delete_chunks_after_reshape(slice_[0], new_appended_shape[1:])
             self._dynamic_tensor[slice_[0]] = new_shape
 
     def _get_slice(self, slice_, real_shapes):
@@ -389,6 +362,44 @@ class DynamicTensor:
                         slice_[i], (slice_[i].stop or 0) + real_shapes[r]
                     )
         return tuple(slice_)
+
+    def _delete_chunks_after_reshape(self, samples, new_shape: np.ndarray):
+        """For a single sample or slice of samples deletes all chunks that exist out of new_shape bounds
+        New shape does not include first (sample) dimension. It assumes that each sample gets the same new_shape shape
+        NOTE: There is an assumption that dynamic_tensor chunks is either (1, A, B, C, ...) or (X, Infinity, Infinity, Infinity, ...)
+        """
+        if self.chunks[0] > 1:
+            return
+
+        if isinstance(samples, slice):
+            samples_shape = self.get_shape([samples])
+            for sample in range(slice.start, slice.stop, slice.step):
+                self._delete_chunks_after_reshape_single_sample(
+                    sample, samples_shape[sample], new_shape
+                )
+        else:
+            assert isinstance(samples, int)
+            self._delete_chunks_after_reshape_single_sample(
+                samples, self.get_shape([samples]), new_shape
+            )
+
+    def _delete_chunks_after_reshape_single_sample(
+        self, sample, sample_shape, new_shape
+    ):
+        if (sample_shape <= new_shape).all():
+            return
+
+        shapes = sample_shape
+        assert len(shapes.shape) + 1 == len(self.shape)
+        chunks = self._storage_tensor.chunks[1:]
+
+        div = np.ceil(shapes / chunks).astype("int32")
+        for index in np.ndindex(*div.tolist()):
+            if (np.array(index) * chunks >= new_shape).any():
+                try:
+                    del self[".".join((sample,) + index)]
+                except KeyError:
+                    pass
 
     # FIXME I don't see this class being used anywhere
     @classmethod

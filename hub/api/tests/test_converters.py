@@ -3,6 +3,7 @@ from hub.features.features import Tensor
 import numpy as np
 from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded
 import pytest
+from hub.utils import Timer
 
 
 @pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
@@ -67,15 +68,17 @@ def test_to_from_tensorflow():
     }
 
     ds = hub.Dataset(
-        schema=my_schema, shape=(10,), url="./data/test_from_tf/ds3", mode="w"
+        schema=my_schema, shape=(10,), url="./data/test_from_tf/ds4", mode="w"
     )
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
+
     ds = ds.to_tensorflow()
     out_ds = hub.Dataset.from_tensorflow(ds)
     res_ds = out_ds.store(
-        "./data/test_from_tf/ds4", length=10
+        "./data/test_from_tf/ds5", length=10
     )  # generator has no length, argument needed
+
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
@@ -139,6 +142,7 @@ def test_from_pytorch():
     tds = TestDataset()
     ds = hub.Dataset.from_pytorch(tds)
     ds = ds.store("./data/test_from_pytorch/test1")
+
     assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
     assert (ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
     assert ds["labels", "named", 5].numpy() == "testing text labels"
@@ -149,9 +153,9 @@ def test_to_from_pytorch():
     my_schema = {
         "image": Tensor((10, 10, 3), "uint8"),
         "label": {
-            # "c": Tensor((5, 3), "uint8"),
+            "c": Tensor((5, 3), "uint8"),
             "d": {"e": Tensor((5, 3), "uint8")},
-            # "f": "float",
+            "f": "float",
         },
     }
     ds = hub.Dataset(
@@ -167,13 +171,12 @@ def test_to_from_pytorch():
 
     ds = ds.to_pytorch()
     out_ds = hub.Dataset.from_pytorch(ds)
-    res_ds = out_ds.store("./data/test_from_pytorch/test30")
+    with Timer("storing"):
+        res_ds = out_ds.store("./data/test_from_pytorch/test30")
 
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
-
-from hub.utils import Timer
 
 if __name__ == "__main__":
 

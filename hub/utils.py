@@ -122,6 +122,8 @@ def compute_lcm(a):
     """
     Lowest Common Multiple of a list a
     """
+    if not a:
+        return None
     lcm = a[0]
     for i in a[1:]:
         lcm = lcm * i // gcd(lcm, i)

@@ -350,15 +350,19 @@ class Dataset:
             self._tensors[subpath][slice_list] = assign_value
 
     def resize_shape(self, size: int) -> None:
-        """ Resize the shape of the dataset by resizing each tensor first dimension"""
+        """ Resize the shape of the dataset by resizing each tensor first dimension """
+        if size == self.shape[0]:
+            return
+
         self.shape = (size,)
         for t in self._tensors.values():
             t.resize_shape(size)
+
         self.meta = self._store_meta()
         self._update_dataset_state()
 
     def append_shape(self, size: int):
-        """ Append the shape """
+        """ Append the shape: Heavy Operation """
         size += self.shape[0]
         self.resize_shape(size)
 
@@ -662,7 +666,6 @@ class Dataset:
         except Exception:
             raise ModuleNotInstalledException("tensorflow_datasets")
 
-
         ds_info = tfds.load(dataset, with_info=True)
         if split is None:
             all_splits = ds_info[1].splits.keys()
@@ -673,7 +676,8 @@ class Dataset:
         max_dict = defaultdict(lambda: None)
 
         def sampling(ds):
-            subset_len = max(int(len(ds) * sampling_amount), 5)
+            # FIXME len(ds), does not work for all iteratables
+            subset_len = 5  # max(int(len(ds) * sampling_amount), 5)
             samples = ds.take(subset_len)
             for smp in samples:
                 dict_sampling(smp)
@@ -798,7 +802,6 @@ class Dataset:
             return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         my_schema = generate_schema(ds_info)
-        print(my_schema)
 
         def transform_numpy(sample):
             d = {}

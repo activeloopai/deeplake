@@ -1,4 +1,5 @@
-from hub.utils import _flatten, batchify, pytorch_loaded, tensorflow_loaded
+from hub.utils import *
+from hub.utils import _flatten
 
 
 def test_flatten_array():
@@ -21,6 +22,45 @@ def test_tensorflow_loaded():
         import tensorflow
     else:
         assert not result
+
+
+def test_ray_loaded():
+    result = ray_loaded()
+    if result:
+        import ray
+    else:
+        assert not result
+
+
+def test_dask_loaded():
+    result = dask_loaded()
+    if result:
+        import dask
+    else:
+        assert not result
+
+
+def test_tfdatasets_loaded():
+    result = tfds_loaded()
+    if result:
+        import tensorflow_datasets
+    else:
+        assert not result
+
+
+def test_pathos_loaded():
+    result = pathos_loaded()
+    if result:
+        import pathos
+    else:
+        assert not result
+
+
+def test_compute_lcm():
+    assert compute_lcm([1, 2, 8, 3]) == 24
+    assert compute_lcm([1]) == 1
+    assert compute_lcm([]) is None
+    assert compute_lcm([2,2]) == 2
 
 
 def test_batchify():
