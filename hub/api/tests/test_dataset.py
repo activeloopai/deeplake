@@ -9,6 +9,7 @@ from hub.utils import (
     azure_creds_exist,
     transformers_loaded,
 )
+from hub.features.image import Image
 
 Dataset = dataset.Dataset
 
@@ -226,6 +227,24 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_batch_write():
+    schema = {"image": Image(shape=(None, None, 3), max_shape=(100, 100, 3))}
+    ds = Dataset("./data/batch", shape=(10,), mode="w", schema=schema)
+
+    ds["image", 0:4] = 4 * np.ones((4, 67, 65, 3))
+
+    assert(ds["image", 0].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert(ds["image", 1].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert(ds["image", 2].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert(ds["image", 3].numpy() == 4 * np.ones((67, 65, 3))).all()
+
+    ds["image", 5:7] = [2 * np.ones((60, 65, 3)), 3 * np.ones((54, 30, 3))]
+
+    assert(ds["image", 5].numpy() == 2 * np.ones((60, 65, 3))).all()
+    assert(ds["image", 6].numpy() == 3 * np.ones((54, 30, 3))).all()
+
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")

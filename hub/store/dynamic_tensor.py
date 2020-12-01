@@ -211,16 +211,23 @@ class DynamicTensor:
                     else start + value.shape[0]
                 )
                 for i in range(start, stop):
-                    self.set_shape([i] + slice_[1:], value)
+                    self.set_shape([i] + slice_[1:], value[i - start])
             else:
                 self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
-        real_shapes = (
-            self._dynamic_tensor[slice_[0]]
-            if self._dynamic_tensor and isinstance(slice_[0], int)
-            else None
-        )
+        if self._dynamic_tensor and isinstance(slice_[0], int):
+            real_shapes = self._dynamic_tensor[slice_[0]]
+        elif self._dynamic_tensor and isinstance(slice_[0], slice):
+            max_shape = value[0].shape
+            for item in value:
+                max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
+            for i in range(len(value)):
+                pad = [(0, max_shape[dim] - value[i].shape[dim]) for dim in range(value[i].ndim)]
+                value[i] = np.pad(value[i], pad)
+            real_shapes = np.array([max_shape[i] for i in range(len(max_shape)) if i + 1 in self._dynamic_dims])
+        else:
+            real_shapes = None
 
         if not self._enabled_dynamicness:
             real_shapes = list(value.shape) if hasattr(value, "shape") else [1]
