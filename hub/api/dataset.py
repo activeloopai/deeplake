@@ -700,7 +700,10 @@ class Dataset:
                             [max(value) for value in zip(max_dict[k], v.shape)]
                         )
                 elif hasattr(v, "shape") and v.dtype == "string":
-                    max_dict[k] = (len(v.numpy()),)
+                    if k not in max_dict.keys():
+                        max_dict[k] = (len(v.numpy()),)
+                    else:
+                        max_dict[k] = max(((len(v.numpy()),), max_dict[k]))
 
         if sampling_amount > 0:
             sampling(ds)
