@@ -117,8 +117,6 @@ import hub
 
 ds = hub.load("username/basic")
 ```
-### Hub in action on Google Colab
-MNIST Classification with Hub and PyTorch: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
 
 ## Documentation
 
