@@ -174,7 +174,6 @@ class Dataset:
                 self.username, self.dataset_name, self.meta
             )
 
-
     def _store_meta(self) -> dict:
         meta = {
             "shape": self.shape,
