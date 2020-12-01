@@ -132,7 +132,7 @@ For more advanced data pipelines like uploading large datasets or applying many 
 
 ## Community
 
-Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) for help from Activeloop team and other users as well as dataset management/preprocessing tips and tricks.
+Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
