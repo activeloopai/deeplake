@@ -45,7 +45,7 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * Access from multiple machines simultaneously
 * Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
 * Deploy on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
-* Create arrays as big as you want. You can store images as big as 100kx100k!
+* Create arrays as big as you want. You can store images as big as 100k by 100k!
 * Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
