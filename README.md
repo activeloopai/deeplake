@@ -28,7 +28,7 @@
 </p>
 
 
-You can access and visualize 200 of world's most popular datasets in under a few minutes instead of hours with Hub. Read below.
+ <img src="https://img.shields.io/badge/-news-red"> Access and visualize 200 of world's most popular datasets in under a few minutes instead of hours with Hub. Read below.
 
 <h3 align="center"> The Docker Hub for datasets. </h3>
 <h4 align="center"> Hub is the fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
@@ -40,9 +40,18 @@ You can access and visualize 200 of world's most popular datasets in under a few
 [![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
 
 
-### Problems with Current Workflows
+### What is Hub for?
 
-We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size.  It is hard to manage data, store, access, and version-control. It is time-consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
+Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. You can store and retrieve your data and version-control it easily. You can access any chunck of the data and visualize it. To enable all this, we store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Finally, your team can collaborate on the dataset thanks to synchronization/same dataset view. 
+
+### Features 
+
+* Store large datasets with version-control
+* Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
+* Access from multiple machines simultaneously
+* Integration with your ML tools like Numpy, Dask, PyTorch, or TensorFlow.
+* Create arrays as big as you want
+* Take a quick look on your data without redundant manipulations/in a matter of seconds/etc.
 
 ## Getting Started
 
@@ -88,14 +97,14 @@ hub login
 
 2. Then create a dataset and upload
 ```python
-from hub import Dataset, schema
+from hub import Dataset, features
 import numpy as np
 
 ds = Dataset(
     "username/basic",
     schema={
-        "image": schema.Tensor((512, 512), dtype="float"),
-        "label": schema.Tensor((512, 512), dtype="float"),
+        "image": features.Tensor((512, 512), dtype="float"),
+        "label": features.Tensor((512, 512), dtype="float"),
     },
 )
 
@@ -117,14 +126,6 @@ ds = hub.load("username/basic")
 
 For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
 
-## Things you can do with Hub
-* Store large datasets with version-control
-* Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
-* Access from multiple machines simultaneously
-* Integration with your ML tools like Numpy, Dask, PyTorch, or TensorFlow.
-* Create arrays as big as you want
-* Take a quick look on your data without redundant manipulations/in a matter of seconds/etc.
-
 ## Use Cases
 * **Aerial images**: [Satellite and drone imagery](https://activeloop.ai/usecase/intelinair)
 * **Medical Images**: Volumetric images such as MRI or Xray
@@ -136,7 +137,6 @@ For more advanced data pipelines like uploading large datasets or applying many 
 Activeloop’s Hub format lets you achieve faster inference at a lower cost. Test out the datasets we’ve converted into Hub format - see for yourself!
 - [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 - [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
-
 
 
 # Disclaimers
