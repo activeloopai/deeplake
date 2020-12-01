@@ -118,7 +118,7 @@ import hub
 
 ds = hub.load("username/basic")
 ```
-
+Instead of "username/basic" you could also use `./local/path/`, `s3://path` or `gcs://`
 ## Documentation
 
 For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
