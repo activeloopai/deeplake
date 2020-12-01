@@ -9,10 +9,8 @@ Here is some features of new hub:
 2. Larger datasets can now be uploaded as we removed some RAM limiting components from the hub.
 3. Caching is introduced to improve IO performance.
 4. Dynamic shaping enables very large images/data support. You can have large images/data stored in hub. 
-
-More features coming:
-1. Dynamically sized datasets. Soon you will be able to increase number of samples dynamically.
-2. Tensors can be added to dataset on the fly.
+5. Dynamically sized datasets. You will be able to increase number of samples dynamically.
+6. Tensors can be added to dataset on the fly.
 
 ### Getting Started
 

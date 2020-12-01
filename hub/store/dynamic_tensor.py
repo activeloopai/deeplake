@@ -1,5 +1,5 @@
 import collections.abc as abc
-from hub.features.features import Shape
+from hub.schema.features import Shape
 import json
 import math
 
@@ -9,14 +9,14 @@ import zarr
 import numcodecs
 
 from hub.store.nested_store import NestedStore
-from hub.shape_detector import ShapeDetector
+from hub.store.shape_detector import ShapeDetector
 
 from hub.exceptions import (
     DynamicTensorNotFoundException,
     ValueShapeError,
     DynamicTensorShapeException,
 )
-from hub.features.sequence import Sequence
+from hub.schema.sequence import Sequence
 
 
 def _tuple_product(tuple_):
@@ -184,19 +184,41 @@ class DynamicTensor:
                     else start + value.shape[0]
                 )
                 for i in range(start, stop):
-                    self.set_shape([i] + slice_[1:], value)
+                    self.set_shape([i] + slice_[1:], value[i - start])
             else:
                 self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
-        real_shapes = (
-            self._dynamic_tensor[slice_[0]]
-            if self._dynamic_tensor and isinstance(slice_[0], int)
-            else None
-        )
+        if self._dynamic_tensor and isinstance(slice_[0], int):
+            real_shapes = self._dynamic_tensor[slice_[0]]
+        elif self._dynamic_tensor and isinstance(slice_[0], slice):
+            max_shape = value[0].shape
+            for item in value:
+                max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
+            for i in range(len(value)):
+                pad = [
+                    (0, max_shape[dim] - value[i].shape[dim])
+                    for dim in range(value[i].ndim)
+                ]
+                value[i] = np.pad(value[i], pad)
+            real_shapes = np.array(
+                [
+                    max_shape[i]
+                    for i in range(len(max_shape))
+                    if i + 1 in self._dynamic_dims
+                ]
+            )
+        else:
+            real_shapes = None
 
         if not self._enabled_dynamicness:
-            real_shapes = list(value.shape) if hasattr(value, "shape") else [1]
+            real_shapes = (
+                list(value.shape)
+                if hasattr(value, "shape")
+                else real_shapes
+                if real_shapes is not None
+                else [1]
+            )
 
         slice_ = self._get_slice(slice_, real_shapes)
         value = self.check_value_shape(value, slice_)
@@ -247,17 +269,7 @@ class DynamicTensor:
         self._resize_shape(self._storage_tensor, size)
 
         if self._dynamic_tensor:
-            print(
-                "-> write before",
-                self._dynamic_tensor.shape,
-                self._dynamic_tensor.chunks,
-            )
             self._resize_shape(self._dynamic_tensor, size)
-            print(
-                "-> write after",
-                self._dynamic_tensor.shape,
-                self._dynamic_tensor.chunks,
-            )
 
         self.fs_map[".hub.dynamic_tensor"] = bytes(
             json.dumps({"shape": self.shape}), "utf-8"

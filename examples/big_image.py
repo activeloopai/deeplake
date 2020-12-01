@@ -1,7 +1,7 @@
 import numpy as np
 
 import hub
-from hub.features import Image
+from hub.schema import Image
 from hub.utils import Timer
 
 

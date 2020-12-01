@@ -1,9 +1,9 @@
-from hub.features.class_label import ClassLabel, _load_names_from_file
-from hub.features.features import HubFeature, FeatureDict
+from hub.schema.class_label import ClassLabel, _load_names_from_file
+from hub.schema.features import HubSchema, SchemaDict
 import pytest
 
 
-names_file = "./hub/features/tests/class_label_names.txt"
+names_file = "./hub/schema/tests/class_label_names.txt"
 
 
 def test_load_names_from_file():
@@ -30,22 +30,22 @@ def test_class_label():
 
 
 def test_hub_feature_flatten():
-    base_object = HubFeature()
+    base_object = HubSchema()
     with pytest.raises(NotImplementedError):
         base_object._flatten()
 
 
 def test_feature_dict_str():
     input_dict = {"myint": int, "mystr": str}
-    feature_dict_object = FeatureDict(input_dict)
-    expected_output = "FeatureDict({'myint': 'int64', 'mystr': '<U0'})"
+    feature_dict_object = SchemaDict(input_dict)
+    expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__str__()
 
 
 def test_feature_dict_repr():
     input_dict = {"myint": int, "mystr": str}
-    feature_dict_object = FeatureDict(input_dict)
-    expected_output = "FeatureDict({'myint': 'int64', 'mystr': '<U0'})"
+    feature_dict_object = SchemaDict(input_dict)
+    expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__repr__()
 
 

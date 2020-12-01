@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.features import Tensor, Text
+from hub.schema import Tensor, Text, Image
 from hub.utils import (
     gcp_creds_exist,
     s3_creds_exist,
@@ -177,15 +177,15 @@ def test_dataset_enter_exit():
 
 
 def test_dataset_bug():
-    from hub import Dataset, features
+    from hub import Dataset, schema
 
     Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -201,8 +201,8 @@ def test_dataset_bug():
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -223,6 +223,30 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_batch_write():
+    schema = {"image": Image(shape=(None, None, 3), max_shape=(100, 100, 3))}
+    ds = Dataset("./data/batch", shape=(10,), mode="w", schema=schema)
+
+    ds["image", 0:4] = 4 * np.ones((4, 67, 65, 3))
+
+    assert (ds["image", 0].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 1].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 2].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 3].numpy() == 4 * np.ones((67, 65, 3))).all()
+
+    ds["image", 5:7] = [2 * np.ones((60, 65, 3)), 3 * np.ones((54, 30, 3))]
+
+    assert (ds["image", 5].numpy() == 2 * np.ones((60, 65, 3))).all()
+    assert (ds["image", 6].numpy() == 3 * np.ones((54, 30, 3))).all()
+
+
+def test_dataset_batch_write_2():
+    schema = {"image": Image(shape=(None, None, 3), max_shape=(640, 640, 3))}
+    ds = Dataset("./data/batch", shape=(100,), mode="w", schema=schema)
+
+    ds["image", 0:14] = [np.ones((640 - i, 640, 3)) for i in range(14)]
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
@@ -313,6 +337,8 @@ if __name__ == "__main__":
     # test_tensorview_slicing()
     # test_datasetview_slicing()
     # test_dataset()
+    test_dataset_batch_write_2()
+    exit()
     test_append_dataset()
     test_dataset2()
     test_text_dataset()

@@ -1,4 +1,4 @@
-from .features import Tensor, Primitive, FeatureDict
+from .features import Tensor, Primitive, SchemaDict
 from .audio import Audio
 from .bbox import BBox
 from .class_label import ClassLabel

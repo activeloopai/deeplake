@@ -2,7 +2,7 @@ import numpy as np
 import zarr
 
 import hub
-from hub.features import Tensor, Image, Text
+from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
 
 my_schema = {

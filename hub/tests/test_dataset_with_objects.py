@@ -1,7 +1,7 @@
 import numpy as np
 
 import hub
-from hub.features import Tensor
+from hub.schema import Tensor
 
 
 def test_dataset_with_objects():

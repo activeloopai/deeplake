@@ -1,14 +1,14 @@
-from hub.features.features import Tensor, FeatureDict
-from hub.features.image import Image
-from hub.features.class_label import ClassLabel
-from hub.features.polygon import Polygon
-from hub.features.audio import Audio
-from hub.features.bbox import BBox
-from hub.features.mask import Mask
-from hub.features.segmentation import Segmentation
-from hub.features.sequence import Sequence
-from hub.features.video import Video
-from hub.features.text import Text
+from hub.schema.features import Tensor, SchemaDict
+from hub.schema.image import Image
+from hub.schema.class_label import ClassLabel
+from hub.schema.polygon import Polygon
+from hub.schema.audio import Audio
+from hub.schema.bbox import BBox
+from hub.schema.mask import Mask
+from hub.schema.segmentation import Segmentation
+from hub.schema.sequence import Sequence
+from hub.schema.video import Video
+from hub.schema.text import Text
 
 
 def _get_compressor(inp):
@@ -46,11 +46,11 @@ def deserialize(inp):
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
-        elif inp["type"] == "FeatureDict":
+        elif inp["type"] == "SchemaDict":
             d = {}
             for k, v in inp["items"].items():
                 d[k] = deserialize(v)
-            return FeatureDict(d)
+            return SchemaDict(d)
         elif inp["type"] == "Image":
             return Image(
                 shape=tuple(inp["shape"]),

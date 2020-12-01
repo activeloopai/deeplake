@@ -1,12 +1,12 @@
 from typing import Tuple
 import numpy as np
 
-from hub.features.features import Tensor
-from hub.features.class_label import ClassLabel
+from hub.schema.features import Tensor
+from hub.schema.class_label import ClassLabel
 
 
 class Segmentation(Tensor):
-    """`HubFeature` for segmentation"""
+    """`HubSchema` for segmentation"""
 
     def __init__(
         self,
@@ -19,8 +19,8 @@ class Segmentation(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """Constructs a Segmentation HubFeature.
-        Also constructs ClassLabel HubFeature for Segmentation classes.
+        """Constructs a Segmentation HubSchema.
+        Also constructs ClassLabel HubSchema for Segmentation classes.
 
         Parameters
         ----------

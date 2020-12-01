@@ -1,5 +1,5 @@
 import hub.api.tests.test_converters
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 import numpy as np
 from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded
 import pytest

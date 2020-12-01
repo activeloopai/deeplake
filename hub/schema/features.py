@@ -16,7 +16,7 @@ class FlatTensor:
         self.chunks = chunks
 
 
-class HubFeature:
+class HubSchema:
     """ Base class for all datatypes"""
 
     def _flatten(self) -> Iterable[FlatTensor]:
@@ -24,19 +24,7 @@ class HubFeature:
         raise NotImplementedError()
 
 
-def featurify(feature) -> HubFeature:
-    """This functions converts naked primitive datatypes and ditcs into Primitives and FeatureDicts
-    That way every node in dtype tree is a FeatureConnector type object
-    """
-    if isinstance(feature, dict):
-        return FeatureDict(feature)
-    elif isinstance(feature, HubFeature):
-        return feature
-    else:
-        return Primitive(feature)
-
-
-class Primitive(HubFeature):
+class Primitive(HubSchema):
     """Class for handling primitive datatypes
     All numpy primitive data types like int32, float64, etc... should be wrapped around this class
     """
@@ -58,14 +46,14 @@ class Primitive(HubFeature):
         return self.__str__()
 
 
-class FeatureDict(HubFeature):
+class SchemaDict(HubSchema):
     """Class for dict branching of a datatype
-    FeatureDict dtype contains str -> dtype associations
+    SchemaDict dtype contains str -> dtype associations
     This way you can describe complex datatypes
     """
 
     def __init__(self, dict_):
-        self.dict_: Dict[str, HubFeature] = {
+        self.dict_: Dict[str, HubSchema] = {
             key: featurify(value) for key, value in dict_.items()
         }
 
@@ -81,7 +69,7 @@ class FeatureDict(HubFeature):
                 )
 
     def __str__(self):
-        out = "FeatureDict("
+        out = "SchemaDict("
         out += str(self.dict_)
         out += ")"
         return out
@@ -90,14 +78,26 @@ class FeatureDict(HubFeature):
         return self.__str__()
 
 
+def featurify(schema) -> HubSchema:
+    """This functions converts naked primitive datatypes and ditcs into Primitives and SchemaDicts
+    That way every node in dtype tree is a SchemaConnector type object
+    """
+    if isinstance(schema, dict):
+        return SchemaDict(schema)
+    elif isinstance(schema, HubSchema):
+        return schema
+    else:
+        return Primitive(schema)
+
+
 def _normalize_chunks(chunks):
     chunks = (chunks,) if isinstance(chunks, int) else chunks
     chunks = tuple(chunks) if chunks else None
     return chunks
 
 
-class Tensor(HubFeature):
-    """Tensor type in features
+class Tensor(HubSchema):
+    """Tensor type in schema
     Has np-array like structure contains any type of elements (Primitive and non-Primitive)
     """
 
@@ -115,7 +115,7 @@ class Tensor(HubFeature):
         shape : Tuple[int]
             Shape of tensor, can contains None(s) meaning the shape can be dynamic
             Dynamic shape means it can change during editing the dataset
-        dtype : FeatureConnector or str
+        dtype : SchemaConnector or str
             dtype of each element in Tensor. Can be Primitive and non-Primitive type
         max_shape : Tuple[int]
             Maximum shape of tensor shape if tensor is dynamic
@@ -167,7 +167,7 @@ class Tensor(HubFeature):
 def flatten(dtype, root=""):
     """ Flattens nested dictionary and returns tuple (dtype, path) """
     dtype = featurify(dtype)
-    if isinstance(dtype, FeatureDict):
+    if isinstance(dtype, SchemaDict):
         for key, value in dtype.dict_.items():
             yield from flatten(value, root + "/" + key)
     else:
