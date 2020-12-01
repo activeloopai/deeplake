@@ -60,7 +60,7 @@ def test_compute_lcm():
     assert compute_lcm([1, 2, 8, 3]) == 24
     assert compute_lcm([1]) == 1
     assert compute_lcm([]) is None
-    assert compute_lcm([2,2]) == 2
+    assert compute_lcm([2, 2]) == 2
 
 
 def test_batchify():
