@@ -61,6 +61,7 @@ class HubHttpClient:
 
         try:
             logger.debug(f"Sending: Headers {headers}, Json: {json}")
+            print(method, request_url, params, data, json, headers, files, timeout)
             response = requests.request(
                 method,
                 request_url,
@@ -95,7 +96,7 @@ class HubHttpClient:
         code = response.status_code
         if code < 200 or code >= 300:
             try:
-                message = response.json()["error"]
+                message = response.json()["description"]
             except Exception:
                 message = " "
 
@@ -107,7 +108,10 @@ class HubHttpClient:
             elif response.status_code == 403:
                 raise AuthorizationException()
             elif response.status_code == 404:
-                raise NotFoundException()
+                if message != " ":
+                    raise NotFoundException(message)
+                else:
+                    raise NotFoundException
             elif response.status_code == 429:
                 raise OverLimitException(message)
             elif response.status_code == 502:
