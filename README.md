@@ -46,7 +46,7 @@ Most of the time Data Scientists/ML researchers work on data management and prep
 * Access from multiple machines simultaneously
 * Integrate with your ML tools like Numpy, Dask, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html).
 * Create arrays as big as you want
-* Visualize any slice of the data in a matter of seconds without redundant manipulations.
+* Visualize any slice of the data in a matter of seconds without redundant manipulations
 
 ## Getting Started
 
