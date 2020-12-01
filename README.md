@@ -1,4 +1,4 @@
-<p align="center">
+ <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/hub_logo_explainer.png" width="50%"/>
     </br>
@@ -19,17 +19,17 @@
         <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social"> </a>  
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
-  <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" />
-    </a>
-</a>
-</p>
+  <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
 
 ---
 
-<h5 align="center"> 
- <img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
+</a>
+</p>
+
+<h5 align="center"><img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
 
 <h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
+
 ---
 
 ### What is Hub for?
