@@ -2,18 +2,18 @@ import numpy as np
 import zarr
 
 import hub
-from hub.features import Tensor, Image
+from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
     "confidence": "float",
 }
 
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
 }
 
 
@@ -39,7 +39,6 @@ def test_pipeline_basic():
     assert (out_ds["image", 0].compute() == 2).all()
     assert len(list(out_ds)) == 100
     res_ds = out_ds.store("./data/test/test_pipeline_basic_output")
-
     assert res_ds["label", 5].compute() == "hello 5"
     assert (
         res_ds["image", 4].compute() == 2 * np.ones((28, 28, 4), dtype="int32")
@@ -60,8 +59,8 @@ def test_threaded():
             shape=(None, None, None), max_shape=(4, 224, 224), dtype="float32"
         ),
         "label": Tensor(shape=(None,), max_shape=(6,), dtype="uint8"),
-        "text_label": "<U14",
-        "flight_code": "<U10",
+        "text_label": Text((None,), "int64", (14,)),
+        "flight_code": Text((None,), "int64", (10,)),
     }
 
     ds_init = hub.Dataset(

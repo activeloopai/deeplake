@@ -1,8 +1,8 @@
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class Sequence(Tensor):
-    """`Sequence` correspond to sequence of `features.HubFeature`.
+    """`Sequence` correspond to sequence of `features.HubSchema`.
     At generation time, a list for each of the sequence element is given. The output
     of `Dataset` will batch all the elements of the sequence together.
     If the length of the sequence is static and known in advance, it should be
@@ -16,7 +16,8 @@ class Sequence(Tensor):
 
     def __init__(
         self,
-        shape=(None,),
+        shape=(),
+        max_shape=(),
         dtype=None,
         chunks=None,
         compressor="lz4",
@@ -27,7 +28,7 @@ class Sequence(Tensor):
         shape : Tuple[int] | int
             Single integer element tuple representing length of sequence
             If None then dynamic
-        dtype : str | HubFeature
+        dtype : str | HubSchema
             Datatype of each element in sequence
         chunks : Tuple[int] | int
             Number of elements in chunk
@@ -39,6 +40,7 @@ class Sequence(Tensor):
             dtype=dtype,
             chunks=chunks,
             compressor=compressor,
+            max_shape=max_shape,
         )
 
     def get_attr_dict(self):

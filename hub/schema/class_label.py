@@ -1,5 +1,5 @@
 from typing import List
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 def _load_names_from_file(names_filepath):
@@ -8,7 +8,7 @@ def _load_names_from_file(names_filepath):
 
 
 class ClassLabel(Tensor):
-    """`HubFeature` for integer class labels."""
+    """`HubSchema` for integer class labels."""
 
     def __init__(
         self,
@@ -18,7 +18,7 @@ class ClassLabel(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """| Constructs a ClassLabel HubFeature.
+        """| Constructs a ClassLabel HubSchema.
         | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
         | * `num_classes`: create 0 to (num_classes-1) labels
         | * `names`: a list of label strings

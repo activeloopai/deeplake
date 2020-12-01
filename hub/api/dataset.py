@@ -10,22 +10,21 @@ import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
 
-from hub.features.features import (
+from hub.schema.features import (
     Primitive,
     Tensor,
-    FeatureDict,
-    HubFeature,
+    SchemaDict,
+    HubSchema,
     featurify,
 )
 from hub.log import logger
-
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 
-import hub.features.serialize
-import hub.features.deserialize
-from hub.features.features import flatten
+import hub.schema.serialize
+import hub.schema.deserialize
+from hub.schema.features import flatten
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -42,8 +41,8 @@ from hub.exceptions import (
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
-from hub.features.image import Image
-from hub.features.class_label import ClassLabel
+from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from collections import defaultdict
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -64,6 +63,7 @@ class Dataset:
         cache: int = 2 ** 26,
         storage_cache: int = 2 ** 28,
         lock_cache=True,
+        tokenizer=None,
     ):
         """Open a new or existing dataset for read/write
         Parameters
@@ -77,7 +77,7 @@ class Dataset:
         shape: tuple, optional
             Tuple with (num_samples,) format, where num_samples is number of samples
         schema: optional
-            Describes the data of a single sample. Hub features are used for that
+            Describes the data of a single sample. Hub schemas are used for that
             Required for 'a' and 'w' modes
         token: str or dict, optional
             If url is refering to a place where authorization is required,
@@ -109,6 +109,7 @@ class Dataset:
         self.url = url
         self.token = token
         self.mode = mode
+        self.tokenizer = tokenizer
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
@@ -131,7 +132,7 @@ class Dataset:
         if not needcreate:
             meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(meta["shape"])
-            self.schema = hub.features.deserialize.deserialize(meta["schema"])
+            self.schema = hub.schema.deserialize.deserialize(meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
@@ -144,7 +145,7 @@ class Dataset:
                     raise ShapeArgumentNotFoundException()
                 if schema is None:
                     raise SchemaArgumentNotFoundException()
-                self.schema: HubFeature = featurify(schema)
+                self.schema: HubSchema = featurify(schema)
                 self.shape = tuple(shape)
                 self.meta = self._store_meta()
                 self._flat_tensors = tuple(flatten(self.schema))
@@ -176,7 +177,7 @@ class Dataset:
     def _store_meta(self) -> dict:
         meta = {
             "shape": self.shape,
-            "schema": hub.features.serialize.serialize(self.schema),
+            "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
@@ -332,6 +333,10 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        # handling strings and bytes
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.tokenizer)
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -340,20 +345,20 @@ class Dataset:
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
-            self._tensors[subpath][:] = value  # Add path check
+            self._tensors[subpath][:] = assign_value  # Add path check
         else:
-            self._tensors[subpath][slice_list] = value
+            self._tensors[subpath][slice_list] = assign_value
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self.shape[0]:
             return
 
-        self.shape = (size,)
-        for t in self._tensors.values():
-            t.resize_shape(size)
-
+        self.shape = (int(size),)
         self.meta = self._store_meta()
+        for t in self._tensors.values():
+            t.resize_shape(int(size))
+
         self._update_dataset_state()
 
     def append_shape(self, size: int):
@@ -436,7 +441,7 @@ class Dataset:
             return dtype_to_tf(my_dtype.dtype)
 
         def dtype_to_tf(my_dtype):
-            if isinstance(my_dtype, FeatureDict):
+            if isinstance(my_dtype, SchemaDict):
                 return dict_to_tf(my_dtype)
             elif isinstance(my_dtype, Tensor):
                 return tensor_to_tf(my_dtype)
@@ -446,7 +451,7 @@ class Dataset:
                 return str(my_dtype._dtype)
 
         def get_output_shapes(my_dtype):
-            if isinstance(my_dtype, FeatureDict):
+            if isinstance(my_dtype, SchemaDict):
                 return output_shapes_from_dict(my_dtype)
             elif isinstance(my_dtype, Tensor):
                 return my_dtype.shape
@@ -606,7 +611,7 @@ class Dataset:
             d = {
                 key.replace("/", "_"): tf_to_hub(value) for key, value in tf_dt.items()
             }
-            return FeatureDict(d)
+            return SchemaDict(d)
 
         my_schema = generate_schema(ds)
 
@@ -634,7 +639,7 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_tfds(dataset, split=None, num=-1):
+    def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
         """Converts a TFDS Dataset into hub format
         Parameters
         ----------
@@ -646,62 +651,116 @@ class Dataset:
         num: int, optional
             The number of samples required. If not present, all the samples are taken.
             If count is -1, or if count is greater than the size of this dataset, the new dataset will contain all elements of this dataset.
+        sampling_amount: float, optional
+            a value from 0 to 1, that specifies how much of the dataset would be sampled to determinte feature shapes
+            value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
         Examples
         --------
         out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
         res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
-        if "tensorflow_datasets" not in sys.modules:
-            raise ModuleNotInstalledException("tensorflow_datasets")
-        else:
+        try:
             import tensorflow_datasets as tfds
 
             global tfds
+        except Exception:
+            raise ModuleNotInstalledException("tensorflow_datasets")
 
         ds_info = tfds.load(dataset, with_info=True)
+
         if split is None:
             all_splits = ds_info[1].splits.keys()
             split = "+".join(all_splits)
+
         ds = tfds.load(dataset, split=split)
         ds = ds.take(num)
+        max_dict = defaultdict(lambda: None)
+
+        def sampling(ds):
+            try:
+                subset_len = len(ds) if hasattr(ds, "__len__") else num
+            except Exception:
+                subset_len = 5
+
+            subset_len = max(subset_len * sampling_amount, 5)
+            samples = ds.take(subset_len)
+            for smp in samples:
+                dict_sampling(smp)
+
+        def dict_sampling(d):
+            for k, v in d.items():
+                k = k.replace("/", "_")
+                if isinstance(v, dict):
+                    dict_sampling(v)
+                elif hasattr(v, "shape"):
+                    if k not in max_dict.keys():
+                        max_dict[k] = v.shape
+                    else:
+                        max_dict[k] = tuple(
+                            [max(value) for value in zip(max_dict[k], v.shape)]
+                        )
+
+        if sampling_amount > 0:
+            sampling(ds)
 
         def generate_schema(ds):
             tf_schema = ds[1].features
             schema = to_hub(tf_schema).dict_
             return schema
 
-        def to_hub(tf_dt):
+        def to_hub(tf_dt, max_shape=None):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
                 return fdict_to_hub(tf_dt)
             elif isinstance(tf_dt, tfds.features.Image):
-                return image_to_hub(tf_dt)
+                return image_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
-                return class_label_to_hub(tf_dt)
+                return class_label_to_hub(tf_dt, max_shape=max_shape)
+            elif isinstance(tf_dt, tfds.features.Video):
+                return video_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Text):
-                return text_to_hub(tf_dt)
+                return text_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(tf_dt)
+                return sequence_to_hub(tf_dt, max_shape=max_shape)
+            elif isinstance(tf_dt, tfds.features.BBoxFeature):
+                return bbox_to_hub(tf_dt, max_shape=max_shape)
+            elif isinstance(tf_dt, tfds.features.Audio):
+                return audio_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt)
+                return tensor_to_hub(tf_dt, max_shape=max_shape)
             else:
                 if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
 
         def fdict_to_hub(tf_dt):
-            d = {key.replace("/", "_"): to_hub(value) for key, value in tf_dt.items()}
-            return FeatureDict(d)
+            d = {
+                key.replace("/", "_"): to_hub(value, max_dict[key])
+                for key, value in tf_dt.items()
+            }
+            return SchemaDict(d)
 
-        def tensor_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        def tensor_to_hub(tf_dt, max_shape=None):
+            if tf_dt.dtype.name == "string":
+                return Text(shape=(None,), dtype="int64", max_shape=(100000,))
+            dt = tf_dt.dtype.name
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
             return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
-        def image_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
+        def image_to_hub(tf_dt, max_shape=None):
+            dt = tf_dt.dtype.name
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
             return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
-        def class_label_to_hub(tf_dt):
+        def class_label_to_hub(tf_dt, max_shape=None):
             if hasattr(tf_dt, "_num_classes"):
                 return ClassLabel(
                     num_classes=tf_dt.num_classes,
@@ -709,13 +768,43 @@ class Dataset:
             else:
                 return ClassLabel(names=tf_dt.names)
 
-        def text_to_hub(tf_dt):
-            max_shape = tuple(10000 if dim is None else dim for dim in tf_dt.shape)
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+        def text_to_hub(tf_dt, max_shape=None):
+            max_shape = (100000,)
+            dt = "int64"
+            return Text(shape=(None,), dtype=dt, max_shape=max_shape)
 
-        def sequence_to_hub(tf_dt):
-            return "object"
+        def bbox_to_hub(tf_dt, max_shape=None):
+            dt = tf_dt.dtype.name
+            return BBox(dtype=dt)
+
+        def sequence_to_hub(tf_dt, max_shape=None):
+            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
+
+        def audio_to_hub(tf_dt, max_shape=None):
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                100000 if dim is None else dim for dim in tf_dt.shape
+            )
+            dt = tf_dt.dtype.name
+            return Audio(
+                shape=tf_dt.shape,
+                dtype=dt,
+                max_shape=max_shape,
+                file_format=tf_dt._file_format,
+                sample_rate=tf_dt._sample_rate,
+            )
+
+        def video_to_hub(tf_dt, max_shape=None):
+            if max_shape and len(max_shape) > len(tf_dt.shape):
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+
+            max_shape = max_shape or tuple(
+                10000 if dim is None else dim for dim in tf_dt.shape
+            )
+            dt = tf_dt.dtype.name
+            return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         my_schema = generate_schema(ds_info)
 
@@ -766,9 +855,13 @@ class Dataset:
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
-                    dtype = "object" if isinstance(v, str) else dtype
-                    d[k] = Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
-            return FeatureDict(d)
+                    dtype = "int64" if isinstance(v, str) else dtype
+                    d[k] = (
+                        Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
+                        if not isinstance(v, str)
+                        else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
+                    )
+            return SchemaDict(d)
 
         my_schema = generate_schema(dataset)
 
@@ -777,9 +870,6 @@ class Dataset:
             for k, v in sample.items():
                 k = k.replace("/", "_")
                 if not isinstance(v, dict):
-                    # if isinstance(v, torch.Tensor):
-                    #    d[k] = v.numpy()
-                    # else:
                     d[k] = v
                 else:
                     d[k] = transform_numpy(v)

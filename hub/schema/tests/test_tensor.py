@@ -1,5 +1,5 @@
-from hub.features import Tensor, Image, Primitive
-from hub.features.features import flatten
+from hub.schema import Tensor, Image, Primitive
+from hub.schema.features import flatten
 import pytest
 
 

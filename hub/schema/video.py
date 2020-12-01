@@ -1,13 +1,11 @@
-# FIXME NOT WORKING YET, NEED SOME CHANGES
-# DONT INCLUDE INTO __init__.py YET
 from typing import Tuple
 
-from hub.features.image import Image
-from hub.features.sequence import Sequence
+from hub.schema import Tensor
+from hub.schema.image import Image
 
 
-class Video(Sequence):
-    """`HubFeature` for videos, encoding frames individually on disk.
+class Video(Tensor):
+    """`HubSchema` for videos, encoding frames individually on disk.
 
     The connector accepts as input a 4 dimensional `uint8` array
     representing a video.
@@ -22,8 +20,11 @@ class Video(Sequence):
         self,
         shape: Tuple[int, ...] = None,
         dtype: str = "uint8",
-        encoding_format: str = "png",
-        chunks=True,
+        # TODO Add back encoding_format (probably named compress) when support for png and jpg support will be added
+        max_shape: Tuple[int, ...] = None,
+        # ffmpeg_extra_args=(),
+        chunks=None,
+        compressor="lz4",
     ):
         """Initializes the connector.
 
@@ -43,13 +44,21 @@ class Video(Sequence):
         ValueError: If the shape, dtype or encoding formats are invalid
         """
         super(Video, self).__init__(
-            feature=Image(
-                shape=shape[1:], dtype=dtype, encoding_format=encoding_format
-            ),
-            length=shape[0],
+            dtype=dtype,
+            shape=shape,
+            max_shape=max_shape,
             chunks=chunks,
+            compressor=compressor,
         )
 
     def get_attr_dict(self):
         """Return class attributes."""
         return self.__dict__
+
+    def __str__(self):
+        out = super().__str__()
+        out = "Video" + out[6:]
+        return out
+
+    def __repr__(self):
+        return self.__str__()

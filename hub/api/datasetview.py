@@ -1,5 +1,5 @@
 from hub.api.tensorview import TensorView
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 from hub.exceptions import NoneValueException
 import collections.abc as abc
 
@@ -99,6 +99,10 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        # handling strings and bytes
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -112,7 +116,7 @@ class DatasetView:
                 if self.num_samples == 1
                 else slice(self.offset, self.offset + self.num_samples)
             )
-            self.dataset._tensors[subpath][slice_] = value  # Add path check
+            self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
         else:
             num, ofs = (
                 slice_extract_info(slice_list[0], self.num_samples)
@@ -124,8 +128,7 @@ class DatasetView:
                 if num > 1
                 else ofs + self.offset
             )
-
-            self.dataset._tensors[subpath][slice_list] = value
+            self.dataset._tensors[subpath][slice_list] = assign_value
 
     @property
     def keys(self):

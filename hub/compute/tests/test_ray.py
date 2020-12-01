@@ -1,19 +1,19 @@
 import hub
 from hub.utils import ray_loaded
-from hub.features import Tensor
+from hub.schema import Tensor, Text
 import pytest
 
 import numpy as np
 
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
     "confidence": {"confidence": "float"},
 }
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
-    "label": "<U20",
+    "label": Text((None,), "int64", (20,)),
     "confidence": {"confidence": "float"},
 }
 

@@ -7,12 +7,13 @@ from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
 from hub.utils import batchify
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
-from hub.features import Primitive
-from hub.features.features import featurify
+from hub.schema import Primitive
+from hub.schema.sequence import Sequence
+from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 
@@ -102,7 +103,7 @@ class Transform:
         for k, v in d.items():
             new_key = parent_key + "/" + k if parent_key else k
             if isinstance(v, MutableMapping) and not isinstance(
-                self.dtype_from_path(new_key, schema), Primitive
+                self.dtype_from_path(new_key, schema), Sequence
             ):
                 items.extend(
                     self._flatten_dict(v, parent_key=new_key, schema=schema).items()
@@ -203,6 +204,7 @@ class Transform:
         for key, value in results.items():
 
             length = ds[key].chunksize[0]
+            value = str_to_int(value, ds.dataset.tokenizer)
 
             if length == 0:
                 length = 1
@@ -211,15 +213,11 @@ class Transform:
 
             def upload_chunk(i_batch):
                 i, batch = i_batch
-                if not ds[key].is_dynamic:
-                    batch_length = len(batch)
-                    if batch_length != 1:
-                        ds[key, i * length : i * length + batch_length] = batch
-                    else:
-                        ds[key, i * length] = batch[0]
+                batch_length = len(batch)
+                if batch_length != 1:
+                    ds[key, i * length : i * length + batch_length] = batch
                 else:
-                    for k, el in enumerate(batch):
-                        ds[key, i * length + k] = el
+                    ds[key, i * length] = batch[0]
 
             index_batched_values = list(
                 zip(list(range(len(batched_values))), batched_values)
@@ -372,24 +370,23 @@ class Transform:
 
         start = 0
         total = 0
-        if False:
-            with tqdm(
-                total=total,
-                unit_scale=True,
-                unit=" items",
-                desc="Computing the transormation",
-            ) as pbar:
-                pass
 
-        for ds_in_shard in batchify_generator(ds_in, n_samples):
+        with tqdm(
+            total=length,
+            unit_scale=True,
+            unit=" items",
+            desc="Computing the transormation",
+        ) as pbar:
+            pbar.update(length // 10)
+            for ds_in_shard in batchify_generator(ds_in, n_samples):
 
-            n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
-            total += n_results
+                n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
+                total += n_results
 
-            if n_results < n_samples or n_results == 0:
-                break
-            start += n_samples
-            # pbar.update(n_samples)
+                if n_results < n_samples or n_results == 0:
+                    break
+                start += n_samples
+                pbar.update(n_samples)
 
         ds_out.resize_shape(total)
         ds_out.commit()

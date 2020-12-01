@@ -2,8 +2,13 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.features import Tensor
-from hub.utils import gcp_creds_exist, s3_creds_exist, azure_creds_exist
+from hub.schema import Tensor, Text, Image
+from hub.utils import (
+    gcp_creds_exist,
+    s3_creds_exist,
+    azure_creds_exist,
+    transformers_loaded,
+)
 
 Dataset = dataset.Dataset
 
@@ -172,15 +177,15 @@ def test_dataset_enter_exit():
 
 
 def test_dataset_bug():
-    from hub import Dataset, features
+    from hub import Dataset, schema
 
     Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -196,8 +201,8 @@ def test_dataset_bug():
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -218,6 +223,30 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_batch_write():
+    schema = {"image": Image(shape=(None, None, 3), max_shape=(100, 100, 3))}
+    ds = Dataset("./data/batch", shape=(10,), mode="w", schema=schema)
+
+    ds["image", 0:4] = 4 * np.ones((4, 67, 65, 3))
+
+    assert (ds["image", 0].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 1].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 2].numpy() == 4 * np.ones((67, 65, 3))).all()
+    assert (ds["image", 3].numpy() == 4 * np.ones((67, 65, 3))).all()
+
+    ds["image", 5:7] = [2 * np.ones((60, 65, 3)), 3 * np.ones((54, 30, 3))]
+
+    assert (ds["image", 5].numpy() == 2 * np.ones((60, 65, 3))).all()
+    assert (ds["image", 6].numpy() == 3 * np.ones((54, 30, 3))).all()
+
+
+def test_dataset_batch_write_2():
+    schema = {"image": Image(shape=(None, None, 3), max_shape=(640, 640, 3))}
+    ds = Dataset("./data/batch", shape=(100,), mode="w", schema=schema)
+
+    ds["image", 0:14] = [np.ones((640 - i, 640, 3)) for i in range(14)]
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
@@ -258,17 +287,47 @@ def test_tensorview_slicing():
     assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
     assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
-    tv3 = ds["first", 5:10, 2, 3:39]
-    tv4 = tv3[3:5, 5:17]
-    assert tv4.numpy().shape == (2, 12)
-    assert (tv4.shape == np.array([[12], [12]])).all()
+
+
+def test_text_dataset():
+    schema = {
+        "names": Text(shape=(None,), max_shape=(1000,), dtype="int64"),
+    }
+    ds = Dataset("./data/test/testing_text", mode="w", schema=schema, shape=(10,))
+    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    ds["names", 4] = text
+    assert ds["names", 4].numpy() == text
+
+
+@pytest.mark.skipif(
+    not transformers_loaded(), reason="requires transformers to be loaded"
+)
+def test_text_dataset_tokenizer():
+    schema = {
+        "names": Text(shape=(None,), max_shape=(1000,), dtype="int64"),
+    }
+    ds = Dataset(
+        "./data/test/testing_text", mode="w", schema=schema, shape=(10,), tokenizer=True
+    )
+    text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    ds["names", 4] = text
+    assert ds["names", 4].numpy() == text
 
 
 def test_append_dataset():
     dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
-    ds = Dataset(schema=dt, shape=(100,), url="./data/test/model", mode="w")
+    url = "./data/test/model"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="w")
     ds.append_shape(20)
+    ds["first"][0] = np.ones((250, 300))
+
     assert len(ds) == 120
+    assert ds["first"].shape[0] == 120
+    assert ds["first", 5:10].shape[0] == 5
+    assert ds["second"].shape[0] == 120
+    ds.commit()
+
+    ds = Dataset(url)
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
@@ -278,6 +337,9 @@ if __name__ == "__main__":
     # test_tensorview_slicing()
     # test_datasetview_slicing()
     # test_dataset()
-    test_append_dataset()
+    test_dataset_batch_write_2()
     exit()
+    test_append_dataset()
     test_dataset2()
+    test_text_dataset()
+    test_text_dataset_tokenizer()

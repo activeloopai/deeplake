@@ -1,5 +1,6 @@
+import hub
 import collections.abc as abc
-from hub.api.dataset_utils import slice_split
+from hub.api.dataset_utils import slice_split, str_to_int
 from hub.exceptions import NoneValueException
 
 
@@ -61,6 +62,17 @@ class TensorView:
 
     def numpy(self):
         """Gets the value from tensorview"""
+        if isinstance(self.dtype, hub.schema.text.Text):
+            value = self.dataset._tensors[self.subpath][self.slice_]
+            if self.dataset.tokenizer is not None:
+                from transformers import AutoTokenizer
+
+                tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
+                if value.ndim == 1:
+                    return tokenizer.decode(value.tolist())
+            else:
+                if value.ndim == 1:
+                    return "".join(chr(it) for it in value.tolist())
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):
@@ -110,6 +122,10 @@ class TensorView:
         >>> images_tensorview = ds["image"]
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
+        # handling strings and bytes
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -234,3 +250,6 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
+
+
+s = 5

@@ -1,16 +1,16 @@
 # from typing import Tuple
 
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class BBox(Tensor):
-    """`HubFeature` for a normalized bounding box.
+    """`HubSchema` for a normalized bounding box.
     Output:
     bbox: Tensor of type `float32` and shape `[4,]` which contains the
           normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`
     """
 
-    def __init__(self, dtype="float64", chunks=None):
+    def __init__(self, dtype="float64", chunks=None, compressor="lz4"):
         """Construct the connector.
 
         Parameters
@@ -23,7 +23,9 @@ class BBox(Tensor):
             Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
-        super(BBox, self).__init__(shape=(4,), dtype=dtype, chunks=chunks)
+        super(BBox, self).__init__(
+            shape=(4,), dtype=dtype, chunks=chunks, compressor=compressor
+        )
 
     def get_attr_dict(self):
         """Return class attributes."""

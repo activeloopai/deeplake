@@ -1,5 +1,5 @@
 import hub.api.tests.test_converters
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 import numpy as np
 from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded
 import pytest
@@ -28,13 +28,6 @@ def test_from_tfds_coco():
         res_ds = ds.store(
             "./data/test_tfds/coco", length=5
         )  # mock data doesn't have length, so explicitly provided
-        assert res_ds["image_filename"].numpy().tolist() == [
-            b"f dhgfdgeichbdba",
-            b"dhibdaajeghaefeijch",
-            b"ghd h afjj igecea",
-            b"iccbhgaaehgad",
-            b"dahehcihidgaifeicd",
-        ]
         assert res_ds["image_id"].numpy().tolist() == [90, 38, 112, 194, 105]
         assert res_ds["objects"].numpy()[0]["label"][0:5].tolist() == [
             12,
@@ -72,7 +65,6 @@ def test_to_from_tensorflow():
             "d": {"e": Tensor((5, 3), "uint8")},
             "f": "float",
         },
-        "named_label": "object",
     }
 
     ds = hub.Dataset(
@@ -80,7 +72,6 @@ def test_to_from_tensorflow():
     )
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
-        ds["named_label", i] = "try" + str(i)
 
     ds = ds.to_tensorflow()
     out_ds = hub.Dataset.from_tensorflow(ds)
@@ -90,7 +81,6 @@ def test_to_from_tensorflow():
 
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
-        assert res_ds["named_label", i].numpy().decode("utf-8") == "try" + str(i)
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
@@ -187,8 +177,6 @@ def test_to_from_pytorch():
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
-
-from hub.utils import Timer
 
 if __name__ == "__main__":
 
