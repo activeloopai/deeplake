@@ -1,5 +1,3 @@
-import posix
-import itertools
 import zarr
 import numpy as np
 import math
@@ -33,7 +31,13 @@ def get_sample_size_in_memory(schema):
         if feature.dtype == "object":
             sz = (16 * 1024 * 1024 * 8) / 128
 
-        sample_size += math.prod(shp) * sz
+        def prod(shp):
+            res = 1
+            for s in shp:
+                res *= s
+            return res
+
+        sample_size += prod(shp) * sz
 
     if sample_size > mem.total:
         return 1
@@ -347,7 +351,11 @@ class Transform:
         else:
             n_samples = sample_per_shard
 
-        length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+        try:
+            length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+        except Exception:
+            length = n_samples
+
         if length < n_samples:
             n_samples = length
 

@@ -1,26 +1,6 @@
 from collections import OrderedDict
 from collections.abc import MutableMapping
 
-# from multiprocessing import Lock
-
-import fcntl
-import hashlib
-import uuid
-
-
-class SystemMutex:
-    def __init__(self, name=str(uuid.uuid4())):
-        self.name = name
-        self._lockid = hashlib.sha1(self.name.encode("utf8")).hexdigest()
-
-    def __enter__(self):
-        self.fp = open(f"/tmp/.lock-{self._lockid}.lck", "wb")
-        fcntl.flock(self.fp.fileno(), fcntl.LOCK_EX)
-
-    def __exit__(self, _type, value, tb):
-        fcntl.flock(self.fp.fileno(), fcntl.LOCK_UN)
-        self.fp.close()
-
 
 class DummyLock:
     def __init__(self):

@@ -188,6 +188,8 @@ def test_to_from_pytorch():
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
+from hub.utils import Timer
+
 if __name__ == "__main__":
 
     with Timer("Test Converters"):
@@ -206,5 +208,5 @@ if __name__ == "__main__":
         with Timer("To From PyTorch"):
             test_to_from_pytorch()
 
-        with Timer("From Pytorch"):
+        with Timer("Pytorch"):
             test_from_pytorch()

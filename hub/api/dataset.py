@@ -1,3 +1,4 @@
+import os
 import posixpath
 import collections.abc as abc
 import json
@@ -37,24 +38,12 @@ from hub.exceptions import (
     ModuleNotInstalledException,
     NoneValueException,
     ShapeLengthException,
+    WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.features.image import Image
 from hub.features.class_label import ClassLabel
-
-try:
-    import torch
-except ImportError:
-    pass
-try:
-    import tensorflow as tf
-except ImportError:
-    pass
-try:
-    import tensorflow_datasets as tfds
-except ImportError:
-    pass
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -127,6 +116,7 @@ class Dataset:
         self.cache = cache
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
+        self.verison = "1.x"
 
         needcreate = self._check_and_prepare_dir()
         fs_map = fs_map or get_storage_map(
@@ -199,6 +189,15 @@ class Dataset:
         Returns True dataset needs to be created opposed to read.
         """
         fs, path, mode = self._fs, self._path, self.mode
+        if path.startswith("s3://"):
+            with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
+                stored_username = json.load(f)["_id"]
+            current_username = path.split("/")[-2]
+            if stored_username != current_username:
+                try:
+                    fs.listdir(path)
+                except:
+                    raise WrongUsernameException(stored_username)
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
             if "w" in mode:
@@ -385,6 +384,11 @@ class Dataset:
         """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
+        else:
+            import torch
+
+            global torch
+
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
@@ -399,6 +403,11 @@ class Dataset:
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        else:
+            import tensorflow as tf
+
+            global tf
+
         offset = 0 if offset is None else offset
         num_samples = self.shape[0] if num_samples is None else num_samples
 
@@ -572,6 +581,10 @@ class Dataset:
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
+        else:
+            import tensorflow as tf
+
+            global tf
 
         def generate_schema(ds):
             if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
@@ -640,6 +653,11 @@ class Dataset:
         """
         if "tensorflow_datasets" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow_datasets")
+        else:
+            import tensorflow_datasets as tfds
+
+            global tfds
+
         ds_info = tfds.load(dataset, with_info=True)
         if split is None:
             all_splits = ds_info[1].splits.keys()
@@ -724,6 +742,13 @@ class Dataset:
         ----------
         dataset:
             The pytorch dataset object that needs to be converted into hub format"""
+
+        if "torch" not in sys.modules:
+            raise ModuleNotInstalledException("torch")
+        else:
+            import torch
+
+            global torch
 
         def generate_schema(dataset):
             sample = dataset[0]

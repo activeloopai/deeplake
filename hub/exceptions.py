@@ -69,12 +69,12 @@ class S3CredsParseException(Exception):
 
 class HubException(ClickException):
     def __init__(self, message=None, code=None):
-        super(HubException, self).__init__(message)
+        super().__init__(message)
 
 
 class AuthenticationException(HubException):
     def __init__(self, message="Authentication failed. Please login again."):
-        super(AuthenticationException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class AuthorizationException(HubException):
@@ -83,7 +83,7 @@ class AuthorizationException(HubException):
             message = response.json()["message"]
         except (KeyError, AttributeError):
             message = "You are not authorized to access this resource on Snark AI."
-        super(AuthorizationException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class NotFoundException(HubException):
@@ -91,7 +91,7 @@ class NotFoundException(HubException):
         self,
         message="The resource you are looking for was not found. Check if the name or id is correct.",
     ):
-        super(NotFoundException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class BadRequestException(HubException):
@@ -104,7 +104,7 @@ class BadRequestException(HubException):
             message = "One or more request parameters is incorrect, %s" % str(
                 response.content
             )
-        super(BadRequestException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class OverLimitException(HubException):
@@ -112,32 +112,32 @@ class OverLimitException(HubException):
         self,
         message="You are over the allowed limits for this operation. Consider upgrading your account.",
     ):
-        super(OverLimitException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class ServerException(HubException):
     def __init__(self, message="Internal Snark AI server error."):
-        super(ServerException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class BadGatewayException(HubException):
     def __init__(self, message="Invalid response from Snark AI server."):
-        super(BadGatewayException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class GatewayTimeoutException(HubException):
     def __init__(self, message="Snark AI server took too long to respond."):
-        super(GatewayTimeoutException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class WaitTimeoutException(HubException):
     def __init__(self, message="Timeout waiting for server state update."):
-        super(WaitTimeoutException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class LockedException(HubException):
     def __init__(self, message="Resource locked."):
-        super(LockedException, self).__init__(message=message)
+        super().__init__(message=message)
 
 
 class HubDatasetNotFoundException(HubException):
@@ -154,13 +154,13 @@ class PermissionException(HubException):
 
 class ShapeArgumentNotFoundException(HubException):
     def __init__(self):
-        message = f"Parameter 'shape' should be provided for Dataset creation."
+        message = "Parameter 'shape' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
 
 class SchemaArgumentNotFoundException(HubException):
     def __init__(self):
-        message = f"Parameter 'schema' should be provided for Dataset creation."
+        message = "Parameter 'schema' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
 
@@ -178,7 +178,7 @@ class NoneValueException(HubException):
 
 class ShapeLengthException(HubException):
     def __init__(self):
-        message = f"Parameter 'shape' should be a tuple of length 1"
+        message = "Parameter 'shape' should be a tuple of length 1"
         super(HubException, self).__init__(message=message)
 
 
@@ -188,11 +188,17 @@ class ModuleNotInstalledException(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class DaskModuleNotInstalledException(HubException):
+    def __init__(self, message=""):
+        message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
+        super(HubException, self).__init__(message=message)
+
+
 class WrongUsernameException(HubException):
     def __init__(self, username):
         message = (
-            f"The username {username} was not found. Make sure that the username provided in the url "
-            "matches the one used during login."
+            f"Username {username} doesn't have access to the given url. Please check your permissions "
+            "or make sure that the username provided in the url matches the one used during login or ."
         )
         super(HubException, self).__init__(message=message)
 
@@ -217,14 +223,14 @@ class NotHubDatasetToAppendException(HubException):
 
 class DynamicTensorNotFoundException(HubException):
     def __init__(self):
-        message = f"Unable to find dynamic tensor"
+        message = "Unable to find dynamic tensor"
         super(HubException, self).__init__(message=message)
 
 
 class DynamicTensorShapeException(HubException):
     def __init__(self, exc_type):
         if exc_type == "none":
-            message = f"Parameter 'max_shape' shouldn't contain any 'None' value"
+            message = "Parameter 'max_shape' shouldn't contain any 'None' value"
         elif exc_type == "length":
             message = "Lengths of 'shape' and 'max_shape' should be equal"
         elif exc_type == "not_equal":

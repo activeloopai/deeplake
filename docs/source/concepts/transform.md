@@ -1,9 +1,10 @@
 # Data Pipelines
 
-Data pipelines are usually a series of data transformations on datasets. User needs to implement the transformation in the dataset generator form. 
+Data pipelines are usually a series of data transformations on datasets. 
 
 ## Transform
 Hub Transform provides a functionality to modify the samples of the dataset or create a new dataset from the existing one. 
+To apply these modifications user needs to add a `@hub.transform` decorator to any custom generator function. 
 
 ## Examples
 

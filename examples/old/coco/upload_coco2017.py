@@ -20,14 +20,14 @@ class CocoGenerator(dataset.DatasetGenerator):
 
     def meta(self):
         return {
-            "segmentation": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "area": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "iscrowd": {"shape": (1,), "dtype": "object", "chunksize": 1000},
+            "segmentation": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "area": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "iscrowd": {"shape": (1,), "dtype": "uint8", "chunksize": 1000},
             "image_id": {"shape": (1,), "dtype": "int64"},
-            "bbox": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "category_id": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "id": {"shape": (1,), "dtype": "object", "chunksize": 1000},
-            "image": {"shape": (1,), "dtype": "object", "chunksize": 100},
+            "bbox": {"shape": (1,), "dtype": "uint16", "chunksize": 1000},
+            "category_id": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "id": {"shape": (1,), "dtype": "uint32", "chunksize": 1000},
+            "image": {"shape": (1,), "dtype": "uint32", "chunksize": 100},
         }
 
     def __call__(self, input):
@@ -36,21 +36,22 @@ class CocoGenerator(dataset.DatasetGenerator):
             # print(f"Image id: {input['image_id']}")
             ds["image_id"] = input["image_id"]
             info = input["info"]
-            ds["image"] = np.empty(1, object)
+            ds["image"] = np.empty(1, "uint32")
             ds["image"][0] = np.array(
                 Image.open(
                     os.path.join(
                         self._args.dataset_path,
                         get_image_name(self._args, self._tag, input["image_id"]),
                     )
-                )
+                ),
+                dtype="uint32",
             )
-            ds["segmentation"] = np.empty(1, object)
-            ds["area"] = np.empty(1, object)
-            ds["iscrowd"] = np.empty(1, object)
-            ds["bbox"] = np.empty(1, object)
-            ds["category_id"] = np.empty(1, object)
-            ds["id"] = np.empty(1, object)
+            ds["segmentation"] = np.empty(1, "uint32")
+            ds["area"] = np.empty(1, "uint32")
+            ds["iscrowd"] = np.empty(1, "uint8")
+            ds["bbox"] = np.empty(1, "uint16")
+            ds["category_id"] = np.empty(1, "uint32")
+            ds["id"] = np.empty(1, "uint32")
 
             ds["segmentation"][0] = [anno["segmentation"] for anno in info]
             ds["area"][0] = [anno["area"] for anno in info]
@@ -77,7 +78,6 @@ def get_image_name(args, tag, id):
 def load_dataset(args, tag):
     with open(
         os.path.join(args.dataset_path, f"annotations/instances_{tag}{args.year}.json"),
-        "r",
     ) as f:
         instances = json.load(f)
     # print(instances.keys())
@@ -118,15 +118,15 @@ def main():
         "dataset_path",
         metavar="P",
         type=str,
-        help="Path to cifar dataset",
-        default="./data/cifar10",
+        help="Path to coco2017 dataset",
+        default="./data/COCOdataset2017",
     )
     parser.add_argument(
         "output_path",
         metavar="N",
         type=str,
         help="Dataset output path",
-        default="cifar10",
+        default="COCOdataset2017",
     )
     parser.add_argument("year", metavar="Y", type=str, default="2017")
     args = parser.parse_args()

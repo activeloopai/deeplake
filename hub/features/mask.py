@@ -1,10 +1,7 @@
 from typing import Tuple
 
-# import numpy as np
 
 from hub.features.features import Tensor
-
-# from hub.features.polygon import Polygon
 
 
 class Mask(Tensor):

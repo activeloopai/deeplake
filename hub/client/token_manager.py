@@ -4,7 +4,7 @@ from hub import config
 from hub.log import logger
 
 
-class TokenManager(object):
+class TokenManager:
     """ manages access tokens """
 
     @classmethod
@@ -13,9 +13,7 @@ class TokenManager(object):
 
     @classmethod
     def set_token(cls, token):
-        logger.debug(
-            "Putting the key {} into {}.".format(token, config.TOKEN_FILE_PATH)
-        )
+        logger.debug(f"Putting the key {token} into {config.TOKEN_FILE_PATH}.")
         path = Path(config.TOKEN_FILE_PATH)
         os.makedirs(path.parent, exist_ok=True)
         with open(config.TOKEN_FILE_PATH, "w") as f:
@@ -26,9 +24,9 @@ class TokenManager(object):
         logger.debug("Getting token...")
         if not os.path.exists(config.TOKEN_FILE_PATH):
             return None
-        with open(config.TOKEN_FILE_PATH, "r") as f:
+        with open(config.TOKEN_FILE_PATH) as f:
             token = f.read()
-        logger.debug("Got the key {} from {}.".format(token, config.TOKEN_FILE_PATH))
+        logger.debug(f"Got the key {token} from {config.TOKEN_FILE_PATH}.")
         return token
 
     @classmethod
@@ -36,7 +34,7 @@ class TokenManager(object):
         logger.debug("Constructing auth header...")
         token = cls.get_token()
         if token:
-            return "Bearer {}".format(token)
+            return f"Bearer {token}"
         return None
 
     @classmethod
