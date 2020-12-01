@@ -46,9 +46,10 @@ Hub is being used by Waymo, Red Cross, World Resources Institue, Omdena, and oth
 * Store and retrieve large datasets with version-control
 * Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
 * Access from multiple machines simultaneously
-* Integrate with your ML tools like Numpy, Dask, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html).
-* Create arrays as big as you want
-* Visualize any slice of the data in a matter of seconds without redundant manipulations
+* Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html).
+* Deploy on Google Cloud, S3, Azure support as well as Activeloop (by default) 
+* Create arrays as big as you want, with each sample being able to have different shapes
+* [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
 ## Getting Started
 
@@ -87,7 +88,7 @@ for image, label in train_loader:
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
-1. Register a free account at [Activeloop](http://app.activeloop.ai) and authenticate locally
+1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
 ```sh
 hub register
 hub login
@@ -120,10 +121,10 @@ ds = hub.load("username/basic")
 
 ## Documentation
 
-For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Use Cases
-* **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
+* **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
 * **Medical Images**: Volumetric images such as MRI or Xray
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
