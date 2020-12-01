@@ -178,6 +178,7 @@ class Transform:
             schema=self.schema,
             token=token,
             fs=zarr.storage.MemoryStore() if "tmp" in url else None,
+            cache=False,
         )
         return ds
 
