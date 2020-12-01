@@ -89,14 +89,14 @@ hub login
 
 2. Then create a dataset and upload
 ```python
-from hub import Dataset, features
+from hub import Dataset, schema
 import numpy as np
 
 ds = Dataset(
     "username/basic",
     schema={
-        "image": features.Tensor((512, 512), dtype="float"),
-        "label": features.Tensor((512, 512), dtype="float"),
+        "image": schema.Tensor((512, 512), dtype="float"),
+        "label": schema.Tensor((512, 512), dtype="float"),
     },
 )
 

@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class Audio(Tensor):
@@ -27,7 +27,7 @@ class Audio(Tensor):
             The dtype of the data.
         sample_rate: `int`
             additional metadata exposed to the user through
-            `info.features['audio'].sample_rate`. This value isn't used neither in
+            `info.schema['audio'].sample_rate`. This value isn't used neither in
             encoding nor decoding.
 
 
@@ -38,7 +38,7 @@ class Audio(Tensor):
         self.file_format = file_format
         if len(shape) != 1:
             raise TypeError(
-                "Audio feature currently only supports 1-D values, got %s." % shape
+                "Audio schema currently only supports 1-D values, got %s." % shape
             )
         # self._shape = shape
         self.sample_rate = sample_rate

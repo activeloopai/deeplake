@@ -1,10 +1,10 @@
 from typing import Tuple
 
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class Polygon(Tensor):
-    """`HubFeature` for polygon
+    """`HubSchema` for polygon
 
     | Usage:
     ----------
@@ -21,7 +21,7 @@ class Polygon(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """Constructs a Polygon HubFeature.
+        """Constructs a Polygon HubSchema.
         Args:
         shape: tuple of ints or None, i.e (None, 2)
 

@@ -2,7 +2,7 @@ import numpy as np
 import zarr
 
 import hub
-from hub.features import Tensor, Image, Text
+from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
 
 my_schema = {
@@ -159,7 +159,7 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
             (width, width, channels),
             dtype,
             (width, width, channels),
-            chunks=(sample_size // 20, width, width, channels),
+            chunks=(sample_size // 20),
             compressor="LZ4",
         ),
     }
@@ -286,9 +286,18 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
-    test_pipeline_basic()
-    test_threaded()
-    test_pipeline_dynamic()
-    test_pipeline_multiple()
-    test_multiprocessing()
-    test_pipeline()
+    with Timer("Test Transform"):
+        with Timer("test threaded"):
+            test_threaded()
+
+        with Timer("test pipeline"):
+            test_pipeline()
+
+        with Timer("test multiprocessing"):
+            test_multiprocessing()
+
+        with Timer("test Pipeline"):
+            test_pipeline_basic()
+
+        with Timer("test Pipeline Dynamic"):
+            test_pipeline_dynamic()

@@ -1,14 +1,14 @@
 import copy
 
-from hub.features.features import Primitive, Tensor, FeatureDict
+from hub.schema.features import Primitive, Tensor, SchemaDict
 
 
 def serialize(input):
     "Converts the input into a serializable format"
     if isinstance(input, Tensor):
         return serialize_tensor(input)
-    elif isinstance(input, FeatureDict):
-        return serialize_featuredict(input)
+    elif isinstance(input, SchemaDict):
+        return serialize_SchemaDict(input)
     elif isinstance(input, Primitive):
         return serialize_primitive(input)
     else:
@@ -26,10 +26,10 @@ def serialize_tensor(tensor):
     return d
 
 
-def serialize_featuredict(fdict):
-    "Converts FeatureDict into a serializable format"
+def serialize_SchemaDict(fdict):
+    "Converts SchemaDict into a serializable format"
     d = {}
-    d["type"] = "FeatureDict"
+    d["type"] = "SchemaDict"
     d["items"] = {}
     for k, v in fdict.__dict__["dict_"].items():
         d["items"][k] = serialize(v)

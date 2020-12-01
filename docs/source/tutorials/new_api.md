@@ -36,7 +36,7 @@ hub login
 import numpy as np
 
 import hub
-from hub.features import ClassLabel, Image
+from hub.schema import ClassLabel, Image
 
 schema = {
     "image": Image((28, 28)),

@@ -2,11 +2,11 @@ from typing import Tuple
 
 import numpy as np
 
-from hub.features.features import Tensor
+from hub.schema.features import Tensor
 
 
 class Image(Tensor):
-    """`HubFeature` for images
+    """`HubSchema` for images
     Output:
     `tf.Tensor` of type `tf.uint8` and shape `[height, width, num_channels]`
     for BMP, JPEG, and PNG images

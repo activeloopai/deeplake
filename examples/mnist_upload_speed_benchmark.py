@@ -1,7 +1,7 @@
 import numpy as np
 
 import hub
-from hub.features import Image, ClassLabel
+from hub.schema import Image, ClassLabel
 from hub.utils import Timer
 
 

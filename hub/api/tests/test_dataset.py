@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.features import Tensor, Text
+from hub.schema import Tensor, Text
 from hub.utils import (
     gcp_creds_exist,
     s3_creds_exist,
@@ -105,14 +105,11 @@ def test_dataset(url="./data/test/dataset", token=None):
 
 
 my_schema_with_chunks = {
-    "image": Tensor((10, 1920, 1080, 3), "uint8", chunks=(6, 5, 1080, 1080, 3)),
+    "image": Tensor((10, 1920, 1080, 3), "uint8", chunks=(1, 5, 1080, 1080, 3)),
     "label": {
-        "a": Tensor((100, 200), "int32", chunks=(6, 100, 200)),
-        "b": Tensor((100, 400), "int64", chunks=(6, 50, 200)),
+        "a": Tensor((100, 200), "int32", chunks=(6,)),
+        "b": Tensor((100, 400), "int64", chunks=6),
     },
-    "another_thing": Tensor(
-        (100, 200), Tensor((100, 200), "uint32", chunks=(6, 100, 100, 100, 100))
-    ),
 }
 
 
@@ -139,7 +136,7 @@ def test_dataset_dynamic_shaped():
             shape=(None, None),
             dtype="int32",
             max_shape=(100, 100),
-            chunks=(100, 100, 100),
+            chunks=(100,),
         )
     }
     ds = Dataset(
@@ -181,15 +178,15 @@ def test_dataset_enter_exit():
 
 
 def test_dataset_bug():
-    from hub import Dataset, features
+    from hub import Dataset, schema
 
     Dataset(
         "./data/test/test_dataset_bug",
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -205,8 +202,8 @@ def test_dataset_bug():
         shape=(4,),
         mode="w",
         schema={
-            "image": features.Tensor((512, 512), dtype="float"),
-            "label": features.Tensor((512, 512), dtype="float"),
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
         },
     )
 
@@ -314,9 +311,18 @@ def test_text_dataset_tokenizer():
 
 def test_append_dataset():
     dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
-    ds = Dataset(schema=dt, shape=(100,), url="./data/test/model", mode="w")
+    url = "./data/test/model"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="w")
     ds.append_shape(20)
+    ds["first"][0] = np.ones((250, 300))
+
     assert len(ds) == 120
+    assert ds["first"].shape[0] == 120
+    assert ds["first", 5:10].shape[0] == 5
+    assert ds["second"].shape[0] == 120
+    ds.commit()
+
+    ds = Dataset(url)
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120

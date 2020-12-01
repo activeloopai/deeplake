@@ -11,10 +11,11 @@ from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
-from hub.features import Primitive
-from hub.features.sequence import Sequence
-from hub.features.features import featurify
+from hub.schema import Primitive
+from hub.schema.sequence import Sequence
+from hub.schema.features import featurify
 import posixpath
+from hub.defaults import OBJECT_CHUNK
 
 
 def get_sample_size_in_memory(schema):
@@ -28,12 +29,21 @@ def get_sample_size_in_memory(schema):
             shp = [1]
 
         sz = np.dtype(feature.dtype).itemsize
-        sample_size += math.prod(shp) * sz
+        if feature.dtype == "object":
+            sz = (16 * 1024 * 1024 * 8) / 128
+
+        def prod(shp):
+            res = 1
+            for s in shp:
+                res *= s
+            return res
+
+        sample_size += prod(shp) * sz
 
     if sample_size > mem.total:
         return 1
 
-    return mem.total // sample_size
+    return int(mem.total // sample_size)
 
 
 class Transform:
@@ -219,7 +229,6 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-
             list(self.map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
@@ -286,6 +295,7 @@ class Transform:
             return 0
 
         additional = max(offset + n_results - ds_out.shape[0], 0)
+
         ds_out.append_shape(additional)
 
         self.upload(
@@ -339,7 +349,7 @@ class Transform:
         if sample_per_shard is None:
             n_samples = get_sample_size_in_memory(self.schema)
             n_samples = min(10000, n_samples)
-            n_samples = max(100, n_samples)
+            n_samples = max(512, n_samples)
         else:
             n_samples = sample_per_shard
 
@@ -364,12 +374,14 @@ class Transform:
 
         start = 0
         total = 0
+
         with tqdm(
-            total=total,
+            total=length,
             unit_scale=True,
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
+            pbar.update(length // 10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
 
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
