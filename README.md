@@ -42,22 +42,23 @@
 
 ### What is Hub for?
 
-Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. You can store and retrieve your data and version-control it easily. You can access any chunck of the data and visualize it. To enable all this, we store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Finally, your team can collaborate on the dataset thanks to synchronization/same dataset view. 
+Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
 
 ### Features 
 
-* Store large datasets with version-control
+* Store and retrieve large datasets with version-control
 * Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
 * Access from multiple machines simultaneously
-* Integration with your ML tools like Numpy, Dask, PyTorch, or TensorFlow.
+* Integrate with your ML tools like Numpy, Dask, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html).
 * Create arrays as big as you want
-* Take a quick look on your data without redundant manipulations/in a matter of seconds/etc.
+* Visualize any slice of the data in a matter of seconds without redundant manipulations.
 
 ## Getting Started
 
 ### Access public data. Fast
 
-We’ve talked the talk, now let’s walk through how it works:
+To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API, as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**. 
+
 ```sh
 pip3 install hub
 ```
@@ -139,7 +140,7 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 - [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
 
 
-# Disclaimers
+## Disclaimers
 
 Similarly to other dataset management packages, `Hub` is a utility library that downloads and prepares public datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have license to use the dataset. It is your responsibility to determine whether you have permission to use the dataset under the dataset's license.
 
