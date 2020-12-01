@@ -692,13 +692,15 @@ class Dataset:
                 k = k.replace("/", "_")
                 if isinstance(v, dict):
                     dict_sampling(v)
-                elif hasattr(v, "shape"):
+                elif hasattr(v, "shape") and v.dtype != "string":
                     if k not in max_dict.keys():
                         max_dict[k] = v.shape
                     else:
                         max_dict[k] = tuple(
                             [max(value) for value in zip(max_dict[k], v.shape)]
                         )
+                elif hasattr(v, "shape") and v.dtype == "string":
+                    max_dict[k] = (len(v.numpy()),)
 
         if sampling_amount > 0:
             sampling(ds)
@@ -733,13 +735,14 @@ class Dataset:
 
         def fdict_to_hub(tf_dt):
             d = {
-                key.replace("/", "_"): to_hub(value, max_dict[key])
+                key.replace("/", "_"): to_hub(value, max_dict[key.replace("/", "_")])
                 for key, value in tf_dt.items()
             }
             return SchemaDict(d)
 
         def tensor_to_hub(tf_dt, max_shape=None):
             if tf_dt.dtype.name == "string":
+                max_shape = max_shape or (100000,)
                 return Text(shape=(None,), dtype="int64", max_shape=(100000,))
             dt = tf_dt.dtype.name
             if max_shape and len(max_shape) > len(tf_dt.shape):
@@ -769,7 +772,7 @@ class Dataset:
                 return ClassLabel(names=tf_dt.names)
 
         def text_to_hub(tf_dt, max_shape=None):
-            max_shape = (100000,)
+            max_shape = max_shape or (100000,)
             dt = "int64"
             return Text(shape=(None,), dtype=dt, max_shape=max_shape)
 
