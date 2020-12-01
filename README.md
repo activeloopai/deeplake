@@ -39,6 +39,8 @@
 
 Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
 
+Hub is being used by Waymo, Red Cross, World Resources Institue, Omdena, and others.
+
 ### Features 
 
 * Store and retrieve large datasets with version-control
