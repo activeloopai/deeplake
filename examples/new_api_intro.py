@@ -2,23 +2,32 @@ import numpy as np
 
 from hub import Dataset
 from hub.features import ClassLabel, Image
+from hub.utils import Timer
 
 
 def main():
     schema = {
-        "image": Image((28, 28)),
+        "image": Image(shape=(None, None), max_shape=(28, 28)),
         "label": ClassLabel(num_classes=10),
     }
+    path = "./data/examples/new_api_intro2"
 
-    ds = Dataset("./data/examples/new_api_intro", shape=(1000,), schema=schema)
-
+    ds = Dataset(path, shape=(10,), mode="w", schema=schema)
+    print(len(ds))
     for i in range(len(ds)):
-        ds["image", i] = np.ones((28, 28), dtype="uint8")
-        ds["label", i] = 3
+        with Timer("writing single element"):
+            ds["image", i] = np.ones((28, 28), dtype="uint8")
+            ds["label", i] = 3
 
-    print(ds["image", 5].numpy())
+    ds.resize_shape(200)
+    print(ds.shape)
     print(ds["label", 100:110].numpy())
-    ds.commit()
+    with Timer("Committing"):
+        ds.commit()
+
+    ds = Dataset(path)
+    print(ds.schema)
+    print(ds["image", 0].compute())
 
 
 if __name__ == "__main__":

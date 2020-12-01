@@ -292,9 +292,18 @@ def test_text_dataset_tokenizer():
 
 def test_append_dataset():
     dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
-    ds = Dataset(schema=dt, shape=(100,), url="./data/test/model", mode="w")
+    url = "./data/test/model"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="w")
     ds.append_shape(20)
+    ds["first"][0] = np.ones((250, 300))
+
     assert len(ds) == 120
+    assert ds["first"].shape[0] == 120
+    assert ds["first", 5:10].shape[0] == 5
+    assert ds["second"].shape[0] == 120
+    ds.commit()
+
+    ds = Dataset(url)
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120

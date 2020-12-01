@@ -69,7 +69,9 @@ class DynamicTensor:
             max_shape = shapeDt.max_shape
             chunks = shapeDt.chunks
 
+        self.fs_map = fs_map
         exist_ = fs_map.get(".hub.dynamic_tensor")
+
         # if not exist_ and len(fs_map) > 0 and "w" in mode:
         #     raise OverwriteIsNotSafeException()
         exist = False if "w" in mode else exist_ is not None
@@ -80,6 +82,7 @@ class DynamicTensor:
         # synchronizer = zarr.ThreadSynchronizer()
         # synchronizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         # if tensor exists and mode is read or append
+
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
             shape = meta["shape"]
@@ -123,6 +126,7 @@ class DynamicTensor:
                 if self._dynamic_dims
                 else None
             )
+
             fs_map[".hub.dynamic_tensor"] = bytes(json.dumps({"shape": shape}), "utf-8")
 
         self.shape = shape
@@ -232,7 +236,6 @@ class DynamicTensor:
 
     def _resize_shape(self, tensor: zarr.Array, size: int) -> None:
         """append first dimension of single array"""
-
         shape = list(tensor.shape)
         shape[0] = size
         tensor.resize(*shape)
@@ -244,7 +247,21 @@ class DynamicTensor:
         self._resize_shape(self._storage_tensor, size)
 
         if self._dynamic_tensor:
+            print(
+                "-> write before",
+                self._dynamic_tensor.shape,
+                self._dynamic_tensor.chunks,
+            )
             self._resize_shape(self._dynamic_tensor, size)
+            print(
+                "-> write after",
+                self._dynamic_tensor.shape,
+                self._dynamic_tensor.chunks,
+            )
+
+        self.fs_map[".hub.dynamic_tensor"] = bytes(
+            json.dumps({"shape": self.shape}), "utf-8"
+        )
 
     def get_shape_samples(self, samples):
         """Gets full shape of dynamic_tensor(s)"""
@@ -298,7 +315,8 @@ class DynamicTensor:
                         )  # inserted as last column
                 elif i >= len(slice_):
                     new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
-        return new_shape
+
+        return np.array(new_shape).astype("int")
 
     def get_shape(self, slice_):
 

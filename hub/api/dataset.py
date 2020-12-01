@@ -174,6 +174,7 @@ class Dataset:
                 self.username, self.dataset_name, self.meta
             )
 
+
     def _store_meta(self) -> dict:
         meta = {
             "shape": self.shape,
@@ -354,11 +355,11 @@ class Dataset:
         if size == self.shape[0]:
             return
 
-        self.shape = (size,)
-        for t in self._tensors.values():
-            t.resize_shape(size)
-
+        self.shape = (int(size),)
         self.meta = self._store_meta()
+        for t in self._tensors.values():
+            t.resize_shape(int(size))
+
         self._update_dataset_state()
 
     def append_shape(self, size: int):
