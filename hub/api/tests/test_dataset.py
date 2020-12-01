@@ -2,14 +2,13 @@ import numpy as np
 import pytest
 
 import hub.api.dataset as dataset
-from hub.schema import Tensor, Text
+from hub.schema import Tensor, Text, Image
 from hub.utils import (
     gcp_creds_exist,
     s3_creds_exist,
     azure_creds_exist,
     transformers_loaded,
 )
-from hub.features.image import Image
 
 Dataset = dataset.Dataset
 
