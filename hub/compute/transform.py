@@ -381,7 +381,7 @@ class Transform:
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
-            pbar.update(length//10)
+            pbar.update(length // 10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
 
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
