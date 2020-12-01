@@ -63,7 +63,7 @@ You can access public datasets with a few lines of code.
 ```python
 import hub
 
-mnist = hub.load("mnist/mnist")
+mnist = hub.load("activeloop/mnist")
 mnist["data"][0:1000].compute()
 ```
 
@@ -75,7 +75,7 @@ Load the data and directly train your model using pytorch
 import hub
 import torch
 
-mnist = hub.load("mnist/mnist")
+mnist = hub.load("activeloop/mnist")
 mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
