@@ -28,8 +28,7 @@
 </p>
 
 
-Activeloop's Hacktoberfest is extended till Nov 27! Check out our [Hacktoberfest Project Dashboard](https://github.com/activeloopai/Hub/projects/2) to contribute! 
-
+You can access and visualize 200 of world's most popular datasets in under a few minutes instead of hours with Hub. Read below.
 
 <h3 align="center"> The Docker Hub for datasets. </h3>
 <h4 align="center"> Hub is the fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
