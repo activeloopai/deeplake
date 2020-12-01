@@ -30,13 +30,13 @@
 <h5 align="center"> 
  <img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
 
-<h3 align="center"> The fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
 
 ---
 
 ### What is Hub for?
 
-Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
+Software 2.0 needs Data 2.0, and Hub delivers it. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
 
 Hub is being used by Waymo, Red Cross, World Resources Institue, Omdena, and others.
 
