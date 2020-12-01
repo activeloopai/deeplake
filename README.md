@@ -123,7 +123,7 @@ MNIST Classification with Hub and PyTorch: [![Open In Colab](https://colab.resea
 For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai).
 
 ## Use Cases
-* **Aerial images**: [Satellite and drone imagery](https://activeloop.ai/usecase/intelinair), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
+* **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
 * **Medical Images**: Volumetric images such as MRI or Xray
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
