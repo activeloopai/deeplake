@@ -373,15 +373,15 @@ class Transform:
             yield batch
 
         start = 0
-        total = length
+        total = 0
 
         with tqdm(
-            total=total,
+            total=length,
             unit_scale=True,
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
-            pbar.update(10)
+            pbar.update(length//10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
 
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
