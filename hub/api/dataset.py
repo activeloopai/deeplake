@@ -677,7 +677,6 @@ class Dataset:
         max_dict = defaultdict(lambda: None)
 
         def sampling(ds):
-            # FIXME len(ds), does not work for all iteratables
             try:
                 subset_len = len(ds) if hasattr(ds, "__len__") else num
             except Exception:

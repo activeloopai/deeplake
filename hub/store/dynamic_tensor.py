@@ -9,7 +9,7 @@ import zarr
 import numcodecs
 
 from hub.store.nested_store import NestedStore
-from hub.shape_detector import ShapeDetector
+from hub.store.shape_detector import ShapeDetector
 
 from hub.exceptions import (
     DynamicTensorNotFoundException,
