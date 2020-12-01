@@ -1,4 +1,5 @@
-tensorflow>=1.14,<3
-tensorflow-datasets>=3.0,<5
-torch>=1,<2
-waymo-open-dataset-tf-1-15-0
+pytest==6.1.2
+pytest-cov==2.10.1
+flake8==3.8.4
+black==20.8b1
+ray==1.0.0

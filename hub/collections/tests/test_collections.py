@@ -1,31 +1,43 @@
 import numpy as np
 import pytest
 from hub.collections import dataset, tensor
+from hub.utils import (
+    gcp_creds_exist,
+    s3_creds_exist,
+    tensorflow_loaded,
+    pytorch_loaded,
+    dask_loaded,
+)
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_getitem0():
     t = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
     assert t[2].compute() == 3
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_getitem1():
     t = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
     assert t[2:4].shape == (2,)
     assert (t[2:4].compute() == np.array([3, 4], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_getitem2():
     t = tensor.from_array(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]], dtype="int32"))
     assert t[1:3, 1:3].shape == (2, 2)
     assert (t[1:3, 1:3].compute() == np.array([[5, 6], [8, 9]], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_iter():
     t = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
     n = list(t)
     assert [x.compute() for x in n] == [1, 2, 3, 4, 5]
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_meta():
     t = tensor.from_array(
         np.array([[1, 2, 3, 4], [4, 5, 6, 7], [7, 8, 9, 10]], dtype="int32")
@@ -36,6 +48,7 @@ def test_tensor_meta():
     assert t.dtype == "int32"
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_tensor_dtag():
     t = tensor.from_array(np.array([1, 2], dtype="int32"), dtag="image")
     ds = dataset.from_tensors({"name": t})
@@ -44,6 +57,7 @@ def test_tensor_dtag():
     assert ds["name"].dtag == "image"
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_len():
     t1 = tensor.from_array(
         np.array([[1, 2, 3, 4], [4, 5, 6, 7], [7, 8, 9, 10]], dtype="int32")
@@ -56,6 +70,7 @@ def test_dataset_len():
     assert len(ds) == 3
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_iter():
     t1 = tensor.from_array(np.array([[1, 2], [4, 5], [7, 8]], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -74,6 +89,7 @@ def test_dataset_iter():
     assert items[2]["t2"].compute() == 3
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_getitem_str():
     t1 = tensor.from_array(np.array([[1, 2], [4, 5], [7, 8]], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -83,6 +99,7 @@ def test_dataset_getitem_str():
     assert ds["t2"] is t2
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_getitem_index():
     t1 = tensor.from_array(np.array([[1, 2], [4, 5], [7, 8]], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -91,6 +108,7 @@ def test_dataset_getitem_index():
     assert (ds[0:2]["t2"].compute() == np.array([1, 2], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_getitem_str_index():
     t1 = tensor.from_array(np.array([[1, 2], [4, 5], [7, 8]], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -100,6 +118,7 @@ def test_dataset_getitem_str_index():
     assert (ds["t2"].compute() == np.array([1, 2], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_store_load():
     t1 = tensor.from_array(np.array([[1, 2], [4, 5], [7, 8]], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -112,6 +131,7 @@ def test_dataset_store_load():
     assert (ds["t2"].compute() == np.array([1, 2, 3], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_store_load_big():
     t1 = tensor.from_array(np.zeros(shape=(2 ** 10, 2 ** 13), dtype="int32"))
     ds = dataset.from_tensors({"t1": t1})
@@ -122,6 +142,7 @@ def test_dataset_store_load_big():
     ).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_merge():
     t1 = tensor.from_array(
         np.array([[1, 2, 3, 4], [4, 5, 6, 7], [7, 8, 9, 10]], dtype="int32")
@@ -137,6 +158,7 @@ def test_dataset_merge():
     assert sorted(ds.keys()) == ["t1", "t2", "t3"]
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_dataset_concat():
     t1 = tensor.from_array(np.array([5, 6, 7], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3], dtype="int32"))
@@ -147,6 +169,7 @@ def test_dataset_concat():
     assert (ds["t1"].compute() == np.array([5, 6, 7, 1, 2, 3], dtype="int32")).all()
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_store_empty_dataset():
     t = tensor.from_array(np.array([], dtype="uint8"))
     ds = dataset.from_tensors({"empty_tensor": t})
@@ -187,6 +210,9 @@ def test_unknown_size_input():
     assert (ds["arr"][5].compute() == np.array([2, 3, 4, 5, 6], dtype="int32")).all()
 
 
+@pytest.mark.skipif(
+    not s3_creds_exist() and not dask_loaded(), reason="requires s3 credentials"
+)
 def test_s3_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -198,6 +224,9 @@ def test_s3_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
+@pytest.mark.skipif(
+    not gcp_creds_exist() and not dask_loaded(), reason="requires gcs credentials"
+)
 def test_gcs_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
     assert ds["arr"].shape == (-1, 5)
@@ -209,13 +238,11 @@ def test_gcs_dataset():
     assert (ds["arr"][1].compute() == np.array([0, 1, 2, 3, 4], dtype="int32")).all()
 
 
+@pytest.mark.skipif(
+    not pytorch_loaded() and not dask_loaded(), reason="requires pytorch to be loaded"
+)
 def test_to_pytorch():
-
-    try:
-        import torch
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import torch
 
     t1 = tensor.from_array(np.array([[1, 2], [3, 4]], dtype="int32"))
     np_arr = np.empty(2, object)
@@ -239,13 +266,13 @@ def test_to_pytorch():
     assert data[1]["t2"][0] == [7, 8, 9]
 
 
+@pytest.mark.skipif(
+    True or not (tensorflow_loaded() and pytorch_loaded() and not dask_loaded()),
+    reason="requires both pytorch and tensorflow to be loaded",
+)
 def test_to_backend_with_tf_and_pytorch():
-    try:
-        import torch
-        import tensorflow as tf
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import tensorflow as tf
+    import torch
 
     tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
@@ -267,13 +294,13 @@ def test_to_backend_with_tf_and_pytorch():
             break
 
 
+@pytest.mark.skipif(
+    True or not (tensorflow_loaded() and pytorch_loaded() and dask_loaded()),
+    reason="requires both pytorch and tensorflow to be loaded",
+)
 def test_to_backend_with_tf_and_pytorch_multiworker():
-    try:
-        import torch
-        import tensorflow as tf
-    except ImportError:
-        print("Pytorch hasn't been imported and tested")
-        return
+    import tensorflow as tf
+    import torch
 
     tf.compat.v1.enable_eager_execution()
     ds = dataset.load("mnist/mnist")
@@ -319,3 +346,7 @@ def test_description_license():
     assert ds.description == "Some description"
     assert ds.citation == "Some citation"
     assert ds.howtoload == "Some howtoload"
+
+
+if __name__ == "__main__":
+    test_to_backend_with_tf_and_pytorch_multiworker()

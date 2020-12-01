@@ -1,7 +1,8 @@
-import dask
 import numpy as np
 
 from .core import Tensor
+import sys
+from hub.exceptions import ModuleNotInstalledException
 
 
 def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
@@ -22,6 +23,13 @@ def from_array(array, dtag=None, dcompress=None, chunksize=None) -> Tensor:
     Tensor
         newly generated tensor itself
     """
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
     meta = {
         "dtype": array.dtype,
         "dtag": dtag,

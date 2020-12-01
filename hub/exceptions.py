@@ -140,13 +140,121 @@ class LockedException(HubException):
         super().__init__(message=message)
 
 
-class DatasetNotFound(HubException):
+class HubDatasetNotFoundException(HubException):
     def __init__(self, response):
         message = f"The dataset with tag {response} was not found"
-        super().__init__(message=message)
+        super(HubDatasetNotFoundException, self).__init__(message=message)
 
 
 class PermissionException(HubException):
     def __init__(self, response):
         message = f"No permision to store the dataset at {response}"
-        super().__init__(message=message)
+        super(PermissionException, self).__init__(message=message)
+
+
+class ShapeArgumentNotFoundException(HubException):
+    def __init__(self):
+        message = "Parameter 'shape' should be provided for Dataset creation."
+        super(HubException, self).__init__(message=message)
+
+
+class SchemaArgumentNotFoundException(HubException):
+    def __init__(self):
+        message = "Parameter 'schema' should be provided for Dataset creation."
+        super(HubException, self).__init__(message=message)
+
+
+class ValueShapeError(HubException):
+    def __init__(self, correct_shape, wrong_shape):
+        message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
+        super(HubException, self).__init__(message=message)
+
+
+class NoneValueException(HubException):
+    def __init__(self, param):
+        message = f"Parameter '{param}' should be provided"
+        super(HubException, self).__init__(message=message)
+
+
+class ShapeLengthException(HubException):
+    def __init__(self):
+        message = "Parameter 'shape' should be a tuple of length 1"
+        super(HubException, self).__init__(message=message)
+
+
+class ModuleNotInstalledException(HubException):
+    def __init__(self, module_name):
+        message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
+        super(HubException, self).__init__(message=message)
+
+
+class DaskModuleNotInstalledException(HubException):
+    def __init__(self, message=""):
+        message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
+        super(HubException, self).__init__(message=message)
+
+
+class WrongUsernameException(HubException):
+    def __init__(self, username):
+        message = (
+            f"Username {username} doesn't have access to the given url. Please check your permissions "
+            "or make sure that the username provided in the url matches the one used during login or ."
+        )
+        super(HubException, self).__init__(message=message)
+
+
+class NotHubDatasetToOverwriteException(HubException):
+    def __init__(self):
+        message = (
+            "Unable to overwrite the dataset. "
+            "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        )
+        super(HubException, self).__init__(message=message)
+
+
+class NotHubDatasetToAppendException(HubException):
+    def __init__(self):
+        message = (
+            "Unable to append to the dataset. "
+            "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+        )
+        super(HubException, self).__init__(message=message)
+
+
+class DynamicTensorNotFoundException(HubException):
+    def __init__(self):
+        message = "Unable to find dynamic tensor"
+        super(HubException, self).__init__(message=message)
+
+
+class DynamicTensorShapeException(HubException):
+    def __init__(self, exc_type):
+        if exc_type == "none":
+            message = "Parameter 'max_shape' shouldn't contain any 'None' value"
+        elif exc_type == "length":
+            message = "Lengths of 'shape' and 'max_shape' should be equal"
+        elif exc_type == "not_equal":
+            message = "All not-None values from 'shape' should be equal to the corresponding values in 'max_shape'"
+        else:
+            message = "Wrong 'shape' or 'max_shape' values"
+        super(HubException, self).__init__(message=message)
+
+
+class NotIterable(HubException):
+    def __init__(self):
+        message = "First argument to transform function should be iterable"
+        super(HubException, self).__init__(message=message)
+
+
+class AdvancedSlicingNotSupported(HubException):
+    def __init__(self):
+        message = "Advanced slicing is not supported, only support index"
+        super(HubException, self).__init__(message=message)
+
+
+class NotZarrFolderException(Exception):
+    pass
+
+
+class StorageTensorNotFoundException(Exception):
+    pass

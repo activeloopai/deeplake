@@ -1,0 +1,2 @@
+[run]
+omit = */tests/*, hub/collections/*, hub/codec/*

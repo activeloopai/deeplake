@@ -7,6 +7,8 @@ from hub.client.auth import AuthClient
 from pathlib import Path
 
 from hub.exceptions import NotFoundException
+from hub.log import logger
+import traceback
 
 
 class HubControlClient(HubHttpClient):
@@ -26,9 +28,9 @@ class HubControlClient(HubHttpClient):
                 params={"tag": tag},
                 endpoint=config.HUB_REST_ENDPOINT,
             ).json()
+
         except NotFoundException:
             dataset = None
-
         return dataset
 
     def get_credentials(self):
@@ -75,3 +77,58 @@ class HubControlClient(HubHttpClient):
         os.makedirs(path.parent, exist_ok=True)
         with open(config.STORE_CONFIG_PATH, "w") as file:
             file.writelines(json.dumps(details))
+
+    def create_dataset_entry(self, username, dataset_name, meta, public=True):
+        try:
+            tag = f"{username}/{dataset_name}"
+            repo = f"public/{username}" if public else f"private/{username}"
+
+            self.request(
+                "POST",
+                config.CREATE_DATASET_SUFFIX,
+                json={
+                    "tag": tag,
+                    "repository": repo,
+                    "public": public,
+                    "rewrite": True,
+                },
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            logger.error(
+                "Unable to create Dataset entry" + traceback.format_exc() + str(e)
+            )
+
+    def update_dataset_state(self, username, dataset_name, state, progress=0):
+        try:
+            tag = f"{username}/{dataset_name}"
+            self.request(
+                "POST",
+                config.UPDATE_STATE_SUFFIX,
+                json={
+                    "tag": tag,
+                    "state": state,
+                    "progress": progress,
+                },
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            logger.error(
+                "Unable to update Dataset entry state "
+                + traceback.format_exc()
+                + str(e)
+            )
+
+    def delete_dataset_entry(self, username, dataset_name):
+        try:
+            tag = f"{username}/{dataset_name}"
+            suffix = f"{config.DATASET_SUFFIX}/{tag}"
+            self.request(
+                "DELETE",
+                suffix,
+                endpoint=config.HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            logger.error(
+                "Unable to delete Dataset entry" + traceback.format_exc() + str(e)
+            )

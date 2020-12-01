@@ -8,11 +8,15 @@ workflows:
   test:
     jobs:
       - test:
-          context: test
+          context: 
+            - test
+            - azure
   test_and_deploy:
     jobs:
       - test:
-          context: test
+          context:  
+            - test
+            - azure
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/
@@ -44,7 +48,8 @@ jobs:
       - run:
           name: "Collecting requirements"
           command: |
-            pip install pytest
+            pip install -r requirements-dev.txt
+            pip install -r requirements-optional.txt
             pip install -r requirements.txt
             pip install -e .
       - run:

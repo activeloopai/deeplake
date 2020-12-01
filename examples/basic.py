@@ -1,13 +1,30 @@
-import hub
-from hub import tensor, dataset
+from hub import Dataset, schema
 import numpy as np
 
-images = tensor.from_array(np.zeros((4, 512, 512)))
-labels = tensor.from_array(np.zeros((4, 512, 512)))
 
-ds = dataset.from_tensors({"images": images, "labels": labels})
+def main():
+    # Tag is set {Username}/{Dataset}
+    tag = "davitb/basic11"
 
-ds = ds.store("davit/basic4")
-ds = hub.load("davit/basic2")
+    # Create dataset
+    ds = Dataset(
+        tag,
+        shape=(4,),
+        schema={
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
+        },
+    )
 
-print(ds["images"][0].compute())
+    # Upload Data
+    ds["image"][:] = np.ones((4, 512, 512))
+    ds["label"][:] = np.ones((4, 512, 512))
+    ds.commit()
+
+    # Load the data
+    ds = Dataset(tag)
+    print(ds["image"][0].compute())
+
+
+if __name__ == "__main__":
+    main()

@@ -1,4 +1,4 @@
-<p align="center">
+ <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/hub_logo_explainer.png" width="50%"/>
     </br>
@@ -19,33 +19,42 @@
         <img alt="tweet" src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social"> </a>  
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
-  <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" />
-    </a>
+  <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
 
 ---
 
 </a>
 </p>
 
-<h3 align="center"> The Docker Hub for datasets. </h3>
-<h4 align="center"> Hub is the fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
+<h5 align="center"><img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
+
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
 
 ---
 
-### Contributors
+### What is Hub for?
 
-[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
+Software 2.0 needs Data 2.0, and Hub delivers it. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
 
+Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and others.
 
-### Problems with Current Workflows
+### Features 
 
-We realized that there are a few problems related with current workflow in deep learning data management through our experience of working with deep learning companies and researchers. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of doing modeling. Deep Learning often requires to work with large datasets. Those datasets can grow up to terabyte or even petabyte size.  It is hard to manage data, store, access, and version-control. It is time-consuming to download the data and link with the training or inference code. There is no easy way to access a chunk of it and possibly visualize. Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
+* Store and retrieve large datasets with version-control
+* Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
+* Access from multiple machines simultaneously
+* Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
+* Deploy on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
+* Create arrays as big as you want. You can store images as big as 100k by 100k!
+* Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
+* [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
 ## Getting Started
 
 ### Access public data. Fast
 
-We’ve talked the talk, now let’s walk through how it works:
+To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API, as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**. 
+
 ```sh
 pip3 install hub
 ```
@@ -54,7 +63,7 @@ You can access public datasets with a few lines of code.
 ```python
 import hub
 
-mnist = hub.load("mnist/mnist")
+mnist = hub.load("activeloop/mnist")
 mnist["data"][0:1000].compute()
 ```
 
@@ -66,7 +75,7 @@ Load the data and directly train your model using pytorch
 import hub
 import torch
 
-mnist = hub.load("mnist/mnist")
+mnist = hub.load("activeloop/mnist")
 mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
@@ -77,7 +86,7 @@ for image, label in train_loader:
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
-1. Register a free account at [Activeloop](http://app.activeloop.ai) and authenticate locally
+1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
 ```sh
 hub register
 hub login
@@ -85,13 +94,20 @@ hub login
 
 2. Then create a dataset and upload
 ```python
-from hub import tensor, dataset
+from hub import Dataset, features
+import numpy as np
 
-images = tensor.from_array(np.zeros((4, 512, 512)))
-labels = tensor.from_array(np.zeros((4, 512, 512)))
+ds = Dataset(
+    "username/basic",
+    schema={
+        "image": features.Tensor((512, 512), dtype="float"),
+        "label": features.Tensor((512, 512), dtype="float"),
+    },
+)
 
-ds = dataset.from_tensors({"images": images, "labels": labels})
-ds.store("username/basic")
+ds["image"][:] = np.zeros((4, 512, 512))
+ds["label"][:] = np.zeros((4, 512, 512))
+ds.commit()
 ```
 
 3. Access it from anywhere else in the world, on any device having a command line.
@@ -100,27 +116,29 @@ import hub
 
 ds = hub.load("username/basic")
 ```
-### Look at Hub in action on Google Colab
-- MNIST Classification with Hub and PyTorch  
-&nbsp;
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1LUeZG20A4X4WZX2AYHdI4F6InG6Jb51i?usp=sharing)
+Instead of `username/basic` you could also use `./local/path/`, `s3://path` or `gcs://`
 
-For more advanced data pipelines like uploading large datasets or applying many transformations, please see [docs](http://docs.activeloop.ai).
+## Documentation
 
-## Things you can do with Hub
-* Store large datasets with version-control
-* Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
-* Access from multiple machines simultaneously
-* Integration with your ML tools like Numpy, Dask, PyTorch, or TensorFlow.
-* Create arrays as big as you want
-* Take a quick look on your data without redundant manipulations/in a matter of seconds/etc.
+For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Use Cases
-* **Aerial images**: [Satellite and drone imagery](https://activeloop.ai/usecase/intelinair)
+* **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
 * **Medical Images**: Volumetric images such as MRI or Xray
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
+
+## Community
+
+Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
+
+<img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
+
+As always, thanks to our amazing contributors!     </br>
+
+[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
+
 
 ## Examples
 Activeloop’s Hub format lets you achieve faster inference at a lower cost. Test out the datasets we’ve converted into Hub format - see for yourself!
@@ -128,8 +146,7 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 - [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
 
 
-
-# Disclaimers
+## Disclaimers
 
 Similarly to other dataset management packages, `Hub` is a utility library that downloads and prepares public datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have license to use the dataset. It is your responsibility to determine whether you have permission to use the dataset under the dataset's license.
 

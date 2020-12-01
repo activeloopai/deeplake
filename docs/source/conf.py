@@ -17,7 +17,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-
+sys.path.insert(0, os.path.abspath("../features"))
 
 # -- Project information -----------------------------------------------------
 
@@ -37,11 +37,13 @@ release = "0.9"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "recommonmark",
     "sphinx.ext.napoleon",
     "sphinx_markdown_tables",
 ]
 
+autosummary_generate = True
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

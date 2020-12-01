@@ -1,19 +1,16 @@
+import os
+import sys
+from timeit import default_timer
 import psutil
 
-import dask
 import hub
-from dask.cache import Cache
-
-from dask.distributed import Client
 from hub import config
-from multiprocessing import current_process
+from hub.exceptions import ModuleNotInstalledException
 
-from dask.callbacks import Callback
-from timeit import default_timer
-from numbers import Number
-import sys
-
-import psutil, os, time
+try:
+    from dask.cache import Cache
+except ImportError:
+    Cache = object
 
 _client = None
 
@@ -50,6 +47,15 @@ def init(
         Number of threads per each worker
     """
     print("initialized")
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        from dask.distributed import Client
+
+        global dask
+        global Client
+
     global _client
     if _client is not None:
         _client.close()
@@ -105,5 +111,6 @@ class HubCache(Cache):
         self.cache.put(key, value, cost=_cost, nbytes=nb)
 
 
-# cache = HubCache(2e9)
-# cache.register()
+if "dask.cache" in sys.modules:
+    cache = HubCache(2e8)
+    cache.register()

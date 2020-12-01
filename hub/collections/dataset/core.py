@@ -3,7 +3,8 @@ from configparser import ConfigParser
 import json
 import os
 from typing import Dict, Tuple
-import dask
+import sys
+
 import fsspec
 import numpy as np
 import traceback
@@ -13,21 +14,15 @@ from hub.client.hub_control import HubControlClient
 from hub.codec import Base as BaseCodec
 from hub.codec import from_name as codec_from_name
 from hub.collections.tensor.core import Tensor
-from hub.collections.client_manager import get_client, HubCache
+from hub.collections.client_manager import get_client
 from hub.log import logger
-from hub.exceptions import PermissionException
+from hub.exceptions import (
+    PermissionException,
+    HubDatasetNotFoundException,
+    ModuleNotInstalledException,
+)
 
-try:
-    import torch
-except ImportError:
-    pass
-
-
-def _flatten(l):
-    """
-    Helper function to flatten the list
-    """
-    return [item for sublist in l for item in sublist]
+from hub.utils import _flatten
 
 
 class Transform:
@@ -235,6 +230,14 @@ class Dataset:
             if shape is None or tensor.ndim > len(shape):
                 shape = tensor.shape
             self._len = tensor.count
+        self.verison = "0.x"
+        if "dask" not in sys.modules:
+            raise ModuleNotInstalledException("dask")
+        else:
+            import dask
+            import dask.array
+
+            global dask
 
     def __len__(self) -> int:
         """len of dataset (len of tensors across axis 0, yes, they all should be = to each other)
@@ -554,6 +557,12 @@ class Dataset:
         max_text_len: integer
             the maximum length of text strings that would be stored. Strings longer than this would be snipped
         """
+        try:
+            import torch
+
+            global torch
+        except ImportError:
+            pass
         return TorchDataset(self, transform, max_text_len)
 
     def to_tensorflow(self, max_text_len=30):
@@ -609,6 +618,7 @@ class Dataset:
                     return tf.dtypes.as_dtype("string")
                 return tf.dtypes.as_dtype(np_dtype)
             except Exception as e:
+                logger.log(e)
                 return tf.variant
 
         output_shapes = {}
@@ -681,9 +691,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     fs: fsspec.AbstractFileSystem = fs
     path_2 = f"{path}/meta.json"
     if not fs.exists(path):
-        from hub.exceptions import DatasetNotFound
-
-        raise DatasetNotFound(tag)
+        raise HubDatasetNotFoundException(tag)
 
     with fs.open(path_2, "r") as f:
         ds_meta = json.loads(f.read())
@@ -692,8 +700,18 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
         assert fs.exists(
             f"{path}/{name}"
         ), f"Tensor {name} of {tag} dataset does not exist"
+
+    if "dask" not in sys.modules:
+        raise ModuleNotInstalledException("dask")
+    else:
+        import dask
+        import dask.array
+
+        global dask
+
     if ds_meta["len"] == 0:
         logger.warning("The dataset is empty (has 0 samples)")
+
         return Dataset(
             {
                 name: Tensor(
@@ -824,33 +842,3 @@ def _dask_concat(arr):
         return arr[0]
     else:
         return dask.array.concatenate(arr)
-
-
-# class TensorflowDataset(tfds.core.GeneratorBasedBuilder):
-#     def _info(self):
-#         return tfds.core.DatasetInfo(
-#             builder=self,
-#             # This is the description that will appear on the datasets page.
-#             description=(
-#                 "This is the dataset for xxx. It contains yyy. The "
-#                 "images are kept at their original dimensions."
-#             ),
-#             # tfds.features.FeatureConnectors
-#             # features=tfds.features.FeaturesDict(
-#             #     {
-#             #         "image_description": tfds.features.Text(),
-#             #         "image": tfds.features.Image(),
-#             #         # Here, labels can be of 5 distinct values.
-#             #         "label": tfds.features.ClassLabel(num_classes=5),
-#             #     }
-#             # ),
-#             # If there's a common (input, target) tuple from the features,
-#             # specify them here. They'll be used if as_supervised=True in
-#             # builder.as_dataset.
-#             # supervised_keys=("image", "label"),
-#             # Homepage of the dataset for documentation
-#             homepage="https://dataset-homepage.org",
-#             # Bibtex citation for the dataset
-#             citation=r"""@article{my-awesome-dataset-2020,
-#                                 author = {Smith, John},"}""",
-#         )

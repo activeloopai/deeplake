@@ -1,11 +1,9 @@
 import os
-import sys
 
 from setuptools import find_packages, setup
-from setuptools.command.install import install
 
 project = "hub"
-VERSION = "0.12.8"
+VERSION = "1.0.0rc1"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:
@@ -17,7 +15,7 @@ with open(os.path.join(this_directory, "requirements.txt")) as f:
 setup(
     name=project,
     version=VERSION,
-    description="Snark Hub",
+    description="Activeloop Hub",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Snark AI Inc.",
