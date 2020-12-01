@@ -30,8 +30,7 @@
 <h5 align="center"> 
  <img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
 
-<h3 align="center"> The Docker Hub for datasets. </h3>
-<h4 align="center"> Hub is the fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h4>
+<h3 align="center"> The fastest way to access & manage datasets for PyTorch and TensorFlow, and build scalable data pipelines.</h3>
 
 ---
 
