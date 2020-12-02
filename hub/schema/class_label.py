@@ -64,6 +64,7 @@ class ClassLabel(Tensor):
         self._num_classes = None
         self._str2int = None
         self._int2str = None
+        self._names = None
 
         if all(a is None for a in (num_classes, names, names_file)):
             return
@@ -77,8 +78,10 @@ class ClassLabel(Tensor):
             if isinstance(num_classes, int):
                 self._num_classes = num_classes
         elif names is not None:
+            self._names = names
             self.names = names
         else:
+            self._names = names
             self.names = _load_names_from_file(names_file)
 
     @property
@@ -142,10 +145,10 @@ class ClassLabel(Tensor):
     def __str__(self):
         out = super().__str__()
         out = "ClassLabel" + out[6:-1]
-        out = out + ", names=" + str(self.names) if self.names is not None else out
+        out = out + ", names=" + str(self._names) if self._names is not None else out
         out = (
-            out + ", num_classes=" + str(self.num_classes)
-            if self.num_classes is not None
+            out + ", num_classes=" + str(self._num_classes)
+            if self._num_classes is not None
             else out
         )
         out += ")"
