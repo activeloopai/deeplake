@@ -65,7 +65,8 @@ class Dataset:
         lock_cache=True,
         tokenizer=None,
     ):
-        """Open a new or existing dataset for read/write
+        """| Open a new or existing dataset for read/write
+
         Parameters
         ----------
         url: str
@@ -328,7 +329,7 @@ class Dataset:
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
         | Usage
-         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
+        >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
@@ -379,7 +380,8 @@ class Dataset:
         return False
 
     def to_pytorch(self, Transform=None, offset=None, num_samples=None):
-        """Converts the dataset into a pytorch compatible format
+        """| Converts the dataset into a pytorch compatible format
+
         Parameters
         ----------
         offset: int, optional
@@ -398,7 +400,8 @@ class Dataset:
         return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
 
     def to_tensorflow(self, offset=None, num_samples=None):
-        """Converts the dataset into a tensorflow compatible format
+        """| Converts the dataset into a tensorflow compatible format
+        
         Parameters
         ----------
         offset: int, optional
@@ -569,20 +572,21 @@ class Dataset:
         ----------
         dataset:
             The tensorflow dataset object that needs to be converted into hub format
+
         Examples
         --------
-        ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
-        out_ds = hub.Dataset.from_tensorflow(ds)
-        res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+        >>> ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
+        >>> out_ds = hub.Dataset.from_tensorflow(ds)
+        >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
 
-        ds = tf.data.Dataset.from_tensor_slices({'a': [1, 2], 'b': [5, 6]})
-        out_ds = hub.Dataset.from_tensorflow(ds)
-        res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+        >>> ds = tf.data.Dataset.from_tensor_slices({'a': [1, 2], 'b': [5, 6]})
+        >>> out_ds = hub.Dataset.from_tensorflow(ds)
+        >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
 
-        ds = hub.Dataset(schema=my_schema, shape=(1000,), url="username/dataset_name", mode="w")
-        ds = ds.to_tensorflow()
-        out_ds = hub.Dataset.from_tensorflow(ds)
-        res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
+        >>> ds = hub.Dataset(schema=my_schema, shape=(1000,), url="username/dataset_name", mode="w")
+        >>> ds = ds.to_tensorflow()
+        >>> out_ds = hub.Dataset.from_tensorflow(ds)
+        >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
         """
         if "tensorflow" not in sys.modules:
             raise ModuleNotInstalledException("tensorflow")
@@ -656,8 +660,8 @@ class Dataset:
             value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
         Examples
         --------
-        out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
-        res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
+        >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+        >>> res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
         try:
             import tensorflow_datasets as tfds
@@ -845,7 +849,8 @@ class Dataset:
 
     @staticmethod
     def from_pytorch(dataset):
-        """Converts a pytorch dataset object into hub format
+        """| Converts a pytorch dataset object into hub format
+
         Parameters
         ----------
         dataset:
