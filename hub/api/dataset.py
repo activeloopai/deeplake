@@ -941,6 +941,7 @@ class TorchDataset:
                 self._ds._tensors[key][index], str
             ):
                 cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+        d = self._do_transform(d)
         return d
 
     def __iter__(self):
@@ -958,4 +959,5 @@ class TorchDataset:
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+            d = self._do_transform(d)
             yield (d)
