@@ -74,7 +74,7 @@ import hub
 import torch
 
 mnist = hub.load("activeloop/mnist")
-mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
+mnist = mnist.to_pytorch(lambda x: (x["image"], x["label"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
 
