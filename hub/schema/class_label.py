@@ -142,7 +142,7 @@ class ClassLabel(Tensor):
     def __str__(self):
         out = super().__str__()
         out = "ClassLabel" + out[6:-1]
-        out = out + ", names=" + str(self.names) if self.names is not None else out
+        out = out + ", names=" + str(self._names) if self._names is not None else out
         out = (
             out + ", num_classes=" + str(self.num_classes)
             if self.num_classes is not None
