@@ -28,7 +28,7 @@ class ClassLabel(Tensor):
 
         | Usage:
         ----------
-        >>> class_label_tensor = ClassLabel(num_classes=10) 
+        >>> class_label_tensor = ClassLabel(num_classes=10)
         >>> class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
         >>> class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
 
