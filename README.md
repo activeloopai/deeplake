@@ -62,7 +62,7 @@ You can access public datasets with a few lines of code.
 import hub
 
 mnist = hub.load("activeloop/mnist")
-mnist["data"][0:1000].compute()
+mnist["image"][0:1000].compute()
 ```
 
 ### Train a model

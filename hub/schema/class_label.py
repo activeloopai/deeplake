@@ -19,6 +19,7 @@ class ClassLabel(Tensor):
         compressor="lz4",
     ):
         """| Constructs a ClassLabel HubSchema.
+        | Returns an integer representations of given classes. Preserves the names of classes to convert those back to strings if needed.
         | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
         | * `num_classes`: create 0 to (num_classes-1) labels
         | * `names`: a list of label strings
@@ -64,6 +65,7 @@ class ClassLabel(Tensor):
         self._num_classes = None
         self._str2int = None
         self._int2str = None
+        self._names = None
 
         if all(a is None for a in (num_classes, names, names_file)):
             return
@@ -77,8 +79,10 @@ class ClassLabel(Tensor):
             if isinstance(num_classes, int):
                 self._num_classes = num_classes
         elif names is not None:
+            self._names = names
             self.names = names
         else:
+            self._names = names
             self.names = _load_names_from_file(names_file)
 
     @property
@@ -144,8 +148,8 @@ class ClassLabel(Tensor):
         out = "ClassLabel" + out[6:-1]
         out = out + ", names=" + str(self._names) if self._names is not None else out
         out = (
-            out + ", num_classes=" + str(self.num_classes)
-            if self.num_classes is not None
+            out + ", num_classes=" + str(self._num_classes)
+            if self._num_classes is not None
             else out
         )
         out += ")"
