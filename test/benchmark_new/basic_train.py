@@ -9,6 +9,81 @@ from pathlib import Path
 import os
 import tensorflow as tf
 
+from torch import nn, optim
+import torchvision.models as models
+
+
+def set_parameter_requires_grad(model, feature_extracting):
+    if feature_extracting:
+        for param in model.parameters():
+            param.requires_grad = False
+
+
+def initialize_model(model_name, num_classes, feature_extract, use_pretrained=True):
+    # Initialize these variables which will be set in this if statement. Each of these
+    #   variables is model specific.
+    model_ft = None
+    input_size = 0
+
+    if model_name == "resnet18":
+        """ Resnet18
+        """
+        model_ft = models.resnet18(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.fc.in_features
+        model_ft.fc = nn.Linear(num_ftrs, num_classes)
+        input_size = 224
+    elif model_name == "resnet101":
+        """ Resnet18
+        """
+        model_ft = models.resnet101(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.fc.in_features
+        model_ft.fc = nn.Linear(num_ftrs, num_classes)
+        input_size = 224
+    elif model_name == "alexnet":
+        """ Alexnet
+        """
+        model_ft = models.alexnet(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.classifier[6].in_features
+        model_ft.classifier[6] = nn.Linear(num_ftrs, num_classes)
+        input_size = 224
+
+    elif model_name == "vgg":
+        """ VGG11_bn
+        """
+        model_ft = models.vgg11_bn(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.classifier[6].in_features
+        model_ft.classifier[6] = nn.Linear(num_ftrs, num_classes)
+        input_size = 224
+
+    elif model_name == "squeezenet":
+        """ Squeezenet
+        """
+        model_ft = models.squeezenet1_1(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        model_ft.classifier[1] = nn.Conv2d(
+            512, num_classes, kernel_size=(1, 1), stride=(1, 1))
+        model_ft.num_classes = num_classes
+        input_size = 224
+
+    elif model_name == "densenet":
+        """ Densenet
+        """
+        model_ft = models.densenet121(pretrained=use_pretrained)
+        set_parameter_requires_grad(model_ft, feature_extract)
+        num_ftrs = model_ft.classifier.in_features
+        model_ft.classifier = nn.Linear(num_ftrs, num_classes)
+        input_size = 224
+
+    else:
+        print("Invalid model name, exiting...")
+        exit()
+
+    return model_ft, input_size
+
 
 class PytorchDataset(torch.utils.data.Dataset):
     "Characterizes a dataset for PyTorch"
@@ -39,12 +114,15 @@ class PytorchDataset(torch.utils.data.Dataset):
                 img = Image.open(f)
                 inp = img.convert("RGB")
                 inp = np.array(inp)[: self.width, : self.width]
+                inp = np.transpose(inp, (2, 0, 1))
         else:
-            inp = np.random.rand(self.width, self.width, 3)
+            inp = np.random.rand(3, self.width, self.width)
             inp = (255 * inp).astype("uint8")
-        objs = {"input": inp, "label": np.random.rand(1).astype("uint8")}
+        # objs = {"input": inp, "label": np.random.rand(1).astype("uint8")}
 
-        objs = {k: torch.tensor(v) for k, v in objs.items()}
+        # objs = {k: torch.tensor(v) for k, v in objs.items()}
+        objs = (torch.tensor(inp), torch.tensor(
+            np.random.rand(1).astype("uint8")))
         return objs
 
     def collate_fn(self, batch):
@@ -62,9 +140,11 @@ def get_dataset_from_hub(samples=1, read_from_fs=False, pytorch=False):
     Build dataset and transform to pytorch or tensorflow
     """
     my_schema = {"img": Tensor(shape=(256, 256, 3)), "label": "uint8"}
-    ds = hub.Dataset("kristina/benchmarking2", shape=(samples,), schema=my_schema)
+    ds = hub.Dataset("kristina/benchmarking",
+                     shape=(samples,), schema=my_schema)
     if read_from_fs:
-        ds = hub.Dataset("./tmp/benchmarking2", shape=(samples,), schema=my_schema)
+        ds = hub.Dataset("./tmp/benchmarking",
+                         shape=(samples,), schema=my_schema)
     ds = ds.to_pytorch() if pytorch else ds.to_tensorflow()
     return ds
 
@@ -113,14 +193,39 @@ def dataset_loader(
     return ds
 
 
-def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
+def train(net, train_dataloader, criterion, optimizer):
+    running_loss = 0.0
+    batch_time = 0
+    compute_time = 0
+    t1 = time.time()
+    for i, data in enumerate(train_dataloader, 0):
+        batch_time += time.time() - t1
+        # get the inputs; data is a list of [inputs, labels]
+        inputs, labels = data
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimizefor batch in ds:
+        inputs = inputs.float().to('cuda')
+
+        t1 = time.time()
+        outputs = net(inputs)
+        compute_time = time.time() - t1
+
+        loss = criterion(outputs, labels.to('cuda').argmax(1))
+        loss.backward()
+        optimizer.step()
+
+        t1 = time.time()
+    return batch_time / len(train_dataloader), compute_time / len(train_dataloader)
+
+
+def train_hub(samples=100, backend="hub:pytorch", read_from_fs=False, batch_size=64):
     """
     Looping over empty space
     """
     if "hub" in backend:
-        # import pdb
-
-        # pdb.set_trace()
         ds = get_dataset_from_hub(
             samples=samples,
             read_from_fs=read_from_fs,
@@ -136,37 +241,45 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
     if "pytorch" in backend:
         ds = torch.utils.data.DataLoader(
             ds,
-            batch_size=8,
+            batch_size=batch_size,
             num_workers=8,
-            collate_fn=ds.collate_fn if "collate_fn" in dir(ds) else None,
+            # collate_fn=ds.collate_fn if "collate_fn" in dir(ds) else None,
         )
     else:
-        ds = ds.batch(16)
+        ds = ds.batch(batch_size)
 
-    t1 = time.time()
-    for batch in ds:
-        pass
-    t2 = time.time()
+    model_names = ['resnet18', 'resnet101', 'vgg', 'squeezenet', 'densenet']
+    for model_name in model_names:
+        net, input_size = initialize_model(
+            model_name, num_classes=1, feature_extract=False, use_pretrained=False)
+        net = net.to('cuda')
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+        t1 = time.time()
+        batch, compute = train(net, ds, criterion, optimizer)
+        print({"Batch time: ": batch, "Compute time": compute})
+        t2 = time.time()
 
-    return {
-        "name": f"{backend} loading from {'FS' if read_from_fs else 'RAM'}",
-        # "samples": len(ds),
-        "overall": t2 - t1,
-        # "iterations": len(ds),
-    }
+        print({
+            "name": f"{backend} loading from {'FS' if read_from_fs else 'RAM'}",
+            "model_name": model_name,
+            # "samples": len(ds),
+            "overall": t2 - t1,
+            # "iterations": len(ds),
+        })
 
 
 if __name__ == "__main__":
     n_samples = 256
     params = [
-        {"samples": n_samples, "backend": "pytorch", "read_from_fs": False},
+        # {"samples": n_samples, "backend": "pytorch", "read_from_fs": False},
         {"samples": n_samples, "backend": "pytorch", "read_from_fs": True},
-        {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": False},
-        {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": True},
-        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": False},
-        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": True},
-        {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": False},
-        {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": True},
+        # {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": False},
+        # {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": True},
+        # {"samples": n_samples, "backend": "tensorflow", "read_from_fs": False},
+        # {"samples": n_samples, "backend": "tensorflow", "read_from_fs": True},
+        # {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": False},
+        # {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": True},
     ]
-    logs = [empty_train_hub(**args) for args in params]
-    report(logs)
+    logs = [train_hub(**args) for args in params]
+    # report(logs)

@@ -24,7 +24,7 @@ upload_time = []
 for cs in chunk_sizes:
     shape = (1,)
     my_schema = {
-        "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor=None)
+        "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor='default')
     }
     ds = hub.Dataset(
         "kristina/benchmark:t{}".format(str(cs)), shape=shape, schema=my_schema
