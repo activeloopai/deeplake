@@ -8,7 +8,7 @@ def generate_dataset(shape=(10,), size=(1024, 1024), chunksize=None):
     """
     Generates a datasets with random tensors
     """
-    my_schema = {'img': Tensor(shape=shape), chunks=chunksize}
+    my_schema = {"img": Tensor(shape=shape, chunks=chunksize)}
     ds = hub.Dataset("kristina/benchmarking", shape=(10,), schema=my_schema)
     for i in range(shape):
         ds[i] = np.random.rand(size)
