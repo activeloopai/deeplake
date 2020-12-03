@@ -49,24 +49,26 @@ print(ds["label", 100:110].compute())
 ds.close()
 ```
 
-You can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*. :
+In `hub==1.0.0` you can also transfer a dataset from TFDS.
+```python
+import hub
+import tensorflow as tf
+
+out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
+```
+
+### Data Storage
+
+If `url` parameter has the form of `username/dataset`, the dataset will be stored in our cloud storage.
+Besides, you can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*.
+In that case you will need to have the corresponding credentials and provide them as a `token` argument during Dataset creation. 
 
 ```python
 url = 's3://new_dataset'  # s3
 url = 'gcs://new_dataset' # gcloud
 url = 'https://activeloop.blob.core.windows.net/activeloop-hub/new_dataset' # Azure
 ```
-
-
-4. Transferring from TFDS
-    In `hub==1.0.0` we would also have 
-    ```python
-    import hub
-    import tensorflow as tf
-
-    out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
-    res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
-    ```
 
 ### Notes
 

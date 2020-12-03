@@ -19,6 +19,7 @@ class ClassLabel(Tensor):
         compressor="lz4",
     ):
         """| Constructs a ClassLabel HubSchema.
+        | Returns an integer representations of given classes. Preserves the names of classes to convert those back to strings if needed.
         | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
         | * `num_classes`: create 0 to (num_classes-1) labels
         | * `names`: a list of label strings
