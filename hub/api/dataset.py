@@ -401,7 +401,7 @@ class Dataset:
 
     def to_tensorflow(self, offset=None, num_samples=None):
         """| Converts the dataset into a tensorflow compatible format
-        
+
         Parameters
         ----------
         offset: int, optional
