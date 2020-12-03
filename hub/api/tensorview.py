@@ -250,4 +250,3 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
-
