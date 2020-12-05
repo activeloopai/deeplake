@@ -140,7 +140,9 @@ def test_from_pytorch():
             return sample
 
     tds = TestDataset()
-    ds = hub.Dataset.from_pytorch(tds)
+    with Timer("from_pytorch"):
+        ds = hub.Dataset.from_pytorch(tds)
+
     ds = ds.store("./data/test_from_pytorch/test1")
 
     assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
@@ -181,20 +183,21 @@ def test_to_from_pytorch():
 if __name__ == "__main__":
 
     with Timer("Test Converters"):
-        with Timer("from MNIST"):
-            test_from_tfds_mnist()
+        if False:
+            with Timer("from MNIST"):
+                test_from_tfds_mnist()
 
-        with Timer("from COCO"):
-            test_from_tfds_coco()
+            with Timer("from COCO"):
+                test_from_tfds_coco()
 
-        with Timer("from TF"):
-            test_from_tensorflow()
+            with Timer("from TF"):
+                test_from_tensorflow()
 
-        with Timer("To From TF"):
-            test_to_from_tensorflow()
+            with Timer("To From TF"):
+                test_to_from_tensorflow()
 
-        with Timer("To From PyTorch"):
-            test_to_from_pytorch()
+            with Timer("To From PyTorch"):
+                test_to_from_pytorch()
 
-        with Timer("Pytorch"):
+        with Timer("From Pytorch"):
             test_from_pytorch()

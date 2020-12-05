@@ -17,6 +17,8 @@ from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 
+from hub.utils import Timer
+
 
 def get_sample_size_in_memory(schema):
     """Given Schema, looks into memory how many samples can fit and returns it"""
@@ -270,35 +272,39 @@ class Transform:
         def _func_argd(item):
             return self._func(item, **self.kwargs)
 
-        ds_in = list(ds_in)
-        results = self.map(
-            _func_argd,
-            ds_in,
-        )
+        with Timer("unwrap"):
+            ds_in = list(ds_in)
+            results = self.map(
+                _func_argd,
+                ds_in,
+            )
+            results = self._unwrap(results)
+            results = self.map(
+                lambda x: self._flatten_dict(x, schema=self.schema), results
+            )
+            results = list(results)
 
-        results = self._unwrap(results)
-        results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
-        results = list(results)
+        with Timer("misc bsuiness"):
+            results = self._split_list_to_dicts(results)
 
-        results = self._split_list_to_dicts(results)
+            results_values = list(results.values())
+            if len(results_values) == 0:
+                return 0
 
-        results_values = list(results.values())
-        if len(results_values) == 0:
-            return 0
+            n_results = len(results_values[0])
+            if n_results == 0:
+                return 0
 
-        n_results = len(results_values[0])
-        if n_results == 0:
-            return 0
+            additional = max(offset + n_results - ds_out.shape[0], 0)
 
-        additional = max(offset + n_results - ds_out.shape[0], 0)
+            ds_out.append_shape(additional)
 
-        ds_out.append_shape(additional)
-
-        self.upload(
-            results,
-            ds_out[offset : offset + n_results],
-            token=token,
-        )
+        with Timer("upload"):
+            self.upload(
+                results,
+                ds_out[offset : offset + n_results],
+                token=token,
+            )
         return n_results
 
     def store(
