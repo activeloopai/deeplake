@@ -869,22 +869,23 @@ class Dataset:
             for sample in ds:
                 dict_sampling(sample)
 
-        def dict_sampling(d):
+        def dict_sampling(d, path=""):
             for k, v in d.items():
                 k = k.replace("/", "_")
+                cur_path = path + "/" + k
                 if isinstance(v, dict):
-                    dict_sampling(v)
+                    dict_sampling(v, path=cur_path)
                 elif isinstance(v, str):
-                    if k not in max_dict.keys():
-                        max_dict[k] = (len(v),)
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = (len(v),)
                     else:
-                        max_dict[k] = max(((len(v)),), max_dict[k])
+                        max_dict[cur_path] = max(((len(v)),), max_dict[cur_path])
                 elif hasattr(v, "shape"):
-                    if k not in max_dict.keys():
-                        max_dict[k] = v.shape
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = v.shape
                     else:
-                        max_dict[k] = tuple(
-                            [max(value) for value in zip(max_dict[k], v.shape)]
+                        max_dict[cur_path] = tuple(
+                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
                         )
 
         sampling(dataset)
@@ -893,17 +894,19 @@ class Dataset:
             sample = dataset[0]
             return dict_to_hub(sample).dict_
 
-        def dict_to_hub(d):
-            for k, v in d.items():
+        def dict_to_hub(dic, path=""):
+            d = {}
+            for k, v in dic.items():
                 k = k.replace("/", "_")
+                cur_path = path + "/" + k
                 if isinstance(v, dict):
-                    d[k] = dict_to_hub(v)
+                    d[k] = dict_to_hub(v, path=cur_path)
                 else:
                     value_shape = v.shape if hasattr(v, "shape") else ()
-                    shape = tuple([None for it in value_shape])
-                    max_shape = max_dict[k] or tuple([10000 for it in value_shape]) if not isinstance(v, str) else (10000,)
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
+                    shape = tuple([None for it in value_shape])
+                    max_shape = max_dict[cur_path] or tuple([10000 for it in value_shape]) if not isinstance(v, str) else (10000,)
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
                     dtype = "int64" if isinstance(v, str) else dtype
                     d[k] = (
