@@ -685,7 +685,7 @@ class Dataset:
             try:
                 subset_len = len(ds) if hasattr(ds, "__len__") else num
             except Exception:
-                subset_len = 5
+                subset_len = max(num, 5)
 
             subset_len = int(max(subset_len * sampling_amount, 5))
             samples = ds.take(subset_len)
@@ -863,6 +863,32 @@ class Dataset:
 
             global torch
 
+        max_dict = defaultdict(lambda: None)
+
+        def sampling(ds):
+            for sample in ds:
+                dict_sampling(sample)
+
+        def dict_sampling(d):
+            for k, v in d.items():
+                k = k.replace("/", "_")
+                if isinstance(v, dict):
+                    dict_sampling(v)
+                elif isinstance(v, str):
+                    if k not in max_dict.keys():
+                        max_dict[k] = (len(v),)
+                    else:
+                        max_dict[k] = max(((len(v)),), max_dict[k])
+                elif hasattr(v, "shape"):
+                    if k not in max_dict.keys():
+                        max_dict[k] = v.shape
+                    else:
+                        max_dict[k] = tuple(
+                            [max(value) for value in zip(max_dict[k], v.shape)]
+                        )
+
+        sampling(dataset)
+
         def generate_schema(dataset):
             sample = dataset[0]
             return dict_to_hub(sample).dict_
@@ -875,7 +901,7 @@ class Dataset:
                 else:
                     value_shape = v.shape if hasattr(v, "shape") else ()
                     shape = tuple([None for it in value_shape])
-                    max_shape = tuple([10000 for it in value_shape])
+                    max_shape = max_dict[k] or tuple([10000 for it in value_shape]) if not isinstance(v, str) else (10000,)
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
@@ -883,7 +909,7 @@ class Dataset:
                     d[k] = (
                         Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
                         if not isinstance(v, str)
-                        else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
+                        else Text(shape=(None,), dtype=dtype, max_shape=max_shape)
                     )
             return SchemaDict(d)
 

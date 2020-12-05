@@ -201,7 +201,7 @@ class DatasetView:
 
     def resize_shape(self, size: int) -> None:
         """Resize dataset shape, not DatasetView"""
-        self.dataset.reisze_shape(size)
+        self.dataset.resize_shape(size)
 
     def commit(self) -> None:
         """Commit dataset"""
