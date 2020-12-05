@@ -127,7 +127,7 @@ def test_from_pytorch():
                 yield self[i]
 
         def __getitem__(self, idx):
-            image = 5 * np.ones((50, 50))
+            image = 5 * np.ones((256, 256, 3))
             landmarks = 7 * np.ones((10, 10, 10))
             named = "testing text labels"
             sample = {
@@ -140,10 +140,12 @@ def test_from_pytorch():
             return sample
 
     tds = TestDataset()
-    ds = hub.Dataset.from_pytorch(tds)
+    with Timer("from_pytorch"):
+        ds = hub.Dataset.from_pytorch(tds)
+
     ds = ds.store("./data/test_from_pytorch/test1")
 
-    assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
+    assert (ds["data", "image", 3].numpy() == 5 * np.ones((256, 256, 3))).all()
     assert (ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
     assert ds["labels", "named", 5].numpy() == "testing text labels"
 
@@ -196,5 +198,5 @@ if __name__ == "__main__":
         with Timer("To From PyTorch"):
             test_to_from_pytorch()
 
-        with Timer("Pytorch"):
+        with Timer("From Pytorch"):
             test_from_pytorch()
