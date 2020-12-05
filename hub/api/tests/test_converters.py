@@ -127,7 +127,7 @@ def test_from_pytorch():
                 yield self[i]
 
         def __getitem__(self, idx):
-            image = 5 * np.ones((50, 50))
+            image = 5 * np.ones((256, 256, 3))
             landmarks = 7 * np.ones((10, 10, 10))
             named = "testing text labels"
             sample = {
@@ -145,7 +145,7 @@ def test_from_pytorch():
 
     ds = ds.store("./data/test_from_pytorch/test1")
 
-    assert (ds["data", "image", 3].numpy() == 5 * np.ones((50, 50))).all()
+    assert (ds["data", "image", 3].numpy() == 5 * np.ones((256, 256, 3))).all()
     assert (ds["data", "landmarks", 2].numpy() == 7 * np.ones((10, 10, 10))).all()
     assert ds["labels", "named", 5].numpy() == "testing text labels"
 
@@ -183,21 +183,20 @@ def test_to_from_pytorch():
 if __name__ == "__main__":
 
     with Timer("Test Converters"):
-        if False:
-            with Timer("from MNIST"):
-                test_from_tfds_mnist()
+        with Timer("from MNIST"):
+            test_from_tfds_mnist()
 
-            with Timer("from COCO"):
-                test_from_tfds_coco()
+        with Timer("from COCO"):
+            test_from_tfds_coco()
 
-            with Timer("from TF"):
-                test_from_tensorflow()
+        with Timer("from TF"):
+            test_from_tensorflow()
 
-            with Timer("To From TF"):
-                test_to_from_tensorflow()
+        with Timer("To From TF"):
+            test_to_from_tensorflow()
 
-            with Timer("To From PyTorch"):
-                test_to_from_pytorch()
+        with Timer("To From PyTorch"):
+            test_to_from_pytorch()
 
         with Timer("From Pytorch"):
             test_from_pytorch()
