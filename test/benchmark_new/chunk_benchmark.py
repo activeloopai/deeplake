@@ -11,12 +11,12 @@ chunk_sizes = [
     256,
     512,
     1024,
-    2048,
-    4096,
-    8192,
-    8192 * 2,
-    8192 * 4,
-    8192 * 8,
+    # 2048,
+    # 4096,
+    # 8192,
+    # 8192 * 2,
+    # 8192 * 4,
+    # 8192 * 8,
 ]
 
 download_time = []
@@ -24,10 +24,10 @@ upload_time = []
 for cs in chunk_sizes:
     shape = (1,)
     my_schema = {
-        "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor='default')
+        "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor="default")
     }
     ds = hub.Dataset(
-        "kristina/benchmark:t{}".format(str(cs)), shape=shape, schema=my_schema
+        "test/benchmark:t{}".format(str(cs)), shape=shape, schema=my_schema
     )
     arr = (255 * np.random.rand(shape[0], cs, cs)).astype("uint8")
 
