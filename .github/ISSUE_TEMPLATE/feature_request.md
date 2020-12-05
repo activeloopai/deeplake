@@ -1,3 +1,12 @@
+---
+name: Feature request
+about: Suggest an idea for this project
+title: "[FEATURE]"
+labels: ''
+assignees: ''
+
+---
+
 ## 🚨🚨 Feature Request
 
 - [ ] Related to an existing [Issue](../../../issues) 
