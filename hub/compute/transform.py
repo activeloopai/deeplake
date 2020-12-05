@@ -17,6 +17,8 @@ from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 
+from hub.utils import Timer
+
 
 def get_sample_size_in_memory(schema):
     """Given Schema, looks into memory how many samples can fit and returns it"""
@@ -275,7 +277,6 @@ class Transform:
             _func_argd,
             ds_in,
         )
-
         results = self._unwrap(results)
         results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
         results = list(results)
@@ -299,6 +300,7 @@ class Transform:
             ds_out[offset : offset + n_results],
             token=token,
         )
+
         return n_results
 
     def store(
