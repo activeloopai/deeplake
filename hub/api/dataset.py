@@ -328,7 +328,7 @@ class Dataset:
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
-        | Usage
+        | Usage:
         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
@@ -475,7 +475,7 @@ class Dataset:
         )
 
     def _get_dictionary(self, subpath, slice_=None):
-        """"Gets dictionary from dataset given incomplete subpath"""
+        """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
@@ -505,8 +505,8 @@ class Dataset:
         return self.shape[0]
 
     def flush(self):
-        """Save changes from cache to dataset final storage
-        Does not invalidate this object
+        """Save changes from cache to dataset final storage.
+        Does not invalidate this object.
         """
         for t in self._tensors.values():
             t.flush()
@@ -518,8 +518,8 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage
-        This invalidates this object
+        """Save changes from cache to dataset final storage.
+        This invalidates this object.
         """
         for t in self._tensors.values():
             t.close()
@@ -567,11 +567,12 @@ class Dataset:
 
     @staticmethod
     def from_tensorflow(ds):
-        """Converts a tensorflow dataset into hub format
+        """| Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
-            The tensorflow dataset object that needs to be converted into hub format
+            The tensorflow dataset object that needs to be converted into hub format.
 
         Examples
         --------
@@ -644,7 +645,8 @@ class Dataset:
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
-        """Converts a TFDS Dataset into hub format
+        """| Converts a TFDS Dataset into hub format
+
         Parameters
         ----------
         dataset: str

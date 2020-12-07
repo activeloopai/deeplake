@@ -25,8 +25,8 @@ class HubSchema:
 
 
 class Primitive(HubSchema):
-    """Class for handling primitive datatypes
-    All numpy primitive data types like int32, float64, etc... should be wrapped around this class
+    """Class for handling primitive datatypes.
+    All numpy primitive data types like int32, float64, etc... should be wrapped around this class.
     """
 
     def __init__(self, dtype, chunks=None, compressor="lz4"):
@@ -47,9 +47,9 @@ class Primitive(HubSchema):
 
 
 class SchemaDict(HubSchema):
-    """Class for dict branching of a datatype
-    SchemaDict dtype contains str -> dtype associations
-    This way you can describe complex datatypes
+    """Class for dict branching of a datatype.
+    SchemaDict dtype contains str -> dtype associations.
+    This way you can describe complex datatypes.
     """
 
     def __init__(self, dict_):
@@ -79,8 +79,8 @@ class SchemaDict(HubSchema):
 
 
 def featurify(schema) -> HubSchema:
-    """This functions converts naked primitive datatypes and ditcs into Primitives and SchemaDicts
-    That way every node in dtype tree is a SchemaConnector type object
+    """This functions converts naked primitive datatypes and ditcs into Primitives and SchemaDicts.
+    That way every node in dtype tree is a SchemaConnector type object.
     """
     if isinstance(schema, dict):
         return SchemaDict(schema)
@@ -97,8 +97,9 @@ def _normalize_chunks(chunks):
 
 
 class Tensor(HubSchema):
-    """Tensor type in schema
-    Has np-array like structure contains any type of elements (Primitive and non-Primitive)
+    """Tensor type in schema.
+    Has np-array like structure contains any type of elements (Primitive and non-Primitive).
+    Tensors can't be visualized at app.activeloop.ai.
     """
 
     def __init__(

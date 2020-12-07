@@ -115,9 +115,9 @@ class Transform:
     @classmethod
     def _flatten(cls, items, schema):
         """
-        Takes a dictionary or list of dictionary
-        Returns a dictionary of concatenated values
-        Dictionary follows schema
+        Takes a dictionary or list of dictionary.
+        Returns a dictionary of concatenated values.
+        Dictionary follows schema.
         """
         final_item = {}
         for item in cls._unwrap(items):
@@ -183,10 +183,10 @@ class Transform:
         return ds
 
     def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
-        """Batchified upload of results
-        For each tensor batchify based on its chunk and upload
-        If tensor is dynamic then still upload element by element
-        For dynamic tensors, it disable dynamicness and then enables it back
+        """Batchified upload of results.
+        For each tensor batchify based on its chunk and upload.
+        If tensor is dynamic then still upload element by element.
+        For dynamic tensors, it disable dynamicness and then enables it back.
 
         Parameters
         ----------
@@ -397,9 +397,10 @@ class Transform:
 
     def __getitem__(self, slice_):
         """
-        Get an item to be computed without iterating on the whole dataset
-        Creates a dataset view, then a temporary dataset to apply the transform
-
+        | Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
         slice_: slice
             Gets a slice or slices from dataset
         """

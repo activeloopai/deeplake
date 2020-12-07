@@ -5,17 +5,16 @@ from hub.exceptions import NotIterable
 
 
 def transform(schema, scheduler="single", workers=1):
-    """
-    Transform is a decorator of a function. The function should output a dictionary per sample
+    """| Transform is a decorator of a function. The function should output a dictionary per sample.
 
-    Parameters
-        ----------
-        schema: Schema
-            The output format of the transformed dataset
-        scheduler: str
-            "single" - for single threaded, "threaded" using multiple threads, "processed", "ray" scheduler, "dask" scheduler
-        workers: int
-            how many workers will be started for the process
+    Parameters:
+    ----------
+    schema: Schema
+        The output format of the transformed dataset
+    scheduler: str
+        "single" - for single threaded, "threaded" using multiple threads, "processed", "ray" scheduler, "dask" scheduler
+    workers: int
+        how many workers will be started for the process
     """
 
     def wrapper(func):
