@@ -105,8 +105,8 @@ ds = Dataset(
     mode='w+'   
 )
 
-ds["image"][:] = np.zeros((512, 512, 512))
-ds["label"][:] = np.zeros((512, 512, 512))
+ds["image"][:] = np.zeros((4, 512, 512))
+ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()
 ```
 
