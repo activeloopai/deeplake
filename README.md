@@ -102,8 +102,7 @@ ds = Dataset(
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
     },
-    
-    mode='w+',   
+    mode='w+'
 )
 
 ds["image"][:] = np.zeros((4, 512, 512))
