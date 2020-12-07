@@ -17,8 +17,6 @@ from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 
-from hub.utils import Timer
-
 
 def get_sample_size_in_memory(schema):
     """Given Schema, looks into memory how many samples can fit and returns it"""
@@ -42,10 +40,9 @@ def get_sample_size_in_memory(schema):
 
         sample_size += prod(shp) * sz
 
-    if sample_size > mem.total:
+    if sample_size > mem.available:
         return 1
-
-    return int(mem.total // sample_size)
+    return int((mem.available // sample_size) * 0.8)
 
 
 class Transform:
@@ -232,10 +229,7 @@ class Transform:
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
-                [
-                    ds.dataset._tensors[f"/{key}"].set_shape([i + ds.offset], v)
-                    for i, v in enumerate(value)
-                ]
+                ds.dataset._tensors[f"/{key}"].set_shape([slice(ds.offset, ds.offset + len(value))], value)
 
         ds.commit()
         return ds
@@ -354,7 +348,7 @@ class Transform:
         try:
             length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         except Exception:
-            length = n_samples
+            length = length or n_samples
 
         if length < n_samples:
             n_samples = length
@@ -381,7 +375,6 @@ class Transform:
         ) as pbar:
             pbar.update(length // 10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
-
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
 

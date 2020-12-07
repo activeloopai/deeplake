@@ -41,7 +41,6 @@ class TensorView:
 
         self.squeeze_dims = []
         for it in self.slice_:
-
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
