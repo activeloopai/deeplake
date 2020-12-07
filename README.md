@@ -97,14 +97,15 @@ import numpy as np
 
 ds = Dataset(
     "username/basic",
+    shape=(4,),
     schema={
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
     },
 )
 
-ds["image"][:] = np.zeros((4, 512, 512))
-ds["label"][:] = np.zeros((4, 512, 512))
+ds["image"][:] = np.zeros((512, 512, 512))
+ds["label"][:] = np.zeros((512, 512, 512))
 ds.commit()
 ```
 
