@@ -14,7 +14,7 @@ def main():
             "image": schema.Tensor((512, 512), dtype="float"),
             "label": schema.Tensor((512, 512), dtype="float"),
         },
-        mode='w+',
+        mode="w+",
     )
 
     # Upload Data
