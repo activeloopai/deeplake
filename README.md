@@ -98,7 +98,7 @@ import numpy as np
 ds = Dataset(
     "username/basic",
     shape = (4,),
-    mode = 'w+',
+    mode = "w+",
     schema = {
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
