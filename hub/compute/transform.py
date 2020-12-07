@@ -229,7 +229,9 @@ class Transform:
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
-                ds.dataset._tensors[f"/{key}"].set_shape([slice(ds.offset, ds.offset + len(value))], value)
+                ds.dataset._tensors[f"/{key}"].set_shape(
+                    [slice(ds.offset, ds.offset + len(value))], value
+                )
 
         ds.commit()
         return ds
