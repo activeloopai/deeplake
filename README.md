@@ -59,9 +59,9 @@ pip3 install hub
 
 You can access public datasets with a few lines of code.
 ```python
-import hub
+from hub import Dataset
 
-mnist = hub.load("activeloop/mnist")
+mnist = Dataset("activeloop/mnist")
 mnist["image"][0:1000].compute()
 ```
 
@@ -70,10 +70,10 @@ mnist["image"][0:1000].compute()
 Load the data and directly train your model using pytorch
 
 ```python
-import hub
+from hub import Dataset
 import torch
 
-mnist = hub.load("activeloop/mnist")
+mnist = Dataset("activeloop/mnist")
 mnist = mnist.to_pytorch(lambda x: (x["image"], x["label"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
@@ -96,12 +96,13 @@ from hub import Dataset, schema
 import numpy as np
 
 ds = Dataset(
-    "username/basic",
-    shape=(4,),
-    schema={
+    "username/dataset_name",
+    shape = (4,),
+    mode = "w+",
+    schema = {
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
-    },
+    }
 )
 
 ds["image"][:] = np.zeros((4, 512, 512))
@@ -111,11 +112,11 @@ ds.commit()
 
 3. Access it from anywhere else in the world, on any device having a command line.
 ```python
-import hub
+from hub import Dataset
 
-ds = hub.load("username/basic")
+ds = Dataset("username/dataset_name")
 ```
-Instead of `username/basic` you could also use `./local/path/`, `s3://path` or `gcs://`
+Instead of `username/dataset_name` you could also use `./local/path/`, `s3://path` or `gcs://`
 
 ## Documentation
 

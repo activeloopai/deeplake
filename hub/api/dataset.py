@@ -379,11 +379,24 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None, offset=None, num_samples=None):
+    def to_pytorch(
+        self,
+        Transform=None,
+        inplace=True,
+        output_type=dict,
+        offset=None,
+        num_samples=None,
+    ):
         """| Converts the dataset into a pytorch compatible format
 
         Parameters
         ----------
+        Transform: function that transforms data in a dict format
+        inplace: bool, optional
+            Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
+            type you need for Transforms). Default is True.
+        output_type: one of list, tuple, dict, optional
+            Defines the output type. Default is dict - same as in original Hub Dataset.
         offset: int, optional
             The offset from which dataset needs to be converted
         num_samples: int, optional
@@ -397,7 +410,14 @@ class Dataset:
             global torch
 
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
-        return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
+        return TorchDataset(
+            self,
+            Transform,
+            inplace=inplace,
+            output_type=output_type,
+            offset=offset,
+            num_samples=num_samples,
+        )
 
     def to_tensorflow(self, offset=None, num_samples=None):
         """| Converts the dataset into a tensorflow compatible format
@@ -931,11 +951,21 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None, num_samples=None, offset=None):
+    def __init__(
+        self,
+        ds,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        num_samples=None,
+        offset=None,
+    ):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
         self._transform = transform
+        self.inplace = inplace
+        self.output_type = output_type
         self.num_samples = num_samples
         self.offset = offset
 
@@ -969,8 +999,13 @@ class TorchDataset:
             if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
                 self._ds._tensors[key][index], str
             ):
-                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+                t = self._ds._tensors[key][index]
+                if self.inplace:
+                    t = torch.tensor(t)
+                cur[split_key[-1]] = t
         d = self._do_transform(d)
+        if self.inplace & (self.output_type != dict) & (type(d) == dict):
+            d = self.output_type(d.values())
         return d
 
     def __iter__(self):
@@ -987,6 +1022,11 @@ class TorchDataset:
                     else:
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
-                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+                t = self._ds._tensors[key][index]
+                if self.inplace:
+                    t = torch.tensor(t)
+                cur[split_key[-1]] = t
             d = self._do_transform(d)
+            if self.inplace & (self.output_type != dict) & (type(d) == dict):
+                d = self.output_type(d.values())
             yield (d)
