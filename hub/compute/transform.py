@@ -202,29 +202,9 @@ class Transform:
 
         for key, value in results.items():
 
-            length = ds[key].chunksize[0]
             value = str_to_int(value, ds.dataset.tokenizer)
-
-            if length == 0:
-                length = 1
-
-            batched_values = batchify(value, length)
-
-            def upload_chunk(i_batch):
-                i, batch = i_batch
-                batch_length = len(batch)
-                if batch_length != 1:
-                    ds[key, i * length : i * length + batch_length] = batch
-                else:
-                    ds[key, i * length] = batch[0]
-
-            index_batched_values = list(
-                zip(list(range(len(batched_values))), batched_values)
-            )
-
-            # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            list(self.map(upload_chunk, index_batched_values))
+            ds[key, 0 : len(value)] = value
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
@@ -288,7 +268,6 @@ class Transform:
             return 0
 
         additional = max(offset + n_results - ds_out.shape[0], 0)
-
         ds_out.append_shape(additional)
 
         self.upload(
@@ -375,7 +354,6 @@ class Transform:
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
-            pbar.update(length // 10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
