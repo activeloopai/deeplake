@@ -121,8 +121,8 @@ def test_to_pytorch():
         return label
 
     def transform(data):
-        image = torch.tensor(data['image'])
-        label = data['label']
+        image = torch.tensor(data["image"])
+        label = data["label"]
         label = recursive_torch_tensor(label)
         return (image, label)
 
@@ -143,6 +143,7 @@ def test_to_pytorch():
     dst = ds.to_pytorch(output_type=tuple)
     for i, d in enumerate(dst):
         assert type(d) == tuple
+
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_from_pytorch():
