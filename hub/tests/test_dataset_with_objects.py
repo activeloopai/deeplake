@@ -1,7 +1,7 @@
 import numpy as np
 
 import hub
-from hub.features import Tensor
+from hub.schema import Tensor
 
 
 def test_dataset_with_objects():
@@ -11,7 +11,7 @@ def test_dataset_with_objects():
         "./data/test/test_dataset_with_objects", mode="w", shape=(100,), schema=schema
     )
     ds["images", 6, 5] = np.ones((20, 30, 4), dtype="uint8")
-    ds.commit()
+    ds.close()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import numpy as np
 import hub
-from hub.features import Tensor
+from hub.schema import Tensor
 
 
 def create_large_dataset():

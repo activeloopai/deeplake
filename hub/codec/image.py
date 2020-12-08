@@ -53,4 +53,3 @@ class Image(Base):
                 arr = np.asarray(img)
                 array[index] = arr
             return array
-

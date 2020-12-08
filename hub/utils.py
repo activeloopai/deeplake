@@ -41,6 +41,7 @@ def azure_creds_exist():
     """Checks if credentials exists"""
 
     import os
+
     env = os.getenv("ACCOUNT_KEY")
     if env is not None:
         return True
@@ -69,9 +70,9 @@ def ray_loaded():
 
 def dask_loaded():
     try:
-        import ray
+        import dask
 
-        ray.__version__
+        dask.__version__
     except ImportError:
         return False
     return True
@@ -97,6 +98,16 @@ def tfds_loaded():
     return True
 
 
+def transformers_loaded():
+    try:
+        import transformers
+
+        transformers.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def pathos_loaded():
     try:
         import pathos
@@ -111,6 +122,8 @@ def compute_lcm(a):
     """
     Lowest Common Multiple of a list a
     """
+    if not a:
+        return None
     lcm = a[0]
     for i in a[1:]:
         lcm = lcm * i // gcd(lcm, i)
@@ -122,8 +135,10 @@ def batchify(iterable, n=1):
     Batchify an iteratable
     """
     ls = len(iterable)
+    batches = []
     for ndx in range(0, ls, n):
-        yield iterable[ndx : min(ndx + n, ls)]
+        batches.append(iterable[ndx : min(ndx + n, ls)])
+    return batches
 
 
 class Timer:

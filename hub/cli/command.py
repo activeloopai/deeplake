@@ -9,7 +9,7 @@ from hub.cli.auth import login, logout, register
 @click.option(
     "-h",
     "--host",
-    default="{}".format(config.HUB_REST_ENDPOINT),
+    default=f"{config.HUB_REST_ENDPOINT}",
     help="Hub rest endpoint",
 )
 @click.option("-v", "--verbose", count=True, help="Devel debugging")

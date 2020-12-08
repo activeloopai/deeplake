@@ -13,7 +13,9 @@ def get_cli_version():
 
 
 def verify_cli_version():
+    os.environ["OUTDATED_IGNORE"] = 1
     try:
+
         version = pkg_resources.get_distribution(hub.__name__).version
         is_outdated, latest_version = check_outdated(hub.__name__, version)
         if is_outdated:
@@ -42,8 +44,10 @@ def get_proxy_command(proxy):
     ssh_proxy = ""
     if proxy and proxy != " " and proxy != "None" and proxy != "":
         if check_program_exists("ncat"):
-            ssh_proxy = '-o "ProxyCommand=ncat --proxy-type socks5 --proxy {} %h %p"'.format(
-                proxy
+            ssh_proxy = (
+                '-o "ProxyCommand=ncat --proxy-type socks5 --proxy {} %h %p"'.format(
+                    proxy
+                )
             )
         else:
             raise HubException(

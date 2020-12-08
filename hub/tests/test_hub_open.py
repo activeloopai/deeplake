@@ -1,7 +1,7 @@
 import numpy as np
 
 import hub
-from hub.features import Tensor
+from hub.schema import Tensor
 
 schema = {
     "image": Tensor((10, 1920, 1080, 3), "uint8"),

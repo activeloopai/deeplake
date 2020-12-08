@@ -1,0 +1,105 @@
+{
+  "citation": "@article{lecun2010mnist,\n  title={MNIST handwritten digit database},\n  author={LeCun, Yann and Cortes, Corinna and Burges, CJ},\n  journal={ATT Labs [Online]. Available: http://yann. lecun. com/exdb/mnist},\n  volume={2},\n  year={2010}\n}\n",
+  "description": "The MNIST database of handwritten digits.",
+  "downloadSize": "11594722",
+  "location": {
+    "urls": [
+      "http://yann.lecun.com/exdb/mnist/"
+    ]
+  },
+  "name": "mnist",
+  "schema": {
+    "feature": [
+      {
+        "name": "image",
+        "shape": {
+          "dim": [
+            {
+              "size": "28"
+            },
+            {
+              "size": "28"
+            },
+            {
+              "size": "1"
+            }
+          ]
+        },
+        "type": "INT"
+      },
+      {
+        "name": "label",
+        "type": "INT"
+      }
+    ]
+  },
+  "splits": [
+    {
+      "name": "test",
+      "numBytes": "3150056",
+      "numShards": "1",
+      "shardLengths": [
+        "10000"
+      ],
+      "statistics": {
+        "features": [
+          {
+            "name": "image",
+            "numStats": {
+              "commonStats": {
+                "numNonMissing": "10000"
+              },
+              "max": 255.0
+            }
+          },
+          {
+            "name": "label",
+            "numStats": {
+              "commonStats": {
+                "numNonMissing": "10000"
+              },
+              "max": 9.0
+            }
+          }
+        ],
+        "numExamples": "10000"
+      }
+    },
+    {
+      "name": "train",
+      "numBytes": "18872042",
+      "numShards": "1",
+      "shardLengths": [
+        "60000"
+      ],
+      "statistics": {
+        "features": [
+          {
+            "name": "image",
+            "numStats": {
+              "commonStats": {
+                "numNonMissing": "60000"
+              },
+              "max": 255.0
+            }
+          },
+          {
+            "name": "label",
+            "numStats": {
+              "commonStats": {
+                "numNonMissing": "60000"
+              },
+              "max": 9.0
+            }
+          }
+        ],
+        "numExamples": "60000"
+      }
+    }
+  ],
+  "supervisedKeys": {
+    "input": "image",
+    "output": "label"
+  },
+  "version": "3.0.1"
+}

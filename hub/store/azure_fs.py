@@ -97,7 +97,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
         -------
         Boolean
         """
-        split_path = path.split('/')
+        split_path = path.split("/")
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
         container = self.service_client.get_container_client(container_name)
@@ -112,7 +112,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
         -------
         List of full paths of all files found in given path
         """
-        split_path = path.split('/')
+        split_path = path.split("/")
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
         container = self.service_client.get_container_client(container_name)
@@ -121,7 +121,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
 
     def rm(self, path, recursive=False, maxdepth=None):
         """Removes all the files in the given path"""
-        split_path = path.split('/')
+        split_path = path.split("/")
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
         container = self.service_client.get_container_client(container_name)
@@ -140,7 +140,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
 
     def upload(self, path, value):
         """Uploads value to the given path"""
-        split_path = path.split('/')
+        split_path = path.split("/")
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
         blob_client = self.service_client.get_blob_client(container_name, sub_path)
@@ -150,7 +150,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
         """Downloads the value from the given path"""
         if not self.exists(path):
             raise KeyError()
-        split_path = path.split('/')
+        split_path = path.split("/")
         container_name = split_path[0]
         sub_path = "/".join(split_path[1:])
         blob_client = self.service_client.get_blob_client(container_name, sub_path)
@@ -205,7 +205,7 @@ class FSMap(MutableMapping):
     def __setitem__(self, key, value):
         """Store value in key"""
         key = self._key_to_str(key)
-        if isinstance(value, array.array):
+        if isinstance(value, array.array) or isinstance(value, memoryview):
             value = bytearray(value)
         self.fs.upload(key, value)
 

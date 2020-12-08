@@ -27,88 +27,97 @@
    :private-members:
    :special-members:
 ```
-
+### Sharded Dataset
+```eval_rst
+.. autoclass:: hub.api.sharded_datasetview.ShardedDatasetView
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
 ## Pipelines
 ### Transform
 ```eval_rst
-.. autoclass:: hub.compute.pipeline.Transform
+.. automodule:: hub.compute
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+```eval_rst
+.. autoclass:: hub.compute.transform.Transform
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
+### RayTransform
+```eval_rst
+.. autoclass:: hub.compute.ray.RayTransform
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
 ```
 
-## Features
+## Schema
 ### Serialization
 ```eval_rst
-.. automodule:: hub.features.serialize
+.. automodule:: hub.schema.serialize
    :members:
 ``` 
-### Features
+### Schema
 ```eval_rst
-.. autoclass:: hub.features.audio.Audio
+.. autoclass:: hub.schema.audio.Audio
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.bbox.BBox
+.. autoclass:: hub.schema.bbox.BBox
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:   
-.. autoclass:: hub.features.class_label.ClassLabel
+.. autoclass:: hub.schema.class_label.ClassLabel
    :members:
    :no-undoc-members:
    :private-members:
    :special-members: 
-.. autoclass:: hub.features.image.Image
+.. autoclass:: hub.schema.image.Image
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. automodule:: hub.features.features
+.. automodule:: hub.schema.features
    :members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.mask.Mask
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-.. autoclass:: hub.features.polygon.Polygon
+.. autoclass:: hub.schema.mask.Mask
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.segmentation.Segmentation
+.. autoclass:: hub.schema.polygon.Polygon
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.sequence.Sequence
+.. autoclass:: hub.schema.segmentation.Segmentation
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.features.video.Video
+.. autoclass:: hub.schema.sequence.Sequence
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-```
-
-## Training
-### Model
-```eval_rst
-.. autoclass:: hub.training.model.Model
+.. autoclass:: hub.schema.text.Text
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-```
-### Logs
-```eval_rst
-.. autoclass:: hub.training.logs.Track
+.. autoclass:: hub.schema.video.Video
    :members:
    :no-undoc-members:
    :private-members:

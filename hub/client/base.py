@@ -28,7 +28,7 @@ def urljoin(*args):
     return "/".join(map(lambda x: str(x).strip("/"), args))
 
 
-class HubHttpClient(object):
+class HubHttpClient:
     """
     Basic communication with Hub AI Controller rest API
     """
@@ -60,7 +60,8 @@ class HubHttpClient(object):
             headers["Authorization"] = self.auth_header
 
         try:
-            logger.debug("Sending: Headers {}, Json: {}".format(headers, json))
+            logger.debug(f"Sending: Headers {headers}, Json: {json}")
+
             response = requests.request(
                 method,
                 request_url,
@@ -95,13 +96,11 @@ class HubHttpClient(object):
         code = response.status_code
         if code < 200 or code >= 300:
             try:
-                message = response.json()["error"]
+                message = response.json()["description"]
             except Exception:
                 message = " "
 
-            logger.debug(
-                'Error received: status code: {}, message: "{}"'.format(code, message)
-            )
+            logger.debug(f'Error received: status code: {code}, message: "{message}"')
             if code == 400:
                 raise BadRequestException(response)
             elif response.status_code == 401:
@@ -109,7 +108,10 @@ class HubHttpClient(object):
             elif response.status_code == 403:
                 raise AuthorizationException()
             elif response.status_code == 404:
-                raise NotFoundException()
+                if message != " ":
+                    raise NotFoundException(message)
+                else:
+                    raise NotFoundException
             elif response.status_code == 429:
                 raise OverLimitException(message)
             elif response.status_code == 502:

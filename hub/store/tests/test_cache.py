@@ -19,7 +19,7 @@ class SlowStore(zarr.MemoryStore):
 def test_cache():
     store = SlowStore()
     store = Cache(store, max_size=1000000)
-
+    store.flush()
     for i in range(10):
         z = zarr.zeros(
             (1000, 1000),
@@ -40,7 +40,7 @@ def test_cache():
         assert z[0, 0] == i
         # print(t2 - t1, t3 - t2)
         assert t2 - t1 > t3 - t2
-    store.commit()
+    store.close()
 
 
 if __name__ == "__main__":

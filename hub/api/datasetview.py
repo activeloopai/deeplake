@@ -1,5 +1,5 @@
 from hub.api.tensorview import TensorView
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 from hub.exceptions import NoneValueException
 import collections.abc as abc
 
@@ -26,11 +26,11 @@ class DatasetView:
             For slicing with integers we would love to remove the first dimension to make it nicer
         """
         if dataset is None:
-            raise NoneValueException('dataset')
+            raise NoneValueException("dataset")
         if num_samples is None:
-            raise NoneValueException('num_samples')
+            raise NoneValueException("num_samples")
         if offset is None:
-            raise NoneValueException('offset')
+            raise NoneValueException("offset")
 
         self.dataset = dataset
         self.num_samples = num_samples
@@ -40,7 +40,7 @@ class DatasetView:
     def __getitem__(self, slice_):
         """| Gets a slice or slices from DatasetView
         | Usage:
-        
+
         >>> ds_view = ds[5:15]
         >>> return ds_view["image", 7, 0:1920, 0:1080, 0:3].compute() # returns numpy array of 12th image
         """
@@ -49,7 +49,7 @@ class DatasetView:
 
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-       
+
         slice_list = [0] + slice_list if self.squeeze_dim else slice_list
 
         if not subpath:
@@ -59,12 +59,20 @@ class DatasetView:
                 )
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             return DatasetView(
-                dataset=self.dataset, num_samples=num, offset=ofs + self.offset, squeeze_dim=isinstance(slice_list[0], int)
+                dataset=self.dataset,
+                num_samples=num,
+                offset=ofs + self.offset,
+                squeeze_dim=isinstance(slice_list[0], int),
             )
         elif not slice_list:
             slice_ = slice(self.offset, self.offset + self.num_samples)
             if subpath in self.dataset._tensors.keys():
-                return TensorView(dataset=self.dataset, subpath=subpath, slice_=slice_)
+                return TensorView(
+                    dataset=self.dataset,
+                    subpath=subpath,
+                    slice_=slice_,
+                    squeeze_dims=[True] if self.squeeze_dim else [],
+                )
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
@@ -75,7 +83,10 @@ class DatasetView:
             )
             if subpath in self.dataset._tensors.keys():
                 return TensorView(
-                    dataset=self.dataset, subpath=subpath, slice_=slice_list
+                    dataset=self.dataset,
+                    subpath=subpath,
+                    slice_=slice_list,
+                    squeeze_dims=[True] if self.squeeze_dim else [],
                 )
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
@@ -88,6 +99,10 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        # handling strings and bytes
+        assign_value = value
+        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
@@ -101,7 +116,7 @@ class DatasetView:
                 if self.num_samples == 1
                 else slice(self.offset, self.offset + self.num_samples)
             )
-            self.dataset._tensors[subpath][slice_] = value  # Add path check
+            self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
         else:
             num, ofs = (
                 slice_extract_info(slice_list[0], self.num_samples)
@@ -113,7 +128,14 @@ class DatasetView:
                 if num > 1
                 else ofs + self.offset
             )
-            self.dataset._tensors[subpath][slice_list] = value
+            self.dataset._tensors[subpath][slice_list] = assign_value
+
+    @property
+    def keys(self):
+        """
+        Get Keys of the dataset
+        """
+        return self.dataset._tensors.keys()
 
     def _get_dictionary(self, subpath, slice_=None):
         """"Gets dictionary from dataset given incomplete subpath"""
@@ -130,7 +152,10 @@ class DatasetView:
                     cur = cur[split_key[i]]
                 slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
                 cur[split_key[-1]] = TensorView(
-                    dataset=self.dataset, subpath=key, slice_=slice_
+                    dataset=self.dataset,
+                    subpath=key,
+                    slice_=slice_,
+                    squeeze_dims=[True] if self.squeeze_dim else [],
                 )
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
@@ -151,7 +176,11 @@ class DatasetView:
 
     def __str__(self):
         out = "DatasetView(" + str(self.dataset) + ", slice="
-        out = out + str(self.offset) if self.squeeze_dim else out + str(slice(self.offset, self.offset + self.num_samples))
+        out = (
+            out + str(self.offset)
+            if self.squeeze_dim
+            else out + str(slice(self.offset, self.offset + self.num_samples))
+        )
         out += ")"
         return out
 
@@ -160,9 +189,20 @@ class DatasetView:
 
     def to_tensorflow(self):
         """Converts the dataset into a tensorflow compatible format"""
-        return self.dataset.to_tensorflow(num_samples=self.num_samples, offset=self.offset)
+        return self.dataset.to_tensorflow(
+            num_samples=self.num_samples, offset=self.offset
+        )
 
     def to_pytorch(self, Transform=None):
         """Converts the dataset into a pytorch compatible format"""
-        return self.dataset.to_pytorch(Transform=Transform, num_samples=self.num_samples, offset=self.offset)
+        return self.dataset.to_pytorch(
+            Transform=Transform, num_samples=self.num_samples, offset=self.offset
+        )
 
+    def resize_shape(self, size: int) -> None:
+        """Resize dataset shape, not DatasetView"""
+        self.dataset.resize_shape(size)
+
+    def commit(self) -> None:
+        """Commit dataset"""
+        self.dataset.commit()
