@@ -379,7 +379,14 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None, inplace=True, output_type=dict, offset=None, num_samples=None):
+    def to_pytorch(
+        self,
+        Transform=None,
+        inplace=True,
+        output_type=dict,
+        offset=None,
+        num_samples=None,
+    ):
         """| Converts the dataset into a pytorch compatible format
 
         Parameters
@@ -403,7 +410,14 @@ class Dataset:
             global torch
 
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
-        return TorchDataset(self, Transform, inplace=inplace, output_type=output_type, offset=offset, num_samples=num_samples)
+        return TorchDataset(
+            self,
+            Transform,
+            inplace=inplace,
+            output_type=output_type,
+            offset=offset,
+            num_samples=num_samples,
+        )
 
     def to_tensorflow(self, offset=None, num_samples=None):
         """| Converts the dataset into a tensorflow compatible format
@@ -937,7 +951,15 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None, inplace=True, output_type=dict, num_samples=None, offset=None):
+    def __init__(
+        self,
+        ds,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        num_samples=None,
+        offset=None,
+    ):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
