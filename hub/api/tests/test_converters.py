@@ -102,13 +102,47 @@ def test_to_pytorch():
     )
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
-    ds = ds.to_pytorch()
-    ds = torch.utils.data.DataLoader(
-        ds,
+    # pure conversion
+    dst = ds.to_pytorch()
+    dl = torch.utils.data.DataLoader(
+        dst,
         batch_size=1,
     )
-    for i, batch in enumerate(ds):
+    for i, batch in enumerate(dl):
         assert (batch["label"]["d"]["e"].numpy() == i * np.ones((5, 3))).all()
+
+    # with transforms and inplace=False
+    def recursive_torch_tensor(label):
+        for key, value in label.items():
+            if type(value) is dict:
+                label[key] = recursive_torch_tensor(value)
+            else:
+                label[key] = torch.tensor(value)
+        return label
+
+    def transform(data):
+        image = torch.tensor(data["image"])
+        label = data["label"]
+        label = recursive_torch_tensor(label)
+        return (image, label)
+
+    dst = ds.to_pytorch(Transform=transform, inplace=False)
+    dl = torch.utils.data.DataLoader(
+        dst,
+        batch_size=1,
+    )
+    for i, batch in enumerate(dl):
+        assert (batch[1]["d"]["e"].numpy() == i * np.ones((5, 3))).all()
+
+    # output_type = list
+    dst = ds.to_pytorch(output_type=list)
+    for i, d in enumerate(dst):
+        assert type(d) == list
+
+    # output_type = tuple
+    dst = ds.to_pytorch(output_type=tuple)
+    for i, d in enumerate(dst):
+        assert type(d) == tuple
 
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
