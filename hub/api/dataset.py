@@ -586,12 +586,16 @@ class Dataset:
         return self._tensors.keys()
 
     @staticmethod
-    def from_tensorflow(ds):
+    def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
         """Converts a tensorflow dataset into hub format
         Parameters
         ----------
         dataset:
             The tensorflow dataset object that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
 
         Examples
         --------
@@ -655,7 +659,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             sample = sample if isinstance(sample, dict) else {"data": sample}
             return transform_numpy(sample)
@@ -663,7 +667,14 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
+    def from_tfds(
+        dataset,
+        split=None,
+        num: int = -1,
+        sampling_amount: int = 1,
+        scheduler: str = "single",
+        workers: int = 1,
+    ):
         """Converts a TFDS Dataset into hub format
         Parameters
         ----------
@@ -678,6 +689,10 @@ class Dataset:
         sampling_amount: float, optional
             a value from 0 to 1, that specifies how much of the dataset would be sampled to determinte feature shapes
             value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -852,20 +867,25 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             return transform_numpy(sample)
 
         return my_transform(ds)
 
     @staticmethod
-    def from_pytorch(dataset):
+    def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
         """| Converts a pytorch dataset object into hub format
 
         Parameters
         ----------
         dataset:
-            The pytorch dataset object that needs to be converted into hub format"""
+            The pytorch dataset object that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        """
 
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
@@ -943,7 +963,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             return transform_numpy(sample)
 

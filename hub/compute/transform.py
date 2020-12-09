@@ -51,7 +51,6 @@ class Transform:
     ):
         """
         Transform applies a user defined function to each sample in single threaded manner
-
         Parameters
         ----------
         func: function
@@ -71,6 +70,7 @@ class Transform:
         self.schema = schema
         self._ds = ds
         self.kwargs = kwargs
+        self.workers = workers
 
         if scheduler == "threaded" or (scheduler == "single" and workers > 1):
             self.map = ThreadPool(nodes=workers).map
@@ -93,7 +93,6 @@ class Transform:
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
         """
         Helper function to flatten dictionary of a recursive tensor
-
         Parameters
         ----------
         d: dict
@@ -144,11 +143,9 @@ class Transform:
     def _split_list_to_dicts(self, xs):
         """
         Helper function that transform list of dicts into dicts of lists
-
         Parameters
         ----------
         xs: list of dicts
-
         Returns
         ----------
         xs_new: dicts of lists
@@ -186,7 +183,6 @@ class Transform:
         For each tensor batchify based on its chunk and upload
         If tensor is dynamic then still upload element by element
         For dynamic tensors, it disable dynamicness and then enables it back
-
         Parameters
         ----------
         dataset: hub.Dataset
@@ -202,9 +198,28 @@ class Transform:
 
         for key, value in results.items():
 
+            chunk = ds[key].chunksize[0]
+            chunk = 1 if chunk == 0 else chunk
             value = str_to_int(value, ds.dataset.tokenizer)
+            num_chunks = math.ceil(len(value) / (chunk * self.workers))
+            length = num_chunks * chunk if self.workers != 1 else len(value)
+            batched_values = batchify(value, length)
+
+            def upload_chunk(i_batch):
+                i, batch = i_batch
+                batch_length = len(batch)
+                if batch_length != 1:
+                    ds[key, i * length : i * length + batch_length] = batch
+                else:
+                    ds[key, i * length] = batch[0]
+
+            index_batched_values = list(
+                zip(list(range(len(batched_values))), batched_values)
+            )
+
+            # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            ds[key, 0 : len(value)] = value
+            list(self.map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
@@ -289,7 +304,6 @@ class Transform:
     ):
         """
         The function to apply the transformation for each element in batchified manner
-
         Parameters
         ----------
         url: str
@@ -374,7 +388,6 @@ class Transform:
         """
         Get an item to be computed without iterating on the whole dataset
         Creates a dataset view, then a temporary dataset to apply the transform
-
         slice_: slice
             Gets a slice or slices from dataset
         """
