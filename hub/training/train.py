@@ -3,7 +3,6 @@ from typing import Dict, Tuple
 from functools import partial
 import multiprocessing
 
-import torch
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import MNIST
@@ -11,7 +10,7 @@ from torchvision import transforms
 import ray
 
 from hub.training import logs
-from hub.api.dataset import Dataset
+from hub import Dataset
 from hub.training.model import Model
 from hub.training.lightning_model import LitMNIST
 
@@ -23,7 +22,8 @@ def train_model_tune(
     num_epochs: int = 3,
     logs_dir: str = "./models/logs",
     model_output_dir: str = "./models/",
-    **kwargs
+    store_logs: bool = True,
+    **kwargs,
 ):
     """Train Pytorch Lightning model using Ray
 
@@ -36,22 +36,35 @@ def train_model_tune(
     model_output_dir: Directory to which model state_dict will be saved
     **kwargs: Arbitrary keyword arguments for model initialization.
     """
-    # log_dataset = Dataset(dtype={"train_acc": float, "train_loss": float, "val_acc": float, "val_loss": float},
-    #                       shape=(num_epochs,),
-    #                       url = logs_dir,
-    #                       mode='w')
-    model = model(**kwargs)
+    log_dataset = Dataset(
+        schema={
+            "train_acc": "float32",
+            "train_loss": "float32",
+            "val_acc": "float32",
+            "val_loss": "float32",
+            "train_iou": "float32",
+            "val_iou": "float32",
+        },
+        shape=(num_epochs,),
+        url=logs_dir,
+    )
+    if store_logs:
+        model = model(logs_dataset=log_dataset, **kwargs)
+    else:
+        model = model(**kwargs)
     model_obj = Model(model)
+
     trainer = pl.Trainer(
         max_epochs=num_epochs,
         progress_bar_refresh_rate=20,
         num_sanity_val_steps=0,
     )
+
     trainer.fit(model, dataloaders[0], val_dataloaders=dataloaders[1])
 
     if len(dataloaders) == 3:
         trainer.test(verbose=False, test_dataloaders=dataloaders[2])
-    # model.log_tracker.logs.commit()
+    model.log_tracker.logs.commit()
     model_obj.store(model_output_dir)
 
 
@@ -60,9 +73,10 @@ def fit(
     dataloaders: Tuple,
     num_epochs: int = 3,
     model_output_dir: str = ".",
+    logs_dir: str = ".",
     num_gpus: int = 1,
     num_cpus: int = multiprocessing.cpu_count(),
-    **kwargs
+    **kwargs,
 ):
     """Fit dataloaders into model using remote Ray function
 
@@ -82,7 +96,9 @@ def fit(
             model=model,
             dataloaders=dataloaders,
             model_output_dir=model_output_dir,
-            **kwargs
+            logs_dir=logs_dir,
+            num_epochs=num_epochs,
+            **kwargs,
         )
     )
 

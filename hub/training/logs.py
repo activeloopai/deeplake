@@ -1,12 +1,7 @@
 import importlib
-import shutil
 import time
-import os
 import sys
-import hub
-import uuid
-import json
-from hub.api.dataset import Dataset
+from hub import Dataset
 
 tensorboardX_spec = importlib.util.find_spec("tensorboardX")
 if tensorboardX_spec is not None:
@@ -64,7 +59,7 @@ class Track(object):
             Unique id of the tensoboard logs
         """
         super().__init__()
-        if id == None:
+        if id is None:
             id = str(int(time.time()))
         self.logs = logs
         self.writer = None
@@ -96,7 +91,7 @@ class Track(object):
         cls: str
             Single metric name to be displayed
         """
-        if iter == None:
+        if iter is None:
             iter = self.step
         to_display = []
         for key, value in self.meters.items():
