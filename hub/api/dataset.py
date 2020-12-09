@@ -368,6 +368,7 @@ class Dataset:
         self.resize_shape(size)
 
     def delete(self):
+        """ Deletes the dataset """
         fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
