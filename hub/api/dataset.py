@@ -531,7 +531,6 @@ class Dataset:
         for t in self._tensors.values():
             t.flush()
         self._fs_map.flush()
-        self._update_dataset_state()
 
     def commit(self):
         """ Deprecated alias to flush()"""
