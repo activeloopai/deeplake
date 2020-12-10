@@ -670,7 +670,7 @@ class Dataset:
     def from_directory(url=None,path_to_dir=None,image_shape=(None,None),ds_size=(None,),max_shape=(None,None,4)):
 
         def make_schema(path_to_dir,shape=image_shape):
-            labels = ClassLabel(os.listdir(path_to_dir))
+            labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                         "labels":labels,
                         "image":Image(shape=shape,max_shape=max_shape,dtype="uint8")
