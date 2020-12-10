@@ -49,6 +49,8 @@ def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
 
 
+
+    return schema
 class Dataset:
     def __init__(
         self,
@@ -73,6 +75,8 @@ class Dataset:
             The url where dataset is located/should be created
         mode: str, optional (default to "w")
             Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
+        path_to_dir: str, optional
+            path to the image Dataset containing labels          
         safe_mode: bool, optional
             if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
         shape: tuple, optional
@@ -661,6 +665,28 @@ class Dataset:
             return transform_numpy(sample)
 
         return my_transform(ds)
+
+    @staticmethod
+    def from_directory(url=None,path_to_dir=None,image_shape=(None,None),ds_size=(None,),max_shape=(None,None,4)):
+
+        def make_schema(path_to_dir,shape=image_shape):
+            labels = ClassLabel(os.listdir(path_to_dir))
+            schema = {
+                        "labels":labels,
+                        "image":Image(shape=shape,max_shape=max_shape,dtype="uint8")
+                    }
+            return (schema,labels)  
+        print(make_schema(path_to_dir,shape=image_shape))          
+        ds = Dataset(
+            url,
+            shape=ds_size,
+            mode="w+",
+            schema=make_schema(path_to_dir,shape=image_shape),
+        )
+
+        print("sucess")
+
+        return ds    
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):

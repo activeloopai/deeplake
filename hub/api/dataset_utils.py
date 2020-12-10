@@ -1,6 +1,8 @@
 import numpy as np
 import sys
+import os
 from hub.exceptions import ModuleNotInstalledException
+
 
 
 def slice_split(slice_):
@@ -105,3 +107,5 @@ def str_to_int(assign_value, tokenizer):
         ):
             assign_value = [np.array([ord(ch) for ch in item]) for item in assign_value]
     return assign_value
+
+
