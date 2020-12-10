@@ -676,17 +676,20 @@ class Dataset:
                         "image":Image(shape=shape,max_shape=max_shape,dtype="uint8")
                     }
             return (schema,labels)  
-        print(make_schema(path_to_dir,shape=image_shape))          
+           
+
+        schema,label = make_schema(path_to_dir,shape=image_shape)   
+        print(schema,"\n",label) 
         ds = Dataset(
             url,
             shape=ds_size,
             mode="w+",
-            schema=make_schema(path_to_dir,shape=image_shape),
+            schema=schema,
         )
 
         print("sucess")
 
-        return ds    
+        return ds,label   
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
