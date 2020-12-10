@@ -1,3 +1,4 @@
+from hub.exceptions import DynamicTensorShapeException
 import posixpath
 
 import numpy as np
@@ -52,6 +53,17 @@ def test_dynamic_tensor():
     )
     t[0, 80:, 80:] = np.ones((20, 20), dtype="int32")
     assert t[0, -5, 90:].tolist() == [1] * 10
+
+
+def test_dynamic_tensor_shape_none():
+    try:
+        DynamicTensor(
+            create_store("./data/test/test_dynamic_tensor_shape_none"),
+            mode="w",
+            dtype="int32",
+        )
+    except TypeError as ex:
+        assert "shape cannot be none" in str(ex)
 
 
 def test_dynamic_tensor_2():

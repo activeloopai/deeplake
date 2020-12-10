@@ -295,8 +295,15 @@ def test_text_dataset():
     }
     ds = Dataset("./data/test/testing_text", mode="w", schema=schema, shape=(10,))
     text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-    ds["names", 4] = text
-    assert ds["names", 4].numpy() == text
+    ds["names", 4] = text + "4"
+    assert ds["names", 4].numpy() == text + "4"
+    ds["names"][5] = text + "5"
+    assert ds["names"][5].numpy() == text + "5"
+    dsv = ds[7:9]
+    dsv["names", 0] = text + "7"
+    assert dsv["names", 0].numpy() == text + "7"
+    dsv["names"][1] = text + "8"
+    assert dsv["names"][1].numpy() == text + "8"
 
 
 @pytest.mark.skipif(
@@ -310,8 +317,15 @@ def test_text_dataset_tokenizer():
         "./data/test/testing_text", mode="w", schema=schema, shape=(10,), tokenizer=True
     )
     text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-    ds["names", 4] = text
-    assert ds["names", 4].numpy() == text
+    ds["names", 4] = text + " 4"
+    assert ds["names", 4].numpy() == text + " 4"
+    ds["names"][5] = text + " 5"
+    assert ds["names"][5].numpy() == text + " 5"
+    dsv = ds[7:9]
+    dsv["names", 0] = text + " 7"
+    assert dsv["names", 0].numpy() == text + " 7"
+    dsv["names"][1] = text + " 8"
+    assert dsv["names"][1].numpy() == text + " 8"
 
 
 def test_append_dataset():
@@ -338,7 +352,6 @@ if __name__ == "__main__":
     # test_datasetview_slicing()
     # test_dataset()
     test_dataset_batch_write_2()
-    exit()
     test_append_dataset()
     test_dataset2()
     test_text_dataset()

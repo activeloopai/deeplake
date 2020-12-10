@@ -26,8 +26,6 @@
 </a>
 </p>
 
-<h5 align="center"><img src="https://img.shields.io/badge/-news-red"> With Hub, you can now access and visualize 200 of world's most popular datasets in mere minutes instead of hours. </h5>
-
 <h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
 
 ---
@@ -45,7 +43,8 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * Access from multiple machines simultaneously
 * Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
 * Deploy on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
-* Create arrays as big as you want, with each sample being able to have different shapes
+* Create arrays as big as you want. You can store images as big as 100k by 100k!
+* Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
 ## Getting Started
@@ -60,10 +59,10 @@ pip3 install hub
 
 You can access public datasets with a few lines of code.
 ```python
-import hub
+from hub import Dataset
 
-mnist = hub.load("mnist/mnist")
-mnist["data"][0:1000].compute()
+mnist = Dataset("activeloop/mnist")
+mnist["image"][0:1000].compute()
 ```
 
 ### Train a model
@@ -71,11 +70,11 @@ mnist["data"][0:1000].compute()
 Load the data and directly train your model using pytorch
 
 ```python
-import hub
+from hub import Dataset
 import torch
 
-mnist = hub.load("mnist/mnist")
-mnist = mnist.to_pytorch(lambda x: (x["data"], x["labels"]))
+mnist = Dataset("activeloop/mnist")
+mnist = mnist.to_pytorch(lambda x: (x["image"], x["label"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
 
@@ -93,15 +92,17 @@ hub login
 
 2. Then create a dataset and upload
 ```python
-from hub import Dataset, features
+from hub import Dataset, schema
 import numpy as np
 
 ds = Dataset(
-    "username/basic",
-    schema={
-        "image": features.Tensor((512, 512), dtype="float"),
-        "label": features.Tensor((512, 512), dtype="float"),
-    },
+    "username/dataset_name",
+    shape = (4,),
+    mode = "w+",
+    schema = {
+        "image": schema.Tensor((512, 512), dtype="float"),
+        "label": schema.Tensor((512, 512), dtype="float"),
+    }
 )
 
 ds["image"][:] = np.zeros((4, 512, 512))
@@ -111,11 +112,11 @@ ds.commit()
 
 3. Access it from anywhere else in the world, on any device having a command line.
 ```python
-import hub
+from hub import Dataset
 
-ds = hub.load("username/basic")
+ds = Dataset("username/dataset_name")
 ```
-Instead of `username/basic` you could also use `./local/path/`, `s3://path` or `gcs://`
+Instead of `username/dataset_name` you could also use `./local/path/`, `s3://path` or `gcs://`
 
 ## Documentation
 
@@ -150,3 +151,7 @@ Activeloop’s Hub format lets you achieve faster inference at a lower cost. Tes
 Similarly to other dataset management packages, `Hub` is a utility library that downloads and prepares public datasets. We do not host or distribute these datasets, vouch for their quality or fairness, or claim that you have license to use the dataset. It is your responsibility to determine whether you have permission to use the dataset under the dataset's license.
 
 If you're a dataset owner and wish to update any part of it (description, citation, etc.), or do not want your dataset to be included in this library, please get in touch through a [GitHub issue](https://github.com/activeloopai/Hub/issues/new). Thanks for your contribution to the ML community!
+
+
+## Acknowledgement
+ This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab with his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool. We are heavy users of [Zarr](https://zarr.readthedocs.io/en/stable/) and would like to specially thank their community for building such a great fundamental block. 

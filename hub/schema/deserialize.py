@@ -34,15 +34,15 @@ def deserialize(inp):
                 compressor=_get_compressor(inp),
             )
         elif inp["type"] == "ClassLabel":
-            if "_num_classes" in inp.keys():
+            if inp["_names"] is not None:
                 return ClassLabel(
-                    num_classes=inp["_num_classes"],
+                    names=inp["_names"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
             else:
                 return ClassLabel(
-                    names=inp["names"],
+                    num_classes=inp["_num_classes"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
                 )
@@ -78,11 +78,11 @@ def deserialize(inp):
             )
         elif inp["type"] == "Segmentation":
             class_labels = deserialize(inp["class_labels"])
-            if hasattr(class_labels, "_num_classes"):
+            if class_labels._names is not None:
                 return Segmentation(
                     shape=tuple(inp["shape"]),
                     dtype=deserialize(inp["dtype"]),
-                    num_classes=class_labels._num_classes,
+                    names=class_labels._names,
                     max_shape=tuple(inp["max_shape"]),
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
@@ -91,7 +91,7 @@ def deserialize(inp):
                 return Segmentation(
                     shape=tuple(inp["shape"]),
                     dtype=deserialize(inp["dtype"]),
-                    names=class_labels.names,
+                    num_classes=class_labels._num_classes,
                     max_shape=tuple(inp["max_shape"]),
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),

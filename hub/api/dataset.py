@@ -368,6 +368,7 @@ class Dataset:
         self.resize_shape(size)
 
     def delete(self):
+        """ Deletes the dataset """
         fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
@@ -379,11 +380,24 @@ class Dataset:
             return True
         return False
 
-    def to_pytorch(self, Transform=None, offset=None, num_samples=None):
+    def to_pytorch(
+        self,
+        Transform=None,
+        inplace=True,
+        output_type=dict,
+        offset=None,
+        num_samples=None,
+    ):
         """| Converts the dataset into a pytorch compatible format
 
         Parameters
         ----------
+        Transform: function that transforms data in a dict format
+        inplace: bool, optional
+            Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
+            type you need for Transforms). Default is True.
+        output_type: one of list, tuple, dict, optional
+            Defines the output type. Default is dict - same as in original Hub Dataset.
         offset: int, optional
             The offset from which dataset needs to be converted
         num_samples: int, optional
@@ -397,7 +411,14 @@ class Dataset:
             global torch
 
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
-        return TorchDataset(self, Transform, offset=offset, num_samples=num_samples)
+        return TorchDataset(
+            self,
+            Transform,
+            inplace=inplace,
+            output_type=output_type,
+            offset=offset,
+            num_samples=num_samples,
+        )
 
     def to_tensorflow(self, offset=None, num_samples=None):
         """| Converts the dataset into a tensorflow compatible format
@@ -566,13 +587,16 @@ class Dataset:
         return self._tensors.keys()
 
     @staticmethod
-    def from_tensorflow(ds):
-        """| Converts a tensorflow dataset into hub format.
-
+    def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
+        """Converts a tensorflow dataset into hub format
         Parameters
         ----------
         dataset:
-            The tensorflow dataset object that needs to be converted into hub format.
+            The tensorflow dataset object that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
 
         Examples
         --------
@@ -636,7 +660,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             sample = sample if isinstance(sample, dict) else {"data": sample}
             return transform_numpy(sample)
@@ -644,9 +668,21 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
+<<<<<<< HEAD
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
         """| Converts a TFDS Dataset into hub format
 
+=======
+    def from_tfds(
+        dataset,
+        split=None,
+        num: int = -1,
+        sampling_amount: int = 1,
+        scheduler: str = "single",
+        workers: int = 1,
+    ):
+        """Converts a TFDS Dataset into hub format
+>>>>>>> a496cdab20440687afef6848065f897ae7c24de1
         Parameters
         ----------
         dataset: str
@@ -660,6 +696,10 @@ class Dataset:
         sampling_amount: float, optional
             a value from 0 to 1, that specifies how much of the dataset would be sampled to determinte feature shapes
             value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -681,40 +721,38 @@ class Dataset:
         ds = tfds.load(dataset, split=split)
         ds = ds.take(num)
         max_dict = defaultdict(lambda: None)
-        bytes_dict = defaultdict(lambda: None)
 
         def sampling(ds):
             try:
                 subset_len = len(ds) if hasattr(ds, "__len__") else num
             except Exception:
-                subset_len = 5
+                subset_len = max(num, 5)
 
-            subset_len = max(subset_len * sampling_amount, 5)
+            subset_len = int(max(subset_len * sampling_amount, 5))
             samples = ds.take(subset_len)
             for smp in samples:
                 dict_sampling(smp)
 
-        def dict_sampling(d):
+        def dict_sampling(d, path=""):
             for k, v in d.items():
                 k = k.replace("/", "_")
+                cur_path = path + "/" + k
                 if isinstance(v, dict):
-                    if k not in bytes_dict.keys():
-                        bytes_dict[k] = [v.__sizeof__()]
-                    else:
-                        bytes_dict[k].append(v.__sizeof__())
                     dict_sampling(v)
                 elif hasattr(v, "shape") and v.dtype != "string":
-                    if k not in max_dict.keys():
-                        max_dict[k] = v.shape
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = v.shape
                     else:
-                        max_dict[k] = tuple(
-                            [max(value) for value in zip(max_dict[k], v.shape)]
+                        max_dict[cur_path] = tuple(
+                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
                         )
                 elif hasattr(v, "shape") and v.dtype == "string":
-                    if k not in max_dict.keys():
-                        max_dict[k] = (len(v.numpy()),)
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = (len(v.numpy()),)
                     else:
-                        max_dict[k] = max(((len(v.numpy()),), max_dict[k]))
+                        max_dict[cur_path] = max(
+                            ((len(v.numpy()),), max_dict[cur_path])
+                        )
 
         if sampling_amount > 0:
             sampling(ds)
@@ -724,9 +762,9 @@ class Dataset:
             schema = to_hub(tf_schema).dict_
             return schema
 
-        def to_hub(tf_dt, max_shape=None, byte_sizes=None):
+        def to_hub(tf_dt, max_shape=None, path=""):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
-                return fdict_to_hub(tf_dt)
+                return sdict_to_hub(tf_dt, path=path)
             elif isinstance(tf_dt, tfds.features.Image):
                 return image_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.ClassLabel):
@@ -736,9 +774,7 @@ class Dataset:
             elif isinstance(tf_dt, tfds.features.Text):
                 return text_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(
-                    tf_dt, max_shape=max_shape, byte_sizes=byte_sizes
-                )
+                return sequence_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.BBoxFeature):
                 return bbox_to_hub(tf_dt, max_shape=max_shape)
             elif isinstance(tf_dt, tfds.features.Audio):
@@ -749,15 +785,12 @@ class Dataset:
                 if tf_dt.dtype.name != "string":
                     return tf_dt.dtype.name
 
-        def fdict_to_hub(tf_dt):
-            d = {
-                key.replace("/", "_"): to_hub(
-                    value,
-                    max_dict[key.replace("/", "_")],
-                    bytes_dict[key.replace("/", "_")],
-                )
-                for key, value in tf_dt.items()
-            }
+        def sdict_to_hub(tf_dt, path=""):
+            d = {}
+            for key, value in tf_dt.items():
+                key = key.replace("/", "_")
+                cur_path = path + "/" + key
+                d[key] = to_hub(value, max_dict[cur_path], cur_path)
             return SchemaDict(d)
 
         def tensor_to_hub(tf_dt, max_shape=None):
@@ -800,10 +833,8 @@ class Dataset:
             dt = tf_dt.dtype.name
             return BBox(dtype=dt)
 
-        def sequence_to_hub(tf_dt, max_shape=None, byte_sizes=None):
-            avg = (sum(byte_sizes) / len(byte_sizes)) if byte_sizes else None
-            chunks = int(1048576 / avg) if avg else None
-            return Sequence(dtype=to_hub(tf_dt._feature), shape=(), chunks=chunks)
+        def sequence_to_hub(tf_dt, max_shape=None):
+            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
 
         def audio_to_hub(tf_dt, max_shape=None):
             if max_shape and len(max_shape) > len(tf_dt.shape):
@@ -843,20 +874,25 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             return transform_numpy(sample)
 
         return my_transform(ds)
 
     @staticmethod
-    def from_pytorch(dataset):
+    def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
         """| Converts a pytorch dataset object into hub format
 
         Parameters
         ----------
         dataset:
-            The pytorch dataset object that needs to be converted into hub format"""
+            The pytorch dataset object that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        """
 
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
@@ -865,27 +901,60 @@ class Dataset:
 
             global torch
 
+        max_dict = defaultdict(lambda: None)
+
+        def sampling(ds):
+            for sample in ds:
+                dict_sampling(sample)
+
+        def dict_sampling(d, path=""):
+            for k, v in d.items():
+                k = k.replace("/", "_")
+                cur_path = path + "/" + k
+                if isinstance(v, dict):
+                    dict_sampling(v, path=cur_path)
+                elif isinstance(v, str):
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = (len(v),)
+                    else:
+                        max_dict[cur_path] = max(((len(v)),), max_dict[cur_path])
+                elif hasattr(v, "shape"):
+                    if cur_path not in max_dict.keys():
+                        max_dict[cur_path] = v.shape
+                    else:
+                        max_dict[cur_path] = tuple(
+                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
+                        )
+
+        sampling(dataset)
+
         def generate_schema(dataset):
             sample = dataset[0]
             return dict_to_hub(sample).dict_
 
-        def dict_to_hub(d):
-            for k, v in d.items():
+        def dict_to_hub(dic, path=""):
+            d = {}
+            for k, v in dic.items():
                 k = k.replace("/", "_")
+                cur_path = path + "/" + k
                 if isinstance(v, dict):
-                    d[k] = dict_to_hub(v)
+                    d[k] = dict_to_hub(v, path=cur_path)
                 else:
                     value_shape = v.shape if hasattr(v, "shape") else ()
-                    shape = tuple([None for it in value_shape])
-                    max_shape = tuple([10000 for it in value_shape])
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
+                    shape = tuple([None for it in value_shape])
+                    max_shape = (
+                        max_dict[cur_path] or tuple([10000 for it in value_shape])
+                        if not isinstance(v, str)
+                        else (10000,)
+                    )
                     dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
                     dtype = "int64" if isinstance(v, str) else dtype
                     d[k] = (
                         Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
                         if not isinstance(v, str)
-                        else Text(shape=(None,), dtype=dtype, max_shape=(10000,))
+                        else Text(shape=(None,), dtype=dtype, max_shape=max_shape)
                     )
             return SchemaDict(d)
 
@@ -901,7 +970,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema)
+        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
         def my_transform(sample):
             return transform_numpy(sample)
 
@@ -909,11 +978,21 @@ class Dataset:
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None, num_samples=None, offset=None):
+    def __init__(
+        self,
+        ds,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        num_samples=None,
+        offset=None,
+    ):
         self._ds = None
         self._url = ds.url
         self._token = ds.token
         self._transform = transform
+        self.inplace = inplace
+        self.output_type = output_type
         self.num_samples = num_samples
         self.offset = offset
 
@@ -947,7 +1026,13 @@ class TorchDataset:
             if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
                 self._ds._tensors[key][index], str
             ):
-                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+                t = self._ds._tensors[key][index]
+                if self.inplace:
+                    t = torch.tensor(t)
+                cur[split_key[-1]] = t
+        d = self._do_transform(d)
+        if self.inplace & (self.output_type != dict) & (type(d) == dict):
+            d = self.output_type(d.values())
         return d
 
     def __iter__(self):
@@ -964,5 +1049,11 @@ class TorchDataset:
                     else:
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
-                cur[split_key[-1]] = torch.tensor(self._ds._tensors[key][index])
+                t = self._ds._tensors[key][index]
+                if self.inplace:
+                    t = torch.tensor(t)
+                cur[split_key[-1]] = t
+            d = self._do_transform(d)
+            if self.inplace & (self.output_type != dict) & (type(d) == dict):
+                d = self.output_type(d.values())
             yield (d)

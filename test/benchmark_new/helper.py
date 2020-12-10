@@ -1,19 +1,18 @@
 import numpy as np
-from hub import tensor, dataset as ds
+import hub
+from hub.schema import Tensor
 from hub.log import logger
 
 
-def generate_dataset(shapes=[(10, 1024, 1024)], chunksize=None):
+def generate_dataset(shape=(10,), size=(1024, 1024), chunksize=None):
     """
     Generates a datasets with random tensors
     """
-    ds_dict = {}
-    for shape in shapes:
-        data = np.random.rand(*shape)
-        data = (255 * data).astype("uint8")
-        ds_dict[f"ds{str(shape)}"] = tensor.from_array(data, chunksize=chunksize)
-    _ds = ds.from_tensors(ds_dict)
-    return _ds
+    my_schema = {"img": Tensor(shape=shape, chunks=chunksize)}
+    ds = hub.Dataset("kristina/benchmarking", shape=(10,), schema=my_schema)
+    for i in range(shape):
+        ds[i] = np.random.rand(size)
+    return ds
 
 
 def report(logs):

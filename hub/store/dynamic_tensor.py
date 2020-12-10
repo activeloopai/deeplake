@@ -68,6 +68,8 @@ class DynamicTensor:
             shape = shapeDt.shape
             max_shape = shapeDt.max_shape
             chunks = shapeDt.chunks
+        elif "r" not in mode:
+            raise TypeError("shape cannot be none")
 
         self.fs_map = fs_map
         exist_ = fs_map.get(".hub.dynamic_tensor")
@@ -176,17 +178,7 @@ class DynamicTensor:
             slice_ = [slice_]
         slice_ = list(slice_)
         if self._dynamic_tensor and self._enabled_dynamicness:
-            if isinstance(slice_[0], slice):
-                start = slice_[0].start if slice_[0].start is not None else 0
-                stop = (
-                    slice_[0].stop
-                    if slice_[0].stop is not None
-                    else start + value.shape[0]
-                )
-                for i in range(start, stop):
-                    self.set_shape([i] + slice_[1:], value[i - start])
-            else:
-                self.set_shape(slice_, value)
+            self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
         if self._dynamic_tensor and isinstance(slice_[0], int):
@@ -351,32 +343,48 @@ class DynamicTensor:
         """Sets the shape of the slice of tensor"""
         if not self._enabled_dynamicness:
             return
+        if isinstance(slice_[0], int):
+            new_shape = self.create_shape(slice_, value)
+            self._dynamic_tensor[slice_[0]] = new_shape = np.maximum(
+                self._dynamic_tensor[slice_[0]], new_shape
+            )
+        else:
+            start = slice_[0].start if slice_[0].start is not None else 0
+            stop = (
+                slice_[0].stop if slice_[0].stop is not None else start + value.shape[0]
+            )
+            dt = self._dynamic_tensor[slice_[0]]
+            new_shapes = []
+            for i in range(start, stop):
+                new_shape = self.create_shape([i] + slice_[1:], value[i - start])
+                new_shape = np.maximum(dt[i - start], new_shape)
+                new_shapes.append(new_shape)
+            self._dynamic_tensor[slice_[0]] = new_shapes
 
+    def create_shape(self, slice_, value):
+        assert isinstance(slice_[0], int)
         new_shape = []
         shape_offset = 0
-        if isinstance(slice_[0], int):
-            value_shape = list(value.shape) if hasattr(value, "shape") else [1]
-            for i in range(1, len(self.shape)):
-                if self.shape[i] is None:
-                    if i < len(slice_):
-                        if isinstance(slice_[i], slice):
-                            sl = slice_[i].stop
-                            shape_offset += 1
-                        else:
-                            sl = slice_[i] + 1
-                        new_shape.append(sl)
-                    else:
-                        new_shape.append(value_shape[shape_offset])
+        value_shape = list(value.shape) if hasattr(value, "shape") else [1]
+        for i in range(1, len(self.shape)):
+            if self.shape[i] is None:
+                if i < len(slice_):
+                    if isinstance(slice_[i], slice):
+                        sl = slice_[i].stop
                         shape_offset += 1
-                elif i >= len(slice_) or isinstance(slice_[i], slice):
+                    else:
+                        sl = slice_[i] + 1
+                    new_shape.append(sl)
+                else:
+                    new_shape.append(value_shape[shape_offset])
                     shape_offset += 1
-
-            new_shape = np.maximum(self._dynamic_tensor[slice_[0]], new_shape)
-            new_appended_shape = list(self.shape)
-            for i, dim in enumerate(self._dynamic_dims):
-                new_appended_shape[dim] = new_shape[i]
-            self._delete_chunks_after_reshape(slice_[0], new_appended_shape[1:])
-            self._dynamic_tensor[slice_[0]] = new_shape
+            elif i >= len(slice_) or isinstance(slice_[i], slice):
+                shape_offset += 1
+        new_appended_shape = list(self.shape)
+        for i, dim in enumerate(self._dynamic_dims):
+            new_appended_shape[dim] = new_shape[i]
+        self._delete_chunks_after_reshape(slice_[0], new_appended_shape[1:])
+        return new_shape
 
     def _get_slice(self, slice_, real_shapes):
         # Makes slice_ which is uses relative indices (ex [:-5]) into precise slice_ (ex [10:40])

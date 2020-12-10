@@ -126,6 +126,8 @@ class Tensor(HubSchema):
             Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
+        if shape is None or shape == (None,) and max_shape is None:
+            raise TypeError("both shape and max_shape cannot be None at the same time")
         shape = (shape,) if isinstance(shape, int) else tuple(shape)
         chunks = _normalize_chunks(chunks)
         max_shape = max_shape or shape

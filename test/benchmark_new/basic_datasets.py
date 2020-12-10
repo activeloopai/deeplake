@@ -1,6 +1,10 @@
 import time
+import io
 import torch
-from helper import generate_dataset, report
+import hub
+from hub.schema import Tensor
+from hub.store.store import get_fs_and_path
+from helper import report
 import numpy as np
 from PIL import Image
 from pathlib import Path
@@ -17,12 +21,14 @@ class PytorchDataset(torch.utils.data.Dataset):
         width=256,
         load_image=True,
         image_path="results/Parallel150KB.png",
+        fs=None,
     ):
         "Initialization"
         self.samples = samples
         self.width = width
         self.load_image = load_image
         self.image_path = image_path
+        self.fs = fs
 
     def __len__(self):
         "Denotes the total number of samples"
@@ -31,9 +37,10 @@ class PytorchDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         "Generates one sample of data"
         if self.load_image:
-            folder = Path(__file__).parent
-            path = os.path.join(folder, self.image_path)
-            with open(path, "rb") as f:
+            if self.image_path.startswith("s3") and not self.fs:
+                return {}
+
+            with self.fs.open(self.image_path, "rb") as f:
                 img = Image.open(f)
                 inp = img.convert("RGB")
                 inp = np.array(inp)[: self.width, : self.width]
@@ -59,21 +66,30 @@ def get_dataset_from_hub(samples=1, read_from_fs=False, pytorch=False):
     """
     Build dataset and transform to pytorch or tensorflow
     """
-    ds = generate_dataset([(samples, 256, 256, 3), (samples, 1)])
-    if read_from_fs:
-        ds = ds.store("/tmp/training2")
+    my_schema = {"img": Tensor(shape=(3, 256, 256)), "label": "uint8"}
+    if not read_from_fs:
+        ds = hub.Dataset("test/benchmarking", shape=(samples,), schema=my_schema)
+    else:
+        ds = hub.Dataset(
+            "s3://snark-test/benchmarking_test", shape=(samples,), schema=my_schema
+        )
+    for i in range(samples):
+        ds["img", i] = np.random.rand(3, 256, 256)
+        ds["label", i] = 0
+
     ds = ds.to_pytorch() if pytorch else ds.to_tensorflow()
     return ds
 
 
-def TensorflowDataset(samples=100, load_image=False, image_path=""):
+def TensorflowDataset(samples=100, load_image=False, image_path="", fs=None):
     def tf_gen(width=256):
         "Generates one sample of data"
         for i in range(samples):
             if load_image:
-                folder = Path(__file__).parent
-                path = os.path.join(folder, image_path)
-                with open(path, "rb") as f:
+                if image_path.startswith("s3") and not fs:
+                    return {}
+
+                with fs.open(image_path, "rb") as f:
                     img = Image.open(f)
                     inp = img.convert("RGB")
                     inp = np.array(inp)[:width, :width]
@@ -103,10 +119,15 @@ def dataset_loader(
     inp = np.random.rand(256, 256, 3)
     inp = (255 * inp).astype("uint8")
     img = Image.fromarray(inp)
-    img.save(img_path)
+    buff = io.BytesIO()
+    img.save(buff, "JPEG")
+    buff.seek(0)
+    fs, path = get_fs_and_path(img_path)
+    with fs.open(img_path, "wb") as f:
+        f.write(buff.read())
 
     Dataset = PytorchDataset if pytorch else TensorflowDataset
-    ds = Dataset(samples=samples, load_image=read_from_fs, image_path=img_path)
+    ds = Dataset(samples=samples, load_image=read_from_fs, image_path=img_path, fs=fs)
     return ds
 
 
@@ -124,6 +145,7 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
         ds = dataset_loader(
             samples=samples,
             read_from_fs=read_from_fs,
+            img_path="s3://snark-test/benchmarks/test_img.jpeg",
             pytorch="pytorch" in backend,
         )
 
@@ -131,7 +153,7 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
         ds = torch.utils.data.DataLoader(
             ds,
             batch_size=8,
-            num_workers=8,
+            num_workers=1,
             collate_fn=ds.collate_fn if "collate_fn" in dir(ds) else None,
         )
     else:
@@ -142,25 +164,22 @@ def empty_train_hub(samples=100, backend="hub:pytorch", read_from_fs=False):
         pass
     t2 = time.time()
 
-    return {
-        "name": f"{backend} loading from {'FS' if read_from_fs else 'RAM'}",
-        # "samples": len(ds),
-        "overall": t2 - t1,
-        # "iterations": len(ds),
-    }
+    print(
+        {
+            "name": f"{backend} loading from {'FS' if read_from_fs else 'Hub'}",
+            "overall": t2 - t1,
+        }
+    )
 
 
 if __name__ == "__main__":
     n_samples = 256
     params = [
-        {"samples": n_samples, "backend": "pytorch", "read_from_fs": False},
         {"samples": n_samples, "backend": "pytorch", "read_from_fs": True},
         {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": False},
         {"samples": n_samples, "backend": "hub:pytorch", "read_from_fs": True},
-        {"samples": n_samples, "backend": "tensorflow", "read_from_fs": False},
         {"samples": n_samples, "backend": "tensorflow", "read_from_fs": True},
         {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": False},
         {"samples": n_samples, "backend": "hub:tensorflow", "read_from_fs": True},
     ]
     logs = [empty_train_hub(**args) for args in params]
-    report(logs)
