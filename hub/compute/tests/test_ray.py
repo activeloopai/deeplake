@@ -21,7 +21,7 @@ my_schema = {
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
-def ray_simple():
+def test_ray_simple():
     schema = {"var": "float"}
 
     @hub.transform(schema=schema, scheduler="ray")
