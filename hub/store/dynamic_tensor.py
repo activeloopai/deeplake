@@ -68,6 +68,8 @@ class DynamicTensor:
             shape = shapeDt.shape
             max_shape = shapeDt.max_shape
             chunks = shapeDt.chunks
+        elif "r" not in mode:
+            raise TypeError("shape cannot be none")
 
         self.fs_map = fs_map
         exist_ = fs_map.get(".hub.dynamic_tensor")
