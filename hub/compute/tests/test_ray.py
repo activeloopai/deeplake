@@ -17,6 +17,20 @@ my_schema = {
     "confidence": {"confidence": "float"},
 }
 
+@pytest.mark.skipif(
+    not ray_loaded(),
+    reason="requires ray to be loaded",
+)
+def ray_simple():
+    schema = {"var": "float"}
+
+    @hub.transform(schema=schema, scheduler="ray")
+    def process(item):
+        return {"var": 1}
+
+    ds = process([1, 2, 3]).store("./data/somedataset")
+    assert ds["var", 0] == 1
+
 
 @pytest.mark.skipif(
     not ray_loaded(),
@@ -86,6 +100,6 @@ def test_ray_pipeline_multiple():
         out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
     ).all()
 
-
+    
 if __name__ == "__main__":
-    test_ray_pipeline_multiple()
+    ray_simple()
