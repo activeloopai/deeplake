@@ -388,7 +388,7 @@ class Dataset:
         offset=None,
         num_samples=None,
     ):
-        """| Converts the dataset into a pytorch compatible format
+        """| Converts the dataset into a pytorch compatible format.
 
         Parameters
         ----------
@@ -588,7 +588,8 @@ class Dataset:
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
-        """Converts a tensorflow dataset into hub format
+        """Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
@@ -668,11 +669,6 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-<<<<<<< HEAD
-    def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
-        """| Converts a TFDS Dataset into hub format
-
-=======
     def from_tfds(
         dataset,
         split=None,
@@ -681,8 +677,8 @@ class Dataset:
         scheduler: str = "single",
         workers: int = 1,
     ):
-        """Converts a TFDS Dataset into hub format
->>>>>>> a496cdab20440687afef6848065f897ae7c24de1
+        """| Converts a TFDS Dataset into hub format.
+
         Parameters
         ----------
         dataset: str
@@ -700,6 +696,7 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)

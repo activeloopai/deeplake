@@ -89,6 +89,9 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentia
 url = 'https://activeloop.blob.core.windows.net/activeloop-hub/dataset' # Azure
 ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
 ```
+### Deletion
+
+You can delete your dataset in [app.activeloop.ai](https://app.activeloop.ai/) in a dataset overview tab.
 
 ### Notes
 

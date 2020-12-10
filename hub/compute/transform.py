@@ -49,8 +49,8 @@ class Transform:
     def __init__(
         self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
     ):
-        """
-        Transform applies a user defined function to each sample in single threaded manner
+        """| Transform applies a user defined function to each sample in single threaded manner.
+
         Parameters
         ----------
         func: function
@@ -91,8 +91,8 @@ class Transform:
 
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
-        """
-        Helper function to flatten dictionary of a recursive tensor
+        """| Helper function to flatten dictionary of a recursive tensor
+
         Parameters
         ----------
         d: dict
@@ -141,8 +141,8 @@ class Transform:
         return cur_type[path[-1]]
 
     def _split_list_to_dicts(self, xs):
-        """
-        Helper function that transform list of dicts into dicts of lists
+        """| Helper function that transform list of dicts into dicts of lists
+
         Parameters
         ----------
         xs: list of dicts
@@ -303,8 +303,8 @@ class Transform:
         progressbar: bool = True,
         sample_per_shard=None,
     ):
-        """
-        The function to apply the transformation for each element in batchified manner
+        """| The function to apply the transformation for each element in batchified manner
+
         Parameters
         ----------
         url: str
@@ -386,18 +386,12 @@ class Transform:
         return self.shape[0]
 
     def __getitem__(self, slice_):
-        """
-        <<<<<<< HEAD
-                | Get an item to be computed without iterating on the whole dataset.
-                | Creates a dataset view, then a temporary dataset to apply the transform.
-                Parameters:
-                ----------
-        =======
-                Get an item to be computed without iterating on the whole dataset
-                Creates a dataset view, then a temporary dataset to apply the transform
-        >>>>>>> a496cdab20440687afef6848065f897ae7c24de1
-                slice_: slice
-                    Gets a slice or slices from dataset
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
+        slice_: slice
+            Gets a slice or slices from dataset
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
