@@ -12,6 +12,8 @@ Here is some features of new hub:
 5. Dynamically sized datasets. You will be able to increase number of samples dynamically.
 6. Tensors can be added to dataset on the fly.
 
+Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked NumPy arrays.
+
 ### Getting Started
 
 1. Install beta version
@@ -60,15 +62,36 @@ res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
 
 ### Data Storage
 
+#### Hub
+
 If `url` parameter has the form of `username/dataset`, the dataset will be stored in our cloud storage.
-Besides, you can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*.
-In that case you will need to have the corresponding credentials and provide them as a `token` argument during Dataset creation. 
 
 ```python
-url = 's3://new_dataset'  # s3
-url = 'gcs://new_dataset' # gcloud
-url = 'https://activeloop.blob.core.windows.net/activeloop-hub/new_dataset' # Azure
+url = 'username/dataset'
 ```
+
+Besides, you can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*.
+In that case you will need to have the corresponding credentials and provide them as a `token` argument during Dataset creation. It can be a filepath to your credentials or a `dict`.
+#### S3
+ ```python
+url = 's3://new_dataset'  # s3
+ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id": "...",
+                                                              "aws_secret_access_key": "...",
+                                                              ...})
+```
+#### Google CLoud Storage
+```python
+url = 'gcs://new_dataset' # gcloud
+ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
+```
+#### Azure
+```python
+url = 'https://activeloop.blob.core.windows.net/activeloop-hub/dataset' # Azure
+ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
+```
+### Deletion
+
+You can delete your dataset in [app.activeloop.ai](https://app.activeloop.ai/) in a dataset overview tab.
 
 ### Notes
 

@@ -49,8 +49,8 @@ class Transform:
     def __init__(
         self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
     ):
-        """
-        Transform applies a user defined function to each sample in single threaded manner
+        """| Transform applies a user defined function to each sample in single threaded manner.
+
         Parameters
         ----------
         func: function
@@ -91,8 +91,8 @@ class Transform:
 
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
-        """
-        Helper function to flatten dictionary of a recursive tensor
+        """| Helper function to flatten dictionary of a recursive tensor
+
         Parameters
         ----------
         d: dict
@@ -113,9 +113,9 @@ class Transform:
     @classmethod
     def _flatten(cls, items, schema):
         """
-        Takes a dictionary or list of dictionary
-        Returns a dictionary of concatenated values
-        Dictionary follows schema
+        Takes a dictionary or list of dictionary.
+        Returns a dictionary of concatenated values.
+        Dictionary follows schema.
         """
         final_item = {}
         for item in cls._unwrap(items):
@@ -141,8 +141,8 @@ class Transform:
         return cur_type[path[-1]]
 
     def _split_list_to_dicts(self, xs):
-        """
-        Helper function that transform list of dicts into dicts of lists
+        """| Helper function that transform list of dicts into dicts of lists
+
         Parameters
         ----------
         xs: list of dicts
@@ -179,10 +179,11 @@ class Transform:
         return ds
 
     def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
-        """Batchified upload of results
-        For each tensor batchify based on its chunk and upload
-        If tensor is dynamic then still upload element by element
-        For dynamic tensors, it disable dynamicness and then enables it back
+        """Batchified upload of results.
+        For each tensor batchify based on its chunk and upload.
+        If tensor is dynamic then still upload element by element.
+        For dynamic tensors, it disable dynamicness and then enables it back.
+
         Parameters
         ----------
         dataset: hub.Dataset
@@ -302,8 +303,8 @@ class Transform:
         progressbar: bool = True,
         sample_per_shard=None,
     ):
-        """
-        The function to apply the transformation for each element in batchified manner
+        """| The function to apply the transformation for each element in batchified manner
+
         Parameters
         ----------
         url: str
@@ -385,9 +386,10 @@ class Transform:
         return self.shape[0]
 
     def __getitem__(self, slice_):
-        """
-        Get an item to be computed without iterating on the whole dataset
-        Creates a dataset view, then a temporary dataset to apply the transform
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
         slice_: slice
             Gets a slice or slices from dataset
         """

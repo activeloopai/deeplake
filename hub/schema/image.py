@@ -6,16 +6,15 @@ from hub.schema.features import Tensor
 
 
 class Image(Tensor):
-    """`HubSchema` for images
-    Output:
-    `tf.Tensor` of type `tf.uint8` and shape `[height, width, num_channels]`
+    """| `HubSchema` for images.
+
+    Output: `tf.Tensor` of type `tf.uint8` and shape `[height, width, num_channels]`
     for BMP, JPEG, and PNG images
 
     Example:
-    ```python
-    image_tensor = Image(shape=(None, None, 1),
-                                encoding_format='png')
-    ```
+    ----------
+    >>> image_tensor = Image(shape=(None, None, 1),
+    >>>                      encoding_format='png')
     """
 
     def __init__(

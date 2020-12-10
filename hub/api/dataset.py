@@ -328,7 +328,7 @@ class Dataset:
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
-        | Usage
+        | Usage:
         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
@@ -388,7 +388,7 @@ class Dataset:
         offset=None,
         num_samples=None,
     ):
-        """| Converts the dataset into a pytorch compatible format
+        """| Converts the dataset into a pytorch compatible format.
 
         Parameters
         ----------
@@ -496,7 +496,7 @@ class Dataset:
         )
 
     def _get_dictionary(self, subpath, slice_=None):
-        """"Gets dictionary from dataset given incomplete subpath"""
+        """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
@@ -526,8 +526,8 @@ class Dataset:
         return self.shape[0]
 
     def flush(self):
-        """Save changes from cache to dataset final storage
-        Does not invalidate this object
+        """Save changes from cache to dataset final storage.
+        Does not invalidate this object.
         """
         for t in self._tensors.values():
             t.flush()
@@ -539,8 +539,8 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage
-        This invalidates this object
+        """Save changes from cache to dataset final storage.
+        This invalidates this object.
         """
         for t in self._tensors.values():
             t.close()
@@ -588,7 +588,8 @@ class Dataset:
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
-        """Converts a tensorflow dataset into hub format
+        """Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
@@ -676,7 +677,8 @@ class Dataset:
         scheduler: str = "single",
         workers: int = 1,
     ):
-        """Converts a TFDS Dataset into hub format
+        """| Converts a TFDS Dataset into hub format.
+
         Parameters
         ----------
         dataset: str
@@ -694,6 +696,7 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
