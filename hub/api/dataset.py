@@ -48,9 +48,6 @@ from collections import defaultdict
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
 
-
-
-    return schema
 class Dataset:
     def __init__(
         self,
@@ -99,7 +96,7 @@ class Dataset:
             Lock the cache for avoiding multiprocessing errors
         """
 
-        shape = shape or (None,)
+        shape = shape
         if isinstance(shape, int):
             shape = [shape]
         if shape is not None:
@@ -667,29 +664,40 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_directory(url=None,path_to_dir=None,image_shape=(None,None),ds_size=(None,),max_shape=(None,None,4)):
+    def from_directory(url,path_to_dir,image_shape,max_shape=(1920,1080,4),mode="w+"):
+        """
+        This utility function is specific to create dataset from the categorical image dataset.
+        
+        """
+        def get_ds_size(path_to_dir):
+            ds = 1
+            for i in os.listdir(path_to_dir):
+                ds+=len(os.listdir(os.path.join(path_to_dir,i)))
+            return ds            
 
         def make_schema(path_to_dir,shape=image_shape):
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                         "labels":labels,
-                        "image":Image(shape=shape,max_shape=max_shape,dtype="uint8")
+                        "image":Image(shape=shape,max_shape=max_shape,dtype="uint8"),
                     }
             return (schema,labels)  
            
 
-        schema,label = make_schema(path_to_dir,shape=image_shape)   
-        print(schema,"\n",label) 
+        schema,labels = make_schema(path_to_dir,shape=image_shape)   
+        print(schema,"\n",labels) 
         ds = Dataset(
             url,
-            shape=ds_size,
-            mode="w+",
+            shape=(get_ds_size(path_to_dir),),
+            mode=mode,
             schema=schema,
+            cache=2**26
         )
 
         print("sucess")
-
-        return ds,label   
+        
+        
+        return ds,labels       
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
