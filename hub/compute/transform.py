@@ -37,8 +37,8 @@ def get_sample_size(schema, workers):
                 res *= s
             return res
 
-        samples = min(samples, (16 * 1024 * 1024 * 8)//(prod(shp) * sz))
-    return samples* workers
+        samples = min(samples, (16 * 1024 * 1024 * 8) // (prod(shp) * sz))
+    return samples * workers
 
 
 class Transform:
