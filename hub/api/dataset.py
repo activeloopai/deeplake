@@ -682,30 +682,30 @@ class Dataset:
             This utility function is specific to create dataset from the categorical image dataset.
  
             """
-        def get_ds_size(path_to_dir):
-            ds = 1
-            for i in os.listdir(path_to_dir):
-                ds += len(os.listdir(os.path.join(path_to_dir, i)))
-            return ds
+            def get_ds_size(path_to_dir):
+                ds = 1
+                for i in os.listdir(path_to_dir):
+                    ds += len(os.listdir(os.path.join(path_to_dir, i)))
+                return ds
 
-        def make_schema(path_to_dir, shape=image_shape):
-            labels = ClassLabel(names=os.listdir(path_to_dir))
-            schema = {
-                "labels": labels,
-                "image": Image(shape=shape, max_shape=max_shape, dtype="uint8"),
-            }
-            return (schema, labels)
+            def make_schema(path_to_dir, shape=image_shape):
+                labels = ClassLabel(names=os.listdir(path_to_dir))
+                schema = {
+                            "labels": labels,
+                            "image": Image(shape=shape, max_shape=max_shape, dtype="uint8"),
+                        }
+                return (schema, labels)
 
-        schema, labels = make_schema(path_to_dir, shape=image_shape)
-        ds = Dataset(
-            url,
-            shape=(get_ds_size(path_to_dir),),
-            mode=mode,
-            schema=schema,
-            cache=2 ** 26
-        )
+            schema, labels = make_schema(path_to_dir, shape=image_shape)
+            ds = Dataset(
+                url,
+                shape=(get_ds_size(path_to_dir),),
+                mode=mode,
+                schema=schema,
+                cache=2 ** 26
+            )
 
-        return ds, labels
+            return ds, labels
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
