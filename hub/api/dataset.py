@@ -674,11 +674,14 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_directory(url, path_to_dir, image_shape, max_shape=(1920, 1080, 4), mode="w+"):
-        """
-        This utility function is specific to create dataset from the categorical image dataset.
+    def from_directory(
+        url, path_to_dir, image_shape, max_shape=(1920, 1080, 4), mode="w+"
+        ):
 
-        """
+            """
+            This utility function is specific to create dataset from the categorical image dataset.
+ 
+            """
         def get_ds_size(path_to_dir):
             ds = 1
             for i in os.listdir(path_to_dir):
@@ -699,7 +702,7 @@ class Dataset:
             shape=(get_ds_size(path_to_dir),),
             mode=mode,
             schema=schema,
-            cache=2**26
+            cache=2 ** 26
         )
 
         return ds, labels
