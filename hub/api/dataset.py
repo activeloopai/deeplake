@@ -694,7 +694,6 @@ class Dataset:
             return (schema, labels)
 
         schema, labels = make_schema(path_to_dir, shape=image_shape)
-        print(schema, "\n", labels)
         ds = Dataset(
             url,
             shape=(get_ds_size(path_to_dir),),
