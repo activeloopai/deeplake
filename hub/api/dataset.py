@@ -677,8 +677,7 @@ class Dataset:
     def from_directory(
         url, path_to_dir, image_shape, max_shape=(1920, 1080, 4), mode="w+"
     ):
-        """
-        This utility function is specific to create dataset from the categorical image dataset.
+        """This utility function is specific to create dataset from the categorical image dataset.
 
         """
         def get_ds_size(path_to_dir):
