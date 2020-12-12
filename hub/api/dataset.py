@@ -670,7 +670,6 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-<<<<<<< HEAD
     def from_directory(url,path_to_dir,image_shape,max_shape=(1920,1080,4),mode="w+"):
         """
         This utility function is specific to create dataset from the categorical image dataset.
@@ -700,27 +699,12 @@ class Dataset:
             schema=schema,
             cache=2**26
         )
-
-        print("sucess")
         
-        
-        return ds,labels       
+        eturn ds,labels       
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
         """Converts a TFDS Dataset into hub format
-=======
-    def from_tfds(
-        dataset,
-        split=None,
-        num: int = -1,
-        sampling_amount: int = 1,
-        scheduler: str = "single",
-        workers: int = 1,
-    ):
-        """| Converts a TFDS Dataset into hub format.
-
->>>>>>> upstream/master
         Parameters
         ----------
         dataset: str
