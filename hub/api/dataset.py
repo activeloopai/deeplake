@@ -74,7 +74,7 @@ class Dataset:
         mode: str, optional (default to "w")
             Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
         path_to_dir: str, optional
-            path to the image Dataset containing labels          
+            path to the image Dataset containing labels
         safe_mode: bool, optional
             if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
         shape: tuple, optional
@@ -135,8 +135,7 @@ class Dataset:
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self.shape = tuple(self.meta["shape"])
-            self.schema = hub.schema.deserialize.deserialize(
-                self.meta["schema"])
+            self.schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
         else:
@@ -161,8 +160,7 @@ class Dataset:
                 except Exception:
                     pass
                 self._fs.rm(self._path, recursive=True)
-                logger.error("Deleting the dataset " +
-                             traceback.format_exc() + str(e))
+                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
 
         if needcreate and (
@@ -319,8 +317,7 @@ class Dataset:
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return TensorView(
-                    dataset=self, subpath=subpath, slice_=slice(
-                        0, self.shape[0])
+                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
                 )
             return self._get_dictionary(subpath)
         else:
@@ -506,7 +503,7 @@ class Dataset:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
             if key.startswith(subpath):
-                suffix_key = key[len(subpath):]
+                suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for i in range(len(split_key) - 1):
@@ -677,9 +674,8 @@ class Dataset:
     def from_directory(
         url, path_to_dir, image_shape, max_shape=(1920, 1080, 4), mode="w+"
     ):
-        """This utility function is specific to create dataset from the categorical image dataset.
+        """This utility function is specific to create dataset from the categorical image dataset."""
 
-        """
         def get_ds_size(path_to_dir):
             ds = 1
             for i in os.listdir(path_to_dir):
@@ -700,7 +696,7 @@ class Dataset:
             shape=(get_ds_size(path_to_dir),),
             mode=mode,
             schema=schema,
-            cache=2 ** 26
+            cache=2 ** 26,
         )
 
         return ds, labels
@@ -770,8 +766,7 @@ class Dataset:
                         max_dict[cur_path] = v.shape
                     else:
                         max_dict[cur_path] = tuple(
-                            [max(value)
-                             for value in zip(max_dict[cur_path], v.shape)]
+                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
                         )
                 elif hasattr(v, "shape") and v.dtype == "string":
                     if cur_path not in max_dict.keys():
@@ -826,7 +821,7 @@ class Dataset:
                 return Text(shape=(None,), dtype="int64", max_shape=(100000,))
             dt = tf_dt.dtype.name
             if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
 
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
@@ -836,7 +831,7 @@ class Dataset:
         def image_to_hub(tf_dt, max_shape=None):
             dt = tf_dt.dtype.name
             if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
 
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
@@ -865,7 +860,7 @@ class Dataset:
 
         def audio_to_hub(tf_dt, max_shape=None):
             if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
 
             max_shape = max_shape or tuple(
                 100000 if dim is None else dim for dim in tf_dt.shape
@@ -881,7 +876,7 @@ class Dataset:
 
         def video_to_hub(tf_dt, max_shape=None):
             if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
+                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
 
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
@@ -944,15 +939,13 @@ class Dataset:
                     if cur_path not in max_dict.keys():
                         max_dict[cur_path] = (len(v),)
                     else:
-                        max_dict[cur_path] = max(
-                            ((len(v)),), max_dict[cur_path])
+                        max_dict[cur_path] = max(((len(v)),), max_dict[cur_path])
                 elif hasattr(v, "shape"):
                     if cur_path not in max_dict.keys():
                         max_dict[cur_path] = v.shape
                     else:
                         max_dict[cur_path] = tuple(
-                            [max(value)
-                             for value in zip(max_dict[cur_path], v.shape)]
+                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
                         )
 
         sampling(dataset)
@@ -974,8 +967,7 @@ class Dataset:
                         v = v.numpy()
                     shape = tuple([None for it in value_shape])
                     max_shape = (
-                        max_dict[cur_path] or tuple(
-                            [10000 for it in value_shape])
+                        max_dict[cur_path] or tuple([10000 for it in value_shape])
                         if not isinstance(v, str)
                         else (10000,)
                     )
