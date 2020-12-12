@@ -24,7 +24,7 @@ schema = { "scalar": Primitive(dtype="float32") }
 
 ### Tensor
 
-Np-array like structure that contains any type of elements (Primitive and non-Primitive).
+Np-array like structure that contains any type of elements (Primitive and non-Primitive). Hub Tensors can't be visualized at [app.activeloop.ai](https://app.activeloop.ai).
 
 ```python
 from hub.schema import Tensor
@@ -115,6 +115,29 @@ The video is stored as a sequence of encoded images. `encoding_format` can be an
 from hub.schema import Video
 
 schema = {'video': Video(shape=(20, None, None, 3), max_shape=(20, 1200, 1200, 3))}
+```
+
+### Text
+
+Autoconverts given string into its integer(int64) representation.
+```python
+from hub.schema import Text
+
+schema = {'text': Text(shape=(None, ), max_shape=(20, ))}
+```
+
+### Sequence
+
+Correspond to sequence of `schema.HubSchema`.
+At generation time, a list for each of the sequence element is given. The output
+of `Dataset` will batch all the elements of the sequence together.
+If the length of the sequence is static and known in advance, it should be
+specified in the constructor using the `length` param.
+
+```python
+from hub.schema import Sequence, BBox
+
+schema = {'sequence': Sequence(shape=(10, ), dtype=BBox)}
 ```
 
 ## Arguments
