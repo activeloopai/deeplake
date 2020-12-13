@@ -13,7 +13,7 @@ Basic transform pipeline creation:
 ```python
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
-    "label": "<U20",
+    "label": Text(shape=(None,), max_shape=(20,)),
     "confidence": "float",
 }
 
@@ -43,7 +43,7 @@ Transormation function can return either a dictionary that corresponds to the pr
 ```python
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
-    "label": "<U20",
+    "label": Text(shape=(None,), max_shape=(20,)),
 }
 
 ds = hub.Dataset(
