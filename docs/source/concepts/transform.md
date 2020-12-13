@@ -18,7 +18,7 @@ my_schema = {
 }
 
 ds = hub.Dataset(
-   "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
+   "./data/test/test_pipeline_basic", mode="w+", shape=(100,), schema=my_schema
 )
 
 for i in range(len(ds)):
@@ -47,7 +47,7 @@ dynamic_schema = {
 }
 
 ds = hub.Dataset(
-        "./data/test/test_pipeline_dynamic3", mode="w", shape=(1,), schema=dynamic_schema, cache=False
+        "./data/test/test_pipeline_dynamic3", mode="w+", shape=(1,), schema=dynamic_schema, cache=False
     )
     
 ds["image", 0] = np.ones((30, 32, 3))
@@ -82,7 +82,7 @@ def my_transform(x):
    }
 
 ds = hub.Dataset(
-   "./data/test/test_pipeline_basic_4", mode="w", shape=(sample_size,), schema=my_schema, cache=0
+   "./data/test/test_pipeline_basic_4", mode="w+", shape=(sample_size,), schema=my_schema, cache=0
 )
 
 ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
@@ -95,7 +95,7 @@ There is also an option of using `ray` as a scheduler. In this case `RayTransfor
 ```python
 ds = hub.Dataset(
    "./data/ray/ray_pipeline_basic",
-   mode="w",
+   mode="w+",
    shape=(100,),
    schema=my_schema,
    cache=False,
