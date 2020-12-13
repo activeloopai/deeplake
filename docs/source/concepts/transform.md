@@ -55,6 +55,10 @@ ds = my_transform(range(100))
 ds = ds.store(tag)
 
 assert ds["confidence"][0].compute() == 0.2
+
+# Access the dataset later
+ds = hub.Dataset(tag)
+assert ds["confidence"][0].compute() == 0.2
 ```
 
 ### Adding arguments
@@ -126,7 +130,7 @@ def dynamic_transform(sample, multiplier: int = 2):
       "label": sample["label"].compute(),
    } for i in range(4)]
 
-out_ds = dynamic_transform(ds, multiplier=4).store("./data/test/test_pipeline_dynamic_output2")
+out_ds = dynamic_transform(ds, multiplier=4).store("./data/pipeline")
 ```
 
 ### Multithreading and multiprocessing
@@ -135,26 +139,26 @@ You can use transform with multuple processes by adding `scheduler` and `workers
 
 ```python
 
-my_schema = {
-   "image": Tensor((width, width, channels), dtype, (width, width, channels), chunks=(sample_size // 20, width, width, channels)),
-}
+width = 256
+channels = 3
+dtype = "uint8"
+
+my_schema = {"image": Image(shape=(width, width, channels), dtype=dtype)}
+
 
 @hub.transform(schema=my_schema, scheduler="processed", workers=2)
 def my_transform(x):
 
-   a = np.random.random((width, width, channels))
-   for i in range(10):
-         a *= np.random.random((width, width, channels))
+    a = np.random.random((width, width, channels))
+    for i in range(10):
+        a *= np.random.random((width, width, channels))
 
-   return {
-         "image": (np.ones((width, width, channels), dtype=dtype) * 255),
-   }
+    return {
+        "image": (np.ones((width, width, channels), dtype=dtype) * 255),
+    }
 
-ds = hub.Dataset(
-   "./data/test/test_pipeline_basic_4", mode="w+", shape=(sample_size,), schema=my_schema, cache=0
-)
 
-ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
+ds_t = my_transform(range(100)).store("./data/pipeline")
 ```
 
 ## Ray Transform
