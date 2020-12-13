@@ -172,7 +172,7 @@ def my_transform(x):
 ds_t = my_transform(range(100)).store("./data/pipeline")
 ```
 
-## Scaling compute to a cluster
+### Scaling compute to a cluster
 
 [in development]
 
