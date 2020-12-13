@@ -112,30 +112,41 @@ assert ds["confidence"][0].compute() == 2.0
 Transormation function can return either a dictionary that corresponds to the provided schema or a list of such dictionaries. In that case the number of samples in the final dataset will be equal to the number of all the returned dictionaries:
 
 ```python
-dynamic_schema = {
+my_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
     "label": Text(shape=(None,), max_shape=(20,)),
 }
 
 ds = hub.Dataset(
-        "./data/test/test_pipeline_dynamic3", mode="w+", shape=(1,), schema=dynamic_schema, cache=False
-    )
-    
+    "./data/test/test_pipeline_dynamic3",
+    mode="w+",
+    shape=(1,),
+    schema=my_schema,
+    cache=False,
+)
+
 ds["image", 0] = np.ones((30, 32, 3))
 
-@hub.transform(schema=dynamic_schema, scheduler="threaded", workers=8)
+
+@hub.transform(schema=my_schema)
 def dynamic_transform(sample, multiplier: int = 2):
-   return [{
-      "image": sample["image"].compute() * multiplier,
-      "label": sample["label"].compute(),
-   } for i in range(4)]
+    return [
+        {
+            "image": sample["image"].compute() * multiplier,
+            "label": sample["label"].compute(),
+        }
+        for i in range(multiplier)
+    ]
+
 
 out_ds = dynamic_transform(ds, multiplier=4).store("./data/pipeline")
+assert len(ds) == 1
+assert len(out_ds) == 4
 ```
 
-### Multithreading and multiprocessing
+### Local parrarel execution
 
-You can use transform with multuple processes by adding `scheduler` and `workers` arguments:
+You can use transform with multuple processes or threads by setting `scheduler` to `threaded` or `processed` and set number of `workers`.
 
 ```python
 
@@ -161,9 +172,11 @@ def my_transform(x):
 ds_t = my_transform(range(100)).store("./data/pipeline")
 ```
 
-## Ray Transform
+## Scaling compute to a cluster
 
-There is also an option of using `ray` as a scheduler. In this case `RayTransform` will be applied to samples.
+[in development]
+
+There is also an option of using `ray` as a scheduler. In this case `RayTransform` will be applied to samples. 
 
 ```python
 ds = hub.Dataset(
