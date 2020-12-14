@@ -13,7 +13,7 @@ workflows:
             - azure
   test_full:
     jobs:
-      - test_full:
+      - test:
           context: 
             - test
             - azure
@@ -53,6 +53,8 @@ workflows:
 
 jobs:
   test:
+   docker:
+      - image: circleci/python:3.8
    steps:
       - checkout
       - run:
