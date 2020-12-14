@@ -22,20 +22,20 @@ workflows:
           context:  
             - test
             - azure
-          #filters:
-          #  tags:
-          #    only: /[0-9]+(\.[0-9]+)*/
-          #  branches:
-          #    ignore: /.*/
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
       - test_full:
           context:  
             - test
             - azure
-          #filters:
-          #  tags:
-          #    only: /[0-9]+(\.[0-9]+)*/
-          #  branches:
-          #    ignore: /.*/
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
       - deploy:
           context: 
             - pypi
@@ -43,11 +43,11 @@ workflows:
           requires:
             - test
             - test_full
-          #filters:
-          #  tags:
-          #    only: /[0-9]+(\.[0-9]+)*/
-          #  branches:
-          #    ignore: /.*/
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
 
 jobs:
   test:
