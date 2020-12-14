@@ -13,7 +13,7 @@ workflows:
             - azure
   test_full:
     jobs:
-      - test:
+      - test_full:
           context: 
             - test
             - azure
