@@ -16,8 +16,8 @@ def test_dev_mode():
 def test_load(caplog):
     if dask_loaded():
         obj = hub.load("./data/new/test")
+        assert "Deprecated Warning" in caplog.text
 
-    assert "Deprecated Warning" in caplog.text
     obj = hub.load("./data/test/test_dataset2")
     assert isinstance(obj, hub.Dataset) == True
 
