@@ -64,6 +64,7 @@ class Dataset:
         storage_cache: int = 2 ** 28,
         lock_cache=True,
         tokenizer=None,
+        public=True
     ):
         """| Open a new or existing dataset for read/write
 
@@ -113,7 +114,7 @@ class Dataset:
         self.tokenizer = tokenizer
 
         self._fs, self._path = (
-            (fs, url) if fs else get_fs_and_path(self.url, token=token)
+            (fs, url) if fs else get_fs_and_path(self.url, token=token, public=public)
         )
         self.cache = cache
         self._storage_cache = storage_cache
@@ -172,7 +173,7 @@ class Dataset:
             self.username = spl[-2]
             self.dataset_name = spl[-1]
             HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta
+                self.username, self.dataset_name, self.meta, public=public
             )
 
     def _store_meta(self) -> dict:

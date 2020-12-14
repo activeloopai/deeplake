@@ -15,7 +15,7 @@ import os
 import re
 
 
-def _connect(tag):
+def _connect(tag, public=True):
     """Connects to the backend and receives credentials"""
 
     creds = HubControlClient().get_config()
@@ -28,12 +28,13 @@ def _connect(tag):
     else:
         sub_tags = tag.split("/")
         # Get repository path from the cred location
-        path = "/".join(creds["bucket"].split("/")[:-1])
+        path = "/".join(creds["bucket"].split("/")[:-2])
+        path = path + "/public" if public else path + "/private"
         path = f"{path}/{sub_tags[0]}/{sub_tags[-1]}"
     return path, creds
 
 
-def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, str]:
+def get_fs_and_path(url: str, token=None, public=True) -> Tuple[fsspec.AbstractFileSystem, str]:
     if url.startswith("s3://"):
         token = token or dict()
         token = read_aws_creds(token) if isinstance(token, str) else token
@@ -72,7 +73,7 @@ def get_fs_and_path(url: str, token=None) -> Tuple[fsspec.AbstractFileSystem, st
         return fsspec.filesystem("file"), url
     else:
         # TOOD check if url is username/dataset:version
-        url, creds = _connect(url)
+        url, creds = _connect(url, public=public)
         fs = fsspec.filesystem(
             "s3",
             key=creds["access_key"],
