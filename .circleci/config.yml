@@ -12,7 +12,7 @@ workflows:
             - test
             - azure
       - test_full:
-          contexT:
+          context:
             - test
             - azure
 
