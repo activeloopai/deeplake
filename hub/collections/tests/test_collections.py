@@ -196,6 +196,7 @@ class UnknownCountGenerator:
         return {"arr": arr, "rra": rra}
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_unknown_size_input():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 11))
     assert ds["arr"].shape == (-1, 5)
