@@ -11,10 +11,8 @@ workflows:
           context: 
             - test
             - azure
-  test_full:
-    jobs:
-      - test:
-          context: 
+      - test_full:
+          contexT:
             - test
             - azure
 
