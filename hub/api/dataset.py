@@ -53,7 +53,7 @@ class Dataset:
     def __init__(
         self,
         url: str,
-        mode: str = "a",
+        mode: str = "w+",
         safe_mode: bool = False,
         shape=None,
         schema=None,
