@@ -48,15 +48,13 @@ class ShapeDetector:
             max_shape = tuple(max_shape)
             assert len(shape) == len(max_shape)
             for (s, ms) in zip(shape, max_shape):
+                if not isinstance(ms, int):
+                    raise HubException("MaxShape Dimension should be int")
                 if s is not None and s != ms:
                     raise HubException(
                         """Dimension in shape cannot be != max_shape dimension, 
                         if shape is not None """
                     )
-                if not isinstance(s, int) and s is not None:
-                    raise HubException("Shape Dimension should be int or None")
-                if not isinstance(ms, int):
-                    raise HubException("MaxShape Dimension should be int")
                 assert s == ms or s is None and isinstance(ms, int)
             return max_shape
 
