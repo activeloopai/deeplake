@@ -3,7 +3,6 @@ from io import BytesIO
 import zarr
 import numcodecs
 from numcodecs.abc import Codec
-from numcodecs import MsgPack
 import numpy as np
 from PIL import Image
 
@@ -12,7 +11,7 @@ class PngCodec(Codec):
     def __init__(self, solo_channel=True):
         self.codec_id = "png"
         self.solo_channel = solo_channel
-        self._msgpack = MsgPack()
+        self._msgpack = numcodecs.MsgPack()
 
     def encode_single_image(self, image: np.ndarray) -> bytes:
         with BytesIO() as buffer:
@@ -20,7 +19,7 @@ class PngCodec(Codec):
             return buffer.getvalue()
 
     def decode_single_image(self, buf) -> np.ndarray:
-        with BytesIO(bytearray(buf)) as buffer:
+        with BytesIO(buf) as buffer:
             buffer.seek(0)
             return np.array(Image.open(buffer, mode="r"))
 

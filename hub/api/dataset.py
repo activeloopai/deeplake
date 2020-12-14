@@ -815,7 +815,9 @@ class Dataset:
                 10000 if dim is None else dim for dim in tf_dt.shape
             )
             return Image(
-                shape=tf_dt.shape, dtype=dt, max_shape=max_shape, #compressor="png"
+                shape=tf_dt.shape,
+                dtype=dt,
+                max_shape=max_shape,  # compressor="png"
             )
 
         def class_label_to_hub(tf_dt, max_shape=None):
