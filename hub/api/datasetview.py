@@ -12,7 +12,7 @@ class DatasetView:
         offset=None,
         squeeze_dim=False,
     ):
-        """Creates a DatasetView object for a subset of the Dataset
+        """Creates a DatasetView object for a subset of the Dataset.
 
         Parameters
         ----------
@@ -138,7 +138,7 @@ class DatasetView:
         return self.dataset._tensors.keys()
 
     def _get_dictionary(self, subpath, slice_=None):
-        """"Gets dictionary from dataset given incomplete subpath"""
+        """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.dataset._tensors.keys():
@@ -201,7 +201,7 @@ class DatasetView:
 
     def resize_shape(self, size: int) -> None:
         """Resize dataset shape, not DatasetView"""
-        self.dataset.reisze_shape(size)
+        self.dataset.resize_shape(size)
 
     def commit(self) -> None:
         """Commit dataset"""

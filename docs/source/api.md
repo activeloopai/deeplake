@@ -27,7 +27,14 @@
    :private-members:
    :special-members:
 ```
-
+### Sharded Dataset
+```eval_rst
+.. autoclass:: hub.api.sharded_datasetview.ShardedDatasetView
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+```
 ## Pipelines
 ### Transform
 ```eval_rst
@@ -101,6 +108,11 @@
    :private-members:
    :special-members:
 .. autoclass:: hub.schema.sequence.Sequence
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+.. autoclass:: hub.schema.text.Text
    :members:
    :no-undoc-members:
    :private-members:

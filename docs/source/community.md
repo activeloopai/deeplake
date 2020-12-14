@@ -1,5 +1,10 @@
-Contributing to Hub
-===================
+# Discussions
+
+- Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) for help from [Activeloop](https://www.activeloop.ai/) team and other users as well as dataset management/preprocessing tips and tricks.
+- For feature requests or bug reports, please open a [new GitHub issue](https://github.com/activeloopai/Hub/issues/new).
+
+
+# Contributing to Hub
 
 To contribute a feature/fix:
 ----------------------
@@ -17,42 +22,6 @@ To contribute a feature/fix:
 * Adding new datasets following [this example](https://docs.activeloop.ai/en/latest/concepts/dataset.html#how-to-upload-a-dataset)
 * Fix an issue from GitHub Issues
 * Add a feature. For an extended feature please create an issue to discuss.
-
-
-## Get Started
-
-Ready to contribute? Here's how to set up `Hub` for local development.
-
-1. Fork the `Hub` repo on GitHub.
-2. Clone your fork locally:
-```
-    $ git clone git@github.com:your_name_here/hub.git
-```
-3. Install your local copy into a virtualenv. Assuming you have virtualenvwrapper installed,
-   this is how you set up your fork for local development:
-```
-    $ mkvirtualenv Hub
-    $ cd Hub/
-```
-4. Create a branch for local development:
-```
-    $ git checkout -b name-of-your-bugfix-or-feature
-```
-   Now you can make your changes locally.
-
-5. While hacking your changes, make sure to cover all your developments with the required
-   unit tests, and that none of the old tests fail as a consequence of your changes.
-   For this, make sure to run the tests suite and check the code coverage::
-```
-    $ pytest .      # Run the tests
-```
-6. Commit your changes and push your branch to GitHub::
-```
-    $ git add .
-    $ git commit -m "Your detailed description of your changes."
-    $ git push origin name-of-your-bugfix-or-feature
-```
-7. Submit a pull request through the GitHub website.
 
 
 ## Formatting and Linting

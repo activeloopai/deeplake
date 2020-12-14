@@ -61,7 +61,7 @@ class HubHttpClient:
 
         try:
             logger.debug(f"Sending: Headers {headers}, Json: {json}")
-            print(method, request_url, params, data, json, headers, files, timeout)
+
             response = requests.request(
                 method,
                 request_url,

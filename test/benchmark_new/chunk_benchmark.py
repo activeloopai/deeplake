@@ -1,4 +1,5 @@
-from hub.marray.array import HubArray
+import hub
+from hub.schema import Tensor
 import time
 import numpy as np
 
@@ -10,38 +11,39 @@ chunk_sizes = [
     256,
     512,
     1024,
-    2048,
-    4096,
-    8192,
-    8192 * 2,
-    8192 * 4,
-    8192 * 8,
+    # 2048,
+    # 4096,
+    # 8192,
+    # 8192 * 2,
+    # 8192 * 4,
+    # 8192 * 8,
 ]
 
 download_time = []
 upload_time = []
 for cs in chunk_sizes:
-    x = HubArray(
-        (cs, cs),
-        key="test/benchmark:t{}".format(str(cs)),
-        chunk_shape=(cs, cs),
-        dtype="uint8",
-        compression=None,
+    shape = (1,)
+    my_schema = {
+        "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor="default")
+    }
+    ds = hub.Dataset(
+        "test/benchmark:t{}".format(str(cs)), shape=shape, schema=my_schema
     )
-    arr = (255 * np.random.rand(cs, cs)).astype("uint8")
+    arr = (255 * np.random.rand(shape[0], cs, cs)).astype("uint8")
 
     # Upload
     t1 = time.time()
-    x[:] = arr
+    ds["img"][:] = arr
     t2 = time.time()
     upload_time.append(t2 - t1)
 
     # Download
     t3 = time.time()
-    x[:]
+    ds["img"][:]
     t4 = time.time()
     download_time.append(t4 - t3)
 
+    ds.close()
     print(
         "chunk size {} download in {} and uploaded in {}".format(cs, t4 - t3, t2 - t1)
     )

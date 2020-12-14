@@ -1,5 +1,6 @@
 # Tensorflow
 
+## Dataset to Tensorflow Dataset
 Here is an example to transform the dataset into Tensorflow form.
 
 ```python
@@ -23,6 +24,7 @@ for batch in ds:
     print(batch["image"], batch["label"])
 ```
 
+## Tensorflow Dataset to Dataset
 Hub dataset can be created from tensorflow dataset:
 
 ```python
@@ -32,6 +34,7 @@ out_ds = hub.Dataset.from_tensorflow(ds)
 res_ds = out_ds.store("./data/from_tf/ds")
 ```
 
+## TFDS Dataset to Dataset
 Also, it is possible to load a dataset using tensorflow_datasets:
 
 ```python

@@ -40,18 +40,16 @@ def get_sample_size_in_memory(schema):
 
         sample_size += prod(shp) * sz
 
-    if sample_size > mem.total:
+    if sample_size > mem.available:
         return 1
-
-    return int(mem.total // sample_size)
+    return int((mem.available // sample_size) * 0.8)
 
 
 class Transform:
     def __init__(
         self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
     ):
-        """
-        Transform applies a user defined function to each sample in single threaded manner
+        """| Transform applies a user defined function to each sample in single threaded manner.
 
         Parameters
         ----------
@@ -72,6 +70,7 @@ class Transform:
         self.schema = schema
         self._ds = ds
         self.kwargs = kwargs
+        self.workers = workers
 
         if scheduler == "threaded" or (scheduler == "single" and workers > 1):
             self.map = ThreadPool(nodes=workers).map
@@ -92,8 +91,7 @@ class Transform:
 
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
-        """
-        Helper function to flatten dictionary of a recursive tensor
+        """| Helper function to flatten dictionary of a recursive tensor
 
         Parameters
         ----------
@@ -115,9 +113,9 @@ class Transform:
     @classmethod
     def _flatten(cls, items, schema):
         """
-        Takes a dictionary or list of dictionary
-        Returns a dictionary of concatenated values
-        Dictionary follows schema
+        Takes a dictionary or list of dictionary.
+        Returns a dictionary of concatenated values.
+        Dictionary follows schema.
         """
         final_item = {}
         for item in cls._unwrap(items):
@@ -143,13 +141,11 @@ class Transform:
         return cur_type[path[-1]]
 
     def _split_list_to_dicts(self, xs):
-        """
-        Helper function that transform list of dicts into dicts of lists
+        """| Helper function that transform list of dicts into dicts of lists
 
         Parameters
         ----------
         xs: list of dicts
-
         Returns
         ----------
         xs_new: dicts of lists
@@ -183,10 +179,10 @@ class Transform:
         return ds
 
     def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
-        """Batchified upload of results
-        For each tensor batchify based on its chunk and upload
-        If tensor is dynamic then still upload element by element
-        For dynamic tensors, it disable dynamicness and then enables it back
+        """Batchified upload of results.
+        For each tensor batchify based on its chunk and upload.
+        If tensor is dynamic then still upload element by element.
+        For dynamic tensors, it disable dynamicness and then enables it back.
 
         Parameters
         ----------
@@ -203,12 +199,11 @@ class Transform:
 
         for key, value in results.items():
 
-            length = ds[key].chunksize[0]
+            chunk = ds[key].chunksize[0]
+            chunk = 1 if chunk == 0 else chunk
             value = str_to_int(value, ds.dataset.tokenizer)
-
-            if length == 0:
-                length = 1
-
+            num_chunks = math.ceil(len(value) / (chunk * self.workers))
+            length = num_chunks * chunk if self.workers != 1 else len(value)
             batched_values = batchify(value, length)
 
             def upload_chunk(i_batch):
@@ -230,10 +225,9 @@ class Transform:
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
-                [
-                    ds.dataset._tensors[f"/{key}"].set_shape([i + ds.offset], v)
-                    for i, v in enumerate(value)
-                ]
+                ds.dataset._tensors[f"/{key}"].set_shape(
+                    [slice(ds.offset, ds.offset + len(value))], value
+                )
 
         ds.commit()
         return ds
@@ -275,7 +269,6 @@ class Transform:
             _func_argd,
             ds_in,
         )
-
         results = self._unwrap(results)
         results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
         results = list(results)
@@ -291,7 +284,6 @@ class Transform:
             return 0
 
         additional = max(offset + n_results - ds_out.shape[0], 0)
-
         ds_out.append_shape(additional)
 
         self.upload(
@@ -299,6 +291,7 @@ class Transform:
             ds_out[offset : offset + n_results],
             token=token,
         )
+
         return n_results
 
     def store(
@@ -310,8 +303,7 @@ class Transform:
         progressbar: bool = True,
         sample_per_shard=None,
     ):
-        """
-        The function to apply the transformation for each element in batchified manner
+        """| The function to apply the transformation for each element in batchified manner
 
         Parameters
         ----------
@@ -352,7 +344,7 @@ class Transform:
         try:
             length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         except Exception:
-            length = n_samples
+            length = length or n_samples
 
         if length < n_samples:
             n_samples = length
@@ -377,9 +369,7 @@ class Transform:
             unit=" items",
             desc="Computing the transormation",
         ) as pbar:
-            pbar.update(length // 10)
             for ds_in_shard in batchify_generator(ds_in, n_samples):
-
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
 
@@ -396,10 +386,10 @@ class Transform:
         return self.shape[0]
 
     def __getitem__(self, slice_):
-        """
-        Get an item to be computed without iterating on the whole dataset
-        Creates a dataset view, then a temporary dataset to apply the transform
-
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
         slice_: slice
             Gets a slice or slices from dataset
         """

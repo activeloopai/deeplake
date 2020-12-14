@@ -123,9 +123,9 @@ class RayTransform(Transform):
             ds[key, i * length] = batch[0]
 
     def upload(self, results, url: str, token: dict, progressbar: bool = True):
-        """Batchified upload of results
-        For each tensor batchify based on its chunk and upload
-        If tensor is dynamic then still upload element by element
+        """Batchified upload of results.
+        For each tensor batchify based on its chunk and upload.
+        If tensor is dynamic then still upload element by element.
 
         Parameters
         ----------

@@ -7,10 +7,12 @@ from hub.exceptions import AdvancedSlicingNotSupported
 class ShardedDatasetView:
     def __init__(self, datasets: list) -> None:
         """
-        Creates a sharded simple dataset
-        Datasets should have the schema
-        Args:
-            datasets: list of datasets
+        | Creates a sharded simple dataset.
+        | Datasets should have the schema.
+
+        Parameters
+        ----------
+            datasets: list of Datasets
         """
         # TODO add schema check to make sure all datasets have the same schema
 

@@ -41,7 +41,6 @@ class TensorView:
 
         self.squeeze_dims = []
         for it in self.slice_:
-
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
@@ -151,7 +150,7 @@ class TensorView:
                     else new_offsets[i]
                 )
                 slice_list.append(cur_slice)
-            self.dataset._tensors[self.subpath][slice_list] = value
+            self.dataset._tensors[self.subpath][slice_list] = assign_value
 
     def _combine(self, slice_, num=None, ofs=0):
         "Combines a `slice_` with the current num and offset present in tensorview"
@@ -250,6 +249,3 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
-
-
-s = 5

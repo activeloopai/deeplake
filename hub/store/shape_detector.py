@@ -3,6 +3,7 @@ import math
 import numpy as np
 
 from hub.defaults import CHUNK_DEFAULT_SIZE, OBJECT_CHUNK
+from hub.exceptions import HubException
 
 
 class ShapeDetector:
@@ -47,6 +48,13 @@ class ShapeDetector:
             max_shape = tuple(max_shape)
             assert len(shape) == len(max_shape)
             for (s, ms) in zip(shape, max_shape):
+                if not isinstance(ms, int):
+                    raise HubException("MaxShape Dimension should be int")
+                if s is not None and s != ms:
+                    raise HubException(
+                        """Dimension in shape cannot be != max_shape dimension, 
+                        if shape is not None """
+                    )
                 assert s == ms or s is None and isinstance(ms, int)
             return max_shape
 
