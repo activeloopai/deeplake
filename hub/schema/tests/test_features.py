@@ -52,7 +52,9 @@ def test_feature_dict_repr():
 
 def test_segmentation_repr():
     seg1 = Segmentation(shape=(3008, 3008), dtype="uint8", num_classes=5)
-    seg2 = Segmentation(shape=(3008, 3008), dtype="uint8", names=["apple", "orange", "banana"])
+    seg2 = Segmentation(
+        shape=(3008, 3008), dtype="uint8", names=["apple", "orange", "banana"]
+    )
 
     text1 = "Segmentation(shape=(3008, 3008), dtype='uint8', num_classes=5)"
     text2 = "Segmentation(shape=(3008, 3008), dtype='uint8', names=['apple', 'orange', 'banana'], num_classes=3)"
