@@ -8,7 +8,7 @@ import hub.schema
 
 
 img_path = "./benchmarks/sample.png"
-count = 12
+count = 20
 
 
 def bench_pil_compression(img_path=img_path, count=count):
