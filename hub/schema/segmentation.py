@@ -63,10 +63,14 @@ class Segmentation(Tensor):
     def __str__(self):
         out = super().__str__()
         out = "Segmentation" + out[6:-1]
-        out = out + ", names=" + self.names if self.names is not None else out
         out = (
-            out + ", num_classes=" + self.num_classes
-            if self.num_classes is not None
+            out + ", names=" + str(self.class_labels._names)
+            if self.class_labels._names is not None
+            else out
+        )
+        out = (
+            out + ", num_classes=" + str(self.class_labels._num_classes)
+            if self.class_labels._num_classes is not None
             else out
         )
         out += ")"
