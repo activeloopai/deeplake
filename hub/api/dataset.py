@@ -4,6 +4,7 @@ import collections.abc as abc
 import json
 import sys
 import traceback
+import PIL
 
 import fsspec
 import numcodecs
@@ -672,7 +673,7 @@ class Dataset:
 
     @staticmethod
     def from_directory(
-        url, path_to_dir, image_shape, max_shape=(1920, 1080, 4), mode="w+"
+        url, path_to_dir, image_shape, mode="w+"
     ):
         """This utility function is specific to create dataset from the categorical image dataset."""
 
@@ -682,13 +683,27 @@ class Dataset:
                 ds += len(os.listdir(os.path.join(path_to_dir, i)))
             return ds
 
+        def get_max_shape(path_to_dir):
+            max_shape = (0,0)
+            for i in os.listdir(path_to_dir):
+                for j in os.listdir(os.path.join(path_to_dir,i)):
+                    img_path = os.path.join(path_to_dir,i,j)
+                    width,height = PIL.Image.open(img_path).size
+                    if max_shape[0]<width and max_shape[1]<height:
+                        max_shape = (width,height)
+            print(max_shape)            
+            return max_shape     
+        
+
+        # (None,None,3)
         def make_schema(path_to_dir, shape=image_shape):
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                 "labels": labels,
-                "image": Image(shape=shape, max_shape=max_shape, dtype="uint8"),
+                "image": Image(shape=shape, max_shape=(*get_max_shape(path_to_dir),3), dtype="uint8"),
             }
             return (schema, labels)
+               
 
         schema, labels = make_schema(path_to_dir, shape=image_shape)
         ds = Dataset(
