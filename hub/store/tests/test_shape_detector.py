@@ -8,6 +8,12 @@ def test_shape_detector():
     assert s.chunks[1:] == (10, 10)
 
 
+def test_shape_detector_2():
+    s = ShapeDetector((10, 10, 10), 10, compressor="png")
+    assert str(s.dtype) == "float64"
+    assert s.chunks[1:] == (10, 10)
+
+
 def test_shape_detector_wrong_shape():
     try:
         ShapeDetector((10, 10, 10), (10, 10, 20))
