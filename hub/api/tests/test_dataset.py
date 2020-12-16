@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import os
 
 import hub.api.dataset as dataset
 from hub.schema import Tensor, Text, Image
@@ -249,6 +250,49 @@ def test_dataset_batch_write_2():
     ds["image", 0:14] = [np.ones((640 - i, 640, 3)) for i in range(14)]
 
 
+def test_dataset_from_directory():
+    def create_image(path_to_direcotry):
+        shape = (512,512,3)
+        for i in range(10):
+            img = Image.fromarray(np.ones(shape,dtype="uint8"))
+            img.save(os.path.join(path_to_direcotry,str(i)+'.png'))
+
+
+    def data_in_dir(path_to_direcotry):
+        if os.path.exists(path_to_direcotry):
+            create_image(path_to_direcotry)
+        else:
+            os.mkdir(os.path.join(path_to_direcotry))
+            create_image(path_to_direcotry)
+
+    def root_dir_image(root):
+        if os.path.exists(root):
+            import shutil
+            shutil.rmtree(root)
+        os.mkdir(root)
+        for i in range(10):
+            dir_name = 'data_'+str(i)
+            data_in_dir(os.path.join(root,dir_name))
+
+    def del_data(*path_to_dir):
+        for i in path_to_dir:
+            import shutil
+            shutil.rmtree(i)
+
+    root_url = './data/categorical_label_data'
+    store_url = './data/categorical_label_data_store'
+    image_shape = (None,None,3)
+
+    root_dir_image(root_url)
+
+    ds = Dataset.from_directory(store_url,root_url,image_shape)
+    ds.commit()
+    del_data(root_url,store_url)
+    
+
+
+    
+
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_dataset_gcs():
     test_dataset("gcs://snark-test/test_dataset_gcs")
@@ -356,3 +400,4 @@ if __name__ == "__main__":
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()
+    test_dataset_from_directory()
