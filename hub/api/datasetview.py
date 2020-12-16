@@ -22,7 +22,7 @@ class DatasetView:
             The number of samples in this DatasetView
         offset: int
             The offset from which the DatasetView starts
-        squuze_dim: bool
+        squeeze_dim: bool
             For slicing with integers we would love to remove the first dimension to make it nicer
         """
         if dataset is None:
