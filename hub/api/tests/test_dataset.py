@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 import os
+from PIL import Image
 
 import hub.api.dataset as dataset
 from hub.schema import Tensor, Text, Image
@@ -252,9 +253,12 @@ def test_dataset_batch_write_2():
 
 def test_dataset_from_directory():
     def create_image(path_to_direcotry):
+        from PIL import Image
+
         shape = (512, 512, 3)
         for i in range(10):
-            img = Image.fromarray(np.ones(shape, dtype="uint8"))
+            img = np.ones(shape, dtype="uint8")
+            img = Image.fromarray(img)
             img.save(os.path.join(path_to_direcotry, str(i) + ".png"))
 
     def data_in_dir(path_to_direcotry):
@@ -286,15 +290,17 @@ def test_dataset_from_directory():
 
     root_dir_image(root_url)
 
-    ds,labels = Dataset.from_directory(store_url, root_url, image_shape)
+    ds, labels = Dataset.from_directory(store_url, root_url, image_shape)
 
-    for i,label in enumerate(os.listdir(root_url)):
-        for j,image in enumerate(os.listdir(os.path.join(root_url,label))):
-            img_path = os.apth.join(root_url,label,image)
-            ds["image",j] = Image.open(img_path)
-            ds["labels",i] = labels.str2int(label)
-            assert ds["image",j].numpy().shape == (512,512,3)
-            assert ds["labels",i] == labels.str2int(label)
+    for i, label in enumerate(os.listdir(root_url)):
+        for j, image in enumerate(os.listdir(os.path.join(root_url, label))):
+            from PIL import Image
+
+            img_path = os.path.join(root_url, label, image)
+            ds["image", j] = np.asarray(Image.open(img_path))
+            ds["labels", i] = labels.str2int(label)
+            assert ds["image", j].numpy().shape == (512, 512, 3)
+            assert ds["labels", i].numpy() == labels.str2int(label)
     ds.commit()
     del_data(root_url, store_url)
 
