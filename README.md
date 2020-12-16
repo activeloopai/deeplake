@@ -82,6 +82,29 @@ for image, label in train_loader:
     # Training loop here
 ```
 
+### Create a local dataset 
+
+```python
+from hub import Dataset, schema
+import numpy as np
+
+ds = Dataset(
+    "./data/dataset_name",
+    shape = (4,),
+    mode = "w+",
+    schema = {
+        "image": schema.Tensor((512, 512), dtype="float"),
+        "label": schema.Tensor((512, 512), dtype="float"),
+    }
+)
+
+ds["image"][:] = np.zeros((4, 512, 512))
+ds["label"][:] = np.zeros((4, 512, 512))
+ds.commit()
+```
+
+You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path [more here](https://docs.activeloop.ai/en/latest/simple.html#data-storage).
+
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
@@ -116,7 +139,7 @@ from hub import Dataset
 
 ds = Dataset("username/dataset_name")
 ```
-Instead of `username/dataset_name` you could also use `./local/path/`, `s3://path` or `gcs://`
+
 
 ## Documentation
 
