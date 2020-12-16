@@ -22,7 +22,8 @@ class Sequence(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """Construct a sequence of Tensors.
+        """| Construct a sequence of Tensors.
+
         Parameters
         ----------
         shape : Tuple[int] | int

@@ -72,6 +72,9 @@ for batch in ds:
 
 Make sure visualization works perfectly at [app.activeloop.ai](https://app.activeloop.ai)
 
+## Delete
+
+You can delete your dataset in [app.activeloop.ai](https://app.activeloop.ai/) in a dataset overview tab.
 
 ## Issues
 

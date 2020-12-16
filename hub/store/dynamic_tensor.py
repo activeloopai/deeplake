@@ -10,6 +10,7 @@ import numcodecs
 
 from hub.store.nested_store import NestedStore
 from hub.store.shape_detector import ShapeDetector
+from hub.defaults import DEFAULT_COMPRESSOR
 
 from hub.exceptions import (
     DynamicTensorNotFoundException,
@@ -42,7 +43,7 @@ class DynamicTensor:
         max_shape=None,
         dtype="float64",
         chunks=None,
-        compressor="default",
+        compressor=DEFAULT_COMPRESSOR,
     ):
         """Constructor
         Parameters
@@ -64,7 +65,9 @@ class DynamicTensor:
         """
         if not (shape is None):
             # otherwise shape detector fails
-            shapeDt = ShapeDetector(shape, max_shape, chunks, dtype)
+            shapeDt = ShapeDetector(
+                shape, max_shape, chunks, dtype, compressor=compressor
+            )
             shape = shapeDt.shape
             max_shape = shapeDt.max_shape
             chunks = shapeDt.chunks

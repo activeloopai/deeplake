@@ -42,6 +42,7 @@ from hub.exceptions import (
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from hub.numcodecs import PngCodec
 from collections import defaultdict
 
 
@@ -235,6 +236,8 @@ class Dataset:
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
         elif compressor.lower() == "default":
             return "default"
+        elif compressor.lower() == "png":
+            return PngCodec(solo_channel=True)
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
@@ -328,7 +331,7 @@ class Dataset:
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
-        | Usage
+        | Usage:
         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
@@ -388,7 +391,7 @@ class Dataset:
         offset=None,
         num_samples=None,
     ):
-        """| Converts the dataset into a pytorch compatible format
+        """| Converts the dataset into a pytorch compatible format.
 
         Parameters
         ----------
@@ -496,7 +499,7 @@ class Dataset:
         )
 
     def _get_dictionary(self, subpath, slice_=None):
-        """"Gets dictionary from dataset given incomplete subpath"""
+        """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
@@ -526,8 +529,8 @@ class Dataset:
         return self.shape[0]
 
     def flush(self):
-        """Save changes from cache to dataset final storage
-        Does not invalidate this object
+        """Save changes from cache to dataset final storage.
+        Does not invalidate this object.
         """
         for t in self._tensors.values():
             t.flush()
@@ -539,8 +542,8 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage
-        This invalidates this object
+        """Save changes from cache to dataset final storage.
+        This invalidates this object.
         """
         for t in self._tensors.values():
             t.close()
@@ -588,7 +591,8 @@ class Dataset:
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
-        """Converts a tensorflow dataset into hub format
+        """Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
@@ -676,7 +680,8 @@ class Dataset:
         scheduler: str = "single",
         workers: int = 1,
     ):
-        """Converts a TFDS Dataset into hub format
+        """| Converts a TFDS Dataset into hub format.
+
         Parameters
         ----------
         dataset: str
@@ -694,6 +699,7 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -808,7 +814,11 @@ class Dataset:
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
             )
-            return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+            return Image(
+                shape=tf_dt.shape,
+                dtype=dt,
+                max_shape=max_shape,  # compressor="png"
+            )
 
         def class_label_to_hub(tf_dt, max_shape=None):
             if hasattr(tf_dt, "_num_classes"):
