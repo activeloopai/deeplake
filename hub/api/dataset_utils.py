@@ -58,6 +58,19 @@ def slice_extract_info(slice_, num):
     return num, offset
 
 
+def create_numpy_dict(dataset, index):
+    numpy_dict = {}
+    for path in dataset._tensors.keys():
+        d = numpy_dict
+        split = path.split("/")
+        for subpath in split[1:-1]:
+            if subpath not in d:
+                d[subpath] = {}
+            d = d[subpath]
+        d[split[-1]] = dataset[path, index].numpy()
+    return numpy_dict
+
+
 def str_to_int(assign_value, tokenizer):
     if isinstance(assign_value, bytes):
         try:

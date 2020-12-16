@@ -1,5 +1,5 @@
 from hub.api.tensorview import TensorView
-from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import create_numpy_dict, slice_extract_info, slice_split, str_to_int
 from hub.exceptions import NoneValueException
 import collections.abc as abc
 
@@ -206,3 +206,12 @@ class DatasetView:
     def commit(self) -> None:
         """Commit dataset"""
         self.dataset.commit()
+
+    def numpy(self):
+        if self.num_samples == 1 and self.squeeze_dim:
+            return create_numpy_dict(self.dataset, self.offset)
+        else:
+            return [create_numpy_dict(self.dataset, self.offset + i) for i in range(self.num_samples)]
+
+    def compute(self):
+        return self.numpy()

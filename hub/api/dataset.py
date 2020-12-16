@@ -20,7 +20,7 @@ from hub.schema.features import (
 from hub.log import logger
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import create_numpy_dict, slice_extract_info, slice_split, str_to_int
 
 import hub.schema.serialize
 import hub.schema.deserialize
@@ -555,6 +555,12 @@ class Dataset:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )
+
+    def numpy(self):
+        return [create_numpy_dict(self, i) for i in range(self.shape[0])]
+
+    def compute(self):
+        return self.numpy()
 
     def __str__(self):
         out = (
