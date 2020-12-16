@@ -286,7 +286,15 @@ def test_dataset_from_directory():
 
     root_dir_image(root_url)
 
-    ds = Dataset.from_directory(store_url, root_url, image_shape)
+    ds,labels = Dataset.from_directory(store_url, root_url, image_shape)
+
+    for i,label in enumerate(os.listdir(root_url)):
+        for j,image in enumerate(os.listdir(os.path.join(root_url,label))):
+            img_path = os.apth.join(root_url,label,image)
+            ds["image",j] = Image.open(img_path)
+            ds["labels",i] = labels.str2int(label)
+            assert ds["image",j].numpy().shape == (512,512,3)
+            assert ds["labels",i] == labels.str2int(label)
     ds.commit()
     del_data(root_url, store_url)
 
