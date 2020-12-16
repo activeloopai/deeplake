@@ -11,9 +11,23 @@ workflows:
           context: 
             - test
             - azure
+      - test_full:
+          context:
+            - test
+            - azure
+
   test_and_deploy:
     jobs:
       - test:
+          context:  
+            - test
+            - azure
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - test_full:
           context:  
             - test
             - azure
@@ -28,6 +42,7 @@ workflows:
             - snark-docker
           requires:
             - test
+            - test_full
           filters:
             tags:
               only: /[0-9]+(\.[0-9]+)*/
@@ -36,6 +51,37 @@ workflows:
 
 jobs:
   test:
+   docker:
+      - image: circleci/python:3.8
+   steps:
+      - checkout
+      - run:
+          name: "Prep Google credentials"
+          command: |
+            mkdir -p "/home/circleci/.secrets/"
+            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+      - run:
+          name: "Collecting requirements"
+          command: |
+            pip install -r requirements-dev.txt
+            pip install -r requirements.txt
+            pip install -e .
+      - run:
+          name: "Checking code style"
+          command: |
+            pip install flake8
+            flake8 . --count --exit-zero --max-complexity=10 --statistics
+      - run:
+          name: "Running tests"
+          command: |
+            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+            pytest --cov-report=xml --cov=./
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
+
+
+  test_full:
     docker:
       - image: circleci/python:3.8
     steps:
