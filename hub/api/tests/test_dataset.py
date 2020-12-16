@@ -226,6 +226,33 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     ds["image", 0:1] = [np.zeros((100, 100))]
 
 
+def test_dataset_bug_3(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    ds = Dataset(url)
+    ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_wrong_append(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    try:
+        ds = Dataset(url, shape=100)
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+    try:
+        ds = Dataset(url, schema={"hello": "uint8"})
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
     try:
         Tensor(shape=(120, 120, 3), max_shape=(120, 120, 4))
