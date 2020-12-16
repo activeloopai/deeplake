@@ -17,6 +17,7 @@ class Text(Tensor):
         compressor="lz4",
     ):
         """| Construct the connector.
+        Returns integer representation of given string.
 
         Parameters
         ----------
