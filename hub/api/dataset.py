@@ -94,6 +94,10 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and 
+            the dataset won't be visible in the visualizer to the public
         """
 
         shape = shape or (None,)
