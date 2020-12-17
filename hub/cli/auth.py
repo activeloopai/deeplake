@@ -26,7 +26,7 @@ def login(username, password):
         AuthClient.check_token(token)
     else:
         logger.info(
-            "Please log in using Snark AI credentials. You can register at https://app.activeloop.ai "
+            "Please log in using Activeloop credentials. You can register at https://app.activeloop.ai "
         )
         if not username:
             logger.debug("Prompting for username.")

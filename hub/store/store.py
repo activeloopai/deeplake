@@ -34,7 +34,9 @@ def _connect(tag, public=True):
     return path, creds
 
 
-def get_fs_and_path(url: str, token=None, public=True) -> Tuple[fsspec.AbstractFileSystem, str]:
+def get_fs_and_path(
+    url: str, token=None, public=True
+) -> Tuple[fsspec.AbstractFileSystem, str]:
     if url.startswith("s3://"):
         token = token or dict()
         token = read_aws_creds(token) if isinstance(token, str) else token

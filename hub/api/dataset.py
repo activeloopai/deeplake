@@ -64,7 +64,7 @@ class Dataset:
         storage_cache: int = 2 ** 28,
         lock_cache=True,
         tokenizer=None,
-        public=True
+        public=True,
     ):
         """| Open a new or existing dataset for read/write
 
