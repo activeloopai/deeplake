@@ -254,7 +254,7 @@ class AdvancedSlicingNotSupported(HubException):
 
 class NotMatchingValueShapeException(HubException):
     def __init__(self):
-        message = "The length of the value shape does not match the length of max_shape specified during the Dataset creation"
+        message = "The length of the value shape does not match the length of 'max_shape' specified during the Dataset creation"
         super(HubException, self).__init__(message=message)
 
 
