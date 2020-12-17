@@ -16,6 +16,7 @@ from hub.exceptions import (
     DynamicTensorNotFoundException,
     ValueShapeError,
     DynamicTensorShapeException,
+    NotMatchingValueShapeException,
 )
 from hub.schema.sequence import Sequence
 
@@ -399,9 +400,12 @@ class DynamicTensor:
                 elif isinstance(slice_[i], slice) and (
                     slice_[i].stop is None or slice_[i].stop < 0
                 ):
-                    slice_[i] = slice_stop_changed(
-                        slice_[i], (slice_[i].stop or 0) + real_shapes[r]
-                    )
+                    try:
+                        slice_[i] = slice_stop_changed(
+                            slice_[i], (slice_[i].stop or 0) + real_shapes[r]
+                        )
+                    except IndexError:
+                        raise NotMatchingValueShapeException
         return tuple(slice_)
 
     def _delete_chunks_after_reshape(self, samples, new_shape: np.ndarray):
