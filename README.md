@@ -82,6 +82,29 @@ for image, label in train_loader:
     # Training loop here
 ```
 
+### Create a local dataset 
+
+```python
+from hub import Dataset, schema
+import numpy as np
+
+ds = Dataset(
+    "./data/dataset_name",
+    shape = (4,),
+    mode = "w+",
+    schema = {
+        "image": schema.Tensor((512, 512), dtype="float"),
+        "label": schema.Tensor((512, 512), dtype="float"),
+    }
+)
+
+ds["image"][:] = np.zeros((4, 512, 512))
+ds["label"][:] = np.zeros((4, 512, 512))
+ds.commit()
+```
+
+You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path [more here](https://docs.activeloop.ai/en/latest/simple.html#data-storage).
+
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
@@ -116,7 +139,7 @@ from hub import Dataset
 
 ds = Dataset("username/dataset_name")
 ```
-Instead of `username/dataset_name` you could also use `./local/path/`, `s3://path` or `gcs://`
+
 
 ## Documentation
 
@@ -137,7 +160,7 @@ Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj
 
 As always, thanks to our amazing contributors!     </br>
 
-[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](https://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
+[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
 
 
 ## Examples
