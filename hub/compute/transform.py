@@ -18,11 +18,10 @@ import posixpath
 from hub.defaults import OBJECT_CHUNK
 
 
-def get_sample_size_in_memory(schema):
-    """Given Schema, looks into memory how many samples can fit and returns it"""
+def get_sample_size(schema, workers):
+    """Given Schema, decides how many samples to take at once and returns it"""
     schema = featurify(schema)
-    mem = virtual_memory()
-    sample_size = 0
+    samples = 10000
     for feature in schema._flatten():
         shp = list(feature.max_shape)
         if len(shp) == 0:
@@ -38,11 +37,8 @@ def get_sample_size_in_memory(schema):
                 res *= s
             return res
 
-        sample_size += prod(shp) * sz
-
-    if sample_size > mem.available:
-        return 1
-    return int((mem.available // sample_size) * 0.8)
+        samples = min(samples, (16 * 1024 * 1024 * 8) // (prod(shp) * sz))
+    return samples * workers
 
 
 class Transform:
@@ -335,12 +331,9 @@ class Transform:
 
         # compute shard length
         if sample_per_shard is None:
-            n_samples = get_sample_size_in_memory(self.schema)
-            n_samples = min(10000, n_samples)
-            n_samples = max(512, n_samples)
+            n_samples = get_sample_size(self.schema, self.workers)
         else:
             n_samples = sample_per_shard
-
         try:
             length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
         except Exception:
@@ -372,11 +365,10 @@ class Transform:
             for ds_in_shard in batchify_generator(ds_in, n_samples):
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
-
+                pbar.update(n_results)
                 if n_results < n_samples or n_results == 0:
                     break
                 start += n_samples
-                pbar.update(n_samples)
 
         ds_out.resize_shape(total)
         ds_out.commit()

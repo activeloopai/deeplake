@@ -1,3 +1,4 @@
+from hub.exceptions import HubException
 import numpy as np
 import pytest
 import os
@@ -225,6 +226,13 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_no_shape(url="./data/test/dataset", token=None):
+    try:
+        Tensor(shape=(120, 120, 3), max_shape=(120, 120, 4))
+    except HubException:
+        pass
 
 
 def test_dataset_batch_write():
