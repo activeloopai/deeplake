@@ -316,7 +316,7 @@ class Dataset:
         elif not slice_list:
             if subpath in self._tensors.keys():
                 return ObjectView(
-                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
+                    dataset=self, subpath=subpath, slice_list=slice(0, self.shape[0])
                 )
             return self._get_dictionary(subpath)
         else:
