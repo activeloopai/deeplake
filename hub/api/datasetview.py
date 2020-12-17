@@ -1,5 +1,10 @@
 from hub.api.tensorview import TensorView
-from hub.api.dataset_utils import create_numpy_dict, slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import (
+    create_numpy_dict,
+    slice_extract_info,
+    slice_split,
+    str_to_int,
+)
 from hub.exceptions import NoneValueException
 import collections.abc as abc
 
@@ -8,9 +13,10 @@ class DatasetView:
     def __init__(
         self,
         dataset=None,
-        num_samples=None,
-        offset=None,
-        squeeze_dim=False,
+        num_samples: int = None,
+        offset: int = None,
+        squeeze_dim: bool = False,
+        lazy: bool = True,
     ):
         """Creates a DatasetView object for a subset of the Dataset.
 
@@ -22,8 +28,10 @@ class DatasetView:
             The number of samples in this DatasetView
         offset: int
             The offset from which the DatasetView starts
-        squeeze_dim: bool
+        squeeze_dim: bool, optional
             For slicing with integers we would love to remove the first dimension to make it nicer
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         """
         if dataset is None:
             raise NoneValueException("dataset")
@@ -36,6 +44,7 @@ class DatasetView:
         self.num_samples = num_samples
         self.offset = offset
         self.squeeze_dim = squeeze_dim
+        self.lazy = lazy
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from DatasetView
@@ -63,17 +72,23 @@ class DatasetView:
                 num_samples=num,
                 offset=ofs + self.offset,
                 squeeze_dim=isinstance(slice_list[0], int),
+                lazy=self.lazy,
             )
         elif not slice_list:
             slice_ = slice(self.offset, self.offset + self.num_samples)
             if subpath in self.dataset._tensors.keys():
-                return TensorView(
+                tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
                     slice_=slice_,
                     squeeze_dims=[True] if self.squeeze_dim else [],
+                    lazy=self.lazy,
                 )
-            return self._get_dictionary(self.dataset, subpath, slice=slice_)
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
+            return self._get_dictionary(subpath, slice=slice_)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             slice_list[0] = (
@@ -82,12 +97,17 @@ class DatasetView:
                 else slice(ofs + self.offset, ofs + self.offset + num)
             )
             if subpath in self.dataset._tensors.keys():
-                return TensorView(
+                tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
                     slice_=slice_list,
                     squeeze_dims=[True] if self.squeeze_dim else [],
+                    lazy=self.lazy,
                 )
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -151,12 +171,17 @@ class DatasetView:
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
                 slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
-                cur[split_key[-1]] = TensorView(
+                tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=key,
                     slice_=slice_,
                     squeeze_dims=[True] if self.squeeze_dim else [],
+                    lazy=self.lazy,
                 )
+                if self.lazy:
+                    cur[split_key[-1]] = tensorview
+                else:
+                    cur[split_key[-1]] = tensorview.compute()
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
@@ -211,7 +236,16 @@ class DatasetView:
         if self.num_samples == 1 and self.squeeze_dim:
             return create_numpy_dict(self.dataset, self.offset)
         else:
-            return [create_numpy_dict(self.dataset, self.offset + i) for i in range(self.num_samples)]
+            return [
+                create_numpy_dict(self.dataset, self.offset + i)
+                for i in range(self.num_samples)
+            ]
+
+    def disable_lazy(self):
+        self.lazy = False
+
+    def enable_lazy(self):
+        self.lazy = True
 
     def compute(self):
         return self.numpy()

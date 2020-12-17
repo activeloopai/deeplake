@@ -267,6 +267,7 @@ class Transform:
         """
         Takes a shard of iteratable ds_in, compute and stores in DatasetView
         """
+
         def call_func(fn_index, item, as_list=False):
             """Calls all the functions one after the other
 
@@ -295,8 +296,11 @@ class Transform:
             return result
 
         def _func_argd(item):
-            result = item.numpy() if isinstance(item, DatasetView) else item
-            result = call_func(0, result)  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
+            if isinstance(item, DatasetView) or isinstance(item, Dataset):
+                item = item.numpy()
+            result = call_func(
+                0, item
+            )  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
             return result
 
         ds_in = list(ds_in)

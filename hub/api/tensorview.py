@@ -11,6 +11,7 @@ class TensorView:
         subpath=None,
         slice_=None,
         squeeze_dims=[],
+        lazy: bool = True,
     ):
         """Creates a TensorView object for a particular tensor in the dataset
 
@@ -22,6 +23,8 @@ class TensorView:
             The full path to the particular Tensor in the Dataset
         slice_: optional
             The `slice_` of this Tensor that needs to be accessed
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         """
 
         if dataset is None:
@@ -31,6 +34,7 @@ class TensorView:
 
         self.dataset = dataset
         self.subpath = subpath
+        self.lazy = lazy
 
         if isinstance(slice_, int) or isinstance(slice_, slice):
             self.slice_ = [slice_]
@@ -110,9 +114,16 @@ class TensorView:
                     else new_offsets[i]
                 )
                 slice_list.append(cur_slice)
-            return TensorView(
-                dataset=self.dataset, subpath=self.subpath, slice_=slice_list
+            tensorview = TensorView(
+                dataset=self.dataset,
+                subpath=self.subpath,
+                slice_=slice_list,
+                lazy=self.lazy,
             )
+            if self.lazy:
+                return tensorview
+            else:
+                return tensorview.compute()
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
@@ -249,3 +260,9 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
+
+    def disable_lazy(self):
+        self.lazy = False
+
+    def enable_lazy(self):
+        self.lazy = True

@@ -20,7 +20,12 @@ from hub.schema.features import (
 from hub.log import logger
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import create_numpy_dict, slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import (
+    create_numpy_dict,
+    slice_extract_info,
+    slice_split,
+    str_to_int,
+)
 
 import hub.schema.serialize
 import hub.schema.deserialize
@@ -65,6 +70,7 @@ class Dataset:
         storage_cache: int = 2 ** 28,
         lock_cache=True,
         tokenizer=None,
+        lazy: bool = True,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -94,6 +100,8 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         """
 
         shape = shape or (None,)
@@ -112,6 +120,7 @@ class Dataset:
         self.token = token
         self.mode = mode
         self.tokenizer = tokenizer
+        self.lazy = lazy
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self.url, token=token)
@@ -314,17 +323,31 @@ class Dataset:
                 num_samples=num,
                 offset=ofs,
                 squeeze_dim=isinstance(slice_list[0], int),
+                lazy=self.lazy,
             )
         elif not slice_list:
             if subpath in self._tensors.keys():
-                return TensorView(
-                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
+                tensorview = TensorView(
+                    dataset=self,
+                    subpath=subpath,
+                    slice_=slice(0, self.shape[0]),
+                    lazy=self.lazy,
                 )
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
             if subpath in self._tensors.keys():
-                return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
+                tensorview = TensorView(
+                    dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
+                )
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -512,9 +535,13 @@ class Dataset:
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
                 slice_ = slice_ if slice_ else slice(0, self.shape[0])
-                cur[split_key[-1]] = TensorView(
-                    dataset=self, subpath=key, slice_=slice_
+                tensorview = TensorView(
+                    dataset=self, subpath=key, slice_=slice_, lazy=self.lazy
                 )
+                if self.lazy:
+                    cur[split_key[-1]] = tensorview
+                else:
+                    cur[split_key[-1]] = tensorview.compute()
         if len(tensor_dict) == 0:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
@@ -527,6 +554,12 @@ class Dataset:
     def __len__(self):
         """ Number of samples in the dataset """
         return self.shape[0]
+
+    def disable_lazy(self):
+        self.lazy = False
+
+    def enable_lazy(self):
+        self.lazy = True
 
     def flush(self):
         """Save changes from cache to dataset final storage.
