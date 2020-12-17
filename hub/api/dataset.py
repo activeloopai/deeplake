@@ -20,6 +20,7 @@ from hub.schema.features import (
 from hub.log import logger
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
+from hub.api.objectview import ObjectView
 from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 
 import hub.schema.serialize
@@ -42,7 +43,6 @@ from hub.exceptions import (
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
-from hub.numcodecs import PngCodec
 from collections import defaultdict
 
 
@@ -236,8 +236,6 @@ class Dataset:
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
         elif compressor.lower() == "default":
             return "default"
-        elif compressor.lower() == "png":
-            return PngCodec(solo_channel=True)
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
@@ -317,21 +315,21 @@ class Dataset:
             )
         elif not slice_list:
             if subpath in self._tensors.keys():
-                return TensorView(
+                return ObjectView(
                     dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
                 )
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            if subpath in self._tensors.keys():
-                return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
-            if len(slice_list) > 1:
-                raise ValueError("You can't slice a dictionary of Tensors")
-            return self._get_dictionary(subpath, slice_list[0])
+            # if subpath in self._tensors.keys():
+            return ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)
+            # if len(slice_list) > 1:
+            #     raise ValueError("You can't slice a dictionary of Tensors")
+            # return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
-        | Usage:
+        | Usage
         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
@@ -371,7 +369,6 @@ class Dataset:
         self.resize_shape(size)
 
     def delete(self):
-        """ Deletes the dataset """
         fs, path = self._fs, self._path
         exist_meta = fs.exists(posixpath.join(path, "meta.json"))
         if exist_meta:
@@ -391,7 +388,7 @@ class Dataset:
         offset=None,
         num_samples=None,
     ):
-        """| Converts the dataset into a pytorch compatible format.
+        """| Converts the dataset into a pytorch compatible format
 
         Parameters
         ----------
@@ -499,7 +496,7 @@ class Dataset:
         )
 
     def _get_dictionary(self, subpath, slice_=None):
-        """Gets dictionary from dataset given incomplete subpath"""
+        """"Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
@@ -529,8 +526,8 @@ class Dataset:
         return self.shape[0]
 
     def flush(self):
-        """Save changes from cache to dataset final storage.
-        Does not invalidate this object.
+        """Save changes from cache to dataset final storage
+        Does not invalidate this object
         """
         for t in self._tensors.values():
             t.flush()
@@ -542,8 +539,8 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage.
-        This invalidates this object.
+        """Save changes from cache to dataset final storage
+        This invalidates this object
         """
         for t in self._tensors.values():
             t.close()
@@ -590,17 +587,12 @@ class Dataset:
         return self._tensors.keys()
 
     @staticmethod
-    def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
-        """Converts a tensorflow dataset into hub format.
-
+    def from_tensorflow(ds):
+        """Converts a tensorflow dataset into hub format
         Parameters
         ----------
         dataset:
             The tensorflow dataset object that needs to be converted into hub format
-        scheduler: str
-            choice between "single", "threaded", "processed"
-        workers: int
-            how many threads or processes to use
 
         Examples
         --------
@@ -664,7 +656,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
+        @hub.transform(schema=my_schema)
         def my_transform(sample):
             sample = sample if isinstance(sample, dict) else {"data": sample}
             return transform_numpy(sample)
@@ -672,16 +664,8 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_tfds(
-        dataset,
-        split=None,
-        num: int = -1,
-        sampling_amount: int = 1,
-        scheduler: str = "single",
-        workers: int = 1,
-    ):
-        """| Converts a TFDS Dataset into hub format.
-
+    def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
+        """Converts a TFDS Dataset into hub format
         Parameters
         ----------
         dataset: str
@@ -695,11 +679,6 @@ class Dataset:
         sampling_amount: float, optional
             a value from 0 to 1, that specifies how much of the dataset would be sampled to determinte feature shapes
             value of 0 would mean no sampling and 1 would imply that entire dataset would be sampled
-        scheduler: str
-            choice between "single", "threaded", "processed"
-        workers: int
-            how many threads or processes to use
-
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -814,11 +793,7 @@ class Dataset:
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
             )
-            return Image(
-                shape=tf_dt.shape,
-                dtype=dt,
-                max_shape=max_shape,  # compressor="png"
-            )
+            return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
 
         def class_label_to_hub(tf_dt, max_shape=None):
             if hasattr(tf_dt, "_num_classes"):
@@ -878,25 +853,20 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
+        @hub.transform(schema=my_schema)
         def my_transform(sample):
             return transform_numpy(sample)
 
         return my_transform(ds)
 
     @staticmethod
-    def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
+    def from_pytorch(dataset):
         """| Converts a pytorch dataset object into hub format
 
         Parameters
         ----------
         dataset:
-            The pytorch dataset object that needs to be converted into hub format
-        scheduler: str
-            choice between "single", "threaded", "processed"
-        workers: int
-            how many threads or processes to use
-        """
+            The pytorch dataset object that needs to be converted into hub format"""
 
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
@@ -974,7 +944,7 @@ class Dataset:
                     d[k] = transform_numpy(v)
             return d
 
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
+        @hub.transform(schema=my_schema)
         def my_transform(sample):
             return transform_numpy(sample)
 
@@ -1061,3 +1031,4 @@ class TorchDataset:
             if self.inplace & (self.output_type != dict) & (type(d) == dict):
                 d = self.output_type(d.values())
             yield (d)
+
