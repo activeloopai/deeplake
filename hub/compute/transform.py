@@ -403,8 +403,6 @@ class Transform:
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
                 pbar.update(n_results)
-                if n_results < n_samples or n_results == 0:
-                    break
                 start += n_samples
 
         ds_out.resize_shape(total)
