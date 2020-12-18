@@ -44,6 +44,7 @@ from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
+
 from hub.utils import norm_cache, norm_shape
 from hub import defaults
 
@@ -66,6 +67,7 @@ class Dataset:
         storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
         tokenizer=None,
+        public=True,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -93,6 +95,10 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         """
 
         shape = norm_shape(shape)
@@ -109,7 +115,7 @@ class Dataset:
         self.tokenizer = tokenizer
 
         self._fs, self._path = (
-            (fs, url) if fs else get_fs_and_path(self._url, token=token)
+            (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
         self._cache = cache
         self._storage_cache = storage_cache
@@ -176,7 +182,7 @@ class Dataset:
             self.username = spl[-2]
             self.dataset_name = spl[-1]
             HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta
+                self.username, self.dataset_name, self.meta, public=public
             )
 
     @property
