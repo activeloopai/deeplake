@@ -1,6 +1,6 @@
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
-from hub.schema import Sequence, Tensor, SchemaDict
+from hub.schema import Sequence, Tensor, SchemaDict, Primitive
 from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 # from hub.exceptions import NoneValueException
 import collections.abc as abc
@@ -55,8 +55,8 @@ class ObjectView(TensorView):
                 nums.append(dim)
                 offsets.append(0)
                 squeeze_dims.append(False)
-        if (isinstance(schema_obj.dtype, Tensor)
-                and not isinstance(schema_obj.dtype, Sequence)):
+        if (not isinstance(schema_obj.dtype, Primitive)
+                and not isinstance(schema_obj, Sequence)):
             raise ValueError("Only sequences can be nested")
         # Nested tensor. Bad use case.
         # if isinstance(schema_obj.dtype, Tensor):
@@ -65,7 +65,7 @@ class ObjectView(TensorView):
     def process_path(self, subpath):
         nums, offsets, squeeze_dims = self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy()
         paths = subpath.split('/')[1:]
-        schema_obj = self.inner_schema_obj if self.inner_schema_obj else self.schema[paths[0]]
+        schema_obj = self.inner_schema_obj.dtype.dict_[paths[0]] if self.inner_schema_obj else self.schema[paths[0]]
         self.num_process(schema_obj, nums, offsets, squeeze_dims)
         for path in paths[1:]:
             try:
@@ -243,4 +243,3 @@ class ObjectView(TensorView):
             slice_ = [slice(None, None)]
         slice_ += [slice(ofs, ofs + num) if num else slice(None, None) for ofs, num in zip(self.offsets, self.nums)]
         return f"ObjectView(subpath='{self.subpath}', slice={str(slice_)})"
-
