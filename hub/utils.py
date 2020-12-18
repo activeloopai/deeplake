@@ -54,6 +54,17 @@ def azure_creds_exist():
     return False
 
 
+def hub_creds_exist():
+    """Checks if credentials exists"""
+
+    import os
+
+    env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    if env is not None:
+        return True
+    return False
+
+
 def pytorch_loaded():
     try:
         import torch

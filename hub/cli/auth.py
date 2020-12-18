@@ -13,33 +13,7 @@ from hub.client.hub_control import HubControlClient
 @click.option("--password", "-p", default=None, help="Your Snark AI password")
 def login(username, password):
     """ Logs in to Snark AI"""
-    token = ""
-    if token:
-        logger.info("Token login.")
-        logger.degug("Getting the token...")
-        token = click.prompt(
-            "Please paste the authentication token from {}".format(
-                config.GET_TOKEN_REST_SUFFIX, type=str, hide_input=True
-            )
-        )
-        token = token.strip()
-        AuthClient.check_token(token)
-    else:
-        logger.info(
-            "Please log in using Activeloop credentials. You can register at https://app.activeloop.ai "
-        )
-        if not username:
-            logger.debug("Prompting for username.")
-            username = click.prompt("Username", type=str)
-        username = username.strip()
-        if not password:
-            logger.debug("Prompting for password.")
-            password = click.prompt("Password", type=str, hide_input=True)
-        password = password.strip()
-        token = AuthClient().get_access_token(username, password)
-    TokenManager.set_token(token)
-    HubControlClient().get_credentials()
-    logger.info("Login Successful.")
+    login_fn(username, password)
 
 
 @click.command()
@@ -69,3 +43,34 @@ def register(username, email, password):
     AuthClient().register(username, email, password)
     token = AuthClient().get_access_token(username, password)
     TokenManager.set_token(token)
+
+
+def login_fn(username, password):
+    """ Logs in to Snark AI"""
+    token = ""
+    if token:
+        logger.info("Token login.")
+        logger.degug("Getting the token...")
+        token = click.prompt(
+            "Please paste the authentication token from {}".format(
+                config.GET_TOKEN_REST_SUFFIX, type=str, hide_input=True
+            )
+        )
+        token = token.strip()
+        AuthClient.check_token(token)
+    else:
+        logger.info(
+            "Please log in using Activeloop credentials. You can register at https://app.activeloop.ai "
+        )
+        if not username:
+            logger.debug("Prompting for username.")
+            username = click.prompt("Username", type=str)
+        username = username.strip()
+        if not password:
+            logger.debug("Prompting for password.")
+            password = click.prompt("Password", type=str, hide_input=True)
+        password = password.strip()
+        token = AuthClient().get_access_token(username, password)
+    TokenManager.set_token(token)
+    HubControlClient().get_credentials()
+    logger.info("Login Successful.")
