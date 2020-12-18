@@ -115,7 +115,7 @@ class Dataset:
         self.tokenizer = tokenizer
 
         self._fs, self._path = (
-            (fs, url) if fs else get_fs_and_path(self.url, token=token, public=public)
+            (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
         self._cache = cache
         self._storage_cache = storage_cache
