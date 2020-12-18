@@ -677,12 +677,27 @@ class Dataset:
     @staticmethod
     def from_directory(url, path_to_dir, image_shape, mode="w+"):
         """This utility function is specific to create dataset from the categorical image dataset.
-        ------------------------------------------------------------------------------------------
+           
+           Parameters
+           --------
+           url:path to store the dataset (example: username/test_data_here)
+
+           path_to_dir: path of the directory where the image dataset root folder exists.
+
+           image_shape: Assign the shape of image.(example: (512,512,3) if image is rgb)
+
+           mode: Different writing mode for dataset.
+           
+           ---------
+           
+           Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
+           use.
+
 
         """
 
         def get_ds_size(path_to_dir):
-            ds = 1
+            ds = 1 
             for i in os.listdir(path_to_dir):
                 ds += len(os.listdir(os.path.join(path_to_dir, i)))
             return ds

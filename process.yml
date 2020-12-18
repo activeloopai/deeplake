@@ -1,0 +1,534 @@
+# Orb 'circleci/slack@3.4.2' resolved to 'circleci/slack@3.4.2'
+# Orb 'codecov/codecov@1.1.1' resolved to 'codecov/codecov@1.1.1'
+version: 2
+jobs:
+  test:
+    docker:
+    - image: circleci/python:3.8
+    steps:
+    - checkout
+    - run:
+        name: Prep Google credentials
+        command: |
+          mkdir -p "/home/circleci/.secrets/"
+          echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+    - run:
+        name: Collecting requirements
+        command: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+          pip install -e .
+    - run:
+        name: Checking code style
+        command: |
+          pip install flake8
+          flake8 . --count --exit-zero --max-complexity=10 --statistics
+    - run:
+        name: Running tests
+        command: |
+          export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+          pytest --cov-report=xml --cov=./
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="fail"' >> $BASH_ENV
+        name: Slack - Setting Failure Condition
+        when: on_fail
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="success"' >> $BASH_ENV
+        name: Slack - Setting Success Condition
+        when: on_success
+    - run:
+        command: |
+          if [ ! -x /bin/bash ]; then
+            echo Bash not installed.
+            exit 1
+          fi
+        name: Provide error if non-bash shell
+    - run:
+        command: |
+          current_branch_in_filter=false
+
+          IFS="," read -ra BRANCH_FILTERS <<< ""
+
+          for i in "${BRANCH_FILTERS[@]}"; do
+            if [ "${i}" == "${CIRCLE_BRANCH}" ]; then
+              current_branch_in_filter=true
+            fi
+          done
+
+          if [ "x" == "x" ] || [ "$current_branch_in_filter" = true ]; then
+            # Provide error if no webhook is set and error. Otherwise continue
+            if [ -z "$SLACK_WEBHOOK" ]; then
+              echo "NO SLACK WEBHOOK SET"
+              echo "Please input your SLACK_WEBHOOK value either in the settings for this project, or as a parameter for this orb."
+              exit 1
+            else
+              #Create Members string
+              if [ -n "" ]; then
+                IFS="," read -ra SLACK_MEMBERS <<< ""
+                for i in "${SLACK_MEMBERS[@]}"; do
+                  if [ $(echo ${i} | head -c 1) == "S" ]; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!subteam^${i}> "
+                  elif echo ${i} | grep -E "^(here|channel|everyone)$" > /dev/null; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!${i}> "
+                  else
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<@${i}> "
+                  fi
+                done
+              fi
+              #If successful
+              if [ "$SLACK_BUILD_STATUS" = "success" ]; then
+                #Skip if fail_only
+                if [ true = true ]; then
+                  echo "The job completed successfully"
+                  echo '"fail_only" is set to "true". No Slack notification sent.'
+                else
+                  curl -X POST -H 'Content-type: application/json' \
+                    --data "{ \
+                              \"attachments\": [ \
+                                { \
+                                  \"fallback\": \":tada: A $CIRCLE_JOB job has succeeded!\", \
+                                  \"text\": \":tada: A $CIRCLE_JOB job has succeeded! $SLACK_MENTIONS\", \
+                                  \"fields\": [ \
+                                    { \
+                                      \"title\": \"Project\", \
+                                      \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                                      \"short\": true \
+                                    }, \
+                                    { \
+                                      \"title\": \"Job Number\", \
+                                      \"value\": \"$CIRCLE_BUILD_NUM\", \
+                                      \"short\": true \
+                                    } \
+                                  ], \
+                                  \"actions\": [ \
+                                    { \
+                                      \"type\": \"button\", \
+                                      \"text\": \"Visit Job\", \
+                                      \"url\": \"$CIRCLE_BUILD_URL\" \
+                                    } \
+                                  ], \
+                                  \"color\": \"#1CBF43\" \
+                                } \
+                              ] \
+                            } " $SLACK_WEBHOOK
+                  echo "Job completed successfully. Alert sent."
+                fi
+              else
+                #If Failed
+                curl -X POST -H 'Content-type: application/json' \
+                  --data "{ \
+                    \"attachments\": [ \
+                      { \
+                        \"fallback\": \":red_circle: A $CIRCLE_JOB job has failed!\", \
+                        \"text\": \":red_circle: A $CIRCLE_JOB job has failed! $SLACK_MENTIONS\", \
+                        \"fields\": [ \
+                          { \
+                            \"title\": \"Project\", \
+                            \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                            \"short\": true \
+                          }, \
+                          { \
+                            \"title\": \"Job Number\", \
+                            \"value\": \"$CIRCLE_BUILD_NUM\", \
+                            \"short\": true \
+                          } \
+                        ], \
+                        \"actions\": [ \
+                          { \
+                            \"type\": \"button\", \
+                            \"text\": \"Visit Job\", \
+                            \"url\": \"$CIRCLE_BUILD_URL\" \
+                          } \
+                        ], \
+                        \"color\": \"#ed5c5c\" \
+                      } \
+                    ] \
+                  } " $SLACK_WEBHOOK
+                echo "Job failed. Alert sent."
+              fi
+            fi
+          else
+            echo "Current branch is not included in only_for_branches filter; no status alert will be sent"
+          fi
+        name: Slack - Sending Status Alert
+        shell: /bin/bash
+        when: always
+  test_full:
+    docker:
+    - image: circleci/python:3.8
+    steps:
+    - checkout
+    - run:
+        name: Prep Google credentials
+        command: |
+          mkdir -p "/home/circleci/.secrets/"
+          echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+    - run:
+        name: Collecting requirements
+        command: |
+          pip install -r requirements-dev.txt
+          pip install -r requirements-optional.txt
+          pip install -r requirements.txt
+          pip install -e .
+    - run:
+        name: Checking code style
+        command: |
+          pip install flake8
+          flake8 . --count --exit-zero --max-complexity=10 --statistics
+    - run:
+        name: Running tests
+        command: |
+          export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+          pytest --cov-report=xml --cov=./
+    - run:
+        command: |
+          curl -s https://codecov.io/bash | bash -s -- \
+            -f "coverage.xml" \
+            -t "${CODECOV_TOKEN}" \
+            -n "${CIRCLE_BUILD_NUM}" \
+            -F "" \
+            -Z || echo 'Codecov upload failed'
+        name: Upload Coverage Results
+        when: always
+    - store_test_results:
+        path: test-reports
+    - store_artifacts:
+        path: test-reports
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="fail"' >> $BASH_ENV
+        name: Slack - Setting Failure Condition
+        when: on_fail
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="success"' >> $BASH_ENV
+        name: Slack - Setting Success Condition
+        when: on_success
+    - run:
+        command: |
+          if [ ! -x /bin/bash ]; then
+            echo Bash not installed.
+            exit 1
+          fi
+        name: Provide error if non-bash shell
+    - run:
+        command: |
+          current_branch_in_filter=false
+
+          IFS="," read -ra BRANCH_FILTERS <<< ""
+
+          for i in "${BRANCH_FILTERS[@]}"; do
+            if [ "${i}" == "${CIRCLE_BRANCH}" ]; then
+              current_branch_in_filter=true
+            fi
+          done
+
+          if [ "x" == "x" ] || [ "$current_branch_in_filter" = true ]; then
+            # Provide error if no webhook is set and error. Otherwise continue
+            if [ -z "$SLACK_WEBHOOK" ]; then
+              echo "NO SLACK WEBHOOK SET"
+              echo "Please input your SLACK_WEBHOOK value either in the settings for this project, or as a parameter for this orb."
+              exit 1
+            else
+              #Create Members string
+              if [ -n "" ]; then
+                IFS="," read -ra SLACK_MEMBERS <<< ""
+                for i in "${SLACK_MEMBERS[@]}"; do
+                  if [ $(echo ${i} | head -c 1) == "S" ]; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!subteam^${i}> "
+                  elif echo ${i} | grep -E "^(here|channel|everyone)$" > /dev/null; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!${i}> "
+                  else
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<@${i}> "
+                  fi
+                done
+              fi
+              #If successful
+              if [ "$SLACK_BUILD_STATUS" = "success" ]; then
+                #Skip if fail_only
+                if [ true = true ]; then
+                  echo "The job completed successfully"
+                  echo '"fail_only" is set to "true". No Slack notification sent.'
+                else
+                  curl -X POST -H 'Content-type: application/json' \
+                    --data "{ \
+                              \"attachments\": [ \
+                                { \
+                                  \"fallback\": \":tada: A $CIRCLE_JOB job has succeeded!\", \
+                                  \"text\": \":tada: A $CIRCLE_JOB job has succeeded! $SLACK_MENTIONS\", \
+                                  \"fields\": [ \
+                                    { \
+                                      \"title\": \"Project\", \
+                                      \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                                      \"short\": true \
+                                    }, \
+                                    { \
+                                      \"title\": \"Job Number\", \
+                                      \"value\": \"$CIRCLE_BUILD_NUM\", \
+                                      \"short\": true \
+                                    } \
+                                  ], \
+                                  \"actions\": [ \
+                                    { \
+                                      \"type\": \"button\", \
+                                      \"text\": \"Visit Job\", \
+                                      \"url\": \"$CIRCLE_BUILD_URL\" \
+                                    } \
+                                  ], \
+                                  \"color\": \"#1CBF43\" \
+                                } \
+                              ] \
+                            } " $SLACK_WEBHOOK
+                  echo "Job completed successfully. Alert sent."
+                fi
+              else
+                #If Failed
+                curl -X POST -H 'Content-type: application/json' \
+                  --data "{ \
+                    \"attachments\": [ \
+                      { \
+                        \"fallback\": \":red_circle: A $CIRCLE_JOB job has failed!\", \
+                        \"text\": \":red_circle: A $CIRCLE_JOB job has failed! $SLACK_MENTIONS\", \
+                        \"fields\": [ \
+                          { \
+                            \"title\": \"Project\", \
+                            \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                            \"short\": true \
+                          }, \
+                          { \
+                            \"title\": \"Job Number\", \
+                            \"value\": \"$CIRCLE_BUILD_NUM\", \
+                            \"short\": true \
+                          } \
+                        ], \
+                        \"actions\": [ \
+                          { \
+                            \"type\": \"button\", \
+                            \"text\": \"Visit Job\", \
+                            \"url\": \"$CIRCLE_BUILD_URL\" \
+                          } \
+                        ], \
+                        \"color\": \"#ed5c5c\" \
+                      } \
+                    ] \
+                  } " $SLACK_WEBHOOK
+                echo "Job failed. Alert sent."
+              fi
+            fi
+          else
+            echo "Current branch is not included in only_for_branches filter; no status alert will be sent"
+          fi
+        name: Slack - Sending Status Alert
+        shell: /bin/bash
+        when: always
+  deploy:
+    docker:
+    - image: circleci/python:3.8
+    environment:
+    - IMAGE_NAME: snarkai/hub
+    steps:
+    - checkout
+    - run:
+        name: Init .pypirc
+        command: |
+          echo -e "[pypi]" >> ~/.pypirc
+          echo -e "username = __token__" >> ~/.pypirc
+          echo -e "password = $TWINE_PASSWORD" >> ~/.pypirc
+    - run:
+        name: Create a source distribution & wheel
+        command: |
+          python setup.py sdist
+          python setup.py bdist_wheel
+    - run:
+        name: Install twine via pip
+        command: |
+          pip install twine
+    - run:
+        name: Upload dist to PyPi
+        command: |
+          twine upload dist/*
+    - run:
+        name: Build Docker Hub Image
+        command: |
+          docker build -t $IMAGE_NAME:latest .
+    - run:
+        name: Deploy to Docker Hub
+        command: |
+          echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+          IMAGE_TAG=${CIRCLE_TAG}
+          docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:$IMAGE_TAG
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="fail"' >> $BASH_ENV
+        name: Slack - Setting Failure Condition
+        when: on_fail
+    - run:
+        command: |
+          echo 'export SLACK_BUILD_STATUS="success"' >> $BASH_ENV
+        name: Slack - Setting Success Condition
+        when: on_success
+    - run:
+        command: |
+          if [ ! -x /bin/bash ]; then
+            echo Bash not installed.
+            exit 1
+          fi
+        name: Provide error if non-bash shell
+    - run:
+        command: |
+          current_branch_in_filter=false
+
+          IFS="," read -ra BRANCH_FILTERS <<< ""
+
+          for i in "${BRANCH_FILTERS[@]}"; do
+            if [ "${i}" == "${CIRCLE_BRANCH}" ]; then
+              current_branch_in_filter=true
+            fi
+          done
+
+          if [ "x" == "x" ] || [ "$current_branch_in_filter" = true ]; then
+            # Provide error if no webhook is set and error. Otherwise continue
+            if [ -z "$SLACK_WEBHOOK" ]; then
+              echo "NO SLACK WEBHOOK SET"
+              echo "Please input your SLACK_WEBHOOK value either in the settings for this project, or as a parameter for this orb."
+              exit 1
+            else
+              #Create Members string
+              if [ -n "" ]; then
+                IFS="," read -ra SLACK_MEMBERS <<< ""
+                for i in "${SLACK_MEMBERS[@]}"; do
+                  if [ $(echo ${i} | head -c 1) == "S" ]; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!subteam^${i}> "
+                  elif echo ${i} | grep -E "^(here|channel|everyone)$" > /dev/null; then
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<!${i}> "
+                  else
+                    SLACK_MENTIONS="${SLACK_MENTIONS}<@${i}> "
+                  fi
+                done
+              fi
+              #If successful
+              if [ "$SLACK_BUILD_STATUS" = "success" ]; then
+                #Skip if fail_only
+                if [ true = true ]; then
+                  echo "The job completed successfully"
+                  echo '"fail_only" is set to "true". No Slack notification sent.'
+                else
+                  curl -X POST -H 'Content-type: application/json' \
+                    --data "{ \
+                              \"attachments\": [ \
+                                { \
+                                  \"fallback\": \":tada: A $CIRCLE_JOB job has succeeded!\", \
+                                  \"text\": \":tada: A $CIRCLE_JOB job has succeeded! $SLACK_MENTIONS\", \
+                                  \"fields\": [ \
+                                    { \
+                                      \"title\": \"Project\", \
+                                      \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                                      \"short\": true \
+                                    }, \
+                                    { \
+                                      \"title\": \"Job Number\", \
+                                      \"value\": \"$CIRCLE_BUILD_NUM\", \
+                                      \"short\": true \
+                                    } \
+                                  ], \
+                                  \"actions\": [ \
+                                    { \
+                                      \"type\": \"button\", \
+                                      \"text\": \"Visit Job\", \
+                                      \"url\": \"$CIRCLE_BUILD_URL\" \
+                                    } \
+                                  ], \
+                                  \"color\": \"#1CBF43\" \
+                                } \
+                              ] \
+                            } " $SLACK_WEBHOOK
+                  echo "Job completed successfully. Alert sent."
+                fi
+              else
+                #If Failed
+                curl -X POST -H 'Content-type: application/json' \
+                  --data "{ \
+                    \"attachments\": [ \
+                      { \
+                        \"fallback\": \":red_circle: A $CIRCLE_JOB job has failed!\", \
+                        \"text\": \":red_circle: A $CIRCLE_JOB job has failed! $SLACK_MENTIONS\", \
+                        \"fields\": [ \
+                          { \
+                            \"title\": \"Project\", \
+                            \"value\": \"$CIRCLE_PROJECT_REPONAME\", \
+                            \"short\": true \
+                          }, \
+                          { \
+                            \"title\": \"Job Number\", \
+                            \"value\": \"$CIRCLE_BUILD_NUM\", \
+                            \"short\": true \
+                          } \
+                        ], \
+                        \"actions\": [ \
+                          { \
+                            \"type\": \"button\", \
+                            \"text\": \"Visit Job\", \
+                            \"url\": \"$CIRCLE_BUILD_URL\" \
+                          } \
+                        ], \
+                        \"color\": \"#ed5c5c\" \
+                      } \
+                    ] \
+                  } " $SLACK_WEBHOOK
+                echo "Job failed. Alert sent."
+              fi
+            fi
+          else
+            echo "Current branch is not included in only_for_branches filter; no status alert will be sent"
+          fi
+        name: Slack - Sending Status Alert
+        shell: /bin/bash
+        when: always
+workflows:
+  test:
+    jobs:
+    - test:
+        context:
+        - test
+        - azure
+    - test_full:
+        context:
+        - test
+        - azure
+  test_and_deploy:
+    jobs:
+    - test:
+        filters:
+          tags:
+            only: /[0-9]+(\.[0-9]+)*/
+          branches:
+            ignore: /.*/
+        context:
+        - test
+        - azure
+    - test_full:
+        filters:
+          tags:
+            only: /[0-9]+(\.[0-9]+)*/
+          branches:
+            ignore: /.*/
+        context:
+        - test
+        - azure
+    - deploy:
+        filters:
+          tags:
+            only: /[0-9]+(\.[0-9]+)*/
+          branches:
+            ignore: /.*/
+        requires:
+        - test
+        - test_full
+        context:
+        - pypi
+        - snark-docker
+  version: 2
