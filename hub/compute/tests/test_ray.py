@@ -39,10 +39,10 @@ def test_pipeline_ray():
     @hub.transform(schema=my_schema, scheduler="ray")
     def my_transform(sample, multiplier: int = 2):
         return {
-            "image": sample["image"].compute() * multiplier,
-            "label": sample["label"].compute(),
+            "image": sample["image"] * multiplier,
+            "label": sample["label"],
             "confidence": {
-                "confidence": sample["confidence/confidence"].compute() * multiplier
+                "confidence": sample["confidence"]["confidence"] * multiplier
             },
         }
 
@@ -72,8 +72,8 @@ def test_ray_pipeline_multiple():
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
-                "image": sample["image"].compute() * multiplier,
-                "label": sample["label"].compute(),
+                "image": sample["image"] * multiplier,
+                "label": sample["label"],
             }
             for _ in range(4)
         ]

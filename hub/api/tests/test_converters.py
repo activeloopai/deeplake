@@ -126,7 +126,7 @@ def test_to_pytorch():
         label = recursive_torch_tensor(label)
         return (image, label)
 
-    dst = ds.to_pytorch(Transform=transform, inplace=False)
+    dst = ds.to_pytorch(transform=transform, inplace=False)
     dl = torch.utils.data.DataLoader(
         dst,
         batch_size=1,

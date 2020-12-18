@@ -37,7 +37,7 @@ class TensorView:
 
         if isinstance(slice_, (int, slice)):
             self.slice_ = [slice_]
-        elif isinstance(slice_, tuple):
+        elif isinstance(slice_, (tuple, list)):
             self.slice_ = list(slice_)
         self.nums = []
         self.offsets = []
@@ -72,9 +72,9 @@ class TensorView:
                 tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
                 if value.ndim == 1:
                     return tokenizer.decode(value.tolist())
-            else:
-                if value.ndim == 1:
-                    return "".join(chr(it) for it in value.tolist())
+            elif value.ndim == 1:
+                return "".join(chr(it) for it in value.tolist())
+            raise ValueError("Can only access Text with integer index")
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):

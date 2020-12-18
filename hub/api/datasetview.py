@@ -93,7 +93,7 @@ class DatasetView:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             slice_list[0] = (
                 ofs + self.offset
-                if self.squeeze_dim
+                if isinstance(slice_list[0], int)
                 else slice(ofs + self.offset, ofs + self.offset + num)
             )
             if subpath in self.dataset._tensors.keys():
@@ -128,11 +128,7 @@ class DatasetView:
             raise ValueError("Can't assign to dataset sliced without subpath")
 
         if not slice_list:
-            slice_ = (
-                self.offset
-                if self.num_samples == 1
-                else slice(self.offset, self.offset + self.num_samples)
-            )
+            slice_ = slice(self.offset, self.offset + self.num_samples)
             self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
         else:
             num, ofs = (
@@ -142,7 +138,7 @@ class DatasetView:
             )
             slice_list[0] = (
                 slice(ofs + self.offset, ofs + self.offset + num)
-                if num > 1
+                if isinstance(slice_list[0], slice)
                 else ofs + self.offset
             )
             self.dataset._tensors[subpath][slice_list] = assign_value
