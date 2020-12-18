@@ -693,7 +693,6 @@ class Dataset:
         Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
         use.
 
-
         """
 
         def get_ds_size(path_to_dir):
