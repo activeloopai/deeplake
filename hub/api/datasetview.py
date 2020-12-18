@@ -12,7 +12,7 @@ class DatasetView:
         offset=None,
         squeeze_dim=False,
     ):
-        """Creates a DatasetView object for a subset of the Dataset.
+        """Creates a DatasetView object for a subset of the Dataset
 
         Parameters
         ----------
@@ -22,7 +22,7 @@ class DatasetView:
             The number of samples in this DatasetView
         offset: int
             The offset from which the DatasetView starts
-        squeeze_dim: bool
+        squuze_dim: bool
             For slicing with integers we would love to remove the first dimension to make it nicer
         """
         if dataset is None:
@@ -78,7 +78,7 @@ class DatasetView:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             slice_list[0] = (
                 ofs + self.offset
-                if num == 1
+                if self.squeeze_dim
                 else slice(ofs + self.offset, ofs + self.offset + num)
             )
             if subpath in self.dataset._tensors.keys():
@@ -138,7 +138,7 @@ class DatasetView:
         return self.dataset._tensors.keys()
 
     def _get_dictionary(self, subpath, slice_=None):
-        """Gets dictionary from dataset given incomplete subpath"""
+        """"Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.dataset._tensors.keys():
@@ -150,7 +150,7 @@ class DatasetView:
                     if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-                slice_ = slice_ if slice_ else slice(0, self.dataset.shape[0])
+                slice_ = slice_ if slice_ is not None else slice(0, self.dataset.shape[0])
                 cur[split_key[-1]] = TensorView(
                     dataset=self.dataset,
                     subpath=key,
