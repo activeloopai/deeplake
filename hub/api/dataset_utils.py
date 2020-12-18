@@ -52,9 +52,9 @@ def slice_extract_info(slice_, num):
     if slice_.start is not None and slice_.stop is not None:
         if slice_.start < 0 and slice_.stop < 0 or slice_.start > 0 and slice_.stop > 0:
             # If same signs, bound checking can be done
-            if math.abs(slice_.start) > math.abs(slice_.stop):
+            if abs(slice_.start) > abs(slice_.stop):
                 raise IndexError("start index is greater than stop index")
-            num = math.abs(slice_.stop) - math.abs(slice_.start)
+            num = abs(slice_.stop) - abs(slice_.start)
         else:
             num = 0
         # num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start

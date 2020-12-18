@@ -23,7 +23,8 @@ class ObjectView(TensorView):
         if new:
             # Creating new obj
             if self.subpath:
-                self.inner_schema_obj, self.nums, self.offsets, self.squeeze_dims = self.process_path(self.subpath)
+                self.inner_schema_obj, self.nums, self.offsets, self.squeeze_dims = \
+                    self.process_path(self.subpath, self.inner_schema_obj, self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy())
             # Check if dataset view needs to be made
             if slice_list and len(slice_list) >= 1 :
                 num, ofs = slice_extract_info(slice_list[0], dataset.shape[0])
@@ -40,6 +41,8 @@ class ObjectView(TensorView):
                     self.squeeze_dims[i] = num == 1
 
     def num_process(self, schema_obj, nums, offsets, squeeze_dims):
+        if isinstance(schema_obj, SchemaDict):
+            return
         if isinstance(schema_obj.max_shape, int):
             nums.append(schema_obj.max_shape)
             offsets.append(0)
@@ -62,14 +65,29 @@ class ObjectView(TensorView):
         # if isinstance(schema_obj.dtype, Tensor):
         #     self.num_process(schema_obj.dtype)
 
-    def process_path(self, subpath):
-        nums, offsets, squeeze_dims = self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy()
-        paths = subpath.split('/')[1:]
-        schema_obj = self.inner_schema_obj.dtype.dict_[paths[0]] if self.inner_schema_obj else self.schema[paths[0]]
+    def process_path(self, subpath, inner_schema_obj, nums, offsets, squeeze_dims):
+        paths = subpath.split('/')[1:]       
+        try:
+            if inner_schema_obj:
+                if isinstance(inner_schema_obj, Sequence):
+                    schema_obj = inner_schema_obj.dtype.dict_[paths[0]]
+                elif isinstance(inner_schema_obj, SchemaDict):
+                    schema_obj = inner_schema_obj.dict_[paths[0]]
+                else:
+                    raise KeyError()
+            else:
+                schema_obj = self.schema[paths[0]]
+        except:
+            raise KeyError(f"{paths[0]} is an invalid key")   
         self.num_process(schema_obj, nums, offsets, squeeze_dims)
         for path in paths[1:]:
             try:
-                schema_obj = schema_obj.dtype.dict_[path]
+                if isinstance(schema_obj, Sequence):
+                    schema_obj = schema_obj.dtype.dict_[path]
+                elif isinstance(schema_obj, SchemaDict):
+                    schema_obj = schema_obj.dict_[path]
+                else:
+                    raise KeyError()
                 self.num_process(schema_obj, nums, offsets, squeeze_dims)
             except KeyError:
                 raise KeyError(f"{path} is an invalid key")
@@ -83,10 +101,11 @@ class ObjectView(TensorView):
 
         dataset = self.dataset
         nums, offsets, squeeze_dims, inner_schema_obj = \
-            self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy(), None
+            self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy(), self.inner_schema_obj
 
         if subpath:
-            inner_schema_obj, nums, offsets, squeeze_dims = self.process_path(subpath)
+            inner_schema_obj, nums, offsets, squeeze_dims = \
+                self.process_path(subpath, inner_schema_obj, nums, offsets, squeeze_dims)
         subpath = self.subpath + subpath
         if len(slice_list) >= 1:
             # Slice first dim
@@ -151,8 +170,8 @@ class ObjectView(TensorView):
                 paths = self.subpath.split('/')[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                slice_ = [slice(of, of + num) if num else slice(None, None) for num, of in
-                          zip(self.nums, self.offsets)]
+                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+                          zip(self.offsets, self.nums, self.squeeze_dims)]
                 slice_ = [slice(None, None)] + slice_
                 # Will throw error if dynamic tensor, else array
                 return self.dataset[[paths[0]] + slice_].compute()
@@ -160,8 +179,8 @@ class ObjectView(TensorView):
                 # single datapoint
                 paths = self.subpath.split('/')[1:]
                 schema = self.schema[paths[0]]
-                slice_ = [slice(of, of + num) if num else slice(None, None) for num, of in
-                          zip(self.nums, self.offsets)]
+                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+                          zip(self.offsets, self.nums, self.squeeze_dims)]
                 if isinstance(schema, Sequence):
                     if isinstance(schema.dtype, SchemaDict):
                         # if sequence of dict, have to fetch everything
@@ -171,13 +190,25 @@ class ObjectView(TensorView):
                         try:
                             return value[tuple(slice_)]
                         except TypeError:
+                            # silently ignores error
                             return value
                     else:
                         # sequence of tensors
-                        return self.dataset[[paths[0]] + slice_].compute()
+                        return self.dataset[paths[0]].compute()[tuple(slice_)]
+                elif isinstance(schema, SchemaDict):
+                    value = self.dataset[paths[0]]
+                    for path in paths[1:]:
+                        value = value[path]
+                    if isinstance(value, TensorView):
+                        return value[slice_].compute()
+                    try:
+                        return value[tuple(slice_)]
+                    except TypeError:
+                        # silently ignores error
+                        return value
                 else:
                     # tensor
-                    return self.dataset[paths[0]].compute()[tuple(slice_)]
+                    return self.dataset[[paths[0]] + slice_].compute()
 
     def __setitem__(self, slice_, value):
         objview = self.__getitem__(slice_)
@@ -200,32 +231,32 @@ class ObjectView(TensorView):
                 paths = objview.subpath.split('/')[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                slice_ = [slice(of, of + num) if num else slice(None, None) for num, of in
-                          zip(objview.nums, objview.offsets)]
+                slice_ = [of if sq else slice(of, of + num) if num else slice(None, None) for num, of, sq in
+                          zip(objview.nums, objview.offsets, objview.squeeze_dims)]
                 slice_ = [slice(None, None)] + slice_
                 # Will throw error if dynamic tensor, else array
                 objview.dataset[[paths[0]] + slice_] = assign_value
             else:
                 # single datapoint
+                def assign(paths, value):
+                    # helper function for recursive assign
+                    if len(paths) > 0:
+                        path = paths.pop(0)
+                        value[path] = assign(paths, value[path])
+                        return value
+                    try:
+                        value[tuple(slice_)] = assign_value
+                    except TypeError:
+                        value = assign_value
+                    return value
                 assign_value = str_to_int(assign_value, objview.dataset.dataset.tokenizer)
                 paths = objview.subpath.split('/')[1:]
                 schema = objview.schema[paths[0]]
-                slice_ = [slice(of, of + num) if num else slice(None, None) for num, of in
-                          zip(objview.nums, objview.offsets)]
+                slice_ = [of if sq else slice(of, of + num) if num else slice(None, None) for num, of, sq in
+                          zip(objview.nums, objview.offsets, objview.squeeze_dims)]
                 if isinstance(schema, Sequence):
                     if isinstance(schema.dtype, SchemaDict):
                         # if sequence of dict, have to fetch everything
-                        def assign(paths, value):
-                            if len(paths) > 0:
-                                path = paths.pop(0)
-                                value[path] = assign(paths, value[path])
-                                return value
-                            try:
-                                value[tuple(slice_)] = assign_value
-                            except NotImplementedError:
-                                value = assign_value
-                            return value
-
                         value = objview.dataset[paths[0]].compute()
                         value = assign(paths[1:], value)
                         objview.dataset[paths[0]] = value
@@ -234,6 +265,10 @@ class ObjectView(TensorView):
                         value = objview.dataset[paths[0]].compute()
                         value[tuple(slice_)] = assign_value
                         objview.dataset[paths[0]] = value
+                elif isinstance(schema, SchemaDict):
+                    value = objview.dataset[paths[0]]
+                    value = assign(paths[1:], value)
+                    objview.dataset[paths[0]] = value
                 else:
                     # tensor
                     objview.dataset[[paths[0]] + slice_] = assign_value
@@ -243,5 +278,6 @@ class ObjectView(TensorView):
             slice_ = [self.dataset.offset if self.dataset.squeeze_dim else slice(self.dataset.offset, self.dataset.offset + self.dataset.num_samples)]
         else:
             slice_ = [slice(None, None)]
-        slice_ += [slice(ofs, ofs + num) if num else slice(None, None) for ofs, num in zip(self.offsets, self.nums)]
+        slice_ += [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+                   zip(self.offsets, self.nums, self.squeeze_dims)]
         return f"ObjectView(subpath='{self.subpath}', slice={str(slice_)})"
