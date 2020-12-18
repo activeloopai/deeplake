@@ -79,16 +79,15 @@ class ObjectView(TensorView):
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
-        slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
 
         dataset = self.dataset
-        nums, offsets, squeeze_dims, inner_schema_obj = [], [], [], None
+        nums, offsets, squeeze_dims, inner_schema_obj = \
+            self.nums.copy(), self.offsets.copy(), self.squeeze_dims.copy(), None
 
         if subpath:
             inner_schema_obj, nums, offsets, squeeze_dims = self.process_path(subpath)
-            if self.subpath:
-                subpath = self.subpath + subpath
+        subpath = self.subpath + subpath
         if len(slice_list) >= 1:
             # Slice first dim
             if isinstance(self.dataset, DatasetView) and not self.dataset.squeeze_dim:
@@ -134,6 +133,7 @@ class ObjectView(TensorView):
     def numpy(self):
         if not self.subpath:
             # either dataset view or entire dataset
+            # @TODO DatasetView needs compute() to support this
             if isinstance(self.dataset, DatasetView):
                 return self.dataset.compute()
             else:
@@ -177,7 +177,7 @@ class ObjectView(TensorView):
                         return self.dataset[[paths[0]] + slice_].compute()
                 else:
                     # tensor
-                    return self.dataset[[paths[0]] + slice_].compute()
+                    return self.dataset[paths[0]].compute()[tuple(slice_)]
 
     def __setitem__(self, slice_, value):
         objview = self.__getitem__(slice_)
@@ -231,7 +231,9 @@ class ObjectView(TensorView):
                         objview.dataset[paths[0]] = value
                     else:
                         # sequence of tensors
-                        objview.dataset[[paths[0]] + slice_] = assign_value
+                        value = objview.dataset[paths[0]].compute()
+                        value[tuple(slice_)] = assign_value
+                        objview.dataset[paths[0]] = value
                 else:
                     # tensor
                     objview.dataset[[paths[0]] + slice_] = assign_value
