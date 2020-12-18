@@ -48,6 +48,7 @@ from hub.numcodecs import PngCodec
 from hub.utils import norm_cache, norm_shape
 from hub import defaults
 
+
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
 
