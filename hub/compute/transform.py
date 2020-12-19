@@ -171,7 +171,9 @@ class Transform:
                     xs_new[key] = [value]
         return xs_new
 
-    def create_dataset(self, url, length=None, token=None):
+    def create_dataset(
+        self, url: str, length: int = None, token: dict = None, public: bool = True
+    ):
         """Helper function to creat a dataset"""
         shape = (length,)
         ds = Dataset(
@@ -182,6 +184,7 @@ class Transform:
             token=token,
             fs=zarr.storage.MemoryStore() if "tmp" in url else None,
             cache=False,
+            public=public,
         )
         return ds
 
@@ -340,7 +343,8 @@ class Transform:
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
-        sample_per_shard=None,
+        sample_per_shard: bool = None,
+        public: bool = True,
     ):
         """| The function to apply the transformation for each element in batchified manner
 
@@ -358,6 +362,10 @@ class Transform:
             Show progress bar
         sample_per_shard: int
             How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         Returns
         ----------
         ds: hub.Dataset
@@ -379,7 +387,7 @@ class Transform:
         if length < n_samples:
             n_samples = length
 
-        ds_out = self.create_dataset(url, length=length, token=token)
+        ds_out = self.create_dataset(url, length=length, token=token, public=public)
 
         def batchify_generator(iterator: Iterable, size: int):
             batch = []
