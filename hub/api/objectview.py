@@ -1,12 +1,11 @@
-from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
 from hub.schema import Sequence, Tensor, SchemaDict, Primitive
 from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 # from hub.exceptions import NoneValueException
 import collections.abc as abc
+import hub.api as api
 
-
-class ObjectView(TensorView):
+class ObjectView():
     def __init__(self, dataset, subpath=None, slice_list=None, nums=[],
                  offsets=[], squeeze_dims=[], inner_schema_obj=None, new=True):
         self.dataset = dataset
@@ -163,7 +162,7 @@ class ObjectView(TensorView):
                 # subpath present but no slice done
                 if len(self.subpath.split('/')[1:]) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                return self.dataset._tensors[self.subpath][...]
+                return self.dataset._tensors[self.subpath][:]
             if not self.dataset.squeeze_dim:
                 # return a combined tensor for multiple datapoints
                 # only possible if the field has a fixed size
@@ -199,7 +198,7 @@ class ObjectView(TensorView):
                     value = self.dataset[paths[0]]
                     for path in paths[1:]:
                         value = value[path]
-                    if isinstance(value, TensorView):
+                    if isinstance(value, api.tensorview.TensorView):
                         return value[slice_].compute()
                     try:
                         return value[tuple(slice_)]
@@ -209,6 +208,9 @@ class ObjectView(TensorView):
                 else:
                     # tensor
                     return self.dataset[[paths[0]] + slice_].compute()
+
+    def compute(self):
+        return self.numpy()
 
     def __setitem__(self, slice_, value):
         objview = self.__getitem__(slice_)
@@ -223,7 +225,7 @@ class ObjectView(TensorView):
                 assign_value = str_to_int(assign_value, objview.dataset.tokenizer)
                 if len(objview.subpath.split('/')[1:]) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                objview.dataset._tensors[objview.subpath][...] = assign_value
+                objview.dataset._tensors[objview.subpath][:] = assign_value
             if not objview.dataset.squeeze_dim:
                 # assign a combined tensor for multiple datapoints
                 # only possible if the field has a fixed size
@@ -231,10 +233,24 @@ class ObjectView(TensorView):
                 paths = objview.subpath.split('/')[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                slice_ = [of if sq else slice(of, of + num) if num else slice(None, None) for num, of, sq in
-                          zip(objview.nums, objview.offsets, objview.squeeze_dims)]
-                slice_ = [slice(None, None)] + slice_
                 # Will throw error if dynamic tensor, else array
+                try:
+                    shape = list(assign_value.shape)[1:]
+                    slice_ = []
+                    for num, of, sq, shp in zip(objview.nums, objview.offsets, objview.squeeze_dims, shape):
+                        if sq:
+                            slice_ += [of]
+                        elif num:
+                            if num < shp:
+                                raise ValueError(f"Dimension with length {shp} is too big")
+                            else:
+                                slice_ += [slice(of,of+shp)]
+                        else:
+                            slice_ += [slice(None,None)]
+                except AttributeError:
+                    slice_ = [of if sq else slice(of, of + num) if num else slice(None, None) for num, of, sq in
+                              zip(objview.nums, objview.offsets, objview.squeeze_dims)]
+                slice_ = [slice(None, None)] + slice_
                 objview.dataset[[paths[0]] + slice_] = assign_value
             else:
                 # single datapoint
