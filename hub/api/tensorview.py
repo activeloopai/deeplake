@@ -138,7 +138,7 @@ class TensorView:
             new_nums.extend([None] * (len(slice_list) - len(new_nums)))
             new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
         for i in range(len(slice_list)):
-            slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
+            slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
         for i in range(len(slice_list), len(new_nums)):
             cur_slice = (
                 slice(new_offsets[i], new_offsets[i] + new_nums[i])

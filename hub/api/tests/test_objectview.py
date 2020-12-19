@@ -1,3 +1,7 @@
+import numpy as np
+import hub
+from hub.schema import Tensor, Image, Text, Sequence, SchemaDict, BBox
+
 def test_objectview():
     schema = SchemaDict({'a':Tensor((None, None), dtype=int, max_shape=(20,20)),
                      'b': Sequence(dtype=BBox(dtype=float)),
