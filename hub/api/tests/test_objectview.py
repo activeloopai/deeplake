@@ -9,7 +9,7 @@ def test_objectview():
                          'd': Sequence((), dtype= Tensor((5,5), dtype=float))
                      }))
                     })
-    ds = hub.Dataset('./nested_seq', shape=(5,), schema=schema)
+    ds = hub.Dataset('./nested_seq', shape=(5,), mode='w', schema=schema)
     
     # dataset view to objectview
     dv = ds[3:5]
