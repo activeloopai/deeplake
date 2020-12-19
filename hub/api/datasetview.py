@@ -121,7 +121,7 @@ class DatasetView:
         elif not slice_list:
             slice_ = (
                 self.offset
-                #if self.num_samples == 1
+                # if self.num_samples == 1
                 if isinstance(slice_list[0], int)
                 else slice(self.offset, self.offset + self.num_samples)
             )
@@ -139,7 +139,7 @@ class DatasetView:
             )
             slice_list[0] = (
                 slice(ofs + self.offset, ofs + self.offset + num)
-                 # if num > 1
+                # if num > 1
                 if not isinstance(slice_list[0], int)
                 else ofs + self.offset
             )

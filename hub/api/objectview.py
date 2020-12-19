@@ -5,6 +5,7 @@ from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 import collections.abc as abc
 import hub.api as api
 
+
 class ObjectView():
     def __init__(self, dataset, subpath=None, slice_list=None, nums=[],
                  offsets=[], squeeze_dims=[], inner_schema_obj=None, new=True):
@@ -65,7 +66,7 @@ class ObjectView():
         #     self.num_process(schema_obj.dtype)
 
     def process_path(self, subpath, inner_schema_obj, nums, offsets, squeeze_dims):
-        paths = subpath.split('/')[1:]       
+        paths = subpath.split('/')[1:]
         try:
             if inner_schema_obj:
                 if isinstance(inner_schema_obj, Sequence):
@@ -76,8 +77,8 @@ class ObjectView():
                     raise KeyError()
             else:
                 schema_obj = self.schema[paths[0]]
-        except:
-            raise KeyError(f"{paths[0]} is an invalid key")   
+        except KeyError:
+            raise KeyError(f"{paths[0]} is an invalid key")
         self.num_process(schema_obj, nums, offsets, squeeze_dims)
         for path in paths[1:]:
             try:
@@ -169,7 +170,7 @@ class ObjectView():
                 paths = self.subpath.split('/')[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in
                           zip(self.offsets, self.nums, self.squeeze_dims)]
                 slice_ = [slice(None, None)] + slice_
                 # Will throw error if dynamic tensor, else array
@@ -178,7 +179,7 @@ class ObjectView():
                 # single datapoint
                 paths = self.subpath.split('/')[1:]
                 schema = self.schema[paths[0]]
-                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+                slice_ = [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in
                           zip(self.offsets, self.nums, self.squeeze_dims)]
                 if isinstance(schema, Sequence):
                     if isinstance(schema.dtype, SchemaDict):
@@ -244,9 +245,9 @@ class ObjectView():
                             if num < shp:
                                 raise ValueError(f"Dimension with length {shp} is too big")
                             else:
-                                slice_ += [slice(of,of+shp)]
+                                slice_ += [slice(of, of + shp)]
                         else:
-                            slice_ += [slice(None,None)]
+                            slice_ += [slice(None, None)]
                 except AttributeError:
                     slice_ = [of if sq else slice(of, of + num) if num else slice(None, None) for num, of, sq in
                               zip(objview.nums, objview.offsets, objview.squeeze_dims)]
@@ -294,6 +295,6 @@ class ObjectView():
             slice_ = [self.dataset.offset if self.dataset.squeeze_dim else slice(self.dataset.offset, self.dataset.offset + self.dataset.num_samples)]
         else:
             slice_ = [slice(None, None)]
-        slice_ += [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in 
+        slice_ += [ofs if sq else slice(ofs, ofs + num) if num else slice(None, None) for ofs, num, sq in
                    zip(self.offsets, self.nums, self.squeeze_dims)]
         return f"ObjectView(subpath='{self.subpath}', slice={str(slice_)})"

@@ -1,4 +1,4 @@
-import os
+# import os
 import posixpath
 import collections.abc as abc
 import json
@@ -1044,4 +1044,3 @@ class TorchDataset:
             if self.inplace & (self.output_type != dict) & (type(d) == dict):
                 d = self.output_type(d.values())
             yield (d)
-
