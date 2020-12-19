@@ -101,7 +101,6 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
-<<<<<<< HEAD
         lazy: bool, optional
             Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         public: bool, optional
