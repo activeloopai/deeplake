@@ -315,17 +315,23 @@ class Dataset:
             )
         elif not slice_list:
             if subpath in self._tensors.keys():
-                return ObjectView(
-                    dataset=self, subpath=subpath
+                return TensorView(
+                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
                 )
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    return ObjectView(dataset=self, subpath=subpath)
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            # if subpath in self._tensors.keys():
-            return ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)
-            # if len(slice_list) > 1:
-            #     raise ValueError("You can't slice a dictionary of Tensors")
-            # return self._get_dictionary(subpath, slice_list[0])
+            if subpath in self._tensors.keys():
+                return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    return ObjectView(dataset=self, subpath=subpath)
+            if len(slice_list) > 1:
+                raise ValueError("You can't slice a dictionary of Tensors")
+            return self._get_dictionary(subpath, slice_list[0])
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
