@@ -21,7 +21,7 @@ mpii_schema = {
     """
     "image": schema.Image(
         shape=(None, None, 3), max_shape=(1920, 1920, 3), dtype="uint8"
-        ),
+    ),
     "isValidation": "float64",
     "img_paths": Text(shape=(None,), max_shape=(15,)),
     "img_width": "int32",
