@@ -20,21 +20,17 @@ mpii_schema = {
     give 'max_shape' arguement a maximum possible size of image.
     """
     "image": schema.Image(
-        shape=(None, None, 3),
-        max_shape=(1920, 1920, 3),
-        dtype="uint8"),
+        shape=(None, None, 3), max_shape=(1920, 1920, 3), dtype="uint8"
+        ),
     "isValidation": "float64",
-    "img_paths": Text(shape = (None,), max_shape=(15,)),
+    "img_paths": Text(shape=(None,), max_shape=(15,)),
     "img_width": "int32",
     "img_height": "int32",
     "objpos": Tensor(max_shape=(100,), dtype="float64"),
     """
     'joint_self' has nested list structure
     """
-    "joint_self": Tensor(
-        shape=(None, None),
-        max_shape=(100, 100),
-        dtype="float64"),
+    "joint_self": Tensor(shape=(None, None), max_shape=(100, 100), dtype="float64"),
     "scale_provided": "float64",
     "annolist_index": "int32",
     "people_index": "int32",
@@ -46,6 +42,8 @@ mpii_schema = {
 Below function takes JSON file and gives annotations in the
 form of dictionary inside list.
 """
+
+
 def get_anno(jsonfile):
 
     with open(jsonfile) as f:
@@ -64,19 +62,33 @@ transform on every sample(instance) of dataset, and outputs a
 dataset with specified schema. More info. on docs.
 """
 @hub.transform(schema = my_schema, workers= 8)
+
+
 def my_transform(annotation):
     return{
+
     "image": np.array(Image.open(img_path + annotation["img_paths"])),
+
     "isValidation": np.array(annotation["isValidation"]),
+
     "img_paths": annotation["img_paths"],
+
     "img_width": np.array(annotation["img_width"]),
+
     "img_height": np.array(annotation["img_height"]),
+
     "objpos": np.array(annotation["objpos"]),
+
     "joint_self":  np.array(annotation["joint_self"]),
+
     "scale_provided": np.array(annotation["scale_provided"]),
+
     "annolist_index": np.array(annotation["annolist_index"]),
+
     "people_index": np.array(annotation["people_index"]),
+
     "numOtherPeople": np.array(annotation["numOtherPeople"]),
+
     }
 
 
