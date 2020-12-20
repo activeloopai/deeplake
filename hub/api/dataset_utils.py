@@ -50,7 +50,12 @@ def slice_extract_info(slice_, num):
                 "index out of bounds for dimension with length {}".format(num)
             )
     if slice_.start is not None and slice_.stop is not None:
-        if slice_.start < 0 and slice_.stop < 0 or slice_.start >= 0 and slice_.stop >= 0:
+        if (
+            slice_.start < 0
+            and slice_.stop < 0
+            or slice_.start >= 0
+            and slice_.stop >= 0
+        ):
             # If same signs, bound checking can be done
             if abs(slice_.start) > abs(slice_.stop):
                 raise IndexError("start index is greater than stop index")

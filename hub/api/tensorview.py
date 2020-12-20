@@ -98,9 +98,7 @@ class TensorView:
             new_nums.extend([None] * (len(slice_list) - len(new_nums)))
             new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
         for i in range(len(slice_list)):
-            slice_list[i] = self._combine(
-                slice_list[i], new_nums[i], new_offsets[i]
-            )
+            slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
         for i in range(len(slice_list), len(new_nums)):
             cur_slice = (
                 slice(new_offsets[i], new_offsets[i] + new_nums[i])
@@ -108,9 +106,14 @@ class TensorView:
                 else new_offsets[i]
             )
             slice_list.append(cur_slice)
-        if subpath or (len(slice_list) > len(self.nums)
-                       and isinstance(self.dtype, objv.Sequence)):
-            return objv.ObjectView(dataset=self.dataset, subpath=self.subpath + subpath, slice_list=slice_list)
+        if subpath or (
+            len(slice_list) > len(self.nums) and isinstance(self.dtype, objv.Sequence)
+        ):
+            return objv.ObjectView(
+                dataset=self.dataset,
+                subpath=self.subpath + subpath,
+                slice_list=slice_list,
+            )
         else:
             return TensorView(
                 dataset=self.dataset, subpath=self.subpath, slice_=slice_list
@@ -149,7 +152,11 @@ class TensorView:
         if not subpath:
             self.dataset._tensors[self.subpath][slice_list] = assign_value
         else:
-            objv.ObjectView(dataset=self.dataset, subpath=self.subpath + subpath, slice_list=slice_list)[:] = assign_value
+            objv.ObjectView(
+                dataset=self.dataset,
+                subpath=self.subpath + subpath,
+                slice_list=slice_list,
+            )[:] = assign_value
 
     def _combine(self, slice_, num=None, ofs=0):
         "Combines a `slice_` with the current num and offset present in tensorview"

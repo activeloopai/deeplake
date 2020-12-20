@@ -18,6 +18,7 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+
 # from hub.api.tensorview import TensorView
 # from hub.api.datasetview import DatasetView
 from hub.api.objectview import ObjectView, DatasetView
@@ -329,7 +330,9 @@ class Dataset:
                 return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
             for key in self._tensors.keys():
                 if subpath.startswith(key):
-                    return ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)
+                    return ObjectView(
+                        dataset=self, subpath=subpath, slice_list=slice_list
+                    )
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -362,7 +365,9 @@ class Dataset:
             if subpath in self._tensors.keys():
                 self._tensors[subpath][slice_list] = assign_value
             else:
-                ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[:] = assign_value
+                ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[
+                    :
+                ] = assign_value
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
