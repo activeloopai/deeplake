@@ -61,11 +61,12 @@ storing of dataset. Below function takes a dataset and applies
 transform on every sample(instance) of dataset, and outputs a
 dataset with specified schema. More info. on docs.
 """
-@hub.transform(schema=my_schema, workers=8)
 
 
-def my_transform(annotation):
-    return{
+@hub.transform(schema=mpii_schema, workers=8)
+
+def mpii_transform(annotation):
+    return {
 
         "image": np.array(Image.open(img_path + annotation["img_paths"])),
 
@@ -101,7 +102,7 @@ if __name__ == "__main__":
     annotations = get_anno(jsonfile)
 
     t1 = time.time()
-    ds = my_transform(annotations)
+    ds = mpii_transform(annotations)
     ds = ds.store(tag)
     print("Time taken to upload:", (time.time() - t1), "sec")
 
