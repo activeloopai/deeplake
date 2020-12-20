@@ -79,7 +79,7 @@ def my_transform(annotation):
 
         "objpos": np.array(annotation["objpos"]),
 
-        "joint_self":  np.array(annotation["joint_self"]),
+        "joint_self": np.array(annotation["joint_self"]),
 
         "scale_provided": np.array(annotation["scale_provided"]),
 
