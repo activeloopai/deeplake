@@ -1,5 +1,11 @@
 from math import gcd
 import time
+from collections import abc
+
+from numpy.lib.arraysetops import isin
+
+from hub.exceptions import ShapeLengthException
+from hub import defaults
 
 
 def _flatten(list_):
@@ -43,6 +49,17 @@ def azure_creds_exist():
     import os
 
     env = os.getenv("ACCOUNT_KEY")
+    if env is not None:
+        return True
+    return False
+
+
+def hub_creds_exist():
+    """Checks if credentials exists"""
+
+    import os
+
+    env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     if env is not None:
         return True
     return False
@@ -150,3 +167,24 @@ class Timer:
 
     def __exit__(self, *args):
         print(f"{self._text}: {time.time() - self._start}s")
+
+
+def norm_shape(shape):
+    shape = shape or (None,)
+    if isinstance(shape, int):
+        shape = (shape,)
+    if not isinstance(shape, abc.Iterable):
+        raise TypeError(
+            f"shape is not None, int or Iterable, type(shape): {type(shape)}"
+        )
+    shape = tuple(shape)
+    if not all([isinstance(s, int) or s is None for s in shape]):
+        raise TypeError(f"Shape elements can be either int or None | shape: {shape}")
+    return shape
+
+
+def norm_cache(cache):
+    cache = cache or 0
+    if not isinstance(cache, int):
+        raise TypeError("Cache should be None or int")
+    return cache
