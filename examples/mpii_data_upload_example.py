@@ -67,27 +67,27 @@ dataset with specified schema. More info. on docs.
 def my_transform(annotation):
     return{
 
-    "image": np.array(Image.open(img_path + annotation["img_paths"])),
+        "image": np.array(Image.open(img_path + annotation["img_paths"])),
 
-    "isValidation": np.array(annotation["isValidation"]),
+        "isValidation": np.array(annotation["isValidation"]),
 
-    "img_paths": annotation["img_paths"],
+        "img_paths": annotation["img_paths"],
 
-    "img_width": np.array(annotation["img_width"]),
+        "img_width": np.array(annotation["img_width"]),
 
-    "img_height": np.array(annotation["img_height"]),
+        "img_height": np.array(annotation["img_height"]),
 
-    "objpos": np.array(annotation["objpos"]),
+        "objpos": np.array(annotation["objpos"]),
 
-    "joint_self":  np.array(annotation["joint_self"]),
+        "joint_self":  np.array(annotation["joint_self"]),
 
-    "scale_provided": np.array(annotation["scale_provided"]),
+        "scale_provided": np.array(annotation["scale_provided"]),
 
-    "annolist_index": np.array(annotation["annolist_index"]),
+        "annolist_index": np.array(annotation["annolist_index"]),
 
-    "people_index": np.array(annotation["people_index"]),
+        "people_index": np.array(annotation["people_index"]),
 
-    "numOtherPeople": np.array(annotation["numOtherPeople"]),
+        "numOtherPeople": np.array(annotation["numOtherPeople"]),
 
     }
 
