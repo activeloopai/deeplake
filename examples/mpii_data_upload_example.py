@@ -61,7 +61,7 @@ storing of dataset. Below function takes a dataset and applies
 transform on every sample(instance) of dataset, and outputs a
 dataset with specified schema. More info. on docs.
 """
-@hub.transform(schema = my_schema, workers= 8)
+@hub.transform(schema=my_schema, workers=8)
 
 
 def my_transform(annotation):
