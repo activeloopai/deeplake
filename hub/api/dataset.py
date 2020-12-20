@@ -1,4 +1,4 @@
-# import os
+import os
 import posixpath
 import collections.abc as abc
 import json
@@ -599,7 +599,7 @@ class Dataset:
 
     def close(self):
         """Save changes from cache to dataset final storage
-        This invalidates this object
+        This invalidates this object.
         """
         for t in self._tensors.values():
             t.close()
@@ -646,8 +646,9 @@ class Dataset:
         return self._tensors.keys()
 
     @staticmethod
-    def from_tensorflow(ds):
+    def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
         """Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
@@ -736,6 +737,7 @@ class Dataset:
         workers: int = 1,
     ):
         """| Converts a TFDS Dataset into hub format.
+
         Parameters
         ----------
         dataset: str
@@ -753,6 +755,7 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
