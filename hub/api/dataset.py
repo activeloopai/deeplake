@@ -598,7 +598,7 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage
+        """Save changes from cache to dataset final storage.
         This invalidates this object.
         """
         for t in self._tensors.values():
