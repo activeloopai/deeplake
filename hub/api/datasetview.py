@@ -88,7 +88,10 @@ class DatasetView:
                 if isinstance(slice_list[0], int)
                 else slice(ofs + self.offset, ofs + self.offset + num)
             )
-            if subpath in self.dataset._tensors.keys():
+            schema_obj = self.dataset.schema.dict_[subpath.split("/")[1]]
+            if subpath in self.dataset._tensors.keys() and (
+                not isinstance(schema_obj, objv.Sequence) or len(slice_list) <= 1
+            ):
                 return TensorView(
                     dataset=self.dataset,
                     subpath=subpath,

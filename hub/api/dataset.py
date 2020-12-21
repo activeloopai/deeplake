@@ -366,7 +366,10 @@ class Dataset:
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            if subpath in self._tensors.keys():
+            schema_obj = self.schema.dict_[subpath.split("/")[1]]
+            if subpath in self._tensors.keys() and (
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
+            ):
                 return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
             for key in self._tensors.keys():
                 if subpath.startswith(key):
