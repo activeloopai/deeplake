@@ -77,7 +77,7 @@ class DatasetView:
             for key in self.dataset._tensors.keys():
                 if subpath.startswith(key):
                     return objv.ObjectView(
-                        dataset=self.dataset, subpath=subpath, slice_list=slice_list
+                        dataset=self.dataset, subpath=subpath, slice_list=[slice_]
                     )
             return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
@@ -126,7 +126,7 @@ class DatasetView:
             slice_ = (
                 self.offset
                 # if self.num_samples == 1
-                if isinstance(slice_list[0], int)
+                if self.squeeze_dim
                 else slice(self.offset, self.offset + self.num_samples)
             )
             if subpath in self.dataset._tensors.keys():
@@ -134,7 +134,7 @@ class DatasetView:
             for key in self.dataset._tensors.keys():
                 if subpath.startswith(key):
                     objv.ObjectView(
-                        dataset=self.dataset, subpath=subpath, slice_list=slice_
+                        dataset=self.dataset, subpath=subpath, slice_list=[slice_]
                     )[:] = assign_value
             # raise error
         else:

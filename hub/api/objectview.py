@@ -69,10 +69,10 @@ class ObjectView:
     def num_process(self, schema_obj, nums, offsets, squeeze_dims):
         if isinstance(schema_obj, SchemaDict):
             return
-        if isinstance(schema_obj.max_shape, int):
-            nums.append(schema_obj.max_shape)
-            offsets.append(0)
-            squeeze_dims.append(False)
+        # if isinstance(schema_obj.max_shape, int):
+        #     nums.append(schema_obj.max_shape)
+        #     offsets.append(0)
+        #     squeeze_dims.append(False)
         elif isinstance(schema_obj, Sequence):
             nums.append(0)
             offsets.append(0)
@@ -104,7 +104,7 @@ class ObjectView:
                     raise KeyError()
             else:
                 schema_obj = self.schema[paths[0]]
-        except KeyError:
+        except (KeyError, AttributeError):
             raise KeyError(f"{paths[0]} is an invalid key")
         self.num_process(schema_obj, nums, offsets, squeeze_dims)
         for path in paths[1:]:
@@ -116,7 +116,7 @@ class ObjectView:
                 else:
                     raise KeyError()
                 self.num_process(schema_obj, nums, offsets, squeeze_dims)
-            except KeyError:
+            except (KeyError, AttributeError):
                 raise KeyError(f"{path} is an invalid key")
         return schema_obj, nums, offsets, squeeze_dims
 
@@ -184,33 +184,35 @@ class ObjectView:
         )
 
     def numpy(self):
+        # This case shouldn't arise
         if not self.subpath:
-            # either dataset view or entire dataset
-            # @TODO DatasetView needs compute() to support this
-            if isinstance(self.dataset, DatasetView):
-                return self.dataset.compute()
-            else:
-                # this case shouldn't arise
-                return self.dataset._tensors
+            # # either dataset view or entire dataset
+            # if isinstance(self.dataset, DatasetView):
+            #     return self.dataset.compute()
+            # else:
+            #     return self.dataset._tensors
+            pass
         else:
             if not isinstance(self.dataset, DatasetView):
                 # subpath present but no slice done
                 if len(self.subpath.split("/")[1:]) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                return self.dataset._tensors[self.subpath][:]
+                # dealt by tensorview
+                # return self.dataset._tensors[self.subpath][:]
             if not self.dataset.squeeze_dim:
                 # return a combined tensor for multiple datapoints
                 # only possible if the field has a fixed size
                 paths = self.subpath.split("/")[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                slice_ = [
-                    ofs if sq else slice(ofs, ofs + num) if num else slice(None, None)
-                    for ofs, num, sq in zip(self.offsets, self.nums, self.squeeze_dims)
-                ]
-                slice_ = [slice(None, None)] + slice_
-                # Will throw error if dynamic tensor, else array
-                return self.dataset[[paths[0]] + slice_].compute()
+                # dealt by tensorview
+                # slice_ = [
+                #     ofs if sq else slice(ofs, ofs + num) if num else slice(None, None)
+                #     for ofs, num, sq in zip(self.offsets, self.nums, self.squeeze_dims)
+                # ]
+                # slice_ = [slice(None, None)] + slice_
+                # # Will throw error if dynamic tensor, else array
+                # return self.dataset[[paths[0]] + slice_].compute()
             else:
                 # single datapoint
                 paths = self.subpath.split("/")[1:]
@@ -228,36 +230,42 @@ class ObjectView:
                         try:
                             return value[tuple(slice_)]
                         except TypeError:
-                            # silently ignores error
+                            # raise error
                             return value
                     else:
                         # sequence of tensors
                         return self.dataset[paths[0]].compute()[tuple(slice_)]
-                elif isinstance(schema, SchemaDict):
-                    value = self.dataset[paths[0]]
-                    for path in paths[1:]:
-                        value = value[path]
-                    if isinstance(value, api.tensorview.TensorView):
-                        return value[slice_].compute()
-                    try:
-                        return value[tuple(slice_)]
-                    except TypeError:
-                        # silently ignores error
-                        return value
-                else:
-                    # tensor
-                    return self.dataset[[paths[0]] + slice_].compute()
+                # Dealt by tensorview
+                # elif isinstance(schema, SchemaDict):
+                #     value = self.dataset[paths[0]]
+                #     for path in paths[1:]:
+                #         value = value[path]
+                #     if isinstance(value, api.tensorview.TensorView):
+                #         return value[slice_].compute()
+                #     try:
+                #         return value[tuple(slice_)]
+                #     except TypeError:
+                #         # raise error
+                #         return value
+                # else:
+                #     # tensor
+                #     return self.dataset[[paths[0]] + slice_].compute()
 
     def compute(self):
         return self.numpy()
 
     def __setitem__(self, slice_, value):
-        objview = self.__getitem__(slice_)
+        if isinstance(slice_, slice) and (slice_.start is None and slice_.stop is None):
+            objview = self
+        else:
+            objview = self.__getitem__(slice_)
         assign_value = value
 
+        # This case shouldn't arise
         if not objview.subpath:
-            # either dataset view or entire dataset
-            raise ValueError("Can't assign to dataset sliced without subpath")
+            # # either dataset view or entire dataset
+            # raise ValueError("Can't assign to dataset sliced without subpath")
+            pass
         else:
             if not isinstance(objview.dataset, DatasetView):
                 # subpath present but no slice done
@@ -274,33 +282,34 @@ class ObjectView:
                 paths = objview.subpath.split("/")[1:]
                 if len(paths) > 1:
                     raise IndexError("Can only go deeper on single datapoint")
-                # Will throw error if dynamic tensor, else array
-                try:
-                    shape = list(assign_value.shape)[1:]
-                    slice_ = []
-                    for num, of, sq, shp in zip(
-                        objview.nums, objview.offsets, objview.squeeze_dims, shape
-                    ):
-                        if sq:
-                            slice_ += [of]
-                        elif num:
-                            if num < shp:
-                                raise ValueError(
-                                    f"Dimension with length {shp} is too big"
-                                )
-                            else:
-                                slice_ += [slice(of, of + shp)]
-                        else:
-                            slice_ += [slice(None, None)]
-                except AttributeError:
-                    slice_ = [
-                        of if sq else slice(of, of + num) if num else slice(None, None)
-                        for num, of, sq in zip(
-                            objview.nums, objview.offsets, objview.squeeze_dims
-                        )
-                    ]
-                slice_ = [slice(None, None)] + slice_
-                objview.dataset[[paths[0]] + slice_] = assign_value
+                # Dealt by tensorview
+                # # Will throw error if dynamic tensor, else array
+                # try:
+                #     shape = list(assign_value.shape)[1:]  # catch attribute error
+                #     slice_ = []
+                #     for num, of, sq, shp in zip(
+                #         objview.nums, objview.offsets, objview.squeeze_dims, shape
+                #     ):
+                #         if sq:
+                #             slice_ += [of]
+                #         elif num:
+                #             if num < shp:
+                #                 raise ValueError(
+                #                     f"Dimension with length {shp} is too big"
+                #                 )
+                #             else:
+                #                 slice_ += [slice(of, of + shp)]
+                #         else:
+                #             slice_ += [slice(None, None)]
+                # except AttributeError:
+                #     slice_ = [
+                #         of if sq else slice(of, of + num) if num else slice(None, None)
+                #         for num, of, sq in zip(
+                #             objview.nums, objview.offsets, objview.squeeze_dims
+                #         )
+                #     ]
+                # slice_ = [slice(None, None)] + slice_
+                # objview.dataset[[paths[0]] + slice_] = assign_value
             else:
                 # single datapoint
                 def assign(paths, value):
@@ -337,13 +346,14 @@ class ObjectView:
                         value = objview.dataset[paths[0]].compute()
                         value[tuple(slice_)] = assign_value
                         objview.dataset[paths[0]] = value
-                elif isinstance(schema, SchemaDict):
-                    value = objview.dataset[paths[0]]
-                    value = assign(paths[1:], value)
-                    objview.dataset[paths[0]] = value
-                else:
-                    # tensor
-                    objview.dataset[[paths[0]] + slice_] = assign_value
+                # Dealt by tensorview
+                # elif isinstance(schema, SchemaDict):
+                #     value = objview.dataset[paths[0]]
+                #     value = assign(paths[1:], value)
+                #     objview.dataset[paths[0]] = value
+                # else:
+                #     # tensor
+                #     objview.dataset[[paths[0]] + slice_] = assign_value
 
     def __str__(self):
         if isinstance(self.dataset, DatasetView):

@@ -149,14 +149,16 @@ class TensorView:
                 else new_offsets[i]
             )
             slice_list.append(cur_slice)
-        if not subpath:
-            self.dataset._tensors[self.subpath][slice_list] = assign_value
-        else:
+        if subpath or (
+            len(slice_list) > len(self.nums) and isinstance(self.dtype, objv.Sequence)
+        ):
             objv.ObjectView(
                 dataset=self.dataset,
                 subpath=self.subpath + subpath,
                 slice_list=slice_list,
             )[:] = assign_value
+        else:
+            self.dataset._tensors[self.subpath][slice_list] = assign_value
 
     def _combine(self, slice_, num=None, ofs=0):
         "Combines a `slice_` with the current num and offset present in tensorview"

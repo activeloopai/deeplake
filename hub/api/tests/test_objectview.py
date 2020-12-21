@@ -1,28 +1,110 @@
 import numpy as np
 import hub
 from hub.schema import Tensor, Image, Text, Sequence, SchemaDict, BBox
+import pytest
+
 
 def test_objectview():
-    schema = SchemaDict({'a':Tensor((None, None), dtype=int, max_shape=(20,20)),
-                     'b': Sequence(dtype=BBox(dtype=float)),
-                     'c': Sequence(dtype=SchemaDict({
-                         'd': Sequence((), dtype= Tensor((5,5), dtype=float))
-                     }))
-                    })
-    ds = hub.Dataset('./nested_seq', shape=(5,), mode='w', schema=schema)
-    
+    schema = SchemaDict(
+        {
+            "a": Tensor((20, 20), dtype=int, max_shape=(20, 20)),
+            "b": Sequence(dtype=BBox(dtype=float)),
+            "c": Sequence(
+                dtype=SchemaDict({"d": Sequence((), dtype=Tensor((5, 5), dtype=float))})
+            ),
+            "e": Sequence(
+                dtype={"f": {"g": Tensor(5, dtype=int), "h": Tensor((), dtype=int)}}
+            ),
+        }
+    )
+    ds = hub.Dataset("./nested_seq", shape=(5,), mode="w", schema=schema)
+
     # dataset view to objectview
     dv = ds[3:5]
-    dv['c', 0] = {'d' : 5 * np.ones((2,2,5,5))}   
-    assert (dv[0, 'c', 0, 'd', 0].compute() == 5 * np.ones((5, 5))).all()
-    
+    dv["c", 0] = {"d": 5 * np.ones((2, 2, 5, 5))}
+    assert (dv[0, "c", 0, "d", 0].compute() == 5 * np.ones((5, 5))).all()
+
+    # dataset view unsqueezed
+    with pytest.raises(IndexError):
+        dv["c", "d"].compute()
+    with pytest.raises(IndexError):
+        dv["c", "d"] = np.ones((2, 3, 3, 5, 5))
+
+    # dataset unsqueezed
+    with pytest.raises(IndexError):
+        ds["c", "d"].compute()
+    with pytest.raises(IndexError):
+        ds["c", "d"] = np.ones((5, 3, 3, 5, 5))
+
     # tensorview to object view
-    ds['b', 0] = 0.5 * np.ones((5,4))
-    tv = ds['b', 0]
-    assert (tv[0].compute() == 0.5 * np.ones((4,))).all()
-    
+    # sequence of tensor
+    ds["b", 0] = 0.5 * np.ones((5, 4))
+    tv = ds["b", 0]
+    tv[0] = 0.3 * np.ones((4,))
+    assert (tv[0].compute() == 0.3 * np.ones((4,))).all()
+
     # ds to object view
-    assert (ds[3, 'c', 'd'].compute() == 5 * np.ones((2,2,5,5))).all()
-    
-if __name__=='__main__':
+    assert (ds[3, "c", "d"].compute() == 5 * np.ones((2, 2, 5, 5))).all()
+
+    # Sequence of schemadicts
+    ds[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.ones(3)}}
+    ds[0, "e", 0, "f", "h"] = 42
+    # This doesn't work. Add support for this
+    # ds[0, "e", 1]["f", "h"] = 25
+    ds[0, "e"][1]["f"]["h"] = 25
+    assert (ds[0, "e", "f", "h"].compute() == np.array([42, 25, 1])).all()
+
+    # make an objectview
+    ov = ds["c", "d"]
+    with pytest.raises(IndexError):
+        ov.compute()
+    assert (ov[3].compute() == 5 * np.ones((2, 2, 5, 5))).all()
+    ov[3, 1] = 2 * np.ones((2, 5, 5))
+    assert (ov[3][0, 0].compute() == 5 * np.ones((5, 5))).all()
+    assert (ov[3][1].compute() == 2 * np.ones((2, 5, 5))).all()
+
+
+def test_errors():
+    schema = SchemaDict(
+        {
+            "a": Tensor((None, None), dtype=int, max_shape=(20, 20)),
+            "b": Sequence(
+                dtype=SchemaDict(
+                    {"e": Tensor((None,), max_shape=(10,), dtype=BBox(dtype=float))}
+                )
+            ),
+            "c": Sequence(
+                dtype=SchemaDict({"d": Sequence((), dtype=Tensor((5, 5), dtype=float))})
+            ),
+        }
+    )
+    ds = hub.Dataset("./nested_seq", shape=(5,), mode="w", schema=schema)
+
+    # Invalid schema
+    with pytest.raises(ValueError):
+        ds["b", 0, "e", 1]
+
+    # Too many indices
+    with pytest.raises(IndexError):
+        ds["c", 0, "d", 1, 1, 0, 0, 0]
+    with pytest.raises(IndexError):
+        ds["c", :2, "d"][0, 1, 1, 0, 0, 0]
+    ob = ds["c", :2, "d"][0, 2:5, 1, 0, 0]
+    assert str(ob[1]) == "ObjectView(subpath='/c/d', slice=[0, 3, 1, 0, 0])"
+    with pytest.raises(IndexError):
+        ob[1, 0]
+
+    # Key Errors
+    # wrong key
+    with pytest.raises(KeyError):
+        ds["b", "c"]
+    # too many keys
+    with pytest.raises(KeyError):
+        ds["c", "d", "e"]
+    with pytest.raises(KeyError):
+        ds["c", "d"]["e"]
+
+
+if __name__ == "__main__":
     test_objectview()
+    test_errors()
