@@ -63,6 +63,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
+        path_to_description_file=None,
         cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
         storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
@@ -87,6 +88,7 @@ class Dataset:
             token is the parameter to pass the credentials, it can be filepath or dict
         fs: optional
         fs_map: optional
+        path_to_description_file: Optional give path to a json file containing information about the author,license,description about the dataset. 
         cache: int, optional
             Size of the memory cache. Default is 64MB (2**26)
             if 0, False or None, then cache is not used
@@ -127,6 +129,7 @@ class Dataset:
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
         )
         self._fs_map = fs_map
+        self._path_to_description_file = path_to_description_file
         self.username = None
         self.dataset_name = None
         if not needcreate:
@@ -213,12 +216,39 @@ class Dataset:
     def schema(self):
         return self._schema
 
+    @property
+    def path_to_description_file(self):
+        return self._path_to_description_file    
+
     def _store_meta(self) -> dict:
+        def make_description(path_to_description_file):
+            '''
+            Utility function to create description,license everything about the dataset.
+
+            parameter
+            ---------
+            path_to_description_file: give a json file containing description of the dataset
+
+            '''
+            import json
+            
+            f = open(path_to_description_file)
+            data = json.load(f)
+
+            return {
+                "description":data["description"],
+                "license":data["license"],
+                "citation":data["citation"]
+            }
         meta = {
             "shape": self.shape,
             "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
+        
+        if self.path_to_description_file!=None:
+            meta.update(make_description(self.path_to_description_file))
+            
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
 
