@@ -239,6 +239,7 @@ class Dataset:
                 "description": data["description"],
                 "license": data["license"],
                 "citation": data["citation"],
+                "author": data["author"]
             }
 
         meta = {
