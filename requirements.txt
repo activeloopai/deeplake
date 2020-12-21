@@ -10,8 +10,8 @@ lz4>=3,<4
 zarr==2.6.1
 lmdb==1.0.0
 boto3==1.16.39
+tqdm==4.54.1
 azure-storage-blob==12.6.0
-tqdm==4.51
 pathos>=0.2.2
 psutil>=5.7.3
 Pillow>=8.0.1
