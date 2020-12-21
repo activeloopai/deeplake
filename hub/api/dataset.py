@@ -4,6 +4,7 @@ import collections.abc as abc
 import json
 import sys
 import traceback
+from collections import defaultdict
 
 import fsspec
 import numcodecs
@@ -42,7 +43,10 @@ from hub.exceptions import (
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
-from collections import defaultdict
+from hub.numcodecs import PngCodec
+
+from hub.utils import norm_cache, norm_shape
+from hub import defaults
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -54,16 +58,16 @@ class Dataset:
         self,
         url: str,
         mode: str = "a",
-        safe_mode: bool = False,
         shape=None,
         schema=None,
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 2 ** 26,
-        storage_cache: int = 2 ** 28,
+        cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
+        storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
         tokenizer=None,
+        public=True,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -71,10 +75,8 @@ class Dataset:
         ----------
         url: str
             The url where dataset is located/should be created
-        mode: str, optional (default to "w")
+        mode: str, optional (default to "a")
             Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
-        safe_mode: bool, optional
-            if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
         shape: tuple, optional
             Tuple with (num_samples,) format, where num_samples is number of samples
         schema: optional
@@ -93,29 +95,29 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         """
 
-        shape = shape or (None,)
-        if isinstance(shape, int):
-            shape = [shape]
-        if shape is not None:
-            if len(tuple(shape)) != 1:
-                raise ShapeLengthException
-        if mode is None:
-            raise NoneValueException("mode")
+        shape = norm_shape(shape)
+        if len(shape) != 1:
+            raise ShapeLengthException()
+        mode = mode or "a"
+        storage_cache = norm_cache(storage_cache) if cache else 0
+        cache = norm_cache(cache)
+        schema: SchemaDict = featurify(schema) if schema else None
 
-        if not cache:
-            storage_cache = False
-
-        self.url = url
-        self.token = token
-        self.mode = mode
+        self._url = url
+        self._token = token
+        self._mode = mode
         self.tokenizer = tokenizer
 
         self._fs, self._path = (
-            (fs, url) if fs else get_fs_and_path(self.url, token=token)
+            (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
-        self.cache = cache
+        self._cache = cache
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
         self.verison = "1.x"
@@ -125,17 +127,25 @@ class Dataset:
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
         )
         self._fs_map = fs_map
-
-        if safe_mode and not needcreate:
-            mode = "r"
         self.username = None
         self.dataset_name = None
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(self.meta["shape"])
-            self.schema = hub.schema.deserialize.deserialize(self.meta["schema"])
+            self._shape = tuple(self.meta["shape"])
+            self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
+            if shape != (None,) and shape != self._shape:
+                raise TypeError(
+                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                )
+            if schema is not None and sorted(schema.dict_.keys()) != sorted(
+                self._schema.dict_.keys()
+            ):
+                raise TypeError(
+                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
+                )
+
         else:
             if shape[0] is None:
                 raise ShapeArgumentNotFoundException()
@@ -146,8 +156,8 @@ class Dataset:
                     raise ShapeArgumentNotFoundException()
                 if schema is None:
                     raise SchemaArgumentNotFoundException()
-                self.schema: HubSchema = featurify(schema)
-                self.shape = tuple(shape)
+                self._schema = schema
+                self._shape = tuple(shape)
                 self.meta = self._store_meta()
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
@@ -172,8 +182,36 @@ class Dataset:
             self.username = spl[-2]
             self.dataset_name = spl[-1]
             HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta
+                self.username, self.dataset_name, self.meta, public=public
             )
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def url(self):
+        return self._url
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def token(self):
+        return self._token
+
+    @property
+    def cache(self):
+        return self._cache
+
+    @property
+    def storage_cache(self):
+        return self._storage_cache
+
+    @property
+    def schema(self):
+        return self._schema
 
     def _store_meta(self) -> dict:
         meta = {
@@ -190,7 +228,7 @@ class Dataset:
         Creates or overwrites dataset folder.
         Returns True dataset needs to be created opposed to read.
         """
-        fs, path, mode = self._fs, self._path, self.mode
+        fs, path, mode = self._fs, self._path, self._mode
         if path.startswith("s3://"):
             with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
                 stored_username = json.load(f)["_id"]
@@ -235,6 +273,8 @@ class Dataset:
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
         elif compressor.lower() == "default":
             return "default"
+        elif compressor.lower() == "png":
+            return PngCodec(solo_channel=True)
         else:
             raise ValueError(
                 f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
@@ -289,12 +329,12 @@ class Dataset:
     def __getitem__(self, slice_):
         """| Gets a slice or slices from dataset
         | Usage:
-        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
+        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
         >>> images = ds["image"]
-        >>> return images[5].numpy() # returns numpy array
+        >>> return images[5].compute() # returns numpy array
         >>> images = ds["image"]
         >>> image = images[5]
-        >>> return image[0:1920, 0:1080, 0:3].numpy()
+        >>> return image[0:1920, 0:1080, 0:3].compute()
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -328,7 +368,7 @@ class Dataset:
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
-        | Usage
+        | Usage:
         >>> ds["image", 5, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         >>> images = ds["image"]
         >>> image = images[5]
@@ -355,7 +395,7 @@ class Dataset:
         if size == self.shape[0]:
             return
 
-        self.shape = (int(size),)
+        self._shape = (int(size),)
         self.meta = self._store_meta()
         for t in self._tensors.values():
             t.resize_shape(int(size))
@@ -388,7 +428,7 @@ class Dataset:
         offset=None,
         num_samples=None,
     ):
-        """| Converts the dataset into a pytorch compatible format
+        """| Converts the dataset into a pytorch compatible format.
 
         Parameters
         ----------
@@ -496,7 +536,7 @@ class Dataset:
         )
 
     def _get_dictionary(self, subpath, slice_=None):
-        """"Gets dictionary from dataset given incomplete subpath"""
+        """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self._tensors.keys():
@@ -526,8 +566,8 @@ class Dataset:
         return self.shape[0]
 
     def flush(self):
-        """Save changes from cache to dataset final storage
-        Does not invalidate this object
+        """Save changes from cache to dataset final storage.
+        Does not invalidate this object.
         """
         for t in self._tensors.values():
             t.flush()
@@ -539,8 +579,8 @@ class Dataset:
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage
-        This invalidates this object
+        """Save changes from cache to dataset final storage.
+        This invalidates this object.
         """
         for t in self._tensors.values():
             t.close()
@@ -588,7 +628,8 @@ class Dataset:
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
-        """Converts a tensorflow dataset into hub format
+        """Converts a tensorflow dataset into hub format.
+
         Parameters
         ----------
         dataset:
@@ -676,7 +717,8 @@ class Dataset:
         scheduler: str = "single",
         workers: int = 1,
     ):
-        """Converts a TFDS Dataset into hub format
+        """| Converts a TFDS Dataset into hub format.
+
         Parameters
         ----------
         dataset: str
@@ -694,6 +736,7 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -808,7 +851,11 @@ class Dataset:
             max_shape = max_shape or tuple(
                 10000 if dim is None else dim for dim in tf_dt.shape
             )
-            return Image(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
+            return Image(
+                shape=tf_dt.shape,
+                dtype=dt,
+                max_shape=max_shape,  # compressor="png"
+            )
 
         def class_label_to_hub(tf_dt, max_shape=None):
             if hasattr(tf_dt, "_num_classes"):

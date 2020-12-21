@@ -1,3 +1,6 @@
+import os
+from hub.cli.auth import login_fn
+from hub.exceptions import HubException
 import numpy as np
 import pytest
 
@@ -5,6 +8,7 @@ import hub.api.dataset as dataset
 from hub.schema import Tensor, Text, Image
 from hub.utils import (
     gcp_creds_exist,
+    hub_creds_exist,
     s3_creds_exist,
     azure_creds_exist,
     transformers_loaded,
@@ -54,8 +58,10 @@ def test_dataset_append_and_read():
     # TODO Add case when non existing dataset is opened in read mode
 
 
-def test_dataset(url="./data/test/dataset", token=None):
-    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+def test_dataset(url="./data/test/dataset", token=None, public=True):
+    ds = Dataset(
+        url, token=token, shape=(10000,), mode="w", schema=my_schema, public=public
+    )
 
     sds = ds[5]
     sds["label/a", 50, 50] = 2
@@ -225,6 +231,40 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     ds["image", 0:1] = [np.zeros((100, 100))]
 
 
+def test_dataset_bug_3(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    ds = Dataset(url)
+    ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_wrong_append(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    try:
+        ds = Dataset(url, shape=100)
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+    try:
+        ds = Dataset(url, schema={"hello": "uint8"})
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+
+def test_dataset_no_shape(url="./data/test/dataset", token=None):
+    try:
+        Tensor(shape=(120, 120, 3), max_shape=(120, 120, 4))
+    except HubException:
+        pass
+
+
 def test_dataset_batch_write():
     schema = {"image": Image(shape=(None, None, 3), max_shape=(100, 100, 3))}
     ds = Dataset("./data/batch", shape=(10,), mode="w", schema=schema)
@@ -247,6 +287,14 @@ def test_dataset_batch_write_2():
     ds = Dataset("./data/batch", shape=(100,), mode="w", schema=schema)
 
     ds["image", 0:14] = [np.ones((640 - i, 640, 3)) for i in range(14)]
+
+
+@pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
+def test_dataset_hub():
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    login_fn("testingacc", password)
+    test_dataset("testingacc/test_dataset_private", public=False)
+    test_dataset("testingacc/test_dataset_public")
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
@@ -348,11 +396,12 @@ def test_append_dataset():
 
 
 if __name__ == "__main__":
-    # test_tensorview_slicing()
-    # test_datasetview_slicing()
-    # test_dataset()
+    test_tensorview_slicing()
+    test_datasetview_slicing()
+    test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()
+    test_dataset_hub()

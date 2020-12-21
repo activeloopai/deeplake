@@ -1,8 +1,10 @@
+from hub.numcodecs import PngCodec
 import math
 
 import numpy as np
 
-from hub.defaults import CHUNK_DEFAULT_SIZE, OBJECT_CHUNK
+from hub.defaults import CHUNK_DEFAULT_SIZE, OBJECT_CHUNK, DEFAULT_COMPRESSOR
+from hub.exceptions import HubException
 
 
 class ShapeDetector:
@@ -16,18 +18,26 @@ class ShapeDetector:
         dtype="float64",
         chunksize=CHUNK_DEFAULT_SIZE,
         object_chunking=OBJECT_CHUNK,
+        compressor=DEFAULT_COMPRESSOR,
     ):
         self._int32max = np.iinfo(np.dtype("int32")).max
 
         self._dtype = dtype = np.dtype(dtype)
-        self._chunksize = chunksize
         self._object_chunking = object_chunking
+        self._compressor = compressor
 
+        self._chunksize = chunksize = self._get_chunksize(chunksize, compressor)
         self._shape = shape = self._get_shape(shape)
         self._max_shape = max_shape = self._get_max_shape(shape, max_shape)
         self._chunks = chunks = self._get_chunks(
             shape, max_shape, chunks, dtype, chunksize
         )
+
+    def _get_chunksize(self, chunksize, compressor):
+        if isinstance(compressor, PngCodec):
+            return int(math.ceil(0.25 * chunksize))
+        else:
+            return chunksize
 
     def _get_shape(self, shape):
         assert shape is not None
@@ -47,6 +57,13 @@ class ShapeDetector:
             max_shape = tuple(max_shape)
             assert len(shape) == len(max_shape)
             for (s, ms) in zip(shape, max_shape):
+                if not isinstance(ms, int):
+                    raise HubException("MaxShape Dimension should be int")
+                if s is not None and s != ms:
+                    raise HubException(
+                        """Dimension in shape cannot be != max_shape dimension, 
+                        if shape is not None """
+                    )
                 assert s == ms or s is None and isinstance(ms, int)
             return max_shape
 

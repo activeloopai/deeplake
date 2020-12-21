@@ -207,7 +207,10 @@ class NotHubDatasetToOverwriteException(HubException):
     def __init__(self):
         message = (
             "Unable to overwrite the dataset. "
-            "The provided directory is not empty and doesn't contain information about any Hub Dataset "
+            "The provided directory is not empty and doesn't contain information about any Hub Dataset. "
+            "This is a safety check so it won't be possible to overwrite (delete) any folder other than Dataset folder. "
+            "If this error persists in case of Dataset folder then it means your Dataset data is corrupted. "
+            "In that case feel free to create an issue in here https://github.com/activeloopai/Hub"
         )
         super(HubException, self).__init__(message=message)
 
