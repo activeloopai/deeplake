@@ -329,7 +329,9 @@ def test_dataset_from_directory():
 
     root_dir_image(root_url)
 
-    ds, labels = Dataset.from_directory(store_url, root_url, image_shape)
+    ds = Dataset.from_directory(store_url, root_url, image_shape)
+    from hub.schema import ClassLabel
+    labels = ClassLabel(names=os.listdir(root_url))
 
     for i, label in enumerate(os.listdir(root_url)):
         for j, image in enumerate(os.listdir(os.path.join(root_url, label))):

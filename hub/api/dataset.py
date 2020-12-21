@@ -20,6 +20,7 @@ from hub.schema.features import (
     HubSchema,
     featurify,
 )
+from hub.schema import ClassLabel
 from hub.log import logger
 from hub.api.tensorview import TensorView
 from hub.api.datasetview import DatasetView
@@ -49,6 +50,7 @@ from hub.numcodecs import PngCodec
 
 from hub.utils import norm_cache, norm_shape
 from hub import defaults
+
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -730,66 +732,74 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_directory(url, path_to_dir, image_shape, mode="w+"):
+    def from_directory(url, path_to_dir, image_shape):
         """This utility function is specific to create dataset from the categorical image dataset.
-
         Parameters
         --------
         url:path to store the dataset (example: username/test_data_here)
-
         path_to_dir: path of the directory where the image dataset root folder exists.
-
         image_shape: Assign the shape of image.(example: (512,512,3) if image is rgb)
-
         mode: Different writing mode for dataset.
-
         ---------
-
         Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
         use.
-
         """
-
+        from PIL import Image as im
         def get_ds_size(path_to_dir):
-            ds = 1
+            size_of_ds = 1
             for i in os.listdir(path_to_dir):
-                ds += len(os.listdir(os.path.join(path_to_dir, i)))
-            return ds
-
+                size_of_ds += len(os.listdir(os.path.join(path_to_dir, i)))
+            return size_of_ds
         def get_max_shape(path_to_dir):
-            max_shape = (0, 0)
+            from PIL import Image
+            max_shape = (1,1)
             for i in os.listdir(path_to_dir):
                 for j in os.listdir(os.path.join(path_to_dir, i)):
                     img_path = os.path.join(path_to_dir, i, j)
-                    width, height = PIL.Image.open(img_path).size
+                    width, height = Image.open(img_path).size
                     if max_shape[0] < width and max_shape[1] < height:
                         max_shape = (width, height)
-            print(max_shape)
+            #print(max_shape)
             return max_shape
-
         # (None,None,3)
         def make_schema(path_to_dir, shape=image_shape):
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
-                "labels": labels,
+                "label": labels,
                 "image": Image(
-                    shape=shape,
+                    shape=image_shape,
                     max_shape=(*get_max_shape(path_to_dir), 3),
                     dtype="uint8",
                 ),
             }
-            return (schema, labels)
-
-        schema, labels = make_schema(path_to_dir, shape=image_shape)
-        ds = Dataset(
-            url,
+            return schema
+        schema = make_schema(path_to_dir, shape=image_shape)
+        labels = os.listdir(path_to_dir)
+        print("here error 1")
+        '''ds = Dataset(
+            url=url,
             shape=(get_ds_size(path_to_dir),),
-            mode=mode,
+            mode="w+",
             schema=schema,
             cache=2 ** 26,
-        )
-
-        return ds, labels
+        )'''
+        #print("here error")
+        @hub.transform(schema=schema)
+        def upload_data(sample):
+            return {
+                "label":sample[0],
+                "image":sample[1]
+            }
+        images = []
+        labels = []
+        for i in os.listdir(path_to_dir):
+            for j in os.listdir(os.path.join(path_to_dir,i)):
+                path_to_image = os.path.join(path_to_dir,i,j)
+                images.append(np.asarray(im.open(path_to_image)))
+                labels.append(i)
+        zip_image = zip(labels,images)
+        upload_data(zip_image).store(url=url)
+        print("uploaded image succesfully")
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):
