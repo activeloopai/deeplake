@@ -395,6 +395,84 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+def test_dataset_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_compute"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w")
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    comp = ds.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_view_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_compute"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w")
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    comp = dsv.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_lazy"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w", lazy=False)
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    assert ds["text", 1] == "hello world"
+    assert ds["second", 0] == 3.14
+    assert (ds["first", 0] == np.array([5, 6])).all()
+
+
+def test_dataset_view_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_lazy"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w", lazy=False)
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    assert dsv["text", 1] == "hello world"
+    assert dsv["second", 0] == 3.14
+    assert (dsv["first", 0] == np.array([5, 6])).all()
+
+
 if __name__ == "__main__":
     test_tensorview_slicing()
     test_datasetview_slicing()
@@ -404,4 +482,8 @@ if __name__ == "__main__":
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()
+    test_dataset_compute()
+    test_dataset_view_compute()
+    test_dataset_lazy()
+    test_dataset_view_lazy()
     test_dataset_hub()

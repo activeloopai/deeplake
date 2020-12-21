@@ -1,7 +1,6 @@
 import zarr
 import numpy as np
 import math
-from psutil import virtual_memory
 from typing import Dict, Iterable
 from hub.api.dataset import Dataset
 from tqdm import tqdm
@@ -38,6 +37,7 @@ def get_sample_size(schema, workers):
             return res
 
         samples = min(samples, (16 * 1024 * 1024 * 8) // (prod(shp) * sz))
+    samples = max(samples, 1)
     return samples * workers
 
 
@@ -67,6 +67,17 @@ class Transform:
         self._ds = ds
         self.kwargs = kwargs
         self.workers = workers
+
+        if isinstance(self._ds, Transform):
+            self.base_ds = self._ds.base_ds
+            self._func = self._ds._func[:]
+            self._func.append(func)
+            self.kwargs = self._ds.kwargs[:]
+            self.kwargs.append(kwargs)
+        else:
+            self.base_ds = ds
+            self._func = [func]
+            self.kwargs = [kwargs]
 
         if scheduler == "threaded" or (scheduler == "single" and workers > 1):
             self.map = ThreadPool(nodes=workers).map
@@ -260,8 +271,40 @@ class Transform:
         Takes a shard of iteratable ds_in, compute and stores in DatasetView
         """
 
+        def call_func(fn_index, item, as_list=False):
+            """Calls all the functions one after the other
+
+            Parameters
+            ----------
+            fn_index: int
+                The index starting from which the functions need to be called
+            item:
+                The item on which functions need to be applied
+            as_list: bool, optional
+                If true then treats the item as a list.
+
+            Returns
+            ----------
+            result:
+                The final output obtained after all transforms
+            """
+            result = item
+            if fn_index < len(self._func):
+                if as_list:
+                    result = [call_func(fn_index, it) for it in result]
+                else:
+                    result = self._func[fn_index](result, **self.kwargs[fn_index])
+                    result = call_func(fn_index + 1, result, isinstance(result, list))
+            result = self._unwrap(result) if isinstance(result, list) else result
+            return result
+
         def _func_argd(item):
-            return self._func(item, **self.kwargs)
+            if isinstance(item, DatasetView) or isinstance(item, Dataset):
+                item = item.numpy()
+            result = call_func(
+                0, item
+            )  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
+            return result
 
         ds_in = list(ds_in)
         results = self.map(
@@ -329,13 +372,7 @@ class Transform:
             uploaded dataset
         """
 
-        ds_in = ds or self._ds
-        if isinstance(ds_in, Transform):
-            ds_in = ds_in.store(
-                "{}_{}".format(url, ds_in._func.__name__),
-                token=token,
-                progressbar=progressbar,
-            )
+        ds_in = ds or self.base_ds
 
         # compute shard length
         if sample_per_shard is None:
@@ -374,8 +411,6 @@ class Transform:
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
                 pbar.update(n_results)
-                if n_results < n_samples or n_results == 0:
-                    break
                 start += n_samples
 
         ds_out.resize_shape(total)
