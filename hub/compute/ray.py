@@ -139,7 +139,11 @@ class RayTransform(Transform):
         ds: hub.Dataset
             Uploaded dataset
         """
-        shape = (len(list(results.values())[0]),)
+        if len(list(results.values())) == 0:
+            shape = (0,)
+        else:
+            shape = (len(list(results.values())[0]),)
+
         ds = Dataset(
             url,
             mode="w",
@@ -239,7 +243,7 @@ class RayGeneratorTransform(RayTransform):
             """
             shard_results = self._split_list_to_dicts(shard_results)
 
-            if len(shard_results) == 0:
+            if len(shard_results) == 0 or len(list(shard_results.values())[0]) == 0:
                 return None
 
             ds = self.upload(
