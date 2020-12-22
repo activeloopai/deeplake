@@ -320,17 +320,25 @@ def test_dataset_azure():
 
 def test_datasetview_slicing():
     dt = {"first": Tensor((100, 100))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
-
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/datasetview_slicing", mode="w")
     assert ds["first", 0].numpy().shape == (100, 100)
     assert ds["first", 0:1].numpy().shape == (1, 100, 100)
     assert ds[0]["first"].numpy().shape == (100, 100)
     assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
 
 
+def test_datasetview_get_dictionary():
+    ds = Dataset(schema=my_schema, shape=(20,), url="./data/test/datasetview_get_dictionary", mode="w")
+    ds["label", 5, "a"] = 5 * np.ones((100, 200))
+    ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
+    dic = ds[5, "label"]
+    assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
+    assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
+
+
 def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/tensorivew_slicing", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
     assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
@@ -474,6 +482,7 @@ def test_dataset_view_lazy():
 
 
 if __name__ == "__main__":
+    test_datasetview_get_dictionary()
     test_tensorview_slicing()
     test_datasetview_slicing()
     test_dataset()
