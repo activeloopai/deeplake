@@ -159,16 +159,30 @@ class RayTransform(Transform):
 
         tasks = []
         for key, value in results.items():
+            # tasks = []
             length = ds[key].chunksize[0]
+           
             batched_values = batchify(value, length)
 
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
+            
+            # ds._tensors[f"/{key}"].disable_dynamicness()
+
             results = [
                 self.upload_chunk.remote(el, key=key, ds=ds)
                 for el in index_batched_values
             ]
             tasks.extend(results)
+
+            # ray.get(tasks)
+            
+            # if ds._tensors[f"/{key}"].is_dynamic:
+            #    ds._tensors[f"/{key}"].enable_dynamicness()
+            #    for (i, batch) in index_batched_values:
+            #        ds._tensors[f"/{key}"].set_shape(
+            #            [slice(i, i + len(batch))], batch
+            #        )
 
         ray.get(tasks)
         ds.commit()
