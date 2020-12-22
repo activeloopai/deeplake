@@ -2,6 +2,7 @@ import hub
 from hub.utils import ray_loaded
 from hub.schema import Tensor, Text
 import pytest
+from hub.compute.ray import empty_remote
 
 import numpy as np
 
@@ -16,6 +17,14 @@ my_schema = {
     "label": Text((None,), "int64", (20,)),
     "confidence": {"confidence": "float"},
 }
+
+
+def test_wrapper():
+    @empty_remote
+    def a(x):
+        return x
+
+    assert a(5)() == 5
 
 
 @pytest.mark.skipif(

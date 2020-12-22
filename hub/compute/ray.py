@@ -9,7 +9,7 @@ from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
 
 
-def remote(template, **kwargs):
+def empty_remote(template, **kwargs):
     """
     remote template
     """
@@ -28,7 +28,7 @@ try:
 
     remote = ray.remote
 except Exception:
-    pass
+    remote = empty_remote
 
 
 class RayTransform(Transform):
@@ -40,7 +40,7 @@ class RayTransform(Transform):
             raise ModuleNotInstalledException("ray")
 
         if not ray.is_initialized():
-            ray.init()
+            ray.init(local_mode=True)
 
     @remote
     def _func_argd(_func, index, _ds, schema, kwargs):
@@ -158,7 +158,7 @@ class RayTransform(Transform):
         ds = Dataset(
             url,
             mode="w",
-            shape=shape,  # unkownn
+            shape=shape,
             schema=self.schema,
             token=token,
             cache=False,
