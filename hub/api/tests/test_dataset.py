@@ -320,7 +320,9 @@ def test_dataset_azure():
 
 def test_datasetview_slicing():
     dt = {"first": Tensor((100, 100))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/datasetview_slicing", mode="w")
+    ds = Dataset(
+        schema=dt, shape=(20,), url="./data/test/datasetview_slicing", mode="w"
+    )
     assert ds["first", 0].numpy().shape == (100, 100)
     assert ds["first", 0:1].numpy().shape == (1, 100, 100)
     assert ds[0]["first"].numpy().shape == (100, 100)
@@ -328,7 +330,12 @@ def test_datasetview_slicing():
 
 
 def test_datasetview_get_dictionary():
-    ds = Dataset(schema=my_schema, shape=(20,), url="./data/test/datasetview_get_dictionary", mode="w")
+    ds = Dataset(
+        schema=my_schema,
+        shape=(20,),
+        url="./data/test/datasetview_get_dictionary",
+        mode="w",
+    )
     ds["label", 5, "a"] = 5 * np.ones((100, 200))
     ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
     dic = ds[5, "label"]
