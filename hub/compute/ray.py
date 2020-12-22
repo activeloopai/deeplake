@@ -38,7 +38,7 @@ class RayTransform(Transform):
         )
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
-        
+
         if not ray.is_initialized():
             ray.init()
 
@@ -196,10 +196,7 @@ class TransformShard:
             if isinstance(item, DatasetView) or isinstance(item, Dataset):
                 item = item.compute()
 
-            item = self._func(
-                0, item
-            ) 
-            #item = self._func[0](item, **self.kwargs[0])
+            item = self._func(0, item)
             for item in Transform._unwrap(item):
                 yield Transform._flatten_dict(item, schema=self.schema)
 
@@ -242,7 +239,9 @@ class RayGeneratorTransform(RayTransform):
             )
 
         results = ray.util.iter.from_range(len(_ds), num_shards=4).transform(
-            TransformShard(ds=_ds, func=self.call_func, schema=self.schema, kwargs=self.kwargs)
+            TransformShard(
+                ds=_ds, func=self.call_func, schema=self.schema, kwargs=self.kwargs
+            )
         )
 
         @remote

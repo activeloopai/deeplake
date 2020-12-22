@@ -17,6 +17,7 @@ my_schema = {
     "confidence": {"confidence": "float"},
 }
 
+
 @pytest.mark.skipif(
     not ray_loaded(),
     reason="requires ray to be loaded",
@@ -48,11 +49,12 @@ def test_ray_simple_generator():
     assert ds["var", 0].compute() == 1
     assert ds.shape[0] == 6
 
+
 @pytest.mark.skipif(
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
-def test_pipeline_ray(): 
+def test_pipeline_ray():
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic",
         mode="w",
@@ -116,7 +118,7 @@ def test_ray_pipeline_multiple():
         out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
     ).all()
 
-    
+
 if __name__ == "__main__":
     # test_ray_simple()
     test_ray_simple_generator()
