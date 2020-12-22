@@ -453,7 +453,7 @@ class Transform:
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
                 pbar.update(n_results)
-                start += n_samples
+                start += n_results
 
         ds_out.resize_shape(total)
         ds_out.commit()
