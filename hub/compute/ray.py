@@ -8,6 +8,7 @@ from hub.exceptions import ModuleNotInstalledException
 from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
 
+
 def remote(template, **kwargs):
     """
     remote template
@@ -105,7 +106,7 @@ class RayTransform(Transform):
 
         if num_returns == 1:
             results = [[r] for r in results]
-        
+
         results = self._split_list_to_dicts(results)
 
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
@@ -119,9 +120,11 @@ class RayTransform(Transform):
         i, batch = i_batch
         if not isinstance(batch, dict) and isinstance(batch[0], ray.ObjectRef):
             batch = ray.get(batch)
-            #FIXME an ugly hack to unwrap elements with a schema that has one tensor
-            num_returns = len(Transform._flatten_dict(ds.schema.dict_, schema=ds.schema.dict_).keys())
-            if num_returns == 1:  
+            # FIXME an ugly hack to unwrap elements with a schema that has one tensor
+            num_returns = len(
+                Transform._flatten_dict(ds.schema.dict_, schema=ds.schema.dict_).keys()
+            )
+            if num_returns == 1:
                 batch = [item for sublist in batch for item in sublist]
 
         length = len(batch)
@@ -269,7 +272,7 @@ class RayGeneratorTransform(RayTransform):
             Create a seperate dataset per shard
             """
             shard_results = self._split_list_to_dicts(shard_results)
-            
+
             if len(shard_results) == 0 or len(list(shard_results.values())[0]) == 0:
                 return None
 

@@ -33,21 +33,22 @@ def test_ray_simple():
     assert ds["var", 0].compute() == 1
 
 
-
 @pytest.mark.skipif(
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
 def test_ray_non_dynamic():
-    schema = {"var": Tensor(shape=(2, 2), dtype="uint8"), 
-              "var2": Tensor(shape=(2, 2), dtype="uint8")}
+    schema = {
+        "var": Tensor(shape=(2, 2), dtype="uint8"),
+        "var2": Tensor(shape=(2, 2), dtype="uint8"),
+    }
 
     @hub.transform(schema=schema, scheduler="ray_generator")
     def process(item):
         return [{"var": np.ones((2, 2)), "var2": np.ones((2, 2))} for i in range(2)]
 
     ds = process([1, 2, 3]).store("./data/somedataset")
-    assert ds["var", 0].compute().shape[0] == 2 
+    assert ds["var", 0].compute().shape[0] == 2
 
 
 @pytest.mark.skipif(
@@ -62,7 +63,7 @@ def test_ray_dynamic():
         return {"var": np.ones((1, 2))}
 
     ds = process([1, 2, 3]).store("./data/somedataset")
-    assert ds["var", 0].compute().shape[0] == 1 
+    assert ds["var", 0].compute().shape[0] == 1
 
 
 @pytest.mark.skipif(
@@ -158,4 +159,3 @@ if __name__ == "__main__":
     # test_ray_simple_generator()
     # test_pipeline_ray()
     # test_ray_pipeline_multiple()
-    
