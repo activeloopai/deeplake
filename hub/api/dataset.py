@@ -732,7 +732,7 @@ class Dataset:
         return my_transform(ds)
 
     @staticmethod
-    def from_directory(url, path_to_dir, image_shape):
+    def from_directory(url, path_to_dir):
         """This utility function is specific to create dataset from the categorical image dataset.
         Parameters
         --------
@@ -753,6 +753,7 @@ class Dataset:
         def get_max_shape(path_to_dir):
             from PIL import Image
             max_shape = (1,1)
+            import os
             for i in os.listdir(path_to_dir):
                 for j in os.listdir(os.path.join(path_to_dir, i)):
                     img_path = os.path.join(path_to_dir, i, j)
@@ -762,7 +763,8 @@ class Dataset:
             #print(max_shape)
             return max_shape
         # (None,None,3)
-        def make_schema(path_to_dir, shape=image_shape):
+        def make_schema(path_to_dir):
+            image_shape = (*get_max_shape(path_to_dir),3)
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                 "label": labels,
@@ -772,34 +774,35 @@ class Dataset:
                     dtype="uint8",
                 ),
             }
+            print(schema)
             return schema
-        schema = make_schema(path_to_dir, shape=image_shape)
-        labels = os.listdir(path_to_dir)
-        print("here error 1")
-        '''ds = Dataset(
-            url=url,
-            shape=(get_ds_size(path_to_dir),),
-            mode="w+",
-            schema=schema,
-            cache=2 ** 26,
-        )'''
-        #print("here error")
+        from hub.schema import ClassLabel    
+        schema = make_schema(path_to_dir)
+        labels = ClassLabel(os.listdir(path_to_dir))
+        
+        label_dic = {}
+        for i,label in enumerate(os.listdir(path_to_dir)):
+            label_dic[label]=i
+        
         @hub.transform(schema=schema)
         def upload_data(sample):
             return {
-                "label":sample[0],
+                "label":label_dic[sample[0]],
                 "image":sample[1]
             }
         images = []
-        labels = []
+        labels_list = []
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir,i)):
+                import numpy as np
                 path_to_image = os.path.join(path_to_dir,i,j)
                 images.append(np.asarray(im.open(path_to_image)))
-                labels.append(i)
-        zip_image = zip(labels,images)
-        upload_data(zip_image).store(url=url)
-        print("uploaded image succesfully")
+                labels_list.append(i)
+        zip_image = zip(labels_list,images)
+        #print(len(list(zip_image)))
+        ds = upload_data(zip_image)
+        return ds
+        #print("uploaded image succesfully")   
 
     @staticmethod
     def from_tfds(dataset, split=None, num=-1, sampling_amount=1):

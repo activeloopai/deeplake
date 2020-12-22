@@ -325,24 +325,19 @@ def test_dataset_from_directory():
 
     root_url = "./data/categorical_label_data"
     store_url = "./data/categorical_label_data_store"
-    image_shape = (None, None, 3)
 
     root_dir_image(root_url)
 
-    ds = Dataset.from_directory(store_url, root_url, image_shape)
+    ds = Dataset.from_directory(store_url, root_url)
+    ds.store(store_url)
+    import hub
+    ds = hub.load(store_url)
     from hub.schema import ClassLabel
     labels = ClassLabel(names=os.listdir(root_url))
+    label = os.listdir(root_url)
 
-    for i, label in enumerate(os.listdir(root_url)):
-        for j, image in enumerate(os.listdir(os.path.join(root_url, label))):
-            from PIL import Image
-
-            img_path = os.path.join(root_url, label, image)
-            ds["image", j] = np.asarray(Image.open(img_path))
-            ds["labels", i] = labels.str2int(label)
-            assert ds["image", j].numpy().shape == (512, 512, 3)
-            assert ds["labels", i].numpy() == labels.str2int(label)
-    ds.commit()
+    assert ds['image',0].compute().shape == (512,512,3)
+    assert ds['label',0].compute() == labels.str2int(label[0])
     del_data(root_url, store_url)
     
 @pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
