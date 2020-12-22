@@ -308,42 +308,42 @@ class Transform:
         ds.commit()
         return ds
 
+    def call_func(self, fn_index, item, as_list=False):
+        """Calls all the functions one after the other
+
+        Parameters
+        ----------
+        fn_index: int
+            The index starting from which the functions need to be called
+        item:
+            The item on which functions need to be applied
+        as_list: bool, optional
+            If true then treats the item as a list.
+
+        Returns
+        ----------
+        result:
+            The final output obtained after all transforms
+        """
+        result = item
+        if fn_index < len(self._func):
+            if as_list:
+                result = [self.call_func(fn_index, it) for it in result]
+            else:
+                result = self._func[fn_index](result, **self.kwargs[fn_index])
+                result = self.call_func(fn_index + 1, result, isinstance(result, list))
+        result = self._unwrap(result) if isinstance(result, list) else result
+        return result
+
     def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
         """
         Takes a shard of iteratable ds_in, compute and stores in DatasetView
         """
 
-        def call_func(fn_index, item, as_list=False):
-            """Calls all the functions one after the other
-
-            Parameters
-            ----------
-            fn_index: int
-                The index starting from which the functions need to be called
-            item:
-                The item on which functions need to be applied
-            as_list: bool, optional
-                If true then treats the item as a list.
-
-            Returns
-            ----------
-            result:
-                The final output obtained after all transforms
-            """
-            result = item
-            if fn_index < len(self._func):
-                if as_list:
-                    result = [call_func(fn_index, it) for it in result]
-                else:
-                    result = self._func[fn_index](result, **self.kwargs[fn_index])
-                    result = call_func(fn_index + 1, result, isinstance(result, list))
-            result = self._unwrap(result) if isinstance(result, list) else result
-            return result
-
         def _func_argd(item):
             if isinstance(item, DatasetView) or isinstance(item, Dataset):
                 item = item.numpy()
-            result = call_func(
+            result = self.call_func(
                 0, item
             )  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
             return result

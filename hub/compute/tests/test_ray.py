@@ -52,7 +52,7 @@ def test_ray_simple_generator():
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
-def test_pipeline_ray():
+def test_pipeline_ray(): 
     ds = hub.Dataset(
         "./data/test/test_pipeline_basic",
         mode="w",
@@ -118,7 +118,7 @@ def test_ray_pipeline_multiple():
 
     
 if __name__ == "__main__":
-    test_ray_simple()
+    # test_ray_simple()
     test_ray_simple_generator()
     # test_pipeline_ray()
     # test_ray_pipeline_multiple()

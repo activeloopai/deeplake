@@ -47,12 +47,16 @@ class RayTransform(Transform):
         """
         Remote wrapper for user defined function
         """
+
         if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView):
             _ds.squeeze_dim = False
 
         item = _ds[index]
+        if isinstance(item, DatasetView) or isinstance(item, Dataset):
+            item = item.compute()
+
         item = _func[0](item, **kwargs[0])
-        # item = Transform._flatten(item, schema)
+
         item = Transform._flatten_dict(item, schema=schema)
         return list(item.values())
 
@@ -189,8 +193,13 @@ class TransformShard:
         """
         for index in ids:
             item = self._ds[index]
-            item = self._func[0](item, **self.kwargs[0])
+            if isinstance(item, DatasetView) or isinstance(item, Dataset):
+                item = item.compute()
 
+            item = self._func(
+                0, item
+            ) 
+            #item = self._func[0](item, **self.kwargs[0])
             for item in Transform._unwrap(item):
                 yield Transform._flatten_dict(item, schema=self.schema)
 
@@ -233,7 +242,7 @@ class RayGeneratorTransform(RayTransform):
             )
 
         results = ray.util.iter.from_range(len(_ds), num_shards=4).transform(
-            TransformShard(ds=_ds, func=self._func, schema=self.schema, kwargs=self.kwargs)
+            TransformShard(ds=_ds, func=self.call_func, schema=self.schema, kwargs=self.kwargs)
         )
 
         @remote
@@ -274,19 +283,9 @@ class RayGeneratorTransform(RayTransform):
         """
         sharded_ds = ShardedDatasetView(datasets)
 
-        def identity(sample):
-            d = {}
-            for k in sample.keys:
-                v = sample[k]
-                if not isinstance(v, dict):
-                    d[k] = v.compute()
-                else:
-                    d[k] = identity(v)
-            return d
-
         @hub.transform(schema=self.schema, scheduler="ray")
         def transform_identity(sample):
-            return identity(sample)
+            return sample
 
         ds = transform_identity(sharded_ds).store(
             url,
