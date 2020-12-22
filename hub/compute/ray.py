@@ -56,7 +56,7 @@ class RayTransform(Transform):
 
         item = _func(0, item)
         item = Transform._flatten_dict(item, schema=schema)
-        # print('_func_argd', list(item.values()))
+
         return list(item.values())
 
     def store(
@@ -160,7 +160,7 @@ class RayTransform(Transform):
             token=token,
             cache=False,
         )
-        #print(172, results)
+
         tasks = []
         for key, value in results.items():
             # tasks = []
@@ -170,7 +170,7 @@ class RayTransform(Transform):
             index_batched_values = list(zip(chunk_id, batched_values))
 
             # ds._tensors[f"/{key}"].disable_dynamicness()
-            #print(182, key, index_batched_values)
+
             results = [
                 self.upload_chunk.remote(el, key=key, ds=ds)
                 for el in index_batched_values
@@ -178,7 +178,7 @@ class RayTransform(Transform):
             tasks.extend(results)
 
             # ray.get(tasks)
-            
+
             # if ds._tensors[f"/{key}"].is_dynamic:
             #    ds._tensors[f"/{key}"].enable_dynamicness()
             #    for (i, batch) in index_batched_values:
