@@ -218,7 +218,7 @@ class Dataset:
 
     @property
     def meta_information(self):
-        return self._meta_information    
+        return self._meta_information
 
     def _store_meta(self) -> dict:
 
@@ -227,11 +227,11 @@ class Dataset:
             "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
-        
-        if self.meta_information!=None:
+
+        if self.meta_information != None:
             meta.update(self.meta_information)
             print(meta)
- 
+
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
 
