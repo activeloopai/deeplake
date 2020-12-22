@@ -174,6 +174,7 @@ def test_to_pytorch():
         assert type(d) == tuple
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_to_pytorch_datasetview():
     import torch
 
