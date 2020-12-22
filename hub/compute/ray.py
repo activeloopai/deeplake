@@ -3,11 +3,10 @@ from hub import Dataset
 from hub.api.datasetview import DatasetView
 from hub.utils import batchify
 from hub.compute import Transform
-from typing import Iterable
+from typing import Iterable, Iterator
 from hub.exceptions import ModuleNotInstalledException
 from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
-
 
 def remote(template, **kwargs):
     """
@@ -55,9 +54,9 @@ class RayTransform(Transform):
         if isinstance(item, DatasetView) or isinstance(item, Dataset):
             item = item.compute()
 
-        item = _func[0](item, **kwargs[0])
-
+        item = _func(0, item)
         item = Transform._flatten_dict(item, schema=schema)
+        # print('_func_argd', list(item.values()))
         return list(item.values())
 
     def store(
@@ -99,13 +98,16 @@ class RayTransform(Transform):
         num_returns = len(self._flatten_dict(self.schema, schema=self.schema).keys())
         results = [
             self._func_argd.options(num_returns=num_returns).remote(
-                self._func, el, _ds, schema=self.schema, kwargs=self.kwargs
+                self.call_func, el, _ds, schema=self.schema, kwargs=self.kwargs
             )
             for el in range(len(_ds))
         ]
+
         if num_returns == 1:
             results = [[r] for r in results]
+        
         results = self._split_list_to_dicts(results)
+
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
         return ds
 
@@ -115,12 +117,14 @@ class RayTransform(Transform):
         Remote function to upload a chunk
         """
         i, batch = i_batch
-        length = len(batch)
-
         if not isinstance(batch, dict) and isinstance(batch[0], ray.ObjectRef):
             batch = ray.get(batch)
+            #FIXME an ugly hack to unwrap elements with a schema that has one tensor
+            num_returns = len(Transform._flatten_dict(ds.schema.dict_, schema=ds.schema.dict_).keys())
+            if num_returns == 1:  
+                batch = [item for sublist in batch for item in sublist]
 
-        # TODO some sort of syncronizer across nodes
+        length = len(batch)
         if length != 1:
             ds[key, i * length : (i + 1) * length] = batch
         else:
@@ -156,19 +160,17 @@ class RayTransform(Transform):
             token=token,
             cache=False,
         )
-
+        #print(172, results)
         tasks = []
         for key, value in results.items():
             # tasks = []
             length = ds[key].chunksize[0]
-           
             batched_values = batchify(value, length)
-
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
-            
-            # ds._tensors[f"/{key}"].disable_dynamicness()
 
+            # ds._tensors[f"/{key}"].disable_dynamicness()
+            #print(182, key, index_batched_values)
             results = [
                 self.upload_chunk.remote(el, key=key, ds=ds)
                 for el in index_batched_values
@@ -210,8 +212,11 @@ class TransformShard:
             if isinstance(item, DatasetView) or isinstance(item, Dataset):
                 item = item.compute()
 
-            item = self._func(0, item)
-            for item in Transform._unwrap(item):
+            items = self._func(0, item)
+            if not isinstance(items, list):
+                items = [items]
+
+            for item in items:
                 yield Transform._flatten_dict(item, schema=self.schema)
 
 
@@ -264,7 +269,7 @@ class RayGeneratorTransform(RayTransform):
             Create a seperate dataset per shard
             """
             shard_results = self._split_list_to_dicts(shard_results)
-
+            
             if len(shard_results) == 0 or len(list(shard_results.values())[0]) == 0:
                 return None
 
