@@ -38,12 +38,12 @@ class RayTransform(Transform):
         )
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
-
+        
         if not ray.is_initialized():
             ray.init()
 
     @remote
-    def _func_argd(_func, index, _ds, schema, **kwargs):
+    def _func_argd(_func, index, _ds, schema, kwargs):
         """
         Remote wrapper for user defined function
         """
@@ -51,7 +51,7 @@ class RayTransform(Transform):
             _ds.squeeze_dim = False
 
         item = _ds[index]
-        item = _func(item, **kwargs)
+        item = _func[0](item, **kwargs[0])
         # item = Transform._flatten(item, schema)
         item = Transform._flatten_dict(item, schema=schema)
         return list(item.values())
@@ -84,7 +84,6 @@ class RayTransform(Transform):
         ds: hub.Dataset
             uploaded dataset
         """
-
         _ds = ds or self._ds
         if isinstance(_ds, Transform):
             _ds = _ds.store(
@@ -96,11 +95,12 @@ class RayTransform(Transform):
         num_returns = len(self._flatten_dict(self.schema, schema=self.schema).keys())
         results = [
             self._func_argd.options(num_returns=num_returns).remote(
-                self._func, el, _ds, schema=self.schema, **self.kwargs
+                self._func, el, _ds, schema=self.schema, kwargs=self.kwargs
             )
             for el in range(len(_ds))
         ]
-
+        if num_returns == 1:
+            results = [[r] for r in results]
         results = self._split_list_to_dicts(results)
         ds = self.upload(results, url=url, token=token, progressbar=progressbar)
         return ds
@@ -172,7 +172,7 @@ class RayTransform(Transform):
 
 
 class TransformShard:
-    def __init__(self, ds, func, schema, **kwargs):
+    def __init__(self, ds, func, schema, kwargs):
 
         if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
             ds.squeeze_dim = False
@@ -189,7 +189,7 @@ class TransformShard:
         """
         for index in ids:
             item = self._ds[index]
-            item = self._func(item, **self.kwargs)
+            item = self._func[0](item, **self.kwargs[0])
 
             for item in Transform._unwrap(item):
                 yield Transform._flatten_dict(item, schema=self.schema)
@@ -233,7 +233,7 @@ class RayGeneratorTransform(RayTransform):
             )
 
         results = ray.util.iter.from_range(len(_ds), num_shards=4).transform(
-            TransformShard(ds=_ds, func=self._func, schema=self.schema, **self.kwargs)
+            TransformShard(ds=_ds, func=self._func, schema=self.schema, kwargs=self.kwargs)
         )
 
         @remote

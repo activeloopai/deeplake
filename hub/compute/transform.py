@@ -96,6 +96,48 @@ class Transform:
                 f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'"
             )
 
+    def __len__(self):
+        return self.shape[0]
+
+    def __getitem__(self, slice_):
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
+        slice_: slice
+            Gets a slice or slices from dataset
+        """
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+
+        slice_ = list(slice_)
+        subpath, slice_list = slice_split(slice_)
+
+        if len(slice_list) == 0:
+            slice_list = [slice(None, None, None)]
+
+        num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+
+        ds_view = DatasetView(
+            dataset=self._ds,
+            num_samples=num,
+            offset=ofs,
+            squeeze_dim=isinstance(slice_list[0], int),
+        )
+
+        path = posixpath.expanduser("~/.activeloop/tmparray")
+        new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
+
+        index = 1 if len(slice_) > 1 else 0
+        slice_[index] = (
+            slice(None, None, None) if not isinstance(slice_list[0], int) else 0
+        )  # Get all shape dimension since we already sliced
+        return new_ds[slice_]
+
+    def __iter__(self):
+        for index in range(len(self)):
+            yield self[index]
+
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
         """| Helper function to flatten dictionary of a recursive tensor
@@ -147,6 +189,19 @@ class Transform:
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
 
+    @classmethod
+    def _unwrap(cls, results):
+        """
+        If there is any list then unwrap it into its elements
+        """
+        items = []
+        for r in results:
+            if isinstance(r, dict):
+                items.append(r)
+            else:
+                items.extend(r)
+        return items
+
     def _split_list_to_dicts(self, xs):
         """| Helper function that transform list of dicts into dicts of lists
 
@@ -170,6 +225,17 @@ class Transform:
                 else:
                     xs_new[key] = [value]
         return xs_new
+
+    def _pbar(self, show: bool = True):
+        """
+        Returns a progress bar, if empty then it function does nothing
+        """
+
+        def _empty_pbar(xs, **kwargs):
+            return xs
+
+        single_threaded = self.map == map
+        return tqdm if show and single_threaded else _empty_pbar
 
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
@@ -241,30 +307,6 @@ class Transform:
 
         ds.commit()
         return ds
-
-    def _pbar(self, show: bool = True):
-        """
-        Returns a progress bar, if empty then it function does nothing
-        """
-
-        def _empty_pbar(xs, **kwargs):
-            return xs
-
-        single_threaded = self.map == map
-        return tqdm if show and single_threaded else _empty_pbar
-
-    @classmethod
-    def _unwrap(cls, results):
-        """
-        If there is any list then unwrap it into its elements
-        """
-        items = []
-        for r in results:
-            if isinstance(r, dict):
-                items.append(r)
-            else:
-                items.extend(r)
-        return items
 
     def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
         """
@@ -416,48 +458,6 @@ class Transform:
         ds_out.resize_shape(total)
         ds_out.commit()
         return ds_out
-
-    def __len__(self):
-        return self.shape[0]
-
-    def __getitem__(self, slice_):
-        """| Get an item to be computed without iterating on the whole dataset.
-        | Creates a dataset view, then a temporary dataset to apply the transform.
-        Parameters:
-        ----------
-        slice_: slice
-            Gets a slice or slices from dataset
-        """
-        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
-            slice_ = [slice_]
-
-        slice_ = list(slice_)
-        subpath, slice_list = slice_split(slice_)
-
-        if len(slice_list) == 0:
-            slice_list = [slice(None, None, None)]
-
-        num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-
-        ds_view = DatasetView(
-            dataset=self._ds,
-            num_samples=num,
-            offset=ofs,
-            squeeze_dim=isinstance(slice_list[0], int),
-        )
-
-        path = posixpath.expanduser("~/.activeloop/tmparray")
-        new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
-
-        index = 1 if len(slice_) > 1 else 0
-        slice_[index] = (
-            slice(None, None, None) if not isinstance(slice_list[0], int) else 0
-        )  # Get all shape dimension since we already sliced
-        return new_ds[slice_]
-
-    def __iter__(self):
-        for index in range(len(self)):
-            yield self[index]
 
     @property
     def shape(self):

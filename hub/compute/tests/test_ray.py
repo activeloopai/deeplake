@@ -29,8 +29,24 @@ def test_ray_simple():
         return {"var": 1}
 
     ds = process([1, 2, 3]).store("./data/somedataset")
-    assert ds["var", 0] == 1
+    assert ds["var", 0].compute() == 1
 
+
+@pytest.mark.skipif(
+    not ray_loaded(),
+    reason="requires ray to be loaded",
+)
+def test_ray_simple_generator():
+    schema = {"var": "float"}
+
+    @hub.transform(schema=schema, scheduler="ray_generator")
+    def process(item):
+        items = [{"var": item} for i in range(item)]
+        return items
+
+    ds = process([0, 1, 2, 3]).store("./data/somegeneratordataset")
+    assert ds["var", 0].compute() == 1
+    assert ds.shape[0] == 6
 
 @pytest.mark.skipif(
     not ray_loaded(),
@@ -102,4 +118,7 @@ def test_ray_pipeline_multiple():
 
     
 if __name__ == "__main__":
-    ray_simple()
+    test_ray_simple()
+    test_ray_simple_generator()
+    # test_pipeline_ray()
+    # test_ray_pipeline_multiple()
