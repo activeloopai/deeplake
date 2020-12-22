@@ -385,7 +385,7 @@ class Transform:
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
-        sample_per_shard: bool = None,
+        sample_per_shard: int = None,
         public: bool = True,
     ):
         """| The function to apply the transformation for each element in batchified manner
@@ -452,7 +452,7 @@ class Transform:
             for ds_in_shard in batchify_generator(ds_in, n_samples):
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
-                pbar.update(n_results)
+                pbar.update(len(ds_in_shard))
                 start += n_results
 
         ds_out.resize_shape(total)

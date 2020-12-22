@@ -239,6 +239,38 @@ def test_stacked_transform():
     assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
 
 
+def test_zero_sample_transform():
+    schema = {"test": Tensor((None, None), dtype="uint8", max_shape=(10, 10))}
+
+    @hub.transform(schema=schema)
+    def my_transform(sample):
+        if sample % 5 == 0:
+            return []
+        else:
+            return {"test": (sample % 5) * np.ones((5, 5))}
+
+    ds = my_transform([i for i in range(30)])
+    ds2 = ds.store("./data/transform_zero_sample", sample_per_shard=5)
+    assert len(ds2) == 24
+    for i, item in enumerate(ds2):
+        assert (item["test"].compute() == (((i % 4) + 1) * np.ones((5, 5)))).all()
+
+
+def test_mutli_sample_transform():
+    schema = {"test": Tensor((None, None), dtype="uint8", max_shape=(10, 10))}
+
+    @hub.transform(schema=schema)
+    def my_transform(sample):
+        d = {"test": sample * np.ones((5, 5))}
+        return [d, d]
+
+    ds = my_transform([i for i in range(32)])
+    ds2 = ds.store("./data/transform_zero_sample", sample_per_shard=5)
+    assert len(ds2) == 64
+    for i, item in enumerate(ds2):
+        assert (item["test"].compute() == (i // 2) * np.ones((5, 5))).all()
+
+
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
     numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
     zarr_fs = zarr.zeros(
