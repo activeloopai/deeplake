@@ -206,10 +206,19 @@ class DatasetView:
             num_samples=self.num_samples, offset=self.offset
         )
 
-    def to_pytorch(self, Transform=None):
+    def to_pytorch(
+        self,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+    ):
         """Converts the dataset into a pytorch compatible format"""
         return self.dataset.to_pytorch(
-            Transform=Transform, num_samples=self.num_samples, offset=self.offset
+            transform=transform,
+            num_samples=self.num_samples,
+            offset=self.offset,
+            inplace=inplace,
+            output_type=output_type,
         )
 
     def resize_shape(self, size: int) -> None:

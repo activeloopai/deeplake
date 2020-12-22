@@ -489,7 +489,21 @@ def test_dataset_view_lazy():
     assert (dsv["first", 0] == np.array([5, 6])).all()
 
 
+def test_datasetview_repr():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_repr"
+    ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
+    dsv = ds[2:]
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
+    assert dsv.__repr__() == print_text
+
+
 if __name__ == "__main__":
+    test_datasetview_repr()
     test_datasetview_get_dictionary()
     test_tensorview_slicing()
     test_datasetview_slicing()

@@ -83,6 +83,35 @@ def test_to_from_tensorflow():
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
+@pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
+def test_to_from_tensorflow_datasetview():
+    my_schema = {
+        "image": Tensor((10, 1920, 1080, 3), "uint8"),
+        "label": {
+            "a": Tensor((100, 200), "int32"),
+            "b": Tensor((100, 400), "int64"),
+            "c": Tensor((5, 3), "uint8"),
+            "d": {"e": Tensor((5, 3), "uint8")},
+            "f": "float",
+        },
+    }
+
+    ds = hub.Dataset(
+        schema=my_schema, shape=(10,), url="./data/test_from_tf/ds4", mode="w"
+    )
+    for i in range(10):
+        ds["label", "d", "e", i] = i * np.ones((5, 3))
+    dsv = ds[5:]
+    tds = dsv.to_tensorflow()
+    out_ds = hub.Dataset.from_tensorflow(tds)
+    res_ds = out_ds.store(
+        "./data/test_from_tf/ds6", length=5
+    )  # generator has no length, argument needed
+
+    for i in range(5):
+        assert (res_ds["label", "d", "e", i].numpy() == (5 + i) * np.ones((5, 3))).all()
+
+
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_to_pytorch():
     import torch
@@ -133,6 +162,68 @@ def test_to_pytorch():
     )
     for i, batch in enumerate(dl):
         assert (batch[1]["d"]["e"].numpy() == i * np.ones((5, 3))).all()
+
+    # output_type = list
+    dst = ds.to_pytorch(output_type=list)
+    for i, d in enumerate(dst):
+        assert type(d) == list
+
+    # output_type = tuple
+    dst = ds.to_pytorch(output_type=tuple)
+    for i, d in enumerate(dst):
+        assert type(d) == tuple
+
+
+def test_to_pytorch_datasetview():
+    import torch
+
+    my_schema = {
+        "image": Tensor((10, 1920, 1080, 3), "uint8"),
+        "label": {
+            "a": Tensor((100, 200), "int32"),
+            "b": Tensor((100, 400), "int64"),
+            "c": Tensor((5, 3), "uint8"),
+            "d": {"e": Tensor((5, 3), "uint8")},
+            "f": "float",
+        },
+    }
+    ds = hub.Dataset(
+        schema=my_schema, shape=(10,), url="./data/test_from_tf/ds5", mode="w"
+    )
+    for i in range(10):
+        ds["label", "d", "e", i] = i * np.ones((5, 3))
+    # pure conversion
+    dsv = ds[3:]
+    ptds = dsv.to_pytorch()
+    dl = torch.utils.data.DataLoader(
+        ptds,
+        batch_size=1,
+    )
+    for i, batch in enumerate(dl):
+        assert (batch["label"]["d"]["e"].numpy() == (3 + i) * np.ones((5, 3))).all()
+
+    # with transforms and inplace=False
+    def recursive_torch_tensor(label):
+        for key, value in label.items():
+            if type(value) is dict:
+                label[key] = recursive_torch_tensor(value)
+            else:
+                label[key] = torch.tensor(value)
+        return label
+
+    def transform(data):
+        image = torch.tensor(data["image"])
+        label = data["label"]
+        label = recursive_torch_tensor(label)
+        return (image, label)
+
+    dst = dsv.to_pytorch(transform=transform, inplace=False)
+    dl = torch.utils.data.DataLoader(
+        dst,
+        batch_size=1,
+    )
+    for i, batch in enumerate(dl):
+        assert (batch[1]["d"]["e"].numpy() == (3 + i) * np.ones((5, 3))).all()
 
     # output_type = list
     dst = ds.to_pytorch(output_type=list)
@@ -215,7 +306,6 @@ def test_to_from_pytorch():
 
 
 if __name__ == "__main__":
-
     with Timer("Test Converters"):
         with Timer("from MNIST"):
             test_from_tfds_mnist()
