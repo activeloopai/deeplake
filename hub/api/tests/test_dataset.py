@@ -338,7 +338,8 @@ def test_datasetview_get_dictionary():
     )
     ds["label", 5, "a"] = 5 * np.ones((100, 200))
     ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
-    dic = ds[5, "label"]
+    dsv = ds[2:10]
+    dic = dsv[3, "label"]
     assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
     assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
 
