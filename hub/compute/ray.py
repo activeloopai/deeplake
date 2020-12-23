@@ -68,6 +68,7 @@ class RayTransform(Transform):
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
+        public: bool = True
     ):
         """
         The function to apply the transformation for each element in batchified manner
@@ -84,18 +85,17 @@ class RayTransform(Transform):
         ds: Iterable
         progressbar: bool
             Show progress bar
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+
         Returns
         ----------
         ds: hub.Dataset
             uploaded dataset
         """
-        _ds = ds or self._ds
-        if isinstance(_ds, Transform):
-            _ds = _ds.store(
-                "{}_{}".format(url, _ds._func.__name__),
-                token=token,
-                progressbar=progressbar,
-            )
+        _ds = ds or self.base_ds
 
         num_returns = len(self._flatten_dict(self.schema, schema=self.schema).keys())
         results = [
@@ -110,7 +110,7 @@ class RayTransform(Transform):
 
         results = self._split_list_to_dicts(results)
 
-        ds = self.upload(results, url=url, token=token, progressbar=progressbar)
+        ds = self.upload(results, url=url, token=token, progressbar=progressbar, public=public)
         return ds
 
     @remote
@@ -152,7 +152,7 @@ class RayTransform(Transform):
 
         return (key, [slice_], shape)
 
-    def upload(self, results, url: str, token: dict, progressbar: bool = True):
+    def upload(self, results, url: str, token: dict, progressbar: bool = True, public: bool = True):
         """Batchified upload of results.
         For each tensor batchify based on its chunk and upload.
         If tensor is dynamic then still upload element by element.
@@ -164,6 +164,10 @@ class RayTransform(Transform):
         results:
             Output of transform function
         progressbar: bool
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         Returns
         ----------
         ds: hub.Dataset
@@ -181,6 +185,7 @@ class RayTransform(Transform):
             schema=self.schema,
             token=token,
             cache=False,
+            public=public
         )
 
         tasks = []
@@ -271,6 +276,7 @@ class RayGeneratorTransform(RayTransform):
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
+        public: bool = True
     ):
         """
         The function to apply the transformation for each element by sharding the dataset
@@ -287,18 +293,16 @@ class RayGeneratorTransform(RayTransform):
         ds: Iterable
         progressbar: bool
             Show progress bar
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         Returns
         ----------
         ds: hub.Dataset
             uploaded dataset
         """
-        _ds = ds or self._ds
-        if isinstance(_ds, Transform):
-            _ds = _ds.store(
-                "{}_{}".format(url, _ds._func.__name__),
-                token=token,
-                progressbar=progressbar,
-            )
+        _ds = ds or self.base_ds
 
         results = ray.util.iter.from_range(len(_ds), num_shards=self.workers).transform(
             TransformShard(
@@ -321,6 +325,7 @@ class RayGeneratorTransform(RayTransform):
                 url=f"{url}_shard_{i}",
                 token=token,
                 progressbar=progressbar,
+                public=public
             )
             return ds
 
