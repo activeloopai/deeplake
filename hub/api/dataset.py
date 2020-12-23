@@ -1054,7 +1054,7 @@ class Dataset:
                         max_shape[0] = width
                     elif max_shape[1] < height:
                         max_shape[1] = height
-                                
+
             return max_shape
 
         def make_schema(path_to_dir):
@@ -1069,8 +1069,6 @@ class Dataset:
                 ),
             }
             return schema
-
-        
 
         schema = make_schema(path_to_dir)
         labels = ClassLabel(os.listdir(path_to_dir))
@@ -1087,7 +1085,6 @@ class Dataset:
         labels_list = []
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
-                
 
                 path_to_image = os.path.join(path_to_dir, i, j)
                 images.append(np.asarray(im.open(path_to_image)))
