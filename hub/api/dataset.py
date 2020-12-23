@@ -230,12 +230,10 @@ class Dataset:
         }
 
         if self.meta_information != None:
-            meta["meta_info"] = self.meta_information    
+            meta["meta_info"] = self.meta_information
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
-
-
 
     def _check_and_prepare_dir(self):
         """
