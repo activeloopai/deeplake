@@ -320,17 +320,33 @@ def test_dataset_azure():
 
 def test_datasetview_slicing():
     dt = {"first": Tensor((100, 100))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
-
+    ds = Dataset(
+        schema=dt, shape=(20,), url="./data/test/datasetview_slicing", mode="w"
+    )
     assert ds["first", 0].numpy().shape == (100, 100)
     assert ds["first", 0:1].numpy().shape == (1, 100, 100)
     assert ds[0]["first"].numpy().shape == (100, 100)
     assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
 
 
+def test_datasetview_get_dictionary():
+    ds = Dataset(
+        schema=my_schema,
+        shape=(20,),
+        url="./data/test/datasetview_get_dictionary",
+        mode="w",
+    )
+    ds["label", 5, "a"] = 5 * np.ones((100, 200))
+    ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
+    dsv = ds[2:10]
+    dic = dsv[3, "label"]
+    assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
+    assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
+
+
 def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/tensorivew_slicing", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
     assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
@@ -395,7 +411,100 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+def test_dataset_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_compute"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w")
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    comp = ds.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_view_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_compute"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w")
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    comp = dsv.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_lazy"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w", lazy=False)
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    assert ds["text", 1] == "hello world"
+    assert ds["second", 0] == 3.14
+    assert (ds["first", 0] == np.array([5, 6])).all()
+
+
+def test_dataset_view_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_lazy"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w", lazy=False)
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    assert dsv["text", 1] == "hello world"
+    assert dsv["second", 0] == 3.14
+    assert (dsv["first", 0] == np.array([5, 6])).all()
+
+
+def test_datasetview_repr():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_repr"
+    ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
+    dsv = ds[2:]
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
+    assert dsv.__repr__() == print_text
+
+
 if __name__ == "__main__":
+    test_datasetview_repr()
+    test_datasetview_get_dictionary()
     test_tensorview_slicing()
     test_datasetview_slicing()
     test_dataset()
@@ -404,4 +513,8 @@ if __name__ == "__main__":
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()
+    test_dataset_compute()
+    test_dataset_view_compute()
+    test_dataset_lazy()
+    test_dataset_view_lazy()
     test_dataset_hub()
