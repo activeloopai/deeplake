@@ -63,7 +63,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
-        meta_information=None,
+        meta_information=dict(),
         cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
         storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
@@ -136,6 +136,7 @@ class Dataset:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
+            self._meta_information = self.meta["meta_info"]
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
             if shape != (None,) and shape != self._shape:
@@ -229,11 +230,12 @@ class Dataset:
         }
 
         if self.meta_information != None:
-            meta.update(self.meta_information)
-            print(meta)
+            meta["meta_info"] = self.meta_information    
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
+
+
 
     def _check_and_prepare_dir(self):
         """
