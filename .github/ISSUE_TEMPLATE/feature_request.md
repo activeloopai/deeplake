@@ -9,7 +9,7 @@ assignees: ''
 
 ## 🚨🚨 Feature Request
 
-- [ ] Related to an existing [Issue](../../../issues) 
+- [ ] Related to an existing [Issue](../../issues) 
 - [ ] A new implementation (Improvement, Extension) 
 
 ### Is your feature request related to a problem?
