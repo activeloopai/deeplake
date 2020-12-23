@@ -10,7 +10,7 @@ def slice_split(slice_):
     for sl in slice_:
         if isinstance(sl, str):
             path += sl if sl.startswith("/") else "/" + sl
-        elif isinstance(sl, int) or isinstance(sl, slice):
+        elif isinstance(sl, (int, slice)):
             list_slice.append(sl)
         else:
             raise TypeError(
@@ -51,11 +51,24 @@ def slice_extract_info(slice_, num):
             )
     if slice_.start is not None and slice_.stop is not None:
         num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
-    elif slice_.start is None and slice_.stop is not None:
+    elif slice_.stop is not None:
         num = slice_.stop
-    elif slice_.start is not None and slice_.stop is None:
+    elif slice_.start is not None:
         num = num - slice_.start
     return num, offset
+
+
+def create_numpy_dict(dataset, index):
+    numpy_dict = {}
+    for path in dataset._tensors.keys():
+        d = numpy_dict
+        split = path.split("/")
+        for subpath in split[1:-1]:
+            if subpath not in d:
+                d[subpath] = {}
+            d = d[subpath]
+        d[split[-1]] = dataset[path, index].numpy()
+    return numpy_dict
 
 
 def str_to_int(assign_value, tokenizer):
@@ -73,10 +86,9 @@ def str_to_int(assign_value, tokenizer):
     if tokenizer is not None:
         if "transformers" not in sys.modules:
             raise ModuleNotInstalledException("transformers")
-        else:
-            import transformers
+        import transformers
 
-            global transformers
+        global transformers
         tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-cased")
         assign_value = (
             np.array(tokenizer(assign_value, add_special_tokens=False)["input_ids"])
