@@ -394,27 +394,25 @@ def test_append_dataset():
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
 
+
 def test_meta_information():
-    description = {
-        "author":"testing",
-        "description":"here goes the testing text"
-    }
+    description = {"author": "testing", "description": "here goes the testing text"}
 
     description_changed = {
-        "author":"changed author",
-        "description":"now it's changed"
+        "author": "changed author",
+        "description": "now it's changed",
     }
 
-    schema = {
-        "text":Text((None,),max_shape=(1000,))
-    }
+    schema = {"text": Text((None,), max_shape=(1000,))}
 
-    ds = Dataset("./data/test_meta",shape=(10,),schema=schema,meta_information=description)
+    ds = Dataset(
+        "./data/test_meta", shape=(10,), schema=schema, meta_information=description
+    )
 
-    some_text = ["hello world","hello penguin","hi penguin"]
+    some_text = ["hello world", "hello penguin", "hi penguin"]
 
-    for i,text in enumerate(some_text):
-        ds["text",i] = text
+    for i, text in enumerate(some_text):
+        ds["text", i] = text
 
     assert type(ds.meta["meta_info"]) == dict
     assert ds.meta["meta_info"]["author"] == "testing"
