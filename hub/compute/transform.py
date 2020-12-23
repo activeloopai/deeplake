@@ -284,11 +284,9 @@ class Transform:
 
             def upload_chunk(i_batch):
                 i, batch = i_batch
-                batch_length = len(batch)
-                if batch_length != 1:
-                    ds[key, i * length : i * length + batch_length] = batch
-                else:
-                    ds[key, i * length] = batch[0]
+                length = len(batch)
+                slice_ = slice(i * length, (i + 1) * length)
+                ds[key, slice_] = batch
 
             index_batched_values = list(
                 zip(list(range(len(batched_values))), batched_values)

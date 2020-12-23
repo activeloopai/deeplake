@@ -36,6 +36,7 @@ class RayTransform(Transform):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
+        self.workers = workers
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
 
@@ -116,6 +117,20 @@ class RayTransform(Transform):
     def upload_chunk(i_batch, key, ds):
         """
         Remote function to upload a chunk
+        Returns the shape of dynamic tensor to upload all in once after upload is completed
+        
+        Parameters
+        ----------
+        i_batch: Tuple
+            Tuple composed of (index, batch)
+        key: str
+            Key of the tensor
+        ds:
+            Dataset to set to upload
+        Returns
+        ----------
+        (key, slice_, shape) to set the shape later
+
         """
         i, batch = i_batch
         if not isinstance(batch, dict) and isinstance(batch[0], ray.ObjectRef):
@@ -126,12 +141,16 @@ class RayTransform(Transform):
             )
             if num_returns == 1:
                 batch = [item for sublist in batch for item in sublist]
-
+        
+        shape = None
         length = len(batch)
-        if length != 1:
-            ds[key, i * length : (i + 1) * length] = batch
-        else:
-            ds[key, i * length] = batch[0]
+
+        slice_ = slice(i * length, (i + 1) * length)
+        if ds[key].is_dynamic:
+            shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
+        ds[key, slice_] = batch
+
+        return (key, [slice_], shape)
 
     def upload(self, results, url: str, token: dict, progressbar: bool = True):
         """Batchified upload of results.
@@ -171,6 +190,8 @@ class RayTransform(Transform):
             batched_values = batchify(value, length)
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
+            
+            ds._tensors[f"/{key}"].disable_dynamicness()
 
             results = [
                 self.upload_chunk.remote(el, key=key, ds=ds)
@@ -178,10 +199,39 @@ class RayTransform(Transform):
             ]
             tasks.extend(results)
 
-        ray.get(tasks)
+        results = ray.get(tasks)
+        self.set_dynamic_shapes(results, ds)
         ds.commit()
         return ds
 
+    def set_dynamic_shapes(self, results, ds):
+        """
+        Sets shapes for dynamic tensors after the dataset is uploaded
+
+        Parameters
+        ----------
+        results: Tuple
+            results from uploading each chunk which includes (key, slice, shape) tuple
+        ds:
+            Dataset to set the shapes to
+        Returns
+        ----------
+        """
+
+        shapes = {}
+        for (key, slice_, value) in results:
+            if not ds[key].is_dynamic:
+                continue
+
+            if key not in shapes:
+                shapes[key] = []
+            shapes[key].append((slice_, value))
+
+        for key, value in shapes.items():
+            ds._tensors[f"/{key}"].enable_dynamicness()
+            
+            for (slice_, shape) in shapes[key]:	
+                ds._tensors[f"/{key}"].set_dynamic_shape(slice_, shape)
 
 class TransformShard:
     def __init__(self, ds, func, schema, kwargs):
@@ -249,7 +299,7 @@ class RayGeneratorTransform(RayTransform):
                 progressbar=progressbar,
             )
 
-        results = ray.util.iter.from_range(len(_ds), num_shards=4).transform(
+        results = ray.util.iter.from_range(len(_ds), num_shards=self.workers).transform(
             TransformShard(
                 ds=_ds, func=self.call_func, schema=self.schema, kwargs=self.kwargs
             )
