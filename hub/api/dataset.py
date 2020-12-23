@@ -68,6 +68,7 @@ class Dataset:
         token=None,
         fs=None,
         fs_map=None,
+        meta_information=dict(),
         cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
         storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
@@ -93,6 +94,7 @@ class Dataset:
             token is the parameter to pass the credentials, it can be filepath or dict
         fs: optional
         fs_map: optional
+        meta_information: optional ,give information about dataset in a dictionary.
         cache: int, optional
             Size of the memory cache. Default is 64MB (2**26)
             if 0, False or None, then cache is not used
@@ -136,12 +138,14 @@ class Dataset:
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
         )
         self._fs_map = fs_map
+        self._meta_information = meta_information
         self.username = None
         self.dataset_name = None
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
+            self._meta_information = self.meta["meta_info"]
             self._flat_tensors = tuple(flatten(self.schema))
             self._tensors = dict(self._open_storage_tensors())
             if shape != (None,) and shape != self._shape:
@@ -222,12 +226,21 @@ class Dataset:
     def schema(self):
         return self._schema
 
+    @property
+    def meta_information(self):
+        return self._meta_information
+
     def _store_meta(self) -> dict:
+
         meta = {
             "shape": self.shape,
             "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
+
+        if self.meta_information != None:
+            meta["meta_info"] = self.meta_information
+
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
 

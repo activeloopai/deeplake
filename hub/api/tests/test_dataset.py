@@ -411,6 +411,32 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+
+def test_meta_information():
+    description = {"author": "testing", "description": "here goes the testing text"}
+
+    description_changed = {
+        "author": "changed author",
+        "description": "now it's changed",
+    }
+
+    schema = {"text": Text((None,), max_shape=(1000,))}
+
+    ds = Dataset(
+        "./data/test_meta", shape=(10,), schema=schema, meta_information=description
+    )
+
+    some_text = ["hello world", "hello penguin", "hi penguin"]
+
+    for i, text in enumerate(some_text):
+        ds["text", i] = text
+
+    assert type(ds.meta["meta_info"]) == dict
+    assert ds.meta["meta_info"]["author"] == "testing"
+    assert ds.meta["meta_info"]["description"] == "here goes the testing text"
+
+    ds.close()
+
 def test_dataset_compute():
     dt = {
         "first": Tensor(shape=(2,)),
@@ -502,6 +528,7 @@ def test_datasetview_repr():
     assert dsv.__repr__() == print_text
 
 
+
 if __name__ == "__main__":
     test_datasetview_repr()
     test_datasetview_get_dictionary()
@@ -518,3 +545,4 @@ if __name__ == "__main__":
     test_dataset_lazy()
     test_dataset_view_lazy()
     test_dataset_hub()
+    test_meta_information()
