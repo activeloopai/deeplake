@@ -68,7 +68,7 @@ class RayTransform(Transform):
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
-        public: bool = True
+        public: bool = True,
     ):
         """
         The function to apply the transformation for each element in batchified manner
@@ -110,7 +110,9 @@ class RayTransform(Transform):
 
         results = self._split_list_to_dicts(results)
 
-        ds = self.upload(results, url=url, token=token, progressbar=progressbar, public=public)
+        ds = self.upload(
+            results, url=url, token=token, progressbar=progressbar, public=public
+        )
         return ds
 
     @remote
@@ -152,7 +154,14 @@ class RayTransform(Transform):
 
         return (key, [slice_], shape)
 
-    def upload(self, results, url: str, token: dict, progressbar: bool = True, public: bool = True):
+    def upload(
+        self,
+        results,
+        url: str,
+        token: dict,
+        progressbar: bool = True,
+        public: bool = True,
+    ):
         """Batchified upload of results.
         For each tensor batchify based on its chunk and upload.
         If tensor is dynamic then still upload element by element.
@@ -185,7 +194,7 @@ class RayTransform(Transform):
             schema=self.schema,
             token=token,
             cache=False,
-            public=public
+            public=public,
         )
 
         tasks = []
@@ -276,7 +285,7 @@ class RayGeneratorTransform(RayTransform):
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
-        public: bool = True
+        public: bool = True,
     ):
         """
         The function to apply the transformation for each element by sharding the dataset
@@ -325,7 +334,7 @@ class RayGeneratorTransform(RayTransform):
                 url=f"{url}_shard_{i}",
                 token=token,
                 progressbar=progressbar,
-                public=public
+                public=public,
             )
             return ds
 
