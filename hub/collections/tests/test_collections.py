@@ -196,6 +196,7 @@ class UnknownCountGenerator:
         return {"arr": arr, "rra": rra}
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_unknown_size_input():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 11))
     assert ds["arr"].shape == (-1, 5)
@@ -211,7 +212,7 @@ def test_unknown_size_input():
 
 
 @pytest.mark.skipif(
-    not s3_creds_exist() and not dask_loaded(), reason="requires s3 credentials"
+    not s3_creds_exist() or not dask_loaded(), reason="requires s3 credentials"
 )
 def test_s3_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
@@ -225,7 +226,7 @@ def test_s3_dataset():
 
 
 @pytest.mark.skipif(
-    not gcp_creds_exist() and not dask_loaded(), reason="requires gcs credentials"
+    not gcp_creds_exist() or not dask_loaded(), reason="requires gcs credentials"
 )
 def test_gcs_dataset():
     ds = dataset.generate(UnknownCountGenerator(), range(1, 3))
@@ -239,7 +240,7 @@ def test_gcs_dataset():
 
 
 @pytest.mark.skipif(
-    not pytorch_loaded() and not dask_loaded(), reason="requires pytorch to be loaded"
+    not pytorch_loaded() or not dask_loaded(), reason="requires pytorch to be loaded"
 )
 def test_to_pytorch():
     import torch
@@ -267,7 +268,7 @@ def test_to_pytorch():
 
 
 @pytest.mark.skipif(
-    True or not (tensorflow_loaded() and pytorch_loaded() and not dask_loaded()),
+    True or not (tensorflow_loaded() and pytorch_loaded() and dask_loaded()),
     reason="requires both pytorch and tensorflow to be loaded",
 )
 def test_to_backend_with_tf_and_pytorch():
@@ -319,6 +320,7 @@ def test_to_backend_with_tf_and_pytorch_multiworker():
             break
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_lz4():
     ds = dataset.from_tensors(
         {"t1": tensor.from_array(np.array([1, 2, 3]), dcompress="lz4:4")}
@@ -327,6 +329,7 @@ def test_lz4():
     assert ds["t1"].compute().tolist() == [1, 2, 3]
 
 
+@pytest.mark.skipif(not dask_loaded(), reason="dask is not installed")
 def test_description_license():
     t1 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))
     t2 = tensor.from_array(np.array([1, 2, 3, 4, 5], dtype="int32"))

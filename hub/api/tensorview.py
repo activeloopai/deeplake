@@ -10,7 +10,7 @@ class TensorView:
         dataset=None,
         subpath=None,
         slice_=None,
-        squeeze_dims=[],
+        lazy: bool = True,
     ):
         """Creates a TensorView object for a particular tensor in the dataset
 
@@ -22,6 +22,8 @@ class TensorView:
             The full path to the particular Tensor in the Dataset
         slice_: optional
             The `slice_` of this Tensor that needs to be accessed
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         """
 
         if dataset is None:
@@ -31,23 +33,23 @@ class TensorView:
 
         self.dataset = dataset
         self.subpath = subpath
+        self.lazy = lazy
 
-        if isinstance(slice_, int) or isinstance(slice_, slice):
+        if isinstance(slice_, (int, slice)):
             self.slice_ = [slice_]
-        elif isinstance(slice_, tuple) or isinstance(slice_, list):
+        elif isinstance(slice_, (tuple, list)):
             self.slice_ = list(slice_)
         self.nums = []
         self.offsets = []
 
         self.squeeze_dims = []
         for it in self.slice_:
-
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
                 self.squeeze_dims.append(True)
             elif isinstance(it, slice):
-                ofs = it.start if it.start else 0
+                ofs = it.start or 0
                 num = it.stop - ofs if it.stop else None
                 self.nums.append(num)
                 self.offsets.append(ofs)
@@ -70,9 +72,9 @@ class TensorView:
                 tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
                 if value.ndim == 1:
                     return tokenizer.decode(value.tolist())
-            else:
-                if value.ndim == 1:
-                    return "".join(chr(it) for it in value.tolist())
+            elif value.ndim == 1:
+                return "".join(chr(it) for it in value.tolist())
+            raise ValueError("Can only access Text with integer index")
         return self.dataset._tensors[self.subpath][self.slice_]
 
     def compute(self):
@@ -94,26 +96,28 @@ class TensorView:
 
         if subpath:
             raise ValueError("Can't slice a Tensor with string")
-        else:
-            new_nums = self.nums.copy()
-            new_offsets = self.offsets.copy()
-            if len(new_nums) < len(slice_list):
-                new_nums.extend([None] * (len(slice_list) - len(new_nums)))
-                new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
-            for i in range(len(slice_list)):
-                slice_list[i] = self._combine(
-                    slice_list[i], new_nums[i], new_offsets[i]
-                )
-            for i in range(len(slice_list), len(new_nums)):
-                cur_slice = (
-                    slice(new_offsets[i], new_offsets[i] + new_nums[i])
-                    if new_nums[i] > 1
-                    else new_offsets[i]
-                )
-                slice_list.append(cur_slice)
-            return TensorView(
-                dataset=self.dataset, subpath=self.subpath, slice_=slice_list
+        new_nums = self.nums.copy()
+        new_offsets = self.offsets.copy()
+        if len(new_nums) < len(slice_list):
+            new_nums.extend([None] * (len(slice_list) - len(new_nums)))
+            new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
+        for i in range(len(slice_list)):
+            slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
+        for i in range(len(slice_list), len(new_nums)):
+            cur_slice = (
+                slice(new_offsets[i], new_offsets[i] + new_nums[i])
+                if new_nums[i] > 1
+                else new_offsets[i]
             )
+            slice_list.append(cur_slice)
+        tensorview = TensorView(
+            dataset=self.dataset,
+            subpath=self.subpath,
+            slice_=slice_list,
+            lazy=self.lazy,
+        )
+
+        return tensorview if self.lazy else tensorview.compute()
 
     def __setitem__(self, slice_, value):
         """| Sets a slice or slices with a value
@@ -136,22 +140,21 @@ class TensorView:
             raise ValueError(
                 "Can't slice a Tensor with multiple slices without subpath"
             )
-        else:
-            new_nums = self.nums.copy()
-            new_offsets = self.offsets.copy()
-            if len(new_nums) < len(slice_list):
-                new_nums.extend([None] * (len(slice_list) - len(new_nums)))
-                new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
-            for i in range(len(slice_list)):
-                slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
-            for i in range(len(slice_list), len(new_nums)):
-                cur_slice = (
-                    slice(new_offsets[i], new_offsets[i] + new_nums[i])
-                    if new_nums[i] > 1
-                    else new_offsets[i]
-                )
-                slice_list.append(cur_slice)
-            self.dataset._tensors[self.subpath][slice_list] = assign_value
+        new_nums = self.nums.copy()
+        new_offsets = self.offsets.copy()
+        if len(new_nums) < len(slice_list):
+            new_nums.extend([None] * (len(slice_list) - len(new_nums)))
+            new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
+        for i in range(len(slice_list)):
+            slice_list[i] = self._combine(slice_[i], new_nums[i], new_offsets[i])
+        for i in range(len(slice_list), len(new_nums)):
+            cur_slice = (
+                slice(new_offsets[i], new_offsets[i] + new_nums[i])
+                if new_nums[i] > 1
+                else new_offsets[i]
+            )
+            slice_list.append(cur_slice)
+        self.dataset._tensors[self.subpath][slice_list] = assign_value
 
     def _combine(self, slice_, num=None, ofs=0):
         "Combines a `slice_` with the current num and offset present in tensorview"
@@ -164,13 +167,13 @@ class TensorView:
             )
             if slice_.start is None and slice_.stop is None:
                 return slice(ofs, None) if num is None else slice(ofs, ofs + num)
-            elif slice_.start is not None and slice_.stop is None:
+            elif slice_.stop is None:
                 return (
                     slice(ofs + slice_.start, None)
                     if num is None
                     else slice(ofs + slice_.start, ofs + num)
                 )
-            elif slice_.start is None and slice_.stop is not None:
+            elif slice_.start is None:
                 return slice(ofs, ofs + slice_.stop)
             else:
                 return slice(ofs + slice_.start, ofs + slice_.stop)
@@ -209,7 +212,7 @@ class TensorView:
             elif offset < len(slice_):
                 new_slice_.append(slice_[offset])
                 offset += 1
-        new_slice_ = new_slice_ + slice_[offset:]
+        new_slice_ += slice_[offset:]
         return new_slice_
 
     def __repr__(self):
@@ -250,3 +253,9 @@ class TensorView:
     @property
     def is_dynamic(self):
         return self.dataset._tensors[self.subpath].is_dynamic
+
+    def disable_lazy(self):
+        self.lazy = False
+
+    def enable_lazy(self):
+        self.lazy = True

@@ -1,6 +1,14 @@
+from typing import Type
 from hub.schema import Tensor, Image, Primitive
 from hub.schema.features import flatten
 import pytest
+
+
+def test_tensor_error():
+    try:
+        Tensor(None, max_shape=None)
+    except TypeError as ex:
+        assert "both shape and max_shape cannot be None at the same time" in str(ex)
 
 
 def test_tensor_flattening():
@@ -38,20 +46,16 @@ def test_primitive_repr():
 
 def test_tensor_init():
     with pytest.raises(ValueError):
-        tensor_object = Tensor(shape=2, max_shape=(2, 2))
+        Tensor(shape=2, max_shape=(2, 2))
 
 
 def test_tensor_str():
-    tensor_object = Tensor()
     tensor_object_2 = Tensor(shape=(5000,), dtype="<U20")
-    assert tensor_object.__str__() == "Tensor(shape=(None,), dtype='float64')"
     assert tensor_object_2.__str__() == "Tensor(shape=(5000,), dtype='<U20')"
 
 
 def test_tensor_repr():
-    tensor_object = Tensor()
     tensor_object_2 = Tensor(shape=(5000,), dtype="<U20")
-    assert tensor_object.__repr__() == "Tensor(shape=(None,), dtype='float64')"
     assert tensor_object_2.__repr__() == "Tensor(shape=(5000,), dtype='<U20')"
 
 

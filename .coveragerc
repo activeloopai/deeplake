@@ -1,2 +1,2 @@
 [run]
-omit = */tests/*, hub/collections/*, hub/codec/*
+omit = */tests/*, hub/collections/*, hub/codec/*, setup.py

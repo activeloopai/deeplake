@@ -1,7 +1,6 @@
 import zarr
 import numpy as np
 import math
-from psutil import virtual_memory
 from typing import Dict, Iterable
 from hub.api.dataset import Dataset
 from tqdm import tqdm
@@ -17,14 +16,11 @@ from hub.schema.features import featurify
 import posixpath
 from hub.defaults import OBJECT_CHUNK
 
-from hub.utils import Timer
 
-
-def get_sample_size_in_memory(schema):
-    """Given Schema, looks into memory how many samples can fit and returns it"""
+def get_sample_size(schema, workers):
+    """Given Schema, decides how many samples to take at once and returns it"""
     schema = featurify(schema)
-    mem = virtual_memory()
-    sample_size = 0
+    samples = 10000
     for feature in schema._flatten():
         shp = list(feature.max_shape)
         if len(shp) == 0:
@@ -40,20 +36,16 @@ def get_sample_size_in_memory(schema):
                 res *= s
             return res
 
-        sample_size += prod(shp) * sz
-
-    if sample_size > mem.total:
-        return 1
-
-    return int(mem.total // sample_size)
+        samples = min(samples, (16 * 1024 * 1024 * 8) // (prod(shp) * sz))
+    samples = max(samples, 1)
+    return samples * workers
 
 
 class Transform:
     def __init__(
         self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
     ):
-        """
-        Transform applies a user defined function to each sample in single threaded manner
+        """| Transform applies a user defined function to each sample in single threaded manner.
 
         Parameters
         ----------
@@ -74,6 +66,18 @@ class Transform:
         self.schema = schema
         self._ds = ds
         self.kwargs = kwargs
+        self.workers = workers
+
+        if isinstance(self._ds, Transform):
+            self.base_ds = self._ds.base_ds
+            self._func = self._ds._func[:]
+            self._func.append(func)
+            self.kwargs = self._ds.kwargs[:]
+            self.kwargs.append(kwargs)
+        else:
+            self.base_ds = ds
+            self._func = [func]
+            self.kwargs = [kwargs]
 
         if scheduler == "threaded" or (scheduler == "single" and workers > 1):
             self.map = ThreadPool(nodes=workers).map
@@ -92,316 +96,14 @@ class Transform:
                 f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'"
             )
 
-    @classmethod
-    def _flatten_dict(self, d: Dict, parent_key="", schema=None):
-        """
-        Helper function to flatten dictionary of a recursive tensor
-
-        Parameters
-        ----------
-        d: dict
-        """
-        items = []
-        for k, v in d.items():
-            new_key = parent_key + "/" + k if parent_key else k
-            if isinstance(v, MutableMapping) and not isinstance(
-                self.dtype_from_path(new_key, schema), Sequence
-            ):
-                items.extend(
-                    self._flatten_dict(v, parent_key=new_key, schema=schema).items()
-                )
-            else:
-                items.append((new_key, v))
-        return dict(items)
-
-    @classmethod
-    def _flatten(cls, items, schema):
-        """
-        Takes a dictionary or list of dictionary
-        Returns a dictionary of concatenated values
-        Dictionary follows schema
-        """
-        final_item = {}
-        for item in cls._unwrap(items):
-            item = cls._flatten_dict(item, schema=schema)
-
-            for k, v in item.items():
-                if k in final_item:
-                    final_item[k].append(v)
-                else:
-                    final_item[k] = [v]
-        return final_item
-
-    @classmethod
-    def dtype_from_path(cls, path, schema):
-        """
-        Helper function to get the dtype from the path
-        """
-        path = path.split("/")
-        cur_type = schema
-        for subpath in path[:-1]:
-            cur_type = cur_type[subpath]
-            cur_type = cur_type.dict_
-        return cur_type[path[-1]]
-
-    def _split_list_to_dicts(self, xs):
-        """
-        Helper function that transform list of dicts into dicts of lists
-
-        Parameters
-        ----------
-        xs: list of dicts
-
-        Returns
-        ----------
-        xs_new: dicts of lists
-        """
-        xs_new = {}
-        for x in xs:
-            if isinstance(x, list):
-                x = dict(
-                    zip(self._flatten_dict(self.schema, schema=self.schema).keys(), x)
-                )
-
-            for key, value in x.items():
-                if key in xs_new:
-                    xs_new[key].append(value)
-                else:
-                    xs_new[key] = [value]
-        return xs_new
-
-    def create_dataset(self, url, length=None, token=None):
-        """Helper function to creat a dataset"""
-        shape = (length,)
-        ds = Dataset(
-            url,
-            mode="w",
-            shape=shape,
-            schema=self.schema,
-            token=token,
-            fs=zarr.storage.MemoryStore() if "tmp" in url else None,
-            cache=False,
-        )
-        return ds
-
-    def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
-        """Batchified upload of results
-        For each tensor batchify based on its chunk and upload
-        If tensor is dynamic then still upload element by element
-        For dynamic tensors, it disable dynamicness and then enables it back
-
-        Parameters
-        ----------
-        dataset: hub.Dataset
-            Dataset object that should be written to
-        results:
-            Output of transform function
-        progressbar: bool
-        Returns
-        ----------
-        ds: hub.Dataset
-            Uploaded dataset
-        """
-
-        for key, value in results.items():
-
-            length = ds[key].chunksize[0]
-            value = str_to_int(value, ds.dataset.tokenizer)
-
-            if length == 0:
-                length = 1
-
-            batched_values = batchify(value, length)
-
-            def upload_chunk(i_batch):
-                i, batch = i_batch
-                batch_length = len(batch)
-                if batch_length != 1:
-                    ds[key, i * length : i * length + batch_length] = batch
-                else:
-                    ds[key, i * length] = batch[0]
-
-            index_batched_values = list(
-                zip(list(range(len(batched_values))), batched_values)
-            )
-
-            # Disable dynamic arrays
-            ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            list(self.map(upload_chunk, index_batched_values))
-
-            # Enable and rewrite shapes
-            if ds.dataset._tensors[f"/{key}"].is_dynamic:
-                ds.dataset._tensors[f"/{key}"].enable_dynamicness()
-                [
-                    ds.dataset._tensors[f"/{key}"].set_shape([i + ds.offset], v)
-                    for i, v in enumerate(value)
-                ]
-
-        ds.commit()
-        return ds
-
-    def _pbar(self, show: bool = True):
-        """
-        Returns a progress bar, if empty then it function does nothing
-        """
-
-        def _empty_pbar(xs, **kwargs):
-            return xs
-
-        single_threaded = self.map == map
-        return tqdm if show and single_threaded else _empty_pbar
-
-    @classmethod
-    def _unwrap(cls, results):
-        """
-        If there is any list then unwrap it into its elements
-        """
-        items = []
-        for r in results:
-            if isinstance(r, dict):
-                items.append(r)
-            else:
-                items.extend(r)
-        return items
-
-    def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
-        """
-        Takes a shard of iteratable ds_in, compute and stores in DatasetView
-        """
-
-        def _func_argd(item):
-            return self._func(item, **self.kwargs)
-
-        ds_in = list(ds_in)
-        results = self.map(
-            _func_argd,
-            ds_in,
-        )
-        results = self._unwrap(results)
-        results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
-        results = list(results)
-
-        results = self._split_list_to_dicts(results)
-
-        results_values = list(results.values())
-        if len(results_values) == 0:
-            return 0
-
-        n_results = len(results_values[0])
-        if n_results == 0:
-            return 0
-
-        additional = max(offset + n_results - ds_out.shape[0], 0)
-
-        ds_out.append_shape(additional)
-
-        self.upload(
-            results,
-            ds_out[offset : offset + n_results],
-            token=token,
-        )
-
-        return n_results
-
-    def store(
-        self,
-        url: str,
-        token: dict = None,
-        length: int = None,
-        ds: Iterable = None,
-        progressbar: bool = True,
-        sample_per_shard=None,
-    ):
-        """
-        The function to apply the transformation for each element in batchified manner
-
-        Parameters
-        ----------
-        url: str
-            path where the data is going to be stored
-        token: str or dict, optional
-            If url is refering to a place where authorization is required,
-            token is the parameter to pass the credentials, it can be filepath or dict
-        length: int
-            in case shape is None, user can provide length
-        ds: Iterable
-        progressbar: bool
-            Show progress bar
-        sample_per_shard: int
-            How to split the iterator not to overfill RAM
-        Returns
-        ----------
-        ds: hub.Dataset
-            uploaded dataset
-        """
-
-        ds_in = ds or self._ds
-        if isinstance(ds_in, Transform):
-            ds_in = ds_in.store(
-                "{}_{}".format(url, ds_in._func.__name__),
-                token=token,
-                progressbar=progressbar,
-            )
-
-        # compute shard length
-        if sample_per_shard is None:
-            n_samples = get_sample_size_in_memory(self.schema)
-            n_samples = min(10000, n_samples)
-            n_samples = max(512, n_samples)
-        else:
-            n_samples = sample_per_shard
-
-        try:
-            length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
-        except Exception:
-            length = n_samples
-
-        if length < n_samples:
-            n_samples = length
-
-        ds_out = self.create_dataset(url, length=length, token=token)
-
-        def batchify_generator(iterator: Iterable, size: int):
-            batch = []
-            for el in iterator:
-                batch.append(el)
-                if len(batch) >= size:
-                    yield batch
-                    batch = []
-            yield batch
-
-        start = 0
-        total = 0
-
-        with tqdm(
-            total=length,
-            unit_scale=True,
-            unit=" items",
-            desc="Computing the transormation",
-        ) as pbar:
-            pbar.update(length // 10)
-            for ds_in_shard in batchify_generator(ds_in, n_samples):
-
-                n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
-                total += n_results
-
-                if n_results < n_samples or n_results == 0:
-                    break
-                start += n_samples
-                pbar.update(n_samples)
-
-        ds_out.resize_shape(total)
-        ds_out.commit()
-        return ds_out
-
     def __len__(self):
         return self.shape[0]
 
     def __getitem__(self, slice_):
-        """
-        Get an item to be computed without iterating on the whole dataset
-        Creates a dataset view, then a temporary dataset to apply the transform
-
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
         slice_: slice
             Gets a slice or slices from dataset
         """
@@ -435,6 +137,325 @@ class Transform:
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
+
+    @classmethod
+    def _flatten_dict(self, d: Dict, parent_key="", schema=None):
+        """| Helper function to flatten dictionary of a recursive tensor
+
+        Parameters
+        ----------
+        d: dict
+        """
+        items = []
+        for k, v in d.items():
+            new_key = parent_key + "/" + k if parent_key else k
+            if isinstance(v, MutableMapping) and not isinstance(
+                self.dtype_from_path(new_key, schema), Sequence
+            ):
+                items.extend(
+                    self._flatten_dict(v, parent_key=new_key, schema=schema).items()
+                )
+            else:
+                items.append((new_key, v))
+        return dict(items)
+
+    @classmethod
+    def _flatten(cls, items, schema):
+        """
+        Takes a dictionary or list of dictionary.
+        Returns a dictionary of concatenated values.
+        Dictionary follows schema.
+        """
+        final_item = {}
+        for item in cls._unwrap(items):
+            item = cls._flatten_dict(item, schema=schema)
+
+            for k, v in item.items():
+                if k in final_item:
+                    final_item[k].append(v)
+                else:
+                    final_item[k] = [v]
+        return final_item
+
+    @classmethod
+    def dtype_from_path(cls, path, schema):
+        """
+        Helper function to get the dtype from the path
+        """
+        path = path.split("/")
+        cur_type = schema
+        for subpath in path[:-1]:
+            cur_type = cur_type[subpath]
+            cur_type = cur_type.dict_
+        return cur_type[path[-1]]
+
+    @classmethod
+    def _unwrap(cls, results):
+        """
+        If there is any list then unwrap it into its elements
+        """
+        items = []
+        for r in results:
+            if isinstance(r, dict):
+                items.append(r)
+            else:
+                items.extend(r)
+        return items
+
+    def _split_list_to_dicts(self, xs):
+        """| Helper function that transform list of dicts into dicts of lists
+
+        Parameters
+        ----------
+        xs: list of dicts
+        Returns
+        ----------
+        xs_new: dicts of lists
+        """
+        xs_new = {}
+        for x in xs:
+            if isinstance(x, list):
+                x = dict(
+                    zip(self._flatten_dict(self.schema, schema=self.schema).keys(), x)
+                )
+
+            for key, value in x.items():
+                if key in xs_new:
+                    xs_new[key].append(value)
+                else:
+                    xs_new[key] = [value]
+        return xs_new
+
+    def _pbar(self, show: bool = True):
+        """
+        Returns a progress bar, if empty then it function does nothing
+        """
+
+        def _empty_pbar(xs, **kwargs):
+            return xs
+
+        single_threaded = self.map == map
+        return tqdm if show and single_threaded else _empty_pbar
+
+    def create_dataset(
+        self, url: str, length: int = None, token: dict = None, public: bool = True
+    ):
+        """Helper function to creat a dataset"""
+        shape = (length,)
+        ds = Dataset(
+            url,
+            mode="w",
+            shape=shape,
+            schema=self.schema,
+            token=token,
+            fs=zarr.storage.MemoryStore() if "tmp" in url else None,
+            cache=False,
+            public=public,
+        )
+        return ds
+
+    def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
+        """Batchified upload of results.
+        For each tensor batchify based on its chunk and upload.
+        If tensor is dynamic then still upload element by element.
+        For dynamic tensors, it disable dynamicness and then enables it back.
+
+        Parameters
+        ----------
+        dataset: hub.Dataset
+            Dataset object that should be written to
+        results:
+            Output of transform function
+        progressbar: bool
+        Returns
+        ----------
+        ds: hub.Dataset
+            Uploaded dataset
+        """
+
+        for key, value in results.items():
+
+            chunk = ds[key].chunksize[0]
+            chunk = 1 if chunk == 0 else chunk
+            value = str_to_int(value, ds.dataset.tokenizer)
+            num_chunks = math.ceil(len(value) / (chunk * self.workers))
+            length = num_chunks * chunk if self.workers != 1 else len(value)
+            batched_values = batchify(value, length)
+
+            def upload_chunk(i_batch):
+                i, batch = i_batch
+                length = len(batch)
+                slice_ = slice(i * length, (i + 1) * length)
+                ds[key, slice_] = batch
+
+            index_batched_values = list(
+                zip(list(range(len(batched_values))), batched_values)
+            )
+
+            # Disable dynamic arrays
+            ds.dataset._tensors[f"/{key}"].disable_dynamicness()
+            list(self.map(upload_chunk, index_batched_values))
+
+            # Enable and rewrite shapes
+            if ds.dataset._tensors[f"/{key}"].is_dynamic:
+                ds.dataset._tensors[f"/{key}"].enable_dynamicness()
+                ds.dataset._tensors[f"/{key}"].set_shape(
+                    [slice(ds.offset, ds.offset + len(value))], value
+                )
+
+        ds.commit()
+        return ds
+
+    def call_func(self, fn_index, item, as_list=False):
+        """Calls all the functions one after the other
+
+        Parameters
+        ----------
+        fn_index: int
+            The index starting from which the functions need to be called
+        item:
+            The item on which functions need to be applied
+        as_list: bool, optional
+            If true then treats the item as a list.
+
+        Returns
+        ----------
+        result:
+            The final output obtained after all transforms
+        """
+        result = item
+        if fn_index < len(self._func):
+            if as_list:
+                result = [self.call_func(fn_index, it) for it in result]
+            else:
+                result = self._func[fn_index](result, **self.kwargs[fn_index])
+                result = self.call_func(fn_index + 1, result, isinstance(result, list))
+        result = self._unwrap(result) if isinstance(result, list) else result
+        return result
+
+    def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
+        """
+        Takes a shard of iteratable ds_in, compute and stores in DatasetView
+        """
+
+        def _func_argd(item):
+            if isinstance(item, DatasetView) or isinstance(item, Dataset):
+                item = item.numpy()
+            result = self.call_func(
+                0, item
+            )  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
+            return result
+
+        ds_in = list(ds_in)
+        results = self.map(
+            _func_argd,
+            ds_in,
+        )
+        results = self._unwrap(results)
+        results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
+        results = list(results)
+
+        results = self._split_list_to_dicts(results)
+
+        results_values = list(results.values())
+        if len(results_values) == 0:
+            return 0
+
+        n_results = len(results_values[0])
+        if n_results == 0:
+            return 0
+
+        additional = max(offset + n_results - ds_out.shape[0], 0)
+        ds_out.append_shape(additional)
+
+        self.upload(
+            results,
+            ds_out[offset : offset + n_results],
+            token=token,
+        )
+
+        return n_results
+
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        length: int = None,
+        ds: Iterable = None,
+        progressbar: bool = True,
+        sample_per_shard: int = None,
+        public: bool = True,
+    ):
+        """| The function to apply the transformation for each element in batchified manner
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        ds: Iterable
+        progressbar: bool
+            Show progress bar
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        ds_in = ds or self.base_ds
+
+        # compute shard length
+        if sample_per_shard is None:
+            n_samples = get_sample_size(self.schema, self.workers)
+        else:
+            n_samples = sample_per_shard
+        try:
+            length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+        except Exception:
+            length = length or n_samples
+
+        if length < n_samples:
+            n_samples = length
+
+        ds_out = self.create_dataset(url, length=length, token=token, public=public)
+
+        def batchify_generator(iterator: Iterable, size: int):
+            batch = []
+            for el in iterator:
+                batch.append(el)
+                if len(batch) >= size:
+                    yield batch
+                    batch = []
+            yield batch
+
+        start = 0
+        total = 0
+
+        with tqdm(
+            total=length,
+            unit_scale=True,
+            unit=" items",
+            desc="Computing the transormation",
+        ) as pbar:
+            for ds_in_shard in batchify_generator(ds_in, n_samples):
+                n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
+                total += n_results
+                pbar.update(len(ds_in_shard))
+                start += n_results
+
+        ds_out.resize_shape(total)
+        ds_out.commit()
+        return ds_out
 
     @property
     def shape(self):
