@@ -2,9 +2,11 @@ name: package
 
 on:
   push:
-    branches: [master, ci-pipeline]
+    branches: 
+      - '**'
   pull_request:
-    branches: [master, ci-pipeline]
+    branches:
+      - '**'
 
 jobs:
   build:
