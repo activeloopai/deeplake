@@ -353,6 +353,7 @@ def test_text_dataset():
     dsv["names"][1] = text + "8"
     assert dsv["names"][1].numpy() == text + "8"
 
+
 def test_dataset_from_directory():
     def create_image(path_to_direcotry):
         from PIL import Image
@@ -394,14 +395,17 @@ def test_dataset_from_directory():
     ds = Dataset.from_directory(store_url, root_url)
     ds.store(store_url)
     import hub
+
     ds = hub.load(store_url)
     from hub.schema import ClassLabel
+
     labels = ClassLabel(names=os.listdir(root_url))
     label = os.listdir(root_url)
 
-    assert ds['image',0].compute().shape == (512,512,3)
-    assert ds['label',0].compute() == labels.str2int(label[0])
+    assert ds["image", 0].compute().shape == (512, 512, 3)
+    assert ds["label", 0].compute() == labels.str2int(label[0])
     del_data(root_url, store_url)
+
 
 @pytest.mark.skipif(
     not transformers_loaded(), reason="requires transformers to be loaded"
