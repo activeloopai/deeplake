@@ -30,8 +30,10 @@ my_schema = {
 def test_dataset2():
     dt = {"first": "float", "second": "float"}
     ds = Dataset(schema=dt, shape=(2,), url="./data/test/test_dataset2", mode="w")
+    ds.meta_information["description"] = "This is my description"
 
     ds["first"][0] = 2.3
+    assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
 
 
@@ -45,6 +47,7 @@ def test_dataset_append_and_read():
     )
 
     ds["first"][0] = 2.3
+    assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
     ds.close()
 
@@ -52,6 +55,8 @@ def test_dataset_append_and_read():
         url="./data/test/test_dataset_append_and_read",
         mode="r",
     )
+    assert ds.meta_information["description"] == "This is my description"
+    ds.meta_information["hello"] = 5
     ds.delete()
     ds.close()
 
@@ -411,7 +416,6 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
-
 def test_meta_information():
     description = {"author": "testing", "description": "here goes the testing text"}
 
@@ -436,6 +440,7 @@ def test_meta_information():
     assert ds.meta["meta_info"]["description"] == "here goes the testing text"
 
     ds.close()
+
 
 def test_dataset_compute():
     dt = {
@@ -526,7 +531,6 @@ def test_datasetview_repr():
     dsv = ds[2:]
     print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
     assert dsv.__repr__() == print_text
-
 
 
 if __name__ == "__main__":
