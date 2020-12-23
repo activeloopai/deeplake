@@ -1049,10 +1049,8 @@ class Dataset:
                     width, height = Image.open(img_path).size
                     if max_shape[0] < width and max_shape[1] < height:
                         max_shape = (width, height)
-            # print(max_shape)
             return max_shape
 
-        # (None,None,3)
         def make_schema(path_to_dir):
             image_shape = (*get_max_shape(path_to_dir), 3)
             labels = ClassLabel(names=os.listdir(path_to_dir))
@@ -1064,7 +1062,6 @@ class Dataset:
                     dtype="uint8",
                 ),
             }
-            print(schema)
             return schema
 
         from hub.schema import ClassLabel
@@ -1090,7 +1087,6 @@ class Dataset:
                 images.append(np.asarray(im.open(path_to_image)))
                 labels_list.append(i)
         zip_image = zip(labels_list, images)
-        # print(len(list(zip_image)))
         ds = upload_data(zip_image)
         return ds
 
