@@ -416,7 +416,6 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
-
 def test_meta_information():
     description = {"author": "testing", "description": "here goes the testing text"}
 
@@ -441,6 +440,7 @@ def test_meta_information():
     assert ds.meta["meta_info"]["description"] == "here goes the testing text"
 
     ds.close()
+
 
 def test_dataset_compute():
     dt = {
