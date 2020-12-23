@@ -17,6 +17,7 @@ class ObjectView:
         offsets=[],
         squeeze_dims=[],
         inner_schema_obj=None,
+        lazy=True,
         new=True,
     ):
         """Creates an ObjectView object for dataset from a Dataset, DatasetView or TensorView
@@ -31,6 +32,8 @@ class ObjectView:
             A potentially incomplete path to any element in the Dataset
         slice_list: optional
             The `slice_` of this Tensor that needs to be accessed
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
 
         These parameters are also needed to create an ObjectView from an existing one.
         nums: List[int]
@@ -59,6 +62,7 @@ class ObjectView:
         self.squeeze_dims = squeeze_dims
 
         self.inner_schema_obj = inner_schema_obj
+        self.lazy = lazy
 
         if new:
             # Creating new obj
@@ -197,7 +201,7 @@ class ObjectView:
                         nums[i] = num
                         offsets[i] += ofs
                         squeeze_dims[i] = num == 1
-        return ObjectView(
+        objectview = ObjectView(
             dataset=dataset,
             subpath=subpath,
             slice_list=None,
@@ -205,8 +209,10 @@ class ObjectView:
             offsets=offsets,
             squeeze_dims=squeeze_dims,
             inner_schema_obj=inner_schema_obj,
+            lazy=self.lazy,
             new=False,
         )
+        return objectview if self.lazy else objectview.compute()
 
     def numpy(self):
         """Gets the value from the objectview"""
@@ -239,6 +245,8 @@ class ObjectView:
                     except TypeError:
                         # raise error
                         return value
+                    except KeyError:
+                        raise KeyError("Invalid slice")
                 else:
                     # sequence of tensors
                     return self.dataset[paths[0]].compute()[tuple(slice_)]

@@ -49,13 +49,22 @@ def test_objectview():
     # Sequence of schemadicts
     ds[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.ones(3)}}
     ds[0, "e", 0, "f", "h"] = 42
+    # The first slice is unstable but the complete slice is valid
     ds[0, "e", 1]["f", "h"] = 25
+    with pytest.raises(KeyError):
+        ds[0, "e", 1].compute()
     ds[0, "e"][2]["f"]["h"] = 15
     assert (ds[0, "e", "f", "h"].compute() == np.array([42, 25, 15])).all()
     # With dataset view
     dv[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.ones(3)}}
     dv[0, "e", 1]["f", "h"] = 25
     assert (dv[0, "e", "f", "h"].compute() == np.array([1, 25, 1])).all()
+    # if not lazy mode all slices should be stable
+    ds.lazy = False
+    assert ds[0, "e", 0, "f", "h"] == 42
+    with pytest.raises(KeyError):
+        ds[0, "e", 1]["f", "h"] == 25
+    ds.lazy = True
 
     # make an objectview
     ov = ds["c", "d"]
