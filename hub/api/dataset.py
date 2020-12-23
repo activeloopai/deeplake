@@ -6,7 +6,7 @@ import sys
 import traceback
 from collections import defaultdict
 import numpy as np
-from PIL import Image as im,ImageChops
+from PIL import Image as im, ImageChops
 
 import fsspec
 import numcodecs
@@ -1032,7 +1032,6 @@ class Dataset:
         Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
         use.
         """
-        
 
         def get_ds_size(path_to_dir):
             size_of_ds = 1
@@ -1041,7 +1040,12 @@ class Dataset:
             return size_of_ds
 
         def mode_check(im):
-            pass    
+            if im.mode=="RGB":
+                return 3
+            elif im.mode=="RGBA:
+                return 4
+            else:
+                return 1        
 
         def get_max_shape(path_to_dir):
 
@@ -1050,16 +1054,18 @@ class Dataset:
             for i in os.listdir(path_to_dir):
                 for j in os.listdir(os.path.join(path_to_dir, i)):
                     img_path = os.path.join(path_to_dir, i, j)
-                    width, height = im.open(img_path).size
+                    image = im.open(img_path)
+                    mode = mode_check(image)
+                    
+                    width, height = image.size
                     if max_shape[0] < width and max_shape[1] < height:
                         max_shape = (width, height)
                     elif max_shape[0] < width:
                         max_shape[0] = width
                     elif max_shape[1] < height:
-                        max_shape[1] = height
+                        max_shape[1] = height            
 
             return max_shape
-    
 
         def make_schema(path_to_dir):
             image_shape = (*get_max_shape(path_to_dir), 3)
