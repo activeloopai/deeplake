@@ -1,7 +1,6 @@
 import zarr
 import numpy as np
 import math
-from psutil import virtual_memory
 from typing import Dict, Iterable
 from hub.api.dataset import Dataset
 from tqdm import tqdm
@@ -38,6 +37,7 @@ def get_sample_size(schema, workers):
             return res
 
         samples = min(samples, (16 * 1024 * 1024 * 8) // (prod(shp) * sz))
+    samples = max(samples, 1)
     return samples * workers
 
 
@@ -68,6 +68,17 @@ class Transform:
         self.kwargs = kwargs
         self.workers = workers
 
+        if isinstance(self._ds, Transform):
+            self.base_ds = self._ds.base_ds
+            self._func = self._ds._func[:]
+            self._func.append(func)
+            self.kwargs = self._ds.kwargs[:]
+            self.kwargs.append(kwargs)
+        else:
+            self.base_ds = ds
+            self._func = [func]
+            self.kwargs = [kwargs]
+
         if scheduler == "threaded" or (scheduler == "single" and workers > 1):
             self.map = ThreadPool(nodes=workers).map
         elif scheduler == "processed":
@@ -84,6 +95,48 @@ class Transform:
             raise Exception(
                 f"Scheduler {scheduler} not understood, please use 'single', 'threaded', 'processed'"
             )
+
+    def __len__(self):
+        return self.shape[0]
+
+    def __getitem__(self, slice_):
+        """| Get an item to be computed without iterating on the whole dataset.
+        | Creates a dataset view, then a temporary dataset to apply the transform.
+        Parameters:
+        ----------
+        slice_: slice
+            Gets a slice or slices from dataset
+        """
+        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+
+        slice_ = list(slice_)
+        subpath, slice_list = slice_split(slice_)
+
+        if len(slice_list) == 0:
+            slice_list = [slice(None, None, None)]
+
+        num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+
+        ds_view = DatasetView(
+            dataset=self._ds,
+            num_samples=num,
+            offset=ofs,
+            squeeze_dim=isinstance(slice_list[0], int),
+        )
+
+        path = posixpath.expanduser("~/.activeloop/tmparray")
+        new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
+
+        index = 1 if len(slice_) > 1 else 0
+        slice_[index] = (
+            slice(None, None, None) if not isinstance(slice_list[0], int) else 0
+        )  # Get all shape dimension since we already sliced
+        return new_ds[slice_]
+
+    def __iter__(self):
+        for index in range(len(self)):
+            yield self[index]
 
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
@@ -136,6 +189,19 @@ class Transform:
             cur_type = cur_type.dict_
         return cur_type[path[-1]]
 
+    @classmethod
+    def _unwrap(cls, results):
+        """
+        If there is any list then unwrap it into its elements
+        """
+        items = []
+        for r in results:
+            if isinstance(r, dict):
+                items.append(r)
+            else:
+                items.extend(r)
+        return items
+
     def _split_list_to_dicts(self, xs):
         """| Helper function that transform list of dicts into dicts of lists
 
@@ -159,6 +225,17 @@ class Transform:
                 else:
                     xs_new[key] = [value]
         return xs_new
+
+    def _pbar(self, show: bool = True):
+        """
+        Returns a progress bar, if empty then it function does nothing
+        """
+
+        def _empty_pbar(xs, **kwargs):
+            return xs
+
+        single_threaded = self.map == map
+        return tqdm if show and single_threaded else _empty_pbar
 
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
@@ -207,11 +284,9 @@ class Transform:
 
             def upload_chunk(i_batch):
                 i, batch = i_batch
-                batch_length = len(batch)
-                if batch_length != 1:
-                    ds[key, i * length : i * length + batch_length] = batch
-                else:
-                    ds[key, i * length] = batch[0]
+                length = len(batch)
+                slice_ = slice(i * length, (i + 1) * length)
+                ds[key, slice_] = batch
 
             index_batched_values = list(
                 zip(list(range(len(batched_values))), batched_values)
@@ -231,29 +306,32 @@ class Transform:
         ds.commit()
         return ds
 
-    def _pbar(self, show: bool = True):
-        """
-        Returns a progress bar, if empty then it function does nothing
-        """
+    def call_func(self, fn_index, item, as_list=False):
+        """Calls all the functions one after the other
 
-        def _empty_pbar(xs, **kwargs):
-            return xs
+        Parameters
+        ----------
+        fn_index: int
+            The index starting from which the functions need to be called
+        item:
+            The item on which functions need to be applied
+        as_list: bool, optional
+            If true then treats the item as a list.
 
-        single_threaded = self.map == map
-        return tqdm if show and single_threaded else _empty_pbar
-
-    @classmethod
-    def _unwrap(cls, results):
+        Returns
+        ----------
+        result:
+            The final output obtained after all transforms
         """
-        If there is any list then unwrap it into its elements
-        """
-        items = []
-        for r in results:
-            if isinstance(r, dict):
-                items.append(r)
+        result = item
+        if fn_index < len(self._func):
+            if as_list:
+                result = [self.call_func(fn_index, it) for it in result]
             else:
-                items.extend(r)
-        return items
+                result = self._func[fn_index](result, **self.kwargs[fn_index])
+                result = self.call_func(fn_index + 1, result, isinstance(result, list))
+        result = self._unwrap(result) if isinstance(result, list) else result
+        return result
 
     def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
         """
@@ -261,7 +339,12 @@ class Transform:
         """
 
         def _func_argd(item):
-            return self._func(item, **self.kwargs)
+            if isinstance(item, DatasetView) or isinstance(item, Dataset):
+                item = item.numpy()
+            result = self.call_func(
+                0, item
+            )  # If the iterable obtained from iterating ds_in is a list, it is not treated as list
+            return result
 
         ds_in = list(ds_in)
         results = self.map(
@@ -300,7 +383,7 @@ class Transform:
         length: int = None,
         ds: Iterable = None,
         progressbar: bool = True,
-        sample_per_shard: bool = None,
+        sample_per_shard: int = None,
         public: bool = True,
     ):
         """| The function to apply the transformation for each element in batchified manner
@@ -329,13 +412,7 @@ class Transform:
             uploaded dataset
         """
 
-        ds_in = ds or self._ds
-        if isinstance(ds_in, Transform):
-            ds_in = ds_in.store(
-                "{}_{}".format(url, ds_in._func.__name__),
-                token=token,
-                progressbar=progressbar,
-            )
+        ds_in = ds or self.base_ds
 
         # compute shard length
         if sample_per_shard is None:
@@ -373,56 +450,12 @@ class Transform:
             for ds_in_shard in batchify_generator(ds_in, n_samples):
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
                 total += n_results
-                pbar.update(n_results)
-                if n_results < n_samples or n_results == 0:
-                    break
-                start += n_samples
+                pbar.update(len(ds_in_shard))
+                start += n_results
 
         ds_out.resize_shape(total)
         ds_out.commit()
         return ds_out
-
-    def __len__(self):
-        return self.shape[0]
-
-    def __getitem__(self, slice_):
-        """| Get an item to be computed without iterating on the whole dataset.
-        | Creates a dataset view, then a temporary dataset to apply the transform.
-        Parameters:
-        ----------
-        slice_: slice
-            Gets a slice or slices from dataset
-        """
-        if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
-            slice_ = [slice_]
-
-        slice_ = list(slice_)
-        subpath, slice_list = slice_split(slice_)
-
-        if len(slice_list) == 0:
-            slice_list = [slice(None, None, None)]
-
-        num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-
-        ds_view = DatasetView(
-            dataset=self._ds,
-            num_samples=num,
-            offset=ofs,
-            squeeze_dim=isinstance(slice_list[0], int),
-        )
-
-        path = posixpath.expanduser("~/.activeloop/tmparray")
-        new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
-
-        index = 1 if len(slice_) > 1 else 0
-        slice_[index] = (
-            slice(None, None, None) if not isinstance(slice_list[0], int) else 0
-        )  # Get all shape dimension since we already sliced
-        return new_ds[slice_]
-
-    def __iter__(self):
-        for index in range(len(self)):
-            yield self[index]
 
     @property
     def shape(self):
