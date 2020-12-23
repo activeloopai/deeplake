@@ -411,7 +411,6 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
-
 def test_meta_information():
     description = {"author": "testing", "description": "here goes the testing text"}
 
@@ -436,6 +435,7 @@ def test_meta_information():
     assert ds.meta["meta_info"]["description"] == "here goes the testing text"
 
     ds.close()
+
 
 def test_dataset_compute():
     dt = {
@@ -526,7 +526,6 @@ def test_datasetview_repr():
     dsv = ds[2:]
     print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
     assert dsv.__repr__() == print_text
-
 
 
 if __name__ == "__main__":
