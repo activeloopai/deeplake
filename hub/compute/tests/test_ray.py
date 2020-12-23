@@ -160,6 +160,37 @@ def test_ray_pipeline_multiple():
         out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
     ).all()
 
+@pytest.mark.skipif(
+    not ray_loaded(),
+    reason="requires ray to be loaded",
+)
+def test_stacked_transform():
+    schema = {"test": Tensor((2, 2), dtype="uint8")}
+
+    @hub.transform(schema=schema)
+    def multiply_transform(sample, multiplier=1, times=1):
+        if times == 1:
+            return {"test": multiplier * sample["test"]}
+        else:
+            return [{"test": multiplier * sample["test"]} for i in range(times)]
+
+    @hub.transform(schema=schema, scheduler="ray_generator")
+    def multiply_transform_2(sample, multiplier=1, times=1):
+        if times == 1:
+            return {"test": multiplier * sample["test"]}
+        else:
+            return [{"test": multiplier * sample["test"]} for i in range(times)]
+
+    ds = hub.Dataset("./data/stacked_transform", mode="w", shape=(5,), schema=schema)
+    for i in range(5):
+        ds["test", i] = np.ones((2, 2))
+    ds1 = multiply_transform(ds, multiplier=2, times=5)
+    ds2 = multiply_transform(ds1, multiplier=3, times=2)
+    ds3 = multiply_transform_2(ds2, multiplier=5, times=3)
+    ds4 = ds3.store("./data/stacked_transform_2")
+    assert len(ds4) == 150
+    assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
+
 
 if __name__ == "__main__":
     # test_ray_simple()
