@@ -172,6 +172,7 @@ class Dataset:
                 self._schema = schema
                 self._shape = tuple(shape)
                 self.meta = self._store_meta()
+                self._meta_information = self.meta["meta_info"]
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
                 self.flush()
