@@ -19,8 +19,11 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+
+# from hub.api.tensorview import TensorView
+# from hub.api.datasetview import DatasetView
+from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
-from hub.api.datasetview import DatasetView
 from hub.api.dataset_utils import (
     create_numpy_dict,
     slice_extract_info,
@@ -388,10 +391,22 @@ class Dataset:
                     return tensorview
                 else:
                     return tensorview.compute()
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self, subpath=subpath, lazy=self.lazy
+                    )
+                    if self.lazy:
+                        return objectview
+                    else:
+                        return objectview.compute()
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            if subpath in self._tensors.keys():
+            schema_obj = self.schema.dict_[subpath.split("/")[1]]
+            if subpath in self._tensors.keys() and (
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
+            ):
                 tensorview = TensorView(
                     dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
                 )
@@ -399,6 +414,18 @@ class Dataset:
                     return tensorview
                 else:
                     return tensorview.compute()
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self,
+                        subpath=subpath,
+                        slice_list=slice_list,
+                        lazy=self.lazy,
+                    )
+                    if self.lazy:
+                        return objectview
+                    else:
+                        return objectview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -423,9 +450,17 @@ class Dataset:
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
-            self._tensors[subpath][:] = assign_value  # Add path check
+            if subpath in self._tensors.keys():
+                self._tensors[subpath][:] = assign_value  # Add path check
+            else:
+                ObjectView(dataset=self, subpath=subpath)[:] = assign_value
         else:
-            self._tensors[subpath][slice_list] = assign_value
+            if subpath in self._tensors.keys():
+                self._tensors[subpath][slice_list] = assign_value
+            else:
+                ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[
+                    :
+                ] = assign_value
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """

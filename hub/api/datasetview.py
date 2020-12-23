@@ -7,6 +7,7 @@ from hub.api.dataset_utils import (
 )
 from hub.exceptions import NoneValueException
 import collections.abc as abc
+import hub.api.objectview as objv
 
 
 class DatasetView:
@@ -88,7 +89,16 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            return self._get_dictionary(subpath, slice=slice_)
+            for key in self.dataset._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = objv.ObjectView(
+                        dataset=self.dataset,
+                        subpath=subpath,
+                        slice_list=[slice_],
+                        lazy=self.lazy,
+                    )
+                    return objectview if self.lazy else objectview.compute()
+            return self._get_dictionary(self.dataset, subpath, slice=slice_)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.num_samples)
             slice_list[0] = (
@@ -96,7 +106,10 @@ class DatasetView:
                 if isinstance(slice_list[0], int)
                 else slice(ofs + self.offset, ofs + self.offset + num)
             )
-            if subpath in self.dataset._tensors.keys():
+            schema_obj = self.dataset.schema.dict_[subpath.split("/")[1]]
+            if subpath in self.dataset._tensors.keys() and (
+                not isinstance(schema_obj, objv.Sequence) or len(slice_list) <= 1
+            ):
                 tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
@@ -104,6 +117,15 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
+            for key in self.dataset._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = objv.ObjectView(
+                        dataset=self.dataset,
+                        subpath=subpath,
+                        slice_list=slice_list,
+                        lazy=self.lazy,
+                    )
+                    return objectview if self.lazy else objectview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -126,10 +148,21 @@ class DatasetView:
         slice_list = [0] + slice_list if self.squeeze_dim else slice_list
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
-
-        if not slice_list:
-            slice_ = slice(self.offset, self.offset + self.num_samples)
-            self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
+        elif not slice_list:
+            slice_ = (
+                self.offset
+                # if self.num_samples == 1
+                if self.squeeze_dim
+                else slice(self.offset, self.offset + self.num_samples)
+            )
+            if subpath in self.dataset._tensors.keys():
+                self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
+            for key in self.dataset._tensors.keys():
+                if subpath.startswith(key):
+                    objv.ObjectView(
+                        dataset=self.dataset, subpath=subpath, slice_list=[slice_]
+                    )[:] = assign_value
+            # raise error
         else:
             num, ofs = (
                 slice_extract_info(slice_list[0], self.num_samples)
@@ -141,7 +174,17 @@ class DatasetView:
                 if isinstance(slice_list[0], slice)
                 else ofs + self.offset
             )
-            self.dataset._tensors[subpath][slice_list] = assign_value
+            # self.dataset._tensors[subpath][slice_list] = assign_value
+            if subpath in self.dataset._tensors.keys():
+                self.dataset._tensors[subpath][
+                    slice_list
+                ] = assign_value  # Add path check
+                return
+            for key in self.dataset._tensors.keys():
+                if subpath.startswith(key):
+                    objv.ObjectView(
+                        dataset=self.dataset, subpath=subpath, slice_list=slice_list
+                    )[:] = assign_value
 
     @property
     def keys(self):
