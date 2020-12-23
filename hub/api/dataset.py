@@ -5,6 +5,7 @@ import json
 import sys
 import traceback
 from collections import defaultdict
+import numpy as np
 
 import fsspec
 import numcodecs
@@ -26,6 +27,7 @@ from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
+from hub.schema import ClassLabel
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -1038,7 +1040,6 @@ class Dataset:
             return size_of_ds
 
         def get_max_shape(path_to_dir):
-            from PIL import Image
 
             max_shape = (1, 1)
             import os
@@ -1046,9 +1047,14 @@ class Dataset:
             for i in os.listdir(path_to_dir):
                 for j in os.listdir(os.path.join(path_to_dir, i)):
                     img_path = os.path.join(path_to_dir, i, j)
-                    width, height = Image.open(img_path).size
+                    width, height = im.open(img_path).size
                     if max_shape[0] < width and max_shape[1] < height:
                         max_shape = (width, height)
+                    elif max_shape[0] < width:
+                        max_shape[0] = width
+                    elif max_shape[1] < height:
+                        max_shape[1] = height
+                                
             return max_shape
 
         def make_schema(path_to_dir):
@@ -1064,7 +1070,7 @@ class Dataset:
             }
             return schema
 
-        from hub.schema import ClassLabel
+        
 
         schema = make_schema(path_to_dir)
         labels = ClassLabel(os.listdir(path_to_dir))
@@ -1081,7 +1087,7 @@ class Dataset:
         labels_list = []
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
-                import numpy as np
+                
 
                 path_to_image = os.path.join(path_to_dir, i, j)
                 images.append(np.asarray(im.open(path_to_image)))
