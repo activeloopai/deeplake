@@ -1016,6 +1016,78 @@ class Dataset:
             return transform_numpy(sample)
 
         return my_transform(dataset)
+        
+    @staticmethod
+    def from_directory(url, path_to_dir):
+        """This utility function is specific to create dataset from the categorical image dataset.
+        Parameters
+        --------
+        url:path to store the dataset (example: username/test_data_here)
+        path_to_dir: path of the directory where the image dataset root folder exists.
+        image_shape: Assign the shape of image.(example: (512,512,3) if image is rgb)
+        mode: Different writing mode for dataset.
+        ---------
+        Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
+        use.
+        """
+        from PIL import Image as im
+        def get_ds_size(path_to_dir):
+            size_of_ds = 1
+            for i in os.listdir(path_to_dir):
+                size_of_ds += len(os.listdir(os.path.join(path_to_dir, i)))
+            return size_of_ds
+        def get_max_shape(path_to_dir):
+            from PIL import Image
+            max_shape = (1,1)
+            import os
+            for i in os.listdir(path_to_dir):
+                for j in os.listdir(os.path.join(path_to_dir, i)):
+                    img_path = os.path.join(path_to_dir, i, j)
+                    width, height = Image.open(img_path).size
+                    if max_shape[0] < width and max_shape[1] < height:
+                        max_shape = (width, height)
+            #print(max_shape)
+            return max_shape
+        # (None,None,3)
+        def make_schema(path_to_dir):
+            image_shape = (*get_max_shape(path_to_dir),3)
+            labels = ClassLabel(names=os.listdir(path_to_dir))
+            schema = {
+                "label": labels,
+                "image": Image(
+                    shape=image_shape,
+                    max_shape=(*get_max_shape(path_to_dir), 3),
+                    dtype="uint8",
+                ),
+            }
+            print(schema)
+            return schema
+        from hub.schema import ClassLabel    
+        schema = make_schema(path_to_dir)
+        labels = ClassLabel(os.listdir(path_to_dir))
+        
+        label_dic = {}
+        for i,label in enumerate(os.listdir(path_to_dir)):
+            label_dic[label]=i
+        
+        @hub.transform(schema=schema)
+        def upload_data(sample):
+            return {
+                "label":label_dic[sample[0]],
+                "image":sample[1]
+            }
+        images = []
+        labels_list = []
+        for i in os.listdir(path_to_dir):
+            for j in os.listdir(os.path.join(path_to_dir,i)):
+                import numpy as np
+                path_to_image = os.path.join(path_to_dir,i,j)
+                images.append(np.asarray(im.open(path_to_image)))
+                labels_list.append(i)
+        zip_image = zip(labels_list,images)
+        #print(len(list(zip_image)))
+        ds = upload_data(zip_image)
+        return ds    
 
 
 class TorchDataset:
