@@ -364,9 +364,7 @@ class DynamicTensor:
         """
         if isinstance(slice_[0], int):
             new_shapes = self.create_shape(slice_, value)
-            new_shapes = np.maximum(
-                self._dynamic_tensor[slice_[0]], new_shapes
-            )
+            new_shapes = np.maximum(self._dynamic_tensor[slice_[0]], new_shapes)
         else:
             start = slice_[0].start if slice_[0].start is not None else 0
             stop = (

@@ -118,7 +118,7 @@ class RayTransform(Transform):
         """
         Remote function to upload a chunk
         Returns the shape of dynamic tensor to upload all in once after upload is completed
-        
+
         Parameters
         ----------
         i_batch: Tuple
@@ -141,7 +141,7 @@ class RayTransform(Transform):
             )
             if num_returns == 1:
                 batch = [item for sublist in batch for item in sublist]
-        
+
         shape = None
         length = len(batch)
 
@@ -190,7 +190,7 @@ class RayTransform(Transform):
             batched_values = batchify(value, length)
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
-            
+
             ds._tensors[f"/{key}"].disable_dynamicness()
 
             results = [
@@ -229,9 +229,10 @@ class RayTransform(Transform):
 
         for key, value in shapes.items():
             ds._tensors[f"/{key}"].enable_dynamicness()
-            
-            for (slice_, shape) in shapes[key]:	
+
+            for (slice_, shape) in shapes[key]:
                 ds._tensors[f"/{key}"].set_dynamic_shape(slice_, shape)
+
 
 class TransformShard:
     def __init__(self, ds, func, schema, kwargs):
