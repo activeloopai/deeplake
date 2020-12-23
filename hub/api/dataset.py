@@ -1040,12 +1040,12 @@ class Dataset:
             return size_of_ds
 
         def mode_check(im):
-            if im.mode=="RGB":
+            if im.mode == "RGB":
                 return 3
-            elif im.mode=="RGBA:
+            elif im.mode == "RGBA":
                 return 4
             else:
-                return 1        
+                return 1
 
         def get_max_shape(path_to_dir):
 
@@ -1056,14 +1056,14 @@ class Dataset:
                     img_path = os.path.join(path_to_dir, i, j)
                     image = im.open(img_path)
                     mode = mode_check(image)
-                    
+
                     width, height = image.size
                     if max_shape[0] < width and max_shape[1] < height:
                         max_shape = (width, height)
                     elif max_shape[0] < width:
                         max_shape[0] = width
                     elif max_shape[1] < height:
-                        max_shape[1] = height            
+                        max_shape[1] = height
 
             return max_shape
 
