@@ -266,7 +266,7 @@ def test_dataset_wrong_append(url="./data/test/dataset", token=None):
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
     try:
         Tensor(shape=(120, 120, 3), max_shape=(120, 120, 4))
-    except HubException:
+    except ValueError:
         pass
 
 

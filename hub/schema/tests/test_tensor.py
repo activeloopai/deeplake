@@ -8,7 +8,7 @@ def test_tensor_error():
     try:
         Tensor(None, max_shape=None)
     except TypeError as ex:
-        assert "both shape and max_shape cannot be None at the same time" in str(ex)
+        assert "shape cannot be None" in str(ex)
 
 
 def test_tensor_error_2():
