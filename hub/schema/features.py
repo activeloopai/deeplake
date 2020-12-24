@@ -129,7 +129,9 @@ class Tensor(HubSchema):
         if shape is None:
             raise TypeError("shape cannot be None")
         if None in shape and max_shape is None:
-            raise ValueError("while specifying shape containing None dimensions, max_shape argument needs to be provided")
+            raise ValueError(
+                "while specifying shape containing None dimensions, max_shape argument needs to be provided"
+            )
         if not isinstance(shape, (tuple, int, list)):
             raise TypeError(f"shape of {type(shape)} is not supported")
 
