@@ -146,7 +146,7 @@ class Dataset:
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta["meta_info"]
-            self._flat_tensors = tuple(flatten(self.schema))
+            self._flat_tensors = tuple(flatten(self._schema))
             self._tensors = dict(self._open_storage_tensors())
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
@@ -173,7 +173,7 @@ class Dataset:
                 self._shape = tuple(shape)
                 self.meta = self._store_meta()
                 self._meta_information = self.meta["meta_info"]
-                self._flat_tensors = tuple(flatten(self.schema))
+                self._flat_tensors = tuple(flatten(self._schema))
                 self._tensors = dict(self._generate_storage_tensors())
                 self.flush()
             except Exception as e:
@@ -235,7 +235,7 @@ class Dataset:
 
         meta = {
             "shape": self._shape,
-            "schema": hub.schema.serialize.serialize(self.schema),
+            "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
         }
 
@@ -314,7 +314,7 @@ class Dataset:
                     get_storage_map(
                         self._fs,
                         path,
-                        self.cache,
+                        self._cache,
                         self.lock_cache,
                         storage_cache=self._storage_cache,
                     ),
@@ -338,7 +338,7 @@ class Dataset:
                     get_storage_map(
                         self._fs,
                         path,
-                        self.cache,
+                        self._cache,
                         self.lock_cache,
                         storage_cache=self._storage_cache,
                     ),
@@ -564,8 +564,8 @@ class Dataset:
                 d[k] = get_output_shapes(v)
             return d
 
-        output_types = dtype_to_tf(self.schema)
-        output_shapes = get_output_shapes(self.schema)
+        output_types = dtype_to_tf(self._schema)
+        output_shapes = get_output_shapes(self._schema)
 
         return tf.data.Dataset.from_generator(
             tf_gen, output_types=output_types, output_shapes=output_shapes
@@ -645,7 +645,7 @@ class Dataset:
     def __str__(self):
         return (
             "Dataset(schema="
-            + str(self.schema)
+            + str(self._schema)
             + "url="
             + "'"
             + self._url
