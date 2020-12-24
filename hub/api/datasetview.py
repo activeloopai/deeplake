@@ -1,6 +1,7 @@
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    get_value,
     slice_extract_info,
     slice_split,
     str_to_int,
@@ -137,8 +138,8 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        assign_value = get_value(value)
         # handling strings and bytes
-        assign_value = value
         assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):

@@ -10,6 +10,7 @@ import fsspec
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
+import numpy as np
 
 from hub.schema.features import (
     Primitive,
@@ -26,6 +27,7 @@ from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    get_value,
     slice_extract_info,
     slice_split,
     str_to_int,
@@ -438,8 +440,8 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        assign_value = get_value(value)
         # handling strings and bytes
-        assign_value = value
         assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
