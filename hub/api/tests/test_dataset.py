@@ -520,6 +520,29 @@ def test_dataset_setting_shape():
     assert shape[0][0] == [1]
 
 
+def test_dataset_assign_value():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(6,), url=url, mode="w")
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [
+        np.array("THTMLY2F9"),
+        np.array("QUUVEU2IU"),
+        np.array("8ZUFCYWKD"),
+        "H9EDFAGHB",
+        "WDLDYN6XG",
+    ]
+    ds[key, slice_] = batch
+    ds[key][5] = "GHLSGBFF8"
+    assert ds["text", 0].compute() == "THTMLY2F9"
+    assert ds["text", 1].compute() == "QUUVEU2IU"
+    assert ds["text", 2].compute() == "8ZUFCYWKD"
+    assert ds["text", 3].compute() == "H9EDFAGHB"
+    assert ds["text", 4].compute() == "WDLDYN6XG"
+    assert ds["text", 5].compute() == "GHLSGBFF8"
+
+
 if __name__ == "__main__":
     test_dataset_setting_shape()
     test_datasetview_repr()

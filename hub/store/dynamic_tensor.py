@@ -189,7 +189,7 @@ class DynamicTensor:
         elif self._dynamic_tensor and isinstance(slice_[0], slice):
             max_shape = value[0].shape
             for item in value:
-                max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
+                max_shape = tuple(max(value) for value in zip(max_shape, item.shape))
             for i in range(len(value)):
                 pad = [
                     (0, max_shape[dim] - value[i].shape[dim])

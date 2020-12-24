@@ -71,6 +71,16 @@ def create_numpy_dict(dataset, index):
     return numpy_dict
 
 
+def get_value(value):
+    if isinstance(value, np.ndarray) and value.shape == ():
+        value = value.item()
+    elif isinstance(value, list):
+        for i in range(len(value)):
+            if isinstance(value[i], np.ndarray) and value[i].shape == ():
+                value[i] = value[i].item()
+    return value
+
+
 def str_to_int(assign_value, tokenizer):
     if isinstance(assign_value, bytes):
         try:
