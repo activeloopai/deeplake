@@ -239,8 +239,8 @@ class Dataset:
             "version": 1,
         }
 
-        if self.meta_information != None:
-            meta["meta_info"] = self.meta_information
+        if self._meta_information != None:
+            meta["meta_info"] = self._meta_information
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
@@ -320,7 +320,7 @@ class Dataset:
                     ),
                     self._fs_map,
                 ),
-                mode=self.mode,
+                mode=self._mode,
                 shape=self._shape + t_dtype.shape,
                 max_shape=self._shape + t_dtype.max_shape,
                 dtype=self._get_dynamic_tensor_dtype(t_dtype),
@@ -344,7 +344,7 @@ class Dataset:
                     ),
                     self._fs_map,
                 ),
-                mode=self.mode,
+                mode=self._mode,
                 # FIXME We don't need argument below here
                 shape=self._shape + t_dtype.shape,
             )
@@ -648,13 +648,13 @@ class Dataset:
             + str(self.schema)
             + "url="
             + "'"
-            + self.url
+            + self._url
             + "'"
             + ", shape="
             + str(self._shape)
             + ", mode="
             + "'"
-            + self.mode
+            + self._mode
             + "')"
         )
 
