@@ -502,7 +502,19 @@ def test_datasetview_repr():
     assert dsv.__repr__() == print_text
 
 
+def test_dataset_setting_shape():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(5,), url=url, mode='w')
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [np.array('THTMLY2F9'), np.array('QUUVEU2IU'), np.array('8ZUFCYWKD'), 'H9EDFAGHB', 'WDLDYN6XG']
+    shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
+    assert shape[0][0] == [1]
+
 if __name__ == "__main__":
+    test_dataset_setting_shape()
     test_datasetview_repr()
     test_datasetview_get_dictionary()
     test_tensorview_slicing()

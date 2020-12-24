@@ -149,6 +149,7 @@ class RayTransform(Transform):
 
         slice_ = slice(i * length, (i + 1) * length)
         if ds[key].is_dynamic:
+            # Sometimes ds._tensor slice_ gets out of the shape value
             shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
         ds[key, slice_] = batch
 
