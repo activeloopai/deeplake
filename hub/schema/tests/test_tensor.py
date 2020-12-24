@@ -34,6 +34,8 @@ def test_tensor_error_2():
         t10 = Tensor(max_shape="abc")
     with pytest.raises(TypeError):
         t11 = Tensor(max_shape=(7.4, 2))
+    with pytest.raises(ValueError):
+        t12 = Tensor(max_shape=[])
 
 
 def test_tensor_flattening():

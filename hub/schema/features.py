@@ -137,8 +137,7 @@ class Tensor(HubSchema):
         for dim in shape:
             if not isinstance(dim, int) and dim is not None:
                 raise TypeError(f"shape can't have {type(dim)} in its dimension")
-
-        max_shape = max_shape or shape
+        max_shape = shape if max_shape is None else max_shape
         if not isinstance(max_shape, (tuple, int, list)):
             raise TypeError(f"max_shape of {type(max_shape)} is not supported")
         max_shape = (max_shape,) if isinstance(max_shape, int) else tuple(max_shape)
@@ -150,7 +149,7 @@ class Tensor(HubSchema):
 
         if len(shape) != len(max_shape):
             raise ValueError(
-                f"Length of shape ({len(shape)}) and max_shape ({len(max_shape)}) does not match"
+                f"shape {shape} and max_shape {max_shape} have different lengths"
             )
         for dim, max_dim in zip(shape, max_shape):
             if dim is not None and dim != max_dim:
