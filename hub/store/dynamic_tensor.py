@@ -383,7 +383,11 @@ class DynamicTensor:
         new_shape = []
         shape_offset = 0
 
-        value_shape = list(value.shape) if hasattr(value, "shape") and len(list(value.shape)) > 0 else [1]
+        value_shape = (
+            list(value.shape)
+            if hasattr(value, "shape") and len(list(value.shape)) > 0
+            else [1]
+        )
 
         for i in range(1, len(self.shape)):
 
