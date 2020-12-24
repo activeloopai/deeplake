@@ -1,5 +1,4 @@
 from typing import Tuple, Dict, Iterable
-
 import hub
 
 Shape = Tuple[int, ...]
@@ -128,7 +127,7 @@ class Tensor(HubSchema):
         """
         if shape is None:
             raise TypeError("shape cannot be None")
-        if None in shape and max_shape is None:
+        if isinstance(shape, Iterable) and None in shape and max_shape is None:
             raise ValueError(
                 "while specifying shape containing None dimensions, max_shape argument needs to be provided"
             )
