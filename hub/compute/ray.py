@@ -7,6 +7,7 @@ from typing import Iterable, Iterator
 from hub.exceptions import ModuleNotInstalledException
 from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
+from hub.api.dataset_utils import str_to_int
 
 
 def empty_remote(template, **kwargs):
@@ -202,6 +203,7 @@ class RayTransform(Transform):
         for key, value in results.items():
 
             length = ds[key].chunksize[0]
+            value = str_to_int(value, ds.tokenizer)
             batched_values = batchify(value, length)
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))
