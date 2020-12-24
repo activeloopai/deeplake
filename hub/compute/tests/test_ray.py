@@ -160,6 +160,7 @@ def test_ray_pipeline_multiple():
         out_ds["image", 0].compute() == 4 * np.ones((30, 32, 3), dtype="int32")
     ).all()
 
+
 @pytest.mark.skipif(
     not ray_loaded(),
     reason="requires ray to be loaded",
