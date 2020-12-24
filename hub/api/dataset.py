@@ -234,7 +234,7 @@ class Dataset:
     def _store_meta(self) -> dict:
 
         meta = {
-            "shape": self.shape,
+            "shape": self._shape,
             "schema": hub.schema.serialize.serialize(self.schema),
             "version": 1,
         }
@@ -321,8 +321,8 @@ class Dataset:
                     self._fs_map,
                 ),
                 mode=self.mode,
-                shape=self.shape + t_dtype.shape,
-                max_shape=self.shape + t_dtype.max_shape,
+                shape=self._shape + t_dtype.shape,
+                max_shape=self._shape + t_dtype.max_shape,
                 dtype=self._get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
                 compressor=self._get_compressor(t_dtype.compressor),
@@ -346,7 +346,7 @@ class Dataset:
                 ),
                 mode=self.mode,
                 # FIXME We don't need argument below here
-                shape=self.shape + t_dtype.shape,
+                shape=self._shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):
@@ -368,7 +368,7 @@ class Dataset:
                 raise ValueError(
                     "Can't slice a dataset with multiple slices without subpath"
                 )
-            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+            num, ofs = slice_extract_info(slice_list[0], self._shape[0])
             return DatasetView(
                 dataset=self,
                 num_samples=num,
@@ -381,7 +381,7 @@ class Dataset:
                 tensorview = TensorView(
                     dataset=self,
                     subpath=subpath,
-                    slice_=slice(0, self.shape[0]),
+                    slice_=slice(0, self._shape[0]),
                     lazy=self.lazy,
                 )
                 if self.lazy:
@@ -390,7 +390,7 @@ class Dataset:
                     return tensorview.compute()
             return self._get_dictionary(subpath)
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+            num, ofs = slice_extract_info(slice_list[0], self._shape[0])
             if subpath in self._tensors.keys():
                 tensorview = TensorView(
                     dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
@@ -429,7 +429,7 @@ class Dataset:
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
-        if size == self.shape[0]:
+        if size == self._shape[0]:
             return
 
         self._shape = (int(size),)
@@ -441,7 +441,7 @@ class Dataset:
 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
-        size += self.shape[0]
+        size += self._shape[0]
         self.resize_shape(size)
 
     def delete(self):
@@ -514,7 +514,7 @@ class Dataset:
             global tf
 
         offset = 0 if offset is None else offset
-        num_samples = self.shape[0] if num_samples is None else num_samples
+        num_samples = self._shape[0] if num_samples is None else num_samples
 
         def tf_gen():
             for index in range(offset, offset + num_samples):
@@ -584,7 +584,7 @@ class Dataset:
                     if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-                slice_ = slice_ or slice(0, self.shape[0])
+                slice_ = slice_ or slice(0, self._shape[0])
                 tensorview = TensorView(
                     dataset=self, subpath=key, slice_=slice_, lazy=self.lazy
                 )
@@ -600,7 +600,7 @@ class Dataset:
 
     def __len__(self):
         """ Number of samples in the dataset """
-        return self.shape[0]
+        return self._shape[0]
 
     def disable_lazy(self):
         self.lazy = False
@@ -637,7 +637,7 @@ class Dataset:
             )
 
     def numpy(self):
-        return [create_numpy_dict(self, i) for i in range(self.shape[0])]
+        return [create_numpy_dict(self, i) for i in range(self._shape[0])]
 
     def compute(self):
         return self.numpy()
@@ -651,7 +651,7 @@ class Dataset:
             + self.url
             + "'"
             + ", shape="
-            + str(self.shape)
+            + str(self._shape)
             + ", mode="
             + "'"
             + self.mode

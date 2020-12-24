@@ -1,18 +1,19 @@
+from typing import MutableMapping, Tuple
 import posixpath
 import shutil
-from hub.store.cache import Cache
-from hub.store.lru_cache import LRUCache
-
-from hub.client.hub_control import HubControlClient
 import configparser
-from typing import MutableMapping, Tuple
+import os
+from time import sleep
 
+import re
 import fsspec
 import gcsfs
 import zarr
+
+from hub.store.cache import Cache
+from hub.store.lru_cache import LRUCache
+from hub.client.hub_control import HubControlClient
 from hub.store.azure_fs import AzureBlobFileSystem
-import os
-import re
 
 
 def _connect(tag, public=True):
@@ -138,6 +139,7 @@ class StorageMapWrapperWithCommit(MutableMapping):
         self.root = self._map.root
 
     def __getitem__(self, slice_):
+        # sleep(0.1)
         return self._map[slice_]
 
     def __setitem__(self, slice_, value):
