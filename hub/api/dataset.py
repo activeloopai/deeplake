@@ -759,7 +759,7 @@ class Dataset:
 
         def TensorSpec_to_hub(tf_dt):
             dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            shape = tf_dt.shape if tf_dt.shape.rank is not None else (None,)
+            shape = tuple(tf_dt.shape) if tf_dt.shape.rank is not None else (None,)
             return Tensor(shape=shape, dtype=dt)
 
         def dict_to_hub(tf_dt):
