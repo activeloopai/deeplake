@@ -2,6 +2,7 @@ import numpy as np
 
 from .numcodecs import PngCodec
 
+
 def test_png_codec():
     codec = PngCodec()
     arr = np.ones((1000, 1000, 3), dtype="uint8")
