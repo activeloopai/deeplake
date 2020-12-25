@@ -150,7 +150,7 @@ class Dataset:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
-            self._meta_information = self.meta["meta_info"]
+            self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
             self._tensors = dict(self._open_storage_tensors())
             if shape != (None,) and shape != self._shape:
