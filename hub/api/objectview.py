@@ -1,6 +1,6 @@
 from hub.api.datasetview import DatasetView
 from hub.schema import Sequence, Tensor, SchemaDict, Primitive
-from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
 
 # from hub.exceptions import NoneValueException
 import collections.abc as abc
@@ -260,7 +260,7 @@ class ObjectView:
             objview = self
         else:
             objview = self.__getitem__(slice_)
-        assign_value = value
+        assign_value = get_value(value)
 
         if not isinstance(objview.dataset, DatasetView):
             # subpath present but no slice done

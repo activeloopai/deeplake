@@ -246,6 +246,19 @@ def test_stacked_transform():
     assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
 
 
+def test_text():
+    my_schema = {"text": Text((None,), max_shape=(10,))}
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample):
+        return {"text": np.array("abc")}
+
+    ds = my_transform([i for i in range(10)])
+    ds2 = ds.store("./data/test/transform_text")
+    for i in range(10):
+        assert ds2["text", i].compute() == "abc"
+
+
 def test_zero_sample_transform():
     schema = {"test": Tensor((None, None), dtype="uint8", max_shape=(10, 10))}
 
