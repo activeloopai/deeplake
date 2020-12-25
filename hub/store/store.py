@@ -122,12 +122,6 @@ def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
 
 def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
-    cache_path = get_cache_path(path)
-    if storage_cache and storage_cache > 0:
-        os.makedirs(cache_path, exist_ok=True)
-        store = LRUCache(
-            zarr.LMDBStore(cache_path, buffers=True, lock=lock), store, storage_cache
-        )
     if memcache and memcache > 0:
         store = LRUCache(zarr.MemoryStore(), store, memcache)
     return store
@@ -139,7 +133,7 @@ class StorageMapWrapperWithCommit(MutableMapping):
         self.root = self._map.root
 
     def __getitem__(self, slice_):
-        # sleep(0.1)
+        sleep(0.1)
         return self._map[slice_]
 
     def __setitem__(self, slice_, value):
