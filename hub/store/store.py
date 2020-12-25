@@ -133,7 +133,6 @@ class StorageMapWrapperWithCommit(MutableMapping):
         self.root = self._map.root
 
     def __getitem__(self, slice_):
-        sleep(0.1)
         return self._map[slice_]
 
     def __setitem__(self, slice_, value):
