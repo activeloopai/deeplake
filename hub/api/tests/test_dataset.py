@@ -3,7 +3,7 @@ from hub.cli.auth import login_fn
 from hub.exceptions import HubException
 import numpy as np
 import pytest
-
+from hub import transform
 import hub.api.dataset as dataset
 from hub.schema import Tensor, Text, Image
 from hub.utils import (
@@ -531,6 +531,28 @@ def test_datasetview_repr():
     dsv = ds[2:]
     print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
     assert dsv.__repr__() == print_text
+
+
+def test_dataset_casting():
+    my_schema = {
+        "a": Tensor(shape=(1,), dtype="float64"),
+    }
+
+    @transform(schema=my_schema)
+    def my_transform(annotation):
+        return {
+            "a": 2.4,
+        }
+
+    out_ds = my_transform(range(100))
+    res_ds = out_ds.store("./data/casting")
+    assert(res_ds["a", 30].compute() == np.array([2.4]))
+
+    ds = Dataset(schema=my_schema, url="./data/casting2", shape=(100,))
+    for i in range(100):
+        ds["a", i] = 0.2
+
+    assert(ds["a", 30].compute() == np.array([0.2]))
 
 
 if __name__ == "__main__":
