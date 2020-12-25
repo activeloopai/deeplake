@@ -1,2 +1,2 @@
 # A Gentle Introduction to Hub
-A collection of tutorials for [Hub](https://github.com/activeloopai/hub).
+A collection of tutorials for [Hub](https://github.com/activeloopai/hub). It starts off by working with [different types](https://docs.activeloop.ai/en/latest/concepts/features.html#available-schemas) of data (eg images, audio), and then moves on to more complicated concepts like dynamic tensors.
