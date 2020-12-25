@@ -551,8 +551,11 @@ def test_dataset_casting():
     ds = Dataset(schema=my_schema, url="./data/casting2", shape=(100,))
     for i in range(100):
         ds["a", i] = 0.2
-
     assert(ds["a", 30].compute() == np.array([0.2]))
+
+    ds2 = Dataset(schema=my_schema, url="./data/casting3", shape=(100,))
+    ds2["a", 0:100] = np.ones(100,)
+    assert(ds2["a", 30].compute() == np.array([1]))
 
 
 if __name__ == "__main__":
