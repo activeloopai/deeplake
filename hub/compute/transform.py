@@ -6,7 +6,7 @@ from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
 from hub.utils import batchify
-from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
@@ -277,7 +277,9 @@ class Transform:
 
             chunk = ds[key].chunksize[0]
             chunk = 1 if chunk == 0 else chunk
+            value = get_value(value)
             value = str_to_int(value, ds.dataset.tokenizer)
+
             num_chunks = math.ceil(len(value) / (chunk * self.workers))
             length = num_chunks * chunk if self.workers != 1 else len(value)
             batched_values = batchify(value, length)
