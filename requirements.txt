@@ -10,7 +10,7 @@ lz4>=3,<4
 zarr==2.6.1
 lmdb==1.0.0
 boto3==1.16.39
-tqdm==4.54.1
+tqdm==4.55.0
 azure-storage-blob==12.6.0
 pathos>=0.2.2
 psutil>=5.7.3
