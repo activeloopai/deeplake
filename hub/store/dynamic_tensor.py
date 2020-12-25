@@ -189,7 +189,7 @@ class DynamicTensor:
         elif self._dynamic_tensor and isinstance(slice_[0], slice):
             max_shape = value[0].shape
             for item in value:
-                max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
+                max_shape = tuple(max(value) for value in zip(max_shape, item.shape))
             for i in range(len(value)):
                 pad = [
                     (0, max_shape[dim] - value[i].shape[dim])
@@ -382,8 +382,15 @@ class DynamicTensor:
         assert isinstance(slice_[0], int)
         new_shape = []
         shape_offset = 0
-        value_shape = list(value.shape) if hasattr(value, "shape") else [1]
+
+        value_shape = (
+            list(value.shape)
+            if hasattr(value, "shape") and len(list(value.shape)) > 0
+            else [1]
+        )
+
         for i in range(1, len(self.shape)):
+
             if self.shape[i] is None:
                 if i < len(slice_):
                     if isinstance(slice_[i], slice):

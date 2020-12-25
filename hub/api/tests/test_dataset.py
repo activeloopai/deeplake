@@ -560,7 +560,52 @@ def test_dataset_casting():
     assert ds2["a", 30].compute() == np.array([1])
 
 
+def test_dataset_setting_shape():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(5,), url=url, mode="w")
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [
+        np.array("THTMLY2F9"),
+        np.array("QUUVEU2IU"),
+        np.array("8ZUFCYWKD"),
+        "H9EDFAGHB",
+        "WDLDYN6XG",
+    ]
+    shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
+    assert shape[0][0] == [1]
+
+
+def test_dataset_assign_value():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(7,), url=url, mode="w")
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [
+        np.array("THTMLY2F9"),
+        np.array("QUUVEU2IU"),
+        np.array("8ZUFCYWKD"),
+        "H9EDFAGHB",
+        "WDLDYN6XG",
+    ]
+    ds[key, slice_] = batch
+    ds[key][5] = np.array("GHLSGBFF8")
+    ds[key][6] = "YGFJN75NF"
+    assert ds["text", 0].compute() == "THTMLY2F9"
+    assert ds["text", 1].compute() == "QUUVEU2IU"
+    assert ds["text", 2].compute() == "8ZUFCYWKD"
+    assert ds["text", 3].compute() == "H9EDFAGHB"
+    assert ds["text", 4].compute() == "WDLDYN6XG"
+    assert ds["text", 5].compute() == "GHLSGBFF8"
+    assert ds["text", 6].compute() == "YGFJN75NF"
+
+
 if __name__ == "__main__":
+    test_dataset_assign_value()
+    test_dataset_setting_shape()
     test_datasetview_repr()
     test_datasetview_get_dictionary()
     test_tensorview_slicing()

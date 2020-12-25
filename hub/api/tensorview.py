@@ -1,6 +1,6 @@
 import hub
 import collections.abc as abc
-from hub.api.dataset_utils import slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_split, str_to_int
 from hub.exceptions import NoneValueException
 import hub.api.objectview as objv
 
@@ -135,8 +135,8 @@ class TensorView:
         >>> images_tensorview = ds["image"]
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
+        assign_value = get_value(value)
         # handling strings and bytes
-        assign_value = value
         assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
