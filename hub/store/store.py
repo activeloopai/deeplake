@@ -1,19 +1,18 @@
-from typing import MutableMapping, Tuple
 import posixpath
 import shutil
-import configparser
-import os
-from time import sleep
+from hub.store.cache import Cache
+from hub.store.lru_cache import LRUCache
 
-import re
+from hub.client.hub_control import HubControlClient
+import configparser
+from typing import MutableMapping, Tuple
+
 import fsspec
 import gcsfs
 import zarr
-
-from hub.store.cache import Cache
-from hub.store.lru_cache import LRUCache
-from hub.client.hub_control import HubControlClient
 from hub.store.azure_fs import AzureBlobFileSystem
+import os
+import re
 
 
 def _connect(tag, public=True):
@@ -122,6 +121,12 @@ def get_cache_path(path, cache_folder="~/.activeloop/cache/"):
 
 def get_storage_map(fs, path, memcache=2 ** 26, lock=True, storage_cache=2 ** 28):
     store = _get_storage_map(fs, path)
+    cache_path = get_cache_path(path)
+    if storage_cache and storage_cache > 0:
+        os.makedirs(cache_path, exist_ok=True)
+        store = LRUCache(
+            zarr.LMDBStore(cache_path, buffers=True, lock=lock), store, storage_cache
+        )
     if memcache and memcache > 0:
         store = LRUCache(zarr.MemoryStore(), store, memcache)
     return store
