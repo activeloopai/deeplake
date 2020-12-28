@@ -43,6 +43,15 @@ def test_dataset_append_and_read():
         schema=dt,
         shape=(2,),
         url="./data/test/test_dataset_append_and_read",
+        mode="w",
+    )
+
+    ds.delete()
+
+    ds = Dataset(
+        schema=dt,
+        shape=(2,),
+        url="./data/test/test_dataset_append_and_read",
         mode="a",
     )
 
@@ -427,7 +436,7 @@ def test_meta_information():
     schema = {"text": Text((None,), max_shape=(1000,))}
 
     ds = Dataset(
-        "./data/test_meta", shape=(10,), schema=schema, meta_information=description
+        "./data/test_meta", shape=(10,), schema=schema, meta_information=description, mode="w"
     )
 
     some_text = ["hello world", "hello penguin", "hi penguin"]
