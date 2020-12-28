@@ -46,6 +46,15 @@ def test_dataset_append_and_read():
         mode="w",
     )
 
+    ds.delete()
+
+    ds = Dataset(
+        schema=dt,
+        shape=(2,),
+        url="./data/test/test_dataset_append_and_read",
+        mode="a",
+    )
+
     ds["first"][0] = 2.3
     assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
@@ -428,10 +437,10 @@ def test_meta_information():
 
     ds = Dataset(
         "./data/test_meta",
-        mode="w",
         shape=(10,),
         schema=schema,
         meta_information=description,
+        mode="w",
     )
 
     some_text = ["hello world", "hello penguin", "hi penguin"]
