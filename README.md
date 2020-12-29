@@ -164,9 +164,17 @@ As always, thanks to our amazing contributors!     </br>
 
 
 ## Examples
-Activeloop’s Hub format lets you achieve faster inference at a lower cost. Test out the datasets we’ve converted into Hub format - see for yourself!
-- [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
-- [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
+Activeloop’s Hub format lets you achieve faster inference at a lower cost. We have 30+ popular datasets already on our platform. These include:-
+- COCO
+- CIFAR-10
+- PASCAL VOC
+- Cars196
+- KITTI
+- EuroSAT 
+- Caltech-UCSD Birds 200
+- Food101
+
+Check these and many more popular datasets on our [visualizer web app](https://app.activeloop.ai/datasets/popular) and load them directly for model training!
 
 
 ## Disclaimers
