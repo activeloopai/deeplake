@@ -11,7 +11,7 @@ from hub.api.dataset import Dataset
 from hub.compute import transform
 from hub.log import logger
 import traceback
-from hub.exceptions import DaskModuleNotInstalledException
+from hub.exceptions import DaskModuleNotInstalledException, HubDatasetNotFoundException
 
 
 def local_mode():
@@ -47,6 +47,8 @@ def load(tag):
         return ds
     except ImportError:
         raise DaskModuleNotInstalledException
+    except HubDatasetNotFoundException:
+        raise
     except Exception as e:
         pass
         # logger.warning(traceback.format_exc() + str(e))
