@@ -189,7 +189,7 @@ class DynamicTensor:
         elif self._dynamic_tensor and isinstance(slice_[0], slice):
             max_shape = value[0].shape
             for item in value:
-                max_shape = tuple([max(value) for value in zip(max_shape, item.shape)])
+                max_shape = tuple(max(value) for value in zip(max_shape, item.shape))
             for i in range(len(value)):
                 pad = [
                     (0, max_shape[dim] - value[i].shape[dim])
@@ -234,12 +234,12 @@ class DynamicTensor:
                 if isinstance(value, list):
                     value = np.array(value)
                 if isinstance(value, np.ndarray):
-                    if value.shape[0] == 1 and expected_value_shape[0] != 1:
-                        value = np.squeeze(value, axis=0)
-                    if value.shape[-1] == 1 and expected_value_shape[-1] != 1:
-                        value = np.squeeze(value, axis=-1)
-                    if value.shape != expected_value_shape:
+                    value_shape = [dim for dim in value.shape if dim != 1]
+                    expected_shape = [dim for dim in expected_value_shape if dim != 1]
+                    if value_shape != expected_shape:
                         raise ValueShapeError(expected_value_shape, value.shape)
+                    else:
+                        value = value.reshape(expected_value_shape)
             else:
                 expected_value_shape = (1,)
                 if isinstance(value, list):
@@ -343,14 +343,28 @@ class DynamicTensor:
             return final_shapes  # returns 2D np array
 
     def set_shape(self, slice_, value):
-        """Sets the shape of the slice of tensor"""
+        """
+        Set shape of the dynamic tensor given value
+        """
         if not self._enabled_dynamicness:
             return
+
+        new_shape = self.get_shape_from_value(slice_, value)
+        self.set_dynamic_shape(slice_, new_shape)
+
+    def set_dynamic_shape(self, slice_, shape):
+        """
+        Set shape from the shape directly
+        """
+        self._dynamic_tensor[slice_[0]] = shape
+
+    def get_shape_from_value(self, slice_, value):
+        """
+        create shape for multiple elements
+        """
         if isinstance(slice_[0], int):
-            new_shape = self.create_shape(slice_, value)
-            self._dynamic_tensor[slice_[0]] = new_shape = np.maximum(
-                self._dynamic_tensor[slice_[0]], new_shape
-            )
+            new_shapes = self.create_shape(slice_, value)
+            new_shapes = np.maximum(self._dynamic_tensor[slice_[0]], new_shapes)
         else:
             start = slice_[0].start if slice_[0].start is not None else 0
             stop = (
@@ -362,14 +376,21 @@ class DynamicTensor:
                 new_shape = self.create_shape([i] + slice_[1:], value[i - start])
                 new_shape = np.maximum(dt[i - start], new_shape)
                 new_shapes.append(new_shape)
-            self._dynamic_tensor[slice_[0]] = new_shapes
+        return new_shapes
 
     def create_shape(self, slice_, value):
         assert isinstance(slice_[0], int)
         new_shape = []
         shape_offset = 0
-        value_shape = list(value.shape) if hasattr(value, "shape") else [1]
+
+        value_shape = (
+            list(value.shape)
+            if hasattr(value, "shape") and len(list(value.shape)) > 0
+            else [1]
+        )
+
         for i in range(1, len(self.shape)):
+
             if self.shape[i] is None:
                 if i < len(slice_):
                     if isinstance(slice_[i], slice):
