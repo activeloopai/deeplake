@@ -1111,29 +1111,29 @@ class Dataset:
         use.
         """
 
-        def get_ds_size(path_to_dir):
-            size_of_ds = 1
-            for i in os.listdir(path_to_dir):
-                size_of_ds += len(os.listdir(os.path.join(path_to_dir, i)))
-            return size_of_ds
-
         def mode_check(im):
             if im.mode == "RGB":
                 return 3
             elif im.mode == "RGBA":
                 return 4
+            elif im.mode == "LA":
+                return 2
             else:
                 return 1
 
         def get_max_shape(path_to_dir):
 
             max_shape = [1, 1]
+            mode = 0
 
             for i in os.listdir(path_to_dir):
                 for j in os.listdir(os.path.join(path_to_dir, i)):
                     img_path = os.path.join(path_to_dir, i, j)
                     image = im.open(img_path)
-                    mode = mode_check(image)
+                    check_mode = mode_check(image)
+
+                    if check_mode>mode:
+                        mode = check_mode
 
                     width, height = image.size
                     if max_shape[0] < width and max_shape[1] < height:
@@ -1143,16 +1143,17 @@ class Dataset:
                     elif max_shape[1] < height:
                         max_shape[1] = height
 
-            return max_shape
+            return max_shape,mode
 
         def make_schema(path_to_dir):
-            image_shape = (*get_max_shape(path_to_dir), 3)
+            max_shape,mode = get_max_shape(path_to_dir)
+            image_shape = (None,None,None)
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                 "label": labels,
-                "image": Image(
+                "image": Tensor(
                     shape=image_shape,
-                    max_shape=(*get_max_shape(path_to_dir), 3),
+                    max_shape=(*max_shape, mode),
                     dtype="uint8",
                 ),
             }
@@ -1171,11 +1172,32 @@ class Dataset:
 
         images = []
         labels_list = []
+        max_shape,mode = get_max_shape(path_to_dir)
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
 
                 path_to_image = os.path.join(path_to_dir, i, j)
-                images.append(np.asarray(im.open(path_to_image)))
+                
+                image = im.open(path_to_image)
+
+                if mode_check(image)==1:
+                   image = np.asarray(image)
+                   image = np.resize(image,(*max_shape,1))
+                elif mode_check(image)==3:
+                   image = np.asarray(image)
+                   image = np.resize(image,(*max_shape,3))
+                elif mode_check(image)==4:
+                   image = np.asarray(image)
+                   image = np.resize(image,(*max_shape,4))
+                elif mode_check(image) == 2:
+                    image = np.asarray(image)
+                    image = np.resize(image,(*max_shape,2))    
+                else:
+                    image = np.asarray(image)
+                    image = np.resize(image,(*max_shape,1))       
+
+
+                images.append(image)
                 labels_list.append(i)
         zip_image = zip(labels_list, images)
         ds = upload_data(zip_image)
