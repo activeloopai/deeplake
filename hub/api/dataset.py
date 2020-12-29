@@ -1132,7 +1132,7 @@ class Dataset:
                     image = im.open(img_path)
                     check_mode = mode_check(image)
 
-                    if check_mode>mode:
+                    if check_mode > mode:
                         mode = check_mode
 
                     width, height = image.size
@@ -1143,11 +1143,11 @@ class Dataset:
                     elif max_shape[1] < height:
                         max_shape[1] = height
 
-            return max_shape,mode
+            return max_shape, mode
 
         def make_schema(path_to_dir):
-            max_shape,mode = get_max_shape(path_to_dir)
-            image_shape = (None,None,None)
+            max_shape, mode = get_max_shape(path_to_dir)
+            image_shape = (None, None, None)
             labels = ClassLabel(names=os.listdir(path_to_dir))
             schema = {
                 "label": labels,
@@ -1172,30 +1172,29 @@ class Dataset:
 
         images = []
         labels_list = []
-        max_shape,mode = get_max_shape(path_to_dir)
+        max_shape, mode = get_max_shape(path_to_dir)
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
 
                 path_to_image = os.path.join(path_to_dir, i, j)
-                
+
                 image = im.open(path_to_image)
 
-                if mode_check(image)==1:
-                   image = np.asarray(image)
-                   image = np.resize(image,(*max_shape,1))
-                elif mode_check(image)==3:
-                   image = np.asarray(image)
-                   image = np.resize(image,(*max_shape,3))
-                elif mode_check(image)==4:
-                   image = np.asarray(image)
-                   image = np.resize(image,(*max_shape,4))
+                if mode_check(image) == 1:
+                    image = np.asarray(image)
+                    image = np.resize(image, (*max_shape, 1))
+                elif mode_check(image) == 3:
+                    image = np.asarray(image)
+                    image = np.resize(image, (*max_shape, 3))
+                elif mode_check(image) == 4:
+                    image = np.asarray(image)
+                    image = np.resize(image, (*max_shape, 4))
                 elif mode_check(image) == 2:
                     image = np.asarray(image)
-                    image = np.resize(image,(*max_shape,2))    
+                    image = np.resize(image, (*max_shape, 2))
                 else:
                     image = np.asarray(image)
-                    image = np.resize(image,(*max_shape,1))       
-
+                    image = np.resize(image, (*max_shape, 1))
 
                 images.append(image)
                 labels_list.append(i)
