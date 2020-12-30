@@ -4,11 +4,13 @@ import collections.abc as abc
 import json
 import sys
 import traceback
+from collections import defaultdict
 
 import fsspec
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
+import numpy as np
 
 from hub.schema.features import (
     Primitive,
@@ -18,9 +20,18 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+
+# from hub.api.tensorview import TensorView
+# from hub.api.datasetview import DatasetView
+from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
-from hub.api.datasetview import DatasetView
-from hub.api.dataset_utils import slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import (
+    create_numpy_dict,
+    get_value,
+    slice_extract_info,
+    slice_split,
+    str_to_int,
+)
 
 import hub.schema.serialize
 import hub.schema.deserialize
@@ -43,7 +54,9 @@ from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
-from collections import defaultdict
+
+from hub.utils import norm_cache, norm_shape
+from hub import defaults
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -55,16 +68,18 @@ class Dataset:
         self,
         url: str,
         mode: str = "a",
-        safe_mode: bool = False,
         shape=None,
         schema=None,
         token=None,
         fs=None,
         fs_map=None,
-        cache: int = 2 ** 26,
-        storage_cache: int = 2 ** 28,
+        meta_information=dict(),
+        cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
+        storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
         lock_cache=True,
         tokenizer=None,
+        lazy: bool = True,
+        public: bool = True,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -72,10 +87,8 @@ class Dataset:
         ----------
         url: str
             The url where dataset is located/should be created
-        mode: str, optional (default to "w")
+        mode: str, optional (default to "a")
             Python way to tell whether dataset is for read or write (ex. "r", "w", "a")
-        safe_mode: bool, optional
-            if dataset exists it cannot be rewritten in safe mode, otherwise it lets to write the first time
         shape: tuple, optional
             Tuple with (num_samples,) format, where num_samples is number of samples
         schema: optional
@@ -86,6 +99,7 @@ class Dataset:
             token is the parameter to pass the credentials, it can be filepath or dict
         fs: optional
         fs_map: optional
+        meta_information: optional ,give information about dataset in a dictionary.
         cache: int, optional
             Size of the memory cache. Default is 64MB (2**26)
             if 0, False or None, then cache is not used
@@ -94,29 +108,32 @@ class Dataset:
             if 0, False or None, then storage cache is not used
         lock_cache: bool, optional
             Lock the cache for avoiding multiprocessing errors
+        lazy: bool, optional
+            Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
         """
 
-        shape = shape or (None,)
-        if isinstance(shape, int):
-            shape = [shape]
-        if shape is not None:
-            if len(tuple(shape)) != 1:
-                raise ShapeLengthException
-        if mode is None:
-            raise NoneValueException("mode")
+        shape = norm_shape(shape)
+        if len(shape) != 1:
+            raise ShapeLengthException()
+        mode = mode or "a"
+        storage_cache = norm_cache(storage_cache) if cache else 0
+        cache = norm_cache(cache)
+        schema: SchemaDict = featurify(schema) if schema else None
 
-        if not cache:
-            storage_cache = False
-
-        self.url = url
-        self.token = token
-        self.mode = mode
+        self._url = url
+        self._token = token
+        self._mode = mode
         self.tokenizer = tokenizer
+        self.lazy = lazy
 
         self._fs, self._path = (
-            (fs, url) if fs else get_fs_and_path(self.url, token=token)
+            (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
-        self.cache = cache
+        self._cache = cache
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
         self.verison = "1.x"
@@ -126,17 +143,27 @@ class Dataset:
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
         )
         self._fs_map = fs_map
-
-        if safe_mode and not needcreate:
-            mode = "r"
+        self._meta_information = meta_information
         self.username = None
         self.dataset_name = None
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
-            self.shape = tuple(self.meta["shape"])
-            self.schema = hub.schema.deserialize.deserialize(self.meta["schema"])
-            self._flat_tensors = tuple(flatten(self.schema))
+            self._shape = tuple(self.meta["shape"])
+            self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
+            self._meta_information = self.meta.get("meta_info") or dict()
+            self._flat_tensors = tuple(flatten(self._schema))
             self._tensors = dict(self._open_storage_tensors())
+            if shape != (None,) and shape != self._shape:
+                raise TypeError(
+                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                )
+            if schema is not None and sorted(schema.dict_.keys()) != sorted(
+                self._schema.dict_.keys()
+            ):
+                raise TypeError(
+                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
+                )
+
         else:
             if shape[0] is None:
                 raise ShapeArgumentNotFoundException()
@@ -147,9 +174,10 @@ class Dataset:
                     raise ShapeArgumentNotFoundException()
                 if schema is None:
                     raise SchemaArgumentNotFoundException()
-                self.schema: HubSchema = featurify(schema)
-                self.shape = tuple(shape)
+                self._schema = schema
+                self._shape = tuple(shape)
                 self.meta = self._store_meta()
+                self._meta_information = meta_information
                 self._flat_tensors = tuple(flatten(self.schema))
                 self._tensors = dict(self._generate_storage_tensors())
                 self.flush()
@@ -173,15 +201,52 @@ class Dataset:
             self.username = spl[-2]
             self.dataset_name = spl[-1]
             HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta
+                self.username, self.dataset_name, self.meta, public=public
             )
 
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def url(self):
+        return self._url
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property
+    def token(self):
+        return self._token
+
+    @property
+    def cache(self):
+        return self._cache
+
+    @property
+    def storage_cache(self):
+        return self._storage_cache
+
+    @property
+    def schema(self):
+        return self._schema
+
+    @property
+    def meta_information(self):
+        return self._meta_information
+
     def _store_meta(self) -> dict:
+
         meta = {
-            "shape": self.shape,
-            "schema": hub.schema.serialize.serialize(self.schema),
+            "shape": self._shape,
+            "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
         }
+
+        if self._meta_information != None:
+            meta["meta_info"] = self._meta_information
+
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
 
@@ -191,7 +256,7 @@ class Dataset:
         Creates or overwrites dataset folder.
         Returns True dataset needs to be created opposed to read.
         """
-        fs, path, mode = self._fs, self._path, self.mode
+        fs, path, mode = self._fs, self._path, self._mode
         if path.startswith("s3://"):
             with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
                 stored_username = json.load(f)["_id"]
@@ -254,15 +319,15 @@ class Dataset:
                     get_storage_map(
                         self._fs,
                         path,
-                        self.cache,
+                        self._cache,
                         self.lock_cache,
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
                 ),
-                mode=self.mode,
-                shape=self.shape + t_dtype.shape,
-                max_shape=self.shape + t_dtype.max_shape,
+                mode=self._mode,
+                shape=self._shape + t_dtype.shape,
+                max_shape=self._shape + t_dtype.max_shape,
                 dtype=self._get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
                 compressor=self._get_compressor(t_dtype.compressor),
@@ -278,26 +343,26 @@ class Dataset:
                     get_storage_map(
                         self._fs,
                         path,
-                        self.cache,
+                        self._cache,
                         self.lock_cache,
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
                 ),
-                mode=self.mode,
+                mode=self._mode,
                 # FIXME We don't need argument below here
-                shape=self.shape + t_dtype.shape,
+                shape=self._shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from dataset
         | Usage:
-        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].numpy() # returns numpy array
+        >>> return ds["image", 5, 0:1920, 0:1080, 0:3].compute() # returns numpy array
         >>> images = ds["image"]
-        >>> return images[5].numpy() # returns numpy array
+        >>> return images[5].compute() # returns numpy array
         >>> images = ds["image"]
         >>> image = images[5]
-        >>> return image[0:1920, 0:1080, 0:3].numpy()
+        >>> return image[0:1920, 0:1080, 0:3].compute()
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -308,23 +373,61 @@ class Dataset:
                 raise ValueError(
                     "Can't slice a dataset with multiple slices without subpath"
                 )
-            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
+            num, ofs = slice_extract_info(slice_list[0], self._shape[0])
             return DatasetView(
                 dataset=self,
                 num_samples=num,
                 offset=ofs,
                 squeeze_dim=isinstance(slice_list[0], int),
+                lazy=self.lazy,
             )
         elif not slice_list:
             if subpath in self._tensors.keys():
-                return TensorView(
-                    dataset=self, subpath=subpath, slice_=slice(0, self.shape[0])
+                tensorview = TensorView(
+                    dataset=self,
+                    subpath=subpath,
+                    slice_=slice(0, self._shape[0]),
+                    lazy=self.lazy,
                 )
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self, subpath=subpath, lazy=self.lazy
+                    )
+                    if self.lazy:
+                        return objectview
+                    else:
+                        return objectview.compute()
             return self._get_dictionary(subpath)
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-            if subpath in self._tensors.keys():
-                return TensorView(dataset=self, subpath=subpath, slice_=slice_list)
+            schema_obj = self.schema.dict_[subpath.split("/")[1]]
+            if subpath in self._tensors.keys() and (
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
+            ):
+                tensorview = TensorView(
+                    dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
+                )
+                if self.lazy:
+                    return tensorview
+                else:
+                    return tensorview.compute()
+            for key in self._tensors.keys():
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self,
+                        subpath=subpath,
+                        slice_list=slice_list,
+                        lazy=self.lazy,
+                    )
+                    if self.lazy:
+                        return objectview
+                    else:
+                        return objectview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -337,8 +440,8 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        assign_value = get_value(value)
         # handling strings and bytes
-        assign_value = value
         assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
@@ -349,16 +452,24 @@ class Dataset:
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif not slice_list:
-            self._tensors[subpath][:] = assign_value  # Add path check
+            if subpath in self._tensors.keys():
+                self._tensors[subpath][:] = assign_value  # Add path check
+            else:
+                ObjectView(dataset=self, subpath=subpath)[:] = assign_value
         else:
-            self._tensors[subpath][slice_list] = assign_value
+            if subpath in self._tensors.keys():
+                self._tensors[subpath][slice_list] = assign_value
+            else:
+                ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[
+                    :
+                ] = assign_value
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
-        if size == self.shape[0]:
+        if size == self._shape[0]:
             return
 
-        self.shape = (int(size),)
+        self._shape = (int(size),)
         self.meta = self._store_meta()
         for t in self._tensors.values():
             t.resize_shape(int(size))
@@ -367,7 +478,7 @@ class Dataset:
 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
-        size += self.shape[0]
+        size += self._shape[0]
         self.resize_shape(size)
 
     def delete(self):
@@ -385,7 +496,7 @@ class Dataset:
 
     def to_pytorch(
         self,
-        Transform=None,
+        transform=None,
         inplace=True,
         output_type=dict,
         offset=None,
@@ -395,7 +506,7 @@ class Dataset:
 
         Parameters
         ----------
-        Transform: function that transforms data in a dict format
+        transform: function that transforms data in a dict format
         inplace: bool, optional
             Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
             type you need for Transforms). Default is True.
@@ -408,15 +519,14 @@ class Dataset:
         """
         if "torch" not in sys.modules:
             raise ModuleNotInstalledException("torch")
-        else:
-            import torch
+        import torch
 
-            global torch
+        global torch
 
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(
             self,
-            Transform,
+            transform,
             inplace=inplace,
             output_type=output_type,
             offset=offset,
@@ -441,7 +551,7 @@ class Dataset:
             global tf
 
         offset = 0 if offset is None else offset
-        num_samples = self.shape[0] if num_samples is None else num_samples
+        num_samples = self._shape[0] if num_samples is None else num_samples
 
         def tf_gen():
             for index in range(offset, offset + num_samples):
@@ -491,8 +601,8 @@ class Dataset:
                 d[k] = get_output_shapes(v)
             return d
 
-        output_types = dtype_to_tf(self.schema)
-        output_shapes = get_output_shapes(self.schema)
+        output_types = dtype_to_tf(self._schema)
+        output_shapes = get_output_shapes(self._schema)
 
         return tf.data.Dataset.from_generator(
             tf_gen, output_types=output_types, output_shapes=output_shapes
@@ -511,11 +621,12 @@ class Dataset:
                     if split_key[i] not in cur.keys():
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
-                slice_ = slice_ if slice_ else slice(0, self.shape[0])
-                cur[split_key[-1]] = TensorView(
-                    dataset=self, subpath=key, slice_=slice_
+                slice_ = slice_ or slice(0, self._shape[0])
+                tensorview = TensorView(
+                    dataset=self, subpath=key, slice_=slice_, lazy=self.lazy
                 )
-        if len(tensor_dict) == 0:
+                cur[split_key[-1]] = tensorview if self.lazy else tensorview.compute()
+        if not tensor_dict:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
 
@@ -526,7 +637,13 @@ class Dataset:
 
     def __len__(self):
         """ Number of samples in the dataset """
-        return self.shape[0]
+        return self._shape[0]
+
+    def disable_lazy(self):
+        self.lazy = False
+
+    def enable_lazy(self):
+        self.lazy = True
 
     def flush(self):
         """Save changes from cache to dataset final storage.
@@ -556,22 +673,27 @@ class Dataset:
                 self.username, self.dataset_name, "UPLOADED"
             )
 
+    def numpy(self):
+        return [create_numpy_dict(self, i) for i in range(self._shape[0])]
+
+    def compute(self):
+        return self.numpy()
+
     def __str__(self):
-        out = (
+        return (
             "Dataset(schema="
-            + str(self.schema)
+            + str(self._schema)
             + "url="
             + "'"
-            + self.url
+            + self._url
             + "'"
             + ", shape="
-            + str(self.shape)
+            + str(self._shape)
             + ", mode="
             + "'"
-            + self.mode
+            + self._mode
             + "')"
         )
-        return out
 
     def __repr__(self):
         return self.__str__()
@@ -637,7 +759,7 @@ class Dataset:
 
         def TensorSpec_to_hub(tf_dt):
             dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            shape = tf_dt.shape if tf_dt.shape.rank is not None else (None,)
+            shape = tuple(tf_dt.shape) if tf_dt.shape.rank is not None else (None,)
             return Tensor(shape=shape, dtype=dt)
 
         def dict_to_hub(tf_dt):
@@ -653,7 +775,7 @@ class Dataset:
             for k, v in sample.items():
                 k = k.replace("/", "_")
                 if not isinstance(v, dict):
-                    if isinstance(v, tuple) or isinstance(v, list):
+                    if isinstance(v, (tuple, list)):
                         new_v = list(v)
                         for i in range(len(new_v)):
                             new_v[i] = new_v[i].numpy()
@@ -759,8 +881,7 @@ class Dataset:
 
         def generate_schema(ds):
             tf_schema = ds[1].features
-            schema = to_hub(tf_schema).dict_
-            return schema
+            return to_hub(tf_schema).dict_
 
         def to_hub(tf_dt, max_shape=None, path=""):
             if isinstance(tf_dt, tfds.features.FeaturesDict):
@@ -872,10 +993,7 @@ class Dataset:
             d = {}
             for k, v in sample.items():
                 k = k.replace("/", "_")
-                if not isinstance(v, dict):
-                    d[k] = v.numpy()
-                else:
-                    d[k] = transform_numpy(v)
+                d[k] = transform_numpy(v) if isinstance(v, dict) else v.numpy()
             return d
 
         @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
@@ -947,9 +1065,9 @@ class Dataset:
                     value_shape = v.shape if hasattr(v, "shape") else ()
                     if isinstance(v, torch.Tensor):
                         v = v.numpy()
-                    shape = tuple([None for it in value_shape])
+                    shape = tuple(None for it in value_shape)
                     max_shape = (
-                        max_dict[cur_path] or tuple([10000 for it in value_shape])
+                        max_dict[cur_path] or tuple(10000 for it in value_shape)
                         if not isinstance(v, str)
                         else (10000,)
                     )
@@ -968,10 +1086,7 @@ class Dataset:
             d = {}
             for k, v in sample.items():
                 k = k.replace("/", "_")
-                if not isinstance(v, dict):
-                    d[k] = v
-                else:
-                    d[k] = transform_numpy(v)
+                d[k] = transform_numpy(v) if isinstance(v, dict) else v
             return d
 
         @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
@@ -1022,11 +1137,9 @@ class TorchDataset:
             split_key = key.split("/")
             cur = d
             for i in range(1, len(split_key) - 1):
-                if split_key[i] in cur.keys():
-                    cur = cur[split_key[i]]
-                else:
+                if split_key[i] not in cur.keys():
                     cur[split_key[i]] = {}
-                    cur = cur[split_key[i]]
+                cur = cur[split_key[i]]
             if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
                 self._ds._tensors[key][index], str
             ):
@@ -1041,23 +1154,5 @@ class TorchDataset:
 
     def __iter__(self):
         self._init_ds()
-        start = self.offset if self.offset is not None else 0
-        for index in range(start, start + self.__len__()):
-            d = {}
-            for key in self._ds._tensors.keys():
-                split_key = key.split("/")
-                cur = d
-                for i in range(1, len(split_key) - 1):
-                    if split_key[i] in cur.keys():
-                        cur = cur[split_key[i]]
-                    else:
-                        cur[split_key[i]] = {}
-                        cur = cur[split_key[i]]
-                t = self._ds._tensors[key][index]
-                if self.inplace:
-                    t = torch.tensor(t)
-                cur[split_key[-1]] = t
-            d = self._do_transform(d)
-            if self.inplace & (self.output_type != dict) & (type(d) == dict):
-                d = self.output_type(d.values())
-            yield (d)
+        for i in range(len(self)):
+            yield self[i]

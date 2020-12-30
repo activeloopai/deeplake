@@ -10,7 +10,7 @@ def slice_split(slice_):
     for sl in slice_:
         if isinstance(sl, str):
             path += sl if sl.startswith("/") else "/" + sl
-        elif isinstance(sl, int) or isinstance(sl, slice):
+        elif isinstance(sl, (int, slice)):
             list_slice.append(sl)
         else:
             raise TypeError(
@@ -22,8 +22,8 @@ def slice_split(slice_):
 def slice_extract_info(slice_, num):
     """Extracts number of samples and offset from slice"""
     if isinstance(slice_, int):
-        slice_ = slice_ + num if slice_ < 0 else slice_
-        if slice_ >= num or slice_ < 0:
+        slice_ = slice_ + num if num and slice_ < 0 else slice_
+        if num and (slice_ >= num or slice_ < 0):
             raise IndexError(
                 "index out of bounds for dimension with length {}".format(num)
             )
@@ -36,7 +36,7 @@ def slice_extract_info(slice_, num):
         slice_ = (
             slice(slice_.start + num, slice_.stop) if slice_.start < 0 else slice_
         )  # make indices positive if possible
-        if slice_.start < 0 or slice_.start >= num:
+        if num and (slice_.start < 0 or slice_.start >= num):
             raise IndexError(
                 "index out of bounds for dimension with length {}".format(num)
             )
@@ -45,17 +45,52 @@ def slice_extract_info(slice_, num):
         slice_ = (
             slice(slice_.start, slice_.stop + num) if slice_.stop < 0 else slice_
         )  # make indices positive if possible
-        if slice_.stop < 0 or slice_.stop > num:
+        if num and (slice_.stop < 0 or slice_.stop > num):
             raise IndexError(
                 "index out of bounds for dimension with length {}".format(num)
             )
     if slice_.start is not None and slice_.stop is not None:
-        num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
+        if (
+            slice_.start < 0
+            and slice_.stop < 0
+            or slice_.start >= 0
+            and slice_.stop >= 0
+        ):
+            # If same signs, bound checking can be done
+            if abs(slice_.start) > abs(slice_.stop):
+                raise IndexError("start index is greater than stop index")
+            num = abs(slice_.stop) - abs(slice_.start)
+        else:
+            num = 0
+        # num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
     elif slice_.start is None and slice_.stop is not None:
         num = slice_.stop
     elif slice_.start is not None and slice_.stop is None:
-        num = num - slice_.start
+        num = num - slice_.start if num else 0
     return num, offset
+
+
+def create_numpy_dict(dataset, index):
+    numpy_dict = {}
+    for path in dataset._tensors.keys():
+        d = numpy_dict
+        split = path.split("/")
+        for subpath in split[1:-1]:
+            if subpath not in d:
+                d[subpath] = {}
+            d = d[subpath]
+        d[split[-1]] = dataset[path, index].numpy()
+    return numpy_dict
+
+
+def get_value(value):
+    if isinstance(value, np.ndarray) and value.shape == ():
+        value = value.item()
+    elif isinstance(value, list):
+        for i in range(len(value)):
+            if isinstance(value[i], np.ndarray) and value[i].shape == ():
+                value[i] = value[i].item()
+    return value
 
 
 def str_to_int(assign_value, tokenizer):
@@ -73,10 +108,9 @@ def str_to_int(assign_value, tokenizer):
     if tokenizer is not None:
         if "transformers" not in sys.modules:
             raise ModuleNotInstalledException("transformers")
-        else:
-            import transformers
+        import transformers
 
-            global transformers
+        global transformers
         tokenizer = transformers.AutoTokenizer.from_pretrained("bert-base-cased")
         assign_value = (
             np.array(tokenizer(assign_value, add_special_tokens=False)["input_ids"])

@@ -30,9 +30,9 @@ def test_pipeline_basic():
     @hub.transform(schema=my_schema)
     def my_transform(sample, multiplier: int = 2):
         return {
-            "image": sample["image"].compute() * multiplier,
-            "label": sample["label"].compute(),
-            "confidence": sample["confidence"].compute() * multiplier,
+            "image": sample["image"] * multiplier,
+            "label": sample["label"],
+            "confidence": sample["confidence"] * multiplier,
         }
 
     out_ds = my_transform(ds, multiplier=2)
@@ -77,7 +77,7 @@ def test_threaded():
 
     @hub.transform(schema=schema, scheduler="threaded", workers=2)
     def create_classification_dataset(sample):
-        ts = sample["image"].numpy()
+        ts = sample["image"]
         return [
             {
                 "image": ts,
@@ -109,8 +109,8 @@ def test_pipeline_dynamic():
     @hub.transform(schema=dynamic_schema)
     def dynamic_transform(sample, multiplier: int = 2):
         return {
-            "image": sample["image"].compute() * multiplier,
-            "label": sample["label"].compute(),
+            "image": sample["image"] * multiplier,
+            "label": sample["label"],
         }
 
     out_ds = dynamic_transform(ds, multiplier=4).store(
@@ -137,8 +137,8 @@ def test_pipeline_multiple():
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
-                "image": sample["image"].compute() * multiplier,
-                "label": sample["label"].compute(),
+                "image": sample["image"] * multiplier,
+                "label": sample["label"],
             }
             for i in range(4)
         ]
@@ -206,9 +206,9 @@ def test_pipeline():
         @hub.transform(schema=my_schema)
         def my_transform(sample, multiplier: int = 2):
             return {
-                "image": sample["image"].compute() * multiplier,
-                "label": sample["label"].compute(),
-                "confidence": sample["confidence"].compute() * multiplier,
+                "image": sample["image"] * multiplier,
+                "label": sample["label"],
+                "confidence": sample["confidence"] * multiplier,
             }
 
         out_ds = my_transform(ds, multiplier=2)
@@ -216,6 +216,79 @@ def test_pipeline():
         out_ds = out_ds.store("./data/test/test_pipeline_multiple_4")
 
         assert (out_ds["image", 0].compute() == 4).all()
+
+
+def test_stacked_transform():
+    schema = {"test": Tensor((2, 2), dtype="uint8")}
+
+    @hub.transform(schema=schema)
+    def multiply_transform(sample, multiplier=1, times=1):
+        if times == 1:
+            return {"test": multiplier * sample["test"]}
+        else:
+            return [{"test": multiplier * sample["test"]} for i in range(times)]
+
+    @hub.transform(schema=schema)
+    def multiply_transform_2(sample, multiplier=1, times=1):
+        if times == 1:
+            return {"test": multiplier * sample["test"]}
+        else:
+            return [{"test": multiplier * sample["test"]} for i in range(times)]
+
+    ds = hub.Dataset("./data/stacked_transform", mode="w", shape=(5,), schema=schema)
+    for i in range(5):
+        ds["test", i] = np.ones((2, 2))
+    ds1 = multiply_transform(ds, multiplier=2, times=5)
+    ds2 = multiply_transform(ds1, multiplier=3, times=2)
+    ds3 = multiply_transform_2(ds2, multiplier=5, times=3)
+    ds4 = ds3.store("./data/stacked_transform_2")
+    assert len(ds4) == 150
+    assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
+
+
+def test_text():
+    my_schema = {"text": Text((None,), max_shape=(10,))}
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample):
+        return {"text": np.array("abc")}
+
+    ds = my_transform([i for i in range(10)])
+    ds2 = ds.store("./data/test/transform_text")
+    for i in range(10):
+        assert ds2["text", i].compute() == "abc"
+
+
+def test_zero_sample_transform():
+    schema = {"test": Tensor((None, None), dtype="uint8", max_shape=(10, 10))}
+
+    @hub.transform(schema=schema)
+    def my_transform(sample):
+        if sample % 5 == 0:
+            return []
+        else:
+            return {"test": (sample % 5) * np.ones((5, 5))}
+
+    ds = my_transform([i for i in range(30)])
+    ds2 = ds.store("./data/transform_zero_sample", sample_per_shard=5)
+    assert len(ds2) == 24
+    for i, item in enumerate(ds2):
+        assert (item["test"].compute() == (((i % 4) + 1) * np.ones((5, 5)))).all()
+
+
+def test_mutli_sample_transform():
+    schema = {"test": Tensor((None, None), dtype="uint8", max_shape=(10, 10))}
+
+    @hub.transform(schema=schema)
+    def my_transform(sample):
+        d = {"test": sample * np.ones((5, 5))}
+        return [d, d]
+
+    ds = my_transform([i for i in range(32)])
+    ds2 = ds.store("./data/transform_zero_sample", sample_per_shard=5)
+    assert len(ds2) == 64
+    for i, item in enumerate(ds2):
+        assert (item["test"].compute() == (i // 2) * np.ones((5, 5))).all()
 
 
 def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):

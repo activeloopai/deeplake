@@ -1,11 +1,14 @@
+import os
+from hub.cli.auth import login_fn
 from hub.exceptions import HubException
 import numpy as np
 import pytest
-
+from hub import transform
 import hub.api.dataset as dataset
 from hub.schema import Tensor, Text, Image
 from hub.utils import (
     gcp_creds_exist,
+    hub_creds_exist,
     s3_creds_exist,
     azure_creds_exist,
     transformers_loaded,
@@ -27,8 +30,10 @@ my_schema = {
 def test_dataset2():
     dt = {"first": "float", "second": "float"}
     ds = Dataset(schema=dt, shape=(2,), url="./data/test/test_dataset2", mode="w")
+    ds.meta_information["description"] = "This is my description"
 
     ds["first"][0] = 2.3
+    assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
 
 
@@ -38,10 +43,20 @@ def test_dataset_append_and_read():
         schema=dt,
         shape=(2,),
         url="./data/test/test_dataset_append_and_read",
+        mode="w",
+    )
+
+    ds.delete()
+
+    ds = Dataset(
+        schema=dt,
+        shape=(2,),
+        url="./data/test/test_dataset_append_and_read",
         mode="a",
     )
 
     ds["first"][0] = 2.3
+    assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
     ds.close()
 
@@ -49,14 +64,18 @@ def test_dataset_append_and_read():
         url="./data/test/test_dataset_append_and_read",
         mode="r",
     )
+    assert ds.meta_information["description"] == "This is my description"
+    ds.meta_information["hello"] = 5
     ds.delete()
     ds.close()
 
     # TODO Add case when non existing dataset is opened in read mode
 
 
-def test_dataset(url="./data/test/dataset", token=None):
-    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+def test_dataset(url="./data/test/dataset", token=None, public=True):
+    ds = Dataset(
+        url, token=token, shape=(10000,), mode="w", schema=my_schema, public=public
+    )
 
     sds = ds[5]
     sds["label/a", 50, 50] = 2
@@ -226,10 +245,37 @@ def test_dataset_bug_2(url="./data/test/dataset", token=None):
     ds["image", 0:1] = [np.zeros((100, 100))]
 
 
+def test_dataset_bug_3(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    ds = Dataset(url)
+    ds["image", 0:1] = [np.zeros((100, 100))]
+
+
+def test_dataset_wrong_append(url="./data/test/dataset", token=None):
+    my_schema = {
+        "image": Tensor((100, 100), "uint8"),
+    }
+    ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
+    ds.close()
+    try:
+        ds = Dataset(url, shape=100)
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+    try:
+        ds = Dataset(url, schema={"hello": "uint8"})
+    except Exception as ex:
+        assert isinstance(ex, TypeError)
+
+
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
     try:
         Tensor(shape=(120, 120, 3), max_shape=(120, 120, 4))
-    except HubException:
+    except ValueError:
         pass
 
 
@@ -257,6 +303,14 @@ def test_dataset_batch_write_2():
     ds["image", 0:14] = [np.ones((640 - i, 640, 3)) for i in range(14)]
 
 
+@pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
+def test_dataset_hub():
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    login_fn("testingacc", password)
+    test_dataset("testingacc/test_dataset_private", public=False)
+    test_dataset("testingacc/test_dataset_public")
+
+
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
 def test_dataset_gcs():
     test_dataset("gcs://snark-test/test_dataset_gcs")
@@ -280,17 +334,33 @@ def test_dataset_azure():
 
 def test_datasetview_slicing():
     dt = {"first": Tensor((100, 100))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
-
+    ds = Dataset(
+        schema=dt, shape=(20,), url="./data/test/datasetview_slicing", mode="w"
+    )
     assert ds["first", 0].numpy().shape == (100, 100)
     assert ds["first", 0:1].numpy().shape == (1, 100, 100)
     assert ds[0]["first"].numpy().shape == (100, 100)
     assert ds[0:1]["first"].numpy().shape == (1, 100, 100)
 
 
+def test_datasetview_get_dictionary():
+    ds = Dataset(
+        schema=my_schema,
+        shape=(20,),
+        url="./data/test/datasetview_get_dictionary",
+        mode="w",
+    )
+    ds["label", 5, "a"] = 5 * np.ones((100, 200))
+    ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
+    dsv = ds[2:10]
+    dic = dsv[3, "label"]
+    assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
+    assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
+
+
 def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
-    ds = Dataset(schema=dt, shape=(20,), url="./data/test/model", mode="w")
+    ds = Dataset(schema=dt, shape=(20,), url="./data/test/tensorivew_slicing", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
     assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
@@ -355,12 +425,213 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+def test_meta_information():
+    description = {"author": "testing", "description": "here goes the testing text"}
+
+    description_changed = {
+        "author": "changed author",
+        "description": "now it's changed",
+    }
+
+    schema = {"text": Text((None,), max_shape=(1000,))}
+
+    ds = Dataset(
+        "./data/test_meta",
+        shape=(10,),
+        schema=schema,
+        meta_information=description,
+        mode="w",
+    )
+
+    some_text = ["hello world", "hello penguin", "hi penguin"]
+
+    for i, text in enumerate(some_text):
+        ds["text", i] = text
+
+    assert type(ds.meta["meta_info"]) == dict
+    assert ds.meta["meta_info"]["author"] == "testing"
+    assert ds.meta["meta_info"]["description"] == "here goes the testing text"
+
+    ds.close()
+
+
+def test_dataset_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_compute"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w")
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    comp = ds.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_view_compute():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_compute"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w")
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    comp = dsv.compute()
+    comp0 = comp[0]
+    assert (comp0["first"] == np.array([5, 6])).all()
+    assert comp0["second"] == 3.14
+    assert comp0["text"] == ""
+    comp1 = comp[1]
+    assert (comp1["first"] == np.array([0, 0])).all()
+    assert comp1["second"] == 0
+    assert comp1["text"] == "hello world"
+
+
+def test_dataset_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/ds_lazy"
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w", lazy=False)
+    ds["text", 1] = "hello world"
+    ds["second", 0] = 3.14
+    ds["first", 0] = np.array([5, 6])
+    assert ds["text", 1] == "hello world"
+    assert ds["second", 0] == 3.14
+    assert (ds["first", 0] == np.array([5, 6])).all()
+
+
+def test_dataset_view_lazy():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_lazy"
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w", lazy=False)
+    ds["text", 3] = "hello world"
+    ds["second", 2] = 3.14
+    ds["first", 2] = np.array([5, 6])
+    dsv = ds[2:]
+    assert dsv["text", 1] == "hello world"
+    assert dsv["second", 0] == 3.14
+    assert (dsv["first", 0] == np.array([5, 6])).all()
+
+
+def test_datasetview_repr():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    url = "./data/test/dsv_repr"
+    ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
+    dsv = ds[2:]
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
+    assert dsv.__repr__() == print_text
+
+
+def test_dataset_casting():
+    my_schema = {
+        "a": Tensor(shape=(1,), dtype="float64"),
+    }
+
+    @transform(schema=my_schema)
+    def my_transform(annotation):
+        return {
+            "a": 2.4,
+        }
+
+    out_ds = my_transform(range(100))
+    res_ds = out_ds.store("./data/casting")
+    assert res_ds["a", 30].compute() == np.array([2.4])
+
+    ds = Dataset(schema=my_schema, url="./data/casting2", shape=(100,))
+    for i in range(100):
+        ds["a", i] = 0.2
+    assert ds["a", 30].compute() == np.array([0.2])
+
+    ds2 = Dataset(schema=my_schema, url="./data/casting3", shape=(100,))
+    ds2["a", 0:100] = np.ones(
+        100,
+    )
+    assert ds2["a", 30].compute() == np.array([1])
+
+
+def test_dataset_setting_shape():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(5,), url=url, mode="w")
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [
+        np.array("THTMLY2F9"),
+        np.array("QUUVEU2IU"),
+        np.array("8ZUFCYWKD"),
+        "H9EDFAGHB",
+        "WDLDYN6XG",
+    ]
+    shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
+    assert shape[0][0] == [1]
+
+
+def test_dataset_assign_value():
+    schema = {"text": Text(shape=(None,), dtype="int64", max_shape=(10,))}
+    url = "./data/test/text_data"
+    ds = Dataset(schema=schema, shape=(7,), url=url, mode="w")
+    slice_ = slice(0, 5, None)
+    key = "text"
+    batch = [
+        np.array("THTMLY2F9"),
+        np.array("QUUVEU2IU"),
+        np.array("8ZUFCYWKD"),
+        "H9EDFAGHB",
+        "WDLDYN6XG",
+    ]
+    ds[key, slice_] = batch
+    ds[key][5] = np.array("GHLSGBFF8")
+    ds[key][6] = "YGFJN75NF"
+    assert ds["text", 0].compute() == "THTMLY2F9"
+    assert ds["text", 1].compute() == "QUUVEU2IU"
+    assert ds["text", 2].compute() == "8ZUFCYWKD"
+    assert ds["text", 3].compute() == "H9EDFAGHB"
+    assert ds["text", 4].compute() == "WDLDYN6XG"
+    assert ds["text", 5].compute() == "GHLSGBFF8"
+    assert ds["text", 6].compute() == "YGFJN75NF"
+
+
 if __name__ == "__main__":
-    # test_tensorview_slicing()
-    # test_datasetview_slicing()
-    # test_dataset()
+    test_dataset_assign_value()
+    test_dataset_setting_shape()
+    test_datasetview_repr()
+    test_datasetview_get_dictionary()
+    test_tensorview_slicing()
+    test_datasetview_slicing()
+    test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
     test_dataset2()
     test_text_dataset()
     test_text_dataset_tokenizer()
+    test_dataset_compute()
+    test_dataset_view_compute()
+    test_dataset_lazy()
+    test_dataset_view_lazy()
+    test_dataset_hub()
+    test_meta_information()
