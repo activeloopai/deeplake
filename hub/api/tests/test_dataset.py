@@ -617,21 +617,4 @@ def test_dataset_assign_value():
 
 
 if __name__ == "__main__":
-    test_dataset_assign_value()
-    test_dataset_setting_shape()
-    test_datasetview_repr()
-    test_datasetview_get_dictionary()
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
-    test_dataset_batch_write_2()
-    test_append_dataset()
-    test_dataset2()
-    test_text_dataset()
-    test_text_dataset_tokenizer()
-    test_dataset_compute()
-    test_dataset_view_compute()
-    test_dataset_lazy()
-    test_dataset_view_lazy()
-    test_dataset_hub()
-    test_meta_information()
+    test_dataset("s3://snark-test/test_dataset_s3")
