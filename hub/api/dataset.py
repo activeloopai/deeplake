@@ -266,7 +266,10 @@ class Dataset:
                     fs.listdir(path)
                 except:
                     raise WrongUsernameException(stored_username)
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        meta_path = posixpath.join(path, "meta.json")
+        # print(meta_path, fs.ls(path, detail=False, refresh=False), fs.ls(path, detail=False, refresh=True))
+        fs.ls(path, detail=False, refresh=True)
+        exist_meta = fs.exists(meta_path)
         if exist_meta:
             if "w" in mode:
                 fs.rm(path, recursive=True)
@@ -662,6 +665,7 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         This invalidates this object.
         """
+        self.flush()
         for t in self._tensors.values():
             t.close()
         self._fs_map.close()
