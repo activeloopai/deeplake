@@ -321,10 +321,10 @@ workflows:
           matrix:
             parameters:
               image:
-                - 3.9
-                - 3.8
-                - 3.7
-                - 3.6
+                - "3.9"
+                - "3.8"
+                - "3.7"
+                - "3.6"
       - test-win:
           filters:
             tags:
@@ -356,10 +356,10 @@ workflows:
           matrix:
             parameters:
               image:
-                - 3.9
-                - 3.8
-                - 3.7
-                - 3.6
+                - "3.9"
+                - "3.8"
+                - "3.7"
+                - "3.6"
       - test-full-win:
           filters:
             tags:
