@@ -30,7 +30,7 @@ class S3Storage(MutableMapping):
         endpoint_url=None,
     ):
         self.s3fs = s3fs
-        self.root = url
+        self.root = {}
         self.url = url
         self.endpoint_url = endpoint_url
         self.bucket = url.split("/")[2]
@@ -60,7 +60,6 @@ class S3Storage(MutableMapping):
             endpoint_url=endpoint_url,
         )
 
-    @retry
     def __setitem__(self, path, content):
         try:
             path = posixpath.join(self.path, path)
@@ -76,8 +75,7 @@ class S3Storage(MutableMapping):
             logger.error(err)
             raise S3Exception(err)
 
-    @retry
-    def __getitem__(self, path, default=None):
+    def __getitem__(self, path):
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -88,17 +86,13 @@ class S3Storage(MutableMapping):
             return x
         except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
-                if default is not None:
-                    return default
-                else:
-                    raise
+                raise KeyError(err)
             else:
                 raise
         except Exception as err:
             logger.error(err)
             raise S3Exception(err)
 
-    @retry
     def __delitem__(self, path):
         try:
             path = posixpath.join(self.bucketpath, path)
@@ -107,11 +101,9 @@ class S3Storage(MutableMapping):
             logger.error(err)
             raise S3Exception(err)
 
-    @retry
     def __len__(self):
         return len(self.s3fs.ls(self.bucketpath, detail=False, refresh=True))
 
-    @retry
     def __iter__(self):
         items = self.s3fs.ls(self.bucketpath, detail=False, refresh=True)
         yield from [item[len(self.bucketpath) + 1 :] for item in items]
