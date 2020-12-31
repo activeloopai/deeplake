@@ -1,4 +1,5 @@
 import os
+import shutil
 from hub.cli.auth import login_fn
 from hub.exceptions import HubException
 import numpy as np
@@ -39,14 +40,8 @@ def test_dataset2():
 
 def test_dataset_append_and_read():
     dt = {"first": "float", "second": "float"}
-    ds = Dataset(
-        schema=dt,
-        shape=(2,),
-        url="./data/test/test_dataset_append_and_read",
-        mode="w",
-    )
-
-    ds.delete()
+    shutil.rmtree('./data/test/test_dataset_append_and_read')
+    # ds.delete()
 
     ds = Dataset(
         schema=dt,
@@ -56,6 +51,7 @@ def test_dataset_append_and_read():
     )
 
     ds["first"][0] = 2.3
+    ds.meta_information["description"] = "This is my description"
     assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
     ds.close()
@@ -617,4 +613,4 @@ def test_dataset_assign_value():
 
 
 if __name__ == "__main__":
-    test_dataset("s3://snark-test/test_dataset_s3")
+    test_dataset_append_and_read()

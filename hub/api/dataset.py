@@ -268,7 +268,10 @@ class Dataset:
                     raise WrongUsernameException(stored_username)
         meta_path = posixpath.join(path, "meta.json")
         # print(meta_path, fs.ls(path, detail=False, refresh=False), fs.ls(path, detail=False, refresh=True))
-        fs.ls(path, detail=False, refresh=True)
+        try:
+            fs.ls(path, detail=False, refresh=True)
+        except Exception:
+            pass
         exist_meta = fs.exists(meta_path)
         if exist_meta:
             if "w" in mode:
