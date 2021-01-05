@@ -1,3 +1,6 @@
+from hub.exceptions import HubDatasetNotFoundException
+import pytest
+
 import hub
 import hub.config
 from hub.utils import dask_loaded
@@ -20,6 +23,13 @@ def test_load(caplog):
 
     obj = hub.load("./data/test/test_dataset2")
     assert isinstance(obj, hub.Dataset) == True
+
+
+def test_load_wrong_dataset():
+    try:
+        obj = hub.load("./data/dataset_that_does_not_exist")
+    except Exception as ex:
+        assert isinstance(ex, HubDatasetNotFoundException)
 
 
 if __name__ == "__main__":

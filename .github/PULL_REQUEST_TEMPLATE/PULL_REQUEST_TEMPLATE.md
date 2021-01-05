@@ -1,3 +1,12 @@
+---
+name: Pull request
+about: ""
+title: "[PR]"
+labels: "i: pull-request, i: needs triage"
+assignees: ""
+
+---
+
 ## 🚀 🚀 Pull Request
 
 ### All Submissions:
