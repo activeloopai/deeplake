@@ -422,7 +422,7 @@ def test_dataset_from_directory():
 
     root_dir_image(root_url)
 
-    ds = Dataset.from_directory(store_url, root_url)
+    ds = Dataset.from_directory(root_url)
     ds.store(store_url)
     import hub
 

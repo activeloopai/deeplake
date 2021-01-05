@@ -1099,16 +1099,15 @@ class Dataset:
         return my_transform(dataset)
 
     @staticmethod
-    def from_directory(url, path_to_dir):
+    def from_directory(path_to_dir):
         """|  This utility function is specific to create dataset from the categorical image dataset.
         Parameters
         --------
-        url:path to store the dataset (example: username/test_data_here)
-
-        path_to_dir: path of the directory where the image dataset root folder exists.
+            path_to_dir: path of the directory where the image dataset root folder exists.
         ---------
-        Returns A tuple containing all classlabels in the image categorical Dataset and Hub Dataset prepeared to
-        use.
+        Returns A dataset object for user use and to store a defined path.
+        >>>ds = Dataset.from_directory('path/test')
+        >>>ds.store('store_here')
         """
 
         def mode_check(im):
@@ -1137,12 +1136,11 @@ class Dataset:
 
                     width, height = image.size
                     if max_shape[0] < width and max_shape[1] < height:
-                        max_shape = (width, height)
+                        max_shape = [width, height]
                     elif max_shape[0] < width:
                         max_shape[0] = width
                     elif max_shape[1] < height:
                         max_shape[1] = height
-
             return max_shape, mode
 
         def make_schema(path_to_dir):
@@ -1157,6 +1155,7 @@ class Dataset:
                     dtype="uint8",
                 ),
             }
+
             return schema
 
         schema = make_schema(path_to_dir)
@@ -1168,38 +1167,37 @@ class Dataset:
 
         @hub.transform(schema=schema)
         def upload_data(sample):
-            return {"label": label_dic[sample[0]], "image": sample[1]}
+            path_to_image = sample[1]
+
+            image = im.open(path_to_image)
+
+            if mode_check(image) == 1:
+                image = np.asarray(image)
+                image = np.resize(image, (*max_shape, 1))
+            elif mode_check(image) == 3:
+                image = np.asarray(image)
+                image = np.resize(image, (*max_shape, 3))
+            elif mode_check(image) == 4:
+                image = np.asarray(image)
+                image = np.resize(image, (*max_shape, 4))
+            elif mode_check(image) == 2:
+                image = np.asarray(image)
+                image = np.resize(image, (*max_shape, 2))
+            else:
+                image = np.asarray(image)
+                image = np.resize(image, (*max_shape, 1))
+            return {"label": label_dic[sample[0]], "image": image}
 
         images = []
         labels_list = []
         max_shape, mode = get_max_shape(path_to_dir)
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
-
-                path_to_image = os.path.join(path_to_dir, i, j)
-
-                image = im.open(path_to_image)
-
-                if mode_check(image) == 1:
-                    image = np.asarray(image)
-                    image = np.resize(image, (*max_shape, 1))
-                elif mode_check(image) == 3:
-                    image = np.asarray(image)
-                    image = np.resize(image, (*max_shape, 3))
-                elif mode_check(image) == 4:
-                    image = np.asarray(image)
-                    image = np.resize(image, (*max_shape, 4))
-                elif mode_check(image) == 2:
-                    image = np.asarray(image)
-                    image = np.resize(image, (*max_shape, 2))
-                else:
-                    image = np.asarray(image)
-                    image = np.resize(image, (*max_shape, 1))
-
+                image = os.path.join(path_to_dir, i, j)
                 images.append(image)
                 labels_list.append(i)
-        zip_image = zip(labels_list, images)
-        ds = upload_data(zip_image)
+
+        ds = upload_data(zip(labels_list, images))
         return ds
 
 
