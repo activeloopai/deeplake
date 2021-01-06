@@ -1149,6 +1149,7 @@ class Dataset:
                 print("some exception happened")
 
         def make_schema(path_to_dir, labels, dtype):
+            """| make_schema internal function to generate the schema internally."""
             max_shape = get_max_shape(path_to_dir)
             image_shape = (None, None, None)
             if labels == None:
@@ -1181,6 +1182,7 @@ class Dataset:
 
         @hub.transform(schema=schema)
         def upload_data(sample):
+            """| This upload_data function is for upload the images internally using `hub.transform`."""
             path_to_image = sample[1]
 
             pre_image = im.open(path_to_image)
