@@ -1104,16 +1104,27 @@ class Dataset:
         Parameters
         --------
             path_to_dir: path of the directory where the image dataset root folder exists.
+
+            labels: passed a list of class names
+
+            dtype: datatype of the images can be defined by user.Default uint8.
         ---------
         Returns A dataset object for user use and to store a defined path.
+
         >>>ds = Dataset.from_directory('path/test')
         >>>ds.store('store_here')
         """
 
         def get_max_shape(path_to_dir):
             """| get_max_shape
+
+            -------
+            path_to_dir:str path to the root directory
+
             -------
             return the maximum shape of the image
+
+            -------
 
             """
             try:
@@ -1197,8 +1208,6 @@ class Dataset:
                 image = np.resize(image, (*image_shape[:2], 2))
             else:
                 image = np.resize(image, (*image_shape[:2], 1))
-
-            print(image.shape)
 
             return {"label": label_dic[sample[0]], "image": image}
 
