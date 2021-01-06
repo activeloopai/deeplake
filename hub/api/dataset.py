@@ -1099,15 +1099,32 @@ class Dataset:
         return my_transform(dataset)
 
     @staticmethod
-    def from_directory(path_to_dir, labels=None, dtype="uint8"):
+    def from_directory(
+        path_to_dir,
+        labels=None,
+        dtype="uint8",
+        scheduler: str = "single",
+        workers: int = 1,
+    ):
         """|  This utility function is specific to create dataset from the categorical image dataset.
         Parameters
         --------
-            path_to_dir: path of the directory where the image dataset root folder exists.
+            path_to_dir:str
+            path of the directory where the image dataset root folder exists.
 
-            labels: passed a list of class names
+            labels:list
+            passed a list of class names
 
-            dtype: datatype of the images can be defined by user.Default uint8.
+            dtype:str
+            datatype of the images can be defined by user.Default uint8.
+
+            scheduler: str
+            choice between "single", "threaded", "processed"
+
+            workers: int
+            how many threads or processes to use
+
+
         ---------
         Returns A dataset object for user use and to store a defined path.
 
@@ -1191,7 +1208,7 @@ class Dataset:
             for i, label in enumerate(labels_v):
                 label_dic[label] = i
 
-        @hub.transform(schema=schema)
+        @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
         def upload_data(sample):
             """| This upload_data function is for upload the images internally using `hub.transform`."""
             path_to_image = sample[1]
