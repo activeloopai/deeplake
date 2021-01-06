@@ -1099,7 +1099,7 @@ class Dataset:
         return my_transform(dataset)
 
     @staticmethod
-    def from_directory(path_to_dir,labels=None,dtype="uint8"):
+    def from_directory(path_to_dir, labels=None, dtype="uint8"):
         """|  This utility function is specific to create dataset from the categorical image dataset.
         Parameters
         --------
@@ -1110,70 +1110,66 @@ class Dataset:
         >>>ds.store('store_here')
         """
 
-        
-
         def get_max_shape(path_to_dir):
             """| get_max_shape
-               -------
-               return the maximum shape of the image
-            
+            -------
+            return the maximum shape of the image
+
             """
             try:
-                max_shape = [1, 1]
-                mode = 0
 
                 for i in os.listdir(path_to_dir):
                     for j in os.listdir(os.path.join(path_to_dir, i)):
                         img_path = os.path.join(path_to_dir, i, j)
                         image = im.open(img_path)
-                        pre_mode = 0
+
+                        width = set()
+                        height = set()
+                        mode = set()
+
+                        detail = list(image.size)
+
+                        width.add(detail[0])
+                        height.add(detail[1])
 
                         if image.mode == "RGB":
-                            pre_mode = 3
+                            mode.add(3)
                         elif image.mode == "RGBA":
-                            pre_mode = 4
+                            mode.add(4)
                         elif image.mode == "LA":
-                            pre_mode = 2
+                            mode.add(2)
                         else:
-                            pre_mode = 1
+                            mode.add(1)
 
-                        mode = max(pre_mode,mode)           
-
-                        width, height = image.size
-                        if max_shape[0] < width and max_shape[1] < height:
-                            max_shape = [width, height]
-                        elif max_shape[0] < width:
-                            max_shape[0] = width
-                        elif max_shape[1] < height:
-                            max_shape[1] = height
-        
-                return max_shape, mode
+                max_shape = [max(width), max(height), max(mode)]
+                print(max_shape)
+                return max_shape
             except Exception:
                 raise FileNotFoundError("file not exists")
             except Exception:
-                print("some exception happened")  
+                print("some exception happened")
 
-        def make_schema(path_to_dir,labels,dtype):
-            max_shape, mode = get_max_shape(path_to_dir)
+        def make_schema(path_to_dir, labels, dtype):
+            max_shape = get_max_shape(path_to_dir)
             image_shape = (None, None, None)
-            if labels==None:
+            if labels == None:
                 labels = ClassLabel(names=os.listdir(path_to_dir))
             else:
-                labels=ClassLabel(labels)    
+                labels = ClassLabel(labels)
             schema = {
                 "label": labels,
                 "image": Tensor(
                     shape=image_shape,
-                    max_shape=(*max_shape,mode),
+                    max_shape=max_shape,
                     dtype=dtype,
                 ),
             }
 
             return schema
 
-        schema = make_schema(path_to_dir,labels,dtype)
+        schema = make_schema(path_to_dir, labels, dtype)
 
-        if labels!=None:
+        if labels != None:
 
             label_dic = {}
             for i, label in enumerate(labels):
@@ -1181,32 +1177,32 @@ class Dataset:
         else:
             labels_v = os.listdir(path_to_dir)
             label_dic = {}
-            for i,label in enumerate(labels_v):
-                label_dic[label] = i        
+            for i, label in enumerate(labels_v):
+                label_dic[label] = i
 
         @hub.transform(schema=schema)
         def upload_data(sample):
             path_to_image = sample[1]
-            
+
             pil_image = im.open(path_to_image)
             image = np.asarray(im.open(path_to_image))
-            image_shape = image.shape[:2]
+            image_shape = get_max_shape(path_to_dir)
 
             if pil_image.mode == "RGB":
-                
-                image = np.resize(image, (*image_shape, 3))
-            elif  pil_image.mode == "RGBA":
-                
-                image = np.resize(image, (*image_shape, 4))
-            elif  pil_image.mode == "LA":
-                image = np.resize(image, (*image_shape, 2))
+
+                image = np.resize(image, image_shape)
+            elif pil_image.mode == "RGBA":
+
+                image = np.resize(image, image_shape)
+            elif pil_image.mode == "LA":
+                image = np.resize(image, image_shape)
             else:
-                image = np.resize(image, (*image_shape, 1))
+                image = np.resize(image, image_shape)
 
             return {"label": label_dic[sample[0]], "image": image}
 
         images = []
-        labels_list = []    
+        labels_list = []
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
                 image = os.path.join(path_to_dir, i, j)
