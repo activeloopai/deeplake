@@ -1142,7 +1142,6 @@ class Dataset:
                             mode.add(1)
 
                 max_shape = [max(width), max(height), max(mode)]
-                print(max_shape)
                 return max_shape
             except Exception:
                 raise FileNotFoundError("file not exists")
@@ -1184,20 +1183,20 @@ class Dataset:
         def upload_data(sample):
             path_to_image = sample[1]
 
-            pil_image = im.open(path_to_image)
-            image = np.asarray(im.open(path_to_image))
+            pre_image = im.open(path_to_image)
+            image = np.asarray(pre_image)
             image_shape = get_max_shape(path_to_dir)
 
-            if pil_image.mode == "RGB":
-
-                image = np.resize(image, image_shape)
-            elif pil_image.mode == "RGBA":
-
-                image = np.resize(image, image_shape)
-            elif pil_image.mode == "LA":
-                image = np.resize(image, image_shape)
+            if pre_image.mode == "RGB":
+                image = np.resize(image, (*image_shape[:2], 3))
+            elif pre_image.mode == "RGBA":
+                image = np.resize(image, (*image_shape[:2], 4))
+            elif pre_image.mode == "LA":
+                image = np.resize(image, (*image_shape[:2], 2))
             else:
-                image = np.resize(image, image_shape)
+                image = np.resize(image, (*image_shape[:2], 1))
+
+            print(image.shape)
 
             return {"label": label_dic[sample[0]], "image": image}
 
