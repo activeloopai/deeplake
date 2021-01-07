@@ -5,10 +5,9 @@ import numpy as np
 from hub import Dataset
 from hub.schema import Tensor
 
+
 def benchmark():
-    schema = {
-        "image": Tensor((256, 256, 3), dtype="uint8")
-    }
+    schema = {"image": Tensor((256, 256, 3), dtype="uint8")}
     arr = (np.random.rand(256, 256, 3) * 100).astype("uint8")
     # ds = Dataset("s3://snark-test/superficial_dataset", mode="w", schema=schema, shape=(5000,))
     # for i in tqdm(range(len(ds))):
@@ -19,6 +18,7 @@ def benchmark():
     dl = torch.utils.data.DataLoader(tds, batch_size=32, num_workers=16)
     for i, b in enumerate(tqdm(dl)):
         pass
+
 
 if __name__ == "__main__":
     benchmark()

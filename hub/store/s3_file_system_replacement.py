@@ -3,6 +3,7 @@ from s3fs import S3FileSystem
 from hub.store.s3_storage import S3Storage
 from zarr import MemoryStore
 
+
 class S3FileSystemReplacement(S3FileSystem):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
