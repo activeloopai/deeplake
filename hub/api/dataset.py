@@ -237,15 +237,12 @@ class Dataset:
         return self._meta_information
 
     def _store_meta(self) -> dict:
-
         meta = {
             "shape": self._shape,
             "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
+            "meta_info": self._meta_information or dict(),
         }
-
-        if self._meta_information != None:
-            meta["meta_info"] = self._meta_information
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
@@ -651,12 +648,19 @@ class Dataset:
     def enable_lazy(self):
         self.lazy = True
 
+    def _save_meta(self):
+        _meta = json.loads(self._fs_map["meta.json"])
+        _meta["meta_info"] = self._meta_information
+        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+
     def flush(self):
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
+
         for t in self._tensors.values():
             t.flush()
+        self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
 

@@ -40,7 +40,9 @@ def test_dataset2():
 
 def test_dataset_append_and_read():
     dt = {"first": "float", "second": "float"}
-    shutil.rmtree('./data/test/test_dataset_append_and_read')
+    os.makedirs("./data/test/test_dataset_append_and_read", exist_ok=True)
+    shutil.rmtree("./data/test/test_dataset_append_and_read")
+
     # ds.delete()
 
     ds = Dataset(
