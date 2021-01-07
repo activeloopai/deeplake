@@ -180,7 +180,6 @@ Check these and many more popular datasets on our [visualizer web app](https://a
 
 Using Hub? Add a README badge to let everyone know: 
 
-
 [![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
 
 ```
