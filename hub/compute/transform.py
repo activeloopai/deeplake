@@ -291,7 +291,9 @@ class Transform:
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
             list(self.map(upload_chunk, index_batched_values))
-            offset = ds.indexes[0]  # here ds.indexes will always be a contiguous list as obtained after slicing
+            offset = ds.indexes[
+                0
+            ]  # here ds.indexes will always be a contiguous list as obtained after slicing
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
