@@ -10,7 +10,6 @@ import fsspec
 import gcsfs
 import zarr
 
-from hub.store.cache import Cache
 from hub.store.lru_cache import LRUCache
 from hub.client.hub_control import HubControlClient
 from hub.store.azure_fs import AzureBlobFileSystem
