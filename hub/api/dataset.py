@@ -21,8 +21,6 @@ from hub.schema.features import (
 )
 from hub.log import logger
 
-# from hub.api.tensorview import TensorView
-# from hub.api.datasetview import DatasetView
 from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
@@ -1163,7 +1161,7 @@ class TorchDataset:
                 if split_key[i] not in cur.keys():
                     cur[split_key[i]] = {}
                 cur = cur[split_key[i]]
-            # item = self._ds._tensors[key][index]
+
             item = self._get_active_item(key, index)
             if not isinstance(item, bytes) and not isinstance(item, str):
                 t = item
