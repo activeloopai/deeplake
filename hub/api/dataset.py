@@ -21,14 +21,12 @@ from hub.schema.features import (
 )
 from hub.log import logger
 
-# from hub.api.tensorview import TensorView
-# from hub.api.datasetview import DatasetView
-from hub.api.objectview import ObjectView, DatasetView
+from hub.api.datasetview import DatasetView
+from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
     get_value,
-    slice_extract_info,
     slice_split,
     str_to_int,
 )
@@ -43,6 +41,7 @@ from hub.exceptions import (
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
+    OutOfBoundsError,
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
@@ -189,6 +188,8 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
+
+        self.indexes = list(range(self.shape[0]))
 
         if needcreate and (
             self._path.startswith("s3://snark-hub-dev/")
@@ -373,12 +374,10 @@ class Dataset:
                 raise ValueError(
                     "Can't slice a dataset with multiple slices without subpath"
                 )
-            num, ofs = slice_extract_info(slice_list[0], self._shape[0])
+            indexes = self.indexes[slice_list[0]]
             return DatasetView(
                 dataset=self,
-                num_samples=num,
-                offset=ofs,
-                squeeze_dim=isinstance(slice_list[0], int),
+                indexes=indexes,
                 lazy=self.lazy,
             )
         elif not slice_list:
@@ -389,22 +388,18 @@ class Dataset:
                     slice_=slice(0, self._shape[0]),
                     lazy=self.lazy,
                 )
-                if self.lazy:
-                    return tensorview
-                else:
-                    return tensorview.compute()
+                return tensorview if self.lazy else tensorview.compute()
             for key in self._tensors.keys():
                 if subpath.startswith(key):
                     objectview = ObjectView(
-                        dataset=self, subpath=subpath, lazy=self.lazy
+                        dataset=self,
+                        subpath=subpath,
+                        lazy=self.lazy,
+                        slice_list=slice(0, self._shape[0]),
                     )
-                    if self.lazy:
-                        return objectview
-                    else:
-                        return objectview.compute()
+                    return objectview if self.lazy else objectview.compute()
             return self._get_dictionary(subpath)
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.shape[0])
             schema_obj = self.schema.dict_[subpath.split("/")[1]]
             if subpath in self._tensors.keys() and (
                 not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
@@ -412,10 +407,7 @@ class Dataset:
                 tensorview = TensorView(
                     dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
                 )
-                if self.lazy:
-                    return tensorview
-                else:
-                    return tensorview.compute()
+                return tensorview if self.lazy else tensorview.compute()
             for key in self._tensors.keys():
                 if subpath.startswith(key):
                     objectview = ObjectView(
@@ -424,10 +416,7 @@ class Dataset:
                         slice_list=slice_list,
                         lazy=self.lazy,
                     )
-                    if self.lazy:
-                        return objectview
-                    else:
-                        return objectview.compute()
+                    return objectview if self.lazy else objectview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -451,18 +440,24 @@ class Dataset:
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
-        elif not slice_list:
-            if subpath in self._tensors.keys():
-                self._tensors[subpath][:] = assign_value  # Add path check
-            else:
-                ObjectView(dataset=self, subpath=subpath)[:] = assign_value
+        elif subpath not in self._tensors.keys():
+            raise KeyError(f"Key {subpath} not found in the dataset")
+
+        if not slice_list:
+            self._tensors[subpath][:] = assign_value
         else:
-            if subpath in self._tensors.keys():
-                self._tensors[subpath][slice_list] = assign_value
-            else:
-                ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[
-                    :
-                ] = assign_value
+            self._tensors[subpath][slice_list] = assign_value
+
+    def filter(self, dic):
+        indexes = self.indexes
+        # TODO Add check for shapes to avoid filtering huge tensors
+        for k, v in dic.items():
+            k = k if k.startswith("/") else "/" + k
+            if k not in self._tensors.keys():
+                raise KeyError(f"Key {k} not found in the dataset")
+            tsv = self[k]
+            indexes = [index for index in indexes if tsv[index].compute() == v]
+        return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
@@ -499,8 +494,7 @@ class Dataset:
         transform=None,
         inplace=True,
         output_type=dict,
-        offset=None,
-        num_samples=None,
+        indexes=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
 
@@ -522,18 +516,14 @@ class Dataset:
         import torch
 
         global torch
+        indexes = indexes or self.indexes
 
         self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(
-            self,
-            transform,
-            inplace=inplace,
-            output_type=output_type,
-            offset=offset,
-            num_samples=num_samples,
+            self, transform, inplace=inplace, output_type=output_type, indexes=indexes
         )
 
-    def to_tensorflow(self, offset=None, num_samples=None):
+    def to_tensorflow(self, indexes=None):
         """| Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -550,11 +540,11 @@ class Dataset:
 
             global tf
 
-        offset = 0 if offset is None else offset
-        num_samples = self._shape[0] if num_samples is None else num_samples
+        indexes = indexes or self.indexes
+        indexes = [indexes] if isinstance(indexes, int) else indexes
 
         def tf_gen():
-            for index in range(offset, offset + num_samples):
+            for index in indexes:
                 d = {}
                 for key in self._tensors.keys():
                     split_key = key.split("/")
@@ -1098,13 +1088,7 @@ class Dataset:
 
 class TorchDataset:
     def __init__(
-        self,
-        ds,
-        transform=None,
-        inplace=True,
-        output_type=dict,
-        num_samples=None,
-        offset=None,
+        self, ds, transform=None, inplace=True, output_type=dict, indexes=None
     ):
         self._ds = None
         self._url = ds.url
@@ -1112,8 +1096,7 @@ class TorchDataset:
         self._transform = transform
         self.inplace = inplace
         self.output_type = output_type
-        self.num_samples = num_samples
-        self.offset = offset
+        self.indexes = indexes
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -1127,10 +1110,15 @@ class TorchDataset:
 
     def __len__(self):
         self._init_ds()
-        return self.num_samples if self.num_samples is not None else self._ds.shape[0]
+        return len(self.indexes) if isinstance(self.indexes, list) else 1
 
-    def __getitem__(self, index):
-        index = index + self.offset if self.offset is not None else index
+    def __getitem__(self, ind):
+        if isinstance(self.indexes, int):
+            if ind != 0:
+                raise OutOfBoundsError(f"Got index {ind} for dataset of length 1")
+            index = self.indexes
+        else:
+            index = self.indexes[ind]
         self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():

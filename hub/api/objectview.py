@@ -1,24 +1,20 @@
-from hub.api.datasetview import DatasetView
+# from hub.api.datasetview import DatasetView
 from hub.schema import Sequence, Tensor, SchemaDict, Primitive
 from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
 
 # from hub.exceptions import NoneValueException
 import collections.abc as abc
-import hub.api as api
 
-
+# TODO Fix cyclic dependency on DatasetView, adapt this to use indexes, ensure tests pass, maybe rename slice_list to slice_
 class ObjectView:
     def __init__(
         self,
         dataset,
         subpath=None,
         slice_list=None,
-        nums=[],
-        offsets=[],
-        squeeze_dims=[],
         inner_schema_obj=None,
         lazy=True,
-        new=True,
+        check_bounds=True,
     ):
         """Creates an ObjectView object for dataset from a Dataset, DatasetView or TensorView
         object, or creates a different ObjectView from an existing one
@@ -44,8 +40,7 @@ class ObjectView:
             Whether each dimension can be squeezed or not
         inner_schema_obj: Child of hub.schema.Tensor or hub.schema.SchemaDict
             The deepest element in the schema upto which the previous ObjectView had been processed
-
-        new: bool
+        check_bounds: bool
             Whether to create a new ObjectView object from a Dataset, DatasetView or TensorView
             or create a different ObjectView from an existing one
         """
@@ -57,15 +52,14 @@ class ObjectView:
         )
         self.subpath = subpath
 
-        self.nums = nums
-        self.offsets = offsets
-        self.squeeze_dims = squeeze_dims
+        # self.nums = nums
+        # self.offsets = offsets
+        # self.squeeze_dims = squeeze_dims
 
         self.inner_schema_obj = inner_schema_obj
         self.lazy = lazy
 
-        if new:
-            # Creating new obj
+        if check_bounds:
             if self.subpath:
                 (
                     self.inner_schema_obj,
@@ -117,8 +111,7 @@ class ObjectView:
             raise ValueError("Only sequences can be nested")
 
     def process_path(self, subpath, inner_schema_obj, nums, offsets, squeeze_dims):
-        """Checks if a subpath is valid or not. Does not repeat computation done in a
-        previous ObjectView object"""
+        """Checks if a subpath is valid or not. Does not repeat computation done in a previous ObjectView object"""
         paths = subpath.split("/")[1:]
         try:
             # If key is invalid raises KeyError
@@ -210,7 +203,7 @@ class ObjectView:
             squeeze_dims=squeeze_dims,
             inner_schema_obj=inner_schema_obj,
             lazy=self.lazy,
-            new=False,
+            check_bounds=False,
         )
         return objectview if self.lazy else objectview.compute()
 
@@ -253,61 +246,6 @@ class ObjectView:
 
     def compute(self):
         return self.numpy()
-
-    def __setitem__(self, slice_, value):
-        """| Sets a slice of the objectview with a value"""
-        if isinstance(slice_, slice) and (slice_.start is None and slice_.stop is None):
-            objview = self
-        else:
-            objview = self.__getitem__(slice_)
-        assign_value = get_value(value)
-
-        if not isinstance(objview.dataset, DatasetView):
-            # subpath present but no slice done
-            assign_value = str_to_int(assign_value, objview.dataset.tokenizer)
-            if len(objview.subpath.split("/")[1:]) > 1:
-                raise IndexError("Can only go deeper on single datapoint")
-        if not objview.dataset.squeeze_dim:
-            # assign a combined tensor for multiple datapoints
-            # only possible if the field has a fixed size
-            assign_value = str_to_int(assign_value, objview.dataset.dataset.tokenizer)
-            paths = objview.subpath.split("/")[1:]
-            if len(paths) > 1:
-                raise IndexError("Can only go deeper on single datapoint")
-        else:
-            # single datapoint
-            def assign(paths, value):
-                # helper function for recursive assign
-                if len(paths) > 0:
-                    path = paths.pop(0)
-                    value[path] = assign(paths, value[path])
-                    return value
-                try:
-                    value[tuple(slice_)] = assign_value
-                except TypeError:
-                    value = assign_value
-                return value
-
-            assign_value = str_to_int(assign_value, objview.dataset.dataset.tokenizer)
-            paths = objview.subpath.split("/")[1:]
-            schema = objview.schema[paths[0]]
-            slice_ = [
-                of if sq else slice(of, of + num) if num else slice(None, None)
-                for num, of, sq in zip(
-                    objview.nums, objview.offsets, objview.squeeze_dims
-                )
-            ]
-            if isinstance(schema, Sequence):
-                if isinstance(schema.dtype, SchemaDict):
-                    # if sequence of dict, have to fetch everything
-                    value = objview.dataset[paths[0]].compute()
-                    value = assign(paths[1:], value)
-                    objview.dataset[paths[0]] = value
-                else:
-                    # sequence of tensors
-                    value = objview.dataset[paths[0]].compute()
-                    value[tuple(slice_)] = assign_value
-                    objview.dataset[paths[0]] = value
 
     def __str__(self):
         if isinstance(self.dataset, DatasetView):

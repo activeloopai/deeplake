@@ -117,13 +117,7 @@ class Transform:
             slice_list = [slice(None, None, None)]
 
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-
-        ds_view = DatasetView(
-            dataset=self._ds,
-            num_samples=num,
-            offset=ofs,
-            squeeze_dim=isinstance(slice_list[0], int),
-        )
+        ds_view = self._ds[slice_list[0]]
 
         path = posixpath.expanduser("~/.activeloop/tmparray")
         new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
@@ -297,12 +291,15 @@ class Transform:
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
             list(self.map(upload_chunk, index_batched_values))
+            offset = ds.indexes[
+                0
+            ]  # here ds.indexes will always be a contiguous list as obtained after slicing
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
                 ds.dataset._tensors[f"/{key}"].set_shape(
-                    [slice(ds.offset, ds.offset + len(value))], value
+                    [slice(offset, offset + len(value))], value
                 )
 
         ds.commit()

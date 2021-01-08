@@ -30,7 +30,7 @@ def test_tensorview_getitem():
 
 def test_tensorview_setitem():
     images_tensorview = ds["image"]
-    with pytest.raises(IndexError):
+    with pytest.raises(ValueError):
         images_tensorview["7", 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
 
 
