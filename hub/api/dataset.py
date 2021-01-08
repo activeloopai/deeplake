@@ -21,8 +21,6 @@ from hub.schema.features import (
 )
 from hub.log import logger
 
-# from hub.api.tensorview import TensorView
-# from hub.api.datasetview import DatasetView
 from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
@@ -1114,6 +1112,7 @@ class TorchDataset:
         self.output_type = output_type
         self.num_samples = num_samples
         self.offset = offset
+        self._inited = False
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -1124,10 +1123,32 @@ class TorchDataset:
         """
         if self._ds is None:
             self._ds = Dataset(self._url, token=self._token, lock_cache=False)
+        if not self._inited:
+            self._inited = True
+            self._samples_in_chunks = {
+                key: (None in value.shape) and 1 or value.chunks[0]
+                for key, value in self._ds._tensors.items()
+            }
+            self._active_chunks = {}
+            self._active_chunks_range = {}
 
     def __len__(self):
         self._init_ds()
         return self.num_samples if self.num_samples is not None else self._ds.shape[0]
+
+    def _get_active_item(self, key, index):
+        active_range = self._active_chunks_range.get(key)
+        samples_per_chunk = self._samples_in_chunks[key]
+        if active_range is None or index not in active_range:
+            active_range_start = index - index % samples_per_chunk
+            active_range = range(
+                active_range_start, active_range_start + samples_per_chunk
+            )
+            self._active_chunks_range[key] = active_range
+            self._active_chunks[key] = self._ds._tensors[key][
+                active_range.start : active_range.stop
+            ]
+        return self._active_chunks[key][index % samples_per_chunk]
 
     def __getitem__(self, index):
         index = index + self.offset if self.offset is not None else index
@@ -1140,10 +1161,10 @@ class TorchDataset:
                 if split_key[i] not in cur.keys():
                     cur[split_key[i]] = {}
                 cur = cur[split_key[i]]
-            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
-                self._ds._tensors[key][index], str
-            ):
-                t = self._ds._tensors[key][index]
+
+            item = self._get_active_item(key, index)
+            if not isinstance(item, bytes) and not isinstance(item, str):
+                t = item
                 if self.inplace:
                     t = torch.tensor(t)
                 cur[split_key[-1]] = t

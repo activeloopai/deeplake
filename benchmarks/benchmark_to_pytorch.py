@@ -1,3 +1,5 @@
+from time import time
+
 import torchvision
 import torch
 import numpy as np
@@ -23,7 +25,7 @@ class HubAdapter2(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         x, y = self.ds.__getitem__(index)
-        res = {"image": np.array(x), "label": y}
+        res = {"label": y}
         return res
 
 
@@ -37,16 +39,19 @@ def test():
     hub_s3_ds = hub.Dataset(
         url="./data/test/cifar/train", cache=False, storage_cache=False
     )
-    print(hub_s3_ds._tensors["/image"].chunks)
+    for key, value in hub_s3_ds._tensors.items():
+        print(key, value.shape, value.chunks)
     hub_s3_ds = hub_s3_ds.to_pytorch()
-    dl = torch.utils.data.DataLoader(hub_s3_ds, batch_size=100, num_workers=8)
+    dl = torch.utils.data.DataLoader(hub_s3_ds, batch_size=10, num_workers=0)
     with Timer("Time"):
         counter = 0
+        t0 = time()
         for i, b in enumerate(dl):
-            with Timer("Batch Time"):
-                x, y = b["image"], b["image"]
-                counter += 100
-                print(counter)
+            x, y = b["label"], b["label"]
+            counter += 100
+            t1 = time()
+            print(counter, f"dt: {t1 - t0}")
+            t0 = t1
 
 
 if __name__ == "__main__":
