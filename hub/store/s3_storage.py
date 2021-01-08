@@ -4,17 +4,10 @@ import posixpath
 import boto3
 import botocore
 from botocore.exceptions import ClientError
-import tenacity
 from s3fs import S3FileSystem
 
 from hub.exceptions import S3Exception
 from hub.log import logger
-
-retry = tenacity.retry(
-    reraise=True,
-    stop=tenacity.stop_after_attempt(6),
-    wait=tenacity.wait_random_exponential(0.4, 50.0),
-)
 
 
 class S3Storage(MutableMapping):
