@@ -28,6 +28,10 @@ class S3Storage(MutableMapping):
         self.endpoint_url = endpoint_url
         self.bucket = url.split("/")[2]
         self.path = "/".join(url.split("/")[3:])
+        if self.bucket == "s3:":
+            # FIXME for some reason this is wasabi case here, probably url is something like wasabi://s3://...
+            self.bucket = url.split("/")[4]
+            self.path = "/".join(url.split("/")[5:])
         self.bucketpath = posixpath.join(self.bucket, self.path)
         self.protocol = "object"
 
