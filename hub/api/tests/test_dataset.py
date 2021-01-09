@@ -147,6 +147,36 @@ def test_dataset_with_chunks():
     ).all()
 
 
+import cloudpickle
+import pickle
+
+
+def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
+    schema = {
+        "first": Tensor(
+            shape=(None, None),
+            dtype="int32",
+            max_shape=(100, 100),
+            chunks=(100,),
+        )
+    }
+    ds = Dataset(
+        url=url,
+        token=None,
+        shape=(1000,),
+        mode="w",
+        schema=schema,
+    )
+    pickled_ds = cloudpickle.dumps(ds)
+    new_ds = pickle.loads(pickled_ds)
+    assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_pickleability_s3():
+    test_pickleability("s3://intelinair-snark-dataset/test/test_dataset_pickle_s3")
+
+
 def test_dataset_dynamic_shaped():
     schema = {
         "first": Tensor(
@@ -615,4 +645,6 @@ def test_dataset_assign_value():
 
 
 if __name__ == "__main__":
-    test_dataset_append_and_read()
+    # test_pickleability()
+    test_pickleability_s3()
+    # test_dataset_append_and_read()
