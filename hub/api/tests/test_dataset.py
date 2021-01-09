@@ -1,5 +1,7 @@
 import os
 import shutil
+import cloudpickle
+import pickle
 from hub.cli.auth import login_fn
 from hub.exceptions import HubException
 import numpy as np
@@ -147,10 +149,6 @@ def test_dataset_with_chunks():
     ).all()
 
 
-import cloudpickle
-import pickle
-
-
 def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
     schema = {
         "first": Tensor(
@@ -167,6 +165,9 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
         mode="w",
         schema=schema,
     )
+
+    ds["first"][0] = 1
+
     pickled_ds = cloudpickle.dumps(ds)
     new_ds = pickle.loads(pickled_ds)
     assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
@@ -174,7 +175,12 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_pickleability_s3():
-    test_pickleability("s3://intelinair-snark-dataset/test/test_dataset_pickle_s3")
+    test_pickleability("s3://snark-test/test_dataset_pickle_s3")
+
+
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
+def test_pickleability_gcs():
+    test_pickleability("gcs://snark-test/test_dataset_gcs")
 
 
 def test_dataset_dynamic_shaped():
