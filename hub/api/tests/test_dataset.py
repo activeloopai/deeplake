@@ -166,7 +166,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
         schema=schema,
     )
 
-    ds["first"][0] = 1
+    ds["first"][0] = np.ones((10, 10))
 
     pickled_ds = cloudpickle.dumps(ds)
     new_ds = pickle.loads(pickled_ds)
@@ -652,5 +652,5 @@ def test_dataset_assign_value():
 
 if __name__ == "__main__":
     # test_pickleability()
-    test_pickleability_s3()
+    test_pickleability()
     # test_dataset_append_and_read()
