@@ -265,7 +265,6 @@ class Dataset:
                 except:
                     raise WrongUsernameException(stored_username)
         meta_path = posixpath.join(path, "meta.json")
-        # print(meta_path, fs.ls(path, detail=False, refresh=False), fs.ls(path, detail=False, refresh=True))
         try:
             # Update boto3 cache
             fs.ls(path, detail=False, refresh=True)
