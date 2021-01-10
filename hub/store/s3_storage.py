@@ -25,6 +25,11 @@ class S3Storage(MutableMapping):
         self.s3fs = s3fs
         self.root = {}
         self.url = url
+        self.public = public
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
+        self.parallel = parallel
         self.endpoint_url = endpoint_url
         self.bucket = url.split("/")[2]
         self.path = "/".join(url.split("/")[3:])

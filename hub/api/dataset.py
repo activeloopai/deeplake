@@ -20,6 +20,7 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+import hub.store.pickle_s3_storage
 
 # from hub.api.tensorview import TensorView
 # from hub.api.datasetview import DatasetView
