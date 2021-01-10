@@ -8,7 +8,7 @@ workflows:
   test:
     jobs:
       - test:
-          context: 
+          context:
             - test
             - azure
       - test_full:
@@ -19,7 +19,7 @@ workflows:
   test_and_deploy:
     jobs:
       - test:
-          context:  
+          context:
             - test
             - azure
           filters:
@@ -28,7 +28,7 @@ workflows:
             branches:
               ignore: /.*/
       - test_full:
-          context:  
+          context:
             - test
             - azure
           filters:
@@ -37,7 +37,7 @@ workflows:
             branches:
               ignore: /.*/
       - deploy:
-          context: 
+          context:
             - pypi
             - snark-docker
           requires:
@@ -143,7 +143,7 @@ jobs:
       - run:
           name: "Upload dist to PyPi"
           command: |
-            twine upload dist/*
+            twine upload --skip-existing dist/*
       - run:
           name: "Build Docker Hub Image"
           command: |
@@ -159,4 +159,3 @@ jobs:
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
-
