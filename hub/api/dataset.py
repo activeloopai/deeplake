@@ -20,6 +20,7 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+import hub.store.pickle_s3_storage
 
 from hub.api.objectview import ObjectView, DatasetView
 from hub.api.tensorview import TensorView
@@ -235,15 +236,12 @@ class Dataset:
         return self._meta_information
 
     def _store_meta(self) -> dict:
-
         meta = {
             "shape": self._shape,
             "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
+            "meta_info": self._meta_information or dict(),
         }
-
-        if self._meta_information != None:
-            meta["meta_info"] = self._meta_information
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
@@ -264,7 +262,13 @@ class Dataset:
                     fs.listdir(path)
                 except:
                     raise WrongUsernameException(stored_username)
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        meta_path = posixpath.join(path, "meta.json")
+        try:
+            # Update boto3 cache
+            fs.ls(path, detail=False, refresh=True)
+        except Exception:
+            pass
+        exist_meta = fs.exists(meta_path)
         if exist_meta:
             if "w" in mode:
                 fs.rm(path, recursive=True)
@@ -643,12 +647,19 @@ class Dataset:
     def enable_lazy(self):
         self.lazy = True
 
+    def _save_meta(self):
+        _meta = json.loads(self._fs_map["meta.json"])
+        _meta["meta_info"] = self._meta_information
+        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+
     def flush(self):
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
+
         for t in self._tensors.values():
             t.flush()
+        self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
 
@@ -660,6 +671,7 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         This invalidates this object.
         """
+        self.flush()
         for t in self._tensors.values():
             t.close()
         self._fs_map.close()
