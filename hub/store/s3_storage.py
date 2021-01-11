@@ -19,7 +19,7 @@ class S3Storage(MutableMapping):
         aws_access_key_id=None,
         aws_secret_access_key=None,
         aws_session_token=None,
-        parallel=25,
+        parallel=128,
         endpoint_url=None,
     ):
         self.s3fs = s3fs
