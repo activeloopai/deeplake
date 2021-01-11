@@ -22,8 +22,8 @@ from hub.schema.features import (
 from hub.log import logger
 import hub.store.pickle_s3_storage
 
-from hub.api.objectview import ObjectView, DatasetView
-from hub.api.tensorview import TensorView
+from hub.api.datasetview import DatasetView, ObjectView, TensorView
+
 from hub.api.dataset_utils import (
     create_numpy_dict,
     get_value,
