@@ -50,9 +50,7 @@ def get_fs_and_path(
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
                 token=token.get("aws_session_token"),
-                client_kwargs=botocore.config.Config(
-                    max_pool_connections=MAX_POOL_CONNECTIONS
-                ),
+                config_kwargs={"max_pool_connections": MAX_POOL_CONNECTIONS},
             ),
             url[5:],
         )
