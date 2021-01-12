@@ -61,7 +61,8 @@ You can access public datasets with a few lines of code.
 ```python
 from hub import Dataset
 
-mnist = Dataset("activeloop/mnist")
+mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
+# saving time with *compute* to retrieve just the necessary data
 mnist["image"][0:1000].compute()
 ```
 
@@ -74,6 +75,7 @@ from hub import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
+# converting MNIST to PyTorch format
 mnist = mnist.to_pytorch(lambda x: (x["image"], x["label"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
@@ -89,18 +91,20 @@ from hub import Dataset, schema
 import numpy as np
 
 ds = Dataset(
-    "./data/dataset_name",
-    shape = (4,),
-    mode = "w+",
-    schema = {
+    "./data/dataset_name",  # file path to the dataset
+    shape = (4,),  # follows numpy shape convention
+    mode = "w+",  # reading & writing mode
+    schema = {  # named blobs of data that may specify types
+    # Tensor is a generic structure that can contain any type of data
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
     }
 )
 
+# filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.commit()  # executing the creation of the dataset
 ```
 
 You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path [more here](https://docs.activeloop.ai/en/latest/simple.html#data-storage).
