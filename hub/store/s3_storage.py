@@ -8,6 +8,7 @@ from s3fs import S3FileSystem
 
 from hub.exceptions import S3Exception
 from hub.log import logger
+from hub.defaults import MAX_POOL_CONNECTIONS
 
 
 class S3Storage(MutableMapping):
@@ -19,7 +20,7 @@ class S3Storage(MutableMapping):
         aws_access_key_id=None,
         aws_secret_access_key=None,
         aws_session_token=None,
-        parallel=128,
+        parallel=MAX_POOL_CONNECTIONS,
         endpoint_url=None,
     ):
         self.s3fs = s3fs
