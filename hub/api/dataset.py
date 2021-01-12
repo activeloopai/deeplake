@@ -20,7 +20,6 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
-import hub.store.pickle_s3_storage
 
 from hub.api.datasetview import DatasetView, ObjectView, TensorView
 
@@ -71,7 +70,6 @@ class Dataset:
         schema=None,
         token=None,
         fs=None,
-        fs_map=None,
         meta_information=dict(),
         cache: int = defaults.DEFAULT_MEMORY_CACHE_SIZE,
         storage_cache: int = defaults.DEFAULT_STORAGE_CACHE_SIZE,
@@ -128,6 +126,7 @@ class Dataset:
         self._mode = mode
         self.tokenizer = tokenizer
         self.lazy = lazy
+        self._public = public
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
@@ -138,7 +137,7 @@ class Dataset:
         self.verison = "1.x"
 
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(
+        fs_map = get_storage_map(
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
         )
         self._fs_map = fs_map
@@ -646,6 +645,9 @@ class Dataset:
 
     def enable_lazy(self):
         self.lazy = True
+
+    def _get_fs_map(self):
+        pass
 
     def _save_meta(self):
         _meta = json.loads(self._fs_map["meta.json"])

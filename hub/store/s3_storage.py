@@ -15,20 +15,13 @@ class S3Storage(MutableMapping):
     def __init__(
         self,
         s3fs: S3FileSystem,
+        client,
         url: str = None,
-        public=False,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-        aws_session_token=None,
-        parallel=MAX_POOL_CONNECTIONS,
-        endpoint_url=None,
     ):
         self.s3fs = s3fs
+        self.client = client
         self.root = {}
         self.url = url
-        self.public = public
-        self.parallel = parallel
-        self.endpoint_url = endpoint_url
         self.bucket = url.split("/")[2]
         self.path = "/".join(url.split("/")[3:])
         if self.bucket == "s3:":
@@ -37,28 +30,6 @@ class S3Storage(MutableMapping):
             self.path = "/".join(url.split("/")[5:])
         self.bucketpath = posixpath.join(self.bucket, self.path)
         self.protocol = "object"
-
-        client_config = botocore.config.Config(
-            max_pool_connections=parallel,
-        )
-
-        self.client = boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-            config=client_config,
-            endpoint_url=endpoint_url,
-        )
-
-        self.resource = boto3.resource(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-            config=client_config,
-            endpoint_url=endpoint_url,
-        )
 
     def __setitem__(self, path, content):
         try:

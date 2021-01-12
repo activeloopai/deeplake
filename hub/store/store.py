@@ -1,23 +1,17 @@
 from typing import MutableMapping, Tuple
 import posixpath
-import shutil
 import configparser
 import os
-from time import sleep
 
 import re
-from botocore.endpoint import MAX_POOL_CONNECTIONS
 import fsspec
 import gcsfs
-from s3fs.core import S3FileSystem
 import zarr
-import botocore
 
 from hub.store.lru_cache import LRUCache
 from hub.client.hub_control import HubControlClient
 from hub.store.azure_fs import AzureBlobFileSystem
 from hub.store.s3_file_system_replacement import S3FileSystemReplacement
-from hub.defaults import MAX_POOL_CONNECTIONS
 
 
 def _connect(tag, public=True):
@@ -50,7 +44,6 @@ def get_fs_and_path(
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
                 token=token.get("aws_session_token"),
-                config_kwargs={"max_pool_connections": MAX_POOL_CONNECTIONS},
             ),
             url[5:],
         )

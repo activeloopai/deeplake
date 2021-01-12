@@ -12,6 +12,7 @@ from hub.compute import transform
 from hub.log import logger
 import traceback
 from hub.exceptions import DaskModuleNotInstalledException, HubDatasetNotFoundException
+import hub.store.pickle
 
 
 def local_mode():
