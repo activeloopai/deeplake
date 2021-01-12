@@ -1,4 +1,7 @@
 import os
+import shutil
+import cloudpickle
+import pickle
 from hub.cli.auth import login_fn
 from hub.exceptions import HubException
 import numpy as np
@@ -40,14 +43,8 @@ def test_dataset2():
 
 def test_dataset_append_and_read():
     dt = {"first": "float", "second": "float"}
-    ds = Dataset(
-        schema=dt,
-        shape=(2,),
-        url="./data/test/test_dataset_append_and_read",
-        mode="w",
-    )
-
-    ds.delete()
+    os.makedirs("./data/test/test_dataset_append_and_read", exist_ok=True)
+    shutil.rmtree("./data/test/test_dataset_append_and_read")
 
     ds = Dataset(
         schema=dt,
@@ -57,6 +54,7 @@ def test_dataset_append_and_read():
     )
 
     ds["first"][0] = 2.3
+    ds.meta_information["description"] = "This is my description"
     assert ds.meta_information["description"] == "This is my description"
     assert ds["second"][0].numpy() != 2.3
     ds.close()
@@ -148,6 +146,40 @@ def test_dataset_with_chunks():
         ds["image", 5, 4, 100:200, 150:300, :].numpy()
         == np.ones((100, 150, 3), "uint8")
     ).all()
+
+
+def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
+    schema = {
+        "first": Tensor(
+            shape=(None, None),
+            dtype="int32",
+            max_shape=(100, 100),
+            chunks=(100,),
+        )
+    }
+    ds = Dataset(
+        url=url,
+        token=None,
+        shape=(1000,),
+        mode="w",
+        schema=schema,
+    )
+
+    ds["first"][0] = np.ones((10, 10))
+
+    pickled_ds = cloudpickle.dumps(ds)
+    new_ds = pickle.loads(pickled_ds)
+    assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_pickleability_s3():
+    test_pickleability("s3://snark-test/test_dataset_pickle_s3")
+
+
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
+def test_pickleability_gcs():
+    test_pickleability("gcs://snark-test/test_dataset_gcs")
 
 
 def test_dataset_dynamic_shaped():
@@ -669,6 +701,7 @@ def test_dataset_assign_value():
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     test_dataset_assign_value()
     test_dataset_setting_shape()
     test_datasetview_repr()
@@ -688,3 +721,8 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
+=======
+    # test_pickleability()
+    test_pickleability()
+    # test_dataset_append_and_read()
+>>>>>>> master
