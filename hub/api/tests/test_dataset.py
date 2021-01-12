@@ -701,7 +701,6 @@ def test_dataset_assign_value():
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     test_dataset_assign_value()
     test_dataset_setting_shape()
     test_datasetview_repr()
@@ -721,8 +720,6 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
-=======
     # test_pickleability()
     test_pickleability()
     # test_dataset_append_and_read()
->>>>>>> master

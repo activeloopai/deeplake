@@ -1158,7 +1158,14 @@ class Dataset:
 
                 for i in os.listdir(path_to_dir):
                     for j in os.listdir(os.path.join(path_to_dir, i)):
-                        img_path = os.path.join(path_to_dir, i, j)
+
+                        if j.endswith((".png", ".jpg", ".jpeg")):
+                            img_path = os.path.join(path_to_dir, i, j)
+                        else:
+                            print(
+                                f"{os.path.join(path_to_dir,i,j)} is a non image file please remove it to execute...."
+                            )
+
                         image = im.open(img_path)
 
                         width = set()
@@ -1181,8 +1188,6 @@ class Dataset:
 
                 max_shape = [max(width), max(height), max(mode)]
                 return max_shape
-            except Exception:
-                raise FileNotFoundError("file not exists")
             except Exception:
                 print("some exception happened")
 
@@ -1225,6 +1230,7 @@ class Dataset:
 
             pre_image = im.open(path_to_image)
             image = np.asarray(pre_image)
+            image = image.astype(sample[2])
             image_shape = get_max_shape(path_to_dir)
 
             if pre_image.mode == "RGB":
@@ -1240,13 +1246,15 @@ class Dataset:
 
         images = []
         labels_list = []
+        dataype = []
         for i in os.listdir(path_to_dir):
             for j in os.listdir(os.path.join(path_to_dir, i)):
                 image = os.path.join(path_to_dir, i, j)
                 images.append(image)
                 labels_list.append(i)
+                dataype.append(dtype)
 
-        ds = upload_data(zip(labels_list, images))
+        ds = upload_data(zip(labels_list, images, dataype))
         return ds
 
 
