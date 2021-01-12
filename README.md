@@ -49,15 +49,15 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 
 ## Getting Started
 
-### Access public data. Fast
+### Access public data. FAST
 
-To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API, as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**. 
+To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**.
 
 ```sh
 pip3 install hub
 ```
 
-You can access public datasets with a few lines of code.
+Access public datasets in Hub by following a straight-forward convention which merely requires a few lines of simple code. Run this excerpt to get the first thousand images in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
 from hub import Dataset
 
@@ -65,10 +65,11 @@ mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
 mnist["image"][0:1000].compute()
 ```
+You can find all the other popular datasets on [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ### Train a model
 
-Load the data and directly train your model using pytorch
+Load the data and train your model **directly**. Hub is integrated with PyTorch and TensorFlow and performs conversions between formats in an understandable fashion. Take a look at the example with PyTorch below:
 
 ```python
 from hub import Dataset
@@ -85,7 +86,7 @@ for image, label in train_loader:
 ```
 
 ### Create a local dataset 
-
+If you want to work on your own data locally, you can start by creating a dataset:
 ```python
 from hub import Dataset, schema
 import numpy as np
@@ -107,7 +108,8 @@ ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()  # executing the creation of the dataset
 ```
 
-You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path [more here](https://docs.activeloop.ai/en/latest/simple.html#data-storage).
+You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path. [Here](https://docs.activeloop.ai/en/latest/simple.html#data-storage) you can find more information on cloud storage.
+Also, if you need a publicly available dataset that you cannot find in the Hub, you may [file a request](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=[FEATURE]+New+Dataset+Required%3A+%2Adataset_name%2A). We will enable it for everyone as soon as we can!
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
@@ -117,7 +119,7 @@ hub register
 hub login
 ```
 
-2. Then create a dataset and upload
+2. Then create a dataset, specifying its name and upload it to your account. For instance:
 ```python
 from hub import Dataset, schema
 import numpy as np
@@ -137,7 +139,7 @@ ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()
 ```
 
-3. Access it from anywhere else in the world, on any device having a command line.
+3. Access it from anywhere else in the world, on any device having a command line:
 ```python
 from hub import Dataset
 
@@ -147,7 +149,7 @@ ds = Dataset("username/dataset_name")
 
 ## Documentation
 
-For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Use Cases
 * **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
@@ -158,7 +160,7 @@ For more advanced data pipelines like uploading large datasets or applying many 
 
 ## Community
 
-Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
+Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
@@ -168,7 +170,7 @@ As always, thanks to our amazing contributors!     </br>
 
 
 ## Examples
-Activeloop’s Hub format lets you achieve faster inference at a lower cost. We have 30+ popular datasets already on our platform. These include:-
+Activeloop's Hub format lets you achieve faster inference at a lower cost. We have 30+ popular datasets already on our platform. These include:
 - COCO
 - CIFAR-10
 - PASCAL VOC
