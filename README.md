@@ -113,7 +113,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
-1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
+1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
 ```sh
 hub register
 hub login
@@ -180,7 +180,7 @@ Activeloop's Hub format lets you achieve faster inference at a lower cost. We ha
 - Caltech-UCSD Birds 200
 - Food101
 
-Check these and many more popular datasets on our [visualizer web app](https://app.activeloop.ai/datasets/popular) and load them directly for model training!
+Check these and many more popular datasets on our [visualizer web app](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) and load them directly for model training!
 
 ## README Badge
 
