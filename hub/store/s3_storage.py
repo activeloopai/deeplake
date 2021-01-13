@@ -1,4 +1,7 @@
+from typing import Iterable, List
+
 from collections.abc import MutableMapping
+from concurrent.futures.thread import ThreadPoolExecutor
 import posixpath
 
 import boto3
@@ -16,6 +19,7 @@ class S3Storage(MutableMapping):
         self,
         s3fs: S3FileSystem,
         client,
+        tpool: ThreadPoolExecutor,
         url: str = None,
     ):
         self.s3fs = s3fs
@@ -30,6 +34,7 @@ class S3Storage(MutableMapping):
             self.path = "/".join(url.split("/")[5:])
         self.bucketpath = posixpath.join(self.bucket, self.path)
         self.protocol = "object"
+        self.tpool = tpool
 
     def __setitem__(self, path, content):
         try:
@@ -46,7 +51,7 @@ class S3Storage(MutableMapping):
             logger.error(err)
             raise S3Exception(err)
 
-    def __getitem__(self, path):
+    def _getitem(self, path: str) -> bytes:
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -64,17 +69,29 @@ class S3Storage(MutableMapping):
             logger.error(err)
             raise S3Exception(err)
 
-    def __delitem__(self, path):
+    def __getitem__(self, path: str) -> bytes:
+        return self.tpool.submit(self._getitem, path).result()
+
+    def _delitem(self, path: str) -> None:
         try:
             path = posixpath.join(self.bucketpath, path)
-            self.s3fs.rm(path, recursive=True)
+            self.s3fs.rm(path, recursive=False)
         except Exception as err:
             logger.error(err)
             raise S3Exception(err)
 
-    def __len__(self):
+    def __delitem__(self, path: str) -> None:
+        self.tpool.submit(self._delitem, path).result()
+
+    def _len(self) -> int:
         return len(self.s3fs.ls(self.bucketpath, detail=False, refresh=True))
 
-    def __iter__(self):
-        items = self.s3fs.ls(self.bucketpath, detail=False, refresh=True)
+    def __len__(self) -> int:
+        return self.tpool.submit(self._len).result()
+
+    def _iter(self) -> List[str]:
+        return self.s3fs.ls(self.bucketpath, detail=False, refresh=True)
+
+    def __iter__(self) -> Iterable[str]:
+        items = self.tpool.submit(self._iter).result()
         yield from [item[len(self.bucketpath) + 1 :] for item in items]

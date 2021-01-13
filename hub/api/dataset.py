@@ -677,6 +677,8 @@ class Dataset:
         for t in self._tensors.values():
             t.close()
         self._fs_map.close()
+        if hasattr(self._fs, "close"):
+            self._fs.close()
         self._update_dataset_state()
 
     def _update_dataset_state(self):
