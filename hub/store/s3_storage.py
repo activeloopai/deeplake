@@ -1,17 +1,17 @@
-from typing import Iterable, List
-
+from typing import Iterable, List, Union
+import array
 from collections.abc import MutableMapping
 from concurrent.futures.thread import ThreadPoolExecutor
 import posixpath
 
-import boto3
-import botocore
 from botocore.exceptions import ClientError
 from s3fs import S3FileSystem
 
 from hub.exceptions import S3Exception
 from hub.log import logger
-from hub.defaults import MAX_POOL_CONNECTIONS
+
+
+ByteLike = Union[bytearray, memoryview, bytes, array.array]
 
 
 class S3Storage(MutableMapping):
@@ -36,8 +36,9 @@ class S3Storage(MutableMapping):
         self.protocol = "object"
         self.tpool = tpool
 
-    def __setitem__(self, path, content):
+    def _setitem(self, path: str, content: ByteLike) -> None:
         try:
+            content = bytearray(memoryview(content))
             path = posixpath.join(self.path, path)
             attrs = {
                 "Bucket": self.bucket,
@@ -50,6 +51,9 @@ class S3Storage(MutableMapping):
         except Exception as err:
             logger.error(err)
             raise S3Exception(err)
+
+    def __setitem__(self, path: str, content: ByteLike) -> None:
+        self.tpool.submit(self._setitem, path, content).result()
 
     def _getitem(self, path: str) -> bytes:
         try:
