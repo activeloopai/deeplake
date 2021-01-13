@@ -1,3 +1,4 @@
+import os
 import posixpath
 import collections.abc as abc
 import json
@@ -15,7 +16,6 @@ from hub.schema.features import (
     Primitive,
     Tensor,
     SchemaDict,
-    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -43,7 +43,6 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    NoneValueException,
     ShapeLengthException,
     WrongUsernameException,
 )
@@ -252,14 +251,14 @@ class Dataset:
         """
         fs, path, mode = self._fs, self._path, self._mode
         if path.startswith("s3://"):
-            with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
-                stored_username = json.load(f)["_id"]
-            current_username = path.split("/")[-2]
-            if stored_username != current_username:
-                try:
+            try:
+                with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
+                    stored_username = json.load(f)["_id"]
+                current_username = path.split("/")[-2]
+                if stored_username != current_username:
                     fs.listdir(path)
-                except:
-                    raise WrongUsernameException(stored_username)
+            except:
+                raise WrongUsernameException(stored_username)
         meta_path = posixpath.join(path, "meta.json")
         try:
             # Update boto3 cache
