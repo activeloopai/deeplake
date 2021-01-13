@@ -1,4 +1,3 @@
-import os
 import posixpath
 import collections.abc as abc
 import json
