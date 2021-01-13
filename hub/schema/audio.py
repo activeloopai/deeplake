@@ -37,8 +37,8 @@ class Audio(Tensor):
         """
         self.file_format = file_format
         if len(shape) != 1:
-            raise TypeError(
-                "Audio schema currently only supports 1-D values, got %s." % shape
+            raise ValueError(
+                f"Audio schema currently only supports 1-D values, got {shape}"
             )
         # self._shape = shape
         self.sample_rate = sample_rate
@@ -49,10 +49,6 @@ class Audio(Tensor):
             chunks=chunks,
             compressor=compressor,
         )
-
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
 
     def __str__(self):
         out = super().__str__()

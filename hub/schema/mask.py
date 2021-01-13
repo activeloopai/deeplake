@@ -36,6 +36,7 @@ class Mask(Tensor):
             If default value is chosen, automatically detects how to split into chunks
 
         """
+        self._check_shape(shape)
         super().__init__(
             shape,
             "bool_",
@@ -44,9 +45,12 @@ class Mask(Tensor):
             compressor=compressor,
         )
 
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
+    def _check_shape(self, shape):
+        """Check if provided shape  maches mask characteristics."""
+        if len(shape) != 3 or shape[-1] != 1:
+            raise ValueError(
+                "Wrong mask shape provided, should be of the format (height, width, 1) where height and width are integers or None"
+            )
 
     def __str__(self):
         out = super().__str__()

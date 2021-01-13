@@ -44,10 +44,6 @@ class Sequence(Tensor):
             max_shape=max_shape,
         )
 
-    def get_attr_dict(self):
-        """Return class attributes"""
-        return self.__dict__
-
     def __str__(self):
         out = super().__str__()
         out = "Sequence" + out[6:]

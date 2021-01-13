@@ -1,6 +1,13 @@
+from hub.schema.audio import Audio
+from hub.schema.bbox import BBox
+from hub.schema.image import Image
+from hub.schema.mask import Mask
+from hub.schema.polygon import Polygon
+from hub.schema.sequence import Sequence
+from hub.schema.video import Video
 from hub.schema import Segmentation
 from hub.schema.class_label import ClassLabel, _load_names_from_file
-from hub.schema.features import HubSchema, SchemaDict
+from hub.schema.features import HubSchema, SchemaDict, Tensor
 import pytest
 
 
@@ -13,21 +20,6 @@ def test_load_names_from_file():
         "beta",
         "gamma",
     ]
-
-
-def test_class_label():
-    bel1 = ClassLabel(num_classes=4)
-    bel2 = ClassLabel(names=["alpha", "beta", "gamma"])
-    ClassLabel(names_file=names_file)
-    assert bel1.names == ["0", "1", "2", "3"]
-    assert bel2.names == ["alpha", "beta", "gamma"]
-    assert bel1.str2int("1") == 1
-    assert bel2.str2int("gamma") == 2
-    assert bel1.int2str(2) is None  # FIXME This is a bug, should raise an error
-    assert bel2.int2str(0) == "alpha"
-    assert bel1.num_classes == 4
-    assert bel2.num_classes == 3
-    bel1.get_attr_dict()
 
 
 def test_hub_feature_flatten():
@@ -62,6 +54,69 @@ def test_segmentation_repr():
     assert seg2.__repr__() == text2
 
 
+def test_segmentation_classes():
+    seg1 = Segmentation(shape=(3008, 3008), dtype="uint8", num_classes=5)
+    seg2 = Segmentation(
+        shape=(3008, 3008), dtype="uint8", names=["apple", "orange", "banana"]
+    )
+    assert seg1.get_segmentation_classes() == ["0", "1", "2", "3", "4"]
+    assert seg2.get_segmentation_classes() == ["apple", "orange", "banana"]
+
+
+def test_class_label():
+    cl1 = ClassLabel(num_classes=5)
+    cl2 = ClassLabel(names=["apple", "orange", "banana"])
+    with pytest.raises(ValueError):
+        cl3 = ClassLabel(names=["apple", "orange", "banana", "apple"])
+    assert cl1.names == ["0", "1", "2", "3", "4"]
+    assert cl2.names == ["apple", "orange", "banana"]
+    assert cl1.num_classes == 5
+    assert cl2.num_classes == 3
+    assert cl1.str2int("3") == 3
+    assert cl2.str2int("orange") == 1
+    assert cl1.int2str(4) == "4"
+    assert cl2.int2str(2) == "banana"
+
+    with pytest.raises(KeyError):
+        cl2.str2int("2")
+    with pytest.raises(ValueError):
+        cl1.str2int("8")
+    with pytest.raises(ValueError):
+        cl1.names = ["ab", "cd", "ef", "gh"]
+    with pytest.raises(ValueError):
+        cl2.names = ["ab", "cd", "ef", "gh"]
+
+
+def test_polygon():
+    with pytest.raises(ValueError):
+        poly1 = Polygon(shape=(11, 3))
+    with pytest.raises(ValueError):
+        poly2 = Polygon(shape=(11, 4, 2))
+
+
+def test_mask():
+    with pytest.raises(ValueError):
+        mask1 = Mask(shape=(11, 5))
+    with pytest.raises(ValueError):
+        mask2 = Mask(shape=(11, 4, 2))
+
+
+def test_image():
+    with pytest.raises(ValueError):
+        image = Image((1920, 1080, 3), "float32")
+
+
+def test_audio():
+    with pytest.raises(ValueError):
+        audio = Audio((1920, 3), "float32")
+
+
+def test_image_repr():
+    image = Image((1920, 1080, 3))
+    text = "Image(shape=(1920, 1080, 3), dtype='uint8')"
+    assert image.__repr__() == text
+
+
 def test_classlabel_repr():
     cl1 = ClassLabel(num_classes=5)
     cl2 = ClassLabel(names=["apple", "orange", "banana"])
@@ -72,6 +127,42 @@ def test_classlabel_repr():
     assert cl2.__repr__() == text2
 
 
+def test_video_repr():
+    vid = Video(shape=(1920, 1080, 3, 120))
+    text = "Video(shape=(1920, 1080, 3, 120), dtype='uint8')"
+    assert vid.__repr__() == text
+
+
+def test_seq_repr():
+    seq = Sequence(dtype=Tensor((10, 100, 100)))
+    text = "Sequence(shape=(), dtype=Tensor(shape=(10, 100, 100), dtype='float64'))"
+    assert seq.__repr__() == text
+
+
+def test_polygon_repr():
+    poly = Polygon(shape=(10, 2), chunks=10)
+    text = "Polygon(shape=(10, 2), dtype='int32', chunks=(10,))"
+    assert poly.__repr__() == text
+
+
+def test_mask_repr():
+    mask = Mask(shape=(1920, 1080, 1))
+    text = "Mask(shape=(1920, 1080, 1), dtype='bool')"
+    assert mask.__repr__() == text
+
+
+def test_bbox_repr():
+    bbox = BBox(dtype="uint32")
+    text = "BBox(shape=(4,), dtype='uint32')"
+    assert bbox.__repr__() == text
+
+
+def test_audio_repr():
+    audio = Audio((100,))
+    text = "Audio(shape=(100,), dtype='int64')"
+    assert audio.__repr__() == text
+
+
 if __name__ == "__main__":
     test_load_names_from_file()
     test_class_label()
@@ -80,3 +171,14 @@ if __name__ == "__main__":
     test_feature_dict_repr()
     test_classlabel_repr()
     test_segmentation_repr()
+    test_seq_repr()
+    test_segmentation_classes()
+    test_polygon_repr()
+    test_polygon()
+    test_mask()
+    test_mask_repr()
+    test_image()
+    test_image_repr()
+    test_bbox_repr()
+    test_audio_repr()
+    test_audio()
