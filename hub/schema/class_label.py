@@ -82,8 +82,8 @@ class ClassLabel(Tensor):
             self._names = names
             self.names = names
         else:
-            self._names = names
-            self.names = _load_names_from_file(names_file)
+            self._names = _load_names_from_file(names_file)
+            self.names = self._names
 
     @property
     def names(self):

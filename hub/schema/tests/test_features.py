@@ -11,17 +11,6 @@ from hub.schema.features import HubSchema, SchemaDict, Tensor
 import pytest
 
 
-names_file = "./hub/schema/tests/class_label_names.txt"
-
-
-def test_load_names_from_file():
-    assert _load_names_from_file(names_file) == [
-        "alpha",
-        "beta",
-        "gamma",
-    ]
-
-
 def test_hub_feature_flatten():
     base_object = HubSchema()
     with pytest.raises(NotImplementedError):
@@ -68,8 +57,18 @@ def test_class_label():
     cl2 = ClassLabel(names=["apple", "orange", "banana"])
     with pytest.raises(ValueError):
         cl3 = ClassLabel(names=["apple", "orange", "banana", "apple"])
+    with pytest.raises(ValueError):
+        cl4 = ClassLabel(names=["apple", "orange", "banana", "apple"], num_classes=2)
+    cl5 = ClassLabel()
+    cl6 = ClassLabel(names_file="./hub/schema/tests/class_label_names.txt")
+
     assert cl1.names == ["0", "1", "2", "3", "4"]
     assert cl2.names == ["apple", "orange", "banana"]
+    assert cl6.names == [
+        "alpha",
+        "beta",
+        "gamma",
+    ]
     assert cl1.num_classes == 5
     assert cl2.num_classes == 3
     assert cl1.str2int("3") == 3
@@ -81,6 +80,8 @@ def test_class_label():
         cl2.str2int("2")
     with pytest.raises(ValueError):
         cl1.str2int("8")
+    with pytest.raises(ValueError):
+        cl1.str2int("abc")
     with pytest.raises(ValueError):
         cl1.names = ["ab", "cd", "ef", "gh"]
     with pytest.raises(ValueError):
@@ -164,7 +165,6 @@ def test_audio_repr():
 
 
 if __name__ == "__main__":
-    test_load_names_from_file()
     test_class_label()
     test_hub_feature_flatten()
     test_feature_dict_str()
