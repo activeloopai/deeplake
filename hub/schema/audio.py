@@ -59,7 +59,7 @@ class Audio(Tensor):
             else out
         )
         out = (
-            out + ", sample_rate=" + self.sample_rate
+            out + ", sample_rate=" + str(self.sample_rate)
             if self.sample_rate is not None
             else out
         )

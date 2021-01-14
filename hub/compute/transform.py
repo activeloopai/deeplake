@@ -113,8 +113,7 @@ class Transform:
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
 
-        if len(slice_list) == 0:
-            slice_list = [slice(None, None, None)]
+        slice_list = slice_list or [slice(None, None, None)]
 
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
 
@@ -158,24 +157,6 @@ class Transform:
             else:
                 items.append((new_key, v))
         return dict(items)
-
-    @classmethod
-    def _flatten(cls, items, schema):
-        """
-        Takes a dictionary or list of dictionary.
-        Returns a dictionary of concatenated values.
-        Dictionary follows schema.
-        """
-        final_item = {}
-        for item in cls._unwrap(items):
-            item = cls._flatten_dict(item, schema=schema)
-
-            for k, v in item.items():
-                if k in final_item:
-                    final_item[k].append(v)
-                else:
-                    final_item[k] = [v]
-        return final_item
 
     @classmethod
     def dtype_from_path(cls, path, schema):

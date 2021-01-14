@@ -30,9 +30,9 @@ def test_serialize_deserialize():
                     "second": "float64",
                 },
             ),
-            "bbox": BBox(dtype="float64", chunks=False),
+            "bbox": BBox(dtype="float64"),
             "audio": Audio(shape=(120,), dtype="uint32"),
-            "mask": Mask(shape=(5, 8), chunks=True),
+            "mask": Mask(shape=(5, 8, 1)),
             "polygon": Polygon(shape=(16, 2)),
             "segmentation1": Segmentation(
                 shape=(5, 9, 1), dtype="uint8", num_classes=5
