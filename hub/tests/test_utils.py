@@ -48,6 +48,14 @@ def test_tfdatasets_loaded():
         assert not result
 
 
+def test_transformers_loaded():
+    result = transformers_loaded()
+    if result:
+        import transformers
+    else:
+        assert not result
+
+
 def test_pathos_loaded():
     result = pathos_loaded()
     if result:
