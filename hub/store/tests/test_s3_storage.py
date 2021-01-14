@@ -21,19 +21,16 @@ NUMPY_ARR = np.array([[4, 512, 512]])
 @pytest.mark.skipif(not s3_creds_exist(), reason="Requires s3 credentials")
 def test_s3_storage():
     _storage = S3FileSystem()
-    with ThreadPoolExecutor(1) as pool:
-        storage = S3Storage(
-            _storage, create_client(), pool, "s3://snark-test/test_s3_storage1"
-        )
+    storage = S3Storage(_storage, "s3://snark-test/test_s3_storage1")
 
-        storage["hello"] = BYTE_DATA
-        storage["numpy"] = NUMPY_ARR
-        assert storage["hello"] == BYTE_DATA
-        assert storage["numpy"] == bytearray(memoryview(NUMPY_ARR))
-        assert len(storage) == 2
-        assert list(storage) == ["hello", "numpy"]
-        del storage["hello"]
-        assert len(storage) == 1
+    storage["hello"] = BYTE_DATA
+    storage["numpy"] = NUMPY_ARR
+    assert storage["hello"] == BYTE_DATA
+    assert storage["numpy"] == bytearray(memoryview(NUMPY_ARR))
+    assert len(storage) == 2
+    assert list(storage) == ["hello", "numpy"]
+    del storage["hello"]
+    assert len(storage) == 1
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="Requires s3 credentials")
