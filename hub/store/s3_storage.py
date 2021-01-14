@@ -62,6 +62,7 @@ class S3Storage(MutableMapping):
     def __setitem__(self, path, content):
         try:
             path = posixpath.join(self.path, path)
+            content = bytearray(memoryview(content))
             attrs = {
                 "Bucket": self.bucket,
                 "Body": content,
