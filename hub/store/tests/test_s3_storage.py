@@ -22,7 +22,7 @@ def test_s3_storage():
     _storage = S3FileSystem()
     with ThreadPoolExecutor(1) as pool:
         storage = S3Storage(
-            _storage, create_client(), pool, "s3://snark-test/test_s3_storage"
+            _storage, create_client(), pool, "s3://snark-test/test_s3_storage1"
         )
 
         storage["hello"] = BYTE_DATA
