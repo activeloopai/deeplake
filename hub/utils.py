@@ -1,6 +1,4 @@
 from math import gcd
-import sys
-import os
 import time
 from collections import abc
 
@@ -21,6 +19,8 @@ def gcp_creds_exist():
     """Checks if credentials exists"""
 
     try:
+        import os
+
         env = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
         if env is not None:
             return True
@@ -46,6 +46,8 @@ def s3_creds_exist():
 def azure_creds_exist():
     """Checks if credentials exists"""
 
+    import os
+
     env = os.getenv("ACCOUNT_KEY")
     if env is not None:
         return True
@@ -54,6 +56,8 @@ def azure_creds_exist():
 
 def hub_creds_exist():
     """Checks if credentials exists"""
+
+    import os
 
     env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     if env is not None:
@@ -66,9 +70,9 @@ def pytorch_loaded():
         import torch
 
         torch.__version__
-    except:
-        pass
-    return "torch" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def ray_loaded():
@@ -76,9 +80,9 @@ def ray_loaded():
         import ray
 
         ray.__version__
-    except:
-        pass
-    return "ray" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def dask_loaded():
@@ -86,9 +90,9 @@ def dask_loaded():
         import dask
 
         dask.__version__
-    except:
-        pass
-    return "dask" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def tensorflow_loaded():
@@ -96,9 +100,9 @@ def tensorflow_loaded():
         import tensorflow
 
         tensorflow.__version__
-    except:
-        pass
-    return "tensorflow" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def tfds_loaded():
@@ -106,17 +110,19 @@ def tfds_loaded():
         import tensorflow_datasets
 
         tensorflow_datasets.__version__
-    except:
-        pass
-    return "tensorflow_datasets" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def transformers_loaded():
     try:
         import transformers
-    except:
-        pass
-    return "transformers" in sys.modules
+
+        transformers.__version__
+    except ImportError:
+        return False
+    return True
 
 
 def pathos_loaded():
@@ -124,9 +130,9 @@ def pathos_loaded():
         import pathos
 
         pathos.__version__
-    except:
-        pass
-    return "pathos" in sys.modules
+    except ImportError:
+        return False
+    return True
 
 
 def compute_lcm(a):
