@@ -1,10 +1,13 @@
 from hub.exceptions import (
+    AdvancedSlicingNotSupported,
+    DaskModuleNotInstalledException,
     HubException,
     AuthenticationException,
     AuthorizationException,
     NotFound,
     NotFoundException,
     BadRequestException,
+    NotIterable,
     OverLimitException,
     ServerException,
     BadGatewayException,
@@ -60,6 +63,9 @@ def test_exceptions():
     NotHubDatasetToOverwriteException()
     NotHubDatasetToAppendException()
     DynamicTensorNotFoundException()
+    NotIterable()
+    AdvancedSlicingNotSupported()
+    DaskModuleNotInstalledException()
 
     DynamicTensorShapeException("none")
     DynamicTensorShapeException("length")

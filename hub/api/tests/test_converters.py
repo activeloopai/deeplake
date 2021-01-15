@@ -38,6 +38,34 @@ def test_from_tfds_coco():
         ]
 
 
+@pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
+def test_from_tfds_accentdb():
+    import tensorflow_datasets as tfds
+
+    with tfds.testing.mock_data(num_examples=5):
+        ds = hub.Dataset.from_tfds("accentdb", num=5)
+
+        res_ds = ds.store(
+            "./data/test_tfds/accentdb", length=5
+        )  # mock data doesn't have length, so explicitly provided
+        assert res_ds["audio", 0, :3].compute().tolist() == [47, 117, 192]
+        assert res_ds["audio", 2, :3].compute().tolist() == [163, 254, 203]
+
+
+@pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
+def test_from_tfds_robonet():
+    import tensorflow_datasets as tfds
+
+    with tfds.testing.mock_data(num_examples=5):
+        ds = hub.Dataset.from_tfds("robonet", num=5)
+
+        res_ds = ds.store(
+            "./data/test_tfds/robonet", length=5
+        )  # mock data doesn't have length, so explicitly provided
+        assert res_ds["video", 0, 0:2, 1, 2, 0].compute().tolist() == [59, 177]
+        assert res_ds["video", 2, 0:2, 1, 2, 0].compute().tolist() == [127, 62]
+
+
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_from_tensorflow():
     import tensorflow as tf
