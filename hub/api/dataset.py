@@ -377,7 +377,7 @@ class Dataset:
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError(
-                    "Can't slice a dataset with multiple slices without subpath"
+                    "Can't slice a dataset with multiple slices without key"
                 )
             indexes = self.indexes[slice_list[0]]
             return DatasetView(
@@ -386,7 +386,7 @@ class Dataset:
                 lazy=self.lazy,
             )
         elif not slice_list:
-            if subpath in self._tensors.keys():
+            if subpath in self.keys:
                 tensorview = TensorView(
                     dataset=self,
                     subpath=subpath,
@@ -394,7 +394,7 @@ class Dataset:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            for key in self._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self,
@@ -406,14 +406,14 @@ class Dataset:
             return self._get_dictionary(subpath)
         else:
             schema_obj = self.schema.dict_[subpath.split("/")[1]]
-            if subpath in self._tensors.keys() and (
+            if subpath in self.keys and (
                 not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
             ):
                 tensorview = TensorView(
                     dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            for key in self._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self,
@@ -445,7 +445,7 @@ class Dataset:
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without subpath")
-        elif subpath not in self._tensors.keys():
+        elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
 
         if not slice_list:
@@ -457,7 +457,7 @@ class Dataset:
         indexes = self.indexes
         for k, v in dic.items():
             k = k if k.startswith("/") else "/" + k
-            if k not in self._tensors.keys():
+            if k not in self.keys:
                 raise KeyError(f"Key {k} not found in the dataset")
             tsv = self[k]
             max_shape = tsv.dtype.max_shape
@@ -519,14 +519,16 @@ class Dataset:
         num_samples: int, optional
             The number of samples required of the dataset that needs to be converted
         """
-        if "torch" not in sys.modules:
+        try:
+            import torch
+        except ModuleNotFoundError:
             raise ModuleNotInstalledException("torch")
-        import torch
 
         global torch
         indexes = indexes or self.indexes
 
-        self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
+        if "r" not in self.mode:
+            self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(
             self, transform, inplace=inplace, output_type=output_type, indexes=indexes
         )
@@ -554,7 +556,7 @@ class Dataset:
         def tf_gen():
             for index in indexes:
                 d = {}
-                for key in self._tensors.keys():
+                for key in self.keys:
                     split_key = key.split("/")
                     cur = d
                     for i in range(1, len(split_key) - 1):
@@ -610,7 +612,7 @@ class Dataset:
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
-        for key in self._tensors.keys():
+        for key in self.keys:
             if key.startswith(subpath):
                 suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")

@@ -463,15 +463,6 @@ class DynamicTensor:
                 except KeyError:
                     pass
 
-    # FIXME I don't see this class being used anywhere
-    @classmethod
-    def _get_slice_upper_boundary(cls, slice_):
-        if isinstance(slice_, slice):
-            return slice_.stop
-        else:
-            assert isinstance(slice_, int)
-            return slice_ + 1
-
     @property
     def chunksize(self):
         """
