@@ -1,8 +1,6 @@
-# from hub.api.datasetview import DatasetView
 from hub.schema import Sequence, Tensor, SchemaDict, Primitive
-from hub.api.dataset_utils import get_value, slice_split, str_to_int
+from hub.api.dataset_utils import slice_extract_info, slice_split
 
-# from hub.exceptions import NoneValueException
 import collections.abc as abc
 
 
@@ -84,7 +82,7 @@ class ObjectView:
                 if len(slice_) > len(self.nums):
                     raise IndexError("Too many indices")
                 for i, it in enumerate(slice_):
-                    num, ofs = self.slice_extract_info(it, self.nums[i])
+                    num, ofs = slice_extract_info(it, self.nums[i])
                     self.nums[i] = num
                     self.offsets[i] += ofs
                     self.squeeze_dims[i] = num == 1
@@ -177,7 +175,7 @@ class ObjectView:
             elif isinstance(self.indexes, slice):
                 ofs = self.indexes.start or 0
                 num = self.indexes.stop - ofs if self.indexes.stop else None
-                num, ofs_temp = self.slice_extract_info(slice_list[0], num)
+                num, ofs_temp = slice_extract_info(slice_list[0], num)
                 new_indexes = (
                     ofs + ofs_temp
                     if isinstance(slice_list[0], int)
@@ -202,7 +200,7 @@ class ObjectView:
                 raise IndexError("Too many indices")
             for i, it in enumerate(exp_slice_list):
                 if it is not None:
-                    num, ofs = self.slice_extract_info(it, nums[i])
+                    num, ofs = slice_extract_info(it, nums[i])
                     nums[i] = num
                     offsets[i] += ofs
                     squeeze_dims[i] = isinstance(it, int)
@@ -263,56 +261,6 @@ class ObjectView:
 
     def compute(self):
         return self.numpy()
-
-    def slice_extract_info(self, slice_, num):
-        """Extracts number of samples and offset from slice"""
-        if isinstance(slice_, int):
-            slice_ = slice_ + num if num and slice_ < 0 else slice_
-            if num and (slice_ >= num or slice_ < 0):
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(num)
-                )
-            return (1, slice_)
-
-        if slice_.step is not None and slice_.step < 0:  # negative step not supported
-            raise ValueError("Negative step not supported in dataset slicing")
-        offset = 0
-        if slice_.start is not None:
-            slice_ = (
-                slice(slice_.start + num, slice_.stop) if slice_.start < 0 else slice_
-            )  # make indices positive if possible
-            if num and (slice_.start < 0 or slice_.start >= num):
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(num)
-                )
-            offset = slice_.start
-        if slice_.stop is not None:
-            slice_ = (
-                slice(slice_.start, slice_.stop + num) if slice_.stop < 0 else slice_
-            )  # make indices positive if possible
-            if num and (slice_.stop < 0 or slice_.stop > num):
-                raise IndexError(
-                    "index out of bounds for dimension with length {}".format(num)
-                )
-        if slice_.start is not None and slice_.stop is not None:
-            if (
-                slice_.start < 0
-                and slice_.stop < 0
-                or slice_.start >= 0
-                and slice_.stop >= 0
-            ):
-                # If same signs, bound checking can be done
-                if abs(slice_.start) > abs(slice_.stop):
-                    raise IndexError("start index is greater than stop index")
-                num = abs(slice_.stop) - abs(slice_.start)
-            else:
-                num = 0
-            # num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
-        elif slice_.start is None and slice_.stop is not None:
-            num = slice_.stop
-        elif slice_.start is not None and slice_.stop is None:
-            num = num - slice_.start if num else 0
-        return num, offset
 
     def __str__(self):
         slice_ = [

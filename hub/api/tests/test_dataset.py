@@ -1,11 +1,12 @@
+from hub.schema.class_label import ClassLabel
 import os
 from hub.cli.auth import login_fn
-from hub.exceptions import HubException
+from hub.exceptions import HubException, LargeShapeFilteringException
 import numpy as np
 import pytest
 from hub import transform
 import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image
+from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict
 from hub.utils import (
     gcp_creds_exist,
     hub_creds_exist,
@@ -616,6 +617,78 @@ def test_dataset_assign_value():
     assert ds["text", 6].compute() == "YGFJN75NF"
 
 
+def test_dataset_filtering():
+    my_schema = {
+        "fname": Text((None,), max_shape=(10,)),
+        "lname": Text((None,), max_shape=(10,)),
+    }
+    ds = Dataset("./test/filtering", shape=(100,), schema=my_schema, mode="w")
+    for i in range(100):
+        ds["fname", i] = "John"
+        ds["lname", i] = "Doe"
+
+    for i in [1, 3, 6, 15, 63, 96, 75]:
+        ds["fname", i] = "Active"
+
+    for i in [15, 31, 25, 75, 3, 6]:
+        ds["lname", i] = "loop"
+
+    dsv_combined = ds.filter({"fname": "Active", "lname": "loop"})
+    tsv_combined_fname = dsv_combined["fname"]
+    tsv_combined_lname = dsv_combined["lname"]
+    for item in dsv_combined:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    for item in tsv_combined_fname:
+        assert item.compute() == "Active"
+    for item in tsv_combined_lname:
+        assert item.compute() == "loop"
+    dsv_1 = ds.filter({"fname": "Active"})
+    dsv_2 = dsv_1.filter({"lname": "loop"})
+    for item in dsv_1:
+        assert item.compute()["fname"] == "Active"
+    tsv_1 = dsv_1["fname"]
+    tsv_2 = dsv_2["lname"]
+    for item in tsv_1:
+        assert item.compute() == "Active"
+    for item in tsv_2:
+        assert item.compute() == "loop"
+    for item in dsv_2:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    assert dsv_combined.indexes == [3, 6, 15, 75]
+    assert dsv_1.indexes == [1, 3, 6, 15, 63, 75, 96]
+    assert dsv_2.indexes == [3, 6, 15, 75]
+
+    dsv_3 = ds.filter({"lname": "loop"})
+    dsv_4 = dsv_3.filter({"fname": "Active"})
+    for item in dsv_3:
+        assert item.compute()["lname"] == "loop"
+    for item in dsv_4:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    assert dsv_3.indexes == [3, 6, 15, 25, 31, 75]
+    assert dsv_4.indexes == [3, 6, 15, 75]
+
+    my_schema2 = {
+        "fname": Text((None,), max_shape=(10,)),
+        "lname": Text((None,), max_shape=(10,)),
+        "image": Image((1920, 1080, 3)),
+    }
+    ds = Dataset("./test/filtering2", shape=(100,), schema=my_schema2, mode="w")
+    with pytest.raises(LargeShapeFilteringException):
+        ds.filter({"image": np.ones((1920, 1080, 3))})
+
+
+def test_dataset_filtering_2():
+    schema = {"img": Image((100, 100, 3)), "cl": ClassLabel(names=["cat", "dog"])}
+    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    for i in range(100):
+        if i % 5 == 0:
+            ds["cl", i] = 0
+        else:
+            ds["cl", i] = 1
+    ds_filtered = ds.filter({"cl": 0})
+    assert ds_filtered.indexes == [5 * i for i in range(20)]
+
+
 if __name__ == "__main__":
     test_dataset_assign_value()
     test_dataset_setting_shape()
@@ -635,3 +708,4 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
+    test_dataset_filtering_2()

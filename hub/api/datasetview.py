@@ -1,3 +1,4 @@
+from hub.utils import _tuple_product
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
@@ -6,7 +7,7 @@ from hub.api.dataset_utils import (
     slice_split,
     str_to_int,
 )
-from hub.exceptions import NoneValueException
+from hub.exceptions import LargeShapeFilteringException, NoneValueException
 import collections.abc as abc
 import hub.api.objectview as objv
 
@@ -136,6 +137,7 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        print(slice_)
         assign_value = get_value(value)
         assign_value = str_to_int(
             assign_value, self.dataset.tokenizer
@@ -188,11 +190,15 @@ class DatasetView:
             if k not in self.dataset._tensors.keys():
                 raise ValueError(f"Key {k} not found in the dataset")
             tsv = self.dataset[k]
+            max_shape = tsv.dtype.max_shape
+            prod = _tuple_product(max_shape)
+            if prod > 100:
+                raise LargeShapeFilteringException(k)
             if isinstance(indexes, list):
                 indexes = [index for index in indexes if tsv[index].compute() == v]
             else:
                 indexes = indexes if tsv[indexes].compute() == v else []
-        return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
+        return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
 
     @property
     def keys(self):
@@ -231,8 +237,8 @@ class DatasetView:
             yield self
             return
 
-        for index in self.indexes:
-            yield self[index]
+        for i in range(len(self.indexes)):
+            yield self[i]
 
     def __len__(self):
         return len(self.indexes) if isinstance(self.indexes, list) else 1

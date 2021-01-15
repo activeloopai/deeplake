@@ -20,13 +20,6 @@ from hub.exceptions import (
 from hub.schema.sequence import Sequence
 
 
-def _tuple_product(tuple_):
-    res = 1
-    for t in tuple_:
-        res *= t
-    return res
-
-
 class DynamicTensor:
     """Class for handling dynamic tensor
 

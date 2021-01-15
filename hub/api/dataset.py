@@ -38,7 +38,7 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
-    HubDatasetNotFoundException,
+    HubDatasetNotFoundException, LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
@@ -54,7 +54,7 @@ from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
 
-from hub.utils import norm_cache, norm_shape
+from hub.utils import norm_cache, norm_shape, _tuple_product
 from hub import defaults
 
 
@@ -189,7 +189,7 @@ class Dataset:
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
 
-        self.indexes = list(range(self.shape[0]))
+        self.indexes = list(range(self._shape[0]))
 
         if needcreate and (
             self._path.startswith("s3://snark-hub-dev/")
@@ -450,12 +450,15 @@ class Dataset:
 
     def filter(self, dic):
         indexes = self.indexes
-        # TODO Add check for shapes to avoid filtering huge tensors
         for k, v in dic.items():
             k = k if k.startswith("/") else "/" + k
             if k not in self._tensors.keys():
                 raise KeyError(f"Key {k} not found in the dataset")
             tsv = self[k]
+            max_shape = tsv.dtype.max_shape
+            prod = _tuple_product(max_shape)
+            if prod > 100:
+                raise LargeShapeFilteringException(k)
             indexes = [index for index in indexes if tsv[index].compute() == v]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
@@ -463,8 +466,8 @@ class Dataset:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self._shape[0]:
             return
-
         self._shape = (int(size),)
+        self.indexes = list(range(self.shape[0]))
         self.meta = self._store_meta()
         for t in self._tensors.values():
             t.resize_shape(int(size))

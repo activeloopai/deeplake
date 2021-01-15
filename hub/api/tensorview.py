@@ -285,6 +285,15 @@ class TensorView:
             + ")"
         )
 
+    def __iter__(self):
+        """ Returns Iterable over samples """
+        if isinstance(self.indexes, int):
+            yield self
+            return
+
+        for i in range(len(self.indexes)):
+            yield self[i]
+
     @property
     def chunksize(self):
         return self.dataset._tensors[self.subpath].chunksize

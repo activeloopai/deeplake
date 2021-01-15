@@ -27,14 +27,10 @@ def test_objectview():
     # dataset view unsqueezed
     with pytest.raises(IndexError):
         dv["c", "d"].compute()
-    # with pytest.raises(IndexError):
-    #     dv["c", "d"] = np.ones((2, 3, 3, 5, 5))
 
     # dataset unsqueezed
     with pytest.raises(IndexError):
         ds["c", "d"].compute()
-    # with pytest.raises(IndexError):
-    #     ds["c", "d"] = np.ones((5, 3, 3, 5, 5))
 
     # tensorview to object view
     # sequence of tensor
@@ -48,12 +44,8 @@ def test_objectview():
 
     # Sequence of schemadicts
     ds[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.array([42, 25, 15])}}
-    # ds[0, "e", 0, "f", "h"] = 42
-    # The slice ds[0, "e", 1] is unstable but the complete slice is valid
-    # ds[0, "e", 1]["f", "h"] = 25
     with pytest.raises(KeyError):
         ds[0, "e", 1].compute()
-    # ds[0, "e"][2]["f"]["h"] = 15
     assert (ds[0, "e", "f", "h"].compute() == np.array([42, 25, 15])).all()
 
     # With dataset view
