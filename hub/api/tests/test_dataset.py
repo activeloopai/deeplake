@@ -688,7 +688,7 @@ def test_dataset_copy_azure_local():
         "https://activeloop.blob.core.windows.net/activeloop-hub/original_ds_azure",
         token=token,
         shape=(100,),
-        schema=simple_schema
+        schema=simple_schema,
     )
     for i in range(100):
         ds["num", i] = 2 * i
