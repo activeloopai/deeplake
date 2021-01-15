@@ -308,7 +308,7 @@ def test_to_from_pytorch():
 
 @pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
 def test_to_pytorch_bug():
-    ds = hub.Dataset('activeloop/mnist', mode="r")
+    ds = hub.Dataset("activeloop/mnist", mode="r")
     data = ds.to_pytorch()
 
 
