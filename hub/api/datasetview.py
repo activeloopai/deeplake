@@ -2,7 +2,7 @@ from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
     get_value,
-    slice_extract_info,
+    # slice_extract_info,
     slice_split,
     str_to_int,
 )
@@ -92,7 +92,7 @@ class DatasetView:
                     objectview = objv.ObjectView(
                         dataset=self.dataset,
                         subpath=subpath,
-                        slice_list=slice_,
+                        slice_=slice_,
                         lazy=self.lazy,
                     )
                     return objectview if self.lazy else objectview.compute()
@@ -121,7 +121,7 @@ class DatasetView:
                     objectview = objv.ObjectView(
                         dataset=self.dataset,
                         subpath=subpath,
-                        slice_list=slice_list,
+                        slice_=slice_list,
                         lazy=self.lazy,
                     )
                     return objectview if self.lazy else objectview.compute()

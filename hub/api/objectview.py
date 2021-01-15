@@ -1,17 +1,21 @@
 # from hub.api.datasetview import DatasetView
 from hub.schema import Sequence, Tensor, SchemaDict, Primitive
-from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_split, str_to_int
 
 # from hub.exceptions import NoneValueException
 import collections.abc as abc
 
-# TODO Fix cyclic dependency on DatasetView, adapt this to use indexes, ensure tests pass, maybe rename slice_list to slice_
+
 class ObjectView:
     def __init__(
         self,
         dataset,
         subpath=None,
-        slice_list=None,
+        slice_=None,
+        indexes=None,
+        nums=[],
+        offsets=[],
+        squeeze_dims=[],
         inner_schema_obj=None,
         lazy=True,
         check_bounds=True,
@@ -45,16 +49,12 @@ class ObjectView:
             or create a different ObjectView from an existing one
         """
         self.dataset = dataset
-        self.schema = (
-            dataset.schema.dict_
-            if not isinstance(dataset, DatasetView)
-            else dataset.dataset.schema.dict_
-        )
+        self.schema = dataset.schema.dict_
         self.subpath = subpath
 
-        # self.nums = nums
-        # self.offsets = offsets
-        # self.squeeze_dims = squeeze_dims
+        self.nums = nums
+        self.offsets = offsets
+        self.squeeze_dims = squeeze_dims
 
         self.inner_schema_obj = inner_schema_obj
         self.lazy = lazy
@@ -73,22 +73,28 @@ class ObjectView:
                     self.offsets.copy(),
                     self.squeeze_dims.copy(),
                 )
-            # Check if dataset view needs to be made
-            if slice_list and len(slice_list) >= 1:
-                num, ofs = slice_extract_info(slice_list[0], dataset.shape[0])
-                self.dataset = DatasetView(
-                    dataset, num, ofs, isinstance(slice_list[0], int)
-                )
-
-            if slice_list and len(slice_list) > 1:
-                slice_list = slice_list[1:]
-                if len(slice_list) > len(self.nums):
+            if slice_ and len(slice_) >= 1:
+                self.indexes = slice_[0]
+                self.is_contiguous = False
+                if isinstance(self.indexes, list) and self.indexes:
+                    self.is_contiguous = self.indexes[-1] - self.indexes[0] + 1 == len(
+                        self.indexes
+                    )
+                slice_ = slice_[1:]
+                if len(slice_) > len(self.nums):
                     raise IndexError("Too many indices")
-                for i, it in enumerate(slice_list):
-                    num, ofs = slice_extract_info(it, self.nums[i])
+                for i, it in enumerate(slice_):
+                    num, ofs = self.slice_extract_info(it, self.nums[i])
                     self.nums[i] = num
                     self.offsets[i] += ofs
                     self.squeeze_dims[i] = num == 1
+        else:
+            self.indexes = indexes
+            self.is_contiguous = False
+            if isinstance(self.indexes, list) and self.indexes:
+                self.is_contiguous = self.indexes[-1] - self.indexes[0] + 1 == len(
+                    self.indexes
+                )
 
     def num_process(self, schema_obj, nums, offsets, squeeze_dims):
         """Determines the maximum number of elements in each discovered dimension"""
@@ -148,7 +154,6 @@ class ObjectView:
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
 
-        dataset = self.dataset
         nums, offsets, squeeze_dims, inner_schema_obj = (
             self.nums.copy(),
             self.offsets.copy(),
@@ -161,43 +166,52 @@ class ObjectView:
                 subpath, inner_schema_obj, nums, offsets, squeeze_dims
             )
         subpath = self.subpath + subpath
+
+        new_indexes = self.indexes
         if len(slice_list) >= 1:
-            # Slice first dim
-            if isinstance(self.dataset, DatasetView) and not self.dataset.squeeze_dim:
-                dataset = self.dataset[slice_list[0]]
+            if isinstance(self.indexes, list):
+                new_indexes = self.indexes[slice_list[0]]
+                if self.is_contiguous and new_indexes:
+                    new_indexes = slice(new_indexes[0], new_indexes[-1] + 1)
                 slice_list = slice_list[1:]
-            elif not isinstance(self.dataset, DatasetView):
-                num, ofs = slice_extract_info(slice_list[0], self.dataset.shape[0])
-                dataset = DatasetView(
-                    self.dataset, num, ofs, isinstance(slice_list[0], int)
+            elif isinstance(self.indexes, slice):
+                ofs = self.indexes.start or 0
+                num = self.indexes.stop - ofs if self.indexes.stop else None
+                num, ofs_temp = self.slice_extract_info(slice_list[0], num)
+                new_indexes = (
+                    ofs + ofs_temp
+                    if isinstance(slice_list[0], int)
+                    else slice(ofs + ofs_temp, ofs + ofs_temp + num)
                 )
                 slice_list = slice_list[1:]
 
-            # Expand slice list for rest of dims
-            if len(slice_list) >= 1:
-                exp_slice_list = []
-                for squeeze in squeeze_dims:
-                    if squeeze:
-                        exp_slice_list += [None]
+        if len(slice_list) >= 1:
+            # Expand slice list
+            exp_slice_list = []
+            for squeeze in squeeze_dims:
+                if squeeze:
+                    exp_slice_list += [None]
+                else:
+                    if len(slice_list) > 0:
+                        exp_slice_list += [slice_list.pop(0)]
                     else:
-                        if len(slice_list) > 0:
-                            exp_slice_list += [slice_list.pop(0)]
-                        else:
-                            # slice list smaller than max
-                            exp_slice_list += [None]
-                if len(slice_list) > 0:
-                    # slice list longer than max
-                    raise IndexError("Too many indices")
-                for i, it in enumerate(exp_slice_list):
-                    if it is not None:
-                        num, ofs = slice_extract_info(it, nums[i])
-                        nums[i] = num
-                        offsets[i] += ofs
-                        squeeze_dims[i] = num == 1
+                        # slice list smaller than max
+                        exp_slice_list += [None]
+            if len(slice_list) > 0:
+                # slice list longer than max
+                raise IndexError("Too many indices")
+            for i, it in enumerate(exp_slice_list):
+                if it is not None:
+                    num, ofs = self.slice_extract_info(it, nums[i])
+                    nums[i] = num
+                    offsets[i] += ofs
+                    squeeze_dims[i] = isinstance(it, int)
+
         objectview = ObjectView(
-            dataset=dataset,
+            dataset=self.dataset,
             subpath=subpath,
-            slice_list=None,
+            slice_=None,
+            indexes=new_indexes,
             nums=nums,
             offsets=offsets,
             squeeze_dims=squeeze_dims,
@@ -209,57 +223,100 @@ class ObjectView:
 
     def numpy(self):
         """Gets the value from the objectview"""
-        if not isinstance(self.dataset, DatasetView):
-            # subpath present but no slice done
-            if len(self.subpath.split("/")[1:]) > 1:
+        if isinstance(self.indexes, list):
+            if len(self.indexes) > 1:
                 raise IndexError("Can only go deeper on single datapoint")
-        if not self.dataset.squeeze_dim:
-            # return a combined tensor for multiple datapoints
-            # only possible if the field has a fixed size
-            paths = self.subpath.split("/")[1:]
-            if len(paths) > 1:
+            else:
+                slice_0 = self.indexes[0]
+        elif isinstance(self.indexes, slice):
+            if self.indexes.stop - self.indexes.start > 1:
                 raise IndexError("Can only go deeper on single datapoint")
+            slice_0 = self.indexes.start
         else:
-            # single datapoint
-            paths = self.subpath.split("/")[1:]
-            schema = self.schema[paths[0]]
-            slice_ = [
-                ofs if sq else slice(ofs, ofs + num) if num else slice(None, None)
-                for ofs, num, sq in zip(self.offsets, self.nums, self.squeeze_dims)
-            ]
-            if isinstance(schema, Sequence):
-                if isinstance(schema.dtype, SchemaDict):
-                    # if sequence of dict, have to fetch everything
-                    value = self.dataset[paths[0]].compute()
-                    for path in paths[1:]:
-                        value = value[path]
-                    try:
-                        return value[tuple(slice_)]
-                    except TypeError:
-                        # raise error
-                        return value
-                    except KeyError:
-                        raise KeyError("Invalid slice")
-                else:
-                    # sequence of tensors
-                    return self.dataset[paths[0]].compute()[tuple(slice_)]
+            slice_0 = self.indexes
+        # single datapoint
+        paths = self.subpath.split("/")[1:]
+        schema = self.schema[paths[0]]
+        slice_ = [
+            ofs if sq else slice(ofs, ofs + num) if num else slice(None, None)
+            for ofs, num, sq in zip(self.offsets, self.nums, self.squeeze_dims)
+        ]
+        if isinstance(schema, Sequence):
+            if isinstance(schema.dtype, SchemaDict):
+                # if sequence of dict, have to fetch everything
+                lazy = self.dataset.lazy
+                self.dataset.lazy = False
+                value = self.dataset[[paths[0], slice_0]]
+                self.dataset.lazy = lazy
+                for path in paths[1:]:
+                    value = value[path]
+                try:
+                    return value[tuple(slice_)]
+                except TypeError:
+                    # raise error
+                    return value
+                except KeyError:
+                    raise KeyError("Invalid slice")
+            else:
+                # sequence of tensors
+                return self.dataset[[paths[0], slice_0]].compute()[tuple(slice_)]
 
     def compute(self):
         return self.numpy()
 
-    def __str__(self):
-        if isinstance(self.dataset, DatasetView):
-            slice_ = [
-                self.dataset.offset
-                if self.dataset.squeeze_dim
-                else slice(
-                    self.dataset.offset, self.dataset.offset + self.dataset.num_samples
+    def slice_extract_info(self, slice_, num):
+        """Extracts number of samples and offset from slice"""
+        if isinstance(slice_, int):
+            slice_ = slice_ + num if num and slice_ < 0 else slice_
+            if num and (slice_ >= num or slice_ < 0):
+                raise IndexError(
+                    "index out of bounds for dimension with length {}".format(num)
                 )
-            ]
-        else:
-            slice_ = [slice(None, None)]
-        slice_ += [
+            return (1, slice_)
+
+        if slice_.step is not None and slice_.step < 0:  # negative step not supported
+            raise ValueError("Negative step not supported in dataset slicing")
+        offset = 0
+        if slice_.start is not None:
+            slice_ = (
+                slice(slice_.start + num, slice_.stop) if slice_.start < 0 else slice_
+            )  # make indices positive if possible
+            if num and (slice_.start < 0 or slice_.start >= num):
+                raise IndexError(
+                    "index out of bounds for dimension with length {}".format(num)
+                )
+            offset = slice_.start
+        if slice_.stop is not None:
+            slice_ = (
+                slice(slice_.start, slice_.stop + num) if slice_.stop < 0 else slice_
+            )  # make indices positive if possible
+            if num and (slice_.stop < 0 or slice_.stop > num):
+                raise IndexError(
+                    "index out of bounds for dimension with length {}".format(num)
+                )
+        if slice_.start is not None and slice_.stop is not None:
+            if (
+                slice_.start < 0
+                and slice_.stop < 0
+                or slice_.start >= 0
+                and slice_.stop >= 0
+            ):
+                # If same signs, bound checking can be done
+                if abs(slice_.start) > abs(slice_.stop):
+                    raise IndexError("start index is greater than stop index")
+                num = abs(slice_.stop) - abs(slice_.start)
+            else:
+                num = 0
+            # num = 0 if slice_.stop < slice_.start else slice_.stop - slice_.start
+        elif slice_.start is None and slice_.stop is not None:
+            num = slice_.stop
+        elif slice_.start is not None and slice_.stop is None:
+            num = num - slice_.start if num else 0
+        return num, offset
+
+    def __str__(self):
+        slice_ = [
             ofs if sq else slice(ofs, ofs + num) if num else slice(None, None)
             for ofs, num, sq in zip(self.offsets, self.nums, self.squeeze_dims)
         ]
-        return f"ObjectView(subpath='{self.subpath}', slice={str(slice_)})"
+        return f"ObjectView(subpath='{self.subpath}', indexes={str(self.indexes)}, slice={str(slice_)})"

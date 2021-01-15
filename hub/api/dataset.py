@@ -395,7 +395,7 @@ class Dataset:
                         dataset=self,
                         subpath=subpath,
                         lazy=self.lazy,
-                        slice_list=slice(0, self._shape[0]),
+                        slice_=[slice(0, self._shape[0])],
                     )
                     return objectview if self.lazy else objectview.compute()
             return self._get_dictionary(subpath)
@@ -413,7 +413,7 @@ class Dataset:
                     objectview = ObjectView(
                         dataset=self,
                         subpath=subpath,
-                        slice_list=slice_list,
+                        slice_=slice_list,
                         lazy=self.lazy,
                     )
                     return objectview if self.lazy else objectview.compute()

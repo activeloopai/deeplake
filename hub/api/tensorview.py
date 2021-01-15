@@ -147,7 +147,7 @@ class TensorView:
             objectview = objv.ObjectView(
                 dataset=self.dataset,
                 subpath=self.subpath + subpath,
-                slice_list=slice_list,
+                slice_=slice_list,
                 lazy=self.lazy,
             )
             return objectview if self.lazy else objectview.compute()

@@ -6,7 +6,7 @@ from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
 from hub.utils import batchify
-from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_split, str_to_int
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
