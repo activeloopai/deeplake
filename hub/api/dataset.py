@@ -22,8 +22,6 @@ from hub.schema.features import (
 from hub.log import logger
 import hub.store.pickle_s3_storage
 
-from hub.api.datasetview import DatasetView, ObjectView, TensorView
-
 from hub.api.datasetview import DatasetView
 from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
@@ -41,7 +39,8 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
-    HubDatasetNotFoundException, LargeShapeFilteringException,
+    HubDatasetNotFoundException,
+    LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,

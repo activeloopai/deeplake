@@ -4,14 +4,12 @@ import collections.abc as abc
 from hub.api.dataset_utils import (
     create_numpy_dict,
     get_value,
-    # slice_extract_info,
     slice_split,
     str_to_int,
 )
 from hub.exceptions import LargeShapeFilteringException, NoneValueException
-import collections.abc as abc
-import hub.api.objectview as objv
-from hub.schema import Sequence, Tensor, SchemaDict, Primitive, Text
+from hub.api.objectview import ObjectView
+from hub.schema import Sequence
 
 
 class DatasetView:
