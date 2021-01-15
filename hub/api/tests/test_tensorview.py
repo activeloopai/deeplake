@@ -1,5 +1,5 @@
 from hub import Dataset
-from hub.api.tensorview import TensorView
+from hub.api.datasetview import TensorView
 from hub.exceptions import NoneValueException
 from hub.schema import Tensor
 

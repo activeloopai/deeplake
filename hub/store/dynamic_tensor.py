@@ -1,4 +1,5 @@
 import collections.abc as abc
+from shutil import Error
 from hub.schema.features import Shape
 import json
 import math

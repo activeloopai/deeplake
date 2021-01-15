@@ -20,6 +20,9 @@ from hub.schema.features import (
     featurify,
 )
 from hub.log import logger
+import hub.store.pickle_s3_storage
+
+from hub.api.datasetview import DatasetView, ObjectView, TensorView
 
 from hub.api.datasetview import DatasetView
 from hub.api.objectview import ObjectView
@@ -238,15 +241,12 @@ class Dataset:
         return self._meta_information
 
     def _store_meta(self) -> dict:
-
         meta = {
             "shape": self._shape,
             "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
+            "meta_info": self._meta_information or dict(),
         }
-
-        if self._meta_information != None:
-            meta["meta_info"] = self._meta_information
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
@@ -267,7 +267,13 @@ class Dataset:
                     fs.listdir(path)
                 except:
                     raise WrongUsernameException(stored_username)
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        meta_path = posixpath.join(path, "meta.json")
+        try:
+            # Update boto3 cache
+            fs.ls(path, detail=False, refresh=True)
+        except Exception:
+            pass
+        exist_meta = fs.exists(meta_path)
         if exist_meta:
             if "w" in mode:
                 fs.rm(path, recursive=True)
@@ -638,12 +644,19 @@ class Dataset:
     def enable_lazy(self):
         self.lazy = True
 
+    def _save_meta(self):
+        _meta = json.loads(self._fs_map["meta.json"])
+        _meta["meta_info"] = self._meta_information
+        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+
     def flush(self):
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
+
         for t in self._tensors.values():
             t.flush()
+        self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
 
@@ -655,6 +668,7 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         This invalidates this object.
         """
+        self.flush()
         for t in self._tensors.values():
             t.close()
         self._fs_map.close()
@@ -1100,6 +1114,7 @@ class TorchDataset:
         self.inplace = inplace
         self.output_type = output_type
         self.indexes = indexes
+        self._inited = False
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -1110,10 +1125,32 @@ class TorchDataset:
         """
         if self._ds is None:
             self._ds = Dataset(self._url, token=self._token, lock_cache=False)
+        if not self._inited:
+            self._inited = True
+            self._samples_in_chunks = {
+                key: (None in value.shape) and 1 or value.chunks[0]
+                for key, value in self._ds._tensors.items()
+            }
+            self._active_chunks = {}
+            self._active_chunks_range = {}
 
     def __len__(self):
         self._init_ds()
         return len(self.indexes) if isinstance(self.indexes, list) else 1
+
+    def _get_active_item(self, key, index):
+        active_range = self._active_chunks_range.get(key)
+        samples_per_chunk = self._samples_in_chunks[key]
+        if active_range is None or index not in active_range:
+            active_range_start = index - index % samples_per_chunk
+            active_range = range(
+                active_range_start, active_range_start + samples_per_chunk
+            )
+            self._active_chunks_range[key] = active_range
+            self._active_chunks[key] = self._ds._tensors[key][
+                active_range.start : active_range.stop
+            ]
+        return self._active_chunks[key][index % samples_per_chunk]
 
     def __getitem__(self, ind):
         if isinstance(self.indexes, int):
@@ -1131,10 +1168,10 @@ class TorchDataset:
                 if split_key[i] not in cur.keys():
                     cur[split_key[i]] = {}
                 cur = cur[split_key[i]]
-            if not isinstance(self._ds._tensors[key][index], bytes) and not isinstance(
-                self._ds._tensors[key][index], str
-            ):
-                t = self._ds._tensors[key][index]
+
+            item = self._get_active_item(key, index)
+            if not isinstance(item, bytes) and not isinstance(item, str):
+                t = item
                 if self.inplace:
                     t = torch.tensor(t)
                 cur[split_key[-1]] = t

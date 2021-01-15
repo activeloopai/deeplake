@@ -1,5 +1,6 @@
 from hub.utils import _tuple_product
 from hub.api.tensorview import TensorView
+import collections.abc as abc
 from hub.api.dataset_utils import (
     create_numpy_dict,
     get_value,
@@ -10,6 +11,7 @@ from hub.api.dataset_utils import (
 from hub.exceptions import LargeShapeFilteringException, NoneValueException
 import collections.abc as abc
 import hub.api.objectview as objv
+from hub.schema import Sequence, Tensor, SchemaDict, Primitive, Text
 
 
 class DatasetView:
@@ -90,7 +92,7 @@ class DatasetView:
                 return tensorview if self.lazy else tensorview.compute()
             for key in self.dataset._tensors.keys():
                 if subpath.startswith(key):
-                    objectview = objv.ObjectView(
+                    objectview = ObjectView(
                         dataset=self.dataset,
                         subpath=subpath,
                         slice_=slice_,
@@ -107,8 +109,9 @@ class DatasetView:
                 indexes = self.indexes
             slice_list[0] = indexes
             schema_obj = self.dataset.schema.dict_[subpath.split("/")[1]]
+
             if subpath in self.dataset._tensors.keys() and (
-                not isinstance(schema_obj, objv.Sequence) or len(slice_list) <= 1
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
             ):
                 tensorview = TensorView(
                     dataset=self.dataset,
@@ -119,7 +122,7 @@ class DatasetView:
                 return tensorview if self.lazy else tensorview.compute()
             for key in self.dataset._tensors.keys():
                 if subpath.startswith(key):
-                    objectview = objv.ObjectView(
+                    objectview = ObjectView(
                         dataset=self.dataset,
                         subpath=subpath,
                         slice_=slice_list,
