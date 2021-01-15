@@ -574,7 +574,7 @@ def test_datasetview_repr():
     url = "./data/test/dsv_repr"
     ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
     dsv = ds[2:]
-    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
     assert dsv.__repr__() == print_text
 
 
@@ -646,6 +646,95 @@ def test_dataset_assign_value():
     assert ds["text", 4].compute() == "WDLDYN6XG"
     assert ds["text", 5].compute() == "GHLSGBFF8"
     assert ds["text", 6].compute() == "YGFJN75NF"
+
+
+simple_schema = {"num": "uint8"}
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_dataset_copy_s3_local():
+    ds = Dataset("./data/testing/original_ds_local", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("s3://snark-test/copy_ds_s3")
+    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    for i in range(100):
+        assert ds2["num", i] == 2 * i
+        assert ds3["num", i] == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires s3 credentials")
+def test_dataset_copy_gcs_local():
+    ds = Dataset("./data/testing/original_ds_local", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs")
+    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    for i in range(100):
+        assert ds2["num", i] == 2 * i
+        assert ds3["num", i] == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not azure_creds_exist(), reason="requires s3 credentials")
+def test_dataset_copy_azure_local():
+    token = {"account_key": os.getenv("ACCOUNT_KEY")}
+    ds = Dataset(
+        "https://activeloop.blob.core.windows.net/activeloop-hub/original_ds_azure",
+        token=token,
+        shape=(100,),
+        schema=simple_schema
+    )
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs")
+    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    for i in range(100):
+        assert ds2["num", i] == 2 * i
+        assert ds3["num", i] == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
+def test_dataset_copy_hub_local():
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    login_fn("testingacc", password)
+    ds = Dataset("testingacc/original_ds_hub", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs")
+    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    for i in range(100):
+        assert ds2["num", i] == 2 * i
+        assert ds3["num", i] == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(
+    not (gcp_creds_exist() and s3_creds_exist()),
+    reason="requires s3 and gcs credentials",
+)
+def test_dataset_copy_gcs_s3():
+    ds = Dataset("s3://snark-test/original_ds_s3", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs")
+    ds3 = ds2.copy("s3://snark-test/copy_ds_s3")
+    for i in range(100):
+        assert ds2["num", i] == 2 * i
+        assert ds3["num", i] == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
 
 
 if __name__ == "__main__":

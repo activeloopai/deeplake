@@ -1,3 +1,4 @@
+from hub.collections import dataset
 import os
 import posixpath
 import collections.abc as abc
@@ -39,7 +40,9 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
+    DirectoryNotEmptyException,
     HubDatasetNotFoundException,
+    HubException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     ShapeArgumentNotFoundException,
@@ -189,9 +192,8 @@ class Dataset:
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
 
-        if needcreate and (
-            self._path.startswith("s3://snark-hub-dev/")
-            or self._path.startswith("s3://snark-hub/")
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
         ):
             subpath = self._path[5:]
             spl = subpath.split("/")
@@ -199,9 +201,10 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta, public=public
-            )
+            if needcreate:
+                HubControlClient().create_dataset_entry(
+                    self.username, self.dataset_name, self.meta, public=public
+                )
 
     @property
     def mode(self):
@@ -466,6 +469,65 @@ class Dataset:
                     :
                 ] = assign_value
 
+    def copy(self, dst_url: str, token=None, fs=None, public=True):
+        """| Creates a copy of the dataset at the specified url and returns the dataset object
+        Parameters
+        ----------
+        dst_url: str
+            The destination url where dataset should be copied
+        token: str or dict, optional
+            If dst_url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        fs: optional
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the new copied dataset and
+            the dataset won't be visible in the visualizer to the public
+        """
+        destination = dst_url
+        path = self._copy_helper(
+            dst_url=dst_url, token=token, fs=fs, public=public, src_url=self._url
+        )
+
+        #  create entry in database if stored in hub storage
+        if path.startswith("s3://snark-hub-dev/") or path.startswith("s3://snark-hub/"):
+            subpath = path[5:]
+            spl = subpath.split("/")
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            username = spl[-2]
+            dataset_name = spl[-1]
+            HubControlClient().create_dataset_entry(
+                username, dataset_name, self.meta, public=public
+            )
+        return hub.Dataset(destination, token=token, fs=fs, public=public)
+
+    def _copy_helper(
+        self, dst_url: str, token=None, fs=None, public=True, src_url=None
+    ):
+        """Helper function for Dataset.copy"""
+        src_fs = self._fs
+        src_url = self._fs.expand_path(src_url)[0]
+        dst_url = dst_url[:-1] if dst_url.endswith("/") else dst_url
+        dst_fs, dst_url = (
+            (fs, dst_url)
+            if fs
+            else get_fs_and_path(dst_url, token=token, public=public)
+        )
+        if dst_fs.ls(dst_url):
+            raise DirectoryNotEmptyException(dst_url)
+        for path in src_fs.ls(src_url):
+            dst_path = dst_url + path[len(src_url) :]
+            if src_fs.isfile(path):
+                content = src_fs.cat_file(path)
+                dst_fs.pipe_file(dst_path, content)
+            else:
+                dst_fs.mkdir(dst_path)
+                self._copy_helper(
+                    dst_path, token=token, fs=dst_fs, public=public, src_url=path
+                )
+        return dst_url
+
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self._shape[0]:
@@ -519,9 +581,11 @@ class Dataset:
         num_samples: int, optional
             The number of samples required of the dataset that needs to be converted
         """
-        if "torch" not in sys.modules:
+
+        try:
+            import torch
+        except ModuleNotFoundError:
             raise ModuleNotInstalledException("torch")
-        import torch
 
         global torch
 
@@ -693,7 +757,7 @@ class Dataset:
         return (
             "Dataset(schema="
             + str(self._schema)
-            + "url="
+            + ", url="
             + "'"
             + self._url
             + "'"
