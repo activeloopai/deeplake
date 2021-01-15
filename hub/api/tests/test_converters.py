@@ -306,6 +306,12 @@ def test_to_from_pytorch():
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_bug():
+    ds = hub.Dataset('activeloop/mnist', mode="r")
+    data = ds.to_pytorch()
+
+
 if __name__ == "__main__":
     with Timer("Test Converters"):
         with Timer("from MNIST"):

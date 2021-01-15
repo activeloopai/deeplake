@@ -519,13 +519,14 @@ class Dataset:
         num_samples: int, optional
             The number of samples required of the dataset that needs to be converted
         """
-        if "torch" not in sys.modules:
+        try:
+            import torch
+        except ModuleNotFoundError:
             raise ModuleNotInstalledException("torch")
-        import torch
 
         global torch
-
-        self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
+        if "r" not in self.mode:
+            self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(
             self,
             transform,
