@@ -65,13 +65,6 @@ class Image(Tensor):
             chunks=chunks,
             compressor=compressor,
         )
-        # self._set_encoding_format(encoding_format)
-
-    # def _set_encoding_format(self, encoding_format):
-    #     """Set the encoding format."""
-    #     if encoding_format not in ("png", "jpeg"):
-    #         raise ValueError("Not supported encoding format")
-    #     self.encoding_format = encoding_format
 
     def _set_dtype(self, dtype):
         """Set the dtype."""
