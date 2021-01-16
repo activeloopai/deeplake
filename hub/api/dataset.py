@@ -454,6 +454,14 @@ class Dataset:
             self._tensors[subpath][slice_list] = assign_value
 
     def filter(self, dic):
+        """| Applies a filter to get a new datasetview that matches the dictionary provided
+
+        Parameters
+        ----------
+        dic: dictionary
+            A dictionary of key value pairs, used to filter the dataset. For nested schemas use flattened dictionary representation
+            i.e instead of {"abc": {"xyz" : 5}} use {"abc/xyz" : 5}
+        """
         indexes = self.indexes
         for k, v in dic.items():
             k = k if k.startswith("/") else "/" + k

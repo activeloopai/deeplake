@@ -25,12 +25,6 @@ class DatasetView:
         ----------
         dataset: hub.api.dataset.Dataset object
             The dataset whose DatasetView is being created
-        num_samples: int
-            The number of samples in this DatasetView
-        offset: int
-            The offset from which the DatasetView starts
-        squeeze_dim: bool, optional
-            For slicing with integers we would love to remove the first dimension to make it nicer
         lazy: bool, optional
             Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
         indexes: optional
@@ -138,7 +132,6 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
-        print(slice_)
         assign_value = get_value(value)
         assign_value = str_to_int(
             assign_value, self.dataset.tokenizer
@@ -184,8 +177,15 @@ class DatasetView:
                     self.dataset._tensors[subpath][current_slice] = assign_value[i]
 
     def filter(self, dic):
+        """| Applies a filter to get a new datasetview that matches the dictionary provided
+
+        Parameters
+        ----------
+        dic: dictionary
+            A dictionary of key value pairs, used to filter the dataset. For nested schemas use flattened dictionary representation
+            i.e instead of {"abc": {"xyz" : 5}} use {"abc/xyz" : 5}
+        """
         indexes = self.indexes
-        # TODO Add check for shapes to avoid filtering huge tensors
         for k, v in dic.items():
             k = k if k.startswith("/") else "/" + k
             if k not in self.dataset._tensors.keys():
