@@ -376,7 +376,7 @@ class Dataset:
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError(
-                    "Can't slice a dataset with multiple slices without subpath"
+                    "Can't slice a dataset with multiple slices without key"
                 )
             num, ofs = slice_extract_info(slice_list[0], self._shape[0])
             return DatasetView(
@@ -387,7 +387,7 @@ class Dataset:
                 lazy=self.lazy,
             )
         elif not slice_list:
-            if subpath in self._tensors.keys():
+            if subpath in self.keys:
                 tensorview = TensorView(
                     dataset=self,
                     subpath=subpath,
@@ -398,7 +398,7 @@ class Dataset:
                     return tensorview
                 else:
                     return tensorview.compute()
-            for key in self._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self, subpath=subpath, lazy=self.lazy
@@ -411,7 +411,7 @@ class Dataset:
         else:
             num, ofs = slice_extract_info(slice_list[0], self.shape[0])
             schema_obj = self.schema.dict_[subpath.split("/")[1]]
-            if subpath in self._tensors.keys() and (
+            if subpath in self.keys and (
                 not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
             ):
                 tensorview = TensorView(
@@ -421,7 +421,7 @@ class Dataset:
                     return tensorview
                 else:
                     return tensorview.compute()
-            for key in self._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self,
@@ -455,14 +455,14 @@ class Dataset:
         subpath, slice_list = slice_split(slice_)
 
         if not subpath:
-            raise ValueError("Can't assign to dataset sliced without subpath")
+            raise ValueError("Can't assign to dataset sliced without key")
         elif not slice_list:
-            if subpath in self._tensors.keys():
+            if subpath in self.keys:
                 self._tensors[subpath][:] = assign_value  # Add path check
             else:
                 ObjectView(dataset=self, subpath=subpath)[:] = assign_value
         else:
-            if subpath in self._tensors.keys():
+            if subpath in self.keys:
                 self._tensors[subpath][slice_list] = assign_value
             else:
                 ObjectView(dataset=self, subpath=subpath, slice_list=slice_list)[
@@ -522,13 +522,14 @@ class Dataset:
         num_samples: int, optional
             The number of samples required of the dataset that needs to be converted
         """
-        if "torch" not in sys.modules:
+        try:
+            import torch
+        except ModuleNotFoundError:
             raise ModuleNotInstalledException("torch")
-        import torch
 
         global torch
-
-        self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
+        if "r" not in self.mode:
+            self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
         return TorchDataset(
             self,
             transform,
@@ -561,7 +562,7 @@ class Dataset:
         def tf_gen():
             for index in range(offset, offset + num_samples):
                 d = {}
-                for key in self._tensors.keys():
+                for key in self.keys:
                     split_key = key.split("/")
                     cur = d
                     for i in range(1, len(split_key) - 1):
@@ -617,7 +618,7 @@ class Dataset:
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
-        for key in self._tensors.keys():
+        for key in self.keys:
             if key.startswith(subpath):
                 suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")

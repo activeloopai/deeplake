@@ -591,13 +591,18 @@ def test_dataset_lazy():
         "text": Text(shape=(None,), max_shape=(12,)),
     }
     url = "./data/test/ds_lazy"
-    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w", lazy=False)
+    ds = Dataset(schema=dt, shape=(2,), url=url, mode="w")
     ds["text", 1] = "hello world"
     ds["second", 0] = 3.14
     ds["first", 0] = np.array([5, 6])
+    ds.disable_lazy()
     assert ds["text", 1] == "hello world"
     assert ds["second", 0] == 3.14
     assert (ds["first", 0] == np.array([5, 6])).all()
+    ds.enable_lazy()
+    assert ds["text", 1].compute() == "hello world"
+    assert ds["second", 0].compute() == 3.14
+    assert (ds["first", 0].compute() == np.array([5, 6])).all()
 
 
 def test_dataset_view_lazy():
@@ -607,14 +612,19 @@ def test_dataset_view_lazy():
         "text": Text(shape=(None,), max_shape=(12,)),
     }
     url = "./data/test/dsv_lazy"
-    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w", lazy=False)
+    ds = Dataset(schema=dt, shape=(4,), url=url, mode="w")
     ds["text", 3] = "hello world"
     ds["second", 2] = 3.14
     ds["first", 2] = np.array([5, 6])
     dsv = ds[2:]
+    dsv.disable_lazy()
     assert dsv["text", 1] == "hello world"
     assert dsv["second", 0] == 3.14
     assert (dsv["first", 0] == np.array([5, 6])).all()
+    dsv.enable_lazy()
+    assert dsv["text", 1].compute() == "hello world"
+    assert dsv["second", 0].compute() == 3.14
+    assert (dsv["first", 0].compute() == np.array([5, 6])).all()
 
 
 def test_datasetview_repr():
