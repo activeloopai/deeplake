@@ -37,6 +37,9 @@ class RayTransform(Transform):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
+        self.ray_kwargs = kwargs
+        self.ray_func = func
+        self.ray_ds = ds
         self.workers = workers
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
@@ -317,33 +320,32 @@ class RayGeneratorTransform(RayTransform):
         """
         _ds = ds or self.base_ds
 
-        results = ray.util.iter.from_range(len(_ds), num_shards=self.workers).transform(
-            TransformShard(
-                ds=_ds, func=self.call_func, schema=self.schema, kwargs=self.kwargs
-            )
-        )
+        if isinstance(self.ray_ds, Transform) or isinstance(self.ray_ds, RayTransform):
+            raise Exception("Stacked multiple transforms are currently not supported")
+
+        results = ray.util.iter.from_range(len(_ds), num_shards=self.workers)
 
         @remote
-        def upload_shard(i, shard_results):
-            """
-            Create a seperate dataset per shard
-            """
-            shard_results = self._split_list_to_dicts(shard_results)
-
-            if len(shard_results) == 0 or len(list(shard_results.values())[0]) == 0:
-                return None
-
-            ds = self.upload(
-                shard_results,
+        def transform_shard(i, shard_results):
+            print(f"processing {i} shard")
+            shard_results = list(shard_results)
+            return Transform(
+                self.ray_func,
+                self.schema,
+                self.ray_ds,
+                scheduler="single",
+                workers=1,
+                ranged=slice(shard_results[0], shard_results[-1]),
+                **self.ray_kwargs,
+            ).store(
                 url=f"{url}_shard_{i}",
                 token=token,
                 progressbar=progressbar,
                 public=public,
             )
-            return ds
 
         work = [
-            upload_shard.remote(i, shard) for i, shard in enumerate(results.shards())
+            transform_shard.remote(i, shard) for i, shard in enumerate(results.shards())
         ]
 
         datasets = ray.get(work)

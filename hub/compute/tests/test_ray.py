@@ -189,6 +189,7 @@ def test_stacked_transform():
     ds2 = multiply_transform(ds1, multiplier=3, times=2)
     ds3 = multiply_transform_2(ds2, multiplier=5, times=3)
     ds4 = ds3.store("./data/stacked_transform_2")
+
     assert len(ds4) == 150
     assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
 
@@ -196,7 +197,8 @@ def test_stacked_transform():
 if __name__ == "__main__":
     # test_ray_simple()
     # test_ray_non_dynamic()
-    test_ray_dynamic()
+    # test_ray_dynamic()
     # test_ray_simple_generator()
     # test_pipeline_ray()
     # test_ray_pipeline_multiple()
+    test_stacked_transform()

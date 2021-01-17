@@ -43,7 +43,14 @@ def get_sample_size(schema, workers):
 
 class Transform:
     def __init__(
-        self, func, schema, ds, scheduler: str = "single", workers: int = 1, **kwargs
+        self,
+        func,
+        schema,
+        ds,
+        scheduler: str = "single",
+        ranged: slice = None,
+        workers: int = 1,
+        **kwargs,
     ):
         """| Transform applies a user defined function to each sample in single threaded manner.
 
@@ -59,6 +66,8 @@ class Transform:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
+        ranged: slice
+            how to slice the dataset
         **kwargs:
             additional arguments that will be passed to func as static argument for all samples
         """
@@ -70,6 +79,10 @@ class Transform:
 
         if isinstance(self._ds, Transform):
             self.base_ds = self._ds.base_ds
+
+            if ranged is not None:
+                self.base_ds = self.base_ds[ranged]
+
             self._func = self._ds._func[:]
             self._func.append(func)
             self.kwargs = self._ds.kwargs[:]

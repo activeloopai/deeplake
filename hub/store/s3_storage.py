@@ -5,6 +5,7 @@ import boto3
 import botocore
 from botocore.exceptions import ClientError
 from s3fs import S3FileSystem
+import numpy
 
 from hub.exceptions import S3Exception
 from hub.log import logger
@@ -62,6 +63,10 @@ class S3Storage(MutableMapping):
     def __setitem__(self, path, content):
         try:
             path = posixpath.join(self.path, path)
+
+            if isinstance(content, numpy.ndarray):
+                content = content.tobytes()
+
             attrs = {
                 "Bucket": self.bucket,
                 "Body": content,
