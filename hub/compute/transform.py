@@ -79,16 +79,15 @@ class Transform:
 
         if isinstance(self._ds, Transform):
             self.base_ds = self._ds.base_ds
-
-            if ranged is not None:
-                self.base_ds = self.base_ds[ranged]
-
             self._func = self._ds._func[:]
             self._func.append(func)
             self.kwargs = self._ds.kwargs[:]
             self.kwargs.append(kwargs)
         else:
             self.base_ds = ds
+            print("88", ranged)
+            if ranged is not None:
+                self.base_ds = self.base_ds[ranged]
             self._func = [func]
             self.kwargs = [kwargs]
 

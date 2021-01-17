@@ -320,22 +320,25 @@ class RayGeneratorTransform(RayTransform):
         """
         _ds = ds or self.base_ds
 
-        if isinstance(self.ray_ds, Transform) or isinstance(self.ray_ds, RayTransform):
-            raise Exception("Stacked multiple transforms are currently not supported")
+        # if isinstance(self.ray_ds, Transform) or isinstance(self.ray_ds, RayTransform):
+        #    raise Exception("Stacked multiple transforms are currently not supported")
 
         results = ray.util.iter.from_range(len(_ds), num_shards=self.workers)
 
         @remote
         def transform_shard(i, shard_results):
-            print(f"processing {i} shard")
             shard_results = list(shard_results)
+            a = shard_results[0]
+            b = shard_results[-1] + 1
+            print(f"-- processing {i} shard from {a} to {b}")
+
             return Transform(
                 self.ray_func,
                 self.schema,
                 self.ray_ds,
                 scheduler="single",
                 workers=1,
-                ranged=slice(shard_results[0], shard_results[-1]),
+                ranged=slice(a, b),
                 **self.ray_kwargs,
             ).store(
                 url=f"{url}_shard_{i}",

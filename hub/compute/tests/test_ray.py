@@ -201,4 +201,5 @@ if __name__ == "__main__":
     # test_ray_simple_generator()
     # test_pipeline_ray()
     # test_ray_pipeline_multiple()
-    test_stacked_transform()
+    # test_stacked_transform()
+    test_ray_pipeline_multiple()
