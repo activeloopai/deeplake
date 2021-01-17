@@ -255,35 +255,6 @@ class RayTransform(Transform):
                 ds._tensors[f"/{key}"].set_dynamic_shape(slice_, shape)
 
 
-class TransformShard:
-    def __init__(self, ds, func, schema, kwargs):
-
-        if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
-            ds.squeeze_dim = False
-
-        self._ds = ds
-        self._func = func
-        self.schema = schema
-        self.kwargs = kwargs
-        self.token = None
-
-    def __call__(self, ids):
-        """
-        For each shard, transform each sample and then store inside shared memory of ray
-        """
-        for index in ids:
-            item = self._ds[index]
-            if isinstance(item, DatasetView) or isinstance(item, Dataset):
-                item = item.compute()
-
-            items = self._func(0, item)
-            if not isinstance(items, list):
-                items = [items]
-
-            for item in items:
-                yield Transform._flatten_dict(item, schema=self.schema)
-
-
 class RayGeneratorTransform(RayTransform):
     def store(
         self,
@@ -319,9 +290,6 @@ class RayGeneratorTransform(RayTransform):
             uploaded dataset
         """
         _ds = ds or self.base_ds
-
-        # if isinstance(self.ray_ds, Transform) or isinstance(self.ray_ds, RayTransform):
-        #    raise Exception("Stacked multiple transforms are currently not supported")
 
         results = ray.util.iter.from_range(len(_ds), num_shards=self.workers)
 
