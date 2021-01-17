@@ -1,5 +1,5 @@
 pytest==6.2.1
 pytest-cov==2.10.1
 flake8==3.8.4
-black>20.8
+black>=20.8
 cloudpickle>=1.6.0,<2
