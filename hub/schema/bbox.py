@@ -27,10 +27,6 @@ class BBox(Tensor):
             shape=(4,), dtype=dtype, chunks=chunks, compressor=compressor
         )
 
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
-
     def __str__(self):
         out = super().__str__()
         out = "BBox" + out[6:]

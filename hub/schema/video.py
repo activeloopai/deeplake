@@ -1,7 +1,6 @@
 from typing import Tuple
 
 from hub.schema import Tensor
-from hub.schema.image import Image
 
 
 class Video(Tensor):
@@ -50,10 +49,6 @@ class Video(Tensor):
             chunks=chunks,
             compressor=compressor,
         )
-
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
 
     def __str__(self):
         out = super().__str__()
