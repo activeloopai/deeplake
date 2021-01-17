@@ -255,6 +255,40 @@ class RayTransform(Transform):
                 ds._tensors[f"/{key}"].set_dynamic_shape(slice_, shape)
 
 
+@remote
+class TransformShard:
+    def __init__(self, ds, func, schema, progressbar, url, public, kwargs):
+
+        if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
+            ds.squeeze_dim = False
+
+        self._ds = ds
+        self._func = func
+        self.schema = schema
+        self.kwargs = kwargs
+        self.token = None
+        self.progressbar = progressbar
+        self.public = public
+        self.url = url
+
+    def transform_shard(self, url: str, start: int, end: int):
+        print(f" -- processing {start} shard from {start} to {end}")
+        return Transform(
+            self._func,
+            self.schema,
+            self._ds,
+            scheduler="single",
+            workers=1,
+            ranged=slice(start, end),
+            **self.kwargs,
+        ).store(
+            url=f"{self.url}_shard_{start}",
+            token=self.token,
+            progressbar=self.progressbar,
+            public=self.public,
+        )
+
+
 class RayGeneratorTransform(RayTransform):
     def store(
         self,
@@ -290,36 +324,23 @@ class RayGeneratorTransform(RayTransform):
             uploaded dataset
         """
         _ds = ds or self.base_ds
-
-        results = ray.util.iter.from_range(len(_ds), num_shards=self.workers)
-
-        @remote
-        def transform_shard(i, shard_results):
-            shard_results = list(shard_results)
-            a = shard_results[0]
-            b = shard_results[-1] + 1
-            print(f"-- processing {i} shard from {a} to {b}")
-
-            return Transform(
-                self.ray_func,
-                self.schema,
-                self.ray_ds,
-                scheduler="single",
-                workers=1,
-                ranged=slice(a, b),
-                **self.ray_kwargs,
-            ).store(
-                url=f"{url}_shard_{i}",
-                token=token,
+        results = []
+        for batch in batchify(range(0, len(_ds)), len(_ds) // self.workers):
+            actor = TransformShard.remote(
+                ds=self.ray_ds,
+                func=self.ray_func,
+                schema=self.schema,
                 progressbar=progressbar,
                 public=public,
+                url=url,
+                kwargs=self.ray_kwargs,
             )
 
-        work = [
-            transform_shard.remote(i, shard) for i, shard in enumerate(results.shards())
-        ]
+            results.append(
+                actor.transform_shard.remote(url, start=batch[0], end=batch[-1] + 1)
+            )
 
-        datasets = ray.get(work)
+        datasets = ray.get(results)
         datasets = [d for d in datasets if d]
         ds = self.merge_sharded_dataset(datasets, url, token=token)
         return ds

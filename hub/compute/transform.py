@@ -85,7 +85,7 @@ class Transform:
             self.kwargs.append(kwargs)
         else:
             self.base_ds = ds
-            print("88", ranged)
+            
             if ranged is not None:
                 self.base_ds = self.base_ds[ranged]
             self._func = [func]
