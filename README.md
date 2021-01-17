@@ -117,6 +117,9 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ```sh
 hub register
 hub login
+
+# alternatively, on platforms like kaggle use this, replacing username and password with actual credentials
+hub login -u username -p password
 ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
