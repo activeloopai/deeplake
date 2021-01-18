@@ -1,3 +1,4 @@
+from hub.api.dataset_utils import slice_extract_info, slice_split
 from hub.schema.class_label import ClassLabel
 import os
 import shutil
@@ -836,6 +837,23 @@ def test_dataset_filtering_3():
     assert (ds_filtered[3:8, "cl"].compute() == np.zeros((5,))).all()
 
 
+def test_dataset_utils():
+    with pytest.raises(TypeError):
+        slice_split([5.3])
+    with pytest.raises(IndexError):
+        slice_extract_info(5, 3)
+    with pytest.raises(ValueError):
+        slice_extract_info(slice(2, 10, -2), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(20, 100), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(1, 20), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(4, 1), 10)
+    slice_extract_info(slice(None, 10), 20)
+    slice_extract_info(slice(20, None), 50)
+
+
 if __name__ == "__main__":
     test_dataset_assign_value()
     test_dataset_setting_shape()
@@ -863,3 +881,4 @@ if __name__ == "__main__":
     test_dataset_filtering_3()
     test_datasetview_2()
     test_dataset_3()
+    test_dataset_utils()
