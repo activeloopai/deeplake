@@ -79,6 +79,7 @@ class Dataset:
         tokenizer=None,
         lazy: bool = True,
         public: bool = True,
+        name: str = None,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -113,6 +114,8 @@ class Dataset:
             only applicable if using hub storage, ignored otherwise
             setting this to False allows only the user who created it to access the dataset and
             the dataset won't be visible in the visualizer to the public
+        name: str, optional
+            only applicable when using hub storage, this is the name that shows up on the visualizer
         """
 
         shape = norm_shape(shape)
@@ -128,6 +131,7 @@ class Dataset:
         self._mode = mode
         self.tokenizer = tokenizer
         self.lazy = lazy
+        self._name = name
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
@@ -147,6 +151,7 @@ class Dataset:
         self.dataset_name = None
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
@@ -216,6 +221,10 @@ class Dataset:
         return self._shape
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def token(self):
         return self._token
 
@@ -241,6 +250,7 @@ class Dataset:
             "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
             "meta_info": self._meta_information or dict(),
+            "name": self._name,
         }
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
@@ -482,6 +492,11 @@ class Dataset:
         """ Append the shape: Heavy Operation """
         size += self._shape[0]
         self.resize_shape(size)
+
+    def rename(self, name: str) -> None:
+        self._name = name
+        self.meta = self._store_meta()
+        self.flush()
 
     def delete(self):
         """ Deletes the dataset """
