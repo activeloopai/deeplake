@@ -31,7 +31,7 @@ my_schema = {
 }
 
 
-def test_dataset2():
+def test_dataset_2():
     dt = {"first": "float", "second": "float"}
     ds = Dataset(schema=dt, shape=(2,), url="./data/test/test_dataset2", mode="w")
     ds.meta_information["description"] = "This is my description"
@@ -643,6 +643,25 @@ def test_datasetview_2():
         assert dsv[i, "second"].compute() == i
 
 
+def test_dataset_3():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    ds = Dataset("./data/test/ds_3/", schema=dt, shape=(9,), mode="w")
+    with pytest.raises(ValueError):
+        ds[3, 8] = np.ones((3, 5))
+
+    with pytest.raises(KeyError):
+        ds["abc"] = np.ones((3, 5))
+    ds["second"] = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    for i in range(9):
+        assert ds[i, "second"].compute() == i
+    with pytest.raises(ValueError):
+        ds[3, 8].compute()
+
+
 def test_dataset_casting():
     my_schema = {
         "a": Tensor(shape=(1,), dtype="float64"),
@@ -827,7 +846,7 @@ if __name__ == "__main__":
     test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
-    test_dataset2()
+    test_dataset_2()
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()
@@ -843,3 +862,4 @@ if __name__ == "__main__":
     test_tensorview_iter()
     test_dataset_filtering_3()
     test_datasetview_2()
+    test_dataset_3()
