@@ -494,6 +494,7 @@ class Dataset:
         self.resize_shape(size)
 
     def rename(self, name: str) -> None:
+        """ Renames the dataset """
         self._name = name
         self.meta = self._store_meta()
         self.flush()
