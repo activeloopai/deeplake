@@ -137,9 +137,9 @@ class DatasetView:
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
 
         if not subpath:
-            raise ValueError("Can't assign to dataset sliced without subpath")
+            raise ValueError("Can't assign to dataset sliced without key")
         elif subpath not in self.dataset._tensors.keys():
-            raise KeyError(f"Subpath {subpath} not found in dataset")
+            raise KeyError(f"Key {subpath} not found in dataset")
 
         if not slice_list:
             slice_ = (
