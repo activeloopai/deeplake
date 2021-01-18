@@ -625,6 +625,24 @@ def test_datasetview_repr():
     assert dsv.__repr__() == print_text
 
 
+def test_datasetview_2():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    ds = Dataset("./data/test/dsv_2/", schema=dt, shape=(9,), mode="w")
+    dsv = ds[2:]
+    with pytest.raises(ValueError):
+        dsv[3] = np.ones((3, 5))
+
+    with pytest.raises(KeyError):
+        dsv["abc"] = np.ones((3, 5))
+    dsv["second"] = np.array([0, 1, 2, 3, 4, 5, 6])
+    for i in range(7):
+        assert dsv[i, "second"].compute() == i
+
+
 def test_dataset_casting():
     my_schema = {
         "a": Tensor(shape=(1,), dtype="float64"),
@@ -753,6 +771,16 @@ def test_dataset_filtering():
     ds = Dataset("./test/filtering2", shape=(100,), schema=my_schema2, mode="w")
     with pytest.raises(LargeShapeFilteringException):
         ds.filter({"image": np.ones((1920, 1080, 3))})
+    with pytest.raises(KeyError):
+        ds.filter({"random": np.ones((1920, 1080, 3))})
+
+    for i in [1, 3, 6, 15, 63, 96, 75]:
+        ds["fname", i] = "Active"
+    dsv = ds.filter({"fname": "Active"})
+    with pytest.raises(LargeShapeFilteringException):
+        dsv.filter({"image": np.ones((1920, 1080, 3))})
+    with pytest.raises(KeyError):
+        dsv.filter({"random": np.ones((1920, 1080, 3))})
 
 
 def test_dataset_filtering_2():
@@ -808,8 +836,10 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
+    test_dataset_filtering()
     test_dataset_filtering_2()
     test_pickleability()
     test_dataset_append_and_read()
     test_tensorview_iter()
     test_dataset_filtering_3()
+    test_datasetview_2()

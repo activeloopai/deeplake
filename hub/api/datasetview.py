@@ -67,7 +67,7 @@ class DatasetView:
                 if self.is_contiguous
                 else [self.indexes]
             )
-            if subpath in self.dataset._tensors.keys():
+            if subpath in self.keys:
                 tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
@@ -75,7 +75,7 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            for key in self.dataset._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self.dataset,
@@ -95,7 +95,7 @@ class DatasetView:
             slice_list[0] = indexes
             schema_obj = self.dataset.schema.dict_[subpath.split("/")[1]]
 
-            if subpath in self.dataset._tensors.keys() and (
+            if subpath in self.keys and (
                 not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
             ):
                 tensorview = TensorView(
@@ -105,7 +105,7 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            for key in self.dataset._tensors.keys():
+            for key in self.keys:
                 if subpath.startswith(key):
                     objectview = ObjectView(
                         dataset=self.dataset,
@@ -138,7 +138,7 @@ class DatasetView:
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without key")
-        elif subpath not in self.dataset._tensors.keys():
+        elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in dataset")
 
         if not slice_list:
@@ -181,8 +181,8 @@ class DatasetView:
         indexes = self.indexes
         for k, v in dic.items():
             k = k if k.startswith("/") else "/" + k
-            if k not in self.dataset._tensors.keys():
-                raise ValueError(f"Key {k} not found in the dataset")
+            if k not in self.keys:
+                raise KeyError(f"Key {k} not found in the dataset")
             tsv = self.dataset[k]
             max_shape = tsv.dtype.max_shape
             prod = _tuple_product(max_shape)
@@ -205,7 +205,7 @@ class DatasetView:
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
-        for key in self.dataset._tensors.keys():
+        for key in self.keys:
             if key.startswith(subpath):
                 suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
