@@ -386,18 +386,34 @@ def test_datasetview_get_dictionary():
     ds["label", 5, "a"] = 5 * np.ones((100, 200))
     ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
     dsv = ds[2:10]
+    dsv.disable_lazy()
     dic = dsv[3, "label"]
-    assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
-    assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
+    assert (dic["a"] == 5 * np.ones((100, 200))).all()
+    assert (dic["d"]["e"] == 3 * np.ones((5, 3))).all()
+    dsv.enable_lazy()
 
 
 def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
     ds = Dataset(schema=dt, shape=(20,), url="./data/test/tensorivew_slicing", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
-    assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
+    tv.disable_lazy()
+    tv.enable_lazy()
+    assert tv.compute().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
     assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
+
+
+def test_tensorview_iter():
+    schema = {"abc": "int32"}
+    ds = Dataset(
+        schema=schema, shape=(20,), url="./data/test/tensorivew_slicing", mode="w"
+    )
+    for i in range(20):
+        ds["abc", i] = i
+    tv = ds["abc", 3]
+    for item in tv:
+        assert item.compute() == 3
 
 
 def test_text_dataset():
@@ -415,6 +431,13 @@ def test_text_dataset():
     assert dsv["names", 0].numpy() == text + "7"
     dsv["names"][1] = text + "8"
     assert dsv["names"][1].numpy() == text + "8"
+
+    schema2 = {
+        "id": Text(shape=(4,), dtype="int64"),
+    }
+    ds2 = Dataset("./data/test/testing_text_2", mode="w", schema=schema2, shape=(10,))
+    ds2[0:5, "id"] = ["abcd", "efgh", "ijkl", "mnop", "qrst"]
+    assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
 
 
 @pytest.mark.skipif(
@@ -437,6 +460,19 @@ def test_text_dataset_tokenizer():
     assert dsv["names", 0].numpy() == text + " 7"
     dsv["names"][1] = text + " 8"
     assert dsv["names"][1].numpy() == text + " 8"
+
+    schema2 = {
+        "id": Text(shape=(4,), dtype="int64"),
+    }
+    ds2 = Dataset(
+        "./data/test/testing_text_2",
+        mode="w",
+        schema=schema2,
+        shape=(10,),
+        tokenizer=True,
+    )
+    ds2[0:5, "id"] = ["abcd", "abcd", "abcd", "abcd", "abcd"]
+    assert ds2[2:4, "id"].compute() == ["abcd", "abcd"]
 
 
 def test_append_dataset():
@@ -720,15 +756,37 @@ def test_dataset_filtering():
 
 
 def test_dataset_filtering_2():
-    schema = {"img": Image((100, 100, 3)), "cl": ClassLabel(names=["cat", "dog"])}
+    schema = {
+        "img": Image((None, None, 3), max_shape=(100, 100, 3)),
+        "cl": ClassLabel(names=["cat", "dog", "horse"]),
+    }
     ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
     for i in range(100):
-        if i % 5 == 0:
-            ds["cl", i] = 0
-        else:
-            ds["cl", i] = 1
+        ds["cl", i] = 0 if i % 5 == 0 else 1
+        ds["img", i] = i * np.ones((5, 6, 3))
+    ds["cl", 4] = 2
     ds_filtered = ds.filter({"cl": 0})
     assert ds_filtered.indexes == [5 * i for i in range(20)]
+    with pytest.raises(ValueError):
+        ds_filtered["img"].compute()
+    ds_filtered_2 = ds.filter({"cl": 2})
+    assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
+    for item in ds_filtered_2:
+        assert (item["img"].compute() == 4 * np.ones((5, 6, 3))).all()
+        assert item["cl"].compute() == 2
+
+
+def test_dataset_filtering_3():
+    schema = {
+        "img": Image((None, None, 3), max_shape=(100, 100, 3)),
+        "cl": ClassLabel(names=["cat", "dog", "horse"]),
+    }
+    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    for i in range(100):
+        ds["cl", i] = 0 if i < 10 else 1
+        ds["img", i] = i * np.ones((5, 6, 3))
+    ds_filtered = ds.filter({"cl": 0})
+    assert (ds_filtered[3:8, "cl"].compute() == np.zeros((5,))).all()
 
 
 if __name__ == "__main__":
@@ -753,3 +811,5 @@ if __name__ == "__main__":
     test_dataset_filtering_2()
     test_pickleability()
     test_dataset_append_and_read()
+    test_tensorview_iter()
+    test_dataset_filtering_3()

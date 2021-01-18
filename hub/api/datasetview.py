@@ -58,15 +58,8 @@ class DatasetView:
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
         if not subpath:
             if len(slice_list) > 1:
-                raise ValueError(
-                    "Can't slice dataset with multiple slices without subpath"
-                )
-            if isinstance(self.indexes, list):
-                indexes = self.indexes[slice_list[0]]
-                # if self.is_contiguous and indexes:
-                #     indexes = slice(indexes[0], indexes[-1] + 1)
-            else:
-                indexes = self.indexes
+                raise ValueError("Can't slice dataset with multiple slices without key")
+            indexes = self.indexes[slice_list[0]]
             return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
         elif not slice_list:
             slice_ = (
