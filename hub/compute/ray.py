@@ -342,7 +342,8 @@ class RayGeneratorTransform(RayTransform):
 
         datasets = ray.get(results)
         datasets = [d for d in datasets if d]
-        ds = self.merge_sharded_dataset(datasets, url, token=token)
+        ds = datasets[0]
+        # ds = self.merge_sharded_dataset(datasets, url, token=token)
         return ds
 
     def merge_sharded_dataset(

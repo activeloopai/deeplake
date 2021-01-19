@@ -25,7 +25,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    keywords="snark-hub",
+    keywords="activeloop-hub",
     project_urls={
         "Documentation": "https://docs.activeloop.ai/",
         "Source": "https://github.com/activeloopai/Hub",

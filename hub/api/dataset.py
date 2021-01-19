@@ -54,7 +54,7 @@ from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
 
-from hub.utils import norm_cache, norm_shape
+from hub.utils import norm_cache, norm_shape, EmptyLock
 from hub import defaults
 
 
@@ -79,6 +79,7 @@ class Dataset:
         tokenizer=None,
         lazy: bool = True,
         public: bool = True,
+        synchronizer: object = None,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -113,6 +114,8 @@ class Dataset:
             only applicable if using hub storage, ignored otherwise
             setting this to False allows only the user who created it to access the dataset and
             the dataset won't be visible in the visualizer to the public
+        synchronizer: object, optional
+            for synchronizing multiple workers working on the same dataset
         """
 
         shape = norm_shape(shape)
@@ -128,7 +131,7 @@ class Dataset:
         self._mode = mode
         self.tokenizer = tokenizer
         self.lazy = lazy
-
+        self.synchronizer = synchronizer
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
@@ -333,6 +336,7 @@ class Dataset:
                 dtype=self._get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
                 compressor=self._get_compressor(t_dtype.compressor),
+                synchronizer=self.synchronizer,
             )
 
     def _open_storage_tensors(self):
@@ -352,6 +356,7 @@ class Dataset:
                     self._fs_map,
                 ),
                 mode=self._mode,
+                synchronizer=self.synchronizer,
                 # FIXME We don't need argument below here
                 shape=self._shape + t_dtype.shape,
             )
@@ -466,7 +471,7 @@ class Dataset:
                     :
                 ] = assign_value
 
-    def resize_shape(self, size: int) -> None:
+    def resize_shape(self, size: int):
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self._shape[0]:
             return
@@ -480,8 +485,13 @@ class Dataset:
 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
-        size += self._shape[0]
-        self.resize_shape(size)
+        lock_path = f"{self._path}_append"
+        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+        with synchronizer[lock_path]:
+            size += self._shape[0]
+            self.resize_shape(size)
+
+        return size
 
     def delete(self):
         """ Deletes the dataset """
@@ -649,9 +659,12 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        _meta = json.loads(self._fs_map["meta.json"])
-        _meta["meta_info"] = self._meta_information
-        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+        lock_path = f"{self._path}_meta"
+        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+        with synchronizer[lock_path]:
+            _meta = json.loads(self._fs_map["meta.json"])
+            _meta["meta_info"] = self._meta_information
+            self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
 
     def flush(self):
         """Save changes from cache to dataset final storage.

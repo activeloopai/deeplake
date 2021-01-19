@@ -50,6 +50,7 @@ class Transform:
         scheduler: str = "single",
         ranged: slice = None,
         workers: int = 1,
+        synchronizer: object = None,
         **kwargs,
     ):
         """| Transform applies a user defined function to each sample in single threaded manner.
@@ -68,6 +69,8 @@ class Transform:
             how many threads or processes to use
         ranged: slice
             how to slice the dataset
+        synchronizer: object
+            synchronizer for the dataset
         **kwargs:
             additional arguments that will be passed to func as static argument for all samples
         """
@@ -76,6 +79,7 @@ class Transform:
         self._ds = ds
         self.kwargs = kwargs
         self.workers = workers
+        self.synchronizer = synchronizer
 
         if isinstance(self._ds, Transform):
             self.base_ds = self._ds.base_ds
@@ -244,6 +248,7 @@ class Transform:
             fs=zarr.storage.MemoryStore() if "tmp" in url else None,
             cache=False,
             public=public,
+            synchronizer=self.synchronizer,
         )
         return ds
 
@@ -360,12 +365,13 @@ class Transform:
         if n_results == 0:
             return 0
 
-        additional = max(offset + n_results - ds_out.shape[0], 0)
-        ds_out.append_shape(additional)
+        # figure if this is the first write to the dataset
+        delta = 1 if ds_out.shape[0] == 1 else 0
+        max_size = ds_out.append_shape(n_results - delta)
 
         self.upload(
             results,
-            ds_out[offset : offset + n_results],
+            ds_out[max_size - n_results : max_size],
             token=token,
         )
 
@@ -422,7 +428,7 @@ class Transform:
         if length < n_samples:
             n_samples = length
 
-        ds_out = self.create_dataset(url, length=length, token=token, public=public)
+        ds_out = self.create_dataset(url, length=1, token=token, public=public)
 
         def batchify_generator(iterator: Iterable, size: int):
             batch = []
@@ -448,7 +454,7 @@ class Transform:
                 pbar.update(len(ds_in_shard))
                 start += n_results
 
-        ds_out.resize_shape(total)
+        # ds_out.resize_shape(total)
         ds_out.commit()
         return ds_out
 

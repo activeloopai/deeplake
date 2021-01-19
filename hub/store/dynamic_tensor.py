@@ -38,6 +38,7 @@ class DynamicTensor:
         dtype="float64",
         chunks=None,
         compressor=DEFAULT_COMPRESSOR,
+        synchronizer=None,
     ):
         """Constructor
         Parameters
@@ -55,7 +56,9 @@ class DynamicTensor:
         chunks : Tuple[int] | True
             How to split the tensor into chunks (files) (default is True)
             If chunks=True then chunksize will automatically be detected
-
+        synchronizer: object
+            Mapper that returns a synchronizer per chunk
+            options include: zarr.ThreadSynchronizer(), zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         """
         if not (shape is None):
             # otherwise shape detector fails
@@ -76,11 +79,6 @@ class DynamicTensor:
         exist = False if "w" in mode else exist_ is not None
         if "r" in mode and not exist:
             raise DynamicTensorNotFoundException()
-
-        synchronizer = None
-        # synchronizer = zarr.ThreadSynchronizer()
-        # synchronizer = zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
-        # if tensor exists and mode is read or append
 
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))

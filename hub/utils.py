@@ -15,6 +15,20 @@ def _flatten(list_):
     return [item for sublist in list_ for item in sublist]
 
 
+class EmptyLock(object):
+    def __init__(self):
+        return None
+
+    def __enter__(self):
+        return 1
+
+    def __exit__(self, exc_type, exc_value, tb):
+        if exc_type is not None:
+            traceback.print_exception(exc_type, exc_value, tb)
+
+        return True
+
+
 def gcp_creds_exist():
     """Checks if credentials exists"""
 
