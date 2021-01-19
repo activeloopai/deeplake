@@ -7,6 +7,7 @@ import traceback
 from collections import defaultdict
 
 import fsspec
+from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
@@ -66,7 +67,7 @@ class Dataset:
     def __init__(
         self,
         url: str,
-        mode: str = "a",
+        mode: str = None,
         shape=None,
         schema=None,
         token=None,
@@ -121,14 +122,13 @@ class Dataset:
         shape = norm_shape(shape)
         if len(shape) != 1:
             raise ShapeLengthException()
-        mode = mode or "a"
+
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
         self._token = token
-        self._mode = mode
         self.tokenizer = tokenizer
         self.lazy = lazy
         self._name = name
@@ -140,7 +140,8 @@ class Dataset:
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
         self.verison = "1.x"
-
+        mode = self._get_mode(mode, self._fs)
+        self._mode = mode
         needcreate = self._check_and_prepare_dir()
         fs_map = fs_map or get_storage_map(
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
@@ -737,6 +738,24 @@ class Dataset:
         Get Keys of the dataset
         """
         return self._tensors.keys()
+
+    def _get_mode(self, mode: str, fs: AbstractFileSystem):
+        if mode:
+            if mode not in ["r", "r+", "a", "a+", "w", "w+"]:
+                raise Exception(f"Invalid mode {mode}")
+            return mode
+        else:
+            try:
+                meta_path = posixpath.join(self._path, "meta.json")
+                if not fs.exists(self._path) or not fs.exists(meta_path):
+                    return "a"
+                bytes_ = bytes("Hello", "utf-8")
+                path = posixpath.join(self._path, "mode_test")
+                fs.pipe(path, bytes_)
+                fs.rm(path)
+            except:
+                return "r"
+            return "a"
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
