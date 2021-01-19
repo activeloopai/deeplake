@@ -31,7 +31,7 @@ def transform(schema, scheduler="single", workers=1, synchronizer=None):
 
             if scheduler == "ray_generator":
                 return RayGeneratorTransform(
-                    func, schema, ds, scheduler=scheduler, workers=workers, **kwargs
+                    func, schema, ds, scheduler=scheduler, workers=workers, synchronizer=synchronizer, **kwargs
                 )
 
             return Transform(

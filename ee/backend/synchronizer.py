@@ -1,6 +1,10 @@
+import os
 from redis import StrictRedis
 import redis_lock
 import logging
+
+logger = logging.getLogger("redis_lock")
+logger.setLevel(level=logging.WARNING)
 
 
 class RedisSynchronizer(object):
@@ -10,6 +14,7 @@ class RedisSynchronizer(object):
         port: int = 6379,
         db: int = 0,
         debug: bool = False,
+        password: str = None,
     ):
         """Provides synchronization using redis locks
         Parameters
@@ -28,12 +33,22 @@ class RedisSynchronizer(object):
         self.port = port
         self.db = db
         self.conn = None
+        self.password = None
 
-        if not debug:
-            logger = logging.getLogger("redis_lock")
-            logger.setLevel(level=logging.WARNING)
+        # if not debug:
+            
 
     def __getitem__(self, item: str):
-        conn = StrictRedis(host=self.host, port=self.port, db=self.db)
+        redis_url = (
+            os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else self.host
+        )
+
+        if self.password is None:
+            self.password = "5241590000000000"
+
+        conn = StrictRedis(
+            host=redis_url, port=self.port, db=self.db, password=self.password
+        )
+
         lock = redis_lock.Lock(conn, item, strict=True)
         return lock

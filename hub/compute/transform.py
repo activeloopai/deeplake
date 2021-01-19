@@ -368,7 +368,7 @@ class Transform:
         # figure if this is the first write to the dataset
         delta = 1 if ds_out.shape[0] == 1 else 0
         max_size = ds_out.append_shape(n_results - delta)
-
+        print(f"writing to {max_size-n_results}:{max_size}")
         self.upload(
             results,
             ds_out[max_size - n_results : max_size],

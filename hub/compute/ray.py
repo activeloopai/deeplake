@@ -33,7 +33,9 @@ except Exception:
 
 
 class RayTransform(Transform):
-    def __init__(self, func, schema, ds, scheduler="ray", workers=1, **kwargs):
+    def __init__(
+        self, func, schema, ds, scheduler="ray", workers=1, synchronizer=None, **kwargs
+    ):
         super(RayTransform, self).__init__(
             func, schema, ds, scheduler="single", workers=workers, **kwargs
         )
@@ -41,6 +43,8 @@ class RayTransform(Transform):
         self.ray_func = func
         self.ray_ds = ds
         self.workers = workers
+        self.synchronizer = synchronizer
+
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
 
@@ -257,7 +261,9 @@ class RayTransform(Transform):
 
 @remote
 class TransformShard:
-    def __init__(self, ds, func, schema, progressbar, url, public, kwargs):
+    def __init__(
+        self, ds, func, schema, progressbar, url, public, synchronizer, kwargs
+    ):
 
         if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
             ds.squeeze_dim = False
@@ -270,6 +276,7 @@ class TransformShard:
         self.progressbar = progressbar
         self.public = public
         self.url = url
+        self.synchronizer = synchronizer
 
     def transform_shard(self, url: str, start: int, end: int):
         print(f" -- processing {start} shard from {start} to {end}")
@@ -280,9 +287,10 @@ class TransformShard:
             scheduler="single",
             workers=1,
             ranged=slice(start, end),
+            synchronizer=self.synchronizer,
             **self.kwargs,
         ).store(
-            url=f"{self.url}_shard_{start}",
+            url=self.url,  # f"{}_shard_{start}",
             token=self.token,
             progressbar=self.progressbar,
             public=self.public,
@@ -325,6 +333,9 @@ class RayGeneratorTransform(RayTransform):
         """
         _ds = ds or self.base_ds
         results = []
+
+        ds_out = self.create_dataset(url, length=1, token=token, public=public)
+
         for batch in batchify(range(0, len(_ds)), len(_ds) // self.workers):
             actor = TransformShard.remote(
                 ds=self.ray_ds,
@@ -334,6 +345,7 @@ class RayGeneratorTransform(RayTransform):
                 public=public,
                 url=url,
                 kwargs=self.ray_kwargs,
+                synchronizer=self.synchronizer,
             )
 
             results.append(
@@ -343,27 +355,4 @@ class RayGeneratorTransform(RayTransform):
         datasets = ray.get(results)
         datasets = [d for d in datasets if d]
         ds = datasets[0]
-        # ds = self.merge_sharded_dataset(datasets, url, token=token)
-        return ds
-
-    def merge_sharded_dataset(
-        self,
-        datasets,
-        url,
-        token=None,
-    ):
-        """
-        Creates a sharded dataset and then applies ray transform to upload it
-        """
-        sharded_ds = ShardedDatasetView(datasets)
-
-        @hub.transform(schema=self.schema, scheduler="ray")
-        def transform_identity(sample):
-            return sample
-
-        ds = transform_identity(sharded_ds).store(
-            url,
-            token=token,
-        )
-
         return ds
