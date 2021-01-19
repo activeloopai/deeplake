@@ -251,8 +251,8 @@ class DynamicTensor:
 
     def resize_shape(self, size: int) -> None:
         """append shape of storage and dynamic tensors"""
-        self.shape = (size,) + self.shape[1:]
-        self.max_shape = (size,) + self.max_shape[1:]
+        self.shape = (size,) + tuple(self.shape[1:])
+        self.max_shape = (size,) + tuple(self.max_shape[1:])
         self._resize_shape(self._storage_tensor, size)
 
         if self._dynamic_tensor:

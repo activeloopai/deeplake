@@ -235,21 +235,39 @@ class Transform:
         return tqdm if show and single_threaded else _empty_pbar
 
     def create_dataset(
-        self, url: str, length: int = None, token: dict = None, public: bool = True
+        self,
+        url: str,
+        length: int = None,
+        token: dict = None,
+        public: bool = True,
+        create=False,
     ):
         """Helper function to create a dataset"""
         shape = (length,)
-        ds = Dataset(
-            url,
-            mode="a",
-            # shape=shape,
-            # schema=self.schema,
-            # token=token,
-            fs=zarr.storage.MemoryStore() if "tmp" in url else None,
-            cache=False,
-            # public=public,
-            synchronizer=self.synchronizer,
-        )
+        if create:
+            ds = Dataset(
+                url,
+                mode="w",
+                shape=shape,
+                schema=self.schema,
+                token=token,
+                fs=zarr.storage.MemoryStore() if "tmp" in url else None,
+                cache=False,
+                public=public,
+                synchronizer=self.synchronizer,
+            )
+        else:
+            ds = Dataset(
+                url,
+                mode="a",
+                # shape=shape,
+                # schema=self.schema,
+                # token=token,
+                fs=zarr.storage.MemoryStore() if "tmp" in url else None,
+                cache=False,
+                # public=public,
+                synchronizer=self.synchronizer,
+            )
         return ds
 
     def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):

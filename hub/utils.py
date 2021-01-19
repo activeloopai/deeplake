@@ -6,7 +6,7 @@ from numpy.lib.arraysetops import isin
 
 from hub.exceptions import ShapeLengthException
 from hub import defaults
-
+import traceback
 
 def _flatten(list_):
     """

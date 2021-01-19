@@ -132,6 +132,7 @@ class Dataset:
         self.tokenizer = tokenizer
         self.lazy = lazy
         self.synchronizer = synchronizer
+
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
         )
@@ -487,6 +488,7 @@ class Dataset:
         """ Append the shape: Heavy Operation """
         lock_path = f"{self._path}_append"
         synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+
         with synchronizer[lock_path]:
             size += self._shape[0]
             self.resize_shape(size)

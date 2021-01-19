@@ -81,7 +81,6 @@ class S3Storage(MutableMapping):
     def __getitem__(self, path):
         try:
             path = posixpath.join(self.path, path)
-            print(">>> 83 ", path)
             resp = self.client.get_object(
                 Bucket=self.bucket,
                 Key=path,

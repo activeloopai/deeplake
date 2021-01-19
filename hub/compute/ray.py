@@ -334,7 +334,7 @@ class RayGeneratorTransform(RayTransform):
         _ds = ds or self.base_ds
         results = []
 
-        ds_out = self.create_dataset(url, length=1, token=token, public=public)
+        ds_out = self.create_dataset(url, length=1, token=token, public=public, create=True)
 
         for batch in batchify(range(0, len(_ds)), len(_ds) // self.workers):
             actor = TransformShard.remote(

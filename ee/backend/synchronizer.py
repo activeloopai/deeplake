@@ -36,7 +36,6 @@ class RedisSynchronizer(object):
         self.password = None
 
         # if not debug:
-            
 
     def __getitem__(self, item: str):
         redis_url = (
