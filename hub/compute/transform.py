@@ -237,17 +237,17 @@ class Transform:
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
     ):
-        """Helper function to creat a dataset"""
+        """Helper function to create a dataset"""
         shape = (length,)
         ds = Dataset(
             url,
-            mode="w",
-            shape=shape,
-            schema=self.schema,
-            token=token,
+            mode="a",
+            # shape=shape,
+            # schema=self.schema,
+            # token=token,
             fs=zarr.storage.MemoryStore() if "tmp" in url else None,
             cache=False,
-            public=public,
+            # public=public,
             synchronizer=self.synchronizer,
         )
         return ds
