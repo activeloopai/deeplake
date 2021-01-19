@@ -1,14 +1,16 @@
+from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.schema.class_label import ClassLabel
 import os
 import shutil
 import cloudpickle
 import pickle
 from hub.cli.auth import login_fn
-from hub.exceptions import HubException
+from hub.exceptions import HubException, LargeShapeFilteringException
 import numpy as np
 import pytest
 from hub import transform
 import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image
+from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict
 from hub.utils import (
     gcp_creds_exist,
     hub_creds_exist,
@@ -30,7 +32,7 @@ my_schema = {
 }
 
 
-def test_dataset2():
+def test_dataset_2():
     dt = {"first": "float", "second": "float"}
     ds = Dataset(schema=dt, shape=(2,), url="./data/test/test_dataset2", mode="w")
     ds.meta_information["description"] = "This is my description"
@@ -385,18 +387,34 @@ def test_datasetview_get_dictionary():
     ds["label", 5, "a"] = 5 * np.ones((100, 200))
     ds["label", 5, "d", "e"] = 3 * np.ones((5, 3))
     dsv = ds[2:10]
+    dsv.disable_lazy()
     dic = dsv[3, "label"]
-    assert (dic["a"].compute() == 5 * np.ones((100, 200))).all()
-    assert (dic["d"]["e"].compute() == 3 * np.ones((5, 3))).all()
+    assert (dic["a"] == 5 * np.ones((100, 200))).all()
+    assert (dic["d"]["e"] == 3 * np.ones((5, 3))).all()
+    dsv.enable_lazy()
 
 
 def test_tensorview_slicing():
     dt = {"first": Tensor(shape=(None, None), max_shape=(250, 300))}
     ds = Dataset(schema=dt, shape=(20,), url="./data/test/tensorivew_slicing", mode="w")
     tv = ds["first", 5:6, 7:10, 9:10]
-    assert tv.numpy().shape == tuple(tv.shape) == (1, 3, 1)
+    tv.disable_lazy()
+    tv.enable_lazy()
+    assert tv.compute().shape == tuple(tv.shape) == (1, 3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
     assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
+
+
+def test_tensorview_iter():
+    schema = {"abc": "int32"}
+    ds = Dataset(
+        schema=schema, shape=(20,), url="./data/test/tensorivew_slicing", mode="w"
+    )
+    for i in range(20):
+        ds["abc", i] = i
+    tv = ds["abc", 3]
+    for item in tv:
+        assert item.compute() == 3
 
 
 def test_text_dataset():
@@ -414,6 +432,13 @@ def test_text_dataset():
     assert dsv["names", 0].numpy() == text + "7"
     dsv["names"][1] = text + "8"
     assert dsv["names"][1].numpy() == text + "8"
+
+    schema2 = {
+        "id": Text(shape=(4,), dtype="int64"),
+    }
+    ds2 = Dataset("./data/test/testing_text_2", mode="w", schema=schema2, shape=(10,))
+    ds2[0:5, "id"] = ["abcd", "efgh", "ijkl", "mnop", "qrst"]
+    assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
 
 
 @pytest.mark.skipif(
@@ -436,6 +461,19 @@ def test_text_dataset_tokenizer():
     assert dsv["names", 0].numpy() == text + " 7"
     dsv["names"][1] = text + " 8"
     assert dsv["names"][1].numpy() == text + " 8"
+
+    schema2 = {
+        "id": Text(shape=(4,), dtype="int64"),
+    }
+    ds2 = Dataset(
+        "./data/test/testing_text_2",
+        mode="w",
+        schema=schema2,
+        shape=(10,),
+        tokenizer=True,
+    )
+    ds2[0:5, "id"] = ["abcd", "abcd", "abcd", "abcd", "abcd"]
+    assert ds2[2:4, "id"].compute() == ["abcd", "abcd"]
 
 
 def test_append_dataset():
@@ -584,8 +622,45 @@ def test_datasetview_repr():
     url = "./data/test/dsv_repr"
     ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
     dsv = ds[2:]
-    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'), slice=slice(2, 9, None))"
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'))"
     assert dsv.__repr__() == print_text
+
+
+def test_datasetview_2():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    ds = Dataset("./data/test/dsv_2/", schema=dt, shape=(9,), mode="w")
+    dsv = ds[2:]
+    with pytest.raises(ValueError):
+        dsv[3] = np.ones((3, 5))
+
+    with pytest.raises(KeyError):
+        dsv["abc"] = np.ones((3, 5))
+    dsv["second"] = np.array([0, 1, 2, 3, 4, 5, 6])
+    for i in range(7):
+        assert dsv[i, "second"].compute() == i
+
+
+def test_dataset_3():
+    dt = {
+        "first": Tensor(shape=(2,)),
+        "second": "float",
+        "text": Text(shape=(None,), max_shape=(12,)),
+    }
+    ds = Dataset("./data/test/ds_3/", schema=dt, shape=(9,), mode="w")
+    with pytest.raises(ValueError):
+        ds[3, 8] = np.ones((3, 5))
+
+    with pytest.raises(KeyError):
+        ds["abc"] = np.ones((3, 5))
+    ds["second"] = np.array([0, 1, 2, 3, 4, 5, 6, 7, 8])
+    for i in range(9):
+        assert ds[i, "second"].compute() == i
+    with pytest.raises(ValueError):
+        ds[3, 8].compute()
 
 
 def test_dataset_casting():
@@ -658,6 +733,127 @@ def test_dataset_assign_value():
     assert ds["text", 6].compute() == "YGFJN75NF"
 
 
+def test_dataset_filtering():
+    my_schema = {
+        "fname": Text((None,), max_shape=(10,)),
+        "lname": Text((None,), max_shape=(10,)),
+    }
+    ds = Dataset("./test/filtering", shape=(100,), schema=my_schema, mode="w")
+    for i in range(100):
+        ds["fname", i] = "John"
+        ds["lname", i] = "Doe"
+
+    for i in [1, 3, 6, 15, 63, 96, 75]:
+        ds["fname", i] = "Active"
+
+    for i in [15, 31, 25, 75, 3, 6]:
+        ds["lname", i] = "loop"
+
+    dsv_combined = ds.filter({"fname": "Active", "lname": "loop"})
+    tsv_combined_fname = dsv_combined["fname"]
+    tsv_combined_lname = dsv_combined["lname"]
+    for item in dsv_combined:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    for item in tsv_combined_fname:
+        assert item.compute() == "Active"
+    for item in tsv_combined_lname:
+        assert item.compute() == "loop"
+    dsv_1 = ds.filter({"fname": "Active"})
+    dsv_2 = dsv_1.filter({"lname": "loop"})
+    for item in dsv_1:
+        assert item.compute()["fname"] == "Active"
+    tsv_1 = dsv_1["fname"]
+    tsv_2 = dsv_2["lname"]
+    for item in tsv_1:
+        assert item.compute() == "Active"
+    for item in tsv_2:
+        assert item.compute() == "loop"
+    for item in dsv_2:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    assert dsv_combined.indexes == [3, 6, 15, 75]
+    assert dsv_1.indexes == [1, 3, 6, 15, 63, 75, 96]
+    assert dsv_2.indexes == [3, 6, 15, 75]
+
+    dsv_3 = ds.filter({"lname": "loop"})
+    dsv_4 = dsv_3.filter({"fname": "Active"})
+    for item in dsv_3:
+        assert item.compute()["lname"] == "loop"
+    for item in dsv_4:
+        assert item.compute() == {"fname": "Active", "lname": "loop"}
+    assert dsv_3.indexes == [3, 6, 15, 25, 31, 75]
+    assert dsv_4.indexes == [3, 6, 15, 75]
+
+    my_schema2 = {
+        "fname": Text((None,), max_shape=(10,)),
+        "lname": Text((None,), max_shape=(10,)),
+        "image": Image((1920, 1080, 3)),
+    }
+    ds = Dataset("./test/filtering2", shape=(100,), schema=my_schema2, mode="w")
+    with pytest.raises(LargeShapeFilteringException):
+        ds.filter({"image": np.ones((1920, 1080, 3))})
+    with pytest.raises(KeyError):
+        ds.filter({"random": np.ones((1920, 1080, 3))})
+
+    for i in [1, 3, 6, 15, 63, 96, 75]:
+        ds["fname", i] = "Active"
+    dsv = ds.filter({"fname": "Active"})
+    with pytest.raises(LargeShapeFilteringException):
+        dsv.filter({"image": np.ones((1920, 1080, 3))})
+    with pytest.raises(KeyError):
+        dsv.filter({"random": np.ones((1920, 1080, 3))})
+
+
+def test_dataset_filtering_2():
+    schema = {
+        "img": Image((None, None, 3), max_shape=(100, 100, 3)),
+        "cl": ClassLabel(names=["cat", "dog", "horse"]),
+    }
+    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    for i in range(100):
+        ds["cl", i] = 0 if i % 5 == 0 else 1
+        ds["img", i] = i * np.ones((5, 6, 3))
+    ds["cl", 4] = 2
+    ds_filtered = ds.filter({"cl": 0})
+    assert ds_filtered.indexes == [5 * i for i in range(20)]
+    with pytest.raises(ValueError):
+        ds_filtered["img"].compute()
+    ds_filtered_2 = ds.filter({"cl": 2})
+    assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
+    for item in ds_filtered_2:
+        assert (item["img"].compute() == 4 * np.ones((5, 6, 3))).all()
+        assert item["cl"].compute() == 2
+
+
+def test_dataset_filtering_3():
+    schema = {
+        "img": Image((None, None, 3), max_shape=(100, 100, 3)),
+        "cl": ClassLabel(names=["cat", "dog", "horse"]),
+    }
+    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    for i in range(100):
+        ds["cl", i] = 0 if i < 10 else 1
+        ds["img", i] = i * np.ones((5, 6, 3))
+    ds_filtered = ds.filter({"cl": 0})
+    assert (ds_filtered[3:8, "cl"].compute() == np.zeros((5,))).all()
+
+
+def test_dataset_utils():
+    with pytest.raises(TypeError):
+        slice_split([5.3])
+    with pytest.raises(IndexError):
+        slice_extract_info(5, 3)
+    with pytest.raises(ValueError):
+        slice_extract_info(slice(2, 10, -2), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(20, 100), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(1, 20), 3)
+    with pytest.raises(IndexError):
+        slice_extract_info(slice(4, 1), 10)
+    slice_extract_info(slice(None, 10), 20)
+    slice_extract_info(slice(20, None), 50)
+
+
 def test_dataset_name():
     schema = {"temp": "uint8"}
     ds = Dataset(
@@ -673,6 +869,30 @@ def test_dataset_name():
 
 
 if __name__ == "__main__":
-    # test_pickleability()
+    test_dataset_assign_value()
+    test_dataset_setting_shape()
+    test_datasetview_repr()
+    test_datasetview_get_dictionary()
+    test_tensorview_slicing()
+    test_datasetview_slicing()
+    test_dataset()
+    test_dataset_batch_write_2()
+    test_append_dataset()
+    test_dataset_2()
+    test_text_dataset()
+    test_text_dataset_tokenizer()
+    test_dataset_compute()
+    test_dataset_view_compute()
+    test_dataset_lazy()
+    test_dataset_view_lazy()
+    test_dataset_hub()
+    test_meta_information()
+    test_dataset_filtering()
+    test_dataset_filtering_2()
     test_pickleability()
-    # test_dataset_append_and_read()
+    test_dataset_append_and_read()
+    test_tensorview_iter()
+    test_dataset_filtering_3()
+    test_datasetview_2()
+    test_dataset_3()
+    test_dataset_utils()

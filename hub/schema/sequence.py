@@ -17,7 +17,7 @@ class Sequence(Tensor):
     def __init__(
         self,
         shape=(),
-        max_shape=(),
+        max_shape=None,
         dtype=None,
         chunks=None,
         compressor="lz4",
