@@ -730,6 +730,9 @@ class Dataset:
             return mode
         else:
             try:
+                meta_path = posixpath.join(self._path, "meta.json")
+                if not fs.exists(self._path) or not fs.exists(meta_path):
+                    return "a"
                 bytes_ = bytes("Hello", "utf-8")
                 path = posixpath.join(self._path, "mode_test")
                 fs.pipe(path, bytes_)
