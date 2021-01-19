@@ -854,6 +854,20 @@ def test_dataset_utils():
     slice_extract_info(slice(20, None), 50)
 
 
+def test_dataset_name():
+    schema = {"temp": "uint8"}
+    ds = Dataset(
+        "./data/test_ds_name", shape=(10,), schema=schema, name="my_dataset", mode="w"
+    )
+    ds.flush()
+    assert ds.name == "my_dataset"
+    ds2 = Dataset("./data/test_ds_name")
+    ds2.rename("my_dataset_2")
+    assert ds2.name == "my_dataset_2"
+    ds3 = Dataset("./data/test_ds_name")
+    assert ds3.name == "my_dataset_2"
+
+
 if __name__ == "__main__":
     test_dataset_assign_value()
     test_dataset_setting_shape()

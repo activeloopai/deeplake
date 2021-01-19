@@ -124,6 +124,7 @@ jobs:
     environment:
       IMAGE_NAME: snarkai/hub
     steps:
+      - setup_remote_docker
       - checkout
       - run:
           name: "Init .pypirc"

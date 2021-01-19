@@ -7,6 +7,7 @@ import traceback
 from collections import defaultdict
 
 import fsspec
+from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
@@ -68,7 +69,7 @@ class Dataset:
     def __init__(
         self,
         url: str,
-        mode: str = "a",
+        mode: str = None,
         shape=None,
         schema=None,
         token=None,
@@ -81,6 +82,7 @@ class Dataset:
         tokenizer=None,
         lazy: bool = True,
         public: bool = True,
+        name: str = None,
     ):
         """| Open a new or existing dataset for read/write
 
@@ -115,21 +117,23 @@ class Dataset:
             only applicable if using hub storage, ignored otherwise
             setting this to False allows only the user who created it to access the dataset and
             the dataset won't be visible in the visualizer to the public
+        name: str, optional
+            only applicable when using hub storage, this is the name that shows up on the visualizer
         """
 
         shape = norm_shape(shape)
         if len(shape) != 1:
             raise ShapeLengthException()
-        mode = mode or "a"
+
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
         self._token = token
-        self._mode = mode
         self.tokenizer = tokenizer
         self.lazy = lazy
+        self._name = name
 
         self._fs, self._path = (
             (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
@@ -138,7 +142,8 @@ class Dataset:
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
         self.verison = "1.x"
-
+        mode = self._get_mode(mode, self._fs)
+        self._mode = mode
         needcreate = self._check_and_prepare_dir()
         fs_map = fs_map or get_storage_map(
             self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
@@ -149,6 +154,7 @@ class Dataset:
         self.dataset_name = None
         if not needcreate:
             self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
@@ -220,6 +226,10 @@ class Dataset:
         return self._shape
 
     @property
+    def name(self):
+        return self._name
+
+    @property
     def token(self):
         return self._token
 
@@ -245,6 +255,7 @@ class Dataset:
             "schema": hub.schema.serialize.serialize(self._schema),
             "version": 1,
             "meta_info": self._meta_information or dict(),
+            "name": self._name,
         }
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
@@ -492,6 +503,12 @@ class Dataset:
         size += self._shape[0]
         self.resize_shape(size)
 
+    def rename(self, name: str) -> None:
+        """ Renames the dataset """
+        self._name = name
+        self.meta = self._store_meta()
+        self.flush()
+
     def delete(self):
         """ Deletes the dataset """
         fs, path = self._fs, self._path
@@ -726,6 +743,24 @@ class Dataset:
         Get Keys of the dataset
         """
         return self._tensors.keys()
+
+    def _get_mode(self, mode: str, fs: AbstractFileSystem):
+        if mode:
+            if mode not in ["r", "r+", "a", "a+", "w", "w+"]:
+                raise Exception(f"Invalid mode {mode}")
+            return mode
+        else:
+            try:
+                meta_path = posixpath.join(self._path, "meta.json")
+                if not fs.exists(self._path) or not fs.exists(meta_path):
+                    return "a"
+                bytes_ = bytes("Hello", "utf-8")
+                path = posixpath.join(self._path, "mode_test")
+                fs.pipe(path, bytes_)
+                fs.rm(path)
+            except:
+                return "r"
+            return "a"
 
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
