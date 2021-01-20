@@ -269,8 +269,12 @@ class Dataset:
         """
         fs, path, mode = self._fs, self._path, self._mode
         if path.startswith("s3://"):
-            with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
-                stored_username = json.load(f)["_id"]
+            if os.name == 'nt':
+                with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
+                    stored_username = json.load(f)["_id"]
+            else:
+                with open(posixpath.expanduser("~/.activeloop/store"), "rb") as f:
+                    stored_username = json.load(f)["_id"]
             current_username = path.split("/")[-2]
             if stored_username != current_username:
                 try:
