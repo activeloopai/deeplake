@@ -9,7 +9,6 @@ import numpy
 
 from hub.exceptions import S3Exception
 from hub.log import logger
-from tenacity import retry
 
 
 class S3Storage(MutableMapping):

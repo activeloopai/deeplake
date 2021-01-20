@@ -384,12 +384,17 @@ class Transform:
             return 0
 
         # figure if this is the first write to the dataset
-        delta = 1 if ds_out.shape[0] == 1 else 0
-        max_size = ds_out.append_shape(n_results - delta)
-        print(f"writing to {max_size-n_results}:{max_size}")
+
+        with self.synchronizer["pos"]:
+            start_pos = self.synchronizer.read_position()
+            end_pos = start_pos + n_results
+            self.synchronizer.write_position(end_pos)
+
+        print(f"writing to {start_pos}:{end_pos}")
+        print("DEBUG", start_pos, end_pos, len(ds_out))
         self.upload(
             results,
-            ds_out[max_size - n_results : max_size],
+            ds_out[start_pos : end_pos],
             token=token,
         )
 
@@ -446,7 +451,7 @@ class Transform:
         if length < n_samples:
             n_samples = length
 
-        ds_out = self.create_dataset(url, length=1, token=token, public=public)
+        ds_out = self.create_dataset(url, length=1000 * 1000, token=token, public=public)
 
         def batchify_generator(iterator: Iterable, size: int):
             batch = []

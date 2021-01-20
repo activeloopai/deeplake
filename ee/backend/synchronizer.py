@@ -37,7 +37,7 @@ class RedisSynchronizer(object):
 
         # if not debug:
 
-    def __getitem__(self, item: str):
+    def _get_conn(self):
         redis_url = (
             os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else self.host
         )
@@ -45,9 +45,21 @@ class RedisSynchronizer(object):
         if self.password is None:
             self.password = "5241590000000000"
 
-        conn = StrictRedis(
+        return StrictRedis(
             host=redis_url, port=self.port, db=self.db, password=self.password
-        )
+        )        
+
+    def __getitem__(self, item: str):
+        conn = self._get_conn()
 
         lock = redis_lock.Lock(conn, item, strict=True)
         return lock
+
+    def read_position(self) -> int:
+        conn = self._get_conn()
+
+        return conn.get("$pos") or 0
+    
+    def write_position(self, pos: int) -> None:
+        conn = self._get_conn()
+        conn["$pos"] = pos
