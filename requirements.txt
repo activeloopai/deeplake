@@ -8,7 +8,7 @@ gcsfs==0.6.2
 outdated==0.2.0
 lz4>=3,<4
 zarr==2.6.1
-boto3==1.16.39
+boto3==1.16.57
 tqdm==4.54.1
 azure-storage-blob==12.6.0
 pathos>=0.2.2
