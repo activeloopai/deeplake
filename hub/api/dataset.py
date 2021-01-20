@@ -269,7 +269,7 @@ class Dataset:
         """
         fs, path, mode = self._fs, self._path, self._mode
         if path.startswith("s3://"):
-            if os.name == 'nt':
+            if os.name == "nt":
                 with open(os.path.expanduser("~/.activeloop/store"), "rb") as f:
                     stored_username = json.load(f)["_id"]
             else:
