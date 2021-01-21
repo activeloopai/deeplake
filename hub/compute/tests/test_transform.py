@@ -22,13 +22,15 @@ def test_pipeline_basic():
         "./data/test/test_pipeline_basic", mode="w", shape=(100,), schema=my_schema
     )
 
-    for i in range(len(ds)):
-        ds["image", i] = np.ones((28, 28, 4), dtype="int32")
-        ds["label", i] = f"hello {i}"
-        ds["confidence", i] = 0.2
+    # for i in range(len(ds)):
+    #    ds["image", i] = np.ones((28, 28, 4), dtype="int32")
+    #    ds["label", i] = f"hello {i}"
+    #    ds["confidence", i] = 0.2
+    #    print("29", ds["label", i].compute())
 
     @hub.transform(schema=my_schema)
     def my_transform(sample, multiplier: int = 2):
+        print("33", sample["label"])
         return {
             "image": sample["image"] * multiplier,
             "label": sample["label"],
@@ -186,7 +188,7 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
         )
 
         ds_t = my_transform(ds).store("./data/test/test_pipeline_basic_4")
-
+        print(sample_size, len(ds_t))
     assert (ds_t["image", :].compute() == 255).all()
 
 
@@ -359,6 +361,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
+    test_pipeline_basic()
     test_multiprocessing()
     exit()
     with Timer("Test Transform"):

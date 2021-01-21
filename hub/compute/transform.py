@@ -80,6 +80,7 @@ class Transform:
         self.kwargs = kwargs
         self.workers = workers
         self.synchronizer = synchronizer
+        self._start_pos = 0
 
         if isinstance(self._ds, Transform):
             self.base_ds = self._ds.base_ds
@@ -383,15 +384,22 @@ class Transform:
         if n_results == 0:
             return 0
 
-        # figure if this is the first write to the dataset
+        if self.synchronizer is None:
+            # delta = 1 if len(ds_out) == 1 else 0
+            # print(len(ds_out))
+            # end_pos = # ds_out.append_shape(n_results - delta)
+            # start_pos = end_pos - n_results
 
-        with self.synchronizer["pos"]:
-            start_pos = self.synchronizer.read_position()
+            start_pos = self._start_pos
             end_pos = start_pos + n_results
-            self.synchronizer.write_position(end_pos)
+            self._start_pos = end_pos
+            # print(start_pos, end_pos)
+        else:
+            with self.synchronizer[f"{ds_out.url}_pos"]:
+                start_pos = self.synchronizer.get(f"{ds_out.url}_dataset_length")
+                end_pos = start_pos + n_results
+                self.synchronizer.set(f"{ds_out.url}_dataset_length", end_pos)
 
-        print(f"writing to {start_pos}:{end_pos}")
-        print("DEBUG", start_pos, end_pos, len(ds_out))
         self.upload(
             results,
             ds_out[start_pos:end_pos],
@@ -448,14 +456,16 @@ class Transform:
             n_samples = sample_per_shard
         try:
             length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
+            print(461, length, len(ds_in), hasattr(ds_in, "__len__"))
         except Exception:
             length = length or n_samples
 
         if length < n_samples:
             n_samples = length
-
+        # print(467, length)
+        # exit()
         ds_out = self.create_dataset(
-            url, length=1000 * 1000, token=token, public=public
+            url, length=1000, token=token, public=public, create=create
         )
 
         def batchify_generator(iterator: Iterable, size: int):
