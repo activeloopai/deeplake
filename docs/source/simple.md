@@ -18,7 +18,7 @@ Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked
 
 1. Install beta version
     ```
-    pip3 install hub==1.0.0
+    pip3 install hub
     ```
 
 2. Register and authenticate to uploade datasests
@@ -51,7 +51,7 @@ print(ds["label", 100:110].compute())
 ds.close()
 ```
 
-In `hub==1.0.0` you can also transfer a dataset from TFDS.
+You can also transfer a dataset from TFDS.
 ```python
 import hub
 import tensorflow as tf
