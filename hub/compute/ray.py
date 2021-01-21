@@ -336,7 +336,7 @@ class RayGeneratorTransform(RayTransform):
         results = []
 
         ds_out = self.create_dataset(
-            url, length=1, token=token, public=public, create=True
+            url, length=1000 * 1000, token=token, public=public, create=True
         )
 
         for batch in batchify(range(0, len(_ds)), len(_ds) // self.workers):
