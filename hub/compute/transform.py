@@ -390,9 +390,13 @@ class Transform:
             # end_pos = # ds_out.append_shape(n_results - delta)
             # start_pos = end_pos - n_results
 
-            start_pos = self._start_pos
-            end_pos = start_pos + n_results
-            self._start_pos = end_pos
+            # start_pos = self._start_pos
+            # end_pos = start_pos + n_results
+            # self._start_pos = end_pos
+            additional = max(offset + n_results - ds_out.shape[0], 0)
+            ds_out.append_shape(additional)
+            start_pos = offset
+            end_pos = offset + n_results
             # print(start_pos, end_pos)
         else:
             with self.synchronizer[f"{ds_out.url}_pos"]:
@@ -448,7 +452,6 @@ class Transform:
         """
 
         ds_in = ds or self.base_ds
-
         # compute shard length
         if sample_per_shard is None:
             n_samples = get_sample_size(self.schema, self.workers)
@@ -456,14 +459,12 @@ class Transform:
             n_samples = sample_per_shard
         try:
             length = len(ds_in) if hasattr(ds_in, "__len__") else n_samples
-            print(461, length, len(ds_in), hasattr(ds_in, "__len__"))
         except Exception:
             length = length or n_samples
 
         if length < n_samples:
             n_samples = length
-        # print(467, length)
-        # exit()
+
         ds_out = self.create_dataset(
             url, length=1000, token=token, public=public, create=create
         )
