@@ -86,7 +86,7 @@ def test_pipeline():
 
         @hub.transform(
             schema=my_schema,
-            scheduler="ray_generator",
+            scheduler="processed",
             synchronizer=synchronizer,
             workers=2,
         )
@@ -108,6 +108,28 @@ def test_pipeline():
 
         for el in range(len(ds)):
             assert (out_ds["image", el].compute() == el * 4).all()
+
+
+@pytest.mark.skipif(
+    not redis_loaded(),
+    reason="requires redis to be loaded",
+)
+def test_counter():
+
+    a = RedisSynchronizer()
+    a.reset(key="key1")
+    a.append(key="key1", number=10)
+    assert a.get(key="key1") == 10
+
+    pool = ProcessPool(nodes=4)
+    samples = [1, 2, 3, 4]
+
+    def store(index):
+        RedisSynchronizer().append(key="key1", number=10)
+
+    pool.map(store, samples)
+    RedisSynchronizer().append(key="key1", number=-10)
+    assert a.get(key="key1") == 40
 
 
 if __name__ == "__main__":

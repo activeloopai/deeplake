@@ -54,8 +54,9 @@ from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
 
-from hub.utils import norm_cache, norm_shape, EmptyLock
+from hub.utils import norm_cache, norm_shape
 from hub import defaults
+from hub.store.synchronizer import BasicSynchronizer
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -486,10 +487,10 @@ class Dataset:
 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
-        lock_path = f"{self._path}_append"
-        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+        if self.synchronizer is None:
+            self.synchronizer = BasicSynchronizer()
 
-        with synchronizer[lock_path]:
+        with self.synchronizer[f"{self._path}_append"]:
             size += self._shape[0]
             self.resize_shape(size)
 
@@ -661,9 +662,10 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        lock_path = f"{self._path}_meta"
-        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
-        with synchronizer[lock_path]:
+        if self.synchronizer is None:
+            self.synchronizer = BasicSynchronizer()
+
+        with self.synchronizer[f"{self._path}_meta"]:
             _meta = json.loads(self._fs_map["meta.json"])
             _meta["meta_info"] = self._meta_information
             self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")

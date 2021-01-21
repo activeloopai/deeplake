@@ -256,16 +256,16 @@ class Transform:
                 public=public,
                 synchronizer=self.synchronizer,
             )
+
+            if self.synchronizer is not None:
+                self.synchronizer.set(key=f"{ds.url}_dataset_length", number=0)
+
         else:
             ds = Dataset(
                 url,
                 mode="a",
-                # shape=shape,
-                # schema=self.schema,
-                # token=token,
                 fs=zarr.storage.MemoryStore() if "tmp" in url else None,
                 cache=False,
-                # public=public,
                 synchronizer=self.synchronizer,
             )
         return ds
@@ -372,10 +372,10 @@ class Transform:
         results = self._unwrap(results)
         results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
         results = list(results)
-
         results = self._split_list_to_dicts(results)
 
         results_values = list(results.values())
+
         if len(results_values) == 0:
             return 0
 
@@ -383,10 +383,16 @@ class Transform:
         if n_results == 0:
             return 0
 
-        # figure if this is the first write to the dataset
-        delta = 1 if ds_out.shape[0] == 1 else 0
-        max_size = ds_out.append_shape(n_results - delta)
-        print(f"writing to {max_size-n_results}:{max_size}")
+        if self.synchronizer is None:
+            delta = 1 if len(ds_out) == 1 else 0
+            max_size = ds_out.append_shape(n_results - delta)
+        else:
+            max_size = self.synchronizer.append(
+                key=f"{ds_out.url}_dataset_length", number=n_results
+            )
+            ds_out.resize_shape(max_size)
+
+        l2 = self.synchronizer.get(key=f"{ds_out.url}_dataset_length")
         self.upload(
             results,
             ds_out[max_size - n_results : max_size],
@@ -404,6 +410,7 @@ class Transform:
         progressbar: bool = True,
         sample_per_shard: int = None,
         public: bool = True,
+        create: bool = True,
     ):
         """| The function to apply the transformation for each element in batchified manner
 
@@ -425,6 +432,8 @@ class Transform:
             only applicable if using hub storage, ignored otherwise
             setting this to False allows only the user who created it to access the dataset and
             the dataset won't be visible in the visualizer to the public
+        create: bool, optional
+            creates the dataset
         Returns
         ----------
         ds: hub.Dataset
@@ -446,7 +455,9 @@ class Transform:
         if length < n_samples:
             n_samples = length
 
-        ds_out = self.create_dataset(url, length=1, token=token, public=public)
+        ds_out = self.create_dataset(
+            url, length=1, token=token, public=public, create=create
+        )
 
         def batchify_generator(iterator: Iterable, size: int):
             batch = []
@@ -472,7 +483,10 @@ class Transform:
                 pbar.update(len(ds_in_shard))
                 start += n_results
 
-        # ds_out.resize_shape(total)
+        if self.synchronizer is not None:
+            total = self.synchronizer.get(key=f"{ds_out.url}_dataset_length")
+
+        ds_out.resize_shape(total)
         ds_out.commit()
         return ds_out
 

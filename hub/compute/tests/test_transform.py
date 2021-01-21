@@ -359,6 +359,8 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
 
 
 if __name__ == "__main__":
+    test_multiprocessing()
+    exit()
     with Timer("Test Transform"):
         with Timer("test threaded"):
             test_threaded()

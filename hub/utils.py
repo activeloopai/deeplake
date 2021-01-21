@@ -8,6 +8,7 @@ from hub.exceptions import ShapeLengthException
 from hub import defaults
 import traceback
 
+
 def _flatten(list_):
     """
     Helper function to flatten the list
