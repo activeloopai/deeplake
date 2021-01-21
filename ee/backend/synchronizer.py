@@ -49,9 +49,6 @@ class RedisSynchronizer(object):
         )
 
     def __getitem__(self, item: str):
-        conn = self._get_conn()
-
-    def __getitem__(self, item: str):
         conn = self._get_connection()
         lock = redis_lock.Lock(conn, item, strict=True)
         return lock
