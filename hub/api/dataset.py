@@ -798,14 +798,14 @@ class Dataset:
             global tf
 
         def generate_schema(ds):
-            if isinstance(ds._structure, tf.python.framework.tensor_spec.TensorSpec):
+            if isinstance(ds._structure, tf.TensorSpec):
                 return tf_to_hub({"data": ds._structure}).dict_
             return tf_to_hub(ds._structure).dict_
 
         def tf_to_hub(tf_dt):
             if isinstance(tf_dt, dict):
                 return dict_to_hub(tf_dt)
-            elif isinstance(tf_dt, tf.python.framework.tensor_spec.TensorSpec):
+            elif isinstance(tf_dt, tf.TensorSpec):
                 return TensorSpec_to_hub(tf_dt)
 
         def TensorSpec_to_hub(tf_dt):
