@@ -888,7 +888,7 @@ def test_endpoint():
         ds["abc", i] = i * np.ones((100, 100, 3))
     ds.flush()
     for i in range(10):
-        assert (ds["abc", i] == i * np.ones((100, 100, 3))).all()
+        assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
 if __name__ == "__main__":
