@@ -6,7 +6,9 @@ from hub.utils import Timer
 
 
 def test():
-    tf2hub_ds = hub.Dataset.from_tfds('Cifar10', split='train', scheduler='threaded', workers=8)
+    tf2hub_ds = hub.Dataset.from_tfds(
+        "Cifar10", split="train", scheduler="threaded", workers=8
+    )
 
     res_ds = tf2hub_ds.store("./data/test/cifar/train")
     hub_s3_ds = hub.Dataset(
