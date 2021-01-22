@@ -367,7 +367,6 @@ class RayGeneratorTransform(RayTransform):
         if self.synchronizer is not None:
             total = self.synchronizer.get(key=f"{ds.url}_dataset_length")
             # ds.resize_shape(total)
-            print("TOTAL", total)
             ds._resize_without_delete(total)
             ds.flush()
 
