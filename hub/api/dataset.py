@@ -568,12 +568,12 @@ class Dataset:
         num_samples: int, optional
             The number of samples required of the dataset that needs to be converted
         """
-        if "tensorflow" not in sys.modules:
-            raise ModuleNotInstalledException("tensorflow")
-        else:
+        try:
             import tensorflow as tf
-
             global tf
+        except ModuleNotFoundError:
+            raise ModuleNotInstalledException("tensorflow")
+
 
         indexes = indexes or self.indexes
         indexes = [indexes] if isinstance(indexes, int) else indexes
