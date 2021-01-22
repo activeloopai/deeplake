@@ -325,13 +325,13 @@ def test_complex_dataset(shape=(100, 100, 3)):
     def fill_samples(sample):
         return temp_data(shape)
 
-    path = "./data/complex_dataset"
+    path = "./data/complex_dataset_2"
     ds_stored = fill_samples([1, 2, 3, 4, 5, 6]).store(path)
     # print(ds_stored["image", 0].compute())
     ds = hub.Dataset(path)
-    print(ds["image", 0].compute())
-    ds["image", 0] = np.ones((10, 10, 3))
-    # assert ds["image", 0].compute() == 1
+    # print(ds["image", 0].compute())
+    # ds["image", 0] = np.ones((10, 10, 3))
+    assert (ds["image", 0].compute() == 1).all()
 
 
 if __name__ == "__main__":

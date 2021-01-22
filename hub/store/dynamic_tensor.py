@@ -23,12 +23,10 @@ from hub.schema.sequence import Sequence
 
 class DynamicTensor:
     """Class for handling dynamic tensor
-
     This class adds dynamic nature to storage tensor.
     The shape of tensor depends only on the index of the first dim.
     """
 
-    MAX_DATASET_SHAPE = 999999999999
     # TODO Make first dim is extensible as well
     def __init__(
         self,
@@ -61,28 +59,16 @@ class DynamicTensor:
             Mapper that returns a synchronizer per chunk
             options include: zarr.ThreadSynchronizer(), zarr.ProcessSynchronizer("~/activeloop/sync/example.sync")
         """
-        shp = max([shp[0] if shp is not None else 0 for shp in [shape, max_shape]])
-
-        if shape is not None and max_shape is not None:
-            shape = (self.MAX_DATASET_SHAPE,) + (shape[1:] if len(shape) > 1 else ())
-            max_shape = (self.MAX_DATASET_SHAPE,) + (
-                max_shape[1:] if len(shape) > 1 else ()
-            )
-
+        if not (shape is None):
             # otherwise shape detector fails
             shapeDt = ShapeDetector(
-                shape,
-                max_shape,
-                chunks,
-                dtype,
-                compressor=compressor,
+                shape, max_shape, chunks, dtype, compressor=compressor
             )
             shape = shapeDt.shape
             max_shape = shapeDt.max_shape
             chunks = shapeDt.chunks
-
-        elif "r" not in mode and "a" not in mode:
-            raise TypeError("shape or max_shape cannot be none")
+        elif "r" not in mode:
+            raise TypeError("shape cannot be none")
 
         self.fs_map = fs_map
         exist_ = fs_map.get(".hub.dynamic_tensor")
@@ -96,21 +82,10 @@ class DynamicTensor:
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
             shape = meta["shape"]
-
-            max_shape = meta["max_shape"] if "max_shape" in meta else None
-
             self._dynamic_dims = get_dynamic_dims(shape)
-            shape = (self.MAX_DATASET_SHAPE,) + (
-                tuple(shape[1:]) if len(shape) > 1 else ()
-            )
-
             self._storage_tensor = zarr.open_array(
-                store=fs_map,
-                shape=max_shape or shape,
-                mode=mode,
-                synchronizer=synchronizer,
+                store=fs_map, mode=mode, synchronizer=synchronizer
             )
-
             self._dynamic_tensor = (
                 zarr.open_array(
                     NestedStore(fs_map, "--dynamic--"),
@@ -147,13 +122,11 @@ class DynamicTensor:
                 if self._dynamic_dims
                 else None
             )
-            # shape = (shp,) + (shape[1:] if len(shape) > 1 else ())
-            # print(self._storage_tensor.shape)
+
             fs_map[".hub.dynamic_tensor"] = bytes(json.dumps({"shape": shape}), "utf-8")
 
         self.shape = shape
         self.max_shape = self._storage_tensor.shape
-
         self.chunks = self._storage_tensor.chunks
         self.dtype = self._storage_tensor.dtype
 
@@ -162,7 +135,10 @@ class DynamicTensor:
         for item in self.max_shape:
             if item is None:
                 raise DynamicTensorShapeException("none")
-
+        for item in zip(self.shape, self.max_shape):
+            if item[0] is not None:
+                if item[0] != item[1]:
+                    raise DynamicTensorShapeException("not_equal")
         self._enabled_dynamicness = True
 
     def __getitem__(self, slice_):
@@ -170,10 +146,6 @@ class DynamicTensor:
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
-
-        if isinstance(slice_[0], slice) and slice_[0].stop == None:
-            slice_[0] = slice(slice_[0].start, self.shape[0], slice_[0].step)
-
         # real_shapes is dynamic shapes based on first dim index, only dynamic dims are stored, static ones are ommitted
         if self._dynamic_tensor:
             if isinstance(slice_[0], int):
@@ -192,7 +164,6 @@ class DynamicTensor:
         # Extend slice_ to dim count
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         slice_ = self._get_slice(slice_, real_shapes)
-
         return self._storage_tensor[slice_]
 
     def __setitem__(self, slice_, value):
@@ -200,10 +171,6 @@ class DynamicTensor:
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
-
-        if isinstance(slice_[0], slice) and slice_[0].stop == None:
-            slice_[0] = slice(slice_[0].start, self.shape[0], slice_[0].step)
-
         if self._dynamic_tensor and self._enabled_dynamicness:
             self.set_shape(slice_, value)
         slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
@@ -240,7 +207,6 @@ class DynamicTensor:
             )
 
         slice_ = self._get_slice(slice_, real_shapes)
-
         value = self.check_value_shape(value, slice_)
         self._storage_tensor[slice_] = value
 
@@ -277,24 +243,23 @@ class DynamicTensor:
         return value
 
     def _resize_shape(self, tensor: zarr.Array, size: int) -> None:
-        """Append first dimension of single array"""
+        """append first dimension of single array"""
         shape = list(tensor.shape)
         shape[0] = size
-        self.first_dim = self.first_dim_max = size
-        # tensor.resize(*shape)
+        tensor.resize(*shape)
 
     def resize_shape(self, size: int) -> None:
-        """Append shape of storage and dynamic tensors"""
+        """append shape of storage and dynamic tensors"""
         self.shape = (size,) + tuple(self.shape[1:])
-        # self.max_shape = (size,) + tuple(self.max_shape[1:])
-        # self._resize_shape(self._storage_tensor, size)
+        self.max_shape = (size,) + tuple(self.max_shape[1:])
+        self._resize_shape(self._storage_tensor, size)
 
-        # if self._dynamic_tensor:
-        # self._resize_shape(self._dynamic_tensor, size)
+        if self._dynamic_tensor:
+            self._resize_shape(self._dynamic_tensor, size)
 
-        # self.fs_map[".hub.dynamic_tensor"] = bytes(
-        #    json.dumps({"shape": self.shape, "max_shape": self.max_shape}), "utf-8"
-        # )
+        self.fs_map[".hub.dynamic_tensor"] = bytes(
+            json.dumps({"shape": self.shape}), "utf-8"
+        )
 
     def get_shape_samples(self, samples):
         """Gets full shape of dynamic_tensor(s)"""

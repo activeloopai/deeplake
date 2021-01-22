@@ -40,7 +40,6 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
     HubDatasetNotFoundException,
-    IncompatibleShapes,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     ShapeArgumentNotFoundException,
@@ -55,9 +54,8 @@ from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
 from hub.numcodecs import PngCodec
 
-from hub.utils import norm_cache, norm_shape
+from hub.utils import norm_cache, norm_shape, EmptyLock
 from hub import defaults
-from hub.store.synchronizer import BasicSynchronizer
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -84,7 +82,6 @@ class Dataset:
         synchronizer: object = None,
     ):
         """| Open a new or existing dataset for read/write
-
         Parameters
         ----------
         url: str
@@ -346,7 +343,6 @@ class Dataset:
         for t in self._flat_tensors:
             t_dtype, t_path = t
             path = posixpath.join(self._path, t_path[1:])
-
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
@@ -489,10 +485,10 @@ class Dataset:
 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
-        if self.synchronizer is None:
-            self.synchronizer = BasicSynchronizer()
+        lock_path = f"{self._path}_append"
+        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
 
-        with self.synchronizer[f"{self._path}_append"]:
+        with synchronizer[lock_path]:
             size += self._shape[0]
             self.resize_shape(size)
 
@@ -520,7 +516,6 @@ class Dataset:
         num_samples=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
-
         Parameters
         ----------
         transform: function that transforms data in a dict format
@@ -553,7 +548,6 @@ class Dataset:
 
     def to_tensorflow(self, offset=None, num_samples=None):
         """| Converts the dataset into a tensorflow compatible format
-
         Parameters
         ----------
         offset: int, optional
@@ -664,10 +658,9 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        if self.synchronizer is None:
-            self.synchronizer = BasicSynchronizer()
-
-        with self.synchronizer[f"{self._path}_meta"]:
+        lock_path = f"{self._path}_meta"
+        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+        with synchronizer[lock_path]:
             _meta = json.loads(self._fs_map["meta.json"])
             _meta["meta_info"] = self._meta_information
             self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
@@ -744,7 +737,6 @@ class Dataset:
     @staticmethod
     def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
         """Converts a tensorflow dataset into hub format.
-
         Parameters
         ----------
         dataset:
@@ -753,17 +745,14 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
-
         Examples
         --------
         >>> ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
         >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
-
         >>> ds = tf.data.Dataset.from_tensor_slices({'a': [1, 2], 'b': [5, 6]})
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
         >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
-
         >>> ds = hub.Dataset(schema=my_schema, shape=(1000,), url="username/dataset_name", mode="w")
         >>> ds = ds.to_tensorflow()
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
@@ -833,7 +822,6 @@ class Dataset:
         workers: int = 1,
     ):
         """| Converts a TFDS Dataset into hub format.
-
         Parameters
         ----------
         dataset: str
@@ -851,7 +839,6 @@ class Dataset:
             choice between "single", "threaded", "processed"
         workers: int
             how many threads or processes to use
-
         Examples
         --------
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
@@ -1035,7 +1022,6 @@ class Dataset:
     @staticmethod
     def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
         """| Converts a pytorch dataset object into hub format
-
         Parameters
         ----------
         dataset:
