@@ -6,11 +6,10 @@ from hub.api.dataset import Dataset
 from tqdm import tqdm
 from collections.abc import MutableMapping
 from hub.utils import batchify
-from hub.api.dataset_utils import get_value, slice_extract_info, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_split, str_to_int, slice_extract_info
 import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
-from hub.schema import Primitive
 from hub.schema.sequence import Sequence
 from hub.schema.features import featurify
 import posixpath
@@ -133,13 +132,7 @@ class Transform:
         slice_list = slice_list or [slice(None, None, None)]
 
         num, ofs = slice_extract_info(slice_list[0], self.shape[0])
-
-        ds_view = DatasetView(
-            dataset=self._ds,
-            num_samples=num,
-            offset=ofs,
-            squeeze_dim=isinstance(slice_list[0], int),
-        )
+        ds_view = self._ds[slice_list[0]]
 
         path = posixpath.expanduser("~/.activeloop/tmparray")
         new_ds = self.store(path, length=num, ds=ds_view, progressbar=False)
@@ -314,12 +307,15 @@ class Transform:
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
             list(self.map(upload_chunk, index_batched_values))
+            offset = ds.indexes[
+                0
+            ]  # here ds.indexes will always be a contiguous list as obtained after slicing
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
                 ds.dataset._tensors[f"/{key}"].enable_dynamicness()
                 ds.dataset._tensors[f"/{key}"].set_shape(
-                    [slice(ds.offset, ds.offset + len(value))], value
+                    [slice(offset, offset + len(value))], value
                 )
 
         ds.commit()

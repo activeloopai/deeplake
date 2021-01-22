@@ -12,7 +12,7 @@ class Text(Tensor):
         self,
         shape: Tuple[int, ...] = (None,),
         dtype="int64",
-        max_shape: Tuple[int, ...] = (None,),
+        max_shape: Tuple[int, ...] = None,
         chunks=None,
         compressor="lz4",
     ):

@@ -173,6 +173,13 @@ def batchify(iterable, n=1):
     return batches
 
 
+def _tuple_product(tuple_):
+    res = 1
+    for t in tuple_:
+        res *= t
+    return res
+
+
 class Timer:
     def __init__(self, text):
         self._text = text

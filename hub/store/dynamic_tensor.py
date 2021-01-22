@@ -279,6 +279,12 @@ class DynamicTensor:
                 if self.shape[i] is not None:
                     shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
             return shapes
+        elif isinstance(samples, list):
+            shapes = np.array([self._dynamic_tensor[index] for index in samples])
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is not None:
+                    shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
+            return shapes
 
     def combine_shape(self, shape, slice_):
         """Combines given shape with slice to get final shape"""
@@ -319,14 +325,14 @@ class DynamicTensor:
     def get_shape(self, slice_):
 
         """Gets the shape of the slice from tensor"""
-        if isinstance(slice_, int) or isinstance(slice_, slice):
+        if isinstance(slice_, (int, slice)):
             slice_ = [slice_]
         if self._dynamic_tensor is None:  # returns 1D np array
             return self.combine_shape(np.array(self.shape), slice_)
         elif isinstance(slice_[0], int):  # returns 1D np array
             sample_shape = self.get_shape_samples(slice_[0])
             return self.combine_shape(sample_shape, slice_[1:])
-        elif isinstance(slice_[0], slice):
+        elif isinstance(slice_[0], (slice, list)):
             sample_shapes = self.get_shape_samples(slice_[0])
             final_shapes = self.combine_shape(sample_shapes, slice_[1:])
             if len(final_shapes) == 1:

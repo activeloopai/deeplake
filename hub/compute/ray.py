@@ -59,8 +59,8 @@ class RayTransform(Transform):
         Remote wrapper for user defined function
         """
 
-        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView):
-            _ds.squeeze_dim = False
+        if isinstance(_ds, (Dataset, DatasetView)) and isinstance(_ds.indexes, int):
+            _ds.indexes = [_ds.indexes]
 
         item = _ds[index]
         if isinstance(item, DatasetView) or isinstance(item, Dataset):
