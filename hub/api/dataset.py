@@ -362,7 +362,7 @@ class Dataset:
                 mode=self._mode,
                 synchronizer=self.synchronizer,
                 # FIXME We don't need argument below here
-                # shape=self._shape + t_dtype.shape,
+                shape=self._shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):

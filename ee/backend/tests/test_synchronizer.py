@@ -40,7 +40,7 @@ def test_synchronization():
         shape=(5, 100, 100),
         max_shape=(5, 100, 100),
         dtype="int32",
-        synchronizer=RedisSynchronizer(),
+        synchronizer=RedisSynchronizer(using_ray=False),
     )
     pool = ProcessPool(nodes=4)
 
@@ -73,7 +73,7 @@ dynamic_schema = {
     reason="requires redis to be loaded",
 )
 def test_pipeline():
-    synchronizer = RedisSynchronizer()
+    synchronizer = RedisSynchronizer(using_ray=False)
     ds = hub.Dataset(
         "./data/test/test_pipeline_multiple2",
         mode="w",
@@ -116,7 +116,7 @@ def test_pipeline():
 )
 def test_counter():
 
-    a = RedisSynchronizer()
+    a = RedisSynchronizer(using_ray=False)
     a.reset(key="key1")
     a.append(key="key1", number=10)
     assert a.get(key="key1") == 10
@@ -128,7 +128,7 @@ def test_counter():
         RedisSynchronizer().append(key="key1", number=10)
 
     pool.map(store, samples)
-    RedisSynchronizer().append(key="key1", number=-10)
+    RedisSynchronizer(using_ray=False).append(key="key1", number=-10)
     assert a.get(key="key1") == 40
 
 

@@ -141,7 +141,10 @@ def test_resize():
 def test_ray_dataset():
     from hub import Dataset
 
-    # ds = Dataset("s3://intelinair-snark-dataset/hub/segmentation_train_512_1000_11")
+    ds = Dataset("s3://intelinair-snark-dataset/hub/segmentation_train_512_1000_12")
+    # print(len(ds))
+    # print(ds["label", 0].shape)
+    exit()
     ds = Dataset("/tmp/dataset_ray")
     print(len(ds))
     ds.resize_shape(len(ds) - 10)
@@ -149,6 +152,8 @@ def test_ray_dataset():
 
 
 if __name__ == "__main__":
+    test_ray_dataset()
+    exit()
     test_dataset_bug_3()
     test_resize()
     exit()

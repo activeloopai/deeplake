@@ -1,9 +1,14 @@
+from logging import disable
+from sys import displayhook
+
+from click import disable_unicode_literals_warning
 import numpy as np
 import zarr
 
 import hub
 from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
+from hub.schema import Tensor, Mask, Text, Image
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
@@ -291,74 +296,47 @@ def test_mutli_sample_transform():
         assert (item["test"].compute() == (i // 2) * np.ones((5, 5))).all()
 
 
-def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
-    numpy_arr = np.zeros((sample_size, width, width, channels), dtype=dtype)
-    zarr_fs = zarr.zeros(
-        (sample_size, width, width, channels),
-        dtype=dtype,
-        store=zarr.storage.FSStore("./data/test/array"),
-        overwrite=True,
-    )
-    zarr_lmdb = zarr.zeros(
-        (sample_size, width, width, channels),
-        dtype=dtype,
-        store=zarr.storage.LMDBStore("./data/test/array2"),
-        overwrite=True,
-    )
-
-    my_schema = {
-        "image": Tensor((width, width, channels), dtype, (width, width, channels)),
+def test_complex_dataset(shape=(100, 100, 3)):
+    schema = {
+        "image": Tensor(shape=(None, None, None), max_shape=shape, dtype="int8"),
+        # "label": Mask(shape=(None, None, 1), max_shape=shape[1:] + (1,)),
+        # "mask": Mask(shape=(None, None) + (1,), max_shape=shape[1:] + (1,)),
+        # "box": Tensor(shape=(None, 4), max_shape=(1000, 4), dtype="uint16"),
+        # "box_type": Tensor(shape=(None,), max_shape=(1000,), dtype="uint8"),
+        # "box_mask": Tensor(shape=(None, None, None), max_shape=(1000,) + shape[1:]),
+        # "flight_code": Text(shape=(None,), max_shape=(10,)),
     }
 
-    ds_fs = hub.Dataset(
-        "./data/test/test_pipeline_basic_3",
-        mode="w",
-        shape=(sample_size,),
-        schema=my_schema,
-        cache=0,
+    def temp_data(shape):
+        return {
+            "image": np.ones(shape),
+            # "label": np.ones(shape[1:] + (1,)),
+            # "mask": np.ones(shape[1:] + (1,)),
+            # "box": np.ones((1000, 4), dtype="uint16"),
+            # "box_type": np.ones((1000,), dtype="uint8"),
+            # "box_mask": np.ones((1000,) + shape[1:]),
+            # "flight_code": "text",
+        }
+
+    @hub.transform(
+        schema=schema,
+        scheduler="single",
     )
+    def fill_samples(sample):
+        return temp_data(shape)
 
-    ds_fs_cache = hub.Dataset(
-        "./data/test/test_pipeline_basic_2",
-        mode="w",
-        shape=(sample_size,),
-        schema=my_schema,
-    )
-    if False:
-        print(
-            f"~~~ Sequential write of {sample_size}x{width}x{width}x{channels} random arrays ~~~"
-        )
-        for name, arr in [
-            ("Numpy", numpy_arr),
-            ("Zarr FS", zarr_fs),
-            ("Zarr LMDB", zarr_lmdb),
-            ("Hub FS", ds_fs["image"]),
-            ("Hub FS+Cache", ds_fs_cache["image"]),
-        ]:
-            with Timer(name):
-                for i in range(sample_size):
-                    arr[i] = (np.random.rand(width, width, channels) * 255).astype(
-                        dtype
-                    )
-
-    print(f"~~~ Pipeline {sample_size}x{width}x{width}x{channels} random arrays ~~~")
-    for name, processes in [
-        ("single", 1),
-        ("processed", 10),
-    ]:  # , ("ray", 10), ("green", 10), ("dask", 10)]:
-
-        @hub.transform(schema=my_schema, scheduler=name, processes=processes)
-        def my_transform(sample):
-            return {
-                "image": (np.random.rand(width, width, channels) * 255).astype(dtype),
-            }
-
-        with Timer(name):
-            out_ds = my_transform(ds_fs)
-            out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
+    path = "./data/complex_dataset"
+    ds_stored = fill_samples([1, 2, 3, 4, 5, 6]).store(path)
+    # print(ds_stored["image", 0].compute())
+    ds = hub.Dataset(path)
+    print(ds["image", 0].compute())
+    ds["image", 0] = np.ones((10, 10, 3))
+    # assert ds["image", 0].compute() == 1
 
 
 if __name__ == "__main__":
+    test_complex_dataset()
+    exit()
     test_pipeline_basic()
     test_multiprocessing()
     exit()

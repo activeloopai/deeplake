@@ -385,7 +385,6 @@ class Transform:
             return 0
 
         if self.synchronizer is None:
-            print("SYNCRONIZER IS NONE!")
             # delta = 1 if len(ds_out) == 1 else 0
             # print(len(ds_out))
             # end_pos = # ds_out.append_shape(n_results - delta)
