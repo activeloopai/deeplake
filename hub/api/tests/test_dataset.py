@@ -392,6 +392,14 @@ def test_datasetview_get_dictionary():
     assert (dic["a"] == 5 * np.ones((100, 200))).all()
     assert (dic["d"]["e"] == 3 * np.ones((5, 3))).all()
     dsv.enable_lazy()
+    ds["label", "a"] = 9 * np.ones((20, 100, 200))
+    ds["label", "d", "e"] = 11 * np.ones((20, 5, 3))
+    dic2 = dsv["label"]
+    assert (dic2["a"].compute() == 9 * np.ones((8, 100, 200))).all()
+    assert (dic2["d"]["e"].compute() == 11 * np.ones((8, 5, 3))).all()
+    dic3 = ds["label"]
+    assert (dic3["a"].compute() == 9 * np.ones((20, 100, 200))).all()
+    assert (dic3["d"]["e"].compute() == 11 * np.ones((20, 5, 3))).all()
 
 
 def test_tensorview_slicing():
