@@ -40,6 +40,7 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
     HubDatasetNotFoundException,
+    IncompatibleShapes,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     ShapeArgumentNotFoundException,
@@ -345,6 +346,7 @@ class Dataset:
         for t in self._flat_tensors:
             t_dtype, t_path = t
             path = posixpath.join(self._path, t_path[1:])
+
             yield t_path, DynamicTensor(
                 fs_map=MetaStorage(
                     t_path,
@@ -360,7 +362,7 @@ class Dataset:
                 mode=self._mode,
                 synchronizer=self.synchronizer,
                 # FIXME We don't need argument below here
-                shape=self._shape + t_dtype.shape,
+                # shape=self._shape + t_dtype.shape,
             )
 
     def __getitem__(self, slice_):

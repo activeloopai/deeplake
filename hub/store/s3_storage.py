@@ -99,6 +99,8 @@ class S3Storage(MutableMapping):
         try:
             path = posixpath.join(self.bucketpath, path)
             self.s3fs.rm(path, recursive=True)
+        except FileNotFoundError as err:
+            raise KeyError(err)
         except Exception as err:
             logger.error(err)
             raise S3Exception(err)

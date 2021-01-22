@@ -16,6 +16,7 @@ class RedisSynchronizer(object):
         db: int = 0,
         debug: bool = False,
         password: str = None,
+        using_ray: bool = False,
     ):
         """Provides synchronization using redis locks
         Parameters
@@ -35,13 +36,16 @@ class RedisSynchronizer(object):
         self.db = db
         self.conn = None
         self.password = None
+        self.using_ray = using_ray
 
     def _get_connection(self):
         self.host = (
-            os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else self.host
+            os.environ["RAY_HEAD_IP"]
+            if "RAY_HEAD_IP" in os.environ
+            else self.host and self.using_ray
         )
 
-        if self.password is None:
+        if self.password is None and self.using_ray:
             self.password = "5241590000000000"
 
         return StrictRedis(

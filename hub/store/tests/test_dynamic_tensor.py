@@ -123,7 +123,38 @@ def test_dynamic_tensor_4():
     assert (t[0, 6:8] == np.ones((2, 20, 10), dtype="int32")).all()
 
 
+def test_resize():
+    t = DynamicTensor(
+        create_store("s3://snark-test/superficial_dataset_2"),
+        mode="w",
+        shape=(10, None, None, None),
+        max_shape=(10, 100, 100, 10),
+        dtype="int32",
+    )
+    t[0:100] = np.ones((100, 100, 100, 10))
+    t.resize_shape(10)
+    assert t.shape[0] == 10
+    t.resize_shape(20)
+    assert t.shape[0] == 20
+
+
+def test_ray_dataset():
+    from hub import Dataset
+
+    # ds = Dataset("s3://intelinair-snark-dataset/hub/segmentation_train_512_1000_11")
+    ds = Dataset("/tmp/dataset_ray")
+    print(len(ds))
+    ds.resize_shape(len(ds) - 10)
+    print(len(ds))
+
+
 if __name__ == "__main__":
+    test_dataset_bug_3()
+    test_resize()
+    exit()
+    test_ray_dataset()
+    exit()
+    test_resize()
     test_read_and_append_modes()
     # test_chunk_iterator()
     # test_dynamic_tensor_shapes()

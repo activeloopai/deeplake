@@ -660,5 +660,6 @@ def test_dataset_assign_value():
 
 if __name__ == "__main__":
     # test_pickleability()
+    test_append_dataset()
     test_pickleability()
     # test_dataset_append_and_read()

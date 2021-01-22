@@ -9,6 +9,8 @@ from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
 from hub.api.dataset_utils import get_value, str_to_int
 
+from hub.log import logger
+
 
 def empty_remote(template, **kwargs):
     """
@@ -279,7 +281,7 @@ class TransformShard:
         self.synchronizer = synchronizer
 
     def transform_shard(self, url: str, start: int, end: int):
-        print(f" -- processing {start} shard from {start} to {end}")
+        logger.info(f" -- processing {start} shard from {start} to {end}")
         return Transform(
             self._func,
             self.schema,
@@ -334,7 +336,10 @@ class RayGeneratorTransform(RayTransform):
         """
         _ds = ds or self.base_ds
         results = []
-
+        if self.synchronizer is None:
+            logger.warning(
+                "Running ray without syncronizer added will cause multiple workers writing to the same chunk."
+            )
         ds_out = self.create_dataset(
             url, length=1000 * 1000, token=token, public=public, create=True
         )
@@ -358,4 +363,11 @@ class RayGeneratorTransform(RayTransform):
         datasets = ray.get(results)
         datasets = [d for d in datasets if d]
         ds = datasets[0]
+
+        if self.synchronizer is not None:
+            total = self.synchronizer.get(key=f"{ds.url}_dataset_length")
+            ds.flush()
+            ds.resize_shape(total)
+            ds.commit()
+
         return ds

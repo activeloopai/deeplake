@@ -400,9 +400,11 @@ class Transform:
             end_pos = offset + n_results
             # print(start_pos, end_pos)
         else:
-            end_pos = self.synchronizer.append(f"{ds_out.url}_dataset_length", n_results)
+            end_pos = self.synchronizer.append(
+                f"{ds_out.url}_dataset_length", n_results
+            )
             start_pos = end_pos - n_results
-
+        print("writing to", end_pos, start_pos)
         self.upload(
             results,
             ds_out[start_pos:end_pos],
@@ -491,15 +493,13 @@ class Transform:
                 total += n_results
                 pbar.update(len(ds_in_shard))
                 start += n_results
-        return ds_out
-        # print("HERE!!!")
 
-        # if self.synchronizer is not None:
-        #     total = self.synchronizer.get(key=f"{ds_out.url}_dataset_length")
-        # ds_out.flush()  
-        # ds_out.resize_shape(total)
-        # ds_out.commit()
-        # return ds_out
+        if self.synchronizer is None:
+            ds_out.flush()
+            ds_out.resize_shape(total)
+            ds_out.commit()
+
+        return ds_out
 
     @property
     def shape(self):
