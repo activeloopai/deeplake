@@ -10,6 +10,7 @@ import hub
 from hub.api.dataset_utils import get_value, str_to_int
 
 from hub.log import logger
+from numpy.lib.arraysetops import isin
 
 
 def empty_remote(template, **kwargs):
@@ -266,7 +267,6 @@ class TransformShard:
     def __init__(
         self, ds, func, schema, progressbar, url, public, synchronizer, kwargs
     ):
-
         if isinstance(ds, Dataset) or isinstance(ds, DatasetView):
             ds.squeeze_dim = False
 
@@ -366,8 +366,9 @@ class RayGeneratorTransform(RayTransform):
 
         if self.synchronizer is not None:
             total = self.synchronizer.get(key=f"{ds.url}_dataset_length")
-            ds.flush()
             # ds.resize_shape(total)
-            ds.commit()
+            print("TOTAL", total)
+            ds._resize_without_delete(total)
+            ds.flush()
 
         return ds

@@ -505,6 +505,36 @@ class Dataset:
 
         self._update_dataset_state()
 
+    def _resize_without_delete(self, total):
+        assert isinstance(total, int)
+        lock_path = f"{self._path}_meta"
+        synchronizer = self.synchronizer or {lock_path: EmptyLock()}
+        with synchronizer[lock_path]:
+            self._shape = (total,)
+            self.indexes = list(range(total))
+            self.meta["shape"] = (total,)
+            zarray = self.meta[".zarray"]
+            for t in zarray:
+                zarray[t][0] = total
+
+            darray = self.meta["--dynamic--/.zarray"]
+            for t in darray:
+                darray[t][0] = total
+
+            def change_shape(item, total):
+                _shape = list(item._shape)
+                _shape[0] = total
+                item._shape = tuple(_shape)
+
+            for _, t in self._tensors.items():
+                change_shape(t._storage_tensor, total)
+                change_shape(t._dynamic_tensor, total)
+
+
+                self._fs_map["meta.json"] = json.dumps(self.meta).encode("utf-8")
+
+        
+ 
     def append_shape(self, size: int):
         """ Append the shape: Heavy Operation """
         lock_path = f"{self._path}_append"
