@@ -886,7 +886,7 @@ def test_endpoint():
 
     for i in range(10):
         ds["abc", i] = i * np.ones((100, 100, 3))
-    ds.commit()
+    ds.flush()
     for i in range(10):
         assert (ds["abc", i] == i * np.ones((100, 100, 3))).all()
 
