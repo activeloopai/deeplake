@@ -577,6 +577,26 @@ class Dataset:
 
         indexes = indexes or self.indexes
         indexes = [indexes] if isinstance(indexes, int) else indexes
+        _samples_in_chunks = {
+            key: (None in value.shape) and 1 or value.chunks[0]
+            for key, value in self._tensors.items()
+        }
+        _active_chunks = {}
+        _active_chunks_range = {}
+
+        def _get_active_item(key, index):
+            active_range = _active_chunks_range.get(key)
+            samples_per_chunk = _samples_in_chunks[key]
+            if active_range is None or index not in active_range:
+                active_range_start = index - index % samples_per_chunk
+                active_range = range(
+                    active_range_start, active_range_start + samples_per_chunk
+                )
+                _active_chunks_range[key] = active_range
+                _active_chunks[key] = self._tensors[key][
+                    active_range.start : active_range.stop
+                ]
+            return _active_chunks[key][index % samples_per_chunk]
 
         def tf_gen():
             for index in indexes:
@@ -590,7 +610,7 @@ class Dataset:
                         else:
                             cur[split_key[i]] = {}
                             cur = cur[split_key[i]]
-                    cur[split_key[-1]] = self._tensors[key][index]
+                    cur[split_key[-1]] = _get_active_item(key, index)
                 yield (d)
 
         def dict_to_tf(my_dtype):
