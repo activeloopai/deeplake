@@ -570,10 +570,10 @@ class Dataset:
         """
         try:
             import tensorflow as tf
+
             global tf
         except ModuleNotFoundError:
             raise ModuleNotInstalledException("tensorflow")
-
 
         indexes = indexes or self.indexes
         indexes = [indexes] if isinstance(indexes, int) else indexes
