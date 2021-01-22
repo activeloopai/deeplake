@@ -868,6 +868,29 @@ def test_dataset_name():
     assert ds3.name == "my_dataset_2"
 
 
+def test_endpoint():
+    """Access credentials shown in this example belong to https://play.min.io:9000.
+    These credentials are open to public. Feel free to use this service for testing and development. Replace with your own MinIO keys in deployment."""
+
+    token = {
+        "aws_access_key_id": "Q3AM3UQ867SPQQA43P2F",
+        "aws_secret_access_key": "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        "endpoint_url": "https://play.min.io:9000",
+        "region": "us-east-1",
+    }
+
+    schema = {"abc": Tensor((100, 100, 3))}
+    ds = Dataset(
+        "s3://bucket/random_dataset", token=token, shape=(10,), schema=schema, mode="w"
+    )
+
+    for i in range(10):
+        ds["abc", i] = i * np.ones((100, 100, 3))
+    ds.commit()
+    for i in range(10):
+        assert (ds["abc", i] == i * np.ones((100, 100, 3))).all()
+
+
 if __name__ == "__main__":
     test_dataset_assign_value()
     test_dataset_setting_shape()
