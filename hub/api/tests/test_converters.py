@@ -84,10 +84,7 @@ def test_from_tensorflow():
 
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_to_tensorflow():
-    schema = {
-        "abc" : Tensor((100, 100, 3)),
-        "int" : "uint32"
-    }
+    schema = {"abc": Tensor((100, 100, 3)), "int": "uint32"}
     ds = hub.Dataset("./data/test_to_tf", shape=(10,), schema=schema)
     for i in range(10):
         ds["abc", i] = i * np.ones((100, 100, 3))
