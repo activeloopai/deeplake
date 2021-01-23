@@ -1,3 +1,4 @@
+import time
 import torch
 import tensorflow as tf
 
@@ -13,9 +14,9 @@ from hub.schema.features import (
 
 DATASET_NAMES = ['activeloop/mnist', 'activeloop/cifar10_train']
 
-BATCH_SIZE_POWER_MAX = 7
+BATCH_SIZES = [1, 16, 128]
 
-PREFETCH_MAX = 5
+PREFETCH_SIZES = [1, 4, 16, 128]
 
 def time_iter_pytorch(dataset_name="activeloop/mnist",
                       batch_size=1,
@@ -53,13 +54,9 @@ def time_iter_tensorflow(dataset_name="activeloop/mnist",
             if process is not None:
                 process(idx, image, label)
 
-def process_none(idx, image, label):
-    if (idx % 100 == 0):
-        print(f"Batch {idx}")
-
 if __name__ == "__main__":
     for name in DATASET_NAMES:
-        for span in range(BATCH_SIZE_POWER_MAX):
-            for prefetch in range(1,PREFETCH_MAX):
-                # time_iter_pytorch(name, 2**span, prefetch, process_none)
-                time_iter_tensorflow(name, 2**span, prefetch, process_none)
+        for size in BATCH_SIZES:
+            for prefetch in PREFETCH_SIZES:
+                time_iter_pytorch(name, size, prefetch, None)
+                time_iter_tensorflow(name, size, prefetch, None)
