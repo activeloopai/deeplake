@@ -11,11 +11,13 @@ IMG = Image.open(IMAGE_PATH)
 
 REPEAT_TIMES = 100
 
+
 def bench_pil_compression(times=REPEAT_TIMES):
     with Timer("PIL compression"):
         for i in range(times):
             b = BytesIO()
             IMG.save(b, format="png")
+
 
 def bench_hub_compression(times=REPEAT_TIMES):
     arr = np.array(IMG)
@@ -33,7 +35,7 @@ def bench_hub_compression(times=REPEAT_TIMES):
     with Timer("Hub compression"):
         ds["image", :times] = batch
 
+
 if __name__ == "__main__":
     bench_pil_compression()
     bench_hub_compression()
-
