@@ -17,6 +17,7 @@ from hub.utils import (
     s3_creds_exist,
     azure_creds_exist,
     transformers_loaded,
+    minio_creds_exist,
 )
 
 Dataset = dataset.Dataset
@@ -868,13 +869,11 @@ def test_dataset_name():
     assert ds3.name == "my_dataset_2"
 
 
-def test_endpoint():
-    """Access credentials shown in this example belong to https://play.min.io:9000.
-    These credentials are open to public. Feel free to use this service for testing and development. Replace with your own MinIO keys in deployment."""
-
+@pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
+def test_minio_endpoint():
     token = {
-        "aws_access_key_id": "Q3AM3UQ867SPQQA43P2F",
-        "aws_secret_access_key": "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        "aws_access_key_id": os.getenv("ACTIVELOOP_MINIO_KEY"),
+        "aws_secret_access_key": os.getenv("ACTIVELOOP_MINIO_SECRET_ACCESS_KEY"),
         "endpoint_url": "https://play.min.io:9000",
         "region": "us-east-1",
     }
