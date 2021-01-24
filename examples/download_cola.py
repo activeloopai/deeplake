@@ -18,22 +18,22 @@ class Retrieve(Dataset):
 
     def fetch(self):
         r = requests.get(self.url)
-        with open(self.temp, 'wb') as f:
+        with open(self.temp, "wb") as f:
             f.write(r.content)
 
     def unpack(self):
-        with zipfile.ZipFile(self.temp, 'r') as z:
+        with zipfile.ZipFile(self.temp, "r") as z:
             z.extractall()
 
     def push(self):
         # read data into memory
         df = pd.read_csv(
-                "./cola_public/raw/in_domain_train.tsv",
-                sep="\t",
-                header=None,
-                usecols=[1, 3],
-                names=["label", "sentence"],
-            )
+            "./cola_public/raw/in_domain_train.tsv",
+            sep="\t",
+            header=None,
+            usecols=[1, 3],
+            names=["label", "sentence"],
+        )
 
         sentences = list(df.sentence.values)
         labels = list(df.label.values)
@@ -41,10 +41,7 @@ class Retrieve(Dataset):
 
         @transform(schema=self.schema)
         def load_transform(sample):
-            return {
-                "sentence": sample[0],
-                "labels": sample[1]
-            }
+            return {"sentence": sample[0], "labels": sample[1]}
 
         ds = load_transform(data)
         return ds.store(self.tag)
@@ -58,11 +55,11 @@ def main(url, tag, schema):
 
 
 if __name__ == "__main__":
-    url = 'https://nyu-mll.github.io/CoLA/cola_public_1.1.zip'
+    url = "https://nyu-mll.github.io/CoLA/cola_public_1.1.zip"
     tag = "activeloop/CoLA"
     schema = {
-        'sentence': Text(shape=(None, ), max_shape=(500, )),
-        'labels': Primitive(dtype="int64")
+        "sentence": Text(shape=(None,), max_shape=(500,)),
+        "labels": Primitive(dtype="int64"),
     }
 
     main(url, tag, schema)
