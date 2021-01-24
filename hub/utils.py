@@ -49,9 +49,7 @@ def azure_creds_exist():
     import os
 
     env = os.getenv("ACCOUNT_KEY")
-    if env is not None:
-        return True
-    return False
+    return env is not None
 
 
 def hub_creds_exist():
@@ -60,9 +58,17 @@ def hub_creds_exist():
     import os
 
     env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    if env is not None:
-        return True
-    return False
+    return env is not None
+
+
+def minio_creds_exist():
+    """Checks if credentials exists"""
+
+    import os
+
+    env1 = os.getenv("ACTIVELOOP_MINIO_KEY")
+    env2 = os.getenv("ACTIVELOOP_MINIO_SECRET_ACCESS_KEY")
+    return env1 is not None and env2 is not None
 
 
 def pytorch_loaded():
@@ -156,6 +162,13 @@ def batchify(iterable, n=1):
     for ndx in range(0, ls, n):
         batches.append(iterable[ndx : min(ndx + n, ls)])
     return batches
+
+
+def _tuple_product(tuple_):
+    res = 1
+    for t in tuple_:
+        res *= t
+    return res
 
 
 class Timer:
