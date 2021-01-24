@@ -11,7 +11,7 @@ import pytest
 from hub import transform
 from hub import load
 import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict
+from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict,ClassLabel
 from hub.utils import (
     gcp_creds_exist,
     hub_creds_exist,
@@ -961,6 +961,7 @@ if __name__ == "__main__":
     test_dataset_batch_write_2()
     test_append_dataset()
     test_dataset_2()
+>
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()
