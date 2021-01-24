@@ -46,6 +46,10 @@ def get_fs_and_path(
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
                 token=token.get("aws_session_token"),
+                client_kwargs={
+                    "endpoint_url": token.get("endpoint_url"),
+                    "region_name": token.get("region"),
+                },
             ),
             url[5:],
         )
