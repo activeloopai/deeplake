@@ -99,8 +99,16 @@ class TensorView:
             raise ValueError(f"Unexpected value with shape for text {value.shape}")
         return value
 
-    def compute(self):
+    def compute(self, get_label=False):
         """Gets the value from tensorview"""
+        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and get_label:
+            if isinstance(self.indexes, int):
+                return self.dtype.int2str(self.numpy())
+            else:
+                return [
+                    self.dtype.int2str(self.numpy()[i])
+                    for i in range(self.numpy().size)
+                ]
         return self.numpy()
 
     def __getitem__(self, slice_):
