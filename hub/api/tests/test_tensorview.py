@@ -1,7 +1,7 @@
 from hub import Dataset
 from hub.api.datasetview import TensorView
 from hub.exceptions import NoneValueException
-from hub.schema import Tensor
+from hub.schema import Tensor, ClassLabel
 
 import numpy as np
 import pytest
@@ -9,10 +9,19 @@ import pytest
 
 my_schema = {
     "image": Tensor((None, None, None, None), "uint8", max_shape=(10, 1920, 1080, 4)),
-    "label": float,
+    "label": ClassLabel(num_classes=3),
 }
+my_schema2 = {"label": ClassLabel(names=["red", "green", "blue"])}
 
 ds = Dataset("./data/test/dataset", shape=(100,), mode="w", schema=my_schema)
+ds2 = Dataset("./data/test/classlabel_ds", shape=(5,), schema=my_schema2)
+
+ds["label", 0] = 1
+ds["label", 1] = 2
+ds["label", 2] = 0
+ds2["label", 0] = 1
+ds2["label", 1] = 2
+ds2["label", 2] = 0
 
 
 def test_tensorview_init():
@@ -62,6 +71,22 @@ def test_tensorview_repr():
         images_tensorview.__repr__()
         == "TensorView(Tensor(shape=(None, None, None, None), dtype='uint8', max_shape=(10, 1920, 1080, 4)), subpath='/image', slice=[slice(0, 100, None)])"
     )
+
+
+def test_check_label_name():
+    assert ds2["label", 0].compute() == 1
+    assert (ds2["label", 0:3].compute() == np.array([1, 2, 0])).all()
+    assert ds2["label", 0].compute(get_label=True) == "green"
+    assert ds2["label", 1:4].compute(get_label=True) == ["blue", "red", "red"]
+    assert ds2["label"].compute(get_label=True) == [
+        "green",
+        "blue",
+        "red",
+        "red",
+        "red",
+    ]
+    assert ds["label", 0].compute(get_label=True) == "1"
+    assert ds["label", 0:3].compute(get_label=True) == ["1", "2", "0"]
 
 
 if __name__ == "__main__":

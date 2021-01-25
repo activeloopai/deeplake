@@ -64,8 +64,15 @@ class TensorView:
         self.dtype = self.dtype_from_path(subpath)
         self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
-    def numpy(self):
-        """Gets the value from tensorview"""
+    def numpy(self, get_label=False):
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        get_label: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
         if isinstance(self.indexes, list):
             if (
                 len(self.indexes) > 1
@@ -82,6 +89,12 @@ class TensorView:
             )
         else:
             value = self.dataset._tensors[self.subpath][self.slice_]
+
+        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and get_label:
+            if isinstance(self.indexes, int):
+                value = self.dtype.int2str(value)
+            else:
+                value = [self.dtype.int2str(value[i]) for i in range(value.size)]
 
         if isinstance(self.dtype, hub.schema.text.Text):
             if self.dataset.tokenizer is not None:
@@ -100,16 +113,15 @@ class TensorView:
         return value
 
     def compute(self, get_label=False):
-        """Gets the value from tensorview"""
-        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and get_label:
-            if isinstance(self.indexes, int):
-                return self.dtype.int2str(self.numpy())
-            else:
-                return [
-                    self.dtype.int2str(self.numpy()[i])
-                    for i in range(self.numpy().size)
-                ]
-        return self.numpy()
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        get_label: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(get_label=get_label)
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from tensorview
