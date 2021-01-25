@@ -125,7 +125,7 @@ def test_dynamic_tensor_4():
 
 def test_resize():
     t = DynamicTensor(
-        create_store("s3://snark-test/superficial_dataset_2"),
+        create_store("./data/test/superficial_dataset_2"),
         mode="w",
         shape=(100, None, None, None),
         max_shape=(100, 100, 100, 10),
