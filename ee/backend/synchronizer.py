@@ -1,8 +1,10 @@
 import os
+import json
+
 from redis import StrictRedis
 import redis_lock
 import logging
-from hub.utils import EmptyLock
+import zarr
 
 logger = logging.getLogger("redis_lock")
 logger.setLevel(level=logging.WARNING)
@@ -81,3 +83,44 @@ class RedisSynchronizer(object):
         """Resets counter"""
         conn = self._get_connection()
         return conn.set(key, default)
+
+
+class ProcessSynchronizer(zarr.ProcessSynchronizer):
+    def __init__(self, path):
+        self._filepath = path + "_datafile"
+        super().__init__(path)
+
+    def _read(self, key) -> int:
+        if not os.path.exists(self._filepath):
+            return None
+        with open(self._filepath, "r") as f:
+            data = json.loads(f.read())
+            return data[key]
+
+    def _write(self, key, number: int):
+        with open(self._filepath, "a+") as f:
+            f.seek(0)
+            bytes_ = f.read()
+            data = bytes_ and json.loads(bytes_) or dict()
+            f.seek(0)
+            data[key] = number
+            bytes_ = json.dumps(data)
+            f.truncate()
+            f.write(bytes_)
+
+    def append(self, key: str = "default", number: int = 0):
+        with self[key]:
+            ans = number + self._read(key)
+            self._write(key, ans)
+            return ans
+
+    def get(self, key: str = "default") -> int:
+        with self[key]:
+            return self._read(key)
+
+    def set(self, key: str = "default", number: int = 0):
+        with self[key]:
+            self._write(key, number)
+            return number
+
+    reset = set

@@ -528,7 +528,8 @@ class Dataset:
 
             for _, t in self._tensors.items():
                 change_shape(t._storage_tensor, total)
-                change_shape(t._dynamic_tensor, total)
+                if t._dynamic_tensor is not None:
+                    change_shape(t._dynamic_tensor, total)
 
 
                 self._fs_map["meta.json"] = json.dumps(self.meta).encode("utf-8")

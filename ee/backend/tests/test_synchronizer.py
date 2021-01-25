@@ -8,7 +8,7 @@ import zarr
 
 from pathos.pools import ProcessPool
 from ee.backend.utils import redis_loaded
-from ee.backend.synchronizer import RedisSynchronizer
+from ee.backend.synchronizer import RedisSynchronizer, ProcessSynchronizer
 
 import hub
 from hub.schema import Tensor, Image, Text
@@ -132,6 +132,21 @@ def test_counter():
     assert a.get(key="key1") == 40
 
 
+def test_counter_multiprocess_synchronizer(path = "./data/test/sync"):
+    a = ProcessSynchronizer(path)
+    a.reset(key="key1")
+    a.append(key="key1", number=10)
+    assert a.get(key="key1") == 10
+
+    pool = ProcessPool(nodes=4)
+    samples = [1, 2, 3, 4]
+
+    def store(index):
+        ProcessSynchronizer(path).append(key="key1", number=10)
+
+    pool.map(store, samples)
+    ProcessSynchronizer(path).append(key="key1", number=-10)
+    assert a.get(key="key1") == 40    
+
 if __name__ == "__main__":
-    test_synchronization()
-    test_pipeline()
+    test_counter_multiprocess_synchronizer()

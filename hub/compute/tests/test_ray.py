@@ -1,3 +1,4 @@
+from ee.backend.synchronizer import ProcessSynchronizer
 import hub
 from hub.utils import ray_loaded
 from hub.schema import Tensor, Text
@@ -130,7 +131,9 @@ def test_pipeline_ray():
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
-def test_ray_pipeline_multiple():
+def test_ray_pipeline_multiple(syncpath = "./data/test/sync"):
+
+    sync = ProcessSynchronizer(syncpath)
 
     ds = hub.Dataset(
         "./data/test/test_pipeline_dynamic10",
@@ -138,11 +141,12 @@ def test_ray_pipeline_multiple():
         shape=(10,),
         schema=dynamic_schema,
         cache=False,
+        synchronizer=sync,
     )
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="ray_generator", workers=2)
+    @hub.transform(schema=dynamic_schema, scheduler="ray_generator", workers=2, synchronizer=sync)
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {
