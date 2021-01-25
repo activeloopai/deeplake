@@ -84,7 +84,7 @@ class DatasetView:
                         lazy=self.lazy,
                     )
                     return objectview if self.lazy else objectview.compute()
-            return self._get_dictionary(self.dataset, subpath, slice=slice_)
+            return self._get_dictionary(subpath, slice_)
         else:
             if isinstance(self.indexes, list):
                 indexes = self.indexes[slice_list[0]]
