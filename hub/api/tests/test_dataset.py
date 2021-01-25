@@ -17,6 +17,7 @@ from hub.utils import (
     s3_creds_exist,
     azure_creds_exist,
     transformers_loaded,
+    minio_creds_exist,
 )
 
 Dataset = dataset.Dataset
@@ -392,6 +393,14 @@ def test_datasetview_get_dictionary():
     assert (dic["a"] == 5 * np.ones((100, 200))).all()
     assert (dic["d"]["e"] == 3 * np.ones((5, 3))).all()
     dsv.enable_lazy()
+    ds["label", "a"] = 9 * np.ones((20, 100, 200))
+    ds["label", "d", "e"] = 11 * np.ones((20, 5, 3))
+    dic2 = dsv["label"]
+    assert (dic2["a"].compute() == 9 * np.ones((8, 100, 200))).all()
+    assert (dic2["d"]["e"].compute() == 11 * np.ones((8, 5, 3))).all()
+    dic3 = ds["label"]
+    assert (dic3["a"].compute() == 9 * np.ones((20, 100, 200))).all()
+    assert (dic3["d"]["e"].compute() == 11 * np.ones((20, 5, 3))).all()
 
 
 def test_tensorview_slicing():
@@ -894,6 +903,27 @@ def test_check_label_name():
     assert ds[1].compute() == {"label": 2}
     assert ds[1:3].compute(label_name=True) == [{"label": "blue"}, {"label": "red"}]
     assert ds[1:3].compute() == [{"label": 2}, {"label": 0}]
+
+
+@pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
+def test_minio_endpoint():
+    token = {
+        "aws_access_key_id": os.getenv("ACTIVELOOP_MINIO_KEY"),
+        "aws_secret_access_key": os.getenv("ACTIVELOOP_MINIO_SECRET_ACCESS_KEY"),
+        "endpoint_url": "https://play.min.io:9000",
+        "region": "us-east-1",
+    }
+
+    schema = {"abc": Tensor((100, 100, 3))}
+    ds = Dataset(
+        "s3://bucket/random_dataset", token=token, shape=(10,), schema=schema, mode="w"
+    )
+
+    for i in range(10):
+        ds["abc", i] = i * np.ones((100, 100, 3))
+    ds.flush()
+    for i in range(10):
+        assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
 if __name__ == "__main__":

@@ -120,7 +120,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 hub register
 hub login
 
-# alternatively, on platforms like kaggle use this, replacing username and password with actual credentials
+# alternatively, add username and password as arguments (use on platforms like Kaggle)
 hub login -u username -p password
 ```
 
