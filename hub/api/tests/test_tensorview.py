@@ -11,10 +11,13 @@ my_schema = {
     "image": Tensor((None, None, None, None), "uint8", max_shape=(10, 1920, 1080, 4)),
     "label": ClassLabel(num_classes=3),
 }
-my_schema2 = {"label": ClassLabel(names=["red", "green", "blue"])}
+my_schema2 = {
+    "image": Tensor((None, None, None, None), "uint8", max_shape=(10, 1920, 1080, 4)),
+    "label": ClassLabel(names=["red", "green", "blue"]),
+}
 
 ds = Dataset("./data/test/dataset", shape=(100,), mode="w", schema=my_schema)
-ds2 = Dataset("./data/test/classlabel_ds", shape=(5,), schema=my_schema2)
+ds2 = Dataset("./data/test/dataset2", shape=(5,), mode="w", schema=my_schema2)
 
 ds["label", 0] = 1
 ds["label", 1] = 2
@@ -74,19 +77,23 @@ def test_tensorview_repr():
 
 
 def test_check_label_name():
+    assert ds["label", 0].compute(label_name=True) == "1"
+    assert ds["label", 0:3].compute(label_name=True) == ["1", "2", "0"]
     assert ds2["label", 0].compute() == 1
     assert (ds2["label", 0:3].compute() == np.array([1, 2, 0])).all()
-    assert ds2["label", 0].compute(show_label=True) == "green"
-    assert ds2["label", 1:4].compute(show_label=True) == ["blue", "red", "red"]
-    assert ds2["label"].compute(show_label=True) == [
+    assert ds2["label", 0].compute(label_name=True) == "green"
+    assert ds2["label", 1:4].compute(label_name=True) == ["blue", "red", "red"]
+    assert ds2["label"].compute(label_name=True) == [
         "green",
         "blue",
         "red",
         "red",
         "red",
     ]
-    assert ds["label", 0].compute(show_label=True) == "1"
-    assert ds["label", 0:3].compute(show_label=True) == ["1", "2", "0"]
+    assert (
+        ds2["image", 0].compute(label_name=True).__repr__()
+        == "array([], shape=(0, 0, 0, 0), dtype=uint8)"
+    )
 
 
 if __name__ == "__main__":

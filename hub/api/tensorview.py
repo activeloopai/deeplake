@@ -64,12 +64,12 @@ class TensorView:
         self.dtype = self.dtype_from_path(subpath)
         self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
-    def numpy(self, show_label=False):
+    def numpy(self, label_name=False):
         """Gets the value from tensorview
 
         Parameters
         ----------
-        show_label: bool, optional
+        label_name: bool, optional
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
@@ -90,7 +90,7 @@ class TensorView:
         else:
             value = self.dataset._tensors[self.subpath][self.slice_]
 
-        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and show_label:
+        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and label_name:
             if isinstance(self.indexes, int):
                 value = self.dtype.int2str(value)
             else:
@@ -112,16 +112,16 @@ class TensorView:
             raise ValueError(f"Unexpected value with shape for text {value.shape}")
         return value
 
-    def compute(self, show_label=False):
+    def compute(self, label_name=False):
         """Gets the value from tensorview
 
         Parameters
         ----------
-        show_label: bool, optional
+        label_name: bool, optional
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
-        return self.numpy(show_label=show_label)
+        return self.numpy(label_name=label_name)
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from tensorview
