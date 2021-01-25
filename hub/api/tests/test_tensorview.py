@@ -76,17 +76,17 @@ def test_tensorview_repr():
 def test_check_label_name():
     assert ds2["label", 0].compute() == 1
     assert (ds2["label", 0:3].compute() == np.array([1, 2, 0])).all()
-    assert ds2["label", 0].compute(get_label=True) == "green"
-    assert ds2["label", 1:4].compute(get_label=True) == ["blue", "red", "red"]
-    assert ds2["label"].compute(get_label=True) == [
+    assert ds2["label", 0].compute(show_label=True) == "green"
+    assert ds2["label", 1:4].compute(show_label=True) == ["blue", "red", "red"]
+    assert ds2["label"].compute(show_label=True) == [
         "green",
         "blue",
         "red",
         "red",
         "red",
     ]
-    assert ds["label", 0].compute(get_label=True) == "1"
-    assert ds["label", 0:3].compute(get_label=True) == ["1", "2", "0"]
+    assert ds["label", 0].compute(show_label=True) == "1"
+    assert ds["label", 0:3].compute(show_label=True) == ["1", "2", "0"]
 
 
 if __name__ == "__main__":
