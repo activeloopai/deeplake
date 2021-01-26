@@ -877,6 +877,34 @@ def test_dataset_name():
     assert ds3.name == "my_dataset_2"
 
 
+def test_check_label_name():
+    my_schema = {"label": ClassLabel(names=["red", "green", "blue"])}
+    ds = Dataset("./data/test/dataset2", shape=(5,), mode="w", schema=my_schema)
+    ds["label", 0] = 1
+    ds["label", 1] = 2
+    ds["label", 0] = 1
+    ds["label", 1] = 2
+    ds["label", 2] = 0
+    assert ds.compute(label_name=True) == [
+        {"label": "green"},
+        {"label": "blue"},
+        {"label": "red"},
+        {"label": "red"},
+        {"label": "red"},
+    ]
+    assert ds.compute() == [
+        {"label": 1},
+        {"label": 2},
+        {"label": 0},
+        {"label": 0},
+        {"label": 0},
+    ]
+    assert ds[1].compute(label_name=True) == {"label": "blue"}
+    assert ds[1].compute() == {"label": 2}
+    assert ds[1:3].compute(label_name=True) == [{"label": "blue"}, {"label": "red"}]
+    assert ds[1:3].compute() == [{"label": 2}, {"label": 0}]
+
+
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
 def test_minio_endpoint():
     token = {
@@ -926,3 +954,4 @@ if __name__ == "__main__":
     test_datasetview_2()
     test_dataset_3()
     test_dataset_utils()
+    test_check_label_name()
