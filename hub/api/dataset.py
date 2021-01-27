@@ -1,3 +1,4 @@
+from hub.api.versioning import VersionNode
 import os
 import posixpath
 import collections.abc as abc
@@ -11,13 +12,11 @@ from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-import numpy as np
 
 from hub.schema.features import (
     Primitive,
     Tensor,
     SchemaDict,
-    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -28,6 +27,7 @@ from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    generate_hash,
     get_value,
     slice_split,
     str_to_int,
@@ -48,7 +48,6 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    NoneValueException,
     ShapeLengthException,
     WrongUsernameException,
 )
@@ -59,6 +58,7 @@ from hub.numcodecs import PngCodec
 
 from hub.utils import norm_cache, norm_shape, _tuple_product
 from hub import defaults
+import pickle
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -159,7 +159,23 @@ class Dataset:
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
+            try:
+                version_info = pickle.loads(fs_map["version.pkl"])
+                self._branch_node_map = version_info["branch_node_map"]
+                self._commit_node_map = version_info["commit_node_map"]
+                self._branch = "master"
+                self._version_node = self._branch_node_map[self._branch]
+                self._commit_id = self._version_node.commit_id
+            except Exception:
+                self._commit_id = generate_hash()
+                self._branch = "master"
+                self._version_node = VersionNode(self._commit_id, self._branch)
+                self._branch_node_map = {self._branch: self._version_node}
+                self._commit_node_map = {self._commit_id: self._version_node}
+
             self._tensors = dict(self._open_storage_tensors())
+            self._store_commits()
+
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
                     f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
@@ -186,8 +202,15 @@ class Dataset:
                 self.meta = self._store_meta()
                 self._meta_information = meta_information
                 self._flat_tensors = tuple(flatten(self.schema))
+
+                self._commit_id = generate_hash()
+                self._branch = "master"
+                self._version_node = VersionNode(self._commit_id, self._branch)
+                self._branch_node_map = {self._branch: self._version_node}
+                self._commit_node_map = {self._commit_id: self._version_node}
+
                 self._tensors = dict(self._generate_storage_tensors())
-                self.flush()
+                self._store_commits()
             except Exception as e:
                 try:
                     self.close()
@@ -260,6 +283,67 @@ class Dataset:
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
+
+    def _store_commits(self) -> dict:
+        d = {
+            "branch_node_map": self._branch_node_map,
+            "commit_node_map": self._commit_node_map,
+        }
+        self._fs_map["version.pkl"] = pickle.dumps(d)
+        self.flush()
+        self._tensors = dict(self._open_storage_tensors())
+        return d
+
+    def commit(self, message):
+        """ Deprecated alias to flush()"""
+        if not self._version_node.children:
+            self._commit_id = generate_hash()
+            new_node = VersionNode(self._commit_id, self._branch)
+            self._version_node.insert(new_node, message)
+            self._version_node = new_node
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self._store_commits()
+            return self._commit_id
+        else:
+            # TODO decide what to checkout to automatically
+            self.checkout(f"auto {generate_hash()}", True)
+            return self.commit(message)
+
+    def checkout(self, address, create=False):
+        # address could be either branch name or commit_id
+        if address in self._branch_node_map.keys():
+            self._branch = address
+            self._version_node = self._branch_node_map[address]
+            self._commit_id = self._version_node.commit_id
+        elif address in self._commit_node_map.keys():
+            self._version_node = self._commit_node_map[address]
+            self._branch = self._version_node.branch
+            self._commit_id = self._version_node.commit_id
+        elif create:
+            self._branch = address
+            self._commit_id = generate_hash()
+            new_node = VersionNode(self._commit_id, self._branch)
+            if self._version_node.parent is not None:
+                self._version_node.parent.insert(
+                    new_node, f"switched to new branch {address}"
+                )
+            self._version_node = new_node
+        else:
+            # TODO Proper error
+            raise ValueError()
+        self._store_commits()
+        return self._commit_id
+
+    def log(self):
+        current_node = self._version_node.parent
+        print(f"Branch: {self._branch}\n")
+        while current_node:
+            print(f"{current_node.commit_id} : {current_node.message}")
+            current_node = current_node.parent
+
+    def optimize(self):
+        pass
 
     def _check_and_prepare_dir(self):
         """
@@ -341,6 +425,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self._version_node
                 ),
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
@@ -365,6 +450,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self._version_node
                 ),
                 mode=self._mode,
                 # FIXME We don't need argument below here
@@ -705,10 +791,6 @@ class Dataset:
         self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
-
-    def commit(self):
-        """ Deprecated alias to flush()"""
-        self.flush()
 
     def close(self):
         """Save changes from cache to dataset final storage.
