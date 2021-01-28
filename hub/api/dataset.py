@@ -291,12 +291,12 @@ class Dataset:
         }
         self._fs_map["version.pkl"] = pickle.dumps(d)
         self.flush()
-        self._tensors = dict(self._open_storage_tensors())
         return d
 
     def commit(self, message):
         """ Deprecated alias to flush()"""
         if not self._version_node.children:
+            stored_commit_id = self._commit_id
             self._commit_id = generate_hash()
             new_node = VersionNode(self._commit_id, self._branch)
             self._version_node.insert(new_node, message)
@@ -304,7 +304,7 @@ class Dataset:
             self._branch_node_map[self._branch] = new_node
             self._commit_node_map[self._commit_id] = new_node
             self._store_commits()
-            return self._commit_id
+            return stored_commit_id
         else:
             # TODO decide what to checkout to automatically
             self.checkout(f"auto {generate_hash()}", True)
@@ -322,13 +322,19 @@ class Dataset:
             self._commit_id = self._version_node.commit_id
         elif create:
             self._branch = address
-            self._commit_id = generate_hash()
-            new_node = VersionNode(self._commit_id, self._branch)
-            if self._version_node.parent is not None:
-                self._version_node.parent.insert(
-                    new_node, f"switched to new branch {address}"
-                )
+            new_commit_id = generate_hash()
+            new_node = VersionNode(new_commit_id, self._branch)
+            if not self._version_node.children:
+                for key in self.keys:
+                    self._tensors[key].fs_map.copy_all(self._commit_id, new_commit_id)
+                if self._version_node.parent is not None:
+                    self._version_node.parent.insert(
+                        new_node, f"switched to new branch {address}"
+                    )
+            else:
+                self._version_node.insert(new_node, f"switched to new branch {address}")
             self._version_node = new_node
+            self._commit_id = new_commit_id
         else:
             # TODO Proper error
             raise ValueError()
@@ -336,10 +342,14 @@ class Dataset:
         return self._commit_id
 
     def log(self):
-        current_node = self._version_node.parent
-        print(f"Branch: {self._branch}\n")
+        current_node = (
+            self._version_node.parent
+            if not self._version_node.children
+            else self._version_node
+        )
+        print(f"\nBranch: {self._branch}")
         while current_node:
-            print(f"{current_node.commit_id} : {current_node.message}")
+            print(current_node)
             current_node = current_node.parent
 
     def optimize(self):
@@ -425,7 +435,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
-                    self._version_node
+                    self,
                 ),
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
@@ -450,7 +460,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
-                    self._version_node
+                    self,
                 ),
                 mode=self._mode,
                 # FIXME We don't need argument below here

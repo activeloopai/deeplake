@@ -13,15 +13,15 @@ class MetaStorage(MutableMapping):
             obj = obj.decode("utf-8")
         return obj
 
-    def __init__(self, path, fs_map: MutableMapping, meta_map: MutableMapping, version_node: VersionNode):
+    def __init__(self, path, fs_map: MutableMapping, meta_map: MutableMapping, ds):
         self._fs_map = fs_map
         self._meta = meta_map
         self._path = path
-        self._version_node = version_node
+        self._ds = ds
 
-    def find_node(self, k : str) -> str:
+    def find_node(self, k: str) -> str:
         ls = [path for path in self._fs_map.keys() if path.startswith(k)]
-        cur_node = self._version_node
+        cur_node = self._ds._version_node
         while cur_node is not None:
             path = f"{k}-{cur_node.commit_id}"
             if path in ls:
@@ -32,7 +32,10 @@ class MetaStorage(MutableMapping):
     def __getitem__(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
         if not filename.startswith(".") and check:
-            filename = self.find_node(filename) or f"{filename}-{self._version_node.commit_id}"
+            filename = (
+                self.find_node(filename)
+                or f"{filename}-{self._ds._version_node.commit_id}"
+            )
         if filename.startswith("."):
             return bytes(
                 json.dumps(
@@ -63,7 +66,7 @@ class MetaStorage(MutableMapping):
         filename = posixpath.split(k)[1]
         if not filename.startswith(".") and check:
             old_filename = self.find_node(filename)
-            filename = f"{filename}-{self._version_node.commit_id}"
+            filename = f"{filename}-{self._ds._version_node.commit_id}"
             if old_filename:
                 data = self.__getitem__(old_filename, False)
                 self.__setitem__(filename, data, False)
@@ -76,6 +79,15 @@ class MetaStorage(MutableMapping):
         else:
             self._fs_map[filename] = v
 
+    def copy_all(self, from_commit_id: str, to_commit_id: str):
+        ls = [path for path in self._fs_map.keys() if path.endswith(from_commit_id)]
+        for path in ls:
+            data = self.__getitem__(path, False)
+            chunk_name = path.split("-")[0]
+            new_path = f"{chunk_name}-{to_commit_id}"
+            self.__setitem__(new_path, data, False)
+        return True
+
     def __len__(self):
         return len(self._fs_map) + 1
 
@@ -84,8 +96,12 @@ class MetaStorage(MutableMapping):
         yield from self._fs_map
 
     def __delitem__(self, k: str):
-        print(f"k is in delitem {k}")
         filename = posixpath.split(k)[1]
+        if not filename.startswith("."):
+            filename = (
+                self.find_node(filename)
+                or f"{filename}-{self._ds._version_node.commit_id}"
+            )
         if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or dict()

@@ -12,7 +12,7 @@ class VersionNode:
         self.message = self.message or message
 
     def __repr__(self) -> str:
-        return f"{self.branch}: {self.commit_id} - {self.message}"
+        return f'{self.commit_id}({self.branch}): "{self.message}"'
 
     def __str__(self) -> str:
         return self.__repr__()
