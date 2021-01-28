@@ -163,5 +163,5 @@ def str_to_int(assign_value, tokenizer):
 
 def generate_hash():
     hash = hashlib.sha1()
-    hash.update(str(time.time()).encode('utf-8'))
+    hash.update(str(time.time()).encode("utf-8"))
     return hash.hexdigest()

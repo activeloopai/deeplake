@@ -16,6 +16,3 @@ class VersionNode:
 
     def __str__(self) -> str:
         return self.__repr__()
-
-    # def delete(self):
-    #     child

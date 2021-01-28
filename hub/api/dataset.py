@@ -298,7 +298,7 @@ class Dataset:
         self.flush()
         return d
 
-    def commit(self, message):
+    def commit(self, message=""):
         """ Deprecated alias to flush()"""
         if not self._version_node.children:
             stored_commit_id = self._commit_id

@@ -41,6 +41,7 @@ class MetaStorage(MutableMapping):
                 self.find_node(filename)
                 or f"{filename}-{self._ds._version_node.commit_id}"
             )
+        filename = k if k.startswith("--dynamic--") else filename
         if filename.startswith("."):
             return bytes(
                 json.dumps(
@@ -51,9 +52,13 @@ class MetaStorage(MutableMapping):
         else:
             return self._fs_map[filename]
 
-    def get(self, k: str) -> bytes:
-        # print(f"k is in get {k}")
+    def get(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
+        if not filename.startswith(".") and check:
+            filename = (
+                self.find_node(filename)
+                or f"{filename}-{self._ds._version_node.commit_id}"
+            )
         if filename.startswith("."):
             meta_ = self._meta.get("meta.json")
             if not meta_:
@@ -75,7 +80,7 @@ class MetaStorage(MutableMapping):
             if old_filename:
                 data = self.__getitem__(old_filename, False)
                 self.__setitem__(filename, data, False)
-
+        filename = k if k.startswith("--dynamic--") else filename
         if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or {}
