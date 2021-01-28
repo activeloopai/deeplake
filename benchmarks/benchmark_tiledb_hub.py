@@ -48,8 +48,8 @@ def time_hub(dataset, batch_size=1):
         t0 = time()
         for batch in range(ds.shape[0] // batch_size):
             x, y = (
-                ds[batch * batch_size : (batch + 1) * batch_size]["image"],
-                ds[batch * batch_size : (batch + 1) * batch_size]["label"],
+                ds[batch * batch_size : (batch + 1) * batch_size]["image"].compute(),
+                ds[batch * batch_size : (batch + 1) * batch_size]["label"].compute(),
             )
             counter += 1
             t1 = time()
