@@ -61,11 +61,11 @@ class MimiciiiCxr:
         image_size = self._image_size
 
         return {
-            "subject_id": schema.Text(),
-            "study_id": schema.Text(),
-            "study_data": schema.Text(),
-            "study_time": schema.Text(),
-            "report": schema.Text(),
+            "subject_id": schema.Text(max_shape=(1000,)),
+            "study_id": schema.Text(max_shape=(1000,)),
+            "study_data": schema.Text(max_shape=(1000,)),
+            "study_time": schema.Text(max_shape=(1000,)),
+            "report": schema.Text(max_shape=(1000,)),
             "label_chexpert": schema.Sequence(
                 shape=14, dtype=schema.ClassLabel(names=list(_LABELS.values()))
             ),
@@ -73,19 +73,23 @@ class MimiciiiCxr:
                 shape=14, dtype=schema.ClassLabel(names=list(_LABELS.values()))
             ),
             "image_sequence": schema.Sequence(
+                shape=(None,),
+                max_shape=(100,),
                 dtype={
                     "image": schema.Image(
                         shape=(image_size, image_size, 1), dtype="uint16"
                     ),
-                    "dicom_id": schema.Text(),
-                    "rows": schema.Tensor(dtype="int32"),
-                    "columns": schema.Tensor(dtype="int32"),
-                    "viewPosition": schema.Text(),
-                    "viewCodeSequence_CodeMeaning": schema.Text(),
-                    "patientOrientationCodeSequence_CodeMeaning": schema.Text(),
-                    "procedureCodeSequence_CodeMeaning": schema.Text(),
-                    "performedProcedureStepDescription": schema.Text(),
-                }
+                    "dicom_id": schema.Text(max_shape=(1000,)),
+                    "rows": schema.Tensor(dtype="int32", max_shape=(1000,)),
+                    "columns": schema.Tensor(dtype="int32", max_shape=(1000,)),
+                    "viewPosition": schema.Text(max_shape=(1000,)),
+                    "viewCodeSequence_CodeMeaning": schema.Text(max_shape=(1000,)),
+                    "patientOrientationCodeSequence_CodeMeaning": schema.Text(
+                        max_shape=(1000,)
+                    ),
+                    "procedureCodeSequence_CodeMeaning": schema.Text(max_shape=(1000,)),
+                    "performedProcedureStepDescription": schema.Text(max_shape=(1000,)),
+                },
             ),
         }
 
@@ -130,7 +134,7 @@ class MimiciiiCxr:
             paths.append(basepath + ".txt")
             for path in paths:
                 if not fs.exists(path):
-                    return False
+                    return []
 
             # Job Graph Too Large
             result = fs.cat_file(
@@ -270,7 +274,7 @@ class MimiciiiCxr:
 
         result = fs.cat_file(filepath)
         with BytesIO(result) as f:
-            lines = f.readlines()[1:]
+            lines = [line.decode("utf-8") for line in f.readlines()[1:]]
 
         schema_ = self._info()
 
