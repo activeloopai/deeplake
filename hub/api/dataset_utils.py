@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import numpy as np
 import sys
 import hashlib
@@ -72,7 +78,19 @@ def slice_extract_info(slice_, num):
     return num, offset
 
 
-def create_numpy_dict(dataset, index):
+def create_numpy_dict(dataset, index, label_name=False):
+    """Creates a list of dictionaries with the values from the tensorview objects in the dataset schema.
+
+    Parameters
+    ----------
+    dataset: hub.api.dataset.Dataset object
+        The dataset whose TensorView objects are being used.
+    index: int
+        The index of the dataset record that is being used.
+    label_name: bool, optional
+        If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+        instead of the label encoded integers, otherwise this parameter is ignored.
+    """
     numpy_dict = {}
     for path in dataset._tensors.keys():
         d = numpy_dict
@@ -81,7 +99,7 @@ def create_numpy_dict(dataset, index):
             if subpath not in d:
                 d[subpath] = {}
             d = d[subpath]
-        d[split[-1]] = dataset[path, index].numpy()
+        d[split[-1]] = dataset[path, index].numpy(label_name=label_name)
     return numpy_dict
 
 

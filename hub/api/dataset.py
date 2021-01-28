@@ -1,3 +1,8 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
 from hub.api.versioning import VersionNode
 import os
 import posixpath
@@ -818,11 +823,30 @@ class Dataset:
                 self.username, self.dataset_name, "UPLOADED"
             )
 
-    def numpy(self):
-        return [create_numpy_dict(self, i) for i in range(self._shape[0])]
+    def numpy(self, label_name=False):
+        """Gets the values from different tensorview objects in the dataset schema
 
-    def compute(self):
-        return self.numpy()
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return [
+            create_numpy_dict(self, i, label_name=label_name)
+            for i in range(self._shape[0])
+        ]
+
+    def compute(self, label_name=False):
+        """Gets the values from different tensorview objects in the dataset schema
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(label_name=label_name)
 
     def __str__(self):
         return (

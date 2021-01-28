@@ -25,6 +25,9 @@ Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked
     ```
     hub register
     hub login
+    
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    hub login -u username -p password
     ```
 
 3. Lets start by creating dataset

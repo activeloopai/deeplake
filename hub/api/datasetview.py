@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from hub.utils import _tuple_product
 from hub.api.tensorview import TensorView
 import collections.abc as abc
@@ -269,11 +275,22 @@ class DatasetView:
         """Commit dataset"""
         self.dataset.commit()
 
-    def numpy(self):
+    def numpy(self, label_name=False):
+        """Gets the value from different tensorview objects in the datasetview schema
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
         if isinstance(self.indexes, int):
-            return create_numpy_dict(self.dataset, self.indexes)
+            return create_numpy_dict(self.dataset, self.indexes, label_name=label_name)
         else:
-            return [create_numpy_dict(self.dataset, index) for index in self.indexes]
+            return [
+                create_numpy_dict(self.dataset, index, label_name=label_name)
+                for index in self.indexes
+            ]
 
     def disable_lazy(self):
         self.lazy = False
@@ -281,5 +298,13 @@ class DatasetView:
     def enable_lazy(self):
         self.lazy = True
 
-    def compute(self):
-        return self.numpy()
+    def compute(self, label_name=False):
+        """Gets the value from different tensorview objects in the datasetview schema
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(label_name=label_name)
