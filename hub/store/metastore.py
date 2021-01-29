@@ -36,12 +36,6 @@ class MetaStorage(MutableMapping):
 
     def __getitem__(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
-        if not filename.startswith(".") and check:
-            filename = (
-                self.find_node(filename)
-                or f"{filename}-{self._ds._version_node.commit_id}"
-            )
-        filename = k if k.startswith("--dynamic--") else filename
         if filename.startswith("."):
             return bytes(
                 json.dumps(
@@ -50,15 +44,12 @@ class MetaStorage(MutableMapping):
                 "utf-8",
             )
         else:
-            return self._fs_map[filename]
+            if check:
+                k = self.find_node(k) or f"{k}-{self._ds._version_node.commit_id}"
+            return self._fs_map[k]
 
     def get(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
-        if not filename.startswith(".") and check:
-            filename = (
-                self.find_node(filename)
-                or f"{filename}-{self._ds._version_node.commit_id}"
-            )
         if filename.startswith("."):
             meta_ = self._meta.get("meta.json")
             if not meta_:
@@ -70,24 +61,25 @@ class MetaStorage(MutableMapping):
             item = metak.get(self._path)
             return bytes(json.dumps(item), "utf-8") if item else None
         else:
+            if check:
+                k = self.find_node(k) or f"{k}-{self._ds._version_node.commit_id}"
             return self._fs_map.get(k)
 
     def __setitem__(self, k: str, v: bytes, check=True):
         filename = posixpath.split(k)[1]
-        if not filename.startswith(".") and check:
-            old_filename = self.find_node(filename)
-            filename = f"{filename}-{self._ds._version_node.commit_id}"
-            if old_filename:
-                data = self.__getitem__(old_filename, False)
-                self.__setitem__(filename, data, False)
-        filename = k if k.startswith("--dynamic--") else filename
         if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or {}
             meta[k][self._path] = json.loads(self.to_str(v))
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
-            self._fs_map[filename] = v
+            if check:
+                old_filename = self.find_node(k)
+                k = f"{k}-{self._ds._version_node.commit_id}"
+                if old_filename:
+                    data = self.__getitem__(old_filename, False)
+                    self.__setitem__(k, data, False)
+            self._fs_map[k] = v
 
     def copy_all(self, from_commit_id: str, to_commit_id: str):
         ls = [path for path in self._fs_map.keys() if path.endswith(from_commit_id)]
