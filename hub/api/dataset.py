@@ -3,6 +3,7 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
+import warnings
 from hub.api.versioning import VersionNode
 import os
 import posixpath
@@ -46,6 +47,7 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
     HubDatasetNotFoundException,
+    HubException,
     LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
@@ -172,11 +174,11 @@ class Dataset:
                 self._version_node = self._branch_node_map[self._branch]
                 self._commit_id = self._version_node.commit_id
             except Exception:
-                self._commit_id = generate_hash()
-                self._branch = "master"
-                self._version_node = VersionNode(self._commit_id, self._branch)
-                self._branch_node_map = {self._branch: self._version_node}
-                self._commit_node_map = {self._commit_id: self._version_node}
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
 
             self._tensors = dict(self._open_storage_tensors())
             self._store_commits()
@@ -290,16 +292,24 @@ class Dataset:
         return meta
 
     def _store_commits(self) -> dict:
-        d = {
-            "branch_node_map": self._branch_node_map,
-            "commit_node_map": self._commit_node_map,
-        }
-        self._fs_map["version.pkl"] = pickle.dumps(d)
-        self.flush()
-        return d
+        if self._commit_id is not None:
+            d = {
+                "branch_node_map": self._branch_node_map,
+                "commit_node_map": self._commit_node_map,
+            }
+            self._fs_map["version.pkl"] = pickle.dumps(d)
+            self.flush()
+            return d
 
     def commit(self, message=""):
         """ Deprecated alias to flush()"""
+        if self._commit_id is None:
+            warnings.warn(
+                "This dataset was created before version control, it does not support it. commit will behave same as flush"
+            )
+            self.flush()
+            return
+
         if not self._version_node.children:
             stored_commit_id = self._commit_id
             self._commit_id = generate_hash()
@@ -317,6 +327,10 @@ class Dataset:
 
     def checkout(self, address, create=False):
         # address could be either branch name or commit_id
+        if self._commit_id is None:
+            raise HubException(
+                "This dataset was created before version control, it does not support checkout functionality."
+            )
         if address in self._branch_node_map.keys():
             self._branch = address
             self._version_node = self._branch_node_map[address]
@@ -347,6 +361,10 @@ class Dataset:
         return self._commit_id
 
     def log(self):
+        if self._commit_id is None:
+            raise HubException(
+                "This dataset was created before version control, it does not support log functionality."
+            )
         current_node = (
             self._version_node.parent
             if not self._version_node.children

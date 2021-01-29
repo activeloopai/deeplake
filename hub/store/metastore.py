@@ -44,8 +44,8 @@ class MetaStorage(MutableMapping):
                 "utf-8",
             )
         else:
-            if check:
-                k = self.find_node(k) or f"{k}-{self._ds._version_node.commit_id}"
+            if check and self._ds._commit_id:
+                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
             return self._fs_map[k]
 
     def get(self, k: str, check=True) -> bytes:
@@ -61,8 +61,8 @@ class MetaStorage(MutableMapping):
             item = metak.get(self._path)
             return bytes(json.dumps(item), "utf-8") if item else None
         else:
-            if check:
-                k = self.find_node(k) or f"{k}-{self._ds._version_node.commit_id}"
+            if check and self._ds._commit_id:
+                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
             return self._fs_map.get(k)
 
     def __setitem__(self, k: str, v: bytes, check=True):
@@ -73,9 +73,9 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = json.loads(self.to_str(v))
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
-            if check:
+            if check and self._ds._commit_id:
                 old_filename = self.find_node(k)
-                k = f"{k}-{self._ds._version_node.commit_id}"
+                k = f"{k}-{self._ds._commit_id}"
                 if old_filename:
                     data = self.__getitem__(old_filename, False)
                     self.__setitem__(k, data, False)
@@ -102,7 +102,7 @@ class MetaStorage(MutableMapping):
         if not filename.startswith("."):
             filename = (
                 self.find_node(filename)
-                or f"{filename}-{self._ds._version_node.commit_id}"
+                or f"{filename}-{self._ds._version_node._commit_id}"
             )
         if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta["meta.json"]))
@@ -110,6 +110,8 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = None
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
+            if self._ds._commit_id:
+                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
             del self._fs_map[k]
 
     def flush(self):
