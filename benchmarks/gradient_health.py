@@ -67,7 +67,7 @@ class MimiciiiCxr:
         return {
             "subject_id": MY_TEXT,
             "study_id": MY_TEXT,
-            "study_data": MY_TEXT,
+            "study_date": MY_TEXT,
             "study_time": MY_TEXT,
             "report": MY_TEXT,
             "label_chexpert": schema.Sequence(
@@ -258,7 +258,7 @@ class MimiciiiCxr:
             negbio_values = [_LABELS[v] for v in negbio_values]
             chexpert_values = [_LABELS[v] for v in chexpert_values]
 
-            return dicom_id, {
+            return {
                 "subject_id": subject_id,
                 "study_id": study_id,
                 "study_date": StudyDate.split("|")[0],
@@ -270,7 +270,7 @@ class MimiciiiCxr:
                     "image": images,
                     "rows": rows,
                     "columns": columns,
-                    "dicom_id": dicom_id,
+                    "dicom_id": dicom_id[0],
                     "viewPosition": ViewPosition,
                     "viewCodeSequence_CodeMeaning": ViewCodeSequence_CodeMeaning,
                     "patientOrientationCodeSequence_CodeMeaning": patientOrientationCodeSequence_CodeMeaning,
@@ -288,12 +288,10 @@ class MimiciiiCxr:
         lines = lines[:400]
         ds1 = hub.transform(schemai)(_right_size)(lines)
         # ds1 = ds1.store(f"{output_dir}/ds1")
-        ds2 = hub.transform(schemai, scheduler="processed", workers=2)(_check_files)(
-            ds1
-        )
-        with Timer("Total time of execution"):
-            ds2.store(f"{output_dir}/ds2", sample_per_shard=1)
-        # ds3 = hub.transform(schema_)(_process_example)(ds2)
+        ds2 = hub.transform(schemai, scheduler="single", workers=2)(_check_files)(ds1)
+        # ds2.store(f"{output_dir}/ds2", sample_per_shard=1)
+        ds3 = hub.transform(schema_)(_process_example)(ds2)
+        ds3.store(f"{output_dir}/ds3", sample_per_shard=100)
 
 
 def main():
