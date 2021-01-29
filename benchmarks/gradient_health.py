@@ -17,6 +17,7 @@ import pydicom
 
 import hub
 from hub import schema
+from hub.utils import Timer
 
 _CITATION = """
 @article{Johnson2019,
@@ -52,6 +53,9 @@ _LABELS = {
     99.0: "unmentioned",
 }
 
+MAX_TEXT_LEN = 2000
+MY_TEXT = schema.Text(max_shape=(MAX_TEXT_LEN,), dtype="uint8")
+
 
 class MimiciiiCxr:
     def __init__(self, image_size=512):
@@ -61,11 +65,11 @@ class MimiciiiCxr:
         image_size = self._image_size
 
         return {
-            "subject_id": schema.Text(max_shape=(1000,)),
-            "study_id": schema.Text(max_shape=(1000,)),
-            "study_data": schema.Text(max_shape=(1000,)),
-            "study_time": schema.Text(max_shape=(1000,)),
-            "report": schema.Text(max_shape=(1000,)),
+            "subject_id": MY_TEXT,
+            "study_id": MY_TEXT,
+            "study_data": MY_TEXT,
+            "study_time": MY_TEXT,
+            "report": MY_TEXT,
             "label_chexpert": schema.Sequence(
                 shape=14, dtype=schema.ClassLabel(names=list(_LABELS.values()))
             ),
@@ -79,19 +83,20 @@ class MimiciiiCxr:
                     "image": schema.Image(
                         shape=(image_size, image_size, 1), dtype="uint16"
                     ),
-                    "dicom_id": schema.Text(max_shape=(1000,)),
-                    "rows": schema.Tensor(dtype="int32", max_shape=(1000,)),
-                    "columns": schema.Tensor(dtype="int32", max_shape=(1000,)),
-                    "viewPosition": schema.Text(max_shape=(1000,)),
-                    "viewCodeSequence_CodeMeaning": schema.Text(max_shape=(1000,)),
-                    "patientOrientationCodeSequence_CodeMeaning": schema.Text(
-                        max_shape=(1000,)
-                    ),
-                    "procedureCodeSequence_CodeMeaning": schema.Text(max_shape=(1000,)),
-                    "performedProcedureStepDescription": schema.Text(max_shape=(1000,)),
+                    "dicom_id": MY_TEXT,
+                    "rows": schema.Tensor(dtype="int32", max_shape=(MAX_TEXT_LEN,)),
+                    "columns": schema.Tensor(dtype="int32", max_shape=(MAX_TEXT_LEN,)),
+                    "viewPosition": MY_TEXT,
+                    "viewCodeSequence_CodeMeaning": MY_TEXT,
+                    "patientOrientationCodeSequence_CodeMeaning": MY_TEXT,
+                    "procedureCodeSequence_CodeMeaning": MY_TEXT,
+                    "performedProcedureStepDescription": MY_TEXT,
                 },
             ),
         }
+
+    def _intermitidate_schema(self):
+        return {"row": MY_TEXT}
 
     def _build_pcollection(
         self,
@@ -107,13 +112,24 @@ class MimiciiiCxr:
         # image_size = 512 if self.builder_config.name is "512" else 2048
 
         def _right_size(row):
+            row = row["row"]
             data = row.split(",")
             if len(data) == 11:
-                return [row]
+                return [{"row": row}]
             else:
                 return []
 
+        result = fs.cat_file(os.path.join(manual_dir, "mimic-cxr-2.0.0-chexpert.csv"))
+        with BytesIO(result) as f:
+            chexpert_df = pd.read_csv(f)
+        result = fs.cat_file(os.path.join(manual_dir, "mimic-cxr-2.0.0-negbio.csv"))
+        with BytesIO(result) as f:
+            negbio_df = pd.read_csv(f)
+        chexpert_df = chexpert_df.fillna(99.0)
+        negbio_df = negbio_df.fillna(99.0)
+
         def _check_files(row):
+            row = row["row"]
             (
                 study_id,
                 subject_id,
@@ -137,16 +153,6 @@ class MimiciiiCxr:
                     return []
 
             # Job Graph Too Large
-            result = fs.cat_file(
-                os.path.join(manual_dir, "mimic-cxr-2.0.0-chexpert.csv")
-            )
-            with BytesIO(result) as f:
-                chexpert_df = pd.read_csv(f)
-            result = fs.cat_file(os.path.join(manual_dir, "mimic-cxr-2.0.0-negbio.csv"))
-            with BytesIO(result) as f:
-                negbio_df = pd.read_csv(f)
-            chexpert_df = chexpert_df.fillna(99.0)
-            negbio_df = negbio_df.fillna(99.0)
 
             try:
                 negbio_values = negbio_df[
@@ -164,7 +170,7 @@ class MimiciiiCxr:
                 print(study_id)
                 return []
 
-            return [row]
+            return [{"row": row}]
 
         def _process_example(row):
             def fast_histogram_equalize(image):
@@ -176,6 +182,7 @@ class MimiciiiCxr:
                 cdf = cdf / cdf[-1]
                 return tf.gather(params=cdf, indices=image)
 
+            row = row["row"]
             (
                 study_id,
                 subject_id,
@@ -274,14 +281,19 @@ class MimiciiiCxr:
 
         result = fs.cat_file(filepath)
         with BytesIO(result) as f:
-            lines = [line.decode("utf-8") for line in f.readlines()[1:]]
+            lines = [{"row": line.decode("utf-8")} for line in f.readlines()[1:]]
 
         schema_ = self._info()
-
-        ds1 = hub.transform(schema_)(_right_size)(lines)
-        ds2 = hub.transform(schema_)(_check_files)(ds1)
-        ds3 = hub.transform(schema_)(_process_example)(ds2)
-        ds3.store(output_dir)
+        schemai = self._intermitidate_schema()
+        lines = lines[:400]
+        ds1 = hub.transform(schemai)(_right_size)(lines)
+        # ds1 = ds1.store(f"{output_dir}/ds1")
+        ds2 = hub.transform(schemai, scheduler="processed", workers=2)(_check_files)(
+            ds1
+        )
+        with Timer("Total time of execution"):
+            ds2.store(f"{output_dir}/ds2", sample_per_shard=1)
+        # ds3 = hub.transform(schema_)(_process_example)(ds2)
 
 
 def main():
