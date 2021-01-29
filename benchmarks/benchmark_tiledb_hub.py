@@ -8,11 +8,11 @@ from hub.utils import Timer
 
 def time_tiledb(dataset, batch_size=1):
     ds = hub.Dataset(dataset)
-    if os.path.exists("./test/" + dataset.split("/")[1]):
-        ds_tldb = tiledb.open("./test/" + dataset.split("/")[1])
+    if os.path.exists(dataset.split("/")[1] + "_tileDB"):
+        ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
     else:
-        if not os.path.exists("./test"):
-            os.makedirs("test")
+        if not os.path.exists(dataset.split("/")[1] + "_tileDB"):
+            os.makedirs(dataset.split("/")[1] + "_tileDB")
         ds_numpy = np.concatenate(
             (
                 ds["image"].compute().reshape(ds.shape[0], -1),
@@ -20,7 +20,7 @@ def time_tiledb(dataset, batch_size=1):
             ),
             axis=1,
         )
-        ds_tldb = tiledb.from_numpy("./test/" + dataset.split("/")[1], ds_numpy)
+        ds_tldb = tiledb.from_numpy(dataset.split("/")[1] + "_tileDB", ds_numpy)
 
     assert type(ds_tldb) == tiledb.array.DenseArray
 
@@ -63,9 +63,14 @@ batch_sizes = [70000, 7000]
 
 if __name__ == "__main__":
     for dataset in datasets:
+        data = hub.Dataset.from_tfds(dataset.split("/")[1])
+        data.store("./" + dataset.split("/")[1] + "_hub")
+
         for batch_size in batch_sizes:
             print("Dataset: ", dataset, "with Batch Size: ", batch_size)
             print("Performance of TileDB")
             time_tiledb(dataset, batch_size)
-            print("Performance of Hub")
+            print("Performance of Hub (Stored on the Cloud):")
             time_hub(dataset, batch_size)
+            print("Performance of Hub (Stored Locally):")
+            time_hub("./" + dataset.split("/")[1] + "_hub", batch_size)
