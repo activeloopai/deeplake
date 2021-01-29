@@ -5,18 +5,24 @@
 All of the benchmarks were conducted on the same machine unless stated otherwise in a section related to a particular benchmark. The specification of the machine we used for the benchmarks can be found below:
 
 Machine: AWS EC2 m4.10xlarge instance
+
 Region: US-East-2c
+
 Memory: 160 GB
+
 CPU: Intel(R) Xeon(R) CPU E5-2676 v3 @ 2.40GHz
+
 #vCPU: 40
+
 Network: 10 Gb
 
+## Hub Performance
 
-## Image Compression
+### Image Compression
 
 We measure the time to compress (PNG) a [sample image](images/compression_benchmark_image.png) using PIL and Hub.
 
-### Results
+#### Results
 
 The results below measure compression time of the sample image at a batch size of 100.
 
@@ -25,13 +31,13 @@ PIL compression: 25.102458238601685s
 Hub compression: 25.102383852005005s
 ```
 
-## Random Access
+### Random Access
 
 We measure the time to fetch an uncached random sample from a dataset,
 varying over several standard datasets and further at several batch sizes.
 Random offsets are also used to ensure that no caching is being taken advantage of externally.
 
-### Results
+#### Results
 
 ```
 activeloop/mnist read at offset 613 of length 001: 0.506598711013794s
@@ -79,12 +85,12 @@ activeloop/cifar100_train read at offset 691 of length 256: 0.7472829818725586s
 activeloop/cifar100_train read at offset 636 of length 512: 0.7655932903289795s
 ```
 
-## Dataset Iteration
+### Dataset Iteration
 
 We measure the time to iterate over a full dataset in both pytorch and tensorflow (separately).
 Benchmarks also vary over multiple preset batch sizes and prefetch factors.
 
-### Results
+#### Results
 
 ```
 activeloop/mnist PyTorch prefetch 001 in batches of 001: 114.81040406227112s
@@ -111,5 +117,45 @@ activeloop/mnist PyTorch prefetch 016 in batches of 128: 9.048558235168457s
 activeloop/mnist TF prefetch 016 in batches of 128: 10.368900299072266s
 activeloop/mnist PyTorch prefetch 128 in batches of 128: 8.343258380889893s
 activeloop/mnist TF prefetch 128 in batches of 128: 10.840083122253418s
-
 ```
+
+## Hub vs Others
+
+### Read and Write Sequential Access
+
+*How does Hub compare to zarr and tiledb in terms of read / write sequential access to the dataset?*
+Remote Hub already performs ~1.14x better than TileDB (which offers local storage only) whereas Hub used locally **is over 26x better** than TileDB on the access to the entire dataset. The results are even more devastating for TileDB in batched access.
+
+Note: Writing tests are awaiting.
+
+MNIST (entire dataset)
+| Framework| Read | Write |
+| --- | --- | --- |
+| TileDB | 1.3106651306152344s | |
+| zarr | | |
+| Hub (remote) | 1.1537418365478516s | |
+| Hub (local) | 0.0483090877532959s | |
+
+MNIST (in batches of 7000)
+| Framework| Read | Write |
+| --- | --- | --- |
+| TileDB | 12.647251844406128s | |
+| zarr | | |
+| Hub (remote) | 1.0862374305725098s | |
+| Hub (local) | 0.12435555458068848s | |
+
+### Dataset Iteration
+
+*Is Hub faster in iterating over a dataset than PyTorch DataLoader and Tensorflow Dataset?*
+**Yes, Hub fetching data remotely outperforms both Pytorch and Tensorflow.**
+It is 1.12x better than PyTorch and 1.004x better than Tensorflow on MNIST.
+
+#### Results
+| Loader | MNIST | Places365 |
+| --- | --- | --- |
+| Hub (remote) .to_pytorch() | 12.460094690322876s |  |
+| Hub (local) .to_pytorch() | 353.3983402252197s |  |
+| PyTorch (native) | 13.931219339370728s | |
+| Hub (remote) .to_tensorflow() | 10.866756200790405s |  |
+| Hub (local) .to_tensorflow() | 11.07367753982544s |  |
+| Tensorflow (native - TFDS) | 10.913283348083496s |  |
