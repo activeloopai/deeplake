@@ -30,6 +30,8 @@
 
 ---
 
+[ English | [简体中文](./README_CN.md) ]
+
 ### What is Hub for?
 
 Software 2.0 needs Data 2.0, and Hub delivers it. Most of the time Data Scientists/ML researchers work on data management and preprocessing instead of training models. With Hub, we are fixing this. We store your (even petabyte-scale) datasets as single numpy-like array on the cloud, so you can seamlessly access and work with it from any machine. Hub makes any data type (images, text files, audio, or video) stored in cloud usable as fast as if it were stored on premise. With same dataset view, your team can always be in sync. 
@@ -118,7 +120,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 hub register
 hub login
 
-# alternatively, on platforms like kaggle use this, replacing username and password with actual credentials
+# alternatively, add username and password as arguments (use on platforms like Kaggle)
 hub login -u username -p password
 ```
 

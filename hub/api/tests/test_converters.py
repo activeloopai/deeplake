@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import hub.api.tests.test_converters
 from hub.schema.features import Tensor
 import numpy as np
@@ -80,6 +86,19 @@ def test_from_tensorflow():
     res_ds = out_ds.store("./data/test_from_tf/ds2")
     assert res_ds["a"].numpy().tolist() == [1, 2]
     assert res_ds["b"].numpy().tolist() == [5, 6]
+
+
+@pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
+def test_to_tensorflow():
+    schema = {"abc": Tensor((100, 100, 3)), "int": "uint32"}
+    ds = hub.Dataset("./data/test_to_tf", shape=(10,), schema=schema)
+    for i in range(10):
+        ds["abc", i] = i * np.ones((100, 100, 3))
+        ds["int", i] = i
+    tds = ds.to_tensorflow()
+    for i, item in enumerate(tds):
+        assert (item["abc"].numpy() == i * np.ones((100, 100, 3))).all()
+        assert item["int"] == i
 
 
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")

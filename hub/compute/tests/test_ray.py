@@ -1,4 +1,9 @@
-from ee.backend.synchronizer import ProcessSynchronizer
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import hub
 from hub.utils import ray_loaded
 from hub.schema import Tensor, Text
@@ -131,7 +136,7 @@ def test_pipeline_ray():
     not ray_loaded(),
     reason="requires ray to be loaded",
 )
-def test_ray_pipeline_multiple(syncpath = "./data/test/sync"):
+def test_ray_pipeline_multiple(syncpath="./data/test/sync"):
 
     sync = ProcessSynchronizer(syncpath)
 
@@ -146,7 +151,9 @@ def test_ray_pipeline_multiple(syncpath = "./data/test/sync"):
 
     ds["image", 0] = np.ones((30, 32, 3))
 
-    @hub.transform(schema=dynamic_schema, scheduler="ray_generator", workers=2, synchronizer=sync)
+    @hub.transform(
+        schema=dynamic_schema, scheduler="ray_generator", workers=2, synchronizer=sync
+    )
     def dynamic_transform(sample, multiplier: int = 2):
         return [
             {

@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import numpy as np
 import hub
 import collections.abc as abc
@@ -64,8 +70,15 @@ class TensorView:
         self.dtype = self.dtype_from_path(subpath)
         self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
-    def numpy(self):
-        """Gets the value from tensorview"""
+    def numpy(self, label_name=False):
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
         if isinstance(self.indexes, list):
             if (
                 len(self.indexes) > 1
@@ -83,6 +96,12 @@ class TensorView:
         else:
             value = self.dataset._tensors[self.subpath][self.slice_]
 
+        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and label_name:
+            if isinstance(self.indexes, int):
+                value = self.dtype.int2str(value)
+            else:
+                value = [self.dtype.int2str(value[i]) for i in range(value.size)]
+
         if isinstance(self.dtype, hub.schema.text.Text):
             if self.dataset.tokenizer is not None:
                 from transformers import AutoTokenizer
@@ -99,9 +118,16 @@ class TensorView:
             raise ValueError(f"Unexpected value with shape for text {value.shape}")
         return value
 
-    def compute(self):
-        """Gets the value from tensorview"""
-        return self.numpy()
+    def compute(self, label_name=False):
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(label_name=label_name)
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from tensorview

@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from math import gcd
 import time
 from collections import abc
@@ -64,9 +70,7 @@ def azure_creds_exist():
     import os
 
     env = os.getenv("ACCOUNT_KEY")
-    if env is not None:
-        return True
-    return False
+    return env is not None
 
 
 def hub_creds_exist():
@@ -75,9 +79,17 @@ def hub_creds_exist():
     import os
 
     env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    if env is not None:
-        return True
-    return False
+    return env is not None
+
+
+def minio_creds_exist():
+    """Checks if credentials exists"""
+
+    import os
+
+    env1 = os.getenv("ACTIVELOOP_MINIO_KEY")
+    env2 = os.getenv("ACTIVELOOP_MINIO_SECRET_ACCESS_KEY")
+    return env1 is not None and env2 is not None
 
 
 def pytorch_loaded():

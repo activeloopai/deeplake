@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from typing import MutableMapping, Tuple
 import posixpath
 import shutil
@@ -46,6 +52,10 @@ def get_fs_and_path(
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
                 token=token.get("aws_session_token"),
+                client_kwargs={
+                    "endpoint_url": token.get("endpoint_url"),
+                    "region_name": token.get("region"),
+                },
             ),
             url[5:],
         )
