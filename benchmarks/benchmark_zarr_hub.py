@@ -4,7 +4,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-import tiledb
+import zarr
 import hub
 import numpy as np
 import os
@@ -12,13 +12,12 @@ from time import time
 from hub.utils import Timer
 
 
-def time_tiledb(dataset, batch_size=1):
+def time_zarr(dataset, batch_size=1):
     ds = hub.Dataset(dataset)
-    if os.path.exists(dataset.split("/")[1] + "_tileDB"):
-        ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
+    if os.path.exists(dataset.split("/")[1] + "_zarr"):
+        ds_zarr = zarr.open(dataset.split("/")[1] + "_zarr")
     else:
-        if not os.path.exists(dataset.split("/")[1] + "_tileDB"):
-            os.makedirs(dataset.split("/")[1] + "_tileDB")
+        store = zarr.DirectoryStore(dataset.split("/")[1] + "_zarr")
         ds_numpy = np.concatenate(
             (
                 ds["image"].compute().reshape(ds.shape[0], -1),
@@ -26,17 +25,17 @@ def time_tiledb(dataset, batch_size=1):
             ),
             axis=1,
         )
-        ds_tldb = tiledb.from_numpy(dataset.split("/")[1] + "_tileDB", ds_numpy)
+        ds_zarr = zarr.array(ds_numpy, store=store, chunks=(batch_size, None))
 
-    assert type(ds_tldb) == tiledb.array.DenseArray
+    assert type(ds_zarr) == zarr.core.Array
 
     with Timer("Time"):
         counter = 0
         t0 = time()
         for batch in range(ds.shape[0] // batch_size):
             x, y = (
-                ds_tldb[batch * batch_size : (batch + 1) * batch_size, :-1],
-                ds_tldb[batch * batch_size : (batch + 1) * batch_size, -1],
+                ds_zarr[batch * batch_size : (batch + 1) * batch_size, :-1],
+                ds_zarr[batch * batch_size : (batch + 1) * batch_size, -1],
             )
             counter += 1
             t1 = time()
@@ -74,8 +73,8 @@ if __name__ == "__main__":
 
         for batch_size in batch_sizes:
             print("Dataset: ", dataset, "with Batch Size: ", batch_size)
-            print("Performance of TileDB")
-            time_tiledb(dataset, batch_size)
+            print("Performance of Zarr")
+            time_zarr(dataset, batch_size)
             print("Performance of Hub (Stored on the Cloud):")
             time_hub(dataset, batch_size)
             print("Performance of Hub (Stored Locally):")
