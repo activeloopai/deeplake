@@ -18,14 +18,26 @@ def time_zarr(dataset, batch_size=1):
         ds_zarr = zarr.open(dataset.split("/")[1] + "_zarr")
     else:
         store = zarr.DirectoryStore(dataset.split("/")[1] + "_zarr")
-        ds_numpy = np.concatenate(
-            (
-                ds["image"].compute().reshape(ds.shape[0], -1),
-                ds["label"].compute().reshape(ds.shape[0], -1),
-            ),
-            axis=1,
+        shape = [
+            ds["image"].shape[0],
+            ds["image"].shape[1] * ds["image"].shape[2] * ds["image"].shape[3] + 1,
+        ]
+        ds_zarr = zarr.create(
+            (shape[0], shape[1]), store=store, chunks=(batch_size, None)
         )
-        ds_zarr = zarr.array(ds_numpy, store=store, chunks=(batch_size, None))
+        for batch in range(ds.shape[0] // batch_size):
+            ds_numpy = np.concatenate(
+                (
+                    ds["image", batch * batch_size : (batch + 1) * batch_size]
+                    .compute()
+                    .reshape(batch_size, -1),
+                    ds["label", batch * batch_size : (batch + 1) * batch_size]
+                    .compute()
+                    .reshape(batch_size, -1),
+                ),
+                axis=1,
+            )
+            ds_zarr[batch * batch_size : (batch + 1) * batch_size] = ds_numpy
 
     assert type(ds_zarr) == zarr.core.Array
 
@@ -62,15 +74,20 @@ def time_hub(dataset, batch_size=1):
             t0 = t1
 
 
-datasets = ["activeloop/mnist"]
-batch_sizes = [70000, 7000]
+datasets = ["activeloop/mnist", "hydp/places365_small_train"]
+batch_sizes = [7000, 70000]
 
 
 if __name__ == "__main__":
     for dataset in datasets:
-        data = hub.Dataset.from_tfds(dataset.split("/")[1])
+        if dataset.split("/")[1].split("_")[-1] == ("train" or "test"):
+            dataset = dataset.split("_")
+            split = dataset.pop()
+            dataset = "_".join(dataset)
+            data = hub.Dataset.from_tfds(dataset.split("/")[1], split=split)
+        else:
+            data = hub.Dataset.from_tfds(dataset.split("/")[1])
         data.store("./" + dataset.split("/")[1] + "_hub")
-
         for batch_size in batch_sizes:
             print("Dataset: ", dataset, "with Batch Size: ", batch_size)
             print("Performance of Zarr")
