@@ -170,15 +170,19 @@ class Dataset:
                 version_info = pickle.loads(fs_map["version.pkl"])
                 self._branch_node_map = version_info["branch_node_map"]
                 self._commit_node_map = version_info["commit_node_map"]
+                self._commit_optimized_map = version_info["commit_optimized_map"]
                 self._branch = "master"
                 self._version_node = self._branch_node_map[self._branch]
                 self._commit_id = self._version_node.commit_id
+                self._is_optimized = self._commit_optimized_map[self._commit_id]
             except Exception:
                 self._commit_id = None
                 self._branch = None
                 self._version_node = None
                 self._branch_node_map = None
                 self._commit_node_map = None
+                self._commit_optimized_map = None
+                self._is_optimized = False
 
             self._tensors = dict(self._open_storage_tensors())
             self._store_commits()
@@ -215,6 +219,8 @@ class Dataset:
                 self._version_node = VersionNode(self._commit_id, self._branch)
                 self._branch_node_map = {self._branch: self._version_node}
                 self._commit_node_map = {self._commit_id: self._version_node}
+                self._is_optimized = True
+                self._commit_optimized_map = {self._commit_id: self._is_optimized}
 
                 self._tensors = dict(self._generate_storage_tensors())
                 self._store_commits()
@@ -296,13 +302,13 @@ class Dataset:
             d = {
                 "branch_node_map": self._branch_node_map,
                 "commit_node_map": self._commit_node_map,
+                "commit_optimized_map": self._commit_optimized_map,
             }
             self._fs_map["version.pkl"] = pickle.dumps(d)
             self.flush()
             return d
 
     def commit(self, message=""):
-        """ Deprecated alias to flush()"""
         if self._commit_id is None:
             warnings.warn(
                 "This dataset was created before version control, it does not support it. commit will behave same as flush"
@@ -318,6 +324,8 @@ class Dataset:
             self._version_node = new_node
             self._branch_node_map[self._branch] = new_node
             self._commit_node_map[self._commit_id] = new_node
+            self._is_optimized = False
+            self._commit_optimized_map[self._commit_id] = self._is_optimized
             self._store_commits()
             return stored_commit_id
         else:
@@ -335,16 +343,19 @@ class Dataset:
             self._branch = address
             self._version_node = self._branch_node_map[address]
             self._commit_id = self._version_node.commit_id
+            self._is_optimized = self._commit_optimized_map[self._commit_id]
         elif address in self._commit_node_map.keys():
             self._version_node = self._commit_node_map[address]
             self._branch = self._version_node.branch
             self._commit_id = self._version_node.commit_id
+            self._is_optimized = self._commit_optimized_map[self._commit_id]
         elif create:
             self._branch = address
             new_commit_id = generate_hash()
             new_node = VersionNode(new_commit_id, self._branch)
             if not self._version_node.children:
                 for key in self.keys:
+                    # TODO Add copy of dynamic too
                     self._tensors[key].fs_map.copy_all(self._commit_id, new_commit_id)
                 if self._version_node.parent is not None:
                     self._version_node.parent.insert(
@@ -354,6 +365,8 @@ class Dataset:
                 self._version_node.insert(new_node, f"switched to new branch {address}")
             self._version_node = new_node
             self._commit_id = new_commit_id
+            self._is_optimized = False
+            self._commit_optimized_map[self._commit_id] = self._is_optimized
         else:
             # TODO Proper error
             raise ValueError()
@@ -376,7 +389,21 @@ class Dataset:
             current_node = current_node.parent
 
     def optimize(self):
-        pass
+        if self._commit_id is None:
+            raise HubException(
+                "This dataset was created before version control, it does not support optimize functionality."
+            )
+        if self._is_optimized:
+            return True
+
+        for key in self.keys:
+            # TODO Add copy of dynamic too
+            self._tensors[key].fs_map.optimize()
+
+        self._is_optimized = True
+        self._commit_optimized_map[self._commit_id] = self._is_optimized
+        self._store_commits()
+        return True
 
     def _check_and_prepare_dir(self):
         """

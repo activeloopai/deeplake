@@ -3,6 +3,7 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
+from collections import defaultdict
 from hub.api.versioning import VersionNode
 import json
 from collections.abc import MutableMapping
@@ -24,8 +25,8 @@ class MetaStorage(MutableMapping):
         self._path = path
         self._ds = ds
 
-    def find_node(self, k: str) -> str:
-        ls = [path for path in self._fs_map.keys() if path.startswith(k)]
+    def find_chunk(self, k: str, ls=None) -> str:
+        ls = ls or [path for path in self._fs_map.keys() if path.startswith(k)]
         cur_node = self._ds._version_node
         while cur_node is not None:
             path = f"{k}-{cur_node.commit_id}"
@@ -43,10 +44,12 @@ class MetaStorage(MutableMapping):
                 ),
                 "utf-8",
             )
-        else:
-            if check and self._ds._commit_id:
-                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
-            return self._fs_map[k]
+        if check:
+            if self._ds._is_optimized:
+                k = f"{k}-{self._ds._commit_id}"
+            elif self._ds._commit_id:
+                k = self.find_chunk(k) or f"{k}-{self._ds._commit_id}"
+        return self._fs_map[k]
 
     def get(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
@@ -61,8 +64,11 @@ class MetaStorage(MutableMapping):
             item = metak.get(self._path)
             return bytes(json.dumps(item), "utf-8") if item else None
         else:
-            if check and self._ds._commit_id:
-                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
+            if check:
+                if self._ds._is_optimized:
+                    k = f"{k}-{self._ds._commit_id}"
+                elif self._ds._commit_id:
+                    k = self.find_chunk(k) or f"{k}-{self._ds._commit_id}"
             return self._fs_map.get(k)
 
     def __setitem__(self, k: str, v: bytes, check=True):
@@ -73,22 +79,39 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = json.loads(self.to_str(v))
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
-            if check and self._ds._commit_id:
-                old_filename = self.find_node(k)
-                k = f"{k}-{self._ds._commit_id}"
-                if old_filename:
-                    data = self.__getitem__(old_filename, False)
-                    self.__setitem__(k, data, False)
+            if check:
+                if self._ds._is_optimized:
+                    k = f"{k}-{self._ds._commit_id}"
+                elif self._ds._commit_id:
+                    old_filename = self.find_chunk(k)
+                    k = f"{k}-{self._ds._commit_id}"
+                    if old_filename:
+                        self.copy_chunk(old_filename, k)
             self._fs_map[k] = v
 
     def copy_all(self, from_commit_id: str, to_commit_id: str):
         ls = [path for path in self._fs_map.keys() if path.endswith(from_commit_id)]
         for path in ls:
-            data = self.__getitem__(path, False)
             chunk_name = path.split("-")[0]
             new_path = f"{chunk_name}-{to_commit_id}"
-            self.__setitem__(new_path, data, False)
-        return True
+            self.copy_chunk(path, new_path)
+
+    def copy_chunk(self, from_chunk: str, to_chunk: str):
+        data = self.__getitem__(from_chunk, False)
+        self.__setitem__(to_chunk, data, False)
+
+    def optimize(self):
+        all_paths, chunk_dict = list(self._fs_map.keys()), defaultdict(list)
+        for path in all_paths:
+            chunk_name = path.split("-")[0]
+            chunk_dict[chunk_name].append(path)
+
+        for chunk_name, commit_list in chunk_dict.items():
+            if self._ds._commit_id not in commit_list:
+                copy_from = self.find_chunk(chunk_name, commit_list)
+                if copy_from:
+                    new_path = f"{chunk_name}-{self._ds._commit_id}"
+                    self.copy_chunk(copy_from, new_path)
 
     def __len__(self):
         return len(self._fs_map) + 1
@@ -101,7 +124,7 @@ class MetaStorage(MutableMapping):
         filename = posixpath.split(k)[1]
         if not filename.startswith("."):
             filename = (
-                self.find_node(filename)
+                self.find_chunk(filename)
                 or f"{filename}-{self._ds._version_node._commit_id}"
             )
         if filename.startswith("."):
@@ -110,8 +133,10 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = None
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
-            if self._ds._commit_id:
-                k = self.find_node(k) or f"{k}-{self._ds._commit_id}"
+            if self._ds._is_optimized:
+                k = f"{k}-{self._ds._commit_id}"
+            elif self._ds._commit_id:
+                k = self.find_chunk(k) or f"{k}-{self._ds._commit_id}"
             del self._fs_map[k]
 
     def flush(self):
