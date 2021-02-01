@@ -132,7 +132,7 @@ MNIST (entire dataset)
 | Framework| Read | Write |
 | --- | --- | --- |
 | TileDB | 1.3106651306152344s | |
-| zarr | | |
+| zarr | 0.3550150394439697s | |
 | Hub (remote) | 1.1537418365478516s | |
 | Hub (local) | 0.0483090877532959s | |
 
@@ -140,7 +140,7 @@ MNIST (in batches of 7000)
 | Framework| Read | Write |
 | --- | --- | --- |
 | TileDB | 12.647251844406128s | |
-| zarr | | |
+| zarr | 0.34612417221069336s | |
 | Hub (remote) | 1.0862374305725098s | |
 | Hub (local) | 0.12435555458068848s | |
 
