@@ -26,7 +26,7 @@
 </a>
 </p>
 
-<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow. Scalable data pipelines.</h3>
 
 ---
 
