@@ -14,6 +14,7 @@ from s3fs import S3FileSystem
 import argparse
 import pandas as pd
 import pydicom
+import numpy as np
 
 import hub
 from hub import schema
@@ -63,6 +64,7 @@ class MimiciiiCxr:
 
     def _info(self):
         image_size = self._image_size
+        MAX_IMAGE_COUNT = 30
 
         return {
             "subject_id": MY_TEXT,
@@ -76,23 +78,26 @@ class MimiciiiCxr:
             "label_negbio": schema.Sequence(
                 shape=14, dtype=schema.ClassLabel(names=list(_LABELS.values()))
             ),
-            "image_sequence": schema.Sequence(
-                shape=(None,),
-                max_shape=(100,),
-                dtype={
-                    "image": schema.Image(
-                        shape=(image_size, image_size, 1), dtype="uint16"
-                    ),
-                    "dicom_id": MY_TEXT,
-                    "rows": schema.Tensor(dtype="int32", max_shape=(MAX_TEXT_LEN,)),
-                    "columns": schema.Tensor(dtype="int32", max_shape=(MAX_TEXT_LEN,)),
-                    "viewPosition": MY_TEXT,
-                    "viewCodeSequence_CodeMeaning": MY_TEXT,
-                    "patientOrientationCodeSequence_CodeMeaning": MY_TEXT,
-                    "procedureCodeSequence_CodeMeaning": MY_TEXT,
-                    "performedProcedureStepDescription": MY_TEXT,
-                },
+            "image": schema.Tensor(
+                shape=(None, image_size, image_size, 1),
+                max_shape=(MAX_IMAGE_COUNT, image_size, image_size, 1),
+                dtype="uint16",
             ),
+            # "dicom_id": schema.Tensor(max_shape=(MAX_IMAGE_COUNT,), dtype="object"),
+            # "columns": schema.Tensor(max_shape=(MAX_IMAGE_COUNT,), dtype="object"),
+            # "viewPosition": schema.Tensor(max_shape=(MAX_IMAGE_COUNT,), dtype="object"),
+            # "viewCodeSequence_CodeMeaning": schema.Tensor(
+            #     max_shape=(MAX_IMAGE_COUNT,), dtype="object"
+            # ),
+            # "patientOrientationCodeSequence_CodeMeaning": schema.Tensor(
+            #     max_shape=(MAX_IMAGE_COUNT,), dtype="object"
+            # ),
+            # "procedureCodeSequence_CodeMeaning": schema.Tensor(
+            #     max_shape=(MAX_IMAGE_COUNT,), dtype="object"
+            # ),
+            # "performedProcedureStepDescription": schema.Tensor(
+            #     max_shape=(MAX_IMAGE_COUNT,), dtype="object"
+            # ),
         }
 
     def _intermitidate_schema(self):
@@ -258,6 +263,8 @@ class MimiciiiCxr:
             negbio_values = [_LABELS[v] for v in negbio_values]
             chexpert_values = [_LABELS[v] for v in chexpert_values]
 
+            images = np.array(images)
+
             return {
                 "subject_id": subject_id,
                 "study_id": study_id,
@@ -266,17 +273,15 @@ class MimiciiiCxr:
                 "report": fs.cat_file(basepath + ".txt").decode("utf-8"),
                 "label_chexpert": chexpert_values,
                 "label_negbio": negbio_values,
-                "image_sequence": {
-                    "image": images,
-                    "rows": rows,
-                    "columns": columns,
-                    "dicom_id": dicom_id[0],
-                    "viewPosition": ViewPosition,
-                    "viewCodeSequence_CodeMeaning": ViewCodeSequence_CodeMeaning,
-                    "patientOrientationCodeSequence_CodeMeaning": patientOrientationCodeSequence_CodeMeaning,
-                    "procedureCodeSequence_CodeMeaning": procedureCodeSequence_CodeMeaning,
-                    "performedProcedureStepDescription": performedProcedureStepDescription,
-                },
+                "image": images,
+                # "rows": rows,
+                # "columns": columns,
+                # "dicom_id": dicom_id[0],
+                # "viewPosition": ViewPosition,
+                # "viewCodeSequence_CodeMeaning": ViewCodeSequence_CodeMeaning,
+                # "patientOrientationCodeSequence_CodeMeaning": patientOrientationCodeSequence_CodeMeaning,
+                # "procedureCodeSequence_CodeMeaning": procedureCodeSequence_CodeMeaning,
+                # "performedProcedureStepDescription": performedProcedureStepDescription,
             }
 
         result = fs.cat_file(filepath)
@@ -288,7 +293,7 @@ class MimiciiiCxr:
         lines = lines[:400]
         ds1 = hub.transform(schemai)(_right_size)(lines)
         # ds1 = ds1.store(f"{output_dir}/ds1")
-        ds2 = hub.transform(schemai, scheduler="single", workers=2)(_check_files)(ds1)
+        ds2 = hub.transform(schemai, scheduler="single", workers=1)(_check_files)(ds1)
         # ds2.store(f"{output_dir}/ds2", sample_per_shard=1)
         ds3 = hub.transform(schema_)(_process_example)(ds2)
         ds3.store(f"{output_dir}/ds3", sample_per_shard=100)
