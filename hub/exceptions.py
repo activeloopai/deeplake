@@ -267,6 +267,12 @@ class AdvancedSlicingNotSupported(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class AddressNotFound(HubException):
+    def __init__(self, address):
+        message = f"The address {address} does not refer to any existing branch or commit id. use create=True to create a new branch with this address"
+        super(HubException, self).__init__(message=message)
+
+
 class NotZarrFolderException(Exception):
     pass
 

@@ -46,6 +46,7 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
+    AddressNotFound,
     HubDatasetNotFoundException,
     HubException,
     LargeShapeFilteringException,
@@ -185,7 +186,7 @@ class Dataset:
                 self._is_optimized = False
 
             self._tensors = dict(self._open_storage_tensors())
-            self._store_commits()
+            self._store_version_info()
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
@@ -223,7 +224,7 @@ class Dataset:
                 self._commit_optimized_map = {self._commit_id: self._is_optimized}
 
                 self._tensors = dict(self._generate_storage_tensors())
-                self._store_commits()
+                self._store_version_info()
             except Exception as e:
                 try:
                     self.close()
@@ -297,7 +298,7 @@ class Dataset:
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
 
-    def _store_commits(self) -> dict:
+    def _store_version_info(self) -> dict:
         if self._commit_id is not None:
             d = {
                 "branch_node_map": self._branch_node_map,
@@ -308,7 +309,17 @@ class Dataset:
             self.flush()
             return d
 
-    def commit(self, message=""):
+    def commit(self, message: str = "") -> str:
+        """| Saves the current state of the dataset and returns the commit id.
+        Checks out automatically to an auto branch if the current commit is not the head of the branch
+
+        Acts as alias to flush if dataset was created before Hub v1.3.0
+
+        Parameters
+        ----------
+        message: str, optional
+            The commit message to store along with the commit
+        """
         if self._commit_id is None:
             warnings.warn(
                 "This dataset was created before version control, it does not support it. commit will behave same as flush"
@@ -326,15 +337,24 @@ class Dataset:
             self._commit_node_map[self._commit_id] = new_node
             self._is_optimized = False
             self._commit_optimized_map[self._commit_id] = self._is_optimized
-            self._store_commits()
+            self._store_version_info()
             return stored_commit_id
         else:
             # TODO decide what to checkout to automatically
-            self.checkout(f"auto {generate_hash()}", True)
+            self.checkout(f"auto branch {generate_hash()}", True)
             return self.commit(message)
 
-    def checkout(self, address, create=False):
-        # address could be either branch name or commit_id
+    def checkout(self, address: str, create: bool = False):
+        """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
+        Only works if dataset was created on or after Hub v1.3.0
+
+        Parameters
+        ----------
+        address: str
+            The branch name or commit id to checkout to
+        create: bool, optional
+            Specifying create as True creates a new branch from the current commit if the address isn't an existing branchname or commit id
+        """
         if self._commit_id is None:
             raise HubException(
                 "This dataset was created before version control, it does not support checkout functionality."
@@ -365,15 +385,19 @@ class Dataset:
                 self._version_node.insert(new_node, f"switched to new branch {address}")
             self._version_node = new_node
             self._commit_id = new_commit_id
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
             self._is_optimized = False
             self._commit_optimized_map[self._commit_id] = self._is_optimized
+            self._store_version_info()
         else:
-            # TODO Proper error
-            raise ValueError()
-        self._store_commits()
+            raise AddressNotFound(address)
         return self._commit_id
 
     def log(self):
+        """| Prints the commits in the commit tree before the current commit
+        Only works if dataset was created on or after Hub v1.3.0
+        """
         if self._commit_id is None:
             raise HubException(
                 "This dataset was created before version control, it does not support log functionality."
@@ -389,6 +413,10 @@ class Dataset:
             current_node = current_node.parent
 
     def optimize(self):
+        """| Optimizes the current commit and makes it more efficient for data storage and retrieval.
+        Expensive operation, takes up extra storage. Ideally use this just before training.
+        Only works if dataset was created on or after Hub v1.3.0
+        """
         if self._commit_id is None:
             raise HubException(
                 "This dataset was created before version control, it does not support optimize functionality."
@@ -402,7 +430,7 @@ class Dataset:
 
         self._is_optimized = True
         self._commit_optimized_map[self._commit_id] = self._is_optimized
-        self._store_commits()
+        self._store_version_info()
         return True
 
     def _check_and_prepare_dir(self):
