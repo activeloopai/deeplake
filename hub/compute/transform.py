@@ -430,7 +430,7 @@ class Transform:
             total=length,
             unit_scale=True,
             unit=" items",
-            desc=f"Computing the transormation in chunks of size {n_samples}",
+            desc=f"Computing the transformation in chunks of size {n_samples}",
         ) as pbar:
             for ds_in_shard in batchify_generator(ds_in, n_samples):
                 n_results = self.store_shard(ds_in_shard, ds_out, start, token=token)
