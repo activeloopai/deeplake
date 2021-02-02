@@ -439,7 +439,7 @@ class Transform:
                 start += n_results
 
         ds_out.resize_shape(total)
-        ds_out.commit()
+        ds_out.flush()
         return ds_out
 
     @property
