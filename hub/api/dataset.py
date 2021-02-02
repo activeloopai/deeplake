@@ -225,8 +225,8 @@ class Dataset:
                 self._commit_node_map = {self._commit_id: self._version_node}
                 self._is_optimized = True
                 self._commit_optimized_map = {self._commit_id: self._is_optimized}
-                self._chunk_commit_map = defaultdict(set)
                 self._tensors = dict(self._generate_storage_tensors())
+                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()

@@ -25,7 +25,7 @@ class MetaStorage(MutableMapping):
         self._ds = ds
 
     def find_chunk(self, k: str) -> str:
-        ls = self._ds._chunk_commit_map[k]
+        ls = self._ds._chunk_commit_map[self._path][k]
         cur_node = self._ds._version_node
         while cur_node is not None:
             if cur_node.commit_id in ls:
@@ -87,13 +87,13 @@ class MetaStorage(MutableMapping):
                     if old_filename:
                         self.copy_chunk(old_filename, k)
             commit_id = k.split(":")[-1]
-            self._ds._chunk_commit_map[chunk_key].add(commit_id)
+            self._ds._chunk_commit_map[self._path][chunk_key].add(commit_id)
             self._fs_map[k] = v
 
     def copy_all(self, from_commit_id: str, to_commit_id: str):
         ls = {
             chunk
-            for chunk, commit_ids in self._ds._chunk_commit_map.items()
+            for chunk, commit_ids in self._ds._chunk_commit_map[self._path].items()
             if from_commit_id in commit_ids
         }
 
@@ -107,7 +107,7 @@ class MetaStorage(MutableMapping):
         self.__setitem__(to_chunk, data, False)
 
     def optimize(self):
-        for chunk, commit_ids in self._ds._chunk_commit_map.items():
+        for chunk, commit_ids in self._ds._chunk_commit_map[self._path].items():
             if self._ds._commit_id not in commit_ids:
                 copy_from = self.find_chunk(chunk)
                 if copy_from:
@@ -140,7 +140,7 @@ class MetaStorage(MutableMapping):
             elif self._ds._commit_id:
                 k = self.find_chunk(k) or f"{k}:{self._ds._commit_id}"
             commit_id = k.split(":")[-1]
-            self._ds._chunk_commit_map[chunk_key].remove(commit_id)
+            self._ds._chunk_commit_map[self._path][chunk_key].remove(commit_id)
             del self._fs_map[k]
 
     def flush(self):
