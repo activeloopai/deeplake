@@ -1,6 +1,12 @@
+from hub.exceptions import (
+    AddressNotFound,
+    ReadModeException,
+    VersioningNotSupportedException,
+)
 from hub.schema import Image
 import hub
 import numpy as np
+import pytest
 
 
 def test_commit():
@@ -275,6 +281,41 @@ def test_auto_checkout_bug():
     assert ds["abc", 0].compute() == 3
 
 
+def test_read_mode():
+    my_schema = {"abc": "uint8"}
+    ds = hub.Dataset("./data/test_versioning/read_ds", schema=my_schema, shape=(10,))
+    ds.checkout("second", create=True)
+    ds2 = hub.Dataset("./data/test_versioning/read_ds", mode="r")
+    with pytest.raises(ReadModeException):
+        ds2.commit("first")
+    with pytest.raises(ReadModeException):
+        ds2.checkout("third", create=True)
+    with pytest.raises(ReadModeException):
+        ds2.checkout("second")
+        ds2.optimize()
+    with pytest.raises(ReadModeException):
+        ds2["abc", 4] = 10
+
+
+def test_checkout_address_not_found():
+    my_schema = {"abc": "uint8"}
+    ds = hub.Dataset("./data/test_versioning/ds_address", schema=my_schema, shape=(10,))
+    with pytest.raises(AddressNotFound):
+        ds.checkout("second")
+
+
+def test_old_datasets():
+    ds = hub.Dataset("activeloop/mnist")
+    with pytest.raises(VersioningNotSupportedException):
+        ds.checkout("third")
+    with pytest.raises(VersioningNotSupportedException):
+        ds.checkout("third", create=True)
+    with pytest.raises(VersioningNotSupportedException):
+        ds.optimize()
+    with pytest.raises(VersioningNotSupportedException):
+        ds.log()
+
+
 if __name__ == "__main__":
     test_commit()
     test_commit_checkout()
@@ -282,3 +323,6 @@ if __name__ == "__main__":
     test_commit_checkout_optimize()
     test_commit_optimize()
     test_auto_checkout_bug()
+    test_read_mode()
+    test_old_datasets()
+    test_checkout_address_not_found()
