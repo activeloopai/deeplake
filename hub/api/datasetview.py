@@ -272,9 +272,13 @@ class DatasetView:
         """Resize dataset shape, not DatasetView"""
         self.dataset.resize_shape(size)
 
-    def commit(self) -> None:
+    def commit(self, message="") -> None:
         """Commit dataset"""
-        self.dataset.commit()
+        self.dataset.commit(message)
+
+    def flush(self) -> None:
+        """Flush dataset"""
+        self.dataset.flush()
 
     def numpy(self, label_name=False):
         """Gets the value from different tensorview objects in the datasetview schema
