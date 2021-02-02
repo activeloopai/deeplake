@@ -53,6 +53,7 @@ from hub.exceptions import (
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
+    ReadModeException,
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
@@ -326,7 +327,8 @@ class Dataset:
             )
             self.flush()
             return
-
+        if "r" in self._mode:
+            raise ReadModeException("commit")
         if not self._version_node.children:
             stored_commit_id = self._commit_id
             self._commit_id = generate_hash()
@@ -344,8 +346,10 @@ class Dataset:
             self.checkout(f"auto branch {generate_hash()}", True)
             return self.commit(message)
 
-    def checkout(self, address: str, create: bool = False):
+    def checkout(self, address: str, create: bool = False) -> str:
         """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
+        Always checks out to the head of a branch if the address specified is a branch name.
+        Returns the commit id of the commit that has been switched to.
         Only works if dataset was created on or after Hub v1.3.0
 
         Parameters
@@ -353,7 +357,7 @@ class Dataset:
         address: str
             The branch name or commit id to checkout to
         create: bool, optional
-            Specifying create as True creates a new branch from the current commit if the address isn't an existing branchname or commit id
+            Specifying create as True creates a new branch from the current commit if the address isn't an existing branch name or commit id
         """
         if self._commit_id is None:
             raise HubException(
@@ -370,6 +374,8 @@ class Dataset:
             self._commit_id = self._version_node.commit_id
             self._is_optimized = self._commit_optimized_map[self._commit_id]
         elif create:
+            if "r" in self._mode:
+                raise ReadModeException("checkout to create new branch")
             self._branch = address
             new_commit_id = generate_hash()
             new_node = VersionNode(new_commit_id, self._branch)
@@ -393,6 +399,15 @@ class Dataset:
         else:
             raise AddressNotFound(address)
         return self._commit_id
+
+    def _auto_checkout(self):
+        """| Automatically checks out to a new branch if the current commit is not at the head of a branch"""
+        if self._version_node and self._version_node.children:
+            branch_name = f"'auto-{generate_hash()}'"
+            print(
+                f"automatically checking out to new branch {branch_name} as not at the head of branch {self._branch}"
+            )
+            self.checkout(branch_name, True)
 
     def log(self):
         """| Prints the commits in the commit tree before the current commit
@@ -423,6 +438,9 @@ class Dataset:
             )
         if self._is_optimized:
             return True
+
+        if "r" in self._mode:
+            raise ReadModeException("optimize")
 
         for key in self.keys:
             # TODO Add copy of dynamic too
@@ -619,6 +637,7 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        self._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
         assign_value = str_to_int(assign_value, self.tokenizer)
