@@ -124,7 +124,7 @@ activeloop/mnist TF prefetch 128 in batches of 128: 10.840083122253418s
 ### Read and Write Sequential Access
 
 *How does Hub compare to zarr and tiledb in terms of read / write sequential access to the dataset?*
-Remote Hub already performs ~1.14x better than TileDB (which offers local storage only) whereas Hub used locally **is over 26x better** than TileDB on the access to the entire dataset. The results are even more devastating for TileDB in batched access.
+Remote Hub already performs ~1.14x better than TileDB (which offers local storage only) whereas Hub used locally **is over 26x better** than TileDB on the access to the entire dataset. The results are even more explicit in batched access.
 
 Note: Writing tests are awaiting.
 
@@ -153,9 +153,11 @@ It is 1.12x better than PyTorch and 1.004x better than Tensorflow on MNIST.
 #### Results
 | Loader | MNIST | Places365 |
 | --- | --- | --- |
-| Hub (remote) .to_pytorch() | 12.460094690322876s |  |
-| Hub (local) .to_pytorch() | 353.3983402252197s |  |
-| PyTorch (native) | 13.931219339370728s | |
-| Hub (remote) .to_tensorflow() | 10.866756200790405s |  |
-| Hub (local) .to_tensorflow() | 11.07367753982544s |  |
-| Tensorflow (native - TFDS) | 10.913283348083496s |  |
+| Hub (remote - Wasabi) .to_pytorch() | 12.460094690322876s | 6033.249919652939s |
+| Hub (remote - S3) .to_pytorch() | 8.437131643295288s | 4590.98117518425s |
+| Hub (local) .to_pytorch() | 353.3983402252197s | *timed out* |
+| PyTorch (native) | 13.931219339370728s | 4305.066396951675s |
+| Hub (remote - Wasabi) .to_tensorflow() | 10.866756200790405s | 5725.523037910461s |
+| Hub (remote - S3) .to_tensorflow() | 11.888715505599976s | 4524.5225484371185s |
+| Hub (local) .to_tensorflow() | 11.07367753982544s | 2141.250002384186s |
+| Tensorflow (native - TFDS) | 10.913283348083496s | 301.1637547016144s |
