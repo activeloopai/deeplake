@@ -883,6 +883,8 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
+        if "r" in self._mode:
+            return
         self._store_version_info()
         for t in self._tensors.values():
             t.flush()
