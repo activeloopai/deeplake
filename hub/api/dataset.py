@@ -329,22 +329,18 @@ class Dataset:
             return
         if "r" in self._mode:
             raise ReadModeException("commit")
-        if not self._version_node.children:
-            stored_commit_id = self._commit_id
-            self._commit_id = generate_hash()
-            new_node = VersionNode(self._commit_id, self._branch)
-            self._version_node.insert(new_node, message)
-            self._version_node = new_node
-            self._branch_node_map[self._branch] = new_node
-            self._commit_node_map[self._commit_id] = new_node
-            self._is_optimized = False
-            self._commit_optimized_map[self._commit_id] = self._is_optimized
-            self._store_version_info()
-            return stored_commit_id
-        else:
-            # TODO decide what to checkout to automatically
-            self.checkout(f"auto branch {generate_hash()}", True)
-            return self.commit(message)
+        self._auto_checkout()
+        stored_commit_id = self._commit_id
+        self._commit_id = generate_hash()
+        new_node = VersionNode(self._commit_id, self._branch)
+        self._version_node.insert(new_node, message)
+        self._version_node = new_node
+        self._branch_node_map[self._branch] = new_node
+        self._commit_node_map[self._commit_id] = new_node
+        self._is_optimized = False
+        self._commit_optimized_map[self._commit_id] = self._is_optimized
+        self._store_version_info()
+        return stored_commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
         """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
