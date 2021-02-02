@@ -57,7 +57,7 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    ShapeLengthException,
+    ShapeLengthException, VersioningNotSupportedException,
     WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
@@ -356,9 +356,7 @@ class Dataset:
             Specifying create as True creates a new branch from the current commit if the address isn't an existing branch name or commit id
         """
         if self._commit_id is None:
-            raise HubException(
-                "This dataset was created before version control, it does not support checkout functionality."
-            )
+            raise VersioningNotSupportedException("checkout")
         if address in self._branch_node_map.keys():
             self._branch = address
             self._version_node = self._branch_node_map[address]
@@ -410,9 +408,7 @@ class Dataset:
         Only works if dataset was created on or after Hub v1.3.0
         """
         if self._commit_id is None:
-            raise HubException(
-                "This dataset was created before version control, it does not support log functionality."
-            )
+            raise VersioningNotSupportedException("log")
         current_node = (
             self._version_node.parent
             if not self._version_node.children
@@ -429,9 +425,7 @@ class Dataset:
         Only works if dataset was created on or after Hub v1.3.0
         """
         if self._commit_id is None:
-            raise HubException(
-                "This dataset was created before version control, it does not support optimize functionality."
-            )
+            raise VersioningNotSupportedException("optimize")
         if self._is_optimized:
             return True
 
@@ -633,6 +627,8 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        if "r" in self._mode:
+            raise ReadModeException("__setitem__")
         self._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
