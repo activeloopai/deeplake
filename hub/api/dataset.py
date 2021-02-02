@@ -57,7 +57,8 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    ShapeLengthException, VersioningNotSupportedException,
+    ShapeLengthException,
+    VersioningNotSupportedException,
     WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
@@ -173,6 +174,7 @@ class Dataset:
                 self._branch_node_map = version_info["branch_node_map"]
                 self._commit_node_map = version_info["commit_node_map"]
                 self._commit_optimized_map = version_info["commit_optimized_map"]
+                self._chunk_commit_map = version_info["chunk_commit_map"]
                 self._branch = "master"
                 self._version_node = self._branch_node_map[self._branch]
                 self._commit_id = self._version_node.commit_id
@@ -184,10 +186,10 @@ class Dataset:
                 self._branch_node_map = None
                 self._commit_node_map = None
                 self._commit_optimized_map = None
+                self._chunk_commit_map = None
                 self._is_optimized = False
 
             self._tensors = dict(self._open_storage_tensors())
-            self._store_version_info()
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
@@ -223,9 +225,8 @@ class Dataset:
                 self._commit_node_map = {self._commit_id: self._version_node}
                 self._is_optimized = True
                 self._commit_optimized_map = {self._commit_id: self._is_optimized}
-
+                self._chunk_commit_map = defaultdict(set)
                 self._tensors = dict(self._generate_storage_tensors())
-                self._store_version_info()
             except Exception as e:
                 try:
                     self.close()
@@ -234,7 +235,7 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
-
+        self.flush()
         self.indexes = list(range(self._shape[0]))
 
         if needcreate and (
@@ -305,10 +306,9 @@ class Dataset:
                 "branch_node_map": self._branch_node_map,
                 "commit_node_map": self._commit_node_map,
                 "commit_optimized_map": self._commit_optimized_map,
+                "chunk_commit_map": self._chunk_commit_map,
             }
             self._fs_map["version.pkl"] = pickle.dumps(d)
-            self.flush()
-            return d
 
     def commit(self, message: str = "") -> str:
         """| Saves the current state of the dataset and returns the commit id.
@@ -339,7 +339,7 @@ class Dataset:
         self._commit_node_map[self._commit_id] = new_node
         self._is_optimized = False
         self._commit_optimized_map[self._commit_id] = self._is_optimized
-        self._store_version_info()
+        self.flush()
         return stored_commit_id
 
     def checkout(self, address: str, create: bool = False) -> str:
@@ -389,7 +389,7 @@ class Dataset:
             self._commit_node_map[self._commit_id] = new_node
             self._is_optimized = False
             self._commit_optimized_map[self._commit_id] = self._is_optimized
-            self._store_version_info()
+            self.flush()
         else:
             raise AddressNotFound(address)
         return self._commit_id
@@ -438,8 +438,7 @@ class Dataset:
 
         self._is_optimized = True
         self._commit_optimized_map[self._commit_id] = self._is_optimized
-        self._store_version_info()
-        return True
+        self.flush()
 
     def _check_and_prepare_dir(self):
         """
@@ -884,7 +883,7 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
-
+        self._store_version_info()
         for t in self._tensors.values():
             t.flush()
         self._save_meta()

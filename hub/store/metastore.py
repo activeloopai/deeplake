@@ -24,13 +24,12 @@ class MetaStorage(MutableMapping):
         self._path = path
         self._ds = ds
 
-    def find_chunk(self, k: str, ls=None) -> str:
-        ls = ls or [path for path in self._fs_map.keys() if path.startswith(k)]
+    def find_chunk(self, k: str) -> str:
+        ls = self._ds._chunk_commit_map[k]
         cur_node = self._ds._version_node
         while cur_node is not None:
-            path = f"{k}-{cur_node.commit_id}"
-            if path in ls:
-                return path
+            if cur_node.commit_id in ls:
+                return f"{k}-{cur_node.commit_id}"
             cur_node = cur_node.parent
         return None
 
@@ -78,6 +77,7 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = json.loads(self.to_str(v))
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
+            chunk_key = k.split("-")[0]
             if check:
                 if self._ds._is_optimized:
                     k = f"{k}-{self._ds._commit_id}"
@@ -86,30 +86,32 @@ class MetaStorage(MutableMapping):
                     k = f"{k}-{self._ds._commit_id}"
                     if old_filename:
                         self.copy_chunk(old_filename, k)
+            commit_id = k.split("-")[-1]
+            self._ds._chunk_commit_map[chunk_key].add(commit_id)
             self._fs_map[k] = v
 
     def copy_all(self, from_commit_id: str, to_commit_id: str):
-        ls = [path for path in self._fs_map.keys() if path.endswith(from_commit_id)]
-        for path in ls:
-            chunk_name = path.split("-")[0]
-            new_path = f"{chunk_name}-{to_commit_id}"
-            self.copy_chunk(path, new_path)
+        ls = {
+            chunk
+            for chunk, commit_ids in self._ds._chunk_commit_map.items()
+            if from_commit_id in commit_ids
+        }
+
+        for chunk in ls:
+            from_path = f"{chunk}-{from_commit_id}"
+            to_path = f"{chunk}-{to_commit_id}"
+            self.copy_chunk(from_path, to_path)
 
     def copy_chunk(self, from_chunk: str, to_chunk: str):
         data = self.__getitem__(from_chunk, False)
         self.__setitem__(to_chunk, data, False)
 
     def optimize(self):
-        all_paths, chunk_dict = list(self._fs_map.keys()), defaultdict(list)
-        for path in all_paths:
-            chunk_name = path.split("-")[0]
-            chunk_dict[chunk_name].append(path)
-
-        for chunk_name, commit_list in chunk_dict.items():
-            if self._ds._commit_id not in commit_list:
-                copy_from = self.find_chunk(chunk_name, commit_list)
+        for chunk, commit_ids in self._ds._chunk_commit_map.items():
+            if self._ds._commit_id not in commit_ids:
+                copy_from = self.find_chunk(chunk)
                 if copy_from:
-                    new_path = f"{chunk_name}-{self._ds._commit_id}"
+                    new_path = f"{chunk}-{self._ds._commit_id}"
                     self.copy_chunk(copy_from, new_path)
 
     def __len__(self):
@@ -132,10 +134,13 @@ class MetaStorage(MutableMapping):
             meta[k][self._path] = None
             self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
         else:
+            chunk_key = k.split("-")[0]
             if self._ds._is_optimized:
                 k = f"{k}-{self._ds._commit_id}"
             elif self._ds._commit_id:
                 k = self.find_chunk(k) or f"{k}-{self._ds._commit_id}"
+            commit_id = k.split("-")[-1]
+            self._ds._chunk_commit_map[chunk_key].remove(commit_id)
             del self._fs_map[k]
 
     def flush(self):
