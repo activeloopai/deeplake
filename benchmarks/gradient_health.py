@@ -6,6 +6,7 @@ from __future__ import print_function
 from io import BytesIO
 import os
 import posixpath
+from typing import Dict, Any
 
 import tensorflow_datasets.public_api as tfds
 import tensorflow as tf
@@ -19,6 +20,7 @@ import numpy as np
 import hub
 from hub import schema
 from hub.utils import Timer
+from ee.backend.synchronizer import RedisSynchronizer
 
 _CITATION = """
 @article{Johnson2019,
@@ -109,6 +111,7 @@ class MimiciiiCxr:
         manual_dir: str,
         fs: AbstractFileSystem,
         output_dir: str,
+        args: Dict[str, Any],
     ):
         # beam = tfds.core.lazy_imports.apache_beam
         # pydicom = tfds.core.lazy_imports.pydicom
@@ -290,27 +293,50 @@ class MimiciiiCxr:
 
         schema_ = self._info()
         schemai = self._intermitidate_schema()
+        print("Number of samples: ", len(lines))
         lines = lines[:400]
-        ds1 = hub.transform(schemai)(_right_size)(lines)
-        # ds1 = ds1.store(f"{output_dir}/ds1")
-        ds2 = hub.transform(schemai, scheduler="single", workers=1)(_check_files)(ds1)
-        # ds2.store(f"{output_dir}/ds2", sample_per_shard=1)
-        ds3 = hub.transform(schema_)(_process_example)(ds2)
-        ds3.store(f"{output_dir}/ds3", sample_per_shard=100)
+        if args.redisurl:
+            sync = RedisSynchronizer(host=args.redisurl, password="5241590000000000")
+        else:
+            sync = None
+        ds1 = hub.transform(
+            schemai, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
+        )(_right_size)(lines)
+        ds1 = ds1.store(f"{output_dir}/ds1")
+        ds2 = hub.transform(
+            schemai, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
+        )(_check_files)(ds1)
+        ds2.store(f"{output_dir}/ds2")
+        ds3 = hub.transform(
+            schema_, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
+        )(_process_example)(ds2)
+        ds3.store(f"{output_dir}/ds3")
+        print("Success")
 
 
 def main():
+    DEFAULT_WORKERS = 10
+    DEFAULT_SCHEDULER = "ray_generator"
+    if DEFAULT_SCHEDULER == "ray_generator":
+        DEFAULT_REDIS_URL = (
+            os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else "localhost"
+        )
+    else:
+        DEFAULT_REDIS_URL = False
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--input", default="s3://snark-gradient-raw-data/mimic-cxr-2.0.0"
     )
     parser.add_argument("-o", "--output", default="s3://snark-gradient-raw-data/output")
+    parser.add_argument("-w", "--workers", default=DEFAULT_WORKERS)
+    parser.add_argument("-s", "--scheduler", default=DEFAULT_SCHEDULER)
+    parser.add_argument("-r", "--redisurl", default=DEFAULT_REDIS_URL)
     args = parser.parse_args()
     handle = MimiciiiCxr()
     fs = S3FileSystem(default_block_size=2 ** 26)
     manual_dir = args.input
     filepath = posixpath.join(manual_dir, "train-split.csv")
-    handle._build_pcollection(filepath, manual_dir, fs, args.output)
+    handle._build_pcollection(filepath, manual_dir, fs, args.output, args)
 
 
 if __name__ == "__main__":
