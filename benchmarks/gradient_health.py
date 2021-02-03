@@ -20,7 +20,7 @@ import numpy as np
 import hub
 from hub import schema
 from hub.utils import Timer
-from ee.backend.synchronizer import RedisSynchronizer
+from ee.backend.synchronizer import RedisSynchronizer, ProcessSynchronizer
 
 _CITATION = """
 @article{Johnson2019,
@@ -297,8 +297,11 @@ class MimiciiiCxr:
         lines = lines[:400]
         if args.redisurl:
             sync = RedisSynchronizer(host=args.redisurl, password="5241590000000000")
+        elif args.scheduler == "processed":
+            sync = ProcessSynchronizer("./data/process_sync")
         else:
             sync = None
+
         ds1 = hub.transform(
             schemai, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
         )(_right_size)(lines)
@@ -315,8 +318,8 @@ class MimiciiiCxr:
 
 
 def main():
-    DEFAULT_WORKERS = 10
-    DEFAULT_SCHEDULER = "ray_generator"
+    DEFAULT_WORKERS = 1
+    DEFAULT_SCHEDULER = "processed"
     if DEFAULT_SCHEDULER == "ray_generator":
         DEFAULT_REDIS_URL = (
             os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else "localhost"
