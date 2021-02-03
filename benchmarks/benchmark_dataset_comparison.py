@@ -7,6 +7,7 @@ import tensorflow_datasets as tfds
 from hub import Dataset
 from hub.utils import Timer
 import os
+
 # import math
 
 BATCH_SIZE = 16
@@ -34,7 +35,7 @@ DATASET_INFO = [
         "s3_name": "places365_small_train",
         "split": "train",
         "kwargs": {"small": True},
-    }
+    },
 ]
 
 
@@ -72,16 +73,17 @@ def prepare_torch_dataset(dataset_info):
     kwargs = dataset_info.get("kwargs", {})
     if "train" in split:
         dset = dset_type(
-            os.path.join(ROOT, data_path), transform=trans,
-            download=True, **kwargs
+            os.path.join(ROOT, data_path), transform=trans, download=True, **kwargs
         )
     else:
         dset = None
     if "test" in split:
         test_dset = dset_type(
             os.path.join(ROOT, data_path),
-            train=False, transform=trans,
-            download=True, **kwargs
+            train=False,
+            transform=trans,
+            download=True,
+            **kwargs,
         )
     else:
         test_dset = None
@@ -95,7 +97,7 @@ def time_iter_hub_local_pytorch(
     batch_size=BATCH_SIZE,
     prefetch_factor=PREFETCH_SIZE,
     num_workers=NUM_WORKERS,
-    process=None
+    process=None,
 ):
     mnist = prepare_torch_dataset(dataset_info)
     path = os.path.join(ROOT, "Hub_data", "torch")
@@ -120,10 +122,9 @@ def time_iter_hub_wasabi_pytorch(
     batch_size=BATCH_SIZE,
     prefetch_factor=PREFETCH_SIZE,
     num_workers=NUM_WORKERS,
-    process=None
+    process=None,
 ):
-    dset = Dataset(
-        dataset_info["hub_name"], cache=False, storage_cache=False, mode="r")
+    dset = Dataset(dataset_info["hub_name"], cache=False, storage_cache=False, mode="r")
     loader = torch.utils.data.DataLoader(
         dset.to_pytorch(),
         batch_size=batch_size,
@@ -142,11 +143,13 @@ def time_iter_hub_s3_pytorch(
     batch_size=BATCH_SIZE,
     prefetch_factor=PREFETCH_SIZE,
     num_workers=NUM_WORKERS,
-    process=None
+    process=None,
 ):
     dset = Dataset(
         f"{S3_PATH}{dataset_info['s3_name']}",
-        cache=False, storage_cache=False, mode="r"
+        cache=False,
+        storage_cache=False,
+        mode="r",
     )
     loader = torch.utils.data.DataLoader(
         dset.to_pytorch(),
@@ -166,7 +169,7 @@ def time_iter_pytorch(
     batch_size=BATCH_SIZE,
     prefetch_factor=PREFETCH_SIZE,
     num_workers=NUM_WORKERS,
-    process=None
+    process=None,
 ):
     dset = prepare_torch_dataset(dataset_info)
 
@@ -174,7 +177,7 @@ def time_iter_pytorch(
         dset,
         batch_size=batch_size,
         prefetch_factor=prefetch_factor,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
 
     with Timer("PyTorch (local, native)"):
@@ -184,10 +187,7 @@ def time_iter_pytorch(
 
 
 def time_iter_hub_local_tensorflow(
-    dataset_info,
-    batch_size=BATCH_SIZE,
-    prefetch_factor=PREFETCH_SIZE,
-    process=None
+    dataset_info, batch_size=BATCH_SIZE, prefetch_factor=PREFETCH_SIZE, process=None
 ):
     dset = Dataset.from_tfds(dataset_info["name"], split=dataset_info["split"])
     path = os.path.join(ROOT, "Hub_data", "tfds")
@@ -204,14 +204,9 @@ def time_iter_hub_local_tensorflow(
 
 
 def time_iter_hub_wasabi_tensorflow(
-    dataset_info,
-    batch_size=BATCH_SIZE,
-    prefetch_factor=PREFETCH_SIZE,
-    process=None
+    dataset_info, batch_size=BATCH_SIZE, prefetch_factor=PREFETCH_SIZE, process=None
 ):
-    dset = Dataset(
-        dataset_info["hub_name"], cache=False, storage_cache=False, mode="r"
-    )
+    dset = Dataset(dataset_info["hub_name"], cache=False, storage_cache=False, mode="r")
     loader = dset.to_tensorflow().batch(batch_size).prefetch(prefetch_factor)
 
     with Timer("Hub (remote - Wasabi) `.to_tensorflow()`"):
@@ -223,14 +218,13 @@ def time_iter_hub_wasabi_tensorflow(
 
 
 def time_iter_hub_s3_tensorflow(
-    dataset_info,
-    batch_size=BATCH_SIZE,
-    prefetch_factor=PREFETCH_SIZE,
-    process=None
+    dataset_info, batch_size=BATCH_SIZE, prefetch_factor=PREFETCH_SIZE, process=None
 ):
     dset = Dataset(
         f"{S3_PATH}{dataset_info['s3_name']}",
-        cache=False, storage_cache=False, mode="r"
+        cache=False,
+        storage_cache=False,
+        mode="r",
     )
     loader = dset.to_tensorflow().batch(batch_size).prefetch(prefetch_factor)
 
@@ -243,10 +237,7 @@ def time_iter_hub_s3_tensorflow(
 
 
 def time_iter_tensorflow(
-    dataset_info,
-    batch_size=BATCH_SIZE,
-    prefetch_factor=PREFETCH_SIZE,
-    process=None
+    dataset_info, batch_size=BATCH_SIZE, prefetch_factor=PREFETCH_SIZE, process=None
 ):
     # turn off optimizations
     options = tf.data.Options()
@@ -254,9 +245,9 @@ def time_iter_tensorflow(
     options.experimental_distribute.auto_shard_policy = blockAS
     options.experimental_optimization.autotune_cpu_budget = 1
 
-    loader = tfds.load(
-        dataset_info["name"], split=dataset_info["split"]
-    ).with_options(options)
+    loader = tfds.load(dataset_info["name"], split=dataset_info["split"]).with_options(
+        options
+    )
 
     with Timer("Tensorflow (local, native - TFDS)"):
         for batch in loader:
