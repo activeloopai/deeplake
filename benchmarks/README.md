@@ -98,10 +98,10 @@ Relevant configuration details for the parametrized benchmarks are noted in resp
 Presented benchmarks are intended to be reproducible and easy to replicate manually or through automation.
 ### Step by step guide
 1. Launch the AWS EC2 instance according to the specification in the Method section.
-2. Install Hub in the edit mode along with the necessary packages found in all of the requirements files or run `sh benchmark_setup.sh` and source into the virtual environment with `source ./hub-env/bin/activate`.
-3. Sequentially run all of the Python files in the `benchmarks` folder. The results for most benchmarks are released to the standard output. For the external dataset iteration benchmark only, you may collect the results with `grep 'BENCHMARK'`.
+2. Install Hub in the edit mode along with the necessary packages found in all of the requirements files or run `sh benchmark_setup.sh` (if Hub is not installed) and source into the virtual environment with `source ./hub-env/bin/activate`.
+3. Sequentially run all of the Python files in the `benchmarks` folder or run `sh benchmark_run.sh`. If you use `benchmark_run`, the results will be combined in the `results.log` file. Otherwise, the results for the benchmarks should be released to the standard output. For the external dataset iteration benchmark only, you may collect the results with `grep 'BENCHMARK'`.
 
-Note that access to the datasets stored in the S3 bucket is limited. However, you might replicate this set-up by creating a bucket which contains the data in Hub format.
+Note that access to the datasets stored in the S3 bucket is limited. However, you might replicate this set-up by creating a bucket which contains the data in Hub format. For instance, you may upload the dataset with `.store` using the S3 path as the first argument.
 
 ## Internal Benchmarks
 
