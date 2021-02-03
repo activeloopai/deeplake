@@ -22,7 +22,6 @@ import os
 from hub.defaults import OBJECT_CHUNK
 
 
-
 def get_sample_size(schema, workers):
     """Given Schema, decides how many samples to take at once and returns it"""
     schema = featurify(schema)
