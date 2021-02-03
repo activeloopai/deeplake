@@ -13,7 +13,7 @@ from hub.utils import Timer
 
 
 def time_tiledb(dataset, batch_size=1):
-    ds = hub.Dataset(dataset)
+    ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
     if os.path.exists(dataset.split("/")[1] + "_tileDB"):
         ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
     else:
@@ -45,7 +45,7 @@ def time_tiledb(dataset, batch_size=1):
 
 
 def time_hub(dataset, batch_size=1):
-    ds = hub.Dataset(dataset)
+    ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
 
     assert type(ds) == hub.api.dataset.Dataset
 
