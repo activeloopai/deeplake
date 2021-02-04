@@ -3,11 +3,11 @@ cluster_name: default_edward
 
 # The minimum number of workers nodes to launch in addition to the head
 # node. This number should be >= 0.
-min_workers: 2
+min_workers: 4
 
 # The maximum number of workers nodes to launch in addition to the head
 # node. This takes precedence over min_workers.
-max_workers: 2
+max_workers: 4
 
 # This executes all commands on all nodes in the docker container,
 # and opens all the necessary ports to support the Ray cluster.
@@ -41,7 +41,7 @@ provider:
     availability_zone: us-east-1a,us-east-1b
     # Whether to allow node reuse. If set to False, nodes will be terminated
     # instead of stopped.
-    cache_stopped_nodes: True # If not present, the default is True.
+    cache_stopped_nodes: False # If not present, the default is True.
 
 # How Ray will authenticate with newly launched nodes.
 auth:
@@ -104,9 +104,9 @@ initialization_commands: []
 
 # List of shell commands to run to set up nodes.
 setup_commands:
-    - pip3 install -e /root/intelinair
-    - pip3 install -r /root/intelinair/requirements.txt
-    - pip3 install -r /root/intelinair/requirements-optional.txt
+    - pip3 install -e ~/intelinair
+    - pip3 install -r ~/intelinair/requirements.txt
+    - pip3 install -r ~/intelinair/requirements-optional.txt
     - pip3 install tensorflow_datasets
     - pip3 install pydicom
     - pip3 install pandas
