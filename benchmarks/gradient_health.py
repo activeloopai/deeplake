@@ -309,7 +309,8 @@ class MimiciiiCxr:
         ds2 = hub.transform(
             schemai, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
         )(_check_files)(ds1)
-        ds2.store(f"{output_dir}/ds2")
+        ds2 = ds2.store(f"{output_dir}/ds2")
+        print("LEN:", len(ds2))
         ds3 = hub.transform(
             schema_, scheduler=args.scheduler, workers=args.workers, synchronizer=sync
         )(_process_example)(ds2)
@@ -318,8 +319,8 @@ class MimiciiiCxr:
 
 
 def main():
-    DEFAULT_WORKERS = 1
-    DEFAULT_SCHEDULER = "processed"
+    DEFAULT_WORKERS = 3
+    DEFAULT_SCHEDULER = "ray_generator"
     if DEFAULT_SCHEDULER == "ray_generator":
         DEFAULT_REDIS_URL = (
             os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else "localhost"
