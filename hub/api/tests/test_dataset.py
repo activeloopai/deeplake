@@ -753,11 +753,13 @@ simple_schema = {"num": "uint8"}
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_dataset_copy_s3_local():
-    ds = Dataset("./data/testing/original_ds_local", shape=(100,), schema=simple_schema)
+    ds = Dataset(
+        "./data/testing/original_data_local", shape=(100,), schema=simple_schema
+    )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/copy_ds_s3")
-    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    ds2 = ds.copy("s3://snark-test/copy_data_s3")
+    ds3 = ds2.copy("./data/testing/copy_data_local")
     for i in range(100):
         assert ds2["num", i] == 2 * i
         assert ds3["num", i] == 2 * i
@@ -809,8 +811,8 @@ def test_dataset_copy_hub_local():
     ds = Dataset("testingacc/original_ds_hub", shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs")
-    ds3 = ds2.copy("./data/testing/copy_ds_local")
+    ds2 = ds.copy("./data/testing/copy_ds_local")
+    ds3 = ds.copy("testingacc/copy_dataset_testing")
     for i in range(100):
         assert ds2["num", i] == 2 * i
         assert ds3["num", i] == 2 * i
@@ -835,6 +837,8 @@ def test_dataset_copy_gcs_s3():
     ds.delete()
     ds2.delete()
     ds3.delete()
+
+
 def test_dataset_filtering():
     my_schema = {
         "fname": Text((None,), max_shape=(10,)),

@@ -507,6 +507,7 @@ class Dataset:
             setting this to False allows only the user who created it to access the new copied dataset and
             the dataset won't be visible in the visualizer to the public
         """
+        self.flush()
         destination = dst_url
         path = self._copy_helper(
             dst_url=dst_url, token=token, fs=fs, public=public, src_url=self._url
@@ -537,15 +538,16 @@ class Dataset:
             if fs
             else get_fs_and_path(dst_url, token=token, public=public)
         )
-        if dst_fs.ls(dst_url):
+        if dst_fs.exists(dst_url) and dst_fs.ls(dst_url):
             raise DirectoryNotEmptyException(dst_url)
+        elif not dst_fs.exists(dst_url):
+            dst_fs.mkdir(dst_url)
         for path in src_fs.ls(src_url):
             dst_path = dst_url + path[len(src_url) :]
             if src_fs.isfile(path):
                 content = src_fs.cat_file(path)
                 dst_fs.pipe_file(dst_path, content)
             else:
-                dst_fs.mkdir(dst_path)
                 self._copy_helper(
                     dst_path, token=token, fs=dst_fs, public=public, src_url=path
                 )
@@ -764,7 +766,8 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
-
+        if "r" in self._mode:
+            return
         for t in self._tensors.values():
             t.flush()
         self._save_meta()
