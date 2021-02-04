@@ -829,8 +829,8 @@ def test_dataset_copy_gcs_s3():
     ds = Dataset("s3://snark-test/original_ds_s3", shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs_3")
-    ds3 = ds2.copy("s3://snark-test/copy_ds_s3_3")
+    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs_4")
+    ds3 = ds2.copy("s3://snark-test/copy_ds_s3_4")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
