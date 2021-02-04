@@ -116,7 +116,7 @@ def time_hub(dataset, batch_size=1, split=None):
             t0 = t1
 
 
-datasets = ["activeloop/mnist"]
+datasets = ["activeloop/mnist", "hydp/places365_small_train"]
 batch_sizes = [7000, 70000]
 
 
