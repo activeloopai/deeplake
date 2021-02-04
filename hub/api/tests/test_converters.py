@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import hub.api.tests.test_converters
 from hub.schema.features import Tensor
 import numpy as np
@@ -38,6 +44,34 @@ def test_from_tfds_coco():
         ]
 
 
+@pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
+def test_from_tfds_accentdb():
+    import tensorflow_datasets as tfds
+
+    with tfds.testing.mock_data(num_examples=5):
+        ds = hub.Dataset.from_tfds("accentdb", num=5)
+
+        res_ds = ds.store(
+            "./data/test_tfds/accentdb", length=5
+        )  # mock data doesn't have length, so explicitly provided
+        assert res_ds["audio", 0, :3].compute().tolist() == [47, 117, 192]
+        assert res_ds["audio", 2, :3].compute().tolist() == [163, 254, 203]
+
+
+@pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
+def test_from_tfds_robonet():
+    import tensorflow_datasets as tfds
+
+    with tfds.testing.mock_data(num_examples=5):
+        ds = hub.Dataset.from_tfds("robonet", num=5)
+
+        res_ds = ds.store(
+            "./data/test_tfds/robonet", length=5
+        )  # mock data doesn't have length, so explicitly provided
+        assert res_ds["video", 0, 0:2, 1, 2, 0].compute().tolist() == [59, 177]
+        assert res_ds["video", 2, 0:2, 1, 2, 0].compute().tolist() == [127, 62]
+
+
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_from_tensorflow():
     import tensorflow as tf
@@ -52,6 +86,19 @@ def test_from_tensorflow():
     res_ds = out_ds.store("./data/test_from_tf/ds2")
     assert res_ds["a"].numpy().tolist() == [1, 2]
     assert res_ds["b"].numpy().tolist() == [5, 6]
+
+
+@pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
+def test_to_tensorflow():
+    schema = {"abc": Tensor((100, 100, 3)), "int": "uint32"}
+    ds = hub.Dataset("./data/test_to_tf", shape=(10,), schema=schema)
+    for i in range(10):
+        ds["abc", i] = i * np.ones((100, 100, 3))
+        ds["int", i] = i
+    tds = ds.to_tensorflow()
+    for i, item in enumerate(tds):
+        assert (item["abc"].numpy() == i * np.ones((100, 100, 3))).all()
+        assert item["int"] == i
 
 
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
@@ -304,6 +351,12 @@ def test_to_from_pytorch():
 
     for i in range(10):
         assert (res_ds["label", "d", "e", i].numpy() == i * np.ones((5, 3))).all()
+
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_bug():
+    ds = hub.Dataset("activeloop/mnist", mode="r")
+    data = ds.to_pytorch()
 
 
 if __name__ == "__main__":

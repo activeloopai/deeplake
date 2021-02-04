@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from s3fs import S3FileSystem
 
 from hub.store.s3_storage import S3Storage

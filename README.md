@@ -26,9 +26,11 @@
 </a>
 </p>
 
-<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow. Scalable data pipelines.</h3>
 
 ---
+
+[ English | [简体中文](./README_CN.md) ]
 
 ### What is Hub for?
 
@@ -41,8 +43,8 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * Store and retrieve large datasets with version-control
 * Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
 * Access from multiple machines simultaneously
+* Deploy anywhere - locally, on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
 * Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
-* Deploy on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
 * Create arrays as big as you want. You can store images as big as 100k by 100k!
 * Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
@@ -117,6 +119,9 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ```sh
 hub register
 hub login
+
+# alternatively, add username and password as arguments (use on platforms like Kaggle)
+hub login -u username -p password
 ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
@@ -164,9 +169,13 @@ Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-i
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
-As always, thanks to our amazing contributors!     </br>
+As always, thanks to our amazing contributors!    
 
-[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
+<a href="https://github.com/activeloopai/hub/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
+</a>
+
+Made with [contributors-img](https://contrib.rocks).
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) to know how to get started with making contributions to Hub.
 

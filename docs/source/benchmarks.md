@@ -1,6 +1,6 @@
 ## Benchmarking
 
-For full reproducibility please refer to the [code](/test/benchmark)
+For full reproducibility please refer to the [code](https://github.com/activeloopai/Hub/tree/master/test/benchmark)
 
 ### Download Parallelism
 

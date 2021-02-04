@@ -1,3 +1,13 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+from hub.schema.video import Video
+from hub.schema.text import Text
+from hub.schema.sequence import Sequence
+import pytest
 from hub.schema.features import Tensor
 from hub.schema.serialize import serialize
 from hub.schema.deserialize import deserialize
@@ -8,7 +18,6 @@ from hub.schema.audio import Audio
 from hub.schema.mask import Mask
 from hub.schema.polygon import Polygon
 from hub.schema.segmentation import Segmentation
-from hub.schema.sequence import Sequence
 
 
 def test_serialize_deserialize():
@@ -27,17 +36,21 @@ def test_serialize_deserialize():
                     "second": "float64",
                 },
             ),
-            "bbox": BBox(dtype="float64", chunks=False),
+            "bbox": BBox(dtype="float64"),
             "audio": Audio(shape=(120,), dtype="uint32"),
-            "mask": Mask(shape=(5, 8), chunks=True),
+            "mask": Mask(shape=(5, 8, 1)),
             "polygon": Polygon(shape=(16, 2)),
-            "segmentation": Segmentation(
+            "segmentation1": Segmentation(
+                shape=(5, 9, 1), dtype="uint8", num_classes=5
+            ),
+            "segmentation2": Segmentation(
                 shape=(5, 9, 1), dtype="uint8", names=("apple", "orange", "pineapple")
             ),
-            # "sequence": Sequence(
-            #     feature=Tensor(shape=(None, None), max_shape=(100, 100), dtype="uint8"),
-            #     length=10,
-            # ),
+            "sequence": Sequence(
+                dtype=Tensor(shape=(None, None), max_shape=(100, 100), dtype="uint8"),
+            ),
+            "text": Text((None,), max_shape=(10,)),
+            "video": Video((100, 100, 3, 10)),
         },
     )
     original_result = tuple(t._flatten())
@@ -57,5 +70,13 @@ def test_serialize_deserialize():
     assert dtypes == origanal_dtypes
 
 
+def test_serialize_error():
+    with pytest.raises(TypeError):
+        serialize([])
+    with pytest.raises(TypeError):
+        serialize({})
+
+
 if __name__ == "__main__":
     test_serialize_deserialize()
+    test_serialize_error()

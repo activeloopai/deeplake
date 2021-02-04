@@ -1,9 +1,15 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import os
 
 from setuptools import find_packages, setup
 
 project = "hub"
-VERSION = "1.1.1"
+VERSION = "1.2.0"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md")) as f:

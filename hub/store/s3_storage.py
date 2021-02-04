@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from collections.abc import MutableMapping
 import posixpath
 
@@ -62,6 +68,7 @@ class S3Storage(MutableMapping):
     def __setitem__(self, path, content):
         try:
             path = posixpath.join(self.path, path)
+            content = bytearray(memoryview(content))
             attrs = {
                 "Bucket": self.bucket,
                 "Body": content,

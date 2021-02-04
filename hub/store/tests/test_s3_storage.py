@@ -1,23 +1,42 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+from concurrent.futures.thread import ThreadPoolExecutor
+
+import boto3
 import pytest
 from s3fs import S3FileSystem
 import cloudpickle
+import numpy as np
 
 from hub.store.s3_storage import S3Storage
 from hub.utils import s3_creds_exist
-import hub.store.pickle_s3_storage
+
+
+def create_client():
+    return boto3.client("s3")
+
+
+BYTE_DATA = bytes("world2", "utf-8")
+NUMPY_ARR = np.array([[4, 512, 512]])
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="Requires s3 credentials")
 def test_s3_storage():
     _storage = S3FileSystem()
-    storage = S3Storage(_storage, "s3://snark-test/test_s3_storage")
+    storage = S3Storage(_storage, "s3://snark-test/test_s3_storage1")
 
-    storage["hello"] = bytes("world2", "utf-8")
-    assert storage["hello"] == bytes("world2", "utf-8")
-    assert len(storage) == 1
-    assert list(storage) == ["hello"]
+    storage["hello"] = BYTE_DATA
+    storage["numpy"] = NUMPY_ARR
+    assert storage["hello"] == BYTE_DATA
+    assert storage["numpy"] == bytearray(memoryview(NUMPY_ARR))
+    assert len(storage) == 2
+    assert list(storage) == ["hello", "numpy"]
     del storage["hello"]
-    assert len(storage) == 0
+    assert len(storage) == 1
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="Requires s3 credentials")

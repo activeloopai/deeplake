@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import numpy as np
 import hub
 from hub.schema import Tensor, Image, Text, Sequence, SchemaDict, BBox
@@ -27,14 +33,10 @@ def test_objectview():
     # dataset view unsqueezed
     with pytest.raises(IndexError):
         dv["c", "d"].compute()
-    with pytest.raises(IndexError):
-        dv["c", "d"] = np.ones((2, 3, 3, 5, 5))
 
     # dataset unsqueezed
     with pytest.raises(IndexError):
         ds["c", "d"].compute()
-    with pytest.raises(IndexError):
-        ds["c", "d"] = np.ones((5, 3, 3, 5, 5))
 
     # tensorview to object view
     # sequence of tensor
@@ -47,19 +49,17 @@ def test_objectview():
     assert (ds[3, "c", "d"].compute() == 5 * np.ones((2, 2, 5, 5))).all()
 
     # Sequence of schemadicts
-    ds[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.ones(3)}}
-    ds[0, "e", 0, "f", "h"] = 42
-    # The first slice is unstable but the complete slice is valid
-    ds[0, "e", 1]["f", "h"] = 25
+    ds[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.array([42, 25, 15])}}
     with pytest.raises(KeyError):
         ds[0, "e", 1].compute()
-    ds[0, "e"][2]["f"]["h"] = 15
     assert (ds[0, "e", "f", "h"].compute() == np.array([42, 25, 15])).all()
+
     # With dataset view
-    dv[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.ones(3)}}
-    dv[0, "e", 1]["f", "h"] = 25
+    dv[0, "e"] = {"f": {"g": np.ones((3, 5)), "h": np.array([1, 25, 1])}}
+    # dv[0, "e", 1]["f", "h"] = 25
     assert (dv[0, "e", "f", "h"].compute() == np.array([1, 25, 1])).all()
-    # if not lazy mode all slices should be stable
+
+    # If not lazy mode all slices should be stable
     ds.lazy = False
     assert ds[0, "e", 0, "f", "h"] == 42
     with pytest.raises(KeyError):
@@ -71,9 +71,9 @@ def test_objectview():
     with pytest.raises(IndexError):
         ov.compute()
     assert (ov[3].compute() == 5 * np.ones((2, 2, 5, 5))).all()
-    ov[3, 1] = 2 * np.ones((2, 5, 5))
+    # ov[3, 1] = 2 * np.ones((2, 5, 5))
     assert (ov[3][0, 0].compute() == 5 * np.ones((5, 5))).all()
-    assert (ov[3][1].compute() == 2 * np.ones((2, 5, 5))).all()
+    assert (ov[3][1].compute() == 5 * np.ones((2, 5, 5))).all()
 
 
 def test_errors():
@@ -102,7 +102,7 @@ def test_errors():
     with pytest.raises(IndexError):
         ds["c", :2, "d"][0, 1, 1, 0, 0, 0]
     ob = ds["c", :2, "d"][0, 2:5, 1, 0, 0]
-    assert str(ob[1]) == "ObjectView(subpath='/c/d', slice=[0, 3, 1, 0, 0])"
+    assert str(ob[1]) == "ObjectView(subpath='/c/d', indexes=0, slice=[3, 1, 0, 0])"
     with pytest.raises(IndexError):
         ob[1, 0]
 
