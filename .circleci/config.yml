@@ -3,16 +3,57 @@ version: 2.1
 orbs:
   slack: circleci/slack@3.4.2
   codecov: codecov/codecov@1.1.1
-  win: circleci/windows@2.2.0
+
+workflows:
+  test:
+    jobs:
+      - test:
+          context:
+            - test
+            - azure
+      - test_full:
+          context:
+            - test
+            - azure
+
+  test_and_deploy:
+    jobs:
+      - test:
+          context:
+            - test
+            - azure
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - test_full:
+          context:
+            - test
+            - azure
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - deploy:
+          context:
+            - pypi
+            - snark-docker
+          requires:
+            - test
+            - test_full
+          filters:
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
 
 jobs:
-  test-linux:
-    parameters:
-      image:
-        type: string
-    docker:
-      - image: circleci/python:<< parameters.image >>
-    steps:
+  test:
+   docker:
+      - image: circleci/python:3.8
+   steps:
       - checkout
       - run:
           name: "Prep Google credentials"
@@ -39,12 +80,10 @@ jobs:
           fail_only: true
           webhook: $SLACK_WEBHOOK
 
-  test-full-linux:
-    parameters:
-      image:
-        type: string
+
+  test_full:
     docker:
-      - image: circleci/python:<< parameters.image >>
+      - image: circleci/python:3.8
     steps:
       - checkout
       - run:
@@ -79,200 +118,13 @@ jobs:
           fail_only: true
           webhook: $SLACK_WEBHOOK
 
-  test-win:
-    parameters:
-      python-version:
-        type: string
-      architecture:
-        type: string
-    executor:
-      name: win/default
-    environment:
-      CL: /d2FH4-
-    steps:
-      - checkout
-      - run:
-          name: "Prep Google credentials"
-          command: |
-            mkdir -p "/home/circleci/.secrets/"
-            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
-      - run:
-          name: install python and create virtualenv
-          command: |
-            nuget install python<< parameters.architecture >> -Version << parameters.python-version >> -ExcludeVersion -OutputDirectory .
-            .\python<< parameters.architecture >>\tools\python.exe --version
-      - run:
-          name: "Collecting requirements"
-          command: |
-            pip install -r requirements-dev.txt
-            pip install -r requirements.txt
-            pip install -e .
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-
-  test-full-win:
-    parameters:
-      python-version:
-        type: string
-      architecture:
-        type: string
-    executor:
-      name: win/default
-    environment:
-      CL: /d2FH4-
-    steps:
-      - checkout
-      - run:
-          name: "Prep Google credentials"
-          command: |
-            mkdir -p "/home/circleci/.secrets/"
-            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
-      - run:
-          name: install python and create virtualenv
-          command: |
-            nuget install python<< parameters.architecture >> -Version << parameters.python-version >> -ExcludeVersion -OutputDirectory .
-            .\python<< parameters.architecture >>\tools\python.exe --version
-      - run:
-          name: "Collecting requirements"
-          command: |
-            pip install -r requirements-dev.txt
-            pip install -r requirements-optional.txt
-            pip install -r requirements.txt
-            pip install -e .
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-
-  test-osx:
-    parameters:
-      python-version:
-        type: string
-    macos:
-      xcode: "12.2.0"
-    environment:
-      HOMEBREW_NO_AUTO_UPDATE: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.9
-    steps:
-      - checkout
-      - run: 
-          name: install pyenv
-          command: |
-            brew install pyenv
-      - run:
-          name: install boost
-          command: |
-            brew install boost
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-      - run:
-          name: install
-          command: |
-            eval "$(pyenv init -)"
-            pyenv local << parameters.python-version >>
-            pip install -r requirements-dev.txt
-            pip install -r requirements.txt
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-
-  test-full-osx:
-    parameters:
-      python-version:
-        type: string
-    macos:
-      xcode: "12.2.0"
-    environment:
-      HOMEBREW_NO_AUTO_UPDATE: 1
-      MACOSX_DEPLOYMENT_TARGET: 10.9
-    steps:
-      - checkout
-      - run: 
-          name: install pyenv
-          command: |
-            brew install pyenv
-      - run:
-          name: install boost
-          command: |
-            brew install boost
-      - restore_cache:
-          keys:
-            - pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-      - run:
-          name: install python
-          command: |
-            pyenv install << parameters.python-version>> -s
-      - save_cache:
-          paths:
-            - ~/.pyenv
-          key: pyenv-{{ .Environment.CIRCLE_JOB }}-xcode12.2.0
-      - run:
-          name: install
-          command: |
-            eval "$(pyenv init -)"
-            pyenv local << parameters.python-version >>
-            pip install -r requirements-dev.txt
-            pip install -r requirements-optional.txt
-            pip install -r requirements.txt
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-
   deploy:
     docker:
       - image: circleci/python:3.8
     environment:
       IMAGE_NAME: snarkai/hub
     steps:
+      - setup_remote_docker
       - checkout
       - run:
           name: "Init .pypirc"
@@ -292,7 +144,7 @@ jobs:
       - run:
           name: "Upload dist to PyPi"
           command: |
-            twine upload dist/*
+            twine upload --skip-existing dist/*
       - run:
           name: "Build Docker Hub Image"
           command: |
@@ -308,83 +160,3 @@ jobs:
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
-
-workflows:
-  tests:
-    jobs:
-      - test-linux:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              image:
-                - "3.9"
-                - "3.8"
-                - "3.7"
-                - "3.6"
-      - test-win:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.5", "3.6", "3.7", "3.8", "3.9"]
-              architecture: ["", "x86"]
-      - test-osx:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.5", "3.6", "3.7", "3.8", "3.9"]
-
-  full-tests:
-    jobs:
-      - test-full-linux:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              image:
-                - "3.9"
-                - "3.8"
-                - "3.7"
-                - "3.6"
-      - test-full-win:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.5", "3.6", "3.7", "3.8", "3.9"]
-              architecture: ["", "x86"]
-      - test-full-osx:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
-          matrix:
-            parameters:
-              python-version: ["3.5", "3.6", "3.7", "3.8", "3.9"]
-
-  deploy:
-    jobs:
-      - deploy:
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
