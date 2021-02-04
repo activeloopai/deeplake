@@ -414,7 +414,7 @@ class Dataset:
             if not self._version_node.children
             else self._version_node
         )
-        print(f"\nBranch: {self._branch}")
+        print(f"\n Current Branch: {self._branch}")
         while current_node:
             print(current_node)
             current_node = current_node.parent
@@ -964,6 +964,15 @@ class Dataset:
         Get Keys of the dataset
         """
         return self._tensors.keys()
+
+    @property
+    def branches(self) -> list:
+        """
+        Gets all the branches of the dataset
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("branches")
+        return self._branch_node_map.keys()
 
     def _get_mode(self, mode: str, fs: AbstractFileSystem):
         if mode:
