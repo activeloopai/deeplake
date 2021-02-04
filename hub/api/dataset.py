@@ -204,7 +204,7 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
-        
+
         self.indexes = list(range(self._shape[0]))
 
         if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
