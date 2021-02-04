@@ -14,3 +14,5 @@ azure-storage-blob==12.6.0
 pathos>=0.2.2
 psutil>=5.7.3
 Pillow>=8.0.1
+cloudpickle==1.6.0
+msgpack==1.0.2
