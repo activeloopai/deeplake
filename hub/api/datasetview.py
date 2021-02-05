@@ -175,7 +175,7 @@ class DatasetView:
                     current_slice = [index] + slice_list[1:]
                     self.dataset._tensors[subpath][current_slice] = assign_value[i]
 
-    def filter(self, dic):
+    def filter_by_sample(self, dic):
         """| Applies a filter to get a new datasetview that matches the dictionary provided
 
         Parameters
@@ -198,6 +198,26 @@ class DatasetView:
                 indexes = [index for index in indexes if tsv[index].compute() == v]
             else:
                 indexes = indexes if tsv[indexes].compute() == v else []
+        return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
+
+    def filter(self, fn):
+        """| Applies a function on each element one by one as a filter to get a new DatasetView
+
+        Parameters
+        ----------
+        fn: function
+            Should take in a single sample of the dataset and return True or False
+            This function is applied to all the items of the datasetview and retains those items that return True
+        """
+        indexes = []
+        if isinstance(self.indexes, int):
+            dsv = self.dataset[self.indexes]
+            if fn(dsv):
+                return DatasetView(
+                    dataset=self.dataset, lazy=self.lazy, indexes=self.indexes
+                )
+        else:
+            indexes = [index for index in self.indexes if fn(self.dataset[index])]
         return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
 
     @property

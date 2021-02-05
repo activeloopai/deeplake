@@ -748,7 +748,35 @@ def test_dataset_assign_value():
     assert ds["text", 6].compute() == "YGFJN75NF"
 
 
-def test_dataset_filtering():
+def test_dataset_filter():
+    def abc_filter(sample):
+        return sample["ab"].compute().startswith("abc")
+
+    my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
+    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    for i in range(10):
+        ds["img", i] = i * np.ones((100, 100))
+        ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
+
+    ds2 = ds.filter(abc_filter)
+    assert ds2.indexes == [0, 2, 4, 6, 8]
+
+
+def test_datasetview_filter():
+    def abc_filter(sample):
+        return sample["ab"].compute().startswith("abc")
+
+    my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
+    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    for i in range(10):
+        ds["img", i] = i * np.ones((100, 100))
+        ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
+    dsv = ds[2:7]
+    ds2 = dsv.filter(abc_filter)
+    assert ds2.indexes == [2, 4, 6]
+
+
+def test_dataset_filtering_by_sample():
     my_schema = {
         "fname": Text((None,), max_shape=(10,)),
         "lname": Text((None,), max_shape=(10,)),
@@ -764,7 +792,7 @@ def test_dataset_filtering():
     for i in [15, 31, 25, 75, 3, 6]:
         ds["lname", i] = "loop"
 
-    dsv_combined = ds.filter({"fname": "Active", "lname": "loop"})
+    dsv_combined = ds.filter_by_sample({"fname": "Active", "lname": "loop"})
     tsv_combined_fname = dsv_combined["fname"]
     tsv_combined_lname = dsv_combined["lname"]
     for item in dsv_combined:
@@ -773,8 +801,8 @@ def test_dataset_filtering():
         assert item.compute() == "Active"
     for item in tsv_combined_lname:
         assert item.compute() == "loop"
-    dsv_1 = ds.filter({"fname": "Active"})
-    dsv_2 = dsv_1.filter({"lname": "loop"})
+    dsv_1 = ds.filter_by_sample({"fname": "Active"})
+    dsv_2 = dsv_1.filter_by_sample({"lname": "loop"})
     for item in dsv_1:
         assert item.compute()["fname"] == "Active"
     tsv_1 = dsv_1["fname"]
@@ -789,8 +817,8 @@ def test_dataset_filtering():
     assert dsv_1.indexes == [1, 3, 6, 15, 63, 75, 96]
     assert dsv_2.indexes == [3, 6, 15, 75]
 
-    dsv_3 = ds.filter({"lname": "loop"})
-    dsv_4 = dsv_3.filter({"fname": "Active"})
+    dsv_3 = ds.filter_by_sample({"lname": "loop"})
+    dsv_4 = dsv_3.filter_by_sample({"fname": "Active"})
     for item in dsv_3:
         assert item.compute()["lname"] == "loop"
     for item in dsv_4:
@@ -805,20 +833,20 @@ def test_dataset_filtering():
     }
     ds = Dataset("./test/filtering2", shape=(100,), schema=my_schema2, mode="w")
     with pytest.raises(LargeShapeFilteringException):
-        ds.filter({"image": np.ones((1920, 1080, 3))})
+        ds.filter_by_sample({"image": np.ones((1920, 1080, 3))})
     with pytest.raises(KeyError):
-        ds.filter({"random": np.ones((1920, 1080, 3))})
+        ds.filter_by_sample({"random": np.ones((1920, 1080, 3))})
 
     for i in [1, 3, 6, 15, 63, 96, 75]:
         ds["fname", i] = "Active"
-    dsv = ds.filter({"fname": "Active"})
+    dsv = ds.filter_by_sample({"fname": "Active"})
     with pytest.raises(LargeShapeFilteringException):
-        dsv.filter({"image": np.ones((1920, 1080, 3))})
+        dsv.filter_by_sample({"image": np.ones((1920, 1080, 3))})
     with pytest.raises(KeyError):
-        dsv.filter({"random": np.ones((1920, 1080, 3))})
+        dsv.filter_by_sample({"random": np.ones((1920, 1080, 3))})
 
 
-def test_dataset_filtering_2():
+def test_dataset_filtering_by_sample_2():
     schema = {
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
@@ -828,18 +856,18 @@ def test_dataset_filtering_2():
         ds["cl", i] = 0 if i % 5 == 0 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
     ds["cl", 4] = 2
-    ds_filtered = ds.filter({"cl": 0})
+    ds_filtered = ds.filter_by_sample({"cl": 0})
     assert ds_filtered.indexes == [5 * i for i in range(20)]
     with pytest.raises(ValueError):
         ds_filtered["img"].compute()
-    ds_filtered_2 = ds.filter({"cl": 2})
+    ds_filtered_2 = ds.filter_by_sample({"cl": 2})
     assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
     for item in ds_filtered_2:
         assert (item["img"].compute() == 4 * np.ones((5, 6, 3))).all()
         assert item["cl"].compute() == 2
 
 
-def test_dataset_filtering_3():
+def test_dataset_filtering_by_sample_3():
     schema = {
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
@@ -848,7 +876,7 @@ def test_dataset_filtering_3():
     for i in range(100):
         ds["cl", i] = 0 if i < 10 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
-    ds_filtered = ds.filter({"cl": 0})
+    ds_filtered = ds.filter_by_sample({"cl": 0})
     assert (ds_filtered[3:8, "cl"].compute() == np.zeros((5,))).all()
 
 
@@ -951,12 +979,12 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
-    test_dataset_filtering()
-    test_dataset_filtering_2()
+    test_dataset_filtering_by_sample()
+    test_dataset_filtering_by_sample_2()
     test_pickleability()
     test_dataset_append_and_read()
     test_tensorview_iter()
-    test_dataset_filtering_3()
+    test_dataset_filtering_by_sample_3()
     test_datasetview_2()
     test_dataset_3()
     test_dataset_utils()
