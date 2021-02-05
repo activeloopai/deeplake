@@ -107,4 +107,5 @@ ds.flush()
 .. autofunction:: hub.api.dataset.Dataset.checkout
 .. autofunction:: hub.api.dataset.Dataset.log
 .. autofunction:: hub.api.dataset.Dataset.optimize
+.. autofunction:: hub.api.dataset.Dataset.branches
 ```

@@ -345,7 +345,9 @@ class Dataset:
     def checkout(self, address: str, create: bool = False) -> str:
         """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
         Always checks out to the head of a branch if the address specified is a branch name.
+
         Returns the commit id of the commit that has been switched to.
+
         Only works if dataset was created on or after Hub v1.3.0
 
         Parameters
@@ -968,7 +970,7 @@ class Dataset:
     @property
     def branches(self) -> list:
         """
-        Gets all the branches of the dataset
+        Gets a list all the branches of the dataset
         """
         if self._commit_id is None:
             raise VersioningNotSupportedException("branches")
