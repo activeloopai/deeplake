@@ -269,7 +269,7 @@ It is 1.12x better than PyTorch and 1.004x better than Tensorflow.
 | --- | --- | --- |
 | Hub (remote - Wasabi) `.to_pytorch()` | 12.460094690322876s | 6033.249919652939s |
 | Hub (remote - S3) `.to_pytorch()` | 8.437131643295288s | 4590.98117518425s |
-| Hub (local) `.to_pytorch()` | 353.3983402252197s | *timed out* |
+| Hub (local) `.to_pytorch()` | 353.3983402252197s | 19751.0881626606s |
 | PyTorch (local, native) | 13.931219339370728s | 4305.066396951675s |
 | Hub (remote - Wasabi) `.to_tensorflow()` | 10.866756200790405s | 5725.523037910461s |
 | Hub (remote - S3) `.to_tensorflow()` | 11.888715505599976s | 4524.5225484371185s |

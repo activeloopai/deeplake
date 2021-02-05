@@ -239,7 +239,7 @@ def time_iter_hub_s3_tensorflow(
 def time_iter_tensorflow(
     dataset_info, batch_size=BATCH_SIZE, prefetch_factor=PREFETCH_SIZE, process=None
 ):
-    # turn off optimizations
+    # turn off auto-splitting and disable multiprocessing
     options = tf.data.Options()
     blockAS = tf.data.experimental.AutoShardPolicy.OFF
     options.experimental_distribute.auto_shard_policy = blockAS
