@@ -378,7 +378,6 @@ class Dataset:
             new_node = VersionNode(new_commit_id, self._branch)
             if not self._version_node.children:
                 for key in self.keys:
-                    # TODO Add copy of dynamic too
                     self._tensors[key].fs_map.copy_all(self._commit_id, new_commit_id)
                 if self._version_node.parent is not None:
                     self._version_node.parent.insert(
@@ -436,7 +435,6 @@ class Dataset:
             raise ReadModeException("optimize")
 
         for key in self.keys:
-            # TODO Add copy of dynamic too
             self._tensors[key].fs_map.optimize()
 
         self._is_optimized = True
