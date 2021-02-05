@@ -193,6 +193,7 @@ class TensorView:
         >>> images_tensorview = ds["image"]
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
+        self.dataset._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
         assign_value = str_to_int(assign_value, self.dataset.tokenizer)
