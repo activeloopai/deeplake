@@ -11,7 +11,7 @@ Hub datasets are always stored in a chunk wise manner (in chunks of size ~16 MB)
 * Seamlessly switch between versions
 
 ### Features coming in the future
-* Modify schema across versiona (add or remove Tensors)
+* Modify schema across versions (add or remove Tensors)
 * Track versions across transforms
 * Delete branches
 * (More suggestions welcome!)
@@ -23,26 +23,30 @@ The current state of a dataset can be saved using commit which is very similar t
 Example:-
 ```python
 ds = hub.Dataset("path/to/dataset")
-# modify some data
-a = ds.commit("my first commit")
-# modify some data
-b = ds.commit()  # the commit message is optional, but recommended
+for i in range(10):
+    ds["img", i] = i * np.ones((100, 100, 3))  # assuming the dataset has a tensor called img
+a = ds.commit("my first commit") # the commit message is optional, but recommended
 ```
 
 ### Changing branches
 Similar to git, you start out on the master branch by default. There are 2 ways to switch to another branch:-
 * Using checkout and passing the branch name as the address
-* Making changes while not on the head of a branch i.e. in a state similar to the “Detached head state in git. For instance, if you have made 5 commits on master and go back to the second commit (again using checkout, explained in detail in the next section) and try to make some change there, you will automatically get checked out to a new branch with a name similar to “auto:ec33fced9d75021a32ae28ff”. Alternatively you could also manually checkout to a branch from this state yourself and prevent auto checkout.
+* Making changes while not on the head of a branch i.e. in a state similar to the “Detached head" state in git. For instance, if you have made 5 commits on master and go back to the second commit (again using checkout, explained in detail in the next section) and try to make some change there, you will automatically get checked out to a new branch with a name similar to “auto:ec33fced9d75021a32ae28ff”. Alternatively you could also manually checkout to a branch from this state yourself and prevent auto checkout.
 
 ```python
 ds = hub.Dataset("path/to/dataset")
 ds.checkout("alternate", create=True)  # creates a new branch
 
 ds.checkout("master")
+for i in range(10):
+    ds["img", i] = 2 * i * np.ones((100, 100, 3))
 a = ds.commit("first commit")
+for i in range(10):
+    ds["img", i] = 3 * ds["img", i].compute()
 b = ds.commit("second commit")
 ds.checkout(a)
-c = ds.commit("third commit")  # auto checks out to new branch
+ds["img", 6] = 4 * ds["img", i].compute()  # auto checks out to new branch
+c = ds.commit("third commit")
 ```
 
 
@@ -94,7 +98,8 @@ Hub uses a memory cache to ensure fast data storage and retrieval. This cache is
 
 ```python
 ds = hub.Dataset("path/to/dataset")
-# modify some data
+for i in range(10):
+    ds["img", i] = i * np.ones((100, 100, 3))
 
 ds.commit("modifications made")
 # OR
