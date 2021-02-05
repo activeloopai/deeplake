@@ -13,6 +13,31 @@ from time import time
 from hub.utils import Timer
 
 
+def time_batches(dataset, batch_size=1, hub=False):
+    with Timer("Time"):
+        counter = 0
+        t0 = time()
+        for batch in range(dataset.shape[0] // batch_size):
+            if hub is True:
+                x, y = (
+                    dataset[batch * batch_size : (batch + 1) * batch_size][
+                        "image"
+                    ].compute(),
+                    dataset[batch * batch_size : (batch + 1) * batch_size][
+                        "label"
+                    ].compute(),
+                )
+            else:
+                x, y = (
+                    dataset[batch * batch_size : (batch + 1) * batch_size, :-1],
+                    dataset[batch * batch_size : (batch + 1) * batch_size, -1],
+                )
+            counter += 1
+            t1 = time()
+            print("Batch", counter, f"dt: {t1 - t0}")
+            t0 = t1
+
+
 def time_tiledb(dataset, batch_size=1, split=None):
     if os.path.exists(dataset.split("/")[1] + "_tileDB"):
         ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
@@ -34,18 +59,7 @@ def time_tiledb(dataset, batch_size=1, split=None):
 
     assert type(ds_tldb) == tiledb.array.DenseArray
 
-    with Timer("Time"):
-        counter = 0
-        t0 = time()
-        for batch in range(ds_tldb.shape[0] // batch_size):
-            x, y = (
-                ds_tldb[batch * batch_size : (batch + 1) * batch_size, :-1],
-                ds_tldb[batch * batch_size : (batch + 1) * batch_size, -1],
-            )
-            counter += 1
-            t1 = time()
-            print("Batch", counter, f"dt: {t1 - t0}")
-            t0 = t1
+    time_batches(ds_tldb, batch_size)
 
 
 def time_zarr(dataset, batch_size=1, split=None):
@@ -80,18 +94,7 @@ def time_zarr(dataset, batch_size=1, split=None):
 
     assert type(ds_zarr) == zarr.core.Array
 
-    with Timer("Time"):
-        counter = 0
-        t0 = time()
-        for batch in range(ds_zarr.shape[0] // batch_size):
-            x, y = (
-                ds_zarr[batch * batch_size : (batch + 1) * batch_size, :-1],
-                ds_zarr[batch * batch_size : (batch + 1) * batch_size, -1],
-            )
-            counter += 1
-            t1 = time()
-            print("Batch", counter, f"dt: {t1 - t0}")
-            t0 = t1
+    time_batches(ds_zarr, batch_size)
 
 
 def time_hub(dataset, batch_size=1, split=None):
@@ -102,18 +105,7 @@ def time_hub(dataset, batch_size=1, split=None):
 
     assert type(ds) == hub.api.dataset.Dataset
 
-    with Timer("Time"):
-        counter = 0
-        t0 = time()
-        for batch in range(ds.shape[0] // batch_size):
-            x, y = (
-                ds[batch * batch_size : (batch + 1) * batch_size]["image"].compute(),
-                ds[batch * batch_size : (batch + 1) * batch_size]["label"].compute(),
-            )
-            counter += 1
-            t1 = time()
-            print("Batch", counter, f"dt: {t1 - t0}")
-            t0 = t1
+    time_batches(ds, batch_size, hub=True)
 
 
 datasets = ["activeloop/mnist", "hydp/places365_small_train"]
