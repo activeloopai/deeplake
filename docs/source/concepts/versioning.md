@@ -1,4 +1,4 @@
-# Dataset Versioning
+# Dataset Version Control
 
 Hub can also be used to create different versions of datasets in a manner similar to git versioning.
 These versions are not full copies but rather they keep track of differences between versions and are thus stored very efficiently. Unlike git, this isn’t a CLI tool but rather a python API.

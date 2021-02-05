@@ -359,6 +359,7 @@ class Dataset:
         """
         if self._commit_id is None:
             raise VersioningNotSupportedException("checkout")
+        self.flush()
         if address in self._branch_node_map.keys():
             self._branch = address
             self._version_node = self._branch_node_map[address]

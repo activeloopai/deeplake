@@ -316,6 +316,28 @@ def test_old_datasets():
         ds.log()
 
 
+def test_dynamic_version_control():
+    my_schema = {"img": Image((None, None, 3), max_shape=(1000, 1000, 3))}
+    ds = hub.Dataset(
+        "./data/dynamic_versioning", shape=(10,), schema=my_schema, mode="w"
+    )
+    for i in range(10):
+        ds["img", i] = i * np.ones((100, 100, 3))
+
+    a = ds.commit("first")
+    for i in range(10):
+        ds["img", i] = 2 * i * np.ones((150, 150, 3))
+    ds.checkout(a)
+
+    for i in range(10):
+        assert (ds["img", i].compute() == i * np.ones((100, 100, 3))).all()
+
+    ds.checkout("master")
+
+    for i in range(10):
+        assert (ds["img", i].compute() == 2 * i * np.ones((150, 150, 3))).all()
+
+
 if __name__ == "__main__":
     test_commit()
     test_commit_checkout()
