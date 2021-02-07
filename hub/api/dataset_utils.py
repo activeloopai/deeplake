@@ -6,8 +6,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import numpy as np
 import sys
-import hashlib
-import time
 from hub.exceptions import ModuleNotInstalledException
 
 
@@ -159,9 +157,3 @@ def str_to_int(assign_value, tokenizer):
         ):
             assign_value = [np.array([ord(ch) for ch in item]) for item in assign_value]
     return assign_value
-
-
-def generate_hash():
-    hash = hashlib.sha1()
-    hash.update(str(time.time()).encode("utf-8"))
-    return hash.hexdigest()

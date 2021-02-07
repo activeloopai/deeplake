@@ -324,7 +324,7 @@ class Transform:
                     [slice(offset, offset + len(value))], value
                 )
 
-        ds.flush()
+        ds.commit()
         return ds
 
     def call_func(self, fn_index, item, as_list=False):
@@ -495,8 +495,11 @@ class Transform:
                 pbar.update(len(ds_in_shard))
                 start += n_results
 
-        ds_out.resize_shape(total)
-        ds_out.flush()
+        if self.synchronizer is None:
+            ds_out.flush()
+            ds_out.resize_shape(total)
+            ds_out.commit()
+
         return ds_out
 
     @property

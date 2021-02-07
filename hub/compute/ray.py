@@ -5,7 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import sys
-import time
 from hub import Dataset
 from hub.api.datasetview import DatasetView
 from hub.utils import batchify
@@ -236,7 +235,7 @@ class RayTransform(Transform):
 
         results = ray.get(tasks)
         self.set_dynamic_shapes(results, ds)
-        ds.flush()
+        ds.commit()
         return ds
 
     def set_dynamic_shapes(self, results, ds):
@@ -350,8 +349,7 @@ class RayGeneratorTransform(RayTransform):
         ds_out = self.create_dataset(
             url, length=1000 * 1000, token=token, public=public, create=True
         )
-        print(ds_out)
-        time.sleep(10)
+
         for batch in batchify(range(0, len(_ds)), len(_ds) // self.workers):
             actor = TransformShard.remote(
                 ds=self.ray_ds,
@@ -368,23 +366,7 @@ class RayGeneratorTransform(RayTransform):
                 actor.transform_shard.remote(url, start=batch[0], end=batch[-1] + 1)
             )
 
-        print("Results")
-        print(results)
-        max_retries = 3
-        while max_retries > 0:
-            try:
-                datasets = ray.get(results)
-                print("Sleeping for 10 secs")
-                time.sleep(10)
-            except Exception as e:
-                max_retries = max_retries - 1
-                print("Retries left:")
-                print(max_retries)
-                if max_retries <= 0:
-                    print(e)
-                    raise Exception(e)
-
-
+        datasets = ray.get(results)
         datasets = [d for d in datasets if d]
         ds = datasets[0]
 

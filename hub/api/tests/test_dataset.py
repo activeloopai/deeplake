@@ -348,8 +348,8 @@ def test_dataset_batch_write_2():
 def test_dataset_hub():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
-    test_dataset("testingacc/test_dataset_private_2", public=False)
-    test_dataset("testingacc/test_dataset_public_2")
+    test_dataset("testingacc/test_dataset_private", public=False)
+    test_dataset("testingacc/test_dataset_public")
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")

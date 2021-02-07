@@ -200,18 +200,6 @@ class ModuleNotInstalledException(HubException):
         super(HubException, self).__init__(message=message)
 
 
-class ReadModeException(HubException):
-    def __init__(self, method_name):
-        message = f"Can't call {method_name} as the dataset is in read mode"
-        super(HubException, self).__init__(message=message)
-
-
-class VersioningNotSupportedException(HubException):
-    def __init__(self, method_name):
-        message = f"This dataset was created before version control, it does not support {method_name} functionality."
-        super(HubException, self).__init__(message=message)
-
-
 class DaskModuleNotInstalledException(HubException):
     def __init__(self, message=""):
         message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
@@ -276,12 +264,6 @@ class NotIterable(HubException):
 class AdvancedSlicingNotSupported(HubException):
     def __init__(self):
         message = "Advanced slicing is not supported, only support index"
-        super(HubException, self).__init__(message=message)
-
-
-class AddressNotFound(HubException):
-    def __init__(self, address):
-        message = f"The address {address} does not refer to any existing branch or commit id. use create=True to create a new branch with this address"
         super(HubException, self).__init__(message=message)
 
 
