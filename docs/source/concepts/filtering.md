@@ -18,7 +18,7 @@ for i in range(10):  # assigning some values to the dataset
     ds["name", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
 
 def my_filter(sample):
-    return sample["name"].compute().startswith("abc") and (sample["img"].compute() == np.ones((100, 100))).all():
+    return sample["name"].compute().startswith("abc") and (sample["img"].compute() == np.ones((100, 100))).all()
 ds2 = ds.filter(my_filter)
 
 # alternatively, we can also use a lambda function to achieve the same results
