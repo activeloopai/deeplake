@@ -79,6 +79,9 @@ head_node:
 worker_nodes:
     InstanceType: m5.large
     ImageId: ami-02e86b825fe559330 # Deep Learning AMI (Ubuntu) Version 30
+    IamInstanceProfile: {
+      Name: ray-autoscaler-v1
+    }
 
     # Run workers on spot by default. Comment this out to use on-demand.
     BlockDeviceMappings:

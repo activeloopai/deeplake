@@ -3,7 +3,8 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
+import warnings
+from hub.api.versioning import VersionNode
 import os
 import posixpath
 import collections.abc as abc
@@ -17,13 +18,11 @@ from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-import numpy as np
 
 from hub.schema.features import (
     Primitive,
     Tensor,
     SchemaDict,
-    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -34,6 +33,7 @@ from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    generate_hash,
     get_value,
     slice_split,
     str_to_int,
@@ -46,16 +46,19 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
+    AddressNotFound,
     HubDatasetNotFoundException,
+    HubException,
     LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
+    ReadModeException,
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    NoneValueException,
     ShapeLengthException,
+    VersioningNotSupportedException,
     WrongUsernameException,
 )
 from hub.store.metastore import MetaStorage
@@ -65,6 +68,7 @@ from hub.numcodecs import PngCodec
 
 from hub.utils import norm_cache, norm_shape, _tuple_product, EmptyLock
 from hub import defaults
+import pickle
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -170,7 +174,28 @@ class Dataset:
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
+            try:
+                version_info = pickle.loads(fs_map["version.pkl"])
+                self._branch_node_map = version_info["branch_node_map"]
+                self._commit_node_map = version_info["commit_node_map"]
+                self._commit_optimized_map = version_info["commit_optimized_map"]
+                self._chunk_commit_map = version_info["chunk_commit_map"]
+                self._branch = "master"
+                self._version_node = self._branch_node_map[self._branch]
+                self._commit_id = self._version_node.commit_id
+                self._is_optimized = self._commit_optimized_map[self._commit_id]
+            except Exception:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._commit_optimized_map = None
+                self._chunk_commit_map = None
+                self._is_optimized = False
+
             self._tensors = dict(self._open_storage_tensors())
+
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
                     f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
@@ -197,8 +222,16 @@ class Dataset:
                 self.meta = self._store_meta()
                 self._meta_information = meta_information
                 self._flat_tensors = tuple(flatten(self.schema))
+
+                self._commit_id = generate_hash()
+                self._branch = "master"
+                self._version_node = VersionNode(self._commit_id, self._branch)
+                self._branch_node_map = {self._branch: self._version_node}
+                self._commit_node_map = {self._commit_id: self._version_node}
+                self._is_optimized = True
+                self._commit_optimized_map = {self._commit_id: self._is_optimized}
                 self._tensors = dict(self._generate_storage_tensors())
-                self.flush()
+                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
@@ -207,7 +240,7 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
-
+        self.flush()
         self.indexes = list(range(self._shape[0]))
 
         if needcreate and (
@@ -271,6 +304,147 @@ class Dataset:
 
         self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
         return meta
+
+    def _store_version_info(self) -> dict:
+        if self._commit_id is not None:
+            d = {
+                "branch_node_map": self._branch_node_map,
+                "commit_node_map": self._commit_node_map,
+                "commit_optimized_map": self._commit_optimized_map,
+                "chunk_commit_map": self._chunk_commit_map,
+            }
+            self._fs_map["version.pkl"] = pickle.dumps(d)
+
+    def commit(self, message: str = "") -> str:
+        """| Saves the current state of the dataset and returns the commit id.
+        Checks out automatically to an auto branch if the current commit is not the head of the branch
+
+        Acts as alias to flush if dataset was created before Hub v1.3.0
+
+        Parameters
+        ----------
+        message: str, optional
+            The commit message to store along with the commit
+        """
+        if self._commit_id is None:
+            warnings.warn(
+                "This dataset was created before version control, it does not support it. commit will behave same as flush"
+            )
+            self.flush()
+        elif "r" in self._mode:
+            raise ReadModeException("commit")
+        else:
+            self._auto_checkout()
+            stored_commit_id = self._commit_id
+            self._commit_id = generate_hash()
+            new_node = VersionNode(self._commit_id, self._branch)
+            self._version_node.insert(new_node, message)
+            self._version_node = new_node
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self._is_optimized = False
+            self._commit_optimized_map[self._commit_id] = self._is_optimized
+            self.flush()
+            return stored_commit_id
+
+    def checkout(self, address: str, create: bool = False) -> str:
+        """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
+        Always checks out to the head of a branch if the address specified is a branch name.
+
+        Returns the commit id of the commit that has been switched to.
+
+        Only works if dataset was created on or after Hub v1.3.0
+
+        Parameters
+        ----------
+        address: str
+            The branch name or commit id to checkout to
+        create: bool, optional
+            Specifying create as True creates a new branch from the current commit if the address isn't an existing branch name or commit id
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("checkout")
+        self.flush()
+        if address in self._branch_node_map.keys():
+            self._branch = address
+            self._version_node = self._branch_node_map[address]
+            self._commit_id = self._version_node.commit_id
+            self._is_optimized = self._commit_optimized_map[self._commit_id]
+        elif address in self._commit_node_map.keys():
+            self._version_node = self._commit_node_map[address]
+            self._branch = self._version_node.branch
+            self._commit_id = self._version_node.commit_id
+            self._is_optimized = self._commit_optimized_map[self._commit_id]
+        elif create:
+            if "r" in self._mode:
+                raise ReadModeException("checkout to create new branch")
+            self._branch = address
+            new_commit_id = generate_hash()
+            new_node = VersionNode(new_commit_id, self._branch)
+            if not self._version_node.children:
+                for key in self.keys:
+                    self._tensors[key].fs_map.copy_all(self._commit_id, new_commit_id)
+                if self._version_node.parent is not None:
+                    self._version_node.parent.insert(
+                        new_node, f"switched to new branch {address}"
+                    )
+            else:
+                self._version_node.insert(new_node, f"switched to new branch {address}")
+            self._version_node = new_node
+            self._commit_id = new_commit_id
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self._is_optimized = False
+            self._commit_optimized_map[self._commit_id] = self._is_optimized
+            self.flush()
+        else:
+            raise AddressNotFound(address)
+        return self._commit_id
+
+    def _auto_checkout(self):
+        """| Automatically checks out to a new branch if the current commit is not at the head of a branch"""
+        if self._version_node and self._version_node.children:
+            branch_name = f"'auto-{generate_hash()}'"
+            print(
+                f"automatically checking out to new branch {branch_name} as not at the head of branch {self._branch}"
+            )
+            self.checkout(branch_name, True)
+
+    def log(self):
+        """| Prints the commits in the commit tree before the current commit
+        Only works if dataset was created on or after Hub v1.3.0
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("log")
+        current_node = (
+            self._version_node.parent
+            if not self._version_node.children
+            else self._version_node
+        )
+        print(f"\n Current Branch: {self._branch}")
+        while current_node:
+            print(current_node)
+            current_node = current_node.parent
+
+    def optimize(self):
+        """| Optimizes the current commit and makes it more efficient for data storage and retrieval.
+        Expensive operation, takes up extra storage. Ideally use this just before training.
+        Only works if dataset was created on or after Hub v1.3.0
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("optimize")
+        if self._is_optimized:
+            return True
+
+        if "r" in self._mode:
+            raise ReadModeException("optimize")
+
+        for key in self.keys:
+            self._tensors[key].fs_map.optimize()
+
+        self._is_optimized = True
+        self._commit_optimized_map[self._commit_id] = self._is_optimized
+        self.flush()
 
     def _check_and_prepare_dir(self):
         """
@@ -352,6 +526,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
@@ -377,6 +552,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 synchronizer=self.synchronizer,
@@ -458,6 +634,9 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        if "r" in self._mode:
+            raise ReadModeException("__setitem__")
+        self._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
         assign_value = str_to_int(assign_value, self.tokenizer)
@@ -750,16 +929,14 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
-
+        if "r" in self._mode:
+            return
+        self._store_version_info()
         for t in self._tensors.values():
             t.flush()
         self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
-
-    def commit(self):
-        """ Deprecated alias to flush()"""
-        self.flush()
 
     def close(self):
         """Save changes from cache to dataset final storage.
@@ -833,6 +1010,15 @@ class Dataset:
         Get Keys of the dataset
         """
         return self._tensors.keys()
+
+    @property
+    def branches(self) -> list:
+        """
+        Gets a list all the branches of the dataset
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("branches")
+        return self._branch_node_map.keys()
 
     def _get_mode(self, mode: str, fs: AbstractFileSystem):
         if mode:
