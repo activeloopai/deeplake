@@ -347,7 +347,7 @@ def main():
     parser.add_argument(
         "-i", "--input", default="s3://snark-gradient-raw-data/mimic-cxr-2.0.0"
     )
-    parser.add_argument("-o", "--output", default="s3://snark-gradient-raw-data/outputb")
+    parser.add_argument("-o", "--output", default="s3://snark-gradient-raw-data/output")
     parser.add_argument("-w", "--workers", default=DEFAULT_WORKERS)
     parser.add_argument("-s", "--scheduler", default=DEFAULT_SCHEDULER)
     parser.add_argument("-r", "--redisurl", default=DEFAULT_REDIS_URL)
