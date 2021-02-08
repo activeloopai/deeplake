@@ -105,7 +105,10 @@ def time_hub(dataset, batch_size=1, num_batches=1, local=True, user=None):
 
 
 datasets = ["benchmark"]
-configs = [{"batch_size": 7000, "num_batches": 10}]
+configs = [
+    {"batch_size": 7000, "num_batches": 10},
+    {"batch_size": 70000, "num_batches": 1},
+]
 user = "debadityapal"
 
 if __name__ == "__main__":
