@@ -24,14 +24,14 @@ def test_hub_feature_flatten():
 
 
 def test_feature_dict_str():
-    input_dict = {"myint": int, "mystr": str}
+    input_dict = {"myint": "int64", "mystr": str}
     feature_dict_object = SchemaDict(input_dict)
     expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__str__()
 
 
 def test_feature_dict_repr():
-    input_dict = {"myint": int, "mystr": str}
+    input_dict = {"myint": "int64", "mystr": str}
     feature_dict_object = SchemaDict(input_dict)
     expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__repr__()

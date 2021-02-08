@@ -347,8 +347,8 @@ def test_dataset_batch_write_2():
 def test_dataset_hub():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
-    test_dataset("testingacc/test_dataset_private", public=False)
-    test_dataset("testingacc/test_dataset_public")
+    test_dataset("testingacc/test_dataset_private_2", public=False)
+    test_dataset("testingacc/test_dataset_public_2")
 
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
@@ -780,7 +780,7 @@ def test_dataset_filter_2():
         "fname": Text((None,), max_shape=(10,)),
         "lname": Text((None,), max_shape=(10,)),
     }
-    ds = Dataset("./data/test/filtering", shape=(100,), schema=my_schema, mode="w")
+    ds = Dataset("./data/tests/filtering", shape=(100,), schema=my_schema, mode="w")
     for i in range(100):
         ds["fname", i] = "John"
         ds["lname", i] = "Doe"
@@ -832,7 +832,7 @@ def test_dataset_filter_2():
         "lname": Text((None,), max_shape=(10,)),
         "image": Image((1920, 1080, 3)),
     }
-    ds = Dataset("./data/test/filtering2", shape=(100,), schema=my_schema2, mode="w")
+    ds = Dataset("./data/tests/filtering2", shape=(100,), schema=my_schema2, mode="w")
     with pytest.raises(KeyError):
         ds.filter(lambda x: (x["random"].compute() == np.ones((1920, 1080, 3))).all())
 
@@ -848,7 +848,7 @@ def test_dataset_filter_3():
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
     }
-    ds = Dataset("./data/test/filtering_3", shape=(100,), schema=schema, mode="w")
+    ds = Dataset("./data/tests/filtering_3", shape=(100,), schema=schema, mode="w")
     for i in range(100):
         ds["cl", i] = 0 if i % 5 == 0 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
@@ -869,7 +869,7 @@ def test_dataset_filter_4():
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
     }
-    ds = Dataset("./data/test/filtering_4", shape=(100,), schema=schema, mode="w")
+    ds = Dataset("./data/tests/filtering_4", shape=(100,), schema=schema, mode="w")
     for i in range(100):
         ds["cl", i] = 0 if i < 10 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
