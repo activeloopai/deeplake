@@ -545,10 +545,8 @@ class Dataset:
             type you need for Transforms). Default is True.
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
-        offset: int, optional
-            The offset from which dataset needs to be converted
-        num_samples: int, optional
-            The number of samples required of the dataset that needs to be converted
+        indexes: list or int, optional
+            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         """
         try:
             import torch
@@ -564,15 +562,16 @@ class Dataset:
             self, transform, inplace=inplace, output_type=output_type, indexes=indexes
         )
 
-    def to_tensorflow(self, indexes=None):
+    def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
 
         Parameters
         ----------
-        offset: int, optional
-            The offset from which dataset needs to be converted
-        num_samples: int, optional
-            The number of samples required of the dataset that needs to be converted
+        indexes: list or int, optional
+            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+        include_shapes: boolean, optional
+            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            Setting to True could lead to issues with dictionaries inside Tensors.
         """
         try:
             import tensorflow as tf
@@ -653,11 +652,13 @@ class Dataset:
             return d
 
         output_types = dtype_to_tf(self._schema)
-        output_shapes = get_output_shapes(self._schema)
-
-        return tf.data.Dataset.from_generator(
-            tf_gen, output_types=output_types, output_shapes=output_shapes
-        )
+        if include_shapes:
+            output_shapes = get_output_shapes(self._schema)
+            return tf.data.Dataset.from_generator(
+                tf_gen, output_types=output_types, output_shapes=output_shapes
+            )
+        else:
+            return tf.data.Dataset.from_generator(tf_gen, output_types=output_types)
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
