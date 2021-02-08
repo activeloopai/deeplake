@@ -224,32 +224,33 @@ Increasing the batch size leads to a better performance. The transition from the
 
 Remote Hub already performs \~1.14x better than TileDB (which offers local storage only) whereas Hub used locally **is over 26x better** than TileDB on the access to the entire dataset. The results are even more explicit in batched access.
 
-Note: Writing tests are awaiting.
+Read is conducted on the original MNIST dataset (as specified in Method/Datasets section). However, the write test is conducted on a MNIST-like dataset which retains its shape and schema but is given pseudorandomly generated data to write.
 
 #### Results
-The datasets for TileDB and zarr are stored locally.
 
-MNIST (entire dataset)
-| Framework| Read | Write |
+MNIST: *entire dataset (70000 label and image pairs)*
+| Framework | Read | Write |
 | --- | --- | --- |
-| TileDB | 1.3106651306152344s | |
-| zarr | 0.3550150394439697s | |
+| TileDB (local) | 1.3106651306152344s | |
+| zarr (local) | 0.3550150394439697s | |
 | Hub (remote - Wasabi) | 1.1537418365478516s | |
 | Hub (local) | 0.0483090877532959s | |
 
-MNIST (in batches of 7000)
-| Framework| Read | Write |
+MNIST: *in batches of 7000*
+| Framework | Read | Write |
 | --- | --- | --- |
-| TileDB | 12.647251844406128s | |
-| zarr | 0.34612417221069336s | |
-| Hub (remote - Wasabi) | 1.0862374305725098s | |
-| Hub (local) | 0.12435555458068848s | |
+| TileDB (local) | 12.647251844406128s | 35.30809998512268s |
+| zarr (local) | 0.34612417221069336s | 1.1027157306671143s |
+| Hub (remote - Wasabi) | 1.0862374305725098s | 0.7641477584838867s |
+| Hub (local) | 0.12435555458068848s | 0.6851704120635986s |
 
 
 #### Observations
 Hub performs better than zarr despite being based on the framework. TileDB is an outlier among all frameworks.
 
 Remote access to Hub is 8-24x times slower than local.
+
+Write is \~3-5.5x slower than read for all locally stored frameworks. For remote Hub write is 1.4x faster than read.
 
 ### Dataset Iteration
 
