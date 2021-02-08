@@ -14,6 +14,7 @@ from hub.utils import Timer
 
 
 def time_batches(dataset, batch_size=1, num_batches=1, hub=False):
+    np.random.seed(0)
     with Timer("Time"):
         counter = 0
         t0 = time()
