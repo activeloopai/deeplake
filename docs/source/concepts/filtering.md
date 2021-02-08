@@ -1,6 +1,7 @@
 # Dataset Filtering
 
 Using Hub you can filter your dataset to get a DatasetView that only has the items that you're interested in.
+Filtering can be applied both to a Dataset or to a DatasetView (obtained by slicing or filtering a Dataset)
 
 ## Filtering using a function
 Using filter, you can pass in a function that is applied element by element to the dataset. Only those elements for which the function returns True stay in the newly created DatasetView.
@@ -26,6 +27,12 @@ ds3 = ds.filter(
     lambda x: x["name"].compute().startswith("abc")
     and (x["img"].compute() == np.ones((100, 100))).all()
 )
+```
+
+## API
+```eval_rst
+.. autofunction:: hub.api.dataset.Dataset.filter
+.. autofunction:: hub.api.datasetview.DatasetView.filter
 ```
 
 
