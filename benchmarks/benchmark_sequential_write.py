@@ -44,9 +44,12 @@ def time_tiledb(dataset, batch_size=1, num_batches=1):
         ds_tldb = tiledb.open(dataset + "_tileDB", mode="w")
     else:
         y_dim = tiledb.Dim(
-            name="y", domain=(0, batch_size * num_batches - 1), dtype="uint64"
+            name="y",
+            domain=(0, batch_size * num_batches - 1),
+            tile=batch_size * num_batches,
+            dtype="uint64",
         )
-        x_dim = tiledb.Dim(name="x", domain=(0, 784), dtype="uint64")
+        x_dim = tiledb.Dim(name="x", domain=(0, 784), tile=785, dtype="uint64")
         domain = tiledb.Domain(y_dim, x_dim)
         attr = tiledb.Attr(name="", dtype="int64", var=False)
         schema = tiledb.ArraySchema(
