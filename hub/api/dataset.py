@@ -542,16 +542,17 @@ class Dataset:
         )
         if dst_fs.exists(dst_url) and dst_fs.ls(dst_url):
             raise DirectoryNotEmptyException(dst_url)
-        elif not dst_fs.exists(dst_url):
-            dst_fs.mkdir(dst_url)
         for path in src_fs.ls(src_url):
-            dst_path = dst_url + path[len(src_url) :]
+            dst_full_path = dst_url + path[len(src_url) :]
+            dst_folder_path, dst_file = os.path.split(dst_full_path)
             if src_fs.isfile(path):
+                if not dst_fs.exists(dst_folder_path):
+                    dst_fs.mkdir(dst_folder_path)
                 content = src_fs.cat_file(path)
-                dst_fs.pipe_file(dst_path, content)
+                dst_fs.pipe_file(dst_full_path, content)
             else:
                 self._copy_helper(
-                    dst_path, token=token, fs=dst_fs, public=public, src_url=path
+                    dst_full_path, token=token, fs=dst_fs, public=public, src_url=path
                 )
         return dst_url
 
