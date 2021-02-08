@@ -773,6 +773,9 @@ def test_datasetview_filter():
     dsv = ds[2:7]
     ds2 = dsv.filter(abc_filter)
     assert ds2.indexes == [2, 4, 6]
+    dsv2 = ds[2]
+    ds3 = dsv2.filter(abc_filter)
+    assert ds3.indexes == 2
 
 
 def test_dataset_filter_2():
