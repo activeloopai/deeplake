@@ -510,7 +510,12 @@ class Dataset:
         self.flush()
         destination = dst_url
         path = _copy_helper(
-            dst_url=dst_url, token=token, fs=fs, public=public, src_url=self._path
+            dst_url=dst_url,
+            token=token,
+            fs=fs,
+            public=public,
+            src_url=self._path,
+            src_fs=self._fs,
         )
 
         #  create entry in database if stored in hub storage
