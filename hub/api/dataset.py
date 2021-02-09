@@ -37,6 +37,7 @@ from hub.api.dataset_utils import (
     get_value,
     slice_split,
     str_to_int,
+    _copy_helper,
 )
 
 import hub.schema.serialize
@@ -46,9 +47,7 @@ from hub.schema.features import flatten
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
-    DirectoryNotEmptyException,
     HubDatasetNotFoundException,
-    HubException,
     LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
@@ -56,7 +55,6 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    NoneValueException,
     ShapeLengthException,
     WrongUsernameException,
 )
@@ -511,7 +509,7 @@ class Dataset:
         """
         self.flush()
         destination = dst_url
-        path = self._copy_helper(
+        path = _copy_helper(
             dst_url=dst_url, token=token, fs=fs, public=public, src_url=self._path
         )
 
@@ -527,34 +525,6 @@ class Dataset:
                 username, dataset_name, self.meta, public=public
             )
         return hub.Dataset(destination, token=token, fs=fs, public=public)
-
-    def _copy_helper(
-        self, dst_url: str, token=None, fs=None, public=True, src_url=None
-    ):
-        """Helper function for Dataset.copy"""
-        src_fs = self._fs
-        src_url = self._fs.expand_path(src_url)[0]
-        dst_url = dst_url[:-1] if dst_url.endswith("/") else dst_url
-        dst_fs, dst_url = (
-            (fs, dst_url)
-            if fs
-            else get_fs_and_path(dst_url, token=token, public=public)
-        )
-        if dst_fs.exists(dst_url) and dst_fs.ls(dst_url):
-            raise DirectoryNotEmptyException(dst_url)
-        for path in src_fs.ls(src_url, refresh=True):
-            dst_full_path = dst_url + path[len(src_url) :]
-            dst_folder_path, dst_file = os.path.split(dst_full_path)
-            if src_fs.isfile(path):
-                if not dst_fs.exists(dst_folder_path):
-                    dst_fs.mkdir(dst_folder_path)
-                content = src_fs.cat_file(path)
-                dst_fs.pipe_file(dst_full_path, content)
-            else:
-                self._copy_helper(
-                    dst_full_path, token=token, fs=dst_fs, public=public, src_url=path
-                )
-        return dst_url
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
