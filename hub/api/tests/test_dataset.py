@@ -11,7 +11,11 @@ import shutil
 import cloudpickle
 import pickle
 from hub.cli.auth import login_fn
-from hub.exceptions import HubException, LargeShapeFilteringException
+from hub.exceptions import (
+    DirectoryNotEmptyException,
+    HubException,
+    LargeShapeFilteringException,
+)
 import numpy as np
 import pytest
 from hub import transform
@@ -860,6 +864,20 @@ def test_dataset_copy_gcs_s3():
     ds.delete()
     ds2.delete()
     ds3.delete()
+
+
+def test_dataset_copy_exception():
+    ds = Dataset("./data/test_data_cp", shape=(100,), schema=simple_schema)
+    ds2 = Dataset("./data/test_data_cp_2", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = i
+        ds2["num", i] = 2 * i
+    ds.flush()
+    ds2.flush()
+    with pytest.raises(DirectoryNotEmptyException):
+        ds3 = ds.copy("./data/test_data_cp_2")
+    ds.delete()
+    ds2.delete()
 
 
 def test_dataset_filtering():
