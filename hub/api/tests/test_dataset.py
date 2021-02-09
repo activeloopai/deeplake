@@ -25,6 +25,7 @@ from hub.utils import (
     transformers_loaded,
     minio_creds_exist,
 )
+import random
 
 Dataset = dataset.Dataset
 
@@ -753,13 +754,16 @@ simple_schema = {"num": "uint8"}
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_dataset_copy_s3_local():
+    a = str(random.randrange(10000, 20000))
+    b = str(random.randrange(10000, 20000))
+    c = str(random.randrange(10000, 20000))
     ds = Dataset(
-        "./data/testing/original_data_local", shape=(100,), schema=simple_schema
+        f"./data/testing/original_data_local_{a}", shape=(100,), schema=simple_schema
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/copy_data_s3_3")
-    ds3 = ds2.copy("./data/testing/copy_data_local_3")
+    ds2 = ds.copy(f"s3://snark-test/copy_data_s3_{b}")
+    ds3 = ds2.copy(f"./data/testing/copy_data_local_{c}")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -770,11 +774,16 @@ def test_dataset_copy_s3_local():
 
 @pytest.mark.skipif(not gcp_creds_exist(), reason="requires s3 credentials")
 def test_dataset_copy_gcs_local():
-    ds = Dataset("./data/testing/original_ds_local", shape=(100,), schema=simple_schema)
+    a = str(random.randrange(10000, 20000))
+    b = str(random.randrange(10000, 20000))
+    c = str(random.randrange(10000, 20000))
+    ds = Dataset(
+        f"./data/testing/original_ds_local_{a}", shape=(100,), schema=simple_schema
+    )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs_35")
-    ds3 = ds2.copy("./data/testing/copy_ds_local_1")
+    ds2 = ds.copy(f"gcs://snark-test/copy_dataset_gcs_35_{b}")
+    ds3 = ds2.copy(f"./data/testing/copy_ds_local_{c}")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -785,18 +794,22 @@ def test_dataset_copy_gcs_local():
 
 @pytest.mark.skipif(not azure_creds_exist(), reason="requires s3 credentials")
 def test_dataset_copy_azure_local():
+    a = str(random.randrange(10000, 20000))
+    b = str(random.randrange(10000, 20000))
+    c = str(random.randrange(10000, 20000))
     token = {"account_key": os.getenv("ACCOUNT_KEY")}
     ds = Dataset(
-        "https://activeloop.blob.core.windows.net/activeloop-hub/original_test_ds_azure",
+        f"https://activeloop.blob.core.windows.net/activeloop-hub/original_test_ds_azure_{a}",
         token=token,
         shape=(100,),
         schema=simple_schema,
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/copy_ds_local_2")
+    ds2 = ds.copy(f"./data/testing/copy_ds_local_{b}")
     ds3 = ds2.copy(
-        "https://activeloop.blob.core.windows.net/activeloop-hub/copy_test_ds_azure", token=token
+        f"https://activeloop.blob.core.windows.net/activeloop-hub/copy_test_ds_azure_{c}",
+        token=token,
     )
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -808,13 +821,16 @@ def test_dataset_copy_azure_local():
 
 @pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
 def test_dataset_copy_hub_local():
+    a = str(random.randrange(10000, 20000))
+    b = str(random.randrange(10000, 20000))
+    c = str(random.randrange(10000, 20000))
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
-    ds = Dataset("testingacc/original_ds_hub_2", shape=(100,), schema=simple_schema)
+    ds = Dataset(f"testingacc/original_ds_hub_{a}", shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/copy_ds_local_335")
-    ds3 = ds2.copy("testingacc/copy_dataset_testing_335")
+    ds2 = ds.copy(f"./data/testing/copy_ds_local_{b}")
+    ds3 = ds2.copy(f"testingacc/copy_dataset_testing_{c}")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -828,11 +844,16 @@ def test_dataset_copy_hub_local():
     reason="requires s3 and gcs credentials",
 )
 def test_dataset_copy_gcs_s3():
-    ds = Dataset("s3://snark-test/original_ds_s3_2", shape=(100,), schema=simple_schema)
+    a = str(random.randrange(10000, 20000))
+    b = str(random.randrange(10000, 20000))
+    c = str(random.randrange(10000, 20000))
+    ds = Dataset(
+        f"s3://snark-test/original_ds_s3_{a}", shape=(100,), schema=simple_schema
+    )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/copy_dataset_gcs_421")
-    ds3 = ds2.copy("s3://snark-test/copy_ds_s3_421")
+    ds2 = ds.copy(f"gcs://snark-test/copy_dataset_gcs_{b}")
+    ds3 = ds2.copy(f"s3://snark-test/copy_ds_s3_{c}")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i

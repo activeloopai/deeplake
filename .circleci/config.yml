@@ -9,6 +9,7 @@ workflows:
     jobs:
       - test:
           context:
+            - test
             - azure
       - test_full:
           context:
