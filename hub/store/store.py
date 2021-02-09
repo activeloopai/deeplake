@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from typing import MutableMapping, Tuple
 import posixpath
 import shutil
@@ -10,10 +16,10 @@ import fsspec
 import gcsfs
 import zarr
 
-from hub.store.cache import Cache
 from hub.store.lru_cache import LRUCache
 from hub.client.hub_control import HubControlClient
 from hub.store.azure_fs import AzureBlobFileSystem
+from hub.store.s3_file_system_replacement import S3FileSystemReplacement
 
 
 def _connect(tag, public=True):
@@ -42,11 +48,14 @@ def get_fs_and_path(
         token = token or dict()
         token = read_aws_creds(token) if isinstance(token, str) else token
         return (
-            fsspec.filesystem(
-                "s3",
+            S3FileSystemReplacement(
                 key=token.get("aws_access_key_id"),
                 secret=token.get("aws_secret_access_key"),
                 token=token.get("aws_session_token"),
+                client_kwargs={
+                    "endpoint_url": token.get("endpoint_url"),
+                    "region_name": token.get("region"),
+                },
             ),
             url[5:],
         )
@@ -77,8 +86,7 @@ def get_fs_and_path(
     else:
         # TOOD check if url is username/dataset:version
         url, creds = _connect(url, public=public)
-        fs = fsspec.filesystem(
-            "s3",
+        fs = S3FileSystemReplacement(
             key=creds["access_key"],
             secret=creds["secret_key"],
             token=creds["session_token"],

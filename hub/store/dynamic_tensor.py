@@ -1,4 +1,11 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import collections.abc as abc
+from shutil import Error
 from hub.schema.features import Shape
 import json
 import math
@@ -18,13 +25,6 @@ from hub.exceptions import (
     DynamicTensorShapeException,
 )
 from hub.schema.sequence import Sequence
-
-
-def _tuple_product(tuple_):
-    res = 1
-    for t in tuple_:
-        res *= t
-    return res
 
 
 class DynamicTensor:
@@ -288,6 +288,12 @@ class DynamicTensor:
                 if self.shape[i] is not None:
                     shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
             return shapes
+        elif isinstance(samples, list):
+            shapes = np.array([self._dynamic_tensor[index] for index in samples])
+            for i in range(1, len(self.shape)):
+                if self.shape[i] is not None:
+                    shapes = np.insert(shapes, i - 1, self.shape[i], axis=1)
+            return shapes
 
     def combine_shape(self, shape, slice_):
         """Combines given shape with slice to get final shape"""
@@ -328,14 +334,14 @@ class DynamicTensor:
     def get_shape(self, slice_):
 
         """Gets the shape of the slice from tensor"""
-        if isinstance(slice_, int) or isinstance(slice_, slice):
+        if isinstance(slice_, (int, slice)):
             slice_ = [slice_]
         if self._dynamic_tensor is None:  # returns 1D np array
             return self.combine_shape(np.array(self.shape), slice_)
         elif isinstance(slice_[0], int):  # returns 1D np array
             sample_shape = self.get_shape_samples(slice_[0])
             return self.combine_shape(sample_shape, slice_[1:])
-        elif isinstance(slice_[0], slice):
+        elif isinstance(slice_[0], (slice, list)):
             sample_shapes = self.get_shape_samples(slice_[0])
             final_shapes = self.combine_shape(sample_shapes, slice_[1:])
             if len(final_shapes) == 1:
@@ -462,15 +468,6 @@ class DynamicTensor:
                     del self[".".join((sample,) + index)]
                 except KeyError:
                     pass
-
-    # FIXME I don't see this class being used anywhere
-    @classmethod
-    def _get_slice_upper_boundary(cls, slice_):
-        if isinstance(slice_, slice):
-            return slice_.stop
-        else:
-            assert isinstance(slice_, int)
-            return slice_ + 1
 
     @property
     def chunksize(self):

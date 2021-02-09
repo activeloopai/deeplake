@@ -1,3 +1,10 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+import numpy as np
 import hub
 import collections.abc as abc
 from hub.api.dataset_utils import get_value, slice_split, str_to_int
@@ -40,11 +47,16 @@ class TensorView:
             self.slice_ = [slice_]
         elif isinstance(slice_, (tuple, list)):
             self.slice_ = list(slice_)
-        self.nums = []
-        self.offsets = []
-
-        self.squeeze_dims = []
-        for it in self.slice_:
+        self.nums = [None]
+        self.offsets = [None]
+        self.squeeze_dims = [False]
+        self.indexes = self.slice_[0]  # int, slice or list
+        self.is_contiguous = False
+        if isinstance(self.indexes, list) and self.indexes:
+            self.is_contiguous = self.indexes[-1] - self.indexes[0] + 1 == len(
+                self.indexes
+            )
+        for it in self.slice_[1:]:
             if isinstance(it, int):
                 self.nums.append(1)
                 self.offsets.append(it)
@@ -55,32 +67,67 @@ class TensorView:
                 self.nums.append(num)
                 self.offsets.append(ofs)
                 self.squeeze_dims.append(False)
-        self.nums[0] = (
-            self.dataset.shape[0] - self.offsets[0]
-            if self.nums[0] is None
-            else self.nums[0]
-        )
         self.dtype = self.dtype_from_path(subpath)
         self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
 
-    def numpy(self):
-        """Gets the value from tensorview"""
-        if isinstance(self.dtype, hub.schema.text.Text):
+    def numpy(self, label_name=False):
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        if isinstance(self.indexes, list):
+            if (
+                len(self.indexes) > 1
+                and self.dataset._tensors[self.subpath]._dynamic_tensor
+            ):
+                raise ValueError(
+                    "Getting item across multiitem slices is not supported for tensors with dynamic shapes, access them item by item"
+                )
+            value = np.array(
+                [
+                    self.dataset._tensors[self.subpath][[index] + self.slice_[1:]]
+                    for index in self.indexes
+                ]
+            )
+        else:
             value = self.dataset._tensors[self.subpath][self.slice_]
+
+        if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and label_name:
+            if isinstance(self.indexes, int):
+                value = self.dtype.int2str(value)
+            else:
+                value = [self.dtype.int2str(value[i]) for i in range(value.size)]
+
+        if isinstance(self.dtype, hub.schema.text.Text):
             if self.dataset.tokenizer is not None:
                 from transformers import AutoTokenizer
 
                 tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
                 if value.ndim == 1:
                     return tokenizer.decode(value.tolist())
+                elif value.ndim == 2:
+                    return [tokenizer.decode(val.tolist()) for val in value]
             elif value.ndim == 1:
                 return "".join(chr(it) for it in value.tolist())
-            raise ValueError("Can only access Text with integer index")
-        return self.dataset._tensors[self.subpath][self.slice_]
+            elif value.ndim == 2:
+                return ["".join(chr(it) for it in val.tolist()) for val in value]
+            raise ValueError(f"Unexpected value with shape for text {value.shape}")
+        return value
 
-    def compute(self):
-        """Gets the value from tensorview"""
-        return self.numpy()
+    def compute(self, label_name=False):
+        """Gets the value from tensorview
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(label_name=label_name)
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from tensorview
@@ -94,18 +141,29 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
-
         new_nums = self.nums.copy()
         new_offsets = self.offsets.copy()
+        if isinstance(self.indexes, list):
+            new_indexes = self.indexes[slice_list[0]]
+            if self.is_contiguous and new_indexes:
+                new_indexes = slice(new_indexes[0], new_indexes[-1] + 1)
+        elif isinstance(self.indexes, int):
+            new_indexes = self.indexes
+        else:
+            ofs = self.indexes.start or 0
+            num = self.indexes.stop - ofs if self.indexes.stop else None
+            new_indexes = self._combine(slice_list[0], num, ofs)
+        slice_list[0] = new_indexes
+        # new_indexes = self.indexes[]
         if len(new_nums) < len(slice_list):
             new_nums.extend([None] * (len(slice_list) - len(new_nums)))
             new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
-        for i in range(len(slice_list)):
+        for i in range(1, len(slice_list)):
             slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
         for i in range(len(slice_list), len(new_nums)):
             cur_slice = (
                 slice(new_offsets[i], new_offsets[i] + new_nums[i])
-                if new_nums[i] > 1
+                if not self.squeeze_dims[i]
                 else new_offsets[i]
             )
             slice_list.append(cur_slice)
@@ -115,7 +173,7 @@ class TensorView:
             objectview = objv.ObjectView(
                 dataset=self.dataset,
                 subpath=self.subpath + subpath,
-                slice_list=slice_list,
+                slice_=slice_list,
                 lazy=self.lazy,
             )
             return objectview if self.lazy else objectview.compute()
@@ -144,30 +202,40 @@ class TensorView:
         slice_ = list(slice_)
         slice_ = self.slice_fill(slice_)
         subpath, slice_list = slice_split(slice_)
+        if subpath:
+            raise ValueError("Can't setitem of TensorView with subpath")
         new_nums = self.nums.copy()
         new_offsets = self.offsets.copy()
+        if isinstance(self.indexes, list):
+            new_indexes = self.indexes[slice_list[0]]
+            if self.is_contiguous and new_indexes:
+                new_indexes = slice(new_indexes[0], new_indexes[-1] + 1)
+        elif isinstance(self.indexes, int):
+            new_indexes = self.indexes
+        else:
+            ofs = self.indexes.start or 0
+            num = self.indexes.stop - ofs if self.indexes.stop else None
+            new_indexes = self._combine(slice_list[0], num, ofs)
+        slice_list[0] = new_indexes
         if len(new_nums) < len(slice_list):
             new_nums.extend([None] * (len(slice_list) - len(new_nums)))
             new_offsets.extend([0] * (len(slice_list) - len(new_offsets)))
-        for i in range(len(slice_list)):
+        for i in range(1, len(slice_list)):
             slice_list[i] = self._combine(slice_list[i], new_nums[i], new_offsets[i])
         for i in range(len(slice_list), len(new_nums)):
             cur_slice = (
                 slice(new_offsets[i], new_offsets[i] + new_nums[i])
-                if new_nums[i] > 1
+                if not self.squeeze_dims[i]
                 else new_offsets[i]
             )
             slice_list.append(cur_slice)
-        if subpath or (
-            len(slice_list) > len(self.nums) and isinstance(self.dtype, objv.Sequence)
-        ):
-            objv.ObjectView(
-                dataset=self.dataset,
-                subpath=self.subpath + subpath,
-                slice_list=slice_list,
-            )[:] = assign_value
-        else:
+
+        if isinstance(slice_list[0], (int, slice)):
             self.dataset._tensors[self.subpath][slice_list] = assign_value
+        else:
+            for i, index in enumerate(slice_list[0]):
+                current_slice = [index] + slice_list[1:]
+                self.dataset._tensors[subpath][current_slice] = assign_value[i]
 
     def _combine(self, slice_, num=None, ofs=0):
         "Combines a `slice_` with the current num and offset present in tensorview"
@@ -217,10 +285,10 @@ class TensorView:
 
     def slice_fill(self, slice_):
         "Fills the slice with zeroes for the dimensions that have single elements and squeeze_dims true"
-        new_slice_ = []
-        offset = 0
-        for i, num in enumerate(self.nums):
-            if num == 1 and self.squeeze_dims[i]:
+        new_slice_ = [slice_[0]]
+        offset = 1
+        for i in range(1, len(self.nums)):
+            if self.squeeze_dims[i]:
                 new_slice_.append(0)
             elif offset < len(slice_):
                 new_slice_.append(slice_[offset])
@@ -243,21 +311,14 @@ class TensorView:
             + ")"
         )
 
-    def set_shape(self):
-        if self.is_dynamic:
-            self.shape = [
-                self.dataset._tensors[self.subpath].get_shape([i] + self.slice_[1:])
-                for i in range(self.offsets[0], self.offsets[0] + self.nums[0])
-            ]
-            if len(self.shape) == 1:
-                self.shape = self.shape[0]
-                self.shape = (
-                    (1,) + self.shape
-                    if isinstance(self.slice_[0], slice)
-                    else self.shape
-                )
-        else:
-            self.shape = self.dataset._tensors[self.subpath].get_shape(self.slice_)
+    def __iter__(self):
+        """ Returns Iterable over samples """
+        if isinstance(self.indexes, int):
+            yield self
+            return
+
+        for i in range(len(self.indexes)):
+            yield self[i]
 
     @property
     def chunksize(self):

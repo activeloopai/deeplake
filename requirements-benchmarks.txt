@@ -1,0 +1,2 @@
+tiledb==0.7.6
+torchvision==0.8.2

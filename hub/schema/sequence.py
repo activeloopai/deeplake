@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from hub.schema.features import Tensor
 
 
@@ -17,7 +23,7 @@ class Sequence(Tensor):
     def __init__(
         self,
         shape=(),
-        max_shape=(),
+        max_shape=None,
         dtype=None,
         chunks=None,
         compressor="lz4",
@@ -43,10 +49,6 @@ class Sequence(Tensor):
             compressor=compressor,
             max_shape=max_shape,
         )
-
-    def get_attr_dict(self):
-        """Return class attributes"""
-        return self.__dict__
 
     def __str__(self):
         out = super().__str__()

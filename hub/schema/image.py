@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from typing import Tuple
 
 import numpy as np
@@ -65,13 +71,6 @@ class Image(Tensor):
             chunks=chunks,
             compressor=compressor,
         )
-        # self._set_encoding_format(encoding_format)
-
-    def _set_encoding_format(self, encoding_format):
-        """Set the encoding format."""
-        if encoding_format not in ("png", "jpeg"):
-            raise ValueError("Not supported encoding format")
-        self.encoding_format = encoding_format
 
     def _set_dtype(self, dtype):
         """Set the dtype."""
@@ -79,10 +78,6 @@ class Image(Tensor):
         if dtype not in ("uint8", "uint16"):
             raise ValueError(f"Not supported dtype for {self.__class__.__name__}")
         self.dtype = dtype
-
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
 
     def __str__(self):
         out = super().__str__()
