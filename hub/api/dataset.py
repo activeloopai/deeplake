@@ -542,7 +542,7 @@ class Dataset:
         )
         if dst_fs.exists(dst_url) and dst_fs.ls(dst_url):
             raise DirectoryNotEmptyException(dst_url)
-        for path in src_fs.ls(src_url):
+        for path in src_fs.ls(src_url, refresh=True):
             dst_full_path = dst_url + path[len(src_url) :]
             dst_folder_path, dst_file = os.path.split(dst_full_path)
             if src_fs.isfile(path):

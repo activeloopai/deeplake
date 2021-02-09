@@ -110,7 +110,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
         it = container.list_blobs(name_starts_with=sub_path)
         return len(list(it)) > 0
 
-    def ls(self, path):
+    def ls(self, path, refresh=True):
         """
         Finds all the files in the given path in the File System
         Returns
