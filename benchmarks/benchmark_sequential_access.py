@@ -46,17 +46,47 @@ def time_tiledb(dataset, batch_size=1, split=None):
             ds = hub.Dataset(dataset + "_" + split)
         else:
             ds = hub.Dataset(dataset)
-        if not os.path.exists(dataset.split("/")[1] + "_tileDB"):
-            os.makedirs(dataset.split("/")[1] + "_tileDB")
-        ds_numpy = np.concatenate(
-            (
-                ds["image"].compute().reshape(ds.shape[0], -1),
-                ds["label"].compute().reshape(ds.shape[0], -1),
-            ),
-            axis=1,
+        y_dim = tiledb.Dim(
+            name="y",
+            domain=(0, ds.shape[0] - 1),
+            tile=ds.shape[0],
+            dtype="uint64",
         )
-        ds_tldb = tiledb.from_numpy(dataset.split("/")[1] + "_tileDB", ds_numpy)
+        x_dim = tiledb.Dim(
+            name="x",
+            domain=(
+                0,
+                ds["image"].shape[1] * ds["image"].shape[2] * ds["image"].shape[3],
+            ),
+            tile=ds["image"].shape[1] * ds["image"].shape[2] * ds["image"].shape[3] + 1,
+            dtype="uint64",
+        )
+        domain = tiledb.Domain(y_dim, x_dim)
+        attr = tiledb.Attr(name="", dtype="int64", var=False)
+        schema = tiledb.ArraySchema(
+            domain=domain,
+            attrs=[attr],
+            cell_order="row-major",
+            tile_order="row-major",
+            sparse=False,
+        )
+        tiledb.Array.create(dataset.split("/")[1] + "_tileDB", schema)
+        ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB", mode="w")
 
+        for batch in range(ds.shape[0] // batch_size):
+            ds_numpy = np.concatenate(
+                (
+                    ds["image", batch * batch_size : (batch + 1) * batch_size]
+                    .compute()
+                    .reshape(batch_size, -1),
+                    ds["label", batch * batch_size : (batch + 1) * batch_size]
+                    .compute()
+                    .reshape(batch_size, -1),
+                ),
+                axis=1,
+            )
+            ds_tldb[batch * batch_size : (batch + 1) * batch_size] = ds_numpy
+        ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB", mode="r")
     assert type(ds_tldb) == tiledb.array.DenseArray
 
     time_batches(ds_tldb, batch_size)
