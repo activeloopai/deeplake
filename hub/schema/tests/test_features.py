@@ -108,7 +108,7 @@ def test_mask():
         mask2 = Mask(shape=(11, 4, 2))
 
 test_image_inputs = [
-  "uint32", "int16", "float32", "float64", "int8", "int16", "int32", "double"
+    "uint32", "int16", "float32", "float64", "int8", "int16", "int32", "double"
 ]
 
 @pytest.mark.parametrize('test_image', test_image_inputs)
