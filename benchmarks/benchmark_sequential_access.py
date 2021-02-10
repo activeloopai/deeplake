@@ -43,9 +43,11 @@ def time_tiledb(dataset, batch_size=1, split=None):
         ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
     else:
         if split is not None:
-            ds = hub.Dataset(dataset + "_" + split)
+            ds = hub.Dataset(
+                dataset + "_" + split, cache=False, storage_cache=False, mode="r"
+            )
         else:
-            ds = hub.Dataset(dataset)
+            ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
         y_dim = tiledb.Dim(
             name="y",
             domain=(0, ds.shape[0] - 1),
@@ -97,9 +99,11 @@ def time_zarr(dataset, batch_size=1, split=None):
         ds_zarr = zarr.open(dataset.split("/")[1] + "_zarr")
     else:
         if split is not None:
-            ds = hub.Dataset(dataset + "_" + split)
+            ds = hub.Dataset(
+                dataset + "_" + split, cache=False, storage_cache=False, mode="r"
+            )
         else:
-            ds = hub.Dataset(dataset)
+            ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
         store = zarr.DirectoryStore(dataset.split("/")[1] + "_zarr")
         shape = [
             ds["image"].shape[0],
@@ -129,9 +133,11 @@ def time_zarr(dataset, batch_size=1, split=None):
 
 def time_hub(dataset, batch_size=1, split=None):
     if split is not None:
-        ds = hub.Dataset(dataset + "_" + split)
+        ds = hub.Dataset(
+            dataset + "_" + split, cache=False, storage_cache=False, mode="r"
+        )
     else:
-        ds = hub.Dataset(dataset)
+        ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
 
     assert type(ds) == hub.api.dataset.Dataset
 
