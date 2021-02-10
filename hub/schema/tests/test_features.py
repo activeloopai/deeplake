@@ -116,7 +116,7 @@ test_image_inputs = [
     "int8",
     "int16",
     "int32",
-    "double"
+    "double",
 ]
 
 
