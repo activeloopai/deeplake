@@ -1,5 +1,3 @@
-
-
 # Benchmarking
 
 ## Motivation
@@ -131,6 +129,7 @@ MNIST: *in batches of 7000*
 | zarr (local) | 0.3461 | 1.1027 |
 | Hub (remote - Wasabi) | 1.0862 | 0.7641 |
 | Hub (local) | 0.1244 | 0.6852 |
+<<<<<<< HEAD
 
 #### Graph
 
@@ -167,6 +166,7 @@ It is 1.12x better than PyTorch and 1.004x better than Tensorflow.
 | Hub (remote - S3) `.to_tensorflow()` | 11.8887 | 4524.5225 |
 | Hub (local) `.to_tensorflow()` | 11.0737 | 2141.2500 |
 | Tensorflow (local, native - TFDS) | 10.9133 | 1051.0044 |
+<<<<<<< HEAD
 
 #### Graph
 
