@@ -132,6 +132,9 @@ MNIST: *in batches of 7000*
 | Hub (remote - Wasabi) | 1.0862 | 0.7641 |
 | Hub (local) | 0.1244 | 0.6852 |
 
+#### Graph
+
+![Sequential_Access](charts/Sequential_Access.png)
 
 #### Observations
 Hub performs better than zarr despite being based on the framework. TileDB is an outlier among all frameworks.
@@ -164,6 +167,10 @@ It is 1.12x better than PyTorch and 1.004x better than Tensorflow.
 | Hub (remote - S3) `.to_tensorflow()` | 11.8887 | 4524.5225 |
 | Hub (local) `.to_tensorflow()` | 11.0737 | 2141.2500 |
 | Tensorflow (local, native - TFDS) | 10.9133 | 1051.0044 |
+
+#### Graph
+
+![Dataset Iteration (external)](charts/Dataset_Iteration_(external).png)
 
 #### Observations
 
@@ -211,6 +218,10 @@ Random offsets are also used to ensure that no caching is being taken advantage 
 | 128 | 0.4083 | 0.2340 | 0.7731 | 0.7509 |
 | 256 | 0.4075 | 0.2858 | 0.7553 | 0.7473 |
 | 512 | 0.4023 | 0.2476 | 0.7511 | 0.7656 |
+
+#### Graph
+
+![Random Access](charts/Random_Access.png)
 
 #### Observations
 Hub performs relatively uniformly over the various batch sizes with the notable exception of Omniglot test dataset. It can be speculated that a few times lower number of images in the dataset compared to others allow Hub to perform much better than in the case of other datasets. Reading single element batches is slower than of batches containing multiple elements. 
@@ -274,6 +285,10 @@ Benchmarks also vary over multiple preset batch sizes and prefetch factors.
     <td>10.8401</td>
   </tr>
 </table>
+
+#### Graph
+
+![Dataset Iteration (internal)](charts/Dataset_Iteration_(internal).png)
 
 #### Observations
 Increasing the batch size leads to a better performance. The transition from the size of 1 to 16 leads to a decrease in iteration time by over 85%. Tensorflow's performance seems not to be drastically improved by prefetching. For PyTorch, however, in smaller batches, an appropriate prefetch factor can elicit a 5-20% improvement. For both Tensorflow and PyTorch a relatively optimal balance is achieved at the prefetch factor equal to 4 and the batch size of length 16. These parameters are used in the external dataset iteration section described below.
