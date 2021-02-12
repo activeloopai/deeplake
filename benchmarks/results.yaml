@@ -1,0 +1,229 @@
+external:
+  sequential_access:
+    - framework: TileDB (local)
+      read: 1.3107
+      write: 
+      dataset: MNIST (70000)
+    - framework: zarr (local)
+      read: 0.3550
+      write:
+      dataset: MNIST (70000)
+    - framework: Hub (remote - Wasabi)
+      read: 1.1537
+      write:
+      dataset: MNIST (70000)
+    - framework: Hub (local)
+      read: 0.0483
+      write:
+      dataset: MNIST (70000)
+    - framework: TileDB (local)
+      read: 12.6473
+      write: 35.3081
+      dataset: MNIST (7000)
+    - framework: zarr (local)
+      read: 0.3461
+      write: 1.1027
+      dataset: MNIST (7000)
+    - framework: Hub (remote - Wasabi)
+      read: 1.0862
+      write: 0.7641
+      dataset: MNIST (7000)
+    - framework: Hub (local)
+      read: 0.1244
+      write: 0.6852
+      dataset: MNIST (7000)
+    - framework: TileDB (local)
+      read:
+      write:
+      dataset: Places365
+    - framework: zarr (local)
+      read:
+      write:
+      dataset: Places365
+    - framework: Hub (remote - Wasabi)
+      read:
+      write:
+      dataset: Places365
+    - framework: Hub (local)
+      read:
+      write:
+      dataset: Places365
+  dataset_iteration:
+    - loader: Hub (remote - Wasabi) .to_pytorch()
+      MNIST: 12.4601
+      Places365: 6033.2499
+    - loader: Hub (remote - S3) .to_pytorch()
+      MNIST: 8.4371
+      Places365: 4590.9812
+    - loader: Hub (local) .to_pytorch()
+      MNIST: 353.3983
+      Places365: 19751.0882
+    - loader: PyTorch (local, native)
+      MNIST: 13.9312
+      Places365: 4305.0664
+    - loader: Hub (remote - Wasabi) .to_tensorflow()
+      MNIST: 10.8668
+      Places365: 5725.5230
+    - loader: Hub (remote - S3) .to_tensorflow()
+      MNIST: 11.8887
+      Places365: 4524.5225
+    - loader: Hub (local) .to_tensorflow()
+      MNIST: 11.0737
+      Places365: 2141.2500
+    - loader: Tensorflow (local, native - TFDS)
+      MNIST: 10.9133
+      Places365: 1051.0044
+internal:
+  compression:
+    - framework: PIL
+      time: 25.1025
+    - framework: Hub
+      time: 25.1024
+  random_access:
+    - batch_size: 1
+      MNIST: 0.5066
+      Omniglot (test): 0.1837
+      CIFAR10 (train): 0.8322
+      CIFAR100 (train): 0.8900
+    - batch_size: 2
+      MNIST: 0.4056
+      Omniglot (test): 0.1458
+      CIFAR10 (train): 0.9117
+      CIFAR100 (train): 0.7480
+    - batch_size: 4
+      MNIST: 0.4138
+      Omniglot (test): 0.1509
+      CIFAR10 (train): 0.7624
+      CIFAR100 (train): 0.7582
+    - batch_size: 8
+      MNIST: 0.4096
+      Omniglot (test): 0.1391
+      CIFAR10 (train): 0.7664
+      CIFAR100 (train): 0.7560
+    - batch_size: 16
+      MNIST: 0.4106
+      Omniglot (test): 0.1613
+      CIFAR10 (train): 0.7576
+      CIFAR100 (train): 0.7358
+    - batch_size: 32
+      MNIST: 0.4046
+      Omniglot (test): 0.1435
+      CIFAR10 (train): 0.7389
+      CIFAR100 (train): 0.7644
+    - batch_size: 64
+      MNIST: 0.4002
+      Omniglot (test): 0.1665
+      CIFAR10 (train): 0.7494
+      CIFAR100 (train): 0.7390
+    - batch_size: 128
+      MNIST: 0.4083
+      Omniglot (test): 0.2340
+      CIFAR10 (train): 0.7731
+      CIFAR100 (train): 0.7509
+    - batch_size: 256
+      MNIST: 0.4075
+      Omniglot (test): 0.2858
+      CIFAR10 (train): 0.7553
+      CIFAR100 (train): 0.7473
+    - batch_size: 512
+      MNIST: 0.4023
+      Omniglot (test): 0.2476
+      CIFAR10 (train): 0.7511
+      CIFAR100 (train): 0.7656
+  dataset_iteration:
+    - batch_size: 1
+      type: PyTorch
+      prefetch_factor: 1
+      time: 114.8104
+    - batch_size: 1
+      type: PyTorch
+      prefetch_factor: 4
+      time: 93.0956
+    - batch_size: 1
+      type: PyTorch
+      prefetch_factor: 16
+      time: 96.3225
+    - batch_size: 1
+      type: PyTorch
+      prefetch_factor: 128
+      time: 100.2829
+    - batch_size: 1
+      type: Tensorflow
+      prefetch_factor: 1
+      time: 26.6553
+    - batch_size: 1
+      type: Tensorflow
+      prefetch_factor: 4
+      time: 20.9806
+    - batch_size: 1
+      type: Tensorflow
+      prefetch_factor: 16
+      time: 20.6421
+    - batch_size: 1
+      type: Tensorflow
+      prefetch_factor: 128
+      time: 23.1414
+    - batch_size: 16
+      type: PyTorch
+      prefetch_factor: 1
+      time: 14.0271
+    - batch_size: 16
+      type: PyTorch
+      prefetch_factor: 4
+      time: 12.8922
+    - batch_size: 16
+      type: PyTorch
+      prefetch_factor: 16
+      time: 12.5523
+    - batch_size: 16
+      type: PyTorch
+      prefetch_factor: 128
+      time: 12.5023
+    - batch_size: 16
+      type: Tensorflow
+      prefetch_factor: 1
+      time: 11.4632
+    - batch_size: 16
+      type: Tensorflow
+      prefetch_factor: 4
+      time: 11.2359
+    - batch_size: 16
+      type: Tensorflow
+      prefetch_factor: 16
+      time: 10.9313
+    - batch_size: 16
+      type: Tensorflow
+      prefetch_factor: 128
+      time: 11.0235
+    - batch_size: 128
+      type: PyTorch
+      prefetch_factor: 1
+      time: 8.9637
+    - batch_size: 128
+      type: PyTorch
+      prefetch_factor: 4
+      time: 8.9810
+    - batch_size: 128
+      type: PyTorch
+      prefetch_factor: 16
+      time: 9.0486
+    - batch_size: 128
+      type: PyTorch
+      prefetch_factor: 128
+      time: 8.3433
+    - batch_size: 128
+      type: Tensorflow
+      prefetch_factor: 1
+      time: 9.7509
+    - batch_size: 128
+      type: Tensorflow
+      prefetch_factor: 4
+      time: 9.7083
+    - batch_size: 128
+      type: Tensorflow
+      prefetch_factor: 16
+      time: 10.3689
+    - batch_size: 128
+      type: Tensorflow
+      prefetch_factor: 128
+      time: 10.8401
