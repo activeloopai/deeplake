@@ -108,9 +108,22 @@ def test_mask():
         mask2 = Mask(shape=(11, 4, 2))
 
 
-def test_image():
+test_image_inputs = [
+    "uint32",
+    "int16",
+    "float32",
+    "float64",
+    "int8",
+    "int16",
+    "int32",
+    "double",
+]
+
+
+@pytest.mark.parametrize("test_image", test_image_inputs)
+def test_image(test_image):
     with pytest.raises(ValueError):
-        image = Image((1920, 1080, 3), "float32")
+        image = Image((1920, 1080, 3), test_image)
 
 
 def test_audio():
