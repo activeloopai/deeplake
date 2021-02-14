@@ -63,19 +63,24 @@ class Image(Tensor):
         ValueError: If the shape, dtype or encoding formats are invalid
 
         """
-        self._set_dtype(dtype)
-        super().__init__(
-            shape,
-            dtype,
-            max_shape=max_shape,
-            chunks=chunks,
-            compressor=compressor,
-        )
+        if compressor == "jpeg" and dtype != "uint8":
+            raise ValueError(f"Unsupported dtype for {compressor} compressor type")
+        elif (compressor == "png") and (dtype not in ("uint8","uint16")):
+            raise ValueError(f"Unsupported dtype for {compressor} compressor type")
+        else:
+            self._set_dtype(dtype)
+            super().__init__(
+                shape,
+                dtype,
+                max_shape=max_shape,
+                chunks=chunks,
+                compressor=compressor,
+            )
 
     def _set_dtype(self, dtype):
         """Set the dtype."""
         dtype = str(np.dtype(dtype))
-        if dtype not in ("uint8", "uint16"):
+        if dtype not in ("int8","int16","int32","int64","uint8","uint16","uint32","uint64","float16","float32","float64"):
             raise ValueError(f"Not supported dtype for {self.__class__.__name__}")
         self.dtype = dtype
 
