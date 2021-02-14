@@ -65,17 +65,17 @@ class Image(Tensor):
         """
         if compressor == "jpeg" and dtype != "uint8":
             raise ValueError(f"Unsupported dtype for {compressor} compressor type")
-        elif (compressor == "png") and (dtype not in ("uint8","uint16")):
+        if (compressor == "png") and (dtype not in ("uint8","uint16")):
             raise ValueError(f"Unsupported dtype for {compressor} compressor type")
-        else:
-            self._set_dtype(dtype)
-            super().__init__(
-                shape,
-                dtype,
-                max_shape=max_shape,
-                chunks=chunks,
-                compressor=compressor,
-            )
+
+        self._set_dtype(dtype)
+        super().__init__(
+            shape,
+            dtype,
+            max_shape=max_shape,
+            chunks=chunks,
+            compressor=compressor,
+        )
 
     def _set_dtype(self, dtype):
         """Set the dtype."""
