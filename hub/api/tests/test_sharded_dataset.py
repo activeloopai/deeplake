@@ -5,7 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from hub.schema.features import SchemaDict
-from hub.exceptions import AdvancedSlicingNotSupported
 from hub.api.sharded_datasetview import ShardedDatasetView
 from hub import Dataset
 import pytest
@@ -27,8 +26,6 @@ def test_sharded_dataset():
     assert ds.shape == (40,)
     assert type(ds.schema) == SchemaDict
     assert ds.__repr__() == "ShardedDatasetView(shape=(40,))"
-    with pytest.raises(AdvancedSlicingNotSupported):
-        ds[5:8]
     ds[4, "first"] = 3
     for _ in ds:
         pass

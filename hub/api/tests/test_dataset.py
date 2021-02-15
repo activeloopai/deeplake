@@ -1032,7 +1032,7 @@ def test_check_label_name():
     ds["label", 0] = 1
     ds["label", 1] = 2
     ds["label", 2] = 0
-    assert ds.compute(label_name=True) == [
+    assert ds.compute(label_name=True).tolist() == [
         {"label": "green"},
         {"label": "blue"},
         {"label": "red"},
