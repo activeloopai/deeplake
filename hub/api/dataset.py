@@ -771,10 +771,10 @@ class Dataset:
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
-        return [
+        return np.array([
             create_numpy_dict(self, i, label_name=label_name)
             for i in range(self._shape[0])
-        ]
+        ])
 
     def compute(self, label_name=False):
         """Gets the values from different tensorview objects in the dataset schema

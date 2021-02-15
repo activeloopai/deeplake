@@ -62,5 +62,57 @@ def test_sharded_dataset_with_views():
         assert sharded_ds[i, "second"].compute() == 2 * (i - 5) + 1
 
 
+def test_sharded_dataset_advanced_slice():
+    schema = {"first": "float", "second": "float"}
+    ds = Dataset("./data/test_sharded_ds", shape=(10,), schema=schema, mode="w")
+    for i in range(10):
+        ds[i, "first"] = i
+        ds[i, "second"] = 2 * i + 1
+
+    dsv = ds[3:5]
+    dsv2 = ds[1]
+    dsv3 = ds[8:]
+    datasets = [dsv, ds, dsv2, dsv3]
+    sharded_ds = ShardedDatasetView(datasets)
+    assert sharded_ds["first", :].compute().tolist() == [
+        3,
+        4,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        1,
+        8,
+        9,
+    ]
+    assert sharded_ds["first"].compute().tolist() == [
+        3,
+        4,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        1,
+        8,
+        9,
+    ]
+    assert sharded_ds["first", -4:].compute().tolist() == [9, 1, 8, 9]
+    assert sharded_ds[1:3].compute()[0] == {"first": 4.0, "second": 9.0}
+    assert sharded_ds[1:3].compute()[1] == {"first": 0.0, "second": 1.0}
+
+
 if __name__ == "__main__":
-    test_sharded_dataset()
+    # test_sharded_dataset()
+    test_sharded_dataset_advanced_slice()
