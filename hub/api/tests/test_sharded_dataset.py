@@ -61,5 +61,6 @@ def test_sharded_dataset_with_views():
         assert sharded_ds[i, "first"].compute() == i - 5
         assert sharded_ds[i, "second"].compute() == 2 * (i - 5) + 1
 
+
 if __name__ == "__main__":
     test_sharded_dataset()
