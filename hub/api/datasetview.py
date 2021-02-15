@@ -202,6 +202,10 @@ class DatasetView:
         """
         return self.dataset._tensors.keys()
 
+    @property
+    def schema(self):
+        return self.dataset.schema
+
     def _get_dictionary(self, subpath, slice_):
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}

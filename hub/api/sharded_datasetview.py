@@ -22,7 +22,7 @@ class ShardedDatasetView:
         """
         # TODO add schema check to make sure all datasets have the same schema
 
-        self._schema = datasets[0].schema
+        self._schema = datasets[0].schema if datasets else None
         self.datasets = [
             ds
             if isinstance(ds.indexes, list)
