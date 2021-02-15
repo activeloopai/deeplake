@@ -108,6 +108,10 @@ def test_sharded_dataset_advanced_slice():
     assert sharded_ds["first", -4:].compute().tolist() == [9, 1, 8, 9]
     assert sharded_ds[1:3].compute()[0] == {"first": 4.0, "second": 9.0}
     assert sharded_ds[1:3].compute()[1] == {"first": 0.0, "second": 1.0}
+    sharded_ds["first", 1:5] = [10, 11, 12, 13]
+    assert sharded_ds["first", 1:5].compute().tolist() == [10, 11, 12, 13]
+    sharded_ds["first", 12] = 50
+    assert sharded_ds["first", 12].compute() == 50
 
 
 if __name__ == "__main__":

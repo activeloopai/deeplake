@@ -1039,7 +1039,7 @@ def test_check_label_name():
         {"label": "red"},
         {"label": "red"},
     ]
-    assert ds.compute() == [
+    assert ds.compute().tolist() == [
         {"label": 1},
         {"label": 2},
         {"label": 0},
@@ -1048,8 +1048,11 @@ def test_check_label_name():
     ]
     assert ds[1].compute(label_name=True) == {"label": "blue"}
     assert ds[1].compute() == {"label": 2}
-    assert ds[1:3].compute(label_name=True) == [{"label": "blue"}, {"label": "red"}]
-    assert ds[1:3].compute() == [{"label": 2}, {"label": 0}]
+    assert ds[1:3].compute(label_name=True).tolist() == [
+        {"label": "blue"},
+        {"label": "red"},
+    ]
+    assert ds[1:3].compute().tolist() == [{"label": 2}, {"label": 0}]
 
 
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")

@@ -18,4 +18,3 @@ class ComputeList:
 
     def numpy(self):
         return self.compute()
-
