@@ -47,7 +47,6 @@ from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
     HubDatasetNotFoundException,
-    LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
@@ -470,26 +469,16 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = assign_value
 
-    def filter(self, dic):
-        """| Applies a filter to get a new datasetview that matches the dictionary provided
+    def filter(self, fn):
+        """| Applies a function on each element one by one as a filter to get a new DatasetView
 
         Parameters
         ----------
-        dic: dictionary
-            A dictionary of key value pairs, used to filter the dataset. For nested schemas use flattened dictionary representation
-            i.e instead of {"abc": {"xyz" : 5}} use {"abc/xyz" : 5}
+        fn: function
+            Should take in a single sample of the dataset and return True or False
+            This function is applied to all the items of the datasetview and retains those items that return True
         """
-        indexes = self.indexes
-        for k, v in dic.items():
-            k = k if k.startswith("/") else "/" + k
-            if k not in self.keys:
-                raise KeyError(f"Key {k} not found in the dataset")
-            tsv = self[k]
-            max_shape = tsv.dtype.max_shape
-            prod = _tuple_product(max_shape)
-            if prod > 100:
-                raise LargeShapeFilteringException(k)
-            indexes = [index for index in indexes if tsv[index].compute() == v]
+        indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
     def resize_shape(self, size: int) -> None:

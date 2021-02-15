@@ -170,12 +170,6 @@ class SchemaArgumentNotFoundException(HubException):
         super(HubException, self).__init__(message=message)
 
 
-class LargeShapeFilteringException(HubException):
-    def __init__(self, key):
-        message = f"The shape of {key} is large (product > 100), use smaller keys for filtering"
-        super(HubException, self).__init__(message=message)
-
-
 class ValueShapeError(HubException):
     def __init__(self, correct_shape, wrong_shape):
         message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
