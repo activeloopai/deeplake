@@ -13,7 +13,7 @@ from hub.utils import Timer
 
 
 def time_zarr(dataset, batch_size=1):
-    ds = hub.Dataset(dataset)
+    ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
     if os.path.exists(dataset.split("/")[1] + "_zarr"):
         ds_zarr = zarr.open(dataset.split("/")[1] + "_zarr")
     else:
@@ -56,7 +56,7 @@ def time_zarr(dataset, batch_size=1):
 
 
 def time_hub(dataset, batch_size=1):
-    ds = hub.Dataset(dataset)
+    ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
 
     assert type(ds) == hub.api.dataset.Dataset
 
