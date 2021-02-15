@@ -244,9 +244,19 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self):
-        """Converts the dataset into a tensorflow compatible format"""
-        return self.dataset.to_tensorflow(indexes=self.indexes)
+    def to_tensorflow(self, include_shapes):
+        """|Converts the dataset into a tensorflow compatible format
+
+        Parameters
+        ----------
+        include_shapes: boolean, optional
+            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            Setting to True could lead to issues with dictionaries inside Tensors.
+        """
+
+        return self.dataset.to_tensorflow(
+            indexes=self.indexes, include_shapes=include_shapes
+        )
 
     def to_pytorch(
         self,
@@ -254,7 +264,17 @@ class DatasetView:
         inplace=True,
         output_type=dict,
     ):
-        """Converts the dataset into a pytorch compatible format"""
+        """| Converts the dataset into a pytorch compatible format.
+
+        Parameters
+        ----------
+        transform: function that transforms data in a dict format
+        inplace: bool, optional
+            Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
+            type you need for Transforms). Default is True.
+        output_type: one of list, tuple, dict, optional
+            Defines the output type. Default is dict - same as in original Hub Dataset.
+        """
         return self.dataset.to_pytorch(
             transform=transform,
             indexes=self.indexes,
