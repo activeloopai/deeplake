@@ -114,8 +114,8 @@ def test_class_label_array():
         cl7 = ClassLabelArray(
             shape=(None, 5), max_shape=(10, 5), names=["apple", "orange", "banana"]
         )
-    cl5 = ClassLabel()
-    cl6 = ClassLabel(names_file="./hub/schema/tests/class_label_names.txt")
+    cl5 = ClassLabelArray((None,), (10,))
+    cl6 = ClassLabelArray((10,), names_file="./hub/schema/tests/class_label_names.txt")
 
     assert cl1.names == ["0", "1", "2", "3", "4"]
     assert cl2.names == ["apple", "orange", "banana"]
@@ -188,6 +188,11 @@ def test_image_array(test_image):
 def test_audio():
     with pytest.raises(ValueError):
         audio = Audio((1920, 3), "float32")
+
+
+def test_video():
+    with pytest.raises(ValueError):
+        video = Video((1920, 3))
 
 
 def test_bbox_array():
