@@ -4,9 +4,11 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
+import os
+from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
-from hub.exceptions import ModuleNotInstalledException
+from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
 
 
 def slice_split(slice_):
@@ -157,3 +159,34 @@ def str_to_int(assign_value, tokenizer):
         ):
             assign_value = [np.array([ord(ch) for ch in item]) for item in assign_value]
     return assign_value
+
+
+def _copy_helper(
+    dst_url: str, token=None, fs=None, public=True, src_url=None, src_fs=None
+):
+    """Helper function for Dataset.copy"""
+    src_url = src_fs.expand_path(src_url)[0]
+    dst_url = dst_url[:-1] if dst_url.endswith("/") else dst_url
+    dst_fs, dst_url = (
+        (fs, dst_url) if fs else get_fs_and_path(dst_url, token=token, public=public)
+    )
+    if dst_fs.exists(dst_url) and dst_fs.ls(dst_url):
+        raise DirectoryNotEmptyException(dst_url)
+    for path in src_fs.ls(src_url, refresh=True):
+        dst_full_path = dst_url + path[len(src_url) :]
+        dst_folder_path, dst_file = os.path.split(dst_full_path)
+        if src_fs.isfile(path):
+            if not dst_fs.exists(dst_folder_path):
+                dst_fs.mkdir(dst_folder_path)
+            content = src_fs.cat_file(path)
+            dst_fs.pipe_file(dst_full_path, content)
+        else:
+            _copy_helper(
+                dst_full_path,
+                token=token,
+                fs=dst_fs,
+                public=public,
+                src_url=path,
+                src_fs=src_fs,
+            )
+    return dst_url

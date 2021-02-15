@@ -37,6 +37,7 @@ from hub.api.dataset_utils import (
     get_value,
     slice_split,
     str_to_int,
+    _copy_helper,
 )
 
 import hub.schema.serialize
@@ -53,7 +54,6 @@ from hub.exceptions import (
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
-    NoneValueException,
     ShapeLengthException,
     WrongUsernameException,
 )
@@ -204,9 +204,8 @@ class Dataset:
 
         self.indexes = list(range(self._shape[0]))
 
-        if needcreate and (
-            self._path.startswith("s3://snark-hub-dev/")
-            or self._path.startswith("s3://snark-hub/")
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
         ):
             subpath = self._path[5:]
             spl = subpath.split("/")
@@ -214,9 +213,10 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta, public=public
-            )
+            if needcreate:
+                HubControlClient().create_dataset_entry(
+                    self.username, self.dataset_name, self.meta, public=public
+                )
 
     @property
     def mode(self):
@@ -481,6 +481,45 @@ class Dataset:
         indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
+    def copy(self, dst_url: str, token=None, fs=None, public=True):
+        """| Creates a copy of the dataset at the specified url and returns the dataset object
+        Parameters
+        ----------
+        dst_url: str
+            The destination url where dataset should be copied
+        token: str or dict, optional
+            If dst_url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        fs: optional
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the new copied dataset and
+            the dataset won't be visible in the visualizer to the public
+        """
+        self.flush()
+        destination = dst_url
+        path = _copy_helper(
+            dst_url=dst_url,
+            token=token,
+            fs=fs,
+            public=public,
+            src_url=self._path,
+            src_fs=self._fs,
+        )
+
+        #  create entry in database if stored in hub storage
+        if path.startswith("s3://snark-hub-dev/") or path.startswith("s3://snark-hub/"):
+            subpath = path[5:]
+            spl = subpath.split("/")
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            username = spl[-2]
+            dataset_name = spl[-1]
+            HubControlClient().create_dataset_entry(
+                username, dataset_name, self.meta, public=public
+            )
+        return hub.Dataset(destination, token=token, fs=fs, public=public)
+
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self._shape[0]:
@@ -694,7 +733,8 @@ class Dataset:
         """Save changes from cache to dataset final storage.
         Does not invalidate this object.
         """
-
+        if "r" in self._mode:
+            return
         for t in self._tensors.values():
             t.flush()
         self._save_meta()
@@ -750,7 +790,7 @@ class Dataset:
         return (
             "Dataset(schema="
             + str(self._schema)
-            + "url="
+            + ", url="
             + "'"
             + self._url
             + "'"
