@@ -64,6 +64,7 @@ class Image(Tensor):
 
         """
         self._set_dtype(dtype)
+        self._check_shape(shape)
         super().__init__(
             shape,
             dtype,
@@ -86,3 +87,10 @@ class Image(Tensor):
 
     def __repr__(self):
         return self.__str__()
+
+    def _check_shape(self, shape):
+        """Check if provided shape matches Image characteristics."""
+        if len(shape) != 3:
+            raise ValueError(
+                "Wrong Image shape provided, should be of the format (height, width, channels), where height, width, channels can be integer or None"
+            )

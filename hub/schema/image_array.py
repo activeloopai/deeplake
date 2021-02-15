@@ -5,19 +5,19 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from typing import Tuple
-
 from hub.schema import Tensor
+import numpy as np
 
 
-class Video(Tensor):
-    """`HubSchema` for videos, encoding frames individually on disk.
+class ImageArray(Tensor):
+    """`HubSchema` for ImageArray
 
     The connector accepts as input a 4 dimensional `uint8` array
-    representing a video.
+    representing a list or sequence of Images.
 
     Returns
     ----------
-    Tensor: shape [num_frames, height, width, channels],
+    Tensor: shape [num_images, height, width, channels],
          where channels must be 1 or 3
     """
 
@@ -37,8 +37,8 @@ class Video(Tensor):
         ----------
 
         shape: tuple of ints
-            The shape of the video (num_frames, height, width,
-            channels), where channels is 1 or 3.
+            The shape of the ImageArray (num_images, height, width,
+            channels).
         dtype: `uint16` or `uint8` (default)
         max_shape : Tuple[int]
             Maximum shape of tensor if tensor is dynamic
@@ -52,8 +52,9 @@ class Video(Tensor):
         ----------
         ValueError: If the shape, dtype or encoding formats are invalid
         """
+        self._set_dtype(dtype)
         self._check_shape(shape)
-        super(Video, self).__init__(
+        super(ImageArray, self).__init__(
             dtype=dtype,
             shape=shape,
             max_shape=max_shape,
@@ -63,15 +64,22 @@ class Video(Tensor):
 
     def __str__(self):
         out = super().__str__()
-        out = "Video" + out[6:]
+        out = "ImageArray" + out[6:]
         return out
 
     def __repr__(self):
         return self.__str__()
 
+    def _set_dtype(self, dtype):
+        """Set the dtype."""
+        dtype = str(np.dtype(dtype))
+        if dtype not in ("uint8", "uint16"):
+            raise ValueError(f"Not supported dtype for {self.__class__.__name__}")
+        self.dtype = dtype
+
     def _check_shape(self, shape):
-        """Check if provided shape matches Video characteristics."""
-        if len(shape) != 4 or shape[-1] not in [1, 3]:
+        """Check if provided shape matches BBoxArray characteristics."""
+        if len(shape) != 4:
             raise ValueError(
-                "Wrong Video shape provided, should be of the format (num_frames, height, width, channels), where num_frames, height, width can be integer or None and channels is 1 or 3"
+                "Wrong ImageArray shape provided, should be of the format (num_images, height, width, channels), where num_images, height, width, channels can be integer or None"
             )

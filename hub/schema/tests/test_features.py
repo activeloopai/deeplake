@@ -12,7 +12,12 @@ from hub.schema.polygon import Polygon
 from hub.schema.sequence import Sequence
 from hub.schema.video import Video
 from hub.schema import Segmentation
-from hub.schema.class_label import ClassLabel, _load_names_from_file
+from hub.schema.class_label import ClassLabel
+from hub.schema.class_label_array import ClassLabelArray
+from hub.schema.bbox_array import BBoxArray
+from hub.schema.image_array import ImageArray
+
+
 from hub.schema.features import HubSchema, SchemaDict, Tensor
 import pytest
 
@@ -94,6 +99,50 @@ def test_class_label():
         cl2.names = ["ab", "cd", "ef", "gh"]
 
 
+def test_class_label_array():
+    cl1 = ClassLabelArray(shape=(5,), num_classes=5)
+    cl2 = ClassLabelArray(
+        shape=(None,), max_shape=(10,), names=["apple", "orange", "banana"]
+    )
+    with pytest.raises(ValueError):
+        cl3 = ClassLabelArray(shape=(5,), names=["apple", "orange", "banana", "apple"])
+    with pytest.raises(ValueError):
+        cl4 = ClassLabelArray(
+            shape=(5,), names=["apple", "orange", "banana", "apple"], num_classes=2
+        )
+    with pytest.raises(ValueError):
+        cl7 = ClassLabelArray(
+            shape=(None, 5), max_shape=(10, 5), names=["apple", "orange", "banana"]
+        )
+    cl5 = ClassLabel()
+    cl6 = ClassLabel(names_file="./hub/schema/tests/class_label_names.txt")
+
+    assert cl1.names == ["0", "1", "2", "3", "4"]
+    assert cl2.names == ["apple", "orange", "banana"]
+    assert cl6.names == [
+        "alpha",
+        "beta",
+        "gamma",
+    ]
+    assert cl1.num_classes == 5
+    assert cl2.num_classes == 3
+    assert cl1.str2int("3") == 3
+    assert cl2.str2int("orange") == 1
+    assert cl1.int2str(4) == "4"
+    assert cl2.int2str(2) == "banana"
+
+    with pytest.raises(KeyError):
+        cl2.str2int("2")
+    with pytest.raises(ValueError):
+        cl1.str2int("8")
+    with pytest.raises(ValueError):
+        cl1.str2int("abc")
+    with pytest.raises(ValueError):
+        cl1.names = ["ab", "cd", "ef", "gh"]
+    with pytest.raises(ValueError):
+        cl2.names = ["ab", "cd", "ef", "gh"]
+
+
 def test_polygon():
     with pytest.raises(ValueError):
         poly1 = Polygon(shape=(11, 3))
@@ -124,6 +173,16 @@ test_image_inputs = [
 def test_image(test_image):
     with pytest.raises(ValueError):
         image = Image((1920, 1080, 3), test_image)
+    with pytest.raises(ValueError):
+        image = Image((500, 500, 500, 500))
+
+
+@pytest.mark.parametrize("test_image", test_image_inputs)
+def test_image_array(test_image):
+    with pytest.raises(ValueError):
+        image_arr = ImageArray((50, 1920, 1080, 3), test_image)
+    with pytest.raises(ValueError):
+        image_arr = ImageArray((500, 500, 500, 500, 500))
 
 
 def test_audio():
@@ -131,10 +190,23 @@ def test_audio():
         audio = Audio((1920, 3), "float32")
 
 
+def test_bbox_array():
+    with pytest.raises(ValueError):
+        bbox = BBoxArray((100, 2))
+    bbox = BBoxArray((100, 4))
+    bbox = BBoxArray((None, 4), max_shape=(50, 4))
+
+
 def test_image_repr():
     image = Image((1920, 1080, 3))
     text = "Image(shape=(1920, 1080, 3), dtype='uint8')"
     assert image.__repr__() == text
+
+
+def test_image_array_repr():
+    image_arr = ImageArray((None, 1920, 1080, 3), max_shape=(10, 1920, 1080, 3))
+    text = "ImageArray(shape=(None, 1920, 1080, 3), dtype='uint8', max_shape=(10, 1920, 1080, 3))"
+    assert image_arr.__repr__() == text
 
 
 def test_classlabel_repr():
@@ -147,9 +219,21 @@ def test_classlabel_repr():
     assert cl2.__repr__() == text2
 
 
+def test_classlabel_array_repr():
+    cl1 = ClassLabelArray(shape=(5,), num_classes=5)
+    cl2 = ClassLabelArray(
+        shape=(None,), max_shape=(10,), names=["apple", "orange", "banana"]
+    )
+
+    text1 = "ClassLabelArray(shape=(5,), dtype='int64', num_classes=5)"
+    text2 = "ClassLabelArray(shape=(None,), dtype='int64', max_shape=(10,), names=['apple', 'orange', 'banana'], num_classes=3)"
+    assert cl1.__repr__() == text1
+    assert cl2.__repr__() == text2
+
+
 def test_video_repr():
-    vid = Video(shape=(1920, 1080, 3, 120))
-    text = "Video(shape=(1920, 1080, 3, 120), dtype='uint8')"
+    vid = Video(shape=(120, 1920, 1080, 3))
+    text = "Video(shape=(120, 1920, 1080, 3), dtype='uint8')"
     assert vid.__repr__() == text
 
 
@@ -175,6 +259,12 @@ def test_bbox_repr():
     bbox = BBox(dtype="uint32")
     text = "BBox(shape=(4,), dtype='uint32')"
     assert bbox.__repr__() == text
+
+
+def test_bbox_array_repr():
+    bbox_array = BBoxArray((None, 4), "uint32", (10, 4))
+    text = "BBoxArray(shape=(None, 4), dtype='uint32', max_shape=(10, 4))"
+    assert bbox_array.__repr__() == text
 
 
 def test_audio_repr():

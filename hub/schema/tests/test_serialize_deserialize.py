@@ -50,7 +50,7 @@ def test_serialize_deserialize():
                 dtype=Tensor(shape=(None, None), max_shape=(100, 100), dtype="uint8"),
             ),
             "text": Text((None,), max_shape=(10,)),
-            "video": Video((100, 100, 3, 10)),
+            "video": Video((10, 100, 100, 3)),
         },
     )
     original_result = tuple(t._flatten())
