@@ -285,8 +285,12 @@ class TensorView:
 
     def slice_fill(self, slice_):
         "Fills the slice with zeroes for the dimensions that have single elements and squeeze_dims true"
-        new_slice_ = [slice_[0]]
-        offset = 1
+        if isinstance(self.indexes, int):
+            new_slice_ = [0]
+            offset = 0
+        else:
+            new_slice_ = [slice_[0]]
+            offset = 1
         for i in range(1, len(self.nums)):
             if self.squeeze_dims[i]:
                 new_slice_.append(0)
