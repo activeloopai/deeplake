@@ -41,9 +41,8 @@ def test_objectview():
     # tensorview to object view
     # sequence of tensor
     ds["b", 0] = 0.5 * np.ones((5, 4))
-    tv = ds["b", 0]
-    tv[0] = 0.3 * np.ones((4,))
-    assert (tv[0].compute() == 0.3 * np.ones((4,))).all()
+    ds["b", 0] = 0.3 * np.ones((4,))
+    assert (ds["b", 0].compute() == 0.3 * np.ones((4,))).all()
 
     # ds to object view
     assert (ds[3, "c", "d"].compute() == 5 * np.ones((2, 2, 5, 5))).all()
