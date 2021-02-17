@@ -50,8 +50,9 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
 ## Getting Started
+Work with public or your own data, locally or on any cloud.
 
-### Access public data. FAST
+### Access public data. Fast.
 
 To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**.
 
