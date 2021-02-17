@@ -109,7 +109,7 @@ assert ds["confidence"][0].compute() == 2.0
 
 ### Returning multiple elements
 
-Transormation function can return either a dictionary that corresponds to the provided schema or a list of such dictionaries. In that case the number of samples in the final dataset will be equal to the number of all the returned dictionaries:
+Transformation function can return either a dictionary that corresponds to the provided schema or a list of such dictionaries. In that case the number of samples in the final dataset will be equal to the number of all the returned dictionaries:
 
 ```python
 my_schema = {
@@ -144,7 +144,7 @@ assert len(ds) == 1
 assert len(out_ds) == 4
 ```
 
-### Local parrarel execution
+### Local parallel execution
 
 You can use transform with multuple processes or threads by setting `scheduler` to `threaded` or `processed` and set number of `workers`.
 
