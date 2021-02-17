@@ -581,7 +581,8 @@ class Dataset:
         """
         from .integrations import to_pytorch
 
-        to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = to_pytorch(self, transform, inplace, output_type, indexes)
+        return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
@@ -596,7 +597,8 @@ class Dataset:
         """
         from .integrations import to_tensorflow
 
-        to_tensorflow(self, indexes, include_shapes)
+        ds = to_tensorflow(self, indexes, include_shapes)
+        return ds
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -777,7 +779,8 @@ class Dataset:
         """
         from .integrations import from_tensorflow
 
-        from_tensorflow(ds, scheduler, workers)
+        ds = from_tensorflow(ds, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_tfds(
@@ -815,7 +818,8 @@ class Dataset:
         """
         from .integrations import from_tfds
 
-        from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
+        ds = from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
@@ -833,7 +837,8 @@ class Dataset:
 
         from .integrations import from_pytorch
 
-        from_pytorch(dataset, scheduler, workers)
+        ds = from_pytorch(dataset, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_directory(
