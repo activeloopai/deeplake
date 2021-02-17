@@ -57,7 +57,7 @@ _LABELS = {
     99.0: "unmentioned",
 }
 
-MAX_TEXT_LEN = 2500
+MAX_TEXT_LEN = 4000
 MY_TEXT = schema.Text(max_shape=(MAX_TEXT_LEN,), dtype="uint8")
 
 
@@ -295,7 +295,7 @@ class MimiciiiCxr:
         schema_ = self._info()
         schemai = self._intermitidate_schema()
         print("Number of samples: ", len(lines))
-        lines = lines[:4000]
+        # lines = lines[:40000]
         if args.redisurl:
             sync = RedisSynchronizer(host=args.redisurl, password="5241590000000000")
         elif args.scheduler == "processed":
@@ -310,7 +310,7 @@ class MimiciiiCxr:
                     workers=args.workers,
                     synchronizer=sync,
                 )(_right_size)(lines)
-                ds1 = ds1.store(f"{output_dir}/ds1")
+                ds1 = ds1.store(f"{output_dir}/ds1", sample_per_shard=1000)
             with Timer("Time of second transform"):
                 ds2 = hub.transform(
                     schemai,
@@ -318,7 +318,7 @@ class MimiciiiCxr:
                     workers=args.workers,
                     synchronizer=sync,
                 )(_check_files)(ds1)
-                ds2 = ds2.store(f"{output_dir}/ds2")
+                ds2 = ds2.store(f"{output_dir}/ds2", sample_per_shard=1000)
                 print("LEN:", len(ds2))
             with Timer("Time of third transform"):
                 ds3 = hub.transform(
@@ -327,13 +327,13 @@ class MimiciiiCxr:
                     workers=args.workers,
                     synchronizer=sync,
                 )(_process_example)(ds2)
-                ds3.store(f"{output_dir}/ds3")
+                ds3.store(f"{output_dir}/ds3", sample_per_shard=100)
         print("Success, number of elements for phase 3:", len(ds2))
 
 
 def main():
-    DEFAULT_WORKERS = 10
-    DEFAULT_SCHEDULER = "ray_generator"
+    DEFAULT_WORKERS = 100
+    DEFAULT_SCHEDULER = "single"
     if DEFAULT_SCHEDULER == "ray_generator":
         DEFAULT_REDIS_URL = (
             os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else "localhost"
@@ -341,8 +341,8 @@ def main():
     else:
         DEFAULT_REDIS_URL = False
     password = "5241590000000000"
-    ray.init(address="auto", _redis_password=password)
-    print("Nodes:", ray.nodes())
+    # ray.init(address="auto", _redis_password=password)
+    # print("Number of Nodes:", len(ray.nodes()))
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--input", default="s3://snark-gradient-raw-data/mimic-cxr-2.0.0"
