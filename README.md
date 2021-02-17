@@ -49,6 +49,15 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
+ <p align="center">
+    <br>
+    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
+    </br>
+Visalization via app.activeloop.ai of a dataset uploaded to Hub.
+
+</p>
+
+
 ## Getting Started
 Work with public or your own data, locally or on any cloud.
 
