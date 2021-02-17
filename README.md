@@ -53,7 +53,7 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
     </br>
-Visalization via app.activeloop.ai of a dataset uploaded to Hub.
+Visualization of a dataset uploaded to Hub via app.activeloop.ai (free tool).
 
 </p>
 
