@@ -579,19 +579,9 @@ class Dataset:
         indexes: list or int, optional
             The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         """
-        try:
-            import torch
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException("torch")
+        from .integrations import to_pytorch
 
-        global torch
-        indexes = indexes or self.indexes
-
-        if "r" not in self.mode:
-            self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
-        return TorchDataset(
-            self, transform, inplace=inplace, output_type=output_type, indexes=indexes
-        )
+        to_pytorch(self, transform, inplace, output_type, indexes)
 
     def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
@@ -604,92 +594,9 @@ class Dataset:
             False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
         """
-        try:
-            import tensorflow as tf
+        from .integrations import to_tensorflow
 
-            global tf
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException("tensorflow")
-
-        indexes = indexes or self.indexes
-        indexes = [indexes] if isinstance(indexes, int) else indexes
-        _samples_in_chunks = {
-            key: (None in value.shape) and 1 or value.chunks[0]
-            for key, value in self._tensors.items()
-        }
-        _active_chunks = {}
-        _active_chunks_range = {}
-
-        def _get_active_item(key, index):
-            active_range = _active_chunks_range.get(key)
-            samples_per_chunk = _samples_in_chunks[key]
-            if active_range is None or index not in active_range:
-                active_range_start = index - index % samples_per_chunk
-                active_range = range(
-                    active_range_start, active_range_start + samples_per_chunk
-                )
-                _active_chunks_range[key] = active_range
-                _active_chunks[key] = self._tensors[key][
-                    active_range.start : active_range.stop
-                ]
-            return _active_chunks[key][index % samples_per_chunk]
-
-        def tf_gen():
-            for index in indexes:
-                d = {}
-                for key in self.keys:
-                    split_key = key.split("/")
-                    cur = d
-                    for i in range(1, len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = _get_active_item(key, index)
-                yield (d)
-
-        def dict_to_tf(my_dtype):
-            d = {}
-            for k, v in my_dtype.dict_.items():
-                d[k] = dtype_to_tf(v)
-            return d
-
-        def tensor_to_tf(my_dtype):
-            return dtype_to_tf(my_dtype.dtype)
-
-        def dtype_to_tf(my_dtype):
-            if isinstance(my_dtype, SchemaDict):
-                return dict_to_tf(my_dtype)
-            elif isinstance(my_dtype, Tensor):
-                return tensor_to_tf(my_dtype)
-            elif isinstance(my_dtype, Primitive):
-                if str(my_dtype._dtype) == "object":
-                    return "string"
-                return str(my_dtype._dtype)
-
-        def get_output_shapes(my_dtype):
-            if isinstance(my_dtype, SchemaDict):
-                return output_shapes_from_dict(my_dtype)
-            elif isinstance(my_dtype, Tensor):
-                return my_dtype.shape
-            elif isinstance(my_dtype, Primitive):
-                return ()
-
-        def output_shapes_from_dict(my_dtype):
-            d = {}
-            for k, v in my_dtype.dict_.items():
-                d[k] = get_output_shapes(v)
-            return d
-
-        output_types = dtype_to_tf(self._schema)
-        if include_shapes:
-            output_shapes = get_output_shapes(self._schema)
-            return tf.data.Dataset.from_generator(
-                tf_gen, output_types=output_types, output_shapes=output_shapes
-            )
-        else:
-            return tf.data.Dataset.from_generator(tf_gen, output_types=output_types)
+        to_tensorflow(self, indexes, include_shapes)
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -868,59 +775,9 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
         >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
         """
-        if "tensorflow" not in sys.modules:
-            raise ModuleNotInstalledException("tensorflow")
-        else:
-            import tensorflow as tf
+        from .integrations import from_tensorflow
 
-            global tf
-
-        def generate_schema(ds):
-            if isinstance(ds._structure, tf.TensorSpec):
-                return tf_to_hub({"data": ds._structure}).dict_
-            return tf_to_hub(ds._structure).dict_
-
-        def tf_to_hub(tf_dt):
-            if isinstance(tf_dt, dict):
-                return dict_to_hub(tf_dt)
-            elif isinstance(tf_dt, tf.TensorSpec):
-                return TensorSpec_to_hub(tf_dt)
-
-        def TensorSpec_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            shape = tuple(tf_dt.shape) if tf_dt.shape.rank is not None else (None,)
-            return Tensor(shape=shape, dtype=dt)
-
-        def dict_to_hub(tf_dt):
-            d = {
-                key.replace("/", "_"): tf_to_hub(value) for key, value in tf_dt.items()
-            }
-            return SchemaDict(d)
-
-        my_schema = generate_schema(ds)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                if not isinstance(v, dict):
-                    if isinstance(v, (tuple, list)):
-                        new_v = list(v)
-                        for i in range(len(new_v)):
-                            new_v[i] = new_v[i].numpy()
-                        d[k] = tuple(new_v) if isinstance(v, tuple) else new_v
-                    else:
-                        d[k] = v.numpy()
-                else:
-                    d[k] = transform_numpy(v)
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            sample = sample if isinstance(sample, dict) else {"data": sample}
-            return transform_numpy(sample)
-
-        return my_transform(ds)
+        from_tensorflow(ds, scheduler, workers)
 
     @staticmethod
     def from_tfds(
@@ -956,180 +813,9 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
         >>> res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
-        try:
-            import tensorflow_datasets as tfds
+        from .integrations import from_tfds
 
-            global tfds
-        except Exception:
-            raise ModuleNotInstalledException("tensorflow_datasets")
-
-        ds_info = tfds.load(dataset, with_info=True)
-
-        if split is None:
-            all_splits = ds_info[1].splits.keys()
-            split = "+".join(all_splits)
-
-        ds = tfds.load(dataset, split=split)
-        ds = ds.take(num)
-        max_dict = defaultdict(lambda: None)
-
-        def sampling(ds):
-            try:
-                subset_len = len(ds) if hasattr(ds, "__len__") else num
-            except Exception:
-                subset_len = max(num, 5)
-
-            subset_len = int(max(subset_len * sampling_amount, 5))
-            samples = ds.take(subset_len)
-            for smp in samples:
-                dict_sampling(smp)
-
-        def dict_sampling(d, path=""):
-            for k, v in d.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    dict_sampling(v)
-                elif hasattr(v, "shape") and v.dtype != "string":
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = v.shape
-                    else:
-                        max_dict[cur_path] = tuple(
-                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
-                        )
-                elif hasattr(v, "shape") and v.dtype == "string":
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = (len(v.numpy()),)
-                    else:
-                        max_dict[cur_path] = max(
-                            ((len(v.numpy()),), max_dict[cur_path])
-                        )
-
-        if sampling_amount > 0:
-            sampling(ds)
-
-        def generate_schema(ds):
-            tf_schema = ds[1].features
-            return to_hub(tf_schema).dict_
-
-        def to_hub(tf_dt, max_shape=None, path=""):
-            if isinstance(tf_dt, tfds.features.FeaturesDict):
-                return sdict_to_hub(tf_dt, path=path)
-            elif isinstance(tf_dt, tfds.features.Image):
-                return image_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.ClassLabel):
-                return class_label_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Video):
-                return video_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Text):
-                return text_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.BBoxFeature):
-                return bbox_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Audio):
-                return audio_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt, max_shape=max_shape)
-            else:
-                if tf_dt.dtype.name != "string":
-                    return tf_dt.dtype.name
-
-        def sdict_to_hub(tf_dt, path=""):
-            d = {}
-            for key, value in tf_dt.items():
-                key = key.replace("/", "_")
-                cur_path = path + "/" + key
-                d[key] = to_hub(value, max_dict[cur_path], cur_path)
-            return SchemaDict(d)
-
-        def tensor_to_hub(tf_dt, max_shape=None):
-            if tf_dt.dtype.name == "string":
-                max_shape = max_shape or (100000,)
-                return Text(shape=(None,), dtype="int64", max_shape=(100000,))
-            dt = tf_dt.dtype.name
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
-
-        def image_to_hub(tf_dt, max_shape=None):
-            dt = tf_dt.dtype.name
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            return Image(
-                shape=tf_dt.shape,
-                dtype=dt,
-                max_shape=max_shape,  # compressor="png"
-            )
-
-        def class_label_to_hub(tf_dt, max_shape=None):
-            if hasattr(tf_dt, "_num_classes"):
-                return ClassLabel(
-                    num_classes=tf_dt.num_classes,
-                )
-            else:
-                return ClassLabel(names=tf_dt.names)
-
-        def text_to_hub(tf_dt, max_shape=None):
-            max_shape = max_shape or (100000,)
-            dt = "int64"
-            return Text(shape=(None,), dtype=dt, max_shape=max_shape)
-
-        def bbox_to_hub(tf_dt, max_shape=None):
-            dt = tf_dt.dtype.name
-            return BBox(dtype=dt)
-
-        def sequence_to_hub(tf_dt, max_shape=None):
-            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
-
-        def audio_to_hub(tf_dt, max_shape=None):
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                100000 if dim is None else dim for dim in tf_dt.shape
-            )
-            dt = tf_dt.dtype.name
-            return Audio(
-                shape=tf_dt.shape,
-                dtype=dt,
-                max_shape=max_shape,
-                file_format=tf_dt._file_format,
-                sample_rate=tf_dt._sample_rate,
-            )
-
-        def video_to_hub(tf_dt, max_shape=None):
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            dt = tf_dt.dtype.name
-            return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
-
-        my_schema = generate_schema(ds_info)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                d[k] = transform_numpy(v) if isinstance(v, dict) else v.numpy()
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            return transform_numpy(sample)
-
-        return my_transform(ds)
+        from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
 
     @staticmethod
     def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
@@ -1145,84 +831,9 @@ class Dataset:
             how many threads or processes to use
         """
 
-        if "torch" not in sys.modules:
-            raise ModuleNotInstalledException("torch")
-        else:
-            import torch
+        from .integrations import from_pytorch
 
-            global torch
-
-        max_dict = defaultdict(lambda: None)
-
-        def sampling(ds):
-            for sample in ds:
-                dict_sampling(sample)
-
-        def dict_sampling(d, path=""):
-            for k, v in d.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    dict_sampling(v, path=cur_path)
-                elif isinstance(v, str):
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = (len(v),)
-                    else:
-                        max_dict[cur_path] = max(((len(v)),), max_dict[cur_path])
-                elif hasattr(v, "shape"):
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = v.shape
-                    else:
-                        max_dict[cur_path] = tuple(
-                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
-                        )
-
-        sampling(dataset)
-
-        def generate_schema(dataset):
-            sample = dataset[0]
-            return dict_to_hub(sample).dict_
-
-        def dict_to_hub(dic, path=""):
-            d = {}
-            for k, v in dic.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    d[k] = dict_to_hub(v, path=cur_path)
-                else:
-                    value_shape = v.shape if hasattr(v, "shape") else ()
-                    if isinstance(v, torch.Tensor):
-                        v = v.numpy()
-                    shape = tuple(None for it in value_shape)
-                    max_shape = (
-                        max_dict[cur_path] or tuple(10000 for it in value_shape)
-                        if not isinstance(v, str)
-                        else (10000,)
-                    )
-                    dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
-                    dtype = "int64" if isinstance(v, str) else dtype
-                    d[k] = (
-                        Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
-                        if not isinstance(v, str)
-                        else Text(shape=(None,), dtype=dtype, max_shape=max_shape)
-                    )
-            return SchemaDict(d)
-
-        my_schema = generate_schema(dataset)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                d[k] = transform_numpy(v) if isinstance(v, dict) else v
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            return transform_numpy(sample)
-
-        return my_transform(dataset)
+        from_pytorch(dataset, scheduler, workers)
 
     @staticmethod
     def from_directory(
@@ -1374,86 +985,3 @@ class Dataset:
 
         ds = upload_data(zip(labels_list, images, dataype))
         return ds
-
-
-class TorchDataset:
-    def __init__(
-        self, ds, transform=None, inplace=True, output_type=dict, indexes=None
-    ):
-        self._ds = None
-        self._url = ds.url
-        self._token = ds.token
-        self._transform = transform
-        self.inplace = inplace
-        self.output_type = output_type
-        self.indexes = indexes
-        self._inited = False
-
-    def _do_transform(self, data):
-        return self._transform(data) if self._transform else data
-
-    def _init_ds(self):
-        """
-        For each process, dataset should be independently loaded
-        """
-        if self._ds is None:
-            self._ds = Dataset(self._url, token=self._token, lock_cache=False)
-        if not self._inited:
-            self._inited = True
-            self._samples_in_chunks = {
-                key: (None in value.shape) and 1 or value.chunks[0]
-                for key, value in self._ds._tensors.items()
-            }
-            self._active_chunks = {}
-            self._active_chunks_range = {}
-
-    def __len__(self):
-        self._init_ds()
-        return len(self.indexes) if isinstance(self.indexes, list) else 1
-
-    def _get_active_item(self, key, index):
-        active_range = self._active_chunks_range.get(key)
-        samples_per_chunk = self._samples_in_chunks[key]
-        if active_range is None or index not in active_range:
-            active_range_start = index - index % samples_per_chunk
-            active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
-            )
-            self._active_chunks_range[key] = active_range
-            self._active_chunks[key] = self._ds._tensors[key][
-                active_range.start : active_range.stop
-            ]
-        return self._active_chunks[key][index % samples_per_chunk]
-
-    def __getitem__(self, ind):
-        if isinstance(self.indexes, int):
-            if ind != 0:
-                raise OutOfBoundsError(f"Got index {ind} for dataset of length 1")
-            index = self.indexes
-        else:
-            index = self.indexes[ind]
-        self._init_ds()
-        d = {}
-        for key in self._ds._tensors.keys():
-            split_key = key.split("/")
-            cur = d
-            for i in range(1, len(split_key) - 1):
-                if split_key[i] not in cur.keys():
-                    cur[split_key[i]] = {}
-                cur = cur[split_key[i]]
-
-            item = self._get_active_item(key, index)
-            if not isinstance(item, bytes) and not isinstance(item, str):
-                t = item
-                if self.inplace:
-                    t = torch.tensor(t)
-                cur[split_key[-1]] = t
-        d = self._do_transform(d)
-        if self.inplace & (self.output_type != dict) & (isinstance(d, dict)):
-            d = self.output_type(d.values())
-        return d
-
-    def __iter__(self):
-        self._init_ds()
-        for i in range(len(self)):
-            yield self[i]
