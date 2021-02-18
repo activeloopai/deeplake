@@ -110,6 +110,21 @@ class AzureBlobFileSystem(AbstractFileSystem):
         it = container.list_blobs(name_starts_with=sub_path)
         return len(list(it)) > 0
 
+    def ls(self, path, refresh=True):
+        """
+        Finds all the files in the given path in the File System
+        Returns
+        -------
+        List of full paths of all files found in given path
+        """
+        return self.find(path)
+
+    def isfile(self, path):
+        """Is this entry file-like?
+        Azure fs only stores path to files and not folders. This is always true
+        """
+        return True
+
     def find(self, path):
         """
         Finds all the files in the given path in the File System
@@ -123,7 +138,7 @@ class AzureBlobFileSystem(AbstractFileSystem):
         sub_path = "/".join(split_path[1:])
         container = self.service_client.get_container_client(container_name)
         it = container.list_blobs(name_starts_with=sub_path)
-        return [item["name"] for item in it]
+        return [f"{container_name}/{item['name']}" for item in it]
 
     def rm(self, path, recursive=False, maxdepth=None):
         """Removes all the files in the given path"""
@@ -161,6 +176,12 @@ class AzureBlobFileSystem(AbstractFileSystem):
         sub_path = "/".join(split_path[1:])
         blob_client = self.service_client.get_blob_client(container_name, sub_path)
         return blob_client.download_blob().readall()
+
+    def cat_file(self, path):
+        return self.download(path)
+
+    def pipe_file(self, path, value):
+        return self.upload(path, value)
 
 
 class FSMap(MutableMapping):

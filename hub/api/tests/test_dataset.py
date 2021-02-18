@@ -11,12 +11,13 @@ import shutil
 import cloudpickle
 import pickle
 from hub.cli.auth import login_fn
-from hub.exceptions import HubException, LargeShapeFilteringException
+from hub.exceptions import DirectoryNotEmptyException
 import numpy as np
 import pytest
 from hub import transform
+from hub import load
 import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict
+from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict, ClassLabel
 from hub.utils import (
     gcp_creds_exist,
     hub_creds_exist,
@@ -456,6 +457,57 @@ def test_text_dataset():
     assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
 
 
+def test_dataset_from_directory():
+    def create_image(path_to_direcotry):
+        from PIL import Image
+
+        shape = (512, 512, 3)
+        for i in range(10):
+            img = np.ones(shape, dtype="uint8")
+            img = Image.fromarray(img)
+            img.save(os.path.join(path_to_direcotry, str(i) + ".png"))
+
+    def data_in_dir(path_to_direcotry):
+        if os.path.exists(path_to_direcotry):
+            create_image(path_to_direcotry)
+        else:
+            os.mkdir(os.path.join(path_to_direcotry))
+            create_image(path_to_direcotry)
+
+    def root_dir_image(root):
+        if os.path.exists(root):
+            import shutil
+
+            shutil.rmtree(root)
+        os.mkdir(root)
+        for i in range(10):
+            dir_name = "data_" + str(i)
+            data_in_dir(os.path.join(root, dir_name))
+
+    def del_data(*path_to_dir):
+        for i in path_to_dir:
+            import shutil
+
+            shutil.rmtree(i)
+
+    root_url = "./data/categorical_label_data"
+    store_url = "./data/categorical_label_data_store"
+
+    root_dir_image(root_url)
+
+    ds = Dataset.from_directory(root_url)
+    ds.store(store_url)
+
+    ds = load(store_url)
+
+    labels = ClassLabel(names=os.listdir(root_url))
+    label = os.listdir(root_url)
+
+    assert ds["image", 0].compute().shape == (512, 512, 3)
+    assert ds["label", 0].compute() == labels.str2int(label[0])
+    del_data(root_url, store_url)
+
+
 @pytest.mark.skipif(
     not transformers_loaded(), reason="requires transformers to be loaded"
 )
@@ -637,7 +689,7 @@ def test_datasetview_repr():
     url = "./data/test/dsv_repr"
     ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
     dsv = ds[2:]
-    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))})url='./data/test/dsv_repr', shape=(9,), mode='w'))"
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'))"
     assert dsv.__repr__() == print_text
 
 
@@ -748,12 +800,155 @@ def test_dataset_assign_value():
     assert ds["text", 6].compute() == "YGFJN75NF"
 
 
-def test_dataset_filtering():
+simple_schema = {"num": "uint8"}
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_dataset_copy_s3_local():
+    ds = Dataset(
+        "./data/testing/cp_original_data_local", shape=(100,), schema=simple_schema
+    )
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1")
+    ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not gcp_creds_exist(), reason="requires gcp credentials")
+def test_dataset_copy_gcs_local():
+    ds = Dataset(
+        "./data/testing/cp_original_ds_local_3", shape=(100,), schema=simple_schema
+    )
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1")
+    ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not azure_creds_exist(), reason="requires s3 credentials")
+def test_dataset_copy_azure_local():
+    token = {"account_key": os.getenv("ACCOUNT_KEY")}
+    ds = Dataset(
+        "https://activeloop.blob.core.windows.net/activeloop-hub/cp_original_test_ds_azure_1",
+        token=token,
+        shape=(100,),
+        schema=simple_schema,
+    )
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
+    ds3 = ds2.copy(
+        "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+        token=token,
+    )
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
+def test_dataset_copy_hub_local():
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    login_fn("testingacc", password)
+    ds = Dataset("testingacc/cp_original_ds_hub_1", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
+    ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+@pytest.mark.skipif(
+    not (gcp_creds_exist() and s3_creds_exist()),
+    reason="requires s3 and gcs credentials",
+)
+def test_dataset_copy_gcs_s3():
+    ds = Dataset(
+        "s3://snark-test/cp_original_ds_s3_2", shape=(100,), schema=simple_schema
+    )
+    for i in range(100):
+        ds["num", i] = 2 * i
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2")
+    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3")
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+def test_dataset_copy_exception():
+    ds = Dataset("./data/test_data_cp", shape=(100,), schema=simple_schema)
+    ds2 = Dataset("./data/test_data_cp_2", shape=(100,), schema=simple_schema)
+    for i in range(100):
+        ds["num", i] = i
+        ds2["num", i] = 2 * i
+    ds.flush()
+    ds2.flush()
+    with pytest.raises(DirectoryNotEmptyException):
+        ds3 = ds.copy("./data/test_data_cp_2")
+    ds.delete()
+    ds2.delete()
+
+
+def test_dataset_filter():
+    def abc_filter(sample):
+        return sample["ab"].compute().startswith("abc")
+
+    my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
+    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    for i in range(10):
+        ds["img", i] = i * np.ones((100, 100))
+        ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
+
+    ds2 = ds.filter(abc_filter)
+    assert ds2.indexes == [0, 2, 4, 6, 8]
+
+
+def test_datasetview_filter():
+    def abc_filter(sample):
+        return sample["ab"].compute().startswith("abc")
+
+    my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
+    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    for i in range(10):
+        ds["img", i] = i * np.ones((100, 100))
+        ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
+    dsv = ds[2:7]
+    ds2 = dsv.filter(abc_filter)
+    assert ds2.indexes == [2, 4, 6]
+    dsv2 = ds[2]
+    ds3 = dsv2.filter(abc_filter)
+    assert ds3.indexes == 2
+
+
+def test_dataset_filter_2():
     my_schema = {
         "fname": Text((None,), max_shape=(10,)),
         "lname": Text((None,), max_shape=(10,)),
     }
-    ds = Dataset("./test/filtering", shape=(100,), schema=my_schema, mode="w")
+    ds = Dataset("./data/tests/filtering", shape=(100,), schema=my_schema, mode="w")
     for i in range(100):
         ds["fname", i] = "John"
         ds["lname", i] = "Doe"
@@ -764,7 +959,9 @@ def test_dataset_filtering():
     for i in [15, 31, 25, 75, 3, 6]:
         ds["lname", i] = "loop"
 
-    dsv_combined = ds.filter({"fname": "Active", "lname": "loop"})
+    dsv_combined = ds.filter(
+        lambda x: x["fname"].compute() == "Active" and x["lname"].compute() == "loop"
+    )
     tsv_combined_fname = dsv_combined["fname"]
     tsv_combined_lname = dsv_combined["lname"]
     for item in dsv_combined:
@@ -773,8 +970,8 @@ def test_dataset_filtering():
         assert item.compute() == "Active"
     for item in tsv_combined_lname:
         assert item.compute() == "loop"
-    dsv_1 = ds.filter({"fname": "Active"})
-    dsv_2 = dsv_1.filter({"lname": "loop"})
+    dsv_1 = ds.filter(lambda x: x["fname"].compute() == "Active")
+    dsv_2 = dsv_1.filter(lambda x: x["lname"].compute() == "loop")
     for item in dsv_1:
         assert item.compute()["fname"] == "Active"
     tsv_1 = dsv_1["fname"]
@@ -789,8 +986,8 @@ def test_dataset_filtering():
     assert dsv_1.indexes == [1, 3, 6, 15, 63, 75, 96]
     assert dsv_2.indexes == [3, 6, 15, 75]
 
-    dsv_3 = ds.filter({"lname": "loop"})
-    dsv_4 = dsv_3.filter({"fname": "Active"})
+    dsv_3 = ds.filter(lambda x: x["lname"].compute() == "loop")
+    dsv_4 = dsv_3.filter(lambda x: x["fname"].compute() == "Active")
     for item in dsv_3:
         assert item.compute()["lname"] == "loop"
     for item in dsv_4:
@@ -803,52 +1000,48 @@ def test_dataset_filtering():
         "lname": Text((None,), max_shape=(10,)),
         "image": Image((1920, 1080, 3)),
     }
-    ds = Dataset("./test/filtering2", shape=(100,), schema=my_schema2, mode="w")
-    with pytest.raises(LargeShapeFilteringException):
-        ds.filter({"image": np.ones((1920, 1080, 3))})
+    ds = Dataset("./data/tests/filtering2", shape=(100,), schema=my_schema2, mode="w")
     with pytest.raises(KeyError):
-        ds.filter({"random": np.ones((1920, 1080, 3))})
+        ds.filter(lambda x: (x["random"].compute() == np.ones((1920, 1080, 3))).all())
 
     for i in [1, 3, 6, 15, 63, 96, 75]:
         ds["fname", i] = "Active"
-    dsv = ds.filter({"fname": "Active"})
-    with pytest.raises(LargeShapeFilteringException):
-        dsv.filter({"image": np.ones((1920, 1080, 3))})
+    dsv = ds.filter(lambda x: x["fname"].compute() == "Active")
     with pytest.raises(KeyError):
-        dsv.filter({"random": np.ones((1920, 1080, 3))})
+        dsv.filter(lambda x: (x["random"].compute() == np.ones((1920, 1080, 3))).all())
 
 
-def test_dataset_filtering_2():
+def test_dataset_filter_3():
     schema = {
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
     }
-    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    ds = Dataset("./data/tests/filtering_3", shape=(100,), schema=schema, mode="w")
     for i in range(100):
         ds["cl", i] = 0 if i % 5 == 0 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
     ds["cl", 4] = 2
-    ds_filtered = ds.filter({"cl": 0})
+    ds_filtered = ds.filter(lambda x: x["cl"].compute() == 0)
     assert ds_filtered.indexes == [5 * i for i in range(20)]
     with pytest.raises(ValueError):
         ds_filtered["img"].compute()
-    ds_filtered_2 = ds.filter({"cl": 2})
+    ds_filtered_2 = ds.filter(lambda x: x["cl"].compute() == 2)
     assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
     for item in ds_filtered_2:
         assert (item["img"].compute() == 4 * np.ones((5, 6, 3))).all()
         assert item["cl"].compute() == 2
 
 
-def test_dataset_filtering_3():
+def test_dataset_filter_4():
     schema = {
         "img": Image((None, None, 3), max_shape=(100, 100, 3)),
         "cl": ClassLabel(names=["cat", "dog", "horse"]),
     }
-    ds = Dataset("./test/filtering_3", shape=(100,), schema=schema, mode="w")
+    ds = Dataset("./data/tests/filtering_4", shape=(100,), schema=schema, mode="w")
     for i in range(100):
         ds["cl", i] = 0 if i < 10 else 1
         ds["img", i] = i * np.ones((5, 6, 3))
-    ds_filtered = ds.filter({"cl": 0})
+    ds_filtered = ds.filter(lambda x: x["cl"].compute() == 0)
     assert (ds_filtered[3:8, "cl"].compute() == np.zeros((5,))).all()
 
 
@@ -943,6 +1136,7 @@ if __name__ == "__main__":
     test_dataset_batch_write_2()
     test_append_dataset()
     test_dataset_2()
+
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()
@@ -951,12 +1145,12 @@ if __name__ == "__main__":
     test_dataset_view_lazy()
     test_dataset_hub()
     test_meta_information()
-    test_dataset_filtering()
-    test_dataset_filtering_2()
+    test_dataset_filter_2()
+    test_dataset_filter_3()
     test_pickleability()
     test_dataset_append_and_read()
     test_tensorview_iter()
-    test_dataset_filtering_3()
+    test_dataset_filter_4()
     test_datasetview_2()
     test_dataset_3()
     test_dataset_utils()

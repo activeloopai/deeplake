@@ -120,7 +120,7 @@ def test_to_from_tensorflow():
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
 
-    ds = ds.to_tensorflow()
+    ds = ds.to_tensorflow(include_shapes=True)
     out_ds = hub.Dataset.from_tensorflow(ds)
     res_ds = out_ds.store(
         "./data/test_from_tf/ds5", length=10
@@ -149,7 +149,7 @@ def test_to_from_tensorflow_datasetview():
     for i in range(10):
         ds["label", "d", "e", i] = i * np.ones((5, 3))
     dsv = ds[5:]
-    tds = dsv.to_tensorflow()
+    tds = dsv.to_tensorflow(include_shapes=True)
     out_ds = hub.Dataset.from_tensorflow(tds)
     res_ds = out_ds.store(
         "./data/test_from_tf/ds6", length=5
@@ -357,6 +357,12 @@ def test_to_from_pytorch():
 def test_to_pytorch_bug():
     ds = hub.Dataset("activeloop/mnist", mode="r")
     data = ds.to_pytorch()
+
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_tensorflow_bug():
+    ds = hub.Dataset("activeloop/coco_train")
+    data = ds.to_tensorflow()
 
 
 if __name__ == "__main__":

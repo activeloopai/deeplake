@@ -24,14 +24,14 @@ def test_hub_feature_flatten():
 
 
 def test_feature_dict_str():
-    input_dict = {"myint": int, "mystr": str}
+    input_dict = {"myint": "int64", "mystr": str}
     feature_dict_object = SchemaDict(input_dict)
     expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__str__()
 
 
 def test_feature_dict_repr():
-    input_dict = {"myint": int, "mystr": str}
+    input_dict = {"myint": "int64", "mystr": str}
     feature_dict_object = SchemaDict(input_dict)
     expected_output = "SchemaDict({'myint': 'int64', 'mystr': '<U0'})"
     assert expected_output == feature_dict_object.__repr__()
@@ -108,9 +108,22 @@ def test_mask():
         mask2 = Mask(shape=(11, 4, 2))
 
 
-def test_image():
+test_image_inputs = [
+    "uint32",
+    "int16",
+    "float32",
+    "float64",
+    "int8",
+    "int16",
+    "int32",
+    "double",
+]
+
+
+@pytest.mark.parametrize("test_image", test_image_inputs)
+def test_image(test_image):
     with pytest.raises(ValueError):
-        image = Image((1920, 1080, 3), "float32")
+        image = Image((1920, 1080, 3), test_image)
 
 
 def test_audio():

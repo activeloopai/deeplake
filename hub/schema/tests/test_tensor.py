@@ -68,12 +68,12 @@ def test_tensor_flattening():
 
 
 def test_primitive_str():
-    primitve_object = Primitive(int)
+    primitve_object = Primitive("int64")
     assert "'int64'" == primitve_object.__str__()
 
 
 def test_primitive_repr():
-    primitve_object = Primitive(int)
+    primitve_object = Primitive("int64")
     assert "'int64'" == primitve_object.__repr__()
 
 

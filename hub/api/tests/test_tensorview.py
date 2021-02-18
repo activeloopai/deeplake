@@ -40,6 +40,37 @@ def test_tensorview_init():
         tensorview_object_2 = TensorView(dataset=None, subpath="image")
 
 
+def test_tensorview_bug():
+    assert ds["image", 1, 2, 3, 4].slice_ == [1, 2, 3, 4]
+    assert ds["image", 1][2, 3, 4].slice_ == [1, 2, 3, 4]
+    assert ds["image", 1, 2][3, 4].slice_ == [1, 2, 3, 4]
+    assert ds["image", 1, 2, 3][4].slice_ == [1, 2, 3, 4]
+    assert ds["image", 1:5, 2:7, 3:6, 4:8].slice_ == [
+        slice(1, 5),
+        slice(2, 7),
+        slice(3, 6),
+        slice(4, 8),
+    ]
+    assert ds["image", 1:5][:, 2:7, 3:6, 4:8].slice_ == [
+        slice(1, 5),
+        slice(2, 7),
+        slice(3, 6),
+        slice(4, 8),
+    ]
+    assert ds["image", 1:5, 2:7][:, :, 3:6, 4:8].slice_ == [
+        slice(1, 5),
+        slice(2, 7),
+        slice(3, 6),
+        slice(4, 8),
+    ]
+    assert ds["image", 1:5, 2:7, 3:6][:, :, :, 4:8].slice_ == [
+        slice(1, 5),
+        slice(2, 7),
+        slice(3, 6),
+        slice(4, 8),
+    ]
+
+
 def test_tensorview_getitem():
     images_tensorview = ds["image"]
     with pytest.raises(IndexError):

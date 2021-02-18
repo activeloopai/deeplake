@@ -164,15 +164,15 @@ class ShapeArgumentNotFoundException(HubException):
         super(HubException, self).__init__(message=message)
 
 
-class SchemaArgumentNotFoundException(HubException):
-    def __init__(self):
-        message = "Parameter 'schema' should be provided for Dataset creation."
+class DirectoryNotEmptyException(HubException):
+    def __init__(self, dst_url):
+        message = f"The destination url {dst_url} for copying dataset is not empty. Delete the directory manually or use Dataset.delete if it's a Hub dataset"
         super(HubException, self).__init__(message=message)
 
 
-class LargeShapeFilteringException(HubException):
-    def __init__(self, key):
-        message = f"The shape of {key} is large (product > 100), use smaller keys for filtering"
+class SchemaArgumentNotFoundException(HubException):
+    def __init__(self):
+        message = "Parameter 'schema' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
 
 

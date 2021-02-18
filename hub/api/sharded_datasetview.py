@@ -22,8 +22,14 @@ class ShardedDatasetView:
         """
         # TODO add schema check to make sure all datasets have the same schema
 
-        self.datasets = datasets
-        self.num_samples = sum([d.shape[0] for d in self.datasets])
+        self._schema = datasets[0].schema if datasets else None
+        self.datasets = [
+            ds
+            if isinstance(ds.indexes, list)
+            else ds.dataset[ds.indexes : ds.indexes + 1]
+            for ds in datasets
+        ]
+        self.num_samples = sum([len(d) for d in self.datasets])
 
     @property
     def shape(self):
@@ -84,4 +90,4 @@ class ShardedDatasetView:
 
     @property
     def schema(self):
-        return self.datasets[0].schema
+        return self._schema

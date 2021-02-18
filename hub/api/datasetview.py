@@ -13,7 +13,7 @@ from hub.api.dataset_utils import (
     slice_split,
     str_to_int,
 )
-from hub.exceptions import LargeShapeFilteringException, NoneValueException
+from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
 from hub.schema import Sequence
 
@@ -176,29 +176,24 @@ class DatasetView:
                     current_slice = [index] + slice_list[1:]
                     self.dataset._tensors[subpath][current_slice] = assign_value[i]
 
-    def filter(self, dic):
-        """| Applies a filter to get a new datasetview that matches the dictionary provided
+    def filter(self, fn):
+        """| Applies a function on each element one by one as a filter to get a new DatasetView
 
         Parameters
         ----------
-        dic: dictionary
-            A dictionary of key value pairs, used to filter the dataset. For nested schemas use flattened dictionary representation
-            i.e instead of {"abc": {"xyz" : 5}} use {"abc/xyz" : 5}
+        fn: function
+            Should take in a single sample of the dataset and return True or False
+            This function is applied to all the items of the datasetview and retains those items that return True
         """
-        indexes = self.indexes
-        for k, v in dic.items():
-            k = k if k.startswith("/") else "/" + k
-            if k not in self.keys:
-                raise KeyError(f"Key {k} not found in the dataset")
-            tsv = self.dataset[k]
-            max_shape = tsv.dtype.max_shape
-            prod = _tuple_product(max_shape)
-            if prod > 100:
-                raise LargeShapeFilteringException(k)
-            if isinstance(indexes, list):
-                indexes = [index for index in indexes if tsv[index].compute() == v]
-            else:
-                indexes = indexes if tsv[indexes].compute() == v else []
+        indexes = []
+        if isinstance(self.indexes, int):
+            dsv = self.dataset[self.indexes]
+            if fn(dsv):
+                return DatasetView(
+                    dataset=self.dataset, lazy=self.lazy, indexes=self.indexes
+                )
+        else:
+            indexes = [index for index in self.indexes if fn(self.dataset[index])]
         return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
 
     @property
@@ -207,6 +202,10 @@ class DatasetView:
         Get Keys of the dataset
         """
         return self.dataset._tensors.keys()
+
+    @property
+    def schema(self):
+        return self.dataset.schema
 
     def _get_dictionary(self, subpath, slice_):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -250,9 +249,19 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self):
-        """Converts the dataset into a tensorflow compatible format"""
-        return self.dataset.to_tensorflow(indexes=self.indexes)
+    def to_tensorflow(self, include_shapes):
+        """|Converts the dataset into a tensorflow compatible format
+
+        Parameters
+        ----------
+        include_shapes: boolean, optional
+            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            Setting to True could lead to issues with dictionaries inside Tensors.
+        """
+
+        return self.dataset.to_tensorflow(
+            indexes=self.indexes, include_shapes=include_shapes
+        )
 
     def to_pytorch(
         self,
@@ -260,7 +269,17 @@ class DatasetView:
         inplace=True,
         output_type=dict,
     ):
-        """Converts the dataset into a pytorch compatible format"""
+        """| Converts the dataset into a pytorch compatible format.
+
+        Parameters
+        ----------
+        transform: function that transforms data in a dict format
+        inplace: bool, optional
+            Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
+            type you need for Transforms). Default is True.
+        output_type: one of list, tuple, dict, optional
+            Defines the output type. Default is dict - same as in original Hub Dataset.
+        """
         return self.dataset.to_pytorch(
             transform=transform,
             indexes=self.indexes,

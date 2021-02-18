@@ -12,6 +12,8 @@ import json
 import sys
 import traceback
 from collections import defaultdict
+import numpy as np
+from PIL import Image as im, ImageChops
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -37,19 +39,19 @@ from hub.api.dataset_utils import (
     get_value,
     slice_split,
     str_to_int,
+    _copy_helper,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
+from hub.schema import ClassLabel
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
     AddressNotFound,
     HubDatasetNotFoundException,
-    HubException,
-    LargeShapeFilteringException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
@@ -238,9 +240,8 @@ class Dataset:
         self.flush()
         self.indexes = list(range(self._shape[0]))
 
-        if needcreate and (
-            self._path.startswith("s3://snark-hub-dev/")
-            or self._path.startswith("s3://snark-hub/")
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
         ):
             subpath = self._path[5:]
             spl = subpath.split("/")
@@ -248,9 +249,10 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(
-                self.username, self.dataset_name, self.meta, public=public
-            )
+            if needcreate:
+                HubControlClient().create_dataset_entry(
+                    self.username, self.dataset_name, self.meta, public=public
+                )
 
     @property
     def mode(self):
@@ -455,7 +457,7 @@ class Dataset:
             if stored_username != current_username:
                 try:
                     fs.listdir(path)
-                except:
+                except BaseException:
                     raise WrongUsernameException(stored_username)
         meta_path = posixpath.join(path, "meta.json")
         try:
@@ -649,27 +651,56 @@ class Dataset:
         else:
             self._tensors[subpath][slice_list] = assign_value
 
-    def filter(self, dic):
-        """| Applies a filter to get a new datasetview that matches the dictionary provided
+    def filter(self, fn):
+        """| Applies a function on each element one by one as a filter to get a new DatasetView
 
         Parameters
         ----------
-        dic: dictionary
-            A dictionary of key value pairs, used to filter the dataset. For nested schemas use flattened dictionary representation
-            i.e instead of {"abc": {"xyz" : 5}} use {"abc/xyz" : 5}
+        fn: function
+            Should take in a single sample of the dataset and return True or False
+            This function is applied to all the items of the datasetview and retains those items that return True
         """
-        indexes = self.indexes
-        for k, v in dic.items():
-            k = k if k.startswith("/") else "/" + k
-            if k not in self.keys:
-                raise KeyError(f"Key {k} not found in the dataset")
-            tsv = self[k]
-            max_shape = tsv.dtype.max_shape
-            prod = _tuple_product(max_shape)
-            if prod > 100:
-                raise LargeShapeFilteringException(k)
-            indexes = [index for index in indexes if tsv[index].compute() == v]
+        indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
+
+    def copy(self, dst_url: str, token=None, fs=None, public=True):
+        """| Creates a copy of the dataset at the specified url and returns the dataset object
+        Parameters
+        ----------
+        dst_url: str
+            The destination url where dataset should be copied
+        token: str or dict, optional
+            If dst_url is refering to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        fs: optional
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the new copied dataset and
+            the dataset won't be visible in the visualizer to the public
+        """
+        self.flush()
+        destination = dst_url
+        path = _copy_helper(
+            dst_url=dst_url,
+            token=token,
+            fs=fs,
+            public=public,
+            src_url=self._path,
+            src_fs=self._fs,
+        )
+
+        #  create entry in database if stored in hub storage
+        if path.startswith("s3://snark-hub-dev/") or path.startswith("s3://snark-hub/"):
+            subpath = path[5:]
+            spl = subpath.split("/")
+            if len(spl) < 4:
+                raise ValueError("Invalid Path for dataset")
+            username = spl[-2]
+            dataset_name = spl[-1]
+            HubControlClient().create_dataset_entry(
+                username, dataset_name, self.meta, public=public
+            )
+        return hub.Dataset(destination, token=token, fs=fs, public=public)
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
@@ -724,10 +755,8 @@ class Dataset:
             type you need for Transforms). Default is True.
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
-        offset: int, optional
-            The offset from which dataset needs to be converted
-        num_samples: int, optional
-            The number of samples required of the dataset that needs to be converted
+        indexes: list or int, optional
+            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         """
         try:
             import torch
@@ -743,15 +772,16 @@ class Dataset:
             self, transform, inplace=inplace, output_type=output_type, indexes=indexes
         )
 
-    def to_tensorflow(self, indexes=None):
+    def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
 
         Parameters
         ----------
-        offset: int, optional
-            The offset from which dataset needs to be converted
-        num_samples: int, optional
-            The number of samples required of the dataset that needs to be converted
+        indexes: list or int, optional
+            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+        include_shapes: boolean, optional
+            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            Setting to True could lead to issues with dictionaries inside Tensors.
         """
         try:
             import tensorflow as tf
@@ -832,11 +862,13 @@ class Dataset:
             return d
 
         output_types = dtype_to_tf(self._schema)
-        output_shapes = get_output_shapes(self._schema)
-
-        return tf.data.Dataset.from_generator(
-            tf_gen, output_types=output_types, output_shapes=output_shapes
-        )
+        if include_shapes:
+            output_shapes = get_output_shapes(self._schema)
+            return tf.data.Dataset.from_generator(
+                tf_gen, output_types=output_types, output_shapes=output_shapes
+            )
+        else:
+            return tf.data.Dataset.from_generator(tf_gen, output_types=output_types)
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -938,7 +970,7 @@ class Dataset:
         return (
             "Dataset(schema="
             + str(self._schema)
-            + "url="
+            + ", url="
             + "'"
             + self._url
             + "'"
@@ -989,7 +1021,7 @@ class Dataset:
                 path = posixpath.join(self._path, "mode_test")
                 fs.pipe(path, bytes_)
                 fs.rm(path)
-            except:
+            except BaseException:
                 return "r"
             return "a"
 
@@ -1377,6 +1409,157 @@ class Dataset:
 
         return my_transform(dataset)
 
+    @staticmethod
+    def from_directory(
+        path_to_dir,
+        labels=None,
+        dtype="uint8",
+        scheduler: str = "single",
+        workers: int = 1,
+    ):
+        """|  This utility function is specific to create dataset from the categorical image dataset to easy use for the categorical image usecase.
+
+        Parameters
+        --------
+            path_to_dir:str
+            path of the directory where the image dataset root folder exists.
+
+            labels:list
+            passed a list of class names
+
+            dtype:str
+            datatype of the images can be defined by user.Default uint8.
+
+            scheduler: str
+            choice between "single", "threaded", "processed"
+
+            workers: int
+            how many threads or processes to use
+
+
+        ---------
+        Returns A dataset object for user use and to store a defined path.
+
+        >>>ds = Dataset.from_directory('path/test')
+        >>>ds.store('store_here')
+        """
+
+        def get_max_shape(path_to_dir):
+            """| get_max_shape from  the images.
+
+            -------
+            path_to_dir:str path to the root directory
+
+            -------
+            return the maximum shape of the image
+
+            -------
+
+            """
+            try:
+
+                for i in os.listdir(path_to_dir):
+                    for j in os.listdir(os.path.join(path_to_dir, i)):
+
+                        if j.endswith((".png", ".jpg", ".jpeg", ".tiff", ".bmp")):
+                            img_path = os.path.join(path_to_dir, i, j)
+                        else:
+                            print(
+                                f"{os.path.join(path_to_dir,i,j)} is a non image file please remove it to execute...."
+                            )
+
+                        image = im.open(img_path)
+
+                        width = set()
+                        height = set()
+                        mode = set()
+
+                        detail = list(image.size)
+
+                        width.add(detail[0])
+                        height.add(detail[1])
+
+                        if image.mode == "RGB":
+                            mode.add(3)
+                        elif image.mode == "RGBA":
+                            mode.add(4)
+                        elif image.mode == "LA":
+                            mode.add(2)
+                        else:
+                            mode.add(1)
+
+                max_shape = [max(width), max(height), max(mode)]
+                return max_shape
+            except Exception:
+                print("check your data for fix")
+
+        def make_schema(path_to_dir, labels, dtype):
+            """| make_schema internal function to generate the schema internally."""
+            max_shape = get_max_shape(path_to_dir)
+            image_shape = (None, None, None)
+            if labels is None:
+                labels = ClassLabel(names=os.listdir(path_to_dir))
+            else:
+                labels = ClassLabel(labels)
+            schema = {
+                "label": labels,
+                "image": Tensor(
+                    shape=image_shape,
+                    max_shape=max_shape,
+                    dtype=dtype,
+                ),
+            }
+
+            return schema
+
+        schema = make_schema(path_to_dir, labels, dtype)
+
+        if labels is not None:
+
+            label_dic = {}
+            for i, label in enumerate(labels):
+                label_dic[label] = i
+        else:
+            labels_v = os.listdir(path_to_dir)
+            label_dic = {}
+            for i, label in enumerate(labels_v):
+                label_dic[label] = i
+
+        @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+        def upload_data(sample):
+            """| This upload_data function is for upload the images internally using `hub.transform`."""
+
+            path_to_image = sample[1]
+
+            pre_image = im.open(path_to_image)
+            image = np.asarray(pre_image)
+            image = image.astype(sample[2])
+            image_shape = get_max_shape(path_to_dir)
+
+            if pre_image.mode == "RGB":
+                image = np.resize(image, (*image_shape[:2], 3))
+            elif pre_image.mode == "RGBA":
+                image = np.resize(image, (*image_shape[:2], 4))
+            elif pre_image.mode == "LA":
+                image = np.resize(image, (*image_shape[:2], 2))
+            else:
+                image = np.resize(image, (*image_shape[:2], 1))
+
+            return {"label": label_dic[sample[0]], "image": image}
+
+        images = []
+        labels_list = []
+        dataype = []
+        for i in os.listdir(path_to_dir):
+            for j in os.listdir(os.path.join(path_to_dir, i)):
+                image = os.path.join(path_to_dir, i, j)
+                images.append(image)
+                labels_list.append(i)
+                dataype.append(dtype)
+
+        ds = upload_data(zip(labels_list, images, dataype))
+        return ds
+
 
 class TorchDataset:
     def __init__(
@@ -1451,7 +1634,7 @@ class TorchDataset:
                     t = torch.tensor(t)
                 cur[split_key[-1]] = t
         d = self._do_transform(d)
-        if self.inplace & (self.output_type != dict) & (type(d) == dict):
+        if self.inplace & (self.output_type != dict) & (isinstance(d, dict)):
             d = self.output_type(d.values())
         return d
 
