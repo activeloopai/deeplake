@@ -9,6 +9,8 @@ from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
 from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
+import hashlib
+import time
 
 
 def slice_split(slice_):

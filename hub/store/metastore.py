@@ -124,10 +124,7 @@ class MetaStorage(MutableMapping):
     def __delitem__(self, k: str):
         filename = posixpath.split(k)[1]
         if not filename.startswith("."):
-            filename = (
-                self.find_chunk(filename)
-                or f"{filename}:{self._ds._version_node._commit_id}"
-            )
+            filename = self.find_chunk(filename) or f"{filename}:{self._ds._commit_id}"
         if filename.startswith("."):
             meta = json.loads(self.to_str(self._meta["meta.json"]))
             meta[k] = meta.get(k) or dict()
