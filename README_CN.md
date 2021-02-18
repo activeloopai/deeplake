@@ -26,7 +26,7 @@
 </a>
 </p>
 
-<h3 align="center"> Hub 向您展示数据的新纪元 </br> 最快的方式来访问 & 管理 PyTorch/TensorFlow 的数据和建立可扩展性的数据工作流 </h3>
+<h3 align="center"> Hub 向您展示数据的新纪元 </br> 以最快的方式储存、访问和管理 PyTorch与TensorFlow数据，并建立可扩展的数据工作流 </h3>
 
 ---
 
@@ -34,20 +34,28 @@
 
 ### Hub 的作用是什么?
 
-新时代的的软件需要新时代的数据，而 Hub 提供这些数据。数据科学家和 ML 科学家应该专注于训练模型，但现在我们都在花大量时间管理和预处理数据。Hub 致力于改进这一现状。我们把您的数据以单一的 类-numpy 式数组为形式储存在云端，所以您可以无缝的从任何设备访问您的数据。Hub 使得任何储存在云端的数据类型（图像，文本，音频，或者视频）用起来快的像本地服务器一样。有着一样的数据库，小组可以一直保持同步。
+新时代的的软件需要新时代的数据，而 Hub 提供这些数据。数据科学家与机器学习研究者常常花费大量时间管理与预处理数据，因而牺牲了训练模型的时间。为了改进这一现状，我们创造了 Hub 。我们将您可达PB量级的数据转换为单个类numpy数组，将其存储在云端，使您可以无缝地从任何设备访问您的数据。Hub 使任何储存在云端的数据类型（图像、文本、音频或视频）像在本地服务器一样能被快速使用。通过使用一致的数据库，您的小组可以一直保持同步。
 
-Waymo, Red Cross, World Resources Institute, Omdena 和其他很多组织都在使用 Hub!
+Waymo、红十字会、世界资源协会、Omdena 等组织都在使用 Hub。
 
 ### 特点 
 
-* 以版本控制工具储存/回复大型数据库。
-* 像 Google Docs 一样协作: 多个数据科学家同时处理一组数据，并且没有同步冲突
+* 通过版本控制工具储存和获取大型数据库
+* 像 Google Docs 一样协作: 多个数据科学家不间断地同时处理一组数据
 * 同时从多个设备访问
-* 与您的 ML 工具整合， 比如 Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
-* 可部署在 Google Cloud, S3, Azure，和 Activeloop (预设选择，并且是免费的!) 
-* 随心所欲地创建任意大小的储存数组. 您甚至可以储存 100k x 100k 大小的图片!
-* 动态地保存样本的形状. 因此您可以把大数组和小数组储存为一条数组
+* 部署在任何地方 - 本地、Google Cloud、S3、Azure或是Activeloop (默认——并且免费！) 
+* 与您的机器学习工具整合， 比如 Numpy、Dask、Ray、[PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html)或[TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
+* 随心所欲地创建任意大小的数组. 您甚至可以储存 100k x 100k 大小的图片!
+* 样本的形状是动态的. 因此您可以把不同大小的数组储存在一个数组内
 * 无需冗长的操作，用几秒种即可[可视化](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme)数据中的片段
+
+<p align="center">
+    <br>
+    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
+    </br>
+使用app.activeloop.ai（免费工具）可视化上传到Hub的数据集。
+
+</p>
 
 ## 如何开始
 
