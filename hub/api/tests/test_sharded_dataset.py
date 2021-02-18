@@ -37,5 +37,30 @@ def test_sharded_dataset():
     assert ds2.identify_shard(5) == (0, 0)
 
 
+def test_sharded_dataset_with_views():
+    schema = {"first": "float", "second": "float"}
+    ds = Dataset("./data/test_sharded_ds", shape=(10,), schema=schema, mode="w")
+    for i in range(10):
+        ds[i, "first"] = i
+        ds[i, "second"] = 2 * i + 1
+
+    dsv = ds[3:5]
+    dsv2 = ds[1]
+    dsv3 = ds[8:]
+    datasets = [dsv, ds, dsv2, dsv3]
+    sharded_ds = ShardedDatasetView(datasets)
+    for i in range(2):
+        assert sharded_ds[i, "first"].compute() == i + 3
+        assert sharded_ds[i, "second"].compute() == 2 * (i + 3) + 1
+    for i in range(2, 12):
+        assert sharded_ds[i, "first"].compute() == i - 2
+        assert sharded_ds[i, "second"].compute() == 2 * (i - 2) + 1
+    assert sharded_ds[12, "first"].compute() == 1
+    assert sharded_ds[12, "second"].compute() == 3
+    for i in range(13, 15):
+        assert sharded_ds[i, "first"].compute() == i - 5
+        assert sharded_ds[i, "second"].compute() == 2 * (i - 5) + 1
+
+
 if __name__ == "__main__":
     test_sharded_dataset()
