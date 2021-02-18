@@ -15,7 +15,7 @@ import hub.schema.serialize
 import hub.schema.deserialize
 
 
-def to_pytorch(
+def _to_pytorch(
     dataset,
     transform=None,
     inplace=True,
@@ -50,7 +50,7 @@ def to_pytorch(
     )
 
 
-def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
+def _from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     """| Converts a pytorch dataset object into hub format
 
     Parameters
@@ -143,7 +143,7 @@ def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     return my_transform(dataset)
 
 
-def to_tensorflow(dataset, indexes=None, include_shapes=False):
+def _to_tensorflow(dataset, indexes=None, include_shapes=False):
     """| Converts the dataset into a tensorflow compatible format
 
     Parameters
@@ -151,7 +151,7 @@ def to_tensorflow(dataset, indexes=None, include_shapes=False):
     indexes: list or int, optional
         The samples to be converted into tensorflow format. Takes all samples in dataset by default.
     include_shapes: boolean, optional
-        False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+        False by default. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
         Setting to True could lead to issues with dictionaries inside Tensors.
     """
     try:
@@ -242,7 +242,7 @@ def to_tensorflow(dataset, indexes=None, include_shapes=False):
         return tf.data.Dataset.from_generator(tf_gen, output_types=output_types)
 
 
-def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
+def _from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
     """Converts a tensorflow dataset into hub format.
 
     Parameters
@@ -322,7 +322,7 @@ def from_tensorflow(ds, scheduler: str = "single", workers: int = 1):
     return my_transform(ds)
 
 
-def from_tfds(
+def _from_tfds(
     dataset,
     split=None,
     num: int = -1,

@@ -579,9 +579,9 @@ class Dataset:
         indexes: list or int, optional
             The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         """
-        from .integrations import to_pytorch
+        from .integrations import _to_pytorch
 
-        ds = to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False):
@@ -592,12 +592,12 @@ class Dataset:
         indexes: list or int, optional
             The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         include_shapes: boolean, optional
-            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            False by default. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
         """
-        from .integrations import to_tensorflow
+        from .integrations import _to_tensorflow
 
-        ds = to_tensorflow(self, indexes, include_shapes)
+        ds = _to_tensorflow(self, indexes, include_shapes)
         return ds
 
     def _get_dictionary(self, subpath, slice_=None):
@@ -777,9 +777,9 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
         >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
         """
-        from .integrations import from_tensorflow
+        from .integrations import _from_tensorflow
 
-        ds = from_tensorflow(ds, scheduler, workers)
+        ds = _from_tensorflow(ds, scheduler, workers)
         return ds
 
     @staticmethod
@@ -816,9 +816,9 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
         >>> res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
-        from .integrations import from_tfds
+        from .integrations import _from_tfds
 
-        ds = from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
+        ds = _from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
         return ds
 
     @staticmethod
@@ -835,9 +835,9 @@ class Dataset:
             how many threads or processes to use
         """
 
-        from .integrations import from_pytorch
+        from .integrations import _from_pytorch
 
-        ds = from_pytorch(dataset, scheduler, workers)
+        ds = _from_pytorch(dataset, scheduler, workers)
         return ds
 
     @staticmethod
