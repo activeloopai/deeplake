@@ -1,9 +1,8 @@
- <p align="center">
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
 </p>
-
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -20,13 +19,15 @@
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
+    <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button">
+  <img src="https://i.ibb.co/YBTCcJc/output-onlinepngtools.png" height="35" /></a>
 
 ---
 
 </a>
 </p>
 
-<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow. Scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow.  Works locally or on any cloud. Scalable data pipelines.</h3>
 
 ---
 
@@ -186,6 +187,17 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
+
+## Why Hub specifically?
+
+There are quite a few dataset management libraries which offer functionality that might seem similar to Hub. In fact, quite a few users migrate data from PyTorch or Tensorflow Datasets to Hub. Here are a few startling differences you will encounter after switching to Hub:
+* the data is provided in chunks, which you may stream from a remote location, instead of downloading all of it at once
+* as only the necessary portion of the dataset is evaluated, you are able to work on the data immediately
+* you are able to store the data that would not fit in your memory in its entirety
+* you may version control and collaborate with multiple users on your datasets across different machines
+* you are equipped with tools that enhance your understanding of the data in a manner of seconds, such as our visualization tool
+* you can easily prepare your data for multiple training libraries at ones (e.g. you can use the same dataset for training with PyTorch and Tensorflow)
+
 
 ## Community
 
