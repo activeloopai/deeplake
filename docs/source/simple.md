@@ -21,7 +21,7 @@ Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked
     pip3 install hub
     ```
 
-2. Register and authenticate to uploade datasests
+2. Register and authenticate to upload datasets
     ```
     hub register
     hub login
