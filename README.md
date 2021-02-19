@@ -1,9 +1,8 @@
- <p align="center">
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
 </p>
-
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -20,15 +19,19 @@
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
+    <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button">
+  <img src="https://i.ibb.co/YBTCcJc/output-onlinepngtools.png" height="35" /></a>
 
 ---
 
 </a>
 </p>
 
-<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to access & manage datasets for PyTorch/TensorFlow, and build scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow.  Works locally or on any cloud. Scalable data pipelines.</h3>
 
 ---
+
+[ English | [简体中文](./README_CN.md) ]
 
 ### What is Hub for?
 
@@ -41,39 +44,52 @@ Hub is being used by Waymo, Red Cross, World Resources Institute, Omdena, and ot
 * Store and retrieve large datasets with version-control
 * Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
 * Access from multiple machines simultaneously
+* Deploy anywhere - locally, on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
 * Integrate with your ML tools like Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), or [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
-* Deploy on Google Cloud, S3, Azure as well as Activeloop (by default - and for free!) 
 * Create arrays as big as you want. You can store images as big as 100k by 100k!
 * Keep shape of each sample dynamic. This way you can store small and big arrays as 1 array. 
 * [Visualize](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) any slice of the data in a matter of seconds without redundant manipulations
 
+ <p align="center">
+    <br>
+    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
+    </br>
+Visualization of a dataset uploaded to Hub via app.activeloop.ai (free tool).
+
+</p>
+
+
 ## Getting Started
+Work with public or your own data, locally or on any cloud.
 
-### Access public data. Fast
+### Access public data. Fast.
 
-To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API, as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**. 
+To load a public dataset, one needs to write dozens of lines of code and spend hours accessing and understanding the API as well as downloading the data. With Hub, you only need 2 lines of code, and you **can get started working on your dataset in under 3 minutes**.
 
 ```sh
 pip3 install hub
 ```
 
-You can access public datasets with a few lines of code.
+Access public datasets in Hub by following a straight-forward convention which merely requires a few lines of simple code. Run this excerpt to get the first thousand images in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
 from hub import Dataset
 
-mnist = Dataset("activeloop/mnist")
+mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
+# saving time with *compute* to retrieve just the necessary data
 mnist["image"][0:1000].compute()
 ```
+You can find all the other popular datasets on [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ### Train a model
 
-Load the data and directly train your model using pytorch
+Load the data and train your model **directly**. Hub is integrated with PyTorch and TensorFlow and performs conversions between formats in an understandable fashion. Take a look at the example with PyTorch below:
 
 ```python
 from hub import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
+# converting MNIST to PyTorch format
 mnist = mnist.to_pytorch(lambda x: (x["image"], x["label"]))
 
 train_loader = torch.utils.data.DataLoader(mnist, batch_size=1, num_workers=0)
@@ -83,37 +99,43 @@ for image, label in train_loader:
 ```
 
 ### Create a local dataset 
-
+If you want to work on your own data locally, you can start by creating a dataset:
 ```python
 from hub import Dataset, schema
 import numpy as np
 
 ds = Dataset(
-    "./data/dataset_name",
-    shape = (4,),
-    mode = "w+",
-    schema = {
+    "./data/dataset_name",  # file path to the dataset
+    shape = (4,),  # follows numpy shape convention
+    mode = "w+",  # reading & writing mode
+    schema = {  # named blobs of data that may specify types
+    # Tensor is a generic structure that can contain any type of data
         "image": schema.Tensor((512, 512), dtype="float"),
         "label": schema.Tensor((512, 512), dtype="float"),
     }
 )
 
+# filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.commit()  # executing the creation of the dataset
 ```
 
-You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path [more here](https://docs.activeloop.ai/en/latest/simple.html#data-storage).
+You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path. [Here](https://docs.activeloop.ai/en/latest/simple.html#data-storage) you can find more information on cloud storage.
+Also, if you need a publicly available dataset that you cannot find in the Hub, you may [file a request](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=[FEATURE]+New+Dataset+Required%3A+%2Adataset_name%2A). We will enable it for everyone as soon as we can!
 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
-1. Register a free account at [Activeloop](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally
+1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
 ```sh
 hub register
 hub login
+
+# alternatively, add username and password as arguments (use on platforms like Kaggle)
+hub login -u username -p password
 ```
 
-2. Then create a dataset and upload
+2. Then create a dataset, specifying its name and upload it to your account. For instance:
 ```python
 from hub import Dataset, schema
 import numpy as np
@@ -133,7 +155,7 @@ ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()
 ```
 
-3. Access it from anywhere else in the world, on any device having a command line.
+3. Access it from anywhere else in the world, on any device having a command line:
 ```python
 from hub import Dataset
 
@@ -143,7 +165,21 @@ ds = Dataset("username/dataset_name")
 
 ## Documentation
 
-For more advanced data pipelines like uploading large datasets or applying many transformations, please read the [docs](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+
+## Tutorial Notebooks
+The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and notebooks giving an overview of Hub. Some of the notebooks are listed of below.
+
+| Notebook  	|   Description	|   	|
+|:---	|:---	|---:	|
+| [Uploading Images](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201a%20-%20Uploading%20Images.ipynb) | Overview on how to upload and store images on Hub |  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201a%20-%20Uploading%20Images.ipynb) |
+| [Uploading Dataframes](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201b%20-%20Uploading%20Dataframes.ipynb)  	| Overview on how to upload Dataframes on Hub  	| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201b%20-%20Uploading%20Dataframes.ipynb)  	|
+| [Uploading Audio](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) | Explains how to handle audio data in Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) |
+| [Retrieving Remote Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) | Explains how to retrieve Data| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) |
+| [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
+| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
+| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) |
+
 
 ## Use Cases
 * **Satellite and drone imagery**: [Smarter farming with scalable aerial pipelines](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [Mapping Economic Well-being in India](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [Fighting desert Locust in Kenya with Red Cross](https://omdena.com/projects/ai-desert-locust/)
@@ -152,22 +188,56 @@ For more advanced data pipelines like uploading large datasets or applying many 
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
 
+## Why Hub specifically?
+
+There are quite a few dataset management libraries which offer functionality that might seem similar to Hub. In fact, quite a few users migrate data from PyTorch or Tensorflow Datasets to Hub. Here are a few startling differences you will encounter after switching to Hub:
+* the data is provided in chunks, which you may stream from a remote location, instead of downloading all of it at once
+* as only the necessary portion of the dataset is evaluated, you are able to work on the data immediately
+* you are able to store the data that would not fit in your memory in its entirety
+* you may version control and collaborate with multiple users on your datasets across different machines
+* you are equipped with tools that enhance your understanding of the data in a manner of seconds, such as our visualization tool
+* you can easily prepare your data for multiple training libraries at ones (e.g. you can use the same dataset for training with PyTorch and Tensorflow)
+
+
 ## Community
 
-Join our [Slack community](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
+Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
-As always, thanks to our amazing contributors!     </br>
+As always, thanks to our amazing contributors!    
 
-[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
+<a href="https://github.com/activeloopai/hub/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=activeloopai/hub" />
+</a>
 
+Made with [contributors-img](https://contrib.rocks).
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) to know how to get started with making contributions to Hub.
 
 ## Examples
-Activeloop’s Hub format lets you achieve faster inference at a lower cost. Test out the datasets we’ve converted into Hub format - see for yourself!
-- [Waymo Open Dataset](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
-- [Aptiv nuScenes](https://medium.com/snarkhub/snark-hub-is-hosting-nuscenes-dataset-for-autonomous-driving-1470ae3e1923)
+Activeloop's Hub format lets you achieve faster inference at a lower cost. We have 30+ popular datasets already on our platform. These include:
+- COCO
+- CIFAR-10
+- PASCAL VOC
+- Cars196
+- KITTI
+- EuroSAT 
+- Caltech-UCSD Birds 200
+- Food101
 
+Check these and many more popular datasets on our [visualizer web app](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) and load them directly for model training!
+
+## README Badge
+
+Using Hub? Add a README badge to let everyone know: 
+
+
+[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+
+```
+[![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
+```
 
 ## Disclaimers
 
@@ -177,4 +247,4 @@ If you're a dataset owner and wish to update any part of it (description, citati
 
 
 ## Acknowledgement
- This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab with his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool. We are heavy users of [Zarr](https://zarr.readthedocs.io/en/stable/) and would like to specially thank their community for building such a great fundamental block. 
+ This technology was inspired from our experience at Princeton University and would like to thank William Silversmith @SeungLab with his awesome [cloud-volume](https://github.com/seung-lab/cloud-volume) tool. We are heavy users of [Zarr](https://zarr.readthedocs.io/en/stable/) and would like to thank their community for building such a great fundamental block. 

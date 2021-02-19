@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from collections.abc import Iterable
 
 from hub.api.datasetview import DatasetView
@@ -16,8 +22,14 @@ class ShardedDatasetView:
         """
         # TODO add schema check to make sure all datasets have the same schema
 
-        self.datasets = datasets
-        self.num_samples = sum([d.shape[0] for d in self.datasets])
+        self._schema = datasets[0].schema if datasets else None
+        self.datasets = [
+            ds
+            if isinstance(ds.indexes, list)
+            else ds.dataset[ds.indexes : ds.indexes + 1]
+            for ds in datasets
+        ]
+        self.num_samples = sum([len(d) for d in self.datasets])
 
     @property
     def shape(self):
@@ -25,6 +37,9 @@ class ShardedDatasetView:
 
     def __len__(self):
         return self.num_samples
+
+    def __str__(self):
+        return f"ShardedDatasetView(shape={str(self.shape)})"
 
     def __repr__(self):
         return self.__str__()
@@ -53,9 +68,7 @@ class ShardedDatasetView:
         slice_ = list(slice_)
         if not isinstance(slice_[0], int):
             # TODO add advanced slicing options
-            raise AdvancedSlicingNotSupported(
-                "No slicing since there is no currently cross sharded dataset support"
-            )
+            raise AdvancedSlicingNotSupported()
 
         shard_id, offset = self.identify_shard(slice_[0])
         slice_[0] = slice_[0] - offset
@@ -77,4 +90,4 @@ class ShardedDatasetView:
 
     @property
     def schema(self):
-        return self.datasets[0].schema
+        return self._schema

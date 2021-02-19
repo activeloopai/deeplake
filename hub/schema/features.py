@@ -1,5 +1,10 @@
-from typing import Tuple, Dict, Iterable
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
 
+from typing import Tuple, Dict, Iterable
 import hub
 
 Shape = Tuple[int, ...]
@@ -126,15 +131,39 @@ class Tensor(HubSchema):
             Sample Count is also in the list of tensor's dimensions (first dimension)
             If default value is chosen, automatically detects how to split into chunks
         """
-        if shape is None or shape == (None,) and max_shape is None:
-            raise TypeError("both shape and max_shape cannot be None at the same time")
+        if shape is None:
+            raise TypeError("shape cannot be None")
+        if isinstance(shape, Iterable) and None in shape and max_shape is None:
+            raise ValueError(
+                "while specifying shape containing None dimensions, max_shape argument needs to be provided"
+            )
+        if not isinstance(shape, (tuple, int, list)):
+            raise TypeError(f"shape of {type(shape)} is not supported")
+
         shape = (shape,) if isinstance(shape, int) else tuple(shape)
-        chunks = _normalize_chunks(chunks)
-        max_shape = max_shape or shape
+        for dim in shape:
+            if not isinstance(dim, int) and dim is not None:
+                raise TypeError(f"shape can't have {type(dim)} in its dimension")
+        max_shape = shape if max_shape is None else max_shape
+        if not isinstance(max_shape, (tuple, int, list)):
+            raise TypeError(f"max_shape of {type(max_shape)} is not supported")
+        max_shape = (max_shape,) if isinstance(max_shape, int) else tuple(max_shape)
+        for dim in max_shape:
+            if dim is None:
+                raise TypeError("max_shape can't have None in it's dimension")
+            elif not isinstance(dim, int):
+                raise TypeError(f"max_shape can't have {type(dim)} in its dimension")
+
         if len(shape) != len(max_shape):
             raise ValueError(
-                f"Length of shape ({len(shape)}) and max_shape ({len(max_shape)}) does not match"
+                f"shape {shape} and max_shape {max_shape} have different lengths"
             )
+        for dim, max_dim in zip(shape, max_shape):
+            if dim is not None and dim != max_dim:
+                raise ValueError(f"shape and max_shape mismatch, {dim} != {max_dim}")
+
+        chunks = _normalize_chunks(chunks)
+
         # TODO add errors if shape and max_shape have wrong values
         self.shape = tuple(shape)
         self.dtype = featurify(dtype)

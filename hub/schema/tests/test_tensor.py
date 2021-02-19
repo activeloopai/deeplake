@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from typing import Type
 from hub.schema import Tensor, Image, Primitive
 from hub.schema.features import flatten
@@ -8,7 +14,34 @@ def test_tensor_error():
     try:
         Tensor(None, max_shape=None)
     except TypeError as ex:
-        assert "both shape and max_shape cannot be None at the same time" in str(ex)
+        assert "shape cannot be None" in str(ex)
+
+
+def test_tensor_error_2():
+    with pytest.raises(TypeError):
+        t1 = Tensor(shape=(5.1))
+    with pytest.raises(TypeError):
+        t2 = Tensor(shape=(5.1,))
+    with pytest.raises(TypeError):
+        t3 = Tensor(shape=(5, 6), max_shape=(7.2, 8))
+    with pytest.raises(ValueError):
+        t4 = Tensor(shape=(5, 6), max_shape=(7, 8, 9))
+    with pytest.raises(TypeError):
+        t5 = Tensor(shape=(5, None), max_shape=(5, None))
+    with pytest.raises(TypeError):
+        t6 = Tensor(shape=(5, 6), max_shape=(7.2, 8))
+    with pytest.raises(ValueError):
+        t7 = Tensor(max_shape=(10, 15))
+    with pytest.raises(TypeError):
+        t8 = Tensor(None)
+    with pytest.raises(ValueError):
+        t9 = Tensor((5, 6, None))
+    with pytest.raises(TypeError):
+        t10 = Tensor(max_shape="abc")
+    with pytest.raises(TypeError):
+        t11 = Tensor(max_shape=(7.4, 2))
+    with pytest.raises(ValueError):
+        t12 = Tensor(max_shape=[])
 
 
 def test_tensor_flattening():
@@ -35,12 +68,12 @@ def test_tensor_flattening():
 
 
 def test_primitive_str():
-    primitve_object = Primitive(int)
+    primitve_object = Primitive("int64")
     assert "'int64'" == primitve_object.__str__()
 
 
 def test_primitive_repr():
-    primitve_object = Primitive(int)
+    primitve_object = Primitive("int64")
     assert "'int64'" == primitve_object.__repr__()
 
 
@@ -66,3 +99,4 @@ if __name__ == "__main__":
     test_tensor_init()
     test_tensor_str()
     test_tensor_repr()
+    test_tensor_error_2()

@@ -1,22 +1,29 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+from hub.utils import _tuple_product
 from hub.api.tensorview import TensorView
+import collections.abc as abc
 from hub.api.dataset_utils import (
     create_numpy_dict,
-    slice_extract_info,
+    get_value,
     slice_split,
     str_to_int,
 )
 from hub.exceptions import NoneValueException
-import collections.abc as abc
+from hub.api.objectview import ObjectView
+from hub.schema import Sequence
 
 
 class DatasetView:
     def __init__(
         self,
         dataset=None,
-        num_samples: int = None,
-        offset: int = None,
-        squeeze_dim: bool = False,
         lazy: bool = True,
+        indexes=None,  # list or integer
     ):
         """Creates a DatasetView object for a subset of the Dataset.
 
@@ -24,27 +31,24 @@ class DatasetView:
         ----------
         dataset: hub.api.dataset.Dataset object
             The dataset whose DatasetView is being created
-        num_samples: int
-            The number of samples in this DatasetView
-        offset: int
-            The offset from which the DatasetView starts
-        squeeze_dim: bool, optional
-            For slicing with integers we would love to remove the first dimension to make it nicer
         lazy: bool, optional
             Setting this to False will stop lazy computation and will allow items to be accessed without .compute()
+        indexes: optional
+            It can be either a list or an integer depending upon the slicing. Represents the indexes that the datasetview is representing.
         """
         if dataset is None:
             raise NoneValueException("dataset")
-        if num_samples is None:
-            raise NoneValueException("num_samples")
-        if offset is None:
-            raise NoneValueException("offset")
+        if indexes is None:
+            raise NoneValueException("indexes")
 
         self.dataset = dataset
-        self.num_samples = num_samples
-        self.offset = offset
-        self.squeeze_dim = squeeze_dim
         self.lazy = lazy
+        self.indexes = indexes
+        self.is_contiguous = False
+        if isinstance(self.indexes, list) and self.indexes:
+            self.is_contiguous = self.indexes[-1] - self.indexes[0] + 1 == len(
+                self.indexes
+            )
 
     def __getitem__(self, slice_):
         """| Gets a slice or slices from DatasetView
@@ -55,32 +59,21 @@ class DatasetView:
         """
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
-
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-
-        slice_list = [0] + slice_list if self.squeeze_dim else slice_list
-
+        slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
         if not subpath:
             if len(slice_list) > 1:
-                raise ValueError(
-                    "Can't slice a dataset with multiple slices without subpath"
-                )
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
-            return DatasetView(
-                dataset=self.dataset,
-                num_samples=num,
-                offset=ofs + self.offset,
-                squeeze_dim=isinstance(slice_list[0], int),
-                lazy=self.lazy,
-            )
+                raise ValueError("Can't slice dataset with multiple slices without key")
+            indexes = self.indexes[slice_list[0]]
+            return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
         elif not slice_list:
             slice_ = (
-                slice(self.offset, self.offset + self.num_samples)
-                if not self.squeeze_dim
-                else self.offset
+                [slice(self.indexes[0], self.indexes[-1] + 1)]
+                if self.is_contiguous
+                else [self.indexes]
             )
-            if subpath in self.dataset._tensors.keys():
+            if subpath in self.keys:
                 tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
@@ -88,15 +81,29 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
-            return self._get_dictionary(subpath, slice=slice_)
+            for key in self.keys:
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self.dataset,
+                        subpath=subpath,
+                        slice_=slice_,
+                        lazy=self.lazy,
+                    )
+                    return objectview if self.lazy else objectview.compute()
+            return self._get_dictionary(subpath, slice_)
         else:
-            num, ofs = slice_extract_info(slice_list[0], self.num_samples)
-            slice_list[0] = (
-                ofs + self.offset
-                if isinstance(slice_list[0], int)
-                else slice(ofs + self.offset, ofs + self.offset + num)
-            )
-            if subpath in self.dataset._tensors.keys():
+            if isinstance(self.indexes, list):
+                indexes = self.indexes[slice_list[0]]
+                if self.is_contiguous and isinstance(indexes, list) and indexes:
+                    indexes = slice(indexes[0], indexes[-1] + 1)
+            else:
+                indexes = self.indexes
+            slice_list[0] = indexes
+            schema_obj = self.dataset.schema.dict_[subpath.split("/")[1]]
+
+            if subpath in self.keys and (
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
+            ):
                 tensorview = TensorView(
                     dataset=self.dataset,
                     subpath=subpath,
@@ -104,6 +111,15 @@ class DatasetView:
                     lazy=self.lazy,
                 )
                 return tensorview if self.lazy else tensorview.compute()
+            for key in self.keys:
+                if subpath.startswith(key):
+                    objectview = ObjectView(
+                        dataset=self.dataset,
+                        subpath=subpath,
+                        slice_=slice_list,
+                        lazy=self.lazy,
+                    )
+                    return objectview if self.lazy else objectview.compute()
             if len(slice_list) > 1:
                 raise ValueError("You can't slice a dictionary of Tensors")
             return self._get_dictionary(subpath, slice_list[0])
@@ -115,33 +131,69 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
-        # handling strings and bytes
-        assign_value = value
-        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+        assign_value = get_value(value)
+        assign_value = str_to_int(
+            assign_value, self.dataset.tokenizer
+        )  # handling strings and bytes
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
-        slice_list = [0] + slice_list if self.squeeze_dim else slice_list
+        slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
+
         if not subpath:
-            raise ValueError("Can't assign to dataset sliced without subpath")
+            raise ValueError("Can't assign to dataset sliced without key")
+        elif subpath not in self.keys:
+            raise KeyError(f"Key {subpath} not found in dataset")
 
         if not slice_list:
-            slice_ = slice(self.offset, self.offset + self.num_samples)
-            self.dataset._tensors[subpath][slice_] = assign_value  # Add path check
+            slice_ = (
+                slice(self.indexes[0], self.indexes[-1] + 1)
+                if self.is_contiguous
+                else self.indexes
+            )
+            if not isinstance(slice_, list):
+                self.dataset._tensors[subpath][slice_] = assign_value
+            else:
+                for i, index in enumerate(slice_):
+                    self.dataset._tensors[subpath][index] = assign_value[i]
         else:
-            num, ofs = (
-                slice_extract_info(slice_list[0], self.num_samples)
-                if isinstance(slice_list[0], slice)
-                else (1, slice_list[0])
-            )
-            slice_list[0] = (
-                slice(ofs + self.offset, ofs + self.offset + num)
-                if isinstance(slice_list[0], slice)
-                else ofs + self.offset
-            )
-            self.dataset._tensors[subpath][slice_list] = assign_value
+            if isinstance(self.indexes, list):
+                indexes = self.indexes[slice_list[0]]
+                if self.is_contiguous and isinstance(indexes, list) and indexes:
+                    slice_list[0] = slice(indexes[0], indexes[-1] + 1)
+                else:
+                    slice_list[0] = indexes
+            else:
+                slice_list[0] = self.indexes
+
+            if not isinstance(slice_list[0], list):
+                self.dataset._tensors[subpath][slice_list] = assign_value
+            else:
+                for i, index in enumerate(slice_list[0]):
+                    current_slice = [index] + slice_list[1:]
+                    self.dataset._tensors[subpath][current_slice] = assign_value[i]
+
+    def filter(self, fn):
+        """| Applies a function on each element one by one as a filter to get a new DatasetView
+
+        Parameters
+        ----------
+        fn: function
+            Should take in a single sample of the dataset and return True or False
+            This function is applied to all the items of the datasetview and retains those items that return True
+        """
+        indexes = []
+        if isinstance(self.indexes, int):
+            dsv = self.dataset[self.indexes]
+            if fn(dsv):
+                return DatasetView(
+                    dataset=self.dataset, lazy=self.lazy, indexes=self.indexes
+                )
+        else:
+            indexes = [index for index in self.indexes if fn(self.dataset[index])]
+        return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
 
     @property
     def keys(self):
@@ -150,11 +202,15 @@ class DatasetView:
         """
         return self.dataset._tensors.keys()
 
+    @property
+    def schema(self):
+        return self.dataset.schema
+
     def _get_dictionary(self, subpath, slice_):
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
         subpath = subpath if subpath.endswith("/") else subpath + "/"
-        for key in self.dataset._tensors.keys():
+        for key in self.keys:
             if key.startswith(subpath):
                 suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
@@ -176,34 +232,34 @@ class DatasetView:
 
     def __iter__(self):
         """ Returns Iterable over samples """
-        if self.squeeze_dim:
-            assert len(self) == 1
+        if isinstance(self.indexes, int):
             yield self
             return
 
-        for i in range(len(self)):
+        for i in range(len(self.indexes)):
             yield self[i]
 
     def __len__(self):
-        return self.num_samples
+        return len(self.indexes) if isinstance(self.indexes, list) else 1
 
     def __str__(self):
-        out = "DatasetView(" + str(self.dataset) + ", slice="
-        out = (
-            out + str(self.offset)
-            if self.squeeze_dim
-            else out + str(slice(self.offset, self.offset + self.num_samples))
-        )
-        out += ")"
-        return out
+        return "DatasetView(" + str(self.dataset) + ")"
 
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self):
-        """Converts the dataset into a tensorflow compatible format"""
+    def to_tensorflow(self, include_shapes):
+        """|Converts the dataset into a tensorflow compatible format
+
+        Parameters
+        ----------
+        include_shapes: boolean, optional
+            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            Setting to True could lead to issues with dictionaries inside Tensors.
+        """
+
         return self.dataset.to_tensorflow(
-            num_samples=self.num_samples, offset=self.offset
+            indexes=self.indexes, include_shapes=include_shapes
         )
 
     def to_pytorch(
@@ -212,11 +268,20 @@ class DatasetView:
         inplace=True,
         output_type=dict,
     ):
-        """Converts the dataset into a pytorch compatible format"""
+        """| Converts the dataset into a pytorch compatible format.
+
+        Parameters
+        ----------
+        transform: function that transforms data in a dict format
+        inplace: bool, optional
+            Defines if data should be converted to torch.Tensor before or after Transforms applied (depends on what data
+            type you need for Transforms). Default is True.
+        output_type: one of list, tuple, dict, optional
+            Defines the output type. Default is dict - same as in original Hub Dataset.
+        """
         return self.dataset.to_pytorch(
             transform=transform,
-            num_samples=self.num_samples,
-            offset=self.offset,
+            indexes=self.indexes,
             inplace=inplace,
             output_type=output_type,
         )
@@ -229,13 +294,21 @@ class DatasetView:
         """Commit dataset"""
         self.dataset.commit()
 
-    def numpy(self):
-        if self.num_samples == 1 and self.squeeze_dim:
-            return create_numpy_dict(self.dataset, self.offset)
+    def numpy(self, label_name=False):
+        """Gets the value from different tensorview objects in the datasetview schema
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        if isinstance(self.indexes, int):
+            return create_numpy_dict(self.dataset, self.indexes, label_name=label_name)
         else:
             return [
-                create_numpy_dict(self.dataset, self.offset + i)
-                for i in range(self.num_samples)
+                create_numpy_dict(self.dataset, index, label_name=label_name)
+                for index in self.indexes
             ]
 
     def disable_lazy(self):
@@ -244,5 +317,13 @@ class DatasetView:
     def enable_lazy(self):
         self.lazy = True
 
-    def compute(self):
-        return self.numpy()
+    def compute(self, label_name=False):
+        """Gets the value from different tensorview objects in the datasetview schema
+
+        Parameters
+        ----------
+        label_name: bool, optional
+            If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
+            instead of the label encoded integers, otherwise this parameter is ignored.
+        """
+        return self.numpy(label_name=label_name)

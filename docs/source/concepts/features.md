@@ -29,8 +29,10 @@ Np-array like structure that contains any type of elements (Primitive and non-Pr
 ```python
 from hub.schema import Tensor
 
-schema = {"tensor_1": Tensor((None, None), max_shape=(200, 200), "int32"),
-          "tensor_2": Tensor((100, 400), "int64", chunks=(6, 50, 200)) }
+schema = {
+    "tensor_1": Tensor((None, None), "int32", max_shape=(200, 200)),
+    "tensor_2": Tensor((100, 400), "int64", chunks=(6, 50, 200))
+}
 ```
 
 ### Image
@@ -44,8 +46,7 @@ from hub.schema import Image
 
 schema = {"image": Image(shape=(None, None),
                          dtype="int32",
-                         max_shape=(100, 100)
-          ) }
+                         max_shape=(100, 100))}
 ```
 
 ### ClassLabel
@@ -55,10 +56,11 @@ Integer representation of feature labels. Can be constructed from number of labe
 ```python
 from hub.schema import ClassLabel
 
-schema = {"class_label_1": ClassLabel(num_classes=10),
-          "class_label_2": ClassLabel(names=['class1', 'class2', 'class3', ...]),
-          "class_label_3": ClassLabel(names_file='/path/to/file/with/names')
-          ) }
+schema = {
+    "class_label_1": ClassLabel(num_classes=10),
+    "class_label_2": ClassLabel(names=['class1', 'class2', 'class3', ...]),
+    "class_label_3": ClassLabel(names_file='/path/to/file/with/names')
+}
 ```
 
 ### Mask 
@@ -103,7 +105,7 @@ will attempt to infer it from the file extension. Also, `sample_rate` parameter 
 ```python
 from hub.schema import Audio
 
-schema = {'audio': Audio(shape=(300,)}
+schema = {'audio': Audio(shape=(300,))}
 ```
 
 ### Video

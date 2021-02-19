@@ -49,6 +49,7 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
    concepts/features.md
    concepts/dataset.md
    concepts/transform.md
+   concepts/filtering.md
 
 .. toctree::
    :maxdepth: 3

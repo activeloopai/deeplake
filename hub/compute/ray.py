@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import sys
 from hub import Dataset
 from hub.api.datasetview import DatasetView
@@ -7,6 +13,7 @@ from typing import Iterable, Iterator
 from hub.exceptions import ModuleNotInstalledException
 from hub.api.sharded_datasetview import ShardedDatasetView
 import hub
+from hub.api.dataset_utils import get_value, str_to_int
 
 
 def empty_remote(template, **kwargs):
@@ -49,8 +56,8 @@ class RayTransform(Transform):
         Remote wrapper for user defined function
         """
 
-        if isinstance(_ds, Dataset) or isinstance(_ds, DatasetView):
-            _ds.squeeze_dim = False
+        if isinstance(_ds, (Dataset, DatasetView)) and isinstance(_ds.indexes, int):
+            _ds.indexes = [_ds.indexes]
 
         item = _ds[index]
         if isinstance(item, DatasetView) or isinstance(item, Dataset):
@@ -149,6 +156,7 @@ class RayTransform(Transform):
 
         slice_ = slice(i * length, (i + 1) * length)
         if ds[key].is_dynamic:
+            # Sometimes ds._tensor slice_ gets out of the shape value
             shape = ds._tensors[f"/{key}"].get_shape_from_value([slice_], batch)
         ds[key, slice_] = batch
 
@@ -201,6 +209,8 @@ class RayTransform(Transform):
         for key, value in results.items():
 
             length = ds[key].chunksize[0]
+            value = get_value(value)
+            value = str_to_int(value, ds.tokenizer)
             batched_values = batchify(value, length)
             chunk_id = list(range(len(batched_values)))
             index_batched_values = list(zip(chunk_id, batched_values))

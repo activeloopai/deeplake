@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import numpy as np
 
 
@@ -11,7 +17,7 @@ from hub.api.dataset import Dataset
 from hub.compute import transform
 from hub.log import logger
 import traceback
-from hub.exceptions import DaskModuleNotInstalledException
+from hub.exceptions import DaskModuleNotInstalledException, HubDatasetNotFoundException
 
 
 def local_mode():
@@ -47,6 +53,8 @@ def load(tag):
         return ds
     except ImportError:
         raise DaskModuleNotInstalledException
+    except HubDatasetNotFoundException:
+        raise
     except Exception as e:
         pass
         # logger.warning(traceback.format_exc() + str(e))

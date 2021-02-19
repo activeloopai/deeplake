@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 import numpy as np
 import zarr
 
@@ -244,6 +250,19 @@ def test_stacked_transform():
     ds4 = ds3.store("./data/stacked_transform_2")
     assert len(ds4) == 150
     assert (ds4["test", 0].compute() == 30 * np.ones((2, 2))).all()
+
+
+def test_text():
+    my_schema = {"text": Text((None,), max_shape=(10,))}
+
+    @hub.transform(schema=my_schema)
+    def my_transform(sample):
+        return {"text": np.array("abc")}
+
+    ds = my_transform([i for i in range(10)])
+    ds2 = ds.store("./data/test/transform_text")
+    for i in range(10):
+        assert ds2["text", i].compute() == "abc"
 
 
 def test_zero_sample_transform():

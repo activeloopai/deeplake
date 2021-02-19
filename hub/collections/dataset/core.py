@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from collections import abc
 from configparser import ConfigParser
 import json
@@ -690,7 +696,7 @@ def load(tag, creds=None, session_creds=True) -> Dataset:
     fs, path = _load_fs_and_path(tag, creds, session_creds=session_creds)
     fs: fsspec.AbstractFileSystem = fs
     path_2 = f"{path}/meta.json"
-    if not fs.exists(path):
+    if not fs.exists(path_2):
         raise HubDatasetNotFoundException(tag)
 
     with fs.open(path_2, "r") as f:

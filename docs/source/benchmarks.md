@@ -1,10 +1,10 @@
 ## Benchmarking
 
-For full reproducibility please refer to the [code](/test/benchmark)
+For full reproducibility please refer to the [code](https://github.com/activeloopai/Hub/tree/master/test/benchmark)
 
 ### Download Parallelism
 
-The following chart shows that hub on a single machine (aws p3.2xlarge) can achieve up to 875 MB/s download speed with multithreading and multiprocessing enabled. Choosing the chunk size plays a role in reaching maximum speed up. The bellow chart shows the tradeoff using different number of threads and processes.
+The following chart shows that hub on a single machine (aws p3.2xlarge) can achieve up to 875 MB/s download speed with multithreading and multiprocessing enabled. Choosing the chunk size plays a role in reaching maximum speed up. The chart below shows the tradeoff using different number of threads and processes.
 
 <img src="https://raw.githubusercontent.com/snarkai/Hub/master/test/benchmark/results/Parallel12MB.png" width="650"/>
 

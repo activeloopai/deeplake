@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from click import ClickException
 
 
@@ -155,6 +161,12 @@ class PermissionException(HubException):
 class ShapeArgumentNotFoundException(HubException):
     def __init__(self):
         message = "Parameter 'shape' should be provided for Dataset creation."
+        super(HubException, self).__init__(message=message)
+
+
+class DirectoryNotEmptyException(HubException):
+    def __init__(self, dst_url):
+        message = f"The destination url {dst_url} for copying dataset is not empty. Delete the directory manually or use Dataset.delete if it's a Hub dataset"
         super(HubException, self).__init__(message=message)
 
 

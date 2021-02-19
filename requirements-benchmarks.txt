@@ -1,0 +1,4 @@
+tiledb==0.7.6
+torchvision==0.8.2
+altair==4.1.0
+altair_saver==0.5.0

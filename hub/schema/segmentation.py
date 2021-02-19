@@ -1,3 +1,9 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
 from typing import Tuple
 import numpy as np
 
@@ -53,12 +59,7 @@ class Segmentation(Tensor):
 
     def get_segmentation_classes(self):
         """Get classes of the segmentation mask"""
-        class_indices = np.unique(self)
-        return [self.class_labels.int2str(value) for value in class_indices]
-
-    def get_attr_dict(self):
-        """Return class attributes."""
-        return self.__dict__
+        return self.class_labels.names
 
     def __str__(self):
         out = super().__str__()
