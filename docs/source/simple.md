@@ -30,7 +30,7 @@ Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked
     hub login -u username -p password
     ```
 
-3. Lets start by creating dataset
+3. Lets start by creating a dataset
 ```python
 import numpy as np
 
@@ -73,7 +73,7 @@ If `url` parameter has the form of `username/dataset`, the dataset will be store
 url = 'username/dataset'
 ```
 
-Besides, you can also create a dataset in *s3*, *Google CLoud Storage* or *Azure*.
+Besides, you can also create a dataset in *s3*, *Google Cloud Storage* or *Azure*.
 In that case you will need to have the corresponding credentials and provide them as a `token` argument during Dataset creation. It can be a filepath to your credentials or a `dict`.
 #### S3
  ```python
@@ -82,7 +82,7 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id
                                                               "aws_secret_access_key": "...",
                                                               ...})
 ```
-#### Google CLoud Storage
+#### Google Cloud Storage
 ```python
 url = 'gcs://new_dataset' # gcloud
 ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
@@ -107,7 +107,7 @@ After this we can loop over dataset and read/write from it.
 
 ### Why commit?
 
-Since caching is in place, you need to tell program to push final changes to permanent storage. 
+Since caching is in place, you need to tell the program to push final changes to a permanent storage. 
 
 `.close()` saves changes from cache to dataset final storage and does not invalidate dataset object.
 On the other hand, `.flush()` saves changes to dataset, but invalidates it.
