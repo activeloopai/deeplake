@@ -5,8 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from collections.abc import Iterable
-import numpy as np
-from hub.exceptions import AdvancedSlicingNotSupported
 from hub.api.dataset_utils import slice_split
 from hub.api.compute_list import ComputeList
 
@@ -71,10 +69,13 @@ class ShardedDatasetView:
         subpath, slice_list = slice_split(slice_)
         slice_list = slice_list or [slice(0, self.num_samples)]
         if isinstance(slice_list[0], int):
+            # if integer it fetches the data from the corresponding dataset
             slice_list, shard_id = self.slicing(slice_list)
             slice_ = slice_list + [subpath] if subpath else slice_list
             return self.datasets[shard_id][slice_]
         else:
+            # if slice it finds all the corresponding datasets included in the slice and generates tensorviews or datasetviews (depending on slice)
+            # these views are stored in a ComputeList, calling compute on which will fetch data from all corresponding datasets and return a single result
             results = []
             cur_index = slice_list[0].start or 0
             cur_index = cur_index + self.num_samples if cur_index < 0 else cur_index
@@ -101,10 +102,12 @@ class ShardedDatasetView:
         subpath, slice_list = slice_split(slice_)
         slice_list = slice_list or [slice(0, self.num_samples)]
         if isinstance(slice_list[0], int):
+            # if integer it assigns the data to the corresponding dataset
             slice_list, shard_id = self.slicing(slice_list)
             slice_ = slice_list + [subpath] if subpath else slice_list
             self.datasets[shard_id][slice_] = value
         else:
+            # if slice it finds all the corresponding datasets and assigns slices of the value one by one
             cur_index = slice_list[0].start or 0
             cur_index = cur_index + self.num_samples if cur_index < 0 else cur_index
             cur_index = max(cur_index, 0)

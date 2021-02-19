@@ -2,6 +2,7 @@ from hub.api.dataset import Dataset, DatasetView, TensorView
 import numpy as np
 
 
+# a list of Datasets or DatasetViews or Tensorviews that supports compute operation
 class ComputeList:
     # Doesn't support further get item operations currently
     def __init__(self, ls):
