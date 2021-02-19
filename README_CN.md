@@ -59,15 +59,17 @@ Waymo、红十字会、世界资源协会、Omdena 等组织都在使用 Hub。
 
 ## 如何开始
 
-### 访问公共数据集. 超快
+使用公开或私密，本地或云端的数据。
 
-以前为了加载一个公共数据集，大家需要很多代码，浪费很多时间来访问和理解 API ，和下载数据。如果使用 Hub, 只需要2行代码， 您即可**在3分钟内开始工作**。
+### 快速访问公共数据
+
+此前为了加载一个公共数据集，一个人需要写很多行代码，花费数个小时来访问，理解 API 并下载数据。通过 Hub, 您只需要2行代码， 即可**在3分钟内开始处理您的数据集**。
 
 ```sh
 pip3 install hub
 ```
 
-用 Hub 访问公共数据集只需要几行代码的简单步骤。运行这个片段就可以 numpy 数组的形式取得[MNIST 数据库](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)前1000张图片。
+用 Hub 访问公共数据集仅仅需要几行约定俗成的简单代码。运行这个片段就可以 numpy 数组的形式取得[MNIST 数据库](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)前1000张图片。
 
 ```python
 from hub import Dataset
@@ -76,11 +78,11 @@ mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
 mnist["image"][0:1000].compute()
 ```
-您可以在 [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 找到其他流行的数据库.
+您可以在 [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 找到所有其他流行的数据库.
 
 ### 训练模型
 
-加载数据并且**直接地**训练您的模型。Hub 已与 PyTorch 和 TensorFlow 整合，并且以通俗的方式进行格式转换。看看下面使用 PyTorch 的例子：
+加载数据并**直接**训练您的模型。Hub 已经与 PyTorch 和 TensorFlow 整合，能以通俗的方式进行格式转换。看看下面使用 PyTorch 的例子：
 
 ```python
 from hub import Dataset
@@ -120,19 +122,17 @@ ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()  # executing the creation of the dataset
 ```
 
-您也可以指明 `s3://bucket/path`, `gcs://bucket/path` 或 azure 路径。您可以在[这里](https://docs.activeloop.ai/en/latest/simple.html#data-storage)找到云储存的更多相关信息。
+您也可以指明 `s3://bucket/path`，`gcs://bucket/path` 或 azure 路径。在[这里](https://docs.activeloop.ai/en/latest/simple.html#data-storage)可以找到关于云储存的更多相关信息。同时，如果您无法在 Hub 上找到一个公共数据库，可以向我们[发送一个请求](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=%5BFEATURE%5D+New+Dataset+Required%3A+%2Adataset_name%2A)。我们会尽快让所有人都能获取到它！
 
-如果您需要 Hub 里目前找不到的公共数据集，您可以发送 [Issues](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=[FEATURE]+New+Dataset+Required%3A+%2Adataset_name%2A)。我们将尽快为所有人实现他。
+### 通过三个步骤上传您的数据集，并从<ins>任何地方</ins>访问它
 
-### 用简单的3步上传您的数据集 并 从<ins>任何地方</ins>访问它
-
-1. 在 [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) 注册一个免费账户并在本地认证:
+1. 在 [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) 上注册一个免费账户并在本地认证:
 ```sh
 hub register
 hub login
 ```
 
-2. 然后创建一个数据集，注明它的名字，然后把它上传到您的账户。比如：
+2. 然后创建一个数据集，注明它的名字，然后将它上传到您的账户。例如：
 ```python
 from hub import Dataset, schema
 import numpy as np
@@ -152,7 +152,7 @@ ds["label"][:] = np.zeros((4, 512, 512))
 ds.commit()
 ```
 
-3. 在任何地点，以任何机器，只要有命令行就可访问它：
+3. 在任何地点，以任何拥有命令行的机器访问它：
 ```python
 from hub import Dataset
 
@@ -162,18 +162,31 @@ ds = Dataset("username/dataset_name")
 
 ## 官方文档
 
-对于其他更高级的工作流，比如上传较大的数据集，或者应用多重变换，请阅读[文档](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme)。
+对于更高级的工作流，如上传较大的数据集或应用多重变换，请阅读[文档](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme)。
+
+## Tutorial Notebooks
+The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and notebooks giving an overview of Hub. Some of the notebooks are listed of below.
+
+| Notebook  	|   Description	|   	|
+|:---	|:---	|---:	|
+| [Uploading Images](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201a%20-%20Uploading%20Images.ipynb) | Overview on how to upload and store images on Hub |  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201a%20-%20Uploading%20Images.ipynb) |
+| [Uploading Dataframes](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201b%20-%20Uploading%20Dataframes.ipynb)  	| Overview on how to upload Dataframes on Hub  	| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201b%20-%20Uploading%20Dataframes.ipynb)  	|
+| [Uploading Audio](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) | Explains how to handle audio data in Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) |
+| [Retrieving Remote Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) | Explains how to retrieve Data| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) |
+| [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
+| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
+| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) |
 
 ## 应用场景
-* **卫星和无人机成像**: [可扩展的航空数据流](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [绘制印度的经济状况](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [与红十字一起在肯尼亚抗击沙漠蝗虫](https://omdena.com/projects/ai-desert-locust/)
+* **卫星和无人机成像**: [利用可扩展的航空数据流建造智能农场](https://activeloop.ai/usecase/intelinair?utm_source=github&utm_medium=repo&utm_campaign=readme), [绘制印度的经济状况](https://towardsdatascience.com/faster-machine-learning-using-hub-by-activeloop-4ffb3420c005), [与红十字一起在肯尼亚抗击沙漠蝗虫](https://omdena.com/projects/ai-desert-locust/)
 * **医学图像**: 体积图像： MRI， Xray
-* **自动驾驶汽车**: [雷达, 3D LIDAR, 点云, 语义分割, 图像对象](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
+* **自动驾驶汽车**: [雷达, 3D LIDAR, 点云, 语义分割, 视频对象](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **零售**: 自行结账数据集
 * **媒体**: 图像，视频，音频储存
 
 ## 社区
 
-加入我们的 [**Slack 社区**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) 以便从 Activeloop 团队和其他用户获取帮助, 并且与最好的技术保持更新！
+加入我们的 [**Slack 社区**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) 以便从 Activeloop 团队及其他用户处获取帮助, 与此同时获取关于数据集管理/预处理的最新动态。
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
@@ -181,10 +194,12 @@ ds = Dataset("username/dataset_name")
 
 [![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/0)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/0)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/1)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/1)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/2)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/2)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/3)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/3)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/4)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/4)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/5)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/5)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/6)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/6)[![](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/images/7)](http://sourcerer.io/fame/davidbuniat/activeloopai/Hub/links/7)
 
+通过[contributors-img](https://contrib.rocks/)制作。
+
 请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 以了解如何为 Hub 做贡献。
 
 ## 例子
-Activeloop 的 Hub 形使您可以以更低的成本来达成更快的推理。我们的平台已有超过30个流行的数据集。包括：
+Activeloop 的 Hub 格式使您可以以更低的成本来达成更快的推理。我们的平台已经包含超过 30 个流行的数据集。其中包括：
 - COCO
 - CIFAR-10
 - PASCAL VOC
@@ -194,7 +209,7 @@ Activeloop 的 Hub 形使您可以以更低的成本来达成更快的推理。�
 - Caltech-UCSD Birds 200
 - Food101
 
-在我们的 [可视化 web app](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 查看这些和很多其他的数据集，然后直接加载它们来进行模型训练。
+在我们的 [可视化 web app](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 重查看这些以及很多其他的数据集，并直接加载他们用于模型训练！
 
 ## README 徽章
 
@@ -208,9 +223,9 @@ Activeloop 的 Hub 形使您可以以更低的成本来达成更快的推理。�
 
 ## 免责声明
 
-与其他的数据管理包一样， `Hub` 是一个用于下载和准备公共数据集的应用型库。我们不托管或分发这些数据集，也不保证其质量或是公平性，也不声明您有使用它们的许可。确认您是否有权在数据集的许可下使用该数据集是您的责任。
+与其他的数据管理包一样， `Hub` 是一个用于下载和准备公共数据集的应用型库。我们不托管或分发这些数据集，不保证其质量或是公平性，也不声明您有使用它们的许可。您有责任确认您是否有权在数据集的许可下使用该数据集。
 
-如果您是数据集所有者，并希望更新数据集的任何部分（描述，引用等），或者不希望将数据集包含在此库中，请通过 [GitHub issue](https://github.com/activeloopai/Hub/issues/new) 告知我们。感谢您对 ML 社区做出的贡献！
+如果您是数据集所有者，希望更新数据集的任何部分（描述，引用等），或是不希望将数据集包含在此库中，请通过 [GitHub issue](https://github.com/activeloopai/Hub/issues/new) 告知我们。感谢您对机器学习社区做出的贡献！
 
-## 致敬
+## 致谢
 这项技术的灵感来自我们在普林斯顿大学的经验，并且感谢 William Silversmith @SeungLab 和他优秀的 [cloud-volume](https://github.com/seung-lab/cloud-volume) 工具。我们是 [Zarr](https://zarr.readthedocs.io/en/stable/) 的重度使用者，特别感谢他们建立了如此重要的基础建设。
