@@ -2,7 +2,7 @@ name: package
 
 on:
   push:
-    branches:
+    branches: 
       - '**'
   pull_request:
     branches:
@@ -55,7 +55,6 @@ jobs:
   test_with_optional:
     name: Python ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }} (with optional dependencies)
     runs-on: ${{ matrix.os }}
-    needs: test
     strategy:
       fail-fast: false
       matrix:
