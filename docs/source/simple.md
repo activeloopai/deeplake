@@ -105,7 +105,7 @@ This code creates dataset in *"./data/examples/new_api_intro"* folder with overw
 After this we can loop over dataset and read/write from it.
 
 
-### Why commit?
+### Why flush?
 
 Since caching is in place, you need to tell the program to push final changes to a permanent storage. 
 

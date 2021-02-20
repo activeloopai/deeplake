@@ -152,7 +152,7 @@ ds = Dataset(
 
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.flush()
 ```
 
 3. Access it from anywhere else in the world, on any device having a command line:
