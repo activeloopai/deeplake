@@ -656,6 +656,7 @@ class Dataset:
 
     def commit(self):
         """ Deprecated alias to flush()"""
+        logger.warning("commit() is deprecated. Use flush() instead")
         self.flush()
 
     def close(self):
