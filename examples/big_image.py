@@ -25,7 +25,7 @@ def main():
             (2048, 2048, 4), dtype="uint8"
         )  # single chunk read/write
         print(ds._tensors["/image"].get_shape((3,)))
-        ds.commit()
+        ds.flush()
 
 
 if __name__ == "__main__":
