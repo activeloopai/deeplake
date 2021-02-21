@@ -49,6 +49,14 @@ Hub, Waymo, Kızıl Haç, Dünya Kaynakları Enstitüsü, Omdena ve diğerleri t
 * Her veri örneğinin boyutunu (shape) dinamik olarak tutun. Bu sayede küçük ve büyük boyutlu dizileri tek dizi olarak depolayın
 * Verilerinizin herhangi bir bölümünü gereksiz manipülasyonlara gerek kalmadan, saniyeler içerisinde [görselleştirin](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) 
 
+<p align="center">
+    <br>
+    <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
+    </br>
+app.activeloop.ai aracılığıyla Hub'a yüklenen bir veri kümesinin görselleştirilmesi (Ücretsiz Araç).
+
+</p>
+
 ## Buradan Başlayın
 Yerelde ya da herhangi bir bulut üzerinde, herkese açık ya da kendi verilerinizle çalışın.
 
