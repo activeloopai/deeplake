@@ -109,7 +109,7 @@ ds = Dataset(
 # filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # executing the creation of the dataset
+ds.flush()  # executing the creation of the dataset
 ```
 
 您也可以指明 `s3://bucket/path`, `gcs://bucket/path` 或 azure 路径。您可以在[这里](https://docs.activeloop.ai/en/latest/simple.html#data-storage)找到云储存的更多相关信息。
@@ -141,7 +141,7 @@ ds = Dataset(
 
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.flush()
 ```
 
 3. 在任何地点，以任何机器，只要有命令行就可访问它：

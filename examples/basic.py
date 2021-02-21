@@ -20,7 +20,7 @@ def main():
     # Upload Data
     ds["image"][:] = np.ones((4, 512, 512))
     ds["label"][:] = np.ones((4, 512, 512))
-    ds.commit()
+    ds.flush()
 
     # Load the data
     ds = Dataset(tag)
