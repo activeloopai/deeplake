@@ -273,12 +273,6 @@ class NotIterable(HubException):
         super(HubException, self).__init__(message=message)
 
 
-class AdvancedSlicingNotSupported(HubException):
-    def __init__(self):
-        message = "Advanced slicing is not supported, only support index"
-        super(HubException, self).__init__(message=message)
-
-
 class AddressNotFound(HubException):
     def __init__(self, address):
         message = f"The address {address} does not refer to any existing branch or commit id. use create=True to create a new branch with this address"

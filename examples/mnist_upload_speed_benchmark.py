@@ -30,7 +30,7 @@ def main():
             # with Timer(f"Sample {i}"):
             ds["image", i : i + step] = arr
 
-        ds.commit()
+        ds.flush()
 
 
 if __name__ == "__main__":

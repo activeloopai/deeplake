@@ -16,6 +16,7 @@ from hub.api.dataset_utils import (
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
 from hub.schema import Sequence
+import numpy as np
 
 
 class DatasetView:
@@ -311,10 +312,12 @@ class DatasetView:
         if isinstance(self.indexes, int):
             return create_numpy_dict(self.dataset, self.indexes, label_name=label_name)
         else:
-            return [
-                create_numpy_dict(self.dataset, index, label_name=label_name)
-                for index in self.indexes
-            ]
+            return np.array(
+                [
+                    create_numpy_dict(self.dataset, index, label_name=label_name)
+                    for index in self.indexes
+                ]
+            )
 
     def disable_lazy(self):
         self.lazy = False
