@@ -1,9 +1,8 @@
- <p align="center">
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
 </p>
-
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -20,13 +19,15 @@
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
-
+    <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button">
+  <img src="https://i.ibb.co/YBTCcJc/output-onlinepngtools.png" height="35" /></a>
+  
 ---
 
 </a>
 </p>
 
-<h3 align="center"> Hub 向您展示数据的新纪元 </br> 以最快的方式储存、访问和管理 PyTorch与TensorFlow数据，并建立可扩展的数据工作流 </h3>
+<h3 align="center"> Hub 向您展示数据的新纪元 </br> 以最快的方式储存、访问和管理 PyTorch与TensorFlow数据，在本地或任何云服务上工作，建立可扩展的数据工作流 </h3>
 
 ---
 
@@ -34,13 +35,13 @@
 
 ### Hub 的作用是什么?
 
-新时代的的软件需要新时代的数据，而 Hub 提供这些数据。数据科学家与机器学习研究者常常花费大量时间管理与预处理数据，因而牺牲了训练模型的时间。为了改进这一现状，我们创造了 Hub 。我们将您可达PB量级的数据转换为单个类numpy数组，将其存储在云端，使您可以无缝地从任何设备访问您的数据。Hub 使任何储存在云端的数据类型（图像、文本、音频或视频）像在本地服务器一样能被快速使用。通过使用一致的数据库，您的小组可以一直保持同步。
+新时代的的软件需要新时代的数据，而 Hub 提供这些数据。数据科学家与机器学习研究者常常花费大量时间管理与预处理数据，因而牺牲了训练模型的时间。为了改进这一现状，我们创造了 Hub 。我们将您可达PB量级的数据转换为单个类numpy数组，将其存储在云端，使您可以无缝地从任何设备访问您的数据。Hub 使任何储存在云端的数据类型（图像、文本、音频或视频）像在本地服务器一样能被快速使用。通过使用一致的数据集，您的小组可以一直保持同步。
 
 Waymo、红十字会、世界资源协会、Omdena 等组织都在使用 Hub。
 
 ### 特点 
 
-* 通过版本控制工具储存和获取大型数据库
+* 通过版本控制工具储存和获取大型数据集
 * 像 Google Docs 一样协作: 多个数据科学家不间断地同时处理一组数据
 * 同时从多个设备访问
 * 部署在任何地方 - 本地、Google Cloud、S3、Azure或是Activeloop (默认——并且免费！) 
@@ -69,7 +70,7 @@ Waymo、红十字会、世界资源协会、Omdena 等组织都在使用 Hub。
 pip3 install hub
 ```
 
-用 Hub 访问公共数据集仅仅需要几行约定俗成的简单代码。运行这个片段就可以 numpy 数组的形式取得[MNIST 数据库](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)前1000张图片。
+用 Hub 访问公共数据集仅仅需要几行约定俗成的简单代码。运行这个片段就可以 numpy 数组的形式取得[MNIST 数据集](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)前1000张图片。
 
 ```python
 from hub import Dataset
@@ -78,7 +79,7 @@ mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
 mnist["image"][0:1000].compute()
 ```
-您可以在 [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 找到所有其他流行的数据库.
+您可以在 [app.activeloop.ai](https://app.activeloop.ai/datasets/popular/?utm_source=github&utm_medium=repo&utm_campaign=readme) 找到所有其他流行的数据集.
 
 ### 训练模型
 
@@ -119,10 +120,10 @@ ds = Dataset(
 # filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # executing the creation of the dataset
+ds.flush()  # executing the creation of the dataset
 ```
 
-您也可以指明 `s3://bucket/path`，`gcs://bucket/path` 或 azure 路径。在[这里](https://docs.activeloop.ai/en/latest/simple.html#data-storage)可以找到关于云储存的更多相关信息。同时，如果您无法在 Hub 上找到一个公共数据库，可以向我们[发送一个请求](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=%5BFEATURE%5D+New+Dataset+Required%3A+%2Adataset_name%2A)。我们会尽快让所有人都能获取到它！
+您也可以指明 `s3://bucket/path`，`gcs://bucket/path` 或 azure 路径。在[这里](https://docs.activeloop.ai/en/latest/simple.html#data-storage)可以找到关于云储存的更多相关信息。同时，如果您无法在 Hub 上找到一个公共数据集，可以向我们[发送一个请求](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=%5BFEATURE%5D+New+Dataset+Required%3A+%2Adataset_name%2A)。我们会尽快让所有人都能获取到它！
 
 ### 通过三个步骤上传您的数据集，并从<ins>任何地方</ins>访问它
 
@@ -183,6 +184,16 @@ ds = Dataset("username/dataset_name")
 * **自动驾驶汽车**: [雷达, 3D LIDAR, 点云, 语义分割, 视频对象](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **零售**: 自行结账数据集
 * **媒体**: 图像，视频，音频储存
+
+## 为什么一定选择 Hub？
+有许多数据集管理库提供与 Hub 类似的功能。实际上，很多用户都将 PyTorch 或 Tensorflow 的数据集迁移到了 Hub。以下是你在开始使用 Hub 后就会发现的一些惊人的不同点：
+* 数据是划分为数据块提供的，你可以从远程位置流传输这些数据，而不是一次性将它全部下载下来
+* 由于只需要评估必要部分的数据集，你可以立刻开始处理数据
+* 你能够保存那些无法整个被存储在内存里的数据
+* 你可以在不同机器上，与数个其他用户一起，在版本管理工具下合作管理数据集
+* 你将能获得那些能在数秒内提升你对数据理解的工具，比如我们的可视化工具
+* 你可以轻松地为几个不同的训练库准备数据（例如，你可以为 PyTorch 和 Tensorflow 使用同一个数据集）
+
 
 ## 社区
 
