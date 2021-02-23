@@ -30,7 +30,7 @@
 
 ---
 
-[ [English](./README.md) | 简体中文 ]
+[ [English](./README.md) | 简体中文 | [Türkçe](./README_TR.md) ]
 
 ### Hub 的作用是什么?
 
