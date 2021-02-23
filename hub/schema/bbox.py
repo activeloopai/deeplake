@@ -13,7 +13,7 @@ class BBox(Tensor):
     """| HubSchema` for a normalized bounding box.
 
     Output: Tensor of type `float32` and shape `[4,]` which contains the
-    normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`
+    normalized coordinates of the bounding box `[xmin, ymin, xmax, ymax]`
     """
 
     def __init__(self, dtype="float64", chunks=None, compressor="lz4"):
