@@ -41,3 +41,19 @@ def test_shape_detector_wrong_shape_3():
     except HubException:
         return
     assert False
+
+
+def test_shape_detector_wrong_chunk_shape():
+    try:
+        ShapeDetector((10, 10, 10), (10, 10, 10), (10, 10))
+    except Exception:
+        return
+    assert False
+
+
+def test_shape_detector_wrong_chunk_value():
+    try:
+        ShapeDetector((10, 10, 10), (10, 10, 10), (2, 10, 10))
+    except Exception:
+        return
+    assert False
