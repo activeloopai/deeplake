@@ -31,7 +31,7 @@
 
 ---
 
-[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) ]
+[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
 
 ### What is Hub for?
 
@@ -118,7 +118,7 @@ ds = Dataset(
 # filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # executing the creation of the dataset
+ds.flush()  # executing the creation of the dataset
 ```
 
 You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path. [Here](https://docs.activeloop.ai/en/latest/simple.html#data-storage) you can find more information on cloud storage.
