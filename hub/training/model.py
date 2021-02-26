@@ -166,9 +166,6 @@ class Model:
             model_class, TENSORFLOW_MODEL_CLASSES
         ):
             model_full_path = os.path.join(url, model_class.__name__ + ".h5")
-            io_h5 = io.BytesIO()
-            self._model.save(io_h5)
-            with fs.open(model_full_path, "wb") as opened_file:
-                opened_file.write(io_h5.getbuffer())
+            self._model.save(model_full_path)
         else:
             raise ValueError(f"Unable to store a model of type {type(self._model)}")
