@@ -24,14 +24,12 @@ from hub.version import __version__
 def cli(host, verbose):
     configure_logger(verbose)
 
+
 @click.group()
 @click.version_option(__version__)
 @click.pass_context
 def cli(ctx):
     pass
-
-
-
 
 
 def add_commands(cli):
