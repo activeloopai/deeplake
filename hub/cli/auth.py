@@ -5,6 +5,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import click
+import hub
 from hub.log import logger
 from hub import config
 from hub.client.auth import AuthClient
@@ -33,7 +34,7 @@ def logout():
 @click.option("--email", "-e", default=None, help="Your email")
 @click.option("--password", "-p", default=None, help="Your Activeloop AI password")
 def register(username, email, password):
-    """ Register at of Activeloop AI"""
+    """ Register at Activeloop AI"""
     if not username:
         logger.debug("Prompting for username.")
         username = click.prompt("Username", type=str)
@@ -80,3 +81,4 @@ def login_fn(username, password):
     TokenManager.set_token(token)
     HubControlClient().get_credentials()
     logger.info("Login Successful.")
+
