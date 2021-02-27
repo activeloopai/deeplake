@@ -59,7 +59,7 @@ from hub.exceptions import (
     ModuleNotInstalledException,
     ShapeLengthException,
     WrongUsernameException,
-    AuthenticationException
+    AuthenticationException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -200,9 +200,9 @@ class Dataset:
             except Exception as e:
                 try:
                     self.close()
-                    
-                except :
-                    
+
+                except:
+
                     raise AuthenticationException
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
