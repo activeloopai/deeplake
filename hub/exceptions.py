@@ -79,7 +79,10 @@ class HubException(ClickException):
 
 
 class AuthenticationException(HubException):
-    def __init__(self, message="Authentication failed. Please login again. If you don't have a account , you can register at https://app.activeloop.ai"):
+    def __init__(
+        self,
+        message="Authentication failed. Please login again. If you don't have a account , you can register at https://app.activeloop.ai",
+    ):
         super().__init__(message=message)
 
 
