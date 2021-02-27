@@ -81,4 +81,3 @@ def login_fn(username, password):
     TokenManager.set_token(token)
     HubControlClient().get_credentials()
     logger.info("Login Successful.")
-

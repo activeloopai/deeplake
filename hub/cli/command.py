@@ -11,7 +11,6 @@ from hub.log import configure_logger
 from hub.cli.auth import login, logout, register
 
 
-
 @click.group()
 @click.option(
     "-h",
@@ -26,11 +25,8 @@ def cli(host, verbose):
 
 @click.command()
 def version(version=1.22):
-    ''' Get the version of the hub package
-    '''
+    """Get the version of the hub package"""
     click.echo(f"you are using the hub version:{version}")
-
-
 
 
 def add_commands(cli):
