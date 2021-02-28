@@ -71,7 +71,8 @@ def get_fs_and_path(
         account_name = account_name[8:] if url.startswith("https://") else account_name
         return (
             AzureBlobFileSystem(
-                account_name=account_name, account_key=token.get("account_key"),
+                account_name=account_name,
+                account_key=token.get("account_key"),
             ),
             url[url.find("blob.core.windows.net/") + 22 :],
         )

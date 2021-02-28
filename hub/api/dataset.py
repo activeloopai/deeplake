@@ -544,7 +544,11 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without key"
                 )
             indexes = self.indexes[slice_list[0]]
-            return DatasetView(dataset=self, indexes=indexes, lazy=self.lazy,)
+            return DatasetView(
+                dataset=self,
+                indexes=indexes,
+                lazy=self.lazy,
+            )
         elif not slice_list:
             if subpath in self.keys:
                 tensorview = TensorView(
@@ -704,7 +708,11 @@ class Dataset:
         return False
 
     def to_pytorch(
-        self, transform=None, inplace=True, output_type=dict, indexes=None,
+        self,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        indexes=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
 
@@ -1088,7 +1096,11 @@ class Dataset:
                 labels = ClassLabel(labels)
             schema = {
                 "label": labels,
-                "image": Tensor(shape=image_shape, max_shape=max_shape, dtype=dtype,),
+                "image": Tensor(
+                    shape=image_shape,
+                    max_shape=max_shape,
+                    dtype=dtype,
+                ),
             }
 
             return schema
