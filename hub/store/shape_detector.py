@@ -103,8 +103,16 @@ class ShapeDetector:
             if len(chunks) == 1:
                 return self._get_chunks(shape, max_shape, chunks[0], dtype, chunksize)
             else:
-                assert len(chunks) == len(shape)
-                assert chunks[0] == 1
+                if len(chunks) != len(shape):
+                    raise Exception(
+                        "If you want a multidimensional chunk, the number of dimensions should match with that of the shape parameter."
+                        f" Number of chunk dimensions received={len(chunks)}, number of chunk dimensions required={len(shape)}"
+                    )
+                if chunks[0] != 1:
+                    raise Exception(
+                        "If you want multiple samples in the chunk, then specify only the number in the chunk, rest of the dimensions "
+                        f"should be omitted. In this case use 'chunks={chunks[0]}'"
+                    )
                 return chunks
 
     def _determine_chunksizes(self, max_shape, dtype, chunksize):
