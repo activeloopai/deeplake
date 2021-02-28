@@ -62,21 +62,6 @@ ds.checkout("alternate", create=True)  # creates a new branch
 ds.checkout("ec33fced9d75021a32ae28ff")  # commit id can be obtained from log or by storing result of commit/checkout
 ```
 
-### Optimizing a version
-Hub datasets are always stored in a chunk wise manner (in chunks of size ~16 MB). This allows efficient storage and retrieval of data. 
-
-When you start out with a new dataset, all the chunks present belong to the first commit of master i.e. the dataset is present in an optimized manner. As you make more commits and switch branches, new chunks are created only for those items that were modified. The other chunks are fetched from previous versions and this has a slight overhead (internally we traverse the version tree and figure out which chunk has the required data and read from it). This is an unoptimized state.
-
-In order to remove this overhead, you can make a call to optimize. The drawback of this is that this will essentially create copies of even those chunks that were unchanged. It is recommended to optimize datasets only before training/ some I/O intensive tasks as the operation could be slow for large datasets and also increase the storage space consumed.
-
-**TLDR**: Master branch is optimized for data storage and retrieval in the first commit, all other commits and branches are non-optimized by default, resulting in some overhead. Before using the version of the dataset in training or any other intensive tasks, call optimize to ensure best performance. Don’t call optimize too often as the one time operation could be slow for large datasets and also increases the storage space consumed.
-
-```python
-ds = hub.Dataset("path/to/dataset")
-ds.checkout("alternate")
-ds.optimize()  # optimizes the current commit
-```
-
 ### Looking at the past commits
 Using log you can get a log of all commits made in the past that lead up to the current commit similar to git log. The log provides the commit ids and commit messages. This can be useful for figuring out which commit to go back to.
 
@@ -111,6 +96,5 @@ ds.flush()
 .. autofunction:: hub.api.dataset.Dataset.commit
 .. autofunction:: hub.api.dataset.Dataset.checkout
 .. autofunction:: hub.api.dataset.Dataset.log
-.. autofunction:: hub.api.dataset.Dataset.optimize
 .. autofunction:: hub.api.dataset.Dataset.branches
 ```

@@ -86,101 +86,6 @@ def test_commit_checkout():
     ds.commit("multiplied value of remaining images by 3")
 
 
-def test_commit_optimize():
-    my_schema = {"abc": "uint32"}
-    ds = hub.Dataset(
-        "./data/test_versioning/eg_1_optimized", shape=(10,), schema=my_schema, mode="w"
-    )
-    ds["abc", 0] = 1
-    a = ds.commit("first")
-    ds["abc", 0] = 2
-    b = ds.commit("second")
-    ds["abc", 0] = 3
-    c = ds.commit("third")
-    assert ds["abc", 0].compute() == 3
-    ds.optimize()
-    assert ds["abc", 0].compute() == 3
-    ds.checkout(a)
-    assert ds["abc", 0].compute() == 1
-    ds.optimize()
-    assert ds["abc", 0].compute() == 1
-    ds.checkout(b)
-    assert ds["abc", 0].compute() == 2
-    ds.optimize()
-    assert ds["abc", 0].compute() == 2
-    ds.checkout(c)
-    assert ds["abc", 0].compute() == 3
-    ds.optimize()
-    assert ds["abc", 0].compute() == 3
-
-
-def test_commit_checkout_optimize():
-    my_schema = {"img": hub.schema.Tensor((1000, 1000, 3))}
-    ds = hub.Dataset("./data/eg_1", shape=(10,), schema=my_schema, mode="w")
-
-    for i in range(10):
-        ds["img", i] = np.ones((1000, 1000, 3))
-
-    first_commit_id = ds.commit("stored all ones")
-
-    for i in range(5):
-        ds["img", i] = ds["img", i].compute() * 2
-
-    second_commit_id = ds.commit("multiplied value of some images by 2")
-
-    assert (ds["img", 4].compute() == 2 * np.ones((1000, 1000, 3))).all()
-
-    ds.checkout(first_commit_id)  # now all images are ones again
-
-    for i in range(10):
-        assert (ds["img", i].compute() == np.ones((1000, 1000, 3))).all()
-
-    ds.checkout(
-        "alternate", create=True
-    )  # creating a new branch as we are currently not on the head of master
-
-    for i in range(5):
-        ds["img", i] = ds["img", i].compute() * 3
-
-    #  if we had not checked out to "alternate" branch earlier here it would auto checkout to a new branch
-    alternate_commit = ds.commit("multiplied value of some images by 3")
-
-    assert (ds["img", 4].compute() == 3 * np.ones((1000, 1000, 3))).all()
-
-    ds.checkout(second_commit_id)  # first 5 images are 2s, rest are 1s now
-
-    for i in range(5, 10):
-        ds["img", i] = ds["img", i].compute() * 2
-
-    # we are not at the head of master but rather at the last commit, so we automatically get checkouted out to a new branch here
-    # this happens any time we try to commit when we are not at the head of the branch
-    another_commit = ds.commit("multiplied value of remaining images by 2")
-
-    for i in range(10):
-        assert (ds["img", i].compute() == 2 * np.ones((1000, 1000, 3))).all()
-
-    ds.checkout("alternate")
-
-    for i in range(5, 10):
-        ds["img", i] = ds["img", i].compute() * 3
-
-    for i in range(10):
-        assert (ds["img", i].compute() == 3 * np.ones((1000, 1000, 3))).all()
-
-    # we are already at the head of alternate so it does not check us out to a new branch, rather we commit on the alternate branch itself
-    ds.commit("multiplied value of remaining images by 3")
-    ds.optimize()
-    for i in range(10):
-        assert (ds["img", i].compute() == 3 * np.ones((1000, 1000, 3))).all()
-    ds.checkout("master")
-    ds.optimize()
-    for i in range(10):
-        if i < 5:
-            assert (ds["img", i].compute() == 2 * np.ones((1000, 1000, 3))).all()
-        else:
-            assert (ds["img", i].compute() == np.ones((1000, 1000, 3))).all()
-
-
 def test_commit_checkout_2():
     my_schema = {
         "abc": "uint32",
@@ -291,9 +196,6 @@ def test_read_mode():
     with pytest.raises(ReadModeException):
         ds2.checkout("third", create=True)
     with pytest.raises(ReadModeException):
-        ds2.checkout("second")
-        ds2.optimize()
-    with pytest.raises(ReadModeException):
         ds2["abc", 4] = 10
 
 
@@ -310,8 +212,6 @@ def test_old_datasets():
         ds.checkout("third")
     with pytest.raises(VersioningNotSupportedException):
         ds.checkout("third", create=True)
-    with pytest.raises(VersioningNotSupportedException):
-        ds.optimize()
     with pytest.raises(VersioningNotSupportedException):
         ds.log()
 
@@ -342,8 +242,6 @@ if __name__ == "__main__":
     test_commit()
     test_commit_checkout()
     test_commit_checkout_2()
-    test_commit_checkout_optimize()
-    test_commit_optimize()
     test_auto_checkout_bug()
     test_read_mode()
     test_old_datasets()
