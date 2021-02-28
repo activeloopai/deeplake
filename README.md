@@ -168,7 +168,7 @@ ds = Dataset("username/dataset_name")
 For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Tutorial Notebooks
-The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and notebooks giving an overview of Hub. Some of the notebooks are listed of below.
+The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and the [notebooks](https://github.com/activeloopai/Hub/tree/master/examples/notebooks) has some notebooks with use cases. Some of the notebooks are listed of below.
 
 | Notebook  	|   Description	|   	|
 |:---	|:---	|---:	|
@@ -178,7 +178,7 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 | [Retrieving Remote Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) | Explains how to retrieve Data| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) |
 | [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
 | [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) |
-| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) |
+| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) |
 
 
 ## Use Cases
