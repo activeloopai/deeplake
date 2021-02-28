@@ -5,8 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import click
-
-import hub
 from hub import config
 from hub.log import configure_logger
 from hub.cli.auth import login, logout, register

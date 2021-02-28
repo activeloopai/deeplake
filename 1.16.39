@@ -1,0 +1,14 @@
+Requirement already satisfied: boto3 in /home/debo/miniconda3/lib/python3.8/site-packages (1.16.39)
+Requirement already satisfied: jmespath<1.0.0,>=0.7.1 in /home/debo/miniconda3/lib/python3.8/site-packages (from boto3) (0.10.0)
+Collecting botocore<1.20.0,>=1.19.39
+  Downloading botocore-1.19.63-py2.py3-none-any.whl (7.2 MB)
+Requirement already satisfied: s3transfer<0.4.0,>=0.3.0 in /home/debo/.local/lib/python3.8/site-packages (from boto3) (0.3.4)
+Requirement already satisfied: urllib3<1.27,>=1.25.4; python_version != "3.4" in /home/debo/miniconda3/lib/python3.8/site-packages (from botocore<1.20.0,>=1.19.39->boto3) (1.25.11)
+Requirement already satisfied: python-dateutil<3.0.0,>=2.1 in /home/debo/.local/lib/python3.8/site-packages (from botocore<1.20.0,>=1.19.39->boto3) (2.8.1)
+Requirement already satisfied: six>=1.5 in /home/debo/.local/lib/python3.8/site-packages (from python-dateutil<3.0.0,>=2.1->botocore<1.20.0,>=1.19.39->boto3) (1.11.0)
+Installing collected packages: botocore
+  Attempting uninstall: botocore
+    Found existing installation: botocore 1.20.17
+    Uninstalling botocore-1.20.17:
+      Successfully uninstalled botocore-1.20.17
+Successfully installed botocore-1.19.63
