@@ -79,16 +79,18 @@ print(ds.branches)
 ```
 
 ### Wrapping up a session
-Hub uses a memory cache to ensure fast data storage and retrieval. This cache is automatically flushed to the storage whenever it gets full. Every time you are done making changes to the dataset, you should make a call to commit to ensure that the data is properly flushed. In case you don’t want to create a new commit at the moment, flush can be used to save the dataset state so you can continue from where you left off next time.
+Hub uses a memory cache to ensure fast data storage and retrieval. This cache is automatically flushed to the storage whenever it gets full. Every time you are done making changes to the dataset, you should make a call to commit to ensure that the data is properly flushed. In case you don’t want to create a new commit at the moment, save or flush can be used to save the dataset state so you can continue from where you left off next time.
 
 ```python
 ds = hub.Dataset("path/to/dataset")
 for i in range(10):
     ds["img", i] = i * np.ones((100, 100, 3))
 
-ds.commit("modifications made")
-# OR
-ds.flush()
+ds.commit("modifications made") # creates a new commit
+
+# OR just save without creating a new commit
+ds.flush() # same as ds.save()
+
 ```
 
 ## API
@@ -97,4 +99,6 @@ ds.flush()
 .. autofunction:: hub.api.dataset.Dataset.checkout
 .. autofunction:: hub.api.dataset.Dataset.log
 .. autofunction:: hub.api.dataset.Dataset.branches
+.. autofunction:: hub.api.dataset.Dataset.save
+.. autofunction:: hub.api.dataset.Dataset.flush
 ```

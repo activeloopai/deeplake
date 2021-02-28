@@ -165,14 +165,14 @@ class Dataset:
         self.username = None
         self.dataset_name = None
         if not needcreate:
-            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.meta = json.loads(fs_map[defaults.META_FILE].decode("utf-8"))
             self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
             try:
-                version_info = pickle.loads(fs_map["version.pkl"])
+                version_info = pickle.loads(fs_map[defaults.VERSION_INFO])
                 self._branch_node_map = version_info["branch_node_map"]
                 self._commit_node_map = version_info["commit_node_map"]
                 self._chunk_commit_map = version_info["chunk_commit_map"]
@@ -293,7 +293,7 @@ class Dataset:
             "name": self._name,
         }
 
-        self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+        self._fs_map[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
         return meta
 
     def _store_version_info(self) -> dict:
@@ -303,13 +303,13 @@ class Dataset:
                 "commit_node_map": self._commit_node_map,
                 "chunk_commit_map": self._chunk_commit_map,
             }
-            self._fs_map["version.pkl"] = pickle.dumps(d)
+            self._fs_map[defaults.VERSION_INFO] = pickle.dumps(d)
 
     def commit(self, message: str = "") -> str:
         """| Saves the current state of the dataset and returns the commit id.
         Checks out automatically to an auto branch if the current commit is not the head of the branch
 
-        Acts as alias to flush if dataset was created before Hub v1.3.0
+        Only saves the dataset without any version control information if the dataset was created before Hub v1.3.0
 
         Parameters
         ----------
@@ -369,7 +369,9 @@ class Dataset:
             new_node = VersionNode(new_commit_id, self._branch)
             if not self._version_node.children:
                 for key in self.keys:
-                    self._tensors[key].fs_map.copy_all(self._commit_id, new_commit_id)
+                    self._tensors[key].fs_map.copy_all_chunks(
+                        self._commit_id, new_commit_id
+                    )
                 if self._version_node.parent is not None:
                     self._version_node.parent.insert(
                         new_node, f"switched to new branch {address}"
@@ -405,9 +407,9 @@ class Dataset:
             if not self._version_node.children
             else self._version_node
         )
-        print(f"\n Current Branch: {self._branch}")
+        print(f"\n Current Branch: {self._branch}\n")
         while current_node:
-            print(current_node)
+            print(f"{current_node}\n")
             current_node = current_node.parent
 
     def _check_and_prepare_dir(self):
@@ -426,7 +428,7 @@ class Dataset:
                     fs.listdir(path)
                 except BaseException:
                     raise WrongUsernameException(stored_username)
-        meta_path = posixpath.join(path, "meta.json")
+        meta_path = posixpath.join(path, defaults.META_FILE)
         try:
             # Update boto3 cache
             fs.ls(path, detail=False, refresh=True)
@@ -542,11 +544,7 @@ class Dataset:
                     "Can't slice a dataset with multiple slices without key"
                 )
             indexes = self.indexes[slice_list[0]]
-            return DatasetView(
-                dataset=self,
-                indexes=indexes,
-                lazy=self.lazy,
-            )
+            return DatasetView(dataset=self, indexes=indexes, lazy=self.lazy,)
         elif not slice_list:
             if subpath in self.keys:
                 tensorview = TensorView(
@@ -695,7 +693,7 @@ class Dataset:
     def delete(self):
         """ Deletes the dataset """
         fs, path = self._fs, self._path
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
             if self.username is not None:
@@ -706,11 +704,7 @@ class Dataset:
         return False
 
     def to_pytorch(
-        self,
-        transform=None,
-        inplace=True,
-        output_type=dict,
-        indexes=None,
+        self, transform=None, inplace=True, output_type=dict, indexes=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
 
@@ -784,12 +778,12 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        _meta = json.loads(self._fs_map["meta.json"])
+        _meta = json.loads(self._fs_map[defaults.META_FILE])
         _meta["meta_info"] = self._meta_information
-        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+        self._fs_map[defaults.META_FILE] = json.dumps(_meta).encode("utf-8")
 
     def flush(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         Does not invalidate this object.
         """
         if "r" in self._mode:
@@ -801,8 +795,14 @@ class Dataset:
         self._fs_map.flush()
         self._update_dataset_state()
 
+    def save(self):
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
+        Does not invalidate this object.
+        """
+        self.flush()
+
     def close(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         This invalidates this object.
         """
         self.flush()
@@ -892,7 +892,7 @@ class Dataset:
             return mode
         else:
             try:
-                meta_path = posixpath.join(self._path, "meta.json")
+                meta_path = posixpath.join(self._path, defaults.META_FILE)
                 if not fs.exists(self._path) or not fs.exists(meta_path):
                     return "a"
                 bytes_ = bytes("Hello", "utf-8")
@@ -1088,11 +1088,7 @@ class Dataset:
                 labels = ClassLabel(labels)
             schema = {
                 "label": labels,
-                "image": Tensor(
-                    shape=image_shape,
-                    max_shape=max_shape,
-                    dtype=dtype,
-                ),
+                "image": Tensor(shape=image_shape, max_shape=max_shape, dtype=dtype,),
             }
 
             return schema

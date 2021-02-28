@@ -7,8 +7,11 @@ from collections import defaultdict
 import json
 from collections.abc import MutableMapping
 import posixpath
+from hub import defaults
 
 
+# TODO: Better version control for PB scale data
+# Retrieving chunks with version control is fast, but the memory used to store the chunk_commit_map would be huge ~GBs
 class MetaStorage(MutableMapping):
     @classmethod
     def to_str(cls, obj):
@@ -38,7 +41,9 @@ class MetaStorage(MutableMapping):
         if filename.startswith("."):
             return bytes(
                 json.dumps(
-                    json.loads(self.to_str(self._meta["meta.json"]))[k][self._path]
+                    json.loads(self.to_str(self._meta[defaults.META_FILE]))[k][
+                        self._path
+                    ]
                 ),
                 "utf-8",
             )
@@ -50,7 +55,7 @@ class MetaStorage(MutableMapping):
     def get(self, k: str, check=True) -> bytes:
         filename = posixpath.split(k)[1]
         if filename.startswith("."):
-            meta_ = self._meta.get("meta.json")
+            meta_ = self._meta.get(defaults.META_FILE)
             if not meta_:
                 return None
             meta = json.loads(self.to_str(meta_))
@@ -68,10 +73,10 @@ class MetaStorage(MutableMapping):
     def __setitem__(self, k: str, v: bytes, check=True):
         filename = posixpath.split(k)[1]
         if filename.startswith("."):
-            meta = json.loads(self.to_str(self._meta["meta.json"]))
+            meta = json.loads(self.to_str(self._meta[defaults.META_FILE]))
             meta[k] = meta.get(k) or {}
             meta[k][self._path] = json.loads(self.to_str(v))
-            self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
+            self._meta[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
         else:
             chunk_key = k.split(":")[0]
             if check and self._ds._commit_id:
@@ -83,7 +88,7 @@ class MetaStorage(MutableMapping):
             self._ds._chunk_commit_map[self._path][chunk_key].add(commit_id)
             self._fs_map[k] = v
 
-    def copy_all(self, from_commit_id: str, to_commit_id: str):
+    def copy_all_chunks(self, from_commit_id: str, to_commit_id: str):
         ls = {
             chunk
             for chunk, commit_ids in self._ds._chunk_commit_map[self._path].items()
@@ -111,10 +116,10 @@ class MetaStorage(MutableMapping):
         if not filename.startswith("."):
             filename = self.find_chunk(filename) or f"{filename}:{self._ds._commit_id}"
         if filename.startswith("."):
-            meta = json.loads(self.to_str(self._meta["meta.json"]))
+            meta = json.loads(self.to_str(self._meta[defaults.META_FILE]))
             meta[k] = meta.get(k) or dict()
             meta[k][self._path] = None
-            self._meta["meta.json"] = bytes(json.dumps(meta), "utf-8")
+            self._meta[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
         else:
             chunk_key = k.split(":")[0]
             if self._ds._commit_id:
