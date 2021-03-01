@@ -176,6 +176,12 @@ class SchemaArgumentNotFoundException(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class InvalidVersionInfoException(HubException):
+    def __init__(self):
+        message = "The pickle file with version info exists but the version info inside is invalid. Proceeding without version control."
+        super(HubException, self).__init__(message=message)
+
+
 class ValueShapeError(HubException):
     def __init__(self, correct_shape, wrong_shape):
         message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"

@@ -62,6 +62,7 @@ from hub.exceptions import (
     ShapeLengthException,
     VersioningNotSupportedException,
     WrongUsernameException,
+    InvalidVersionInfoException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -173,13 +174,26 @@ class Dataset:
             self._flat_tensors = tuple(flatten(self._schema))
             try:
                 version_info = pickle.loads(fs_map[defaults.VERSION_INFO])
-                self._branch_node_map = version_info["branch_node_map"]
-                self._commit_node_map = version_info["commit_node_map"]
-                self._chunk_commit_map = version_info["chunk_commit_map"]
+                self._branch_node_map = version_info.get("branch_node_map")
+                self._commit_node_map = version_info.get("commit_node_map")
+                self._chunk_commit_map = version_info.get("chunk_commit_map")
+                if not (
+                    self._branch_node_map
+                    and self._commit_node_map
+                    and self._chunk_commit_map
+                ):
+                    raise InvalidVersionInfoException()
                 self._branch = "master"
                 self._version_node = self._branch_node_map[self._branch]
                 self._commit_id = self._version_node.commit_id
-            except Exception:
+            except KeyError:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._chunk_commit_map = None
+            except InvalidVersionInfoException:
                 self._commit_id = None
                 self._branch = None
                 self._version_node = None
