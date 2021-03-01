@@ -51,9 +51,9 @@ setup(
     dependency_links=[],
     entry_points={
         "console_scripts": [
-            "hub = hub.cli.command:cli",
-            "hub-local = hub.cli.local:cli",
-            "hub-dev = hub.cli.dev:cli",
+            "activeloop = hub.cli.command:cli",
+            "activeloop-local = hub.cli.local:cli",
+            "activeloop-dev = hub.cli.dev:cli",
         ]
     },
     tests_require=["pytest", "mock>=1.0.1"],

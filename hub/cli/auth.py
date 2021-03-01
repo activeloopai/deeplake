@@ -15,16 +15,16 @@ from hub.client.hub_control import HubControlClient
 @click.command()
 # @click.option('--token', is_flag=True, default=False,
 #        help='Enter authentication tocken from {}'.format(config.GET_TOKEN_REST_SUFFIX))
-@click.option("--username", "-u", default=None, help="Your Snark AI username")
-@click.option("--password", "-p", default=None, help="Your Snark AI password")
+@click.option("--username", "-u", default=None, help="Your Activeloop AI username")
+@click.option("--password", "-p", default=None, help="Your Activeloop AI password")
 def login(username, password):
-    """ Logs in to Snark AI"""
+    """ Log in to Activeloop AI"""
     login_fn(username, password)
 
 
 @click.command()
 def logout():
-    """ Logs out of Activeloop AI"""
+    """ Log out of Activeloop AI"""
     TokenManager.purge_token()
 
 
@@ -33,7 +33,7 @@ def logout():
 @click.option("--email", "-e", default=None, help="Your email")
 @click.option("--password", "-p", default=None, help="Your Activeloop AI password")
 def register(username, email, password):
-    """ Register at of Activeloop AI"""
+    """ Register at Activeloop AI"""
     if not username:
         logger.debug("Prompting for username.")
         username = click.prompt("Username", type=str)
@@ -52,7 +52,7 @@ def register(username, email, password):
 
 
 def login_fn(username, password):
-    """ Logs in to Snark AI"""
+    """ Log in to Activeloop AI"""
     token = ""
     if token:
         logger.info("Token login.")
