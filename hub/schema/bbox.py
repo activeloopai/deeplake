@@ -14,6 +14,33 @@ class BBox(Tensor):
 
     Output: Tensor of type `float32` and shape `[4,]` which contains the
     normalized coordinates of the bounding box `[ymin, xmin, ymax, xmax]`
+    
+
+    Example: This example uploads a dataset with a Bounding box schema and retrieves it.
+
+    ----------
+    >>> from numpy import asarray
+    >>> 
+    >>> tag = "username/dataset"
+    >>> 
+    >>> # Create dataset
+    >>> ds = Dataset(
+    >>>   tag,
+    >>>   shape=(10,),
+    >>>   schema={
+    >>>      "bbox": schema.BBox(dtype="uint8"),
+    >>>  },
+    >>> )
+    >>>
+    >>> ds["bbox", 1] = np.array([1,2,3,4])
+    >>> ds.flush()
+
+    >>> # Load data
+    >>> ds = Dataset(tag)
+    >>>
+    >>> print(ds["bbox"][0].compute())
+    [1 2 3 4]
+
     """
 
     def __init__(self, dtype="float64", chunks=None, compressor="lz4"):
