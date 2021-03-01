@@ -4,7 +4,7 @@ Hub can also be used to create different versions of datasets in a manner simila
 These versions are not full copies but rather they keep track of differences between versions and are thus stored very efficiently. Unlike git, this isn’t a CLI tool but rather a python API.
 
 ## How it works
-Hub datasets are always stored in a chunk wise manner (in chunks of size ~16 MB). This allows us to store and load the data optimally. While versioning, Hub only creates copies of those chunks that are modified after the previous commit, the rest of the chunks are fetched from previous commits.
+Hub datasets are always stored in a chunk wise manner. This allows us to store and load the data optimally. While versioning, Hub only creates copies of those chunks that are modified after the previous commit, the rest of the chunks are fetched from previous commits.
 
 ### What can I do with Hub versioning currently?
 * Modify dataset elements across different versions
