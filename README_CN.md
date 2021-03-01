@@ -31,7 +31,7 @@
 
 ---
 
-[ [English](./README.md) | 简体中文 | [Türkçe](./README_TR.md) ]
+[ [English](./README.md) | 简体中文 | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
 
 ### Hub 的作用是什么?
 
@@ -150,7 +150,7 @@ ds = Dataset(
 
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.flush()
 ```
 
 3. 在任何地点，以任何拥有命令行的机器访问它：

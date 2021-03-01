@@ -1,9 +1,8 @@
- <p align="center">
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
 </p>
-
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -20,17 +19,19 @@
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
+    <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button">
+  <img src="https://i.ibb.co/YBTCcJc/output-onlinepngtools.png" height="35" /></a>
 
 ---
 
 </a>
 </p>
 
-<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow. Scalable data pipelines.</h3>
+<h3 align="center"> Introducing Data 2.0, powered by Hub. </br>The fastest way to store, access & manage datasets with version-control for PyTorch/TensorFlow.  Works locally or on any cloud. Scalable data pipelines.</h3>
 
 ---
 
-[ English | [简体中文](./README_CN.md) ]
+[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
 
 ### What is Hub for?
 
@@ -117,7 +118,7 @@ ds = Dataset(
 # filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # executing the creation of the dataset
+ds.flush()  # executing the creation of the dataset
 ```
 
 You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path. [Here](https://docs.activeloop.ai/en/latest/simple.html#data-storage) you can find more information on cloud storage.
@@ -151,7 +152,7 @@ ds = Dataset(
 
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.flush()
 ```
 
 3. Access it from anywhere else in the world, on any device having a command line:
@@ -167,7 +168,7 @@ ds = Dataset("username/dataset_name")
 For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Tutorial Notebooks
-The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and notebooks giving an overview of Hub. Some of the notebooks are listed of below.
+The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and the [notebooks](https://github.com/activeloopai/Hub/tree/master/examples/notebooks) has some notebooks with use cases. Some of the notebooks are listed of below.
 
 | Notebook  	|   Description	|   	|
 |:---	|:---	|---:	|
@@ -176,8 +177,8 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 | [Uploading Audio](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) | Explains how to handle audio data in Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) |
 | [Retrieving Remote Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) | Explains how to retrieve Data| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) |
 | [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
-| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
-| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) |
+| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) |
+| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) |
 
 
 ## Use Cases
@@ -186,6 +187,17 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 * **Self-Driving Cars**: [Radar, 3D LIDAR, Point Cloud, Semantic Segmentation, Video Objects](https://medium.com/snarkhub/extending-snark-hub-capabilities-to-handle-waymo-open-dataset-4dc7b7d8ab35)
 * **Retail**: Self-checkout datasets
 * **Media**: Images, Video, Audio storage
+
+## Why Hub specifically?
+
+There are quite a few dataset management libraries which offer functionality that might seem similar to Hub. In fact, quite a few users migrate data from PyTorch or Tensorflow Datasets to Hub. Here are a few startling differences you will encounter after switching to Hub:
+* the data is provided in chunks, which you may stream from a remote location, instead of downloading all of it at once
+* as only the necessary portion of the dataset is evaluated, you are able to work on the data immediately
+* you are able to store the data that would not fit in your memory in its entirety
+* you may version control and collaborate with multiple users on your datasets across different machines
+* you are equipped with tools that enhance your understanding of the data in a manner of seconds, such as our visualization tool
+* you can easily prepare your data for multiple training libraries at ones (e.g. you can use the same dataset for training with PyTorch and Tensorflow)
+
 
 ## Community
 

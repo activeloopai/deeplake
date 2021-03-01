@@ -7,9 +7,7 @@ def create_large_dataset():
     sample_count = 60  # change this to big number to test
 
     # Decide schema of the dataset
-    schema = {
-        "image": Tensor((1920, 1080, 3), chunks=(2, 1920, 1080, 3), dtype="float64")
-    }
+    schema = {"image": Tensor((1920, 1080, 3), dtype="float64")}
     array = np.random.random((10, 1920, 1080, 3))
 
     # Write the dataset
@@ -21,7 +19,7 @@ def create_large_dataset():
 
     for i in range(len(ds) // 10):
         ds["image", i * 10 : i * 10 + 10] = i * array
-    ds.commit()
+    ds.flush()
 
     ds = hub.Dataset("./data/examples/large_dataset_build")
     print(ds.keys, ds["image"].shape, ds["image"].dtype)

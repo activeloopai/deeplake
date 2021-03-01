@@ -23,7 +23,7 @@ def main():
     print(ds.shape)
     print(ds["label", 100:110].numpy())
     with Timer("Committing"):
-        ds.commit()
+        ds.flush()
 
     ds = Dataset(path)
     print(ds.schema)
