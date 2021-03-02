@@ -32,6 +32,7 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
    :caption: Overview
    
    installing.md
+   developing.md
    why.md
    benchmarks.md
    api
