@@ -1,0 +1,16 @@
+Platform: Windows 10
+Version: 10.0.19041
+Architecture: AMD64
+Processor: Intel64 Family 6 Model 158 Stepping 10, GenuineIntel
+RAM: 16GB
+Python Version: 3.8.0Filename: D:/MindLab/AI/Open Source Contributions/Hub/benchmarks/Memory Benchmarks/benchmark_memory_profile_tf.py
+
+Line #    Mem usage    Increment  Occurences   Line Contents
+============================================================
+    21    184.2 MiB    184.2 MiB           1   @profile(stream=fp)
+    22                                         def cifar100_tf_profile():
+    23    362.9 MiB    178.8 MiB           1       ds_train, ds_test = cifar100.load_data()
+
+
+
+ Time taken for execution: 0.94

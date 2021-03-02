@@ -1,0 +1,25 @@
+Platform: Windows 10
+Version: 10.0.19041
+Architecture: AMD64
+Processor: Intel64 Family 6 Model 158 Stepping 10, GenuineIntel
+RAM: 16GB
+Python Version: 3.8.0 Filename: D:/MindLab/AI/Open Source Contributions/Hub/benchmarks/Memory Benchmarks/benchmark_memory_profile_hub.py
+
+Line #    Mem usage    Increment  Occurences   Line Contents
+============================================================
+    26     66.3 MiB     66.3 MiB           1   @profile(stream=fp)
+    27                                         def cifar100_profile_cache(cache_var=False):
+    28     86.8 MiB     20.5 MiB           1       ds = Dataset("activeloop/cifar100_train", cache=cache_var)
+
+
+Filename: D:/MindLab/AI/Open Source Contributions/Hub/benchmarks/Memory Benchmarks/benchmark_memory_profile_hub.py
+
+Line #    Mem usage    Increment  Occurences   Line Contents
+============================================================
+    26     85.4 MiB     85.4 MiB           1   @profile(stream=fp)
+    27                                         def cifar100_profile_cache(cache_var=False):
+    28     95.8 MiB     10.4 MiB           1       ds = Dataset("activeloop/cifar100_train", cache=cache_var)
+
+
+
+ Time taken for execution: 33.323
