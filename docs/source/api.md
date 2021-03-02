@@ -53,7 +53,6 @@
 ```
 
 ## Schema
-
 ```eval_rst
 .. autoclass:: hub.schema.audio.Audio
    :members:
