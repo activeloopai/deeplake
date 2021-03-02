@@ -33,7 +33,7 @@ def logout():
 @click.option("--email", "-e", default=None, help="Your email")
 @click.option("--password", "-p", default=None, help="Your Activeloop AI password")
 def register(username, email, password):
-    """ Register at of Activeloop AI"""
+    """ Register at Activeloop AI"""
     if not username:
         logger.debug("Prompting for username.")
         username = click.prompt("Username", type=str)
