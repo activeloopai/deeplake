@@ -9,8 +9,7 @@ from hub import config
 from hub.log import configure_logger
 from hub.cli.auth import login, logout, register
 from hub.version import __version__
-from hub.report import consent
-from hub.cli.auth import login, logout, register
+from hub.cli.auth import login, logout, register, reporting
 
 
 @click.group()
@@ -37,7 +36,7 @@ def add_commands(cli):
     cli.add_command(register)
     cli.add_command(logout)
     cli.add_command(cli)
-    cli.add_command(consent)
+    cli.add_command(reporting)
 
 
 add_commands(cli)

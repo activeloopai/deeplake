@@ -74,6 +74,9 @@ def register(username, email, password):
 @click.command()
 @click.option("--on/--off", help="Turn crash report on/off")
 def reporting(on):
+    """
+    Enable or disable sending crash reports to Activeloop AI.
+    """
     report = Report(
         title="Consent change",
         tags=hub_reporter.system_tags(),
