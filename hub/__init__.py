@@ -18,6 +18,10 @@ from hub.compute import transform
 from hub.log import logger
 import traceback
 from hub.exceptions import DaskModuleNotInstalledException, HubDatasetNotFoundException
+from hub.report import hub_reporter, client_id_tag, session_id_tag, hub_version_tag
+
+
+hub_reporter.system_report(tags=[client_id_tag, session_id_tag, hub_version_tag])
 
 
 def local_mode():

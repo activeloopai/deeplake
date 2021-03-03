@@ -16,3 +16,4 @@ psutil>=5.7.3
 Pillow>=8.0.1
 cloudpickle==1.6.0
 msgpack==1.0.2
+humbug==0.1.2
