@@ -5,9 +5,6 @@
 .coverage.*
 htmlcov
 
-# vim
-*.swp
-
 # Sphinix
 # sphinx build folder
 docs/_build
