@@ -1,4 +1,4 @@
-from hub import dataset
+from hub import Dataset
 
 
 def benchmark_access_hub_full_setup(dataset_name, field=None):
@@ -13,4 +13,4 @@ def benchmark_access_hub_full_setup(dataset_name, field=None):
 def benchmark_access_hub_full_run(params):
     dset, keys = params
     for k in keys:
-        dset[k][slice_bounds[0], slice_bounds[1]].compute()
+        dset[k].compute()
