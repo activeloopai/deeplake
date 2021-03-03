@@ -9,9 +9,7 @@ from click import ClickException
 from hub.report import (
     hub_reporter,
     ExceptionWithReporting,
-    client_id_tag,
-    session_id_tag,
-    hub_version_tag,
+    hub_tags,
 )
 
 
@@ -89,9 +87,7 @@ class HubException(ClickException):
 class AuthenticationException(HubException):
     def __init__(self, message="Authentication failed. Please login again."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class AuthorizationException(HubException):
@@ -101,9 +97,7 @@ class AuthorizationException(HubException):
         except (KeyError, AttributeError):
             message = "You are not authorized to access this resource on Snark AI."
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NotFoundException(HubException):
@@ -112,9 +106,7 @@ class NotFoundException(HubException):
         message="The resource you are looking for was not found. Check if the name or id is correct.",
     ):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class BadRequestException(HubException):
@@ -128,9 +120,7 @@ class BadRequestException(HubException):
                 response.content
             )
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class OverLimitException(HubException):
@@ -139,139 +129,107 @@ class OverLimitException(HubException):
         message="You are over the allowed limits for this operation. Consider upgrading your account.",
     ):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class ServerException(HubException):
     def __init__(self, message="Internal Snark AI server error."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class BadGatewayException(HubException):
     def __init__(self, message="Invalid response from Snark AI server."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class GatewayTimeoutException(HubException):
     def __init__(self, message="Snark AI server took too long to respond."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class WaitTimeoutException(HubException):
     def __init__(self, message="Timeout waiting for server state update."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class LockedException(HubException):
     def __init__(self, message="Resource locked."):
         super().__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class HubDatasetNotFoundException(HubException):
     def __init__(self, response):
         message = f"The dataset with tag {response} was not found"
         super(HubDatasetNotFoundException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class PermissionException(HubException):
     def __init__(self, response):
         message = f"No permision to store the dataset at {response}"
         super(PermissionException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class ShapeArgumentNotFoundException(HubException):
     def __init__(self):
         message = "Parameter 'shape' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class DirectoryNotEmptyException(HubException):
     def __init__(self, dst_url):
         message = f"The destination url {dst_url} for copying dataset is not empty. Delete the directory manually or use Dataset.delete if it's a Hub dataset"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class SchemaArgumentNotFoundException(HubException):
     def __init__(self):
         message = "Parameter 'schema' should be provided for Dataset creation."
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class ValueShapeError(HubException):
     def __init__(self, correct_shape, wrong_shape):
         message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NoneValueException(HubException):
     def __init__(self, param):
         message = f"Parameter '{param}' should be provided"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class ShapeLengthException(HubException):
     def __init__(self):
         message = "Parameter 'shape' should be a tuple of length 1"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class ModuleNotInstalledException(HubException):
     def __init__(self, module_name):
         message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class DaskModuleNotInstalledException(HubException):
     def __init__(self, message=""):
         message = "Dask has been deprecated and made optional. Older versions of 0.x hub datasets require loading dask. Please install it: pip install 'dask[complete]>=2.30'"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class WrongUsernameException(HubException):
@@ -281,9 +239,7 @@ class WrongUsernameException(HubException):
             "or make sure that the username provided in the url matches the one used during login or ."
         )
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NotHubDatasetToOverwriteException(HubException):
@@ -296,9 +252,7 @@ class NotHubDatasetToOverwriteException(HubException):
             "In that case feel free to create an issue in here https://github.com/activeloopai/Hub"
         )
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NotHubDatasetToAppendException(HubException):
@@ -308,18 +262,14 @@ class NotHubDatasetToAppendException(HubException):
             "The provided directory is not empty and doesn't contain information about any Hub Dataset "
         )
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class DynamicTensorNotFoundException(HubException):
     def __init__(self):
         message = "Unable to find dynamic tensor"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class DynamicTensorShapeException(HubException):
@@ -333,18 +283,14 @@ class DynamicTensorShapeException(HubException):
         else:
             message = "Wrong 'shape' or 'max_shape' values"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NotIterable(HubException):
     def __init__(self):
         message = "First argument to transform function should be iterable"
         super(HubException, self).__init__(message=message)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag]
-        )
+        hub_reporter.error_report(self, tags=hub_tags)
 
 
 class NotZarrFolderException(ExceptionWithReporting):

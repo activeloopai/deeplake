@@ -10,6 +10,7 @@ from hub.log import configure_logger
 from hub.cli.auth import login, logout, register
 from hub.version import __version__
 from hub.report import consent
+from hub.cli.auth import login, logout, register
 
 
 @click.group()

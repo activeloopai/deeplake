@@ -8,7 +8,6 @@ import os
 import json
 import uuid
 
-import click
 from humbug.consent import HumbugConsent, environment_variable_opt_out
 from humbug.report import Reporter
 
@@ -16,8 +15,8 @@ from hub.config import (
     HUMBUG_TOKEN,
     HUMBUG_KB_ID,
     REPORT_CONSENT_FILE_PATH,
-    REPORT_CONSENT_ENV_VAR,
 )
+from hub.version import __version__ as hub_version
 
 
 def hub_consent_from_file() -> bool:
@@ -34,66 +33,73 @@ def hub_consent_from_file() -> bool:
     return consent
 
 
-hub_consent_override_from_env = environment_variable_opt_out(
-    REPORT_CONSENT_ENV_VAR,
-    ["0", "f", "F", "false", "False", "FALSE", "n", "N", "no", "No", "NO"],
-)
-
-
-@click.command()
-@click.option("--allow/--disallow", default=True)
-def consent(allow: bool) -> None:
+def configure_reporting(consent, client_id=None, username=None):
     """
     Allow or disallow Hub reporting.
     """
-    consent_config = {}
+    reporting_config = {}
     if os.path.isfile(REPORT_CONSENT_FILE_PATH):
         try:
             with open(REPORT_CONSENT_FILE_PATH, "r") as ifp:
-                consent_config = json.load(ifp)
+                reporting_config = json.load(ifp)
         except Exception:
             pass
 
-    if consent_config.get("client_id") is None:
-        consent_config["client_id"] = str(uuid.uuid4())
+    if client_id is not None and reporting_config.get("client_id") is None:
+        reporting_config["client_id"] = client_id
 
-    consent_config["consent"] = allow
+    if reporting_config.get("client_id") is None:
+        reporting_config["client_id"] = str(uuid.uuid4())
 
-    config_dir = os.path.dirname(REPORT_CONSENT_FILE_PATH)
-    if not os.path.exists(config_dir):
-        os.makedirs(config_dir)
+    if username is not None:
+        reporting_config["username"] = username
 
-    with open(REPORT_CONSENT_FILE_PATH, "w") as ofp:
-        json.dump(consent_config, ofp)
+    reporting_config["consent"] = consent
+
+    try:
+        config_dir = os.path.dirname(REPORT_CONSENT_FILE_PATH)
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+
+        with open(REPORT_CONSENT_FILE_PATH, "w") as ofp:
+            json.dump(reporting_config, ofp)
+    except Exception:
+        pass
 
 
-hub_consent = HumbugConsent(hub_consent_from_file, hub_consent_override_from_env)
+def get_reporting_config():
+    reporting_config = {}
+    try:
+        if not os.path.exists(REPORT_CONSENT_FILE_PATH):
+            client_id = str(uuid.uuid4())
+            reporting_config["client_id"] = client_id
+            configure_reporting(True, client_id)
+        with open(REPORT_CONSENT_FILE_PATH, "r") as ifp:
+            reporting_config = json.load(ifp)
+    except Exception:
+        pass
+    return reporting_config
+
+
+session_id = str(uuid.uuid4())
+
+hub_consent = HumbugConsent(hub_consent_from_file)
 hub_reporter = Reporter(
     "activeloopai/Hub",
     hub_consent,
+    client_id=get_reporting_config().get("client_id"),
+    session_id=session_id,
     bugout_token=HUMBUG_TOKEN,
     bugout_journal_id=HUMBUG_KB_ID,
     timeout_seconds=5,
 )
 
-client_id = None
-try:
-    with open(REPORT_CONSENT_FILE_PATH, "r") as ifp:
-        consent_config = json.load(ifp)
-    client_id = consent_config.get("client_id")
-except Exception:
-    pass
-client_id_tag = "client_id:{}".format(client_id)
 
-session_id = str(uuid.uuid4())
-session_id_tag = "session_id:{}".format(session_id)
-
-hub_version_tag = "version:1.2.2-dev-reporting"
+hub_version_tag = "version:{}".format(hub_version)
+hub_tags = [hub_version_tag]
 
 
 class ExceptionWithReporting(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        hub_reporter.error_report(
-            self, tags=[client_id_tag, session_id_tag, hub_version_tag], publish=True
-        )
+        hub_reporter.error_report(self, tags=hub_tags, publish=True)

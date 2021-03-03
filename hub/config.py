@@ -33,5 +33,4 @@ DISTRIBUTED = True
 # Reporting-related configuration
 HUMBUG_TOKEN = "63423cd9-0951-4525-aeb3-257bbed6c6f5"
 HUMBUG_KB_ID = "5e264dc7-72bf-44bb-9b0b-220b7381ad72"
-REPORT_CONSENT_FILE_PATH = os.path.expanduser("~/.activeloop/report_consent.json")
-REPORT_CONSENT_ENV_VAR = "HUB_REPORTING_ENABLED"
+REPORT_CONSENT_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.json")
