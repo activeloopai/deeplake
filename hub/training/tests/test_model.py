@@ -50,6 +50,18 @@ def test_store_load_torch():
             assert torch.equal(p1[1].data, p2[1].data)
 
 
+def test_store():
+    model_dir = "./data/pytorch_test/"
+    shutil.rmtree(model_dir, ignore_errors=True)
+    os.makedirs(model_dir)
+    model_init = 5
+    model_arch = Model(model_init)
+
+    with pytest.raises(ValueError) as exc:
+        model_arch.store(model_dir)
+    assert exc.type == ValueError
+
+
 @pytest.mark.skipif(
     not tensorflow_loaded(),
     reason="requires tensorflow to be loaded",
@@ -79,3 +91,7 @@ def test_store_load_tf():
     np.testing.assert_allclose(
         model_init._model.predict(test_input), loaded_model._model.predict(test_input)
     )
+
+
+if __name__ == "__main__":
+    test_store()
