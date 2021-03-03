@@ -23,10 +23,10 @@ class VersionNode:
         self.message = self.message or message
         user_name = get_user_name()
         self.commit_user_name = "None" if user_name == "public" else user_name
-        self.commit_time = str(datetime.now())[:-7]
+        self.commit_time = datetime.now()
 
     def __repr__(self) -> str:
-        return f'commit {self.commit_id} ({self.branch}) \nAuthor: {self.commit_user_name}\nCommit Time:  {self.commit_time}\nMessage: "{self.message}"'
+        return f'commit {self.commit_id} ({self.branch}) \nAuthor: {self.commit_user_name}\nCommit Time:  {str(self.commit_time)[:-7]}\nMessage: "{self.message}"'
 
     def __str__(self) -> str:
         return self.__repr__()
