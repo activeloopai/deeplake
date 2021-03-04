@@ -31,7 +31,9 @@
 
 ---
 
-[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
+[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)]
+
+<i>Perhatian: translasi ini mungkin bukan berasal dari dokumen yang paling baru</i>
 
 ### Untuk apa Hub digunakan?
 
