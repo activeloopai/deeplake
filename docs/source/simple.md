@@ -119,7 +119,7 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentia
 
 [Schema](./concepts/features.md) is a dictionary that describes what a dataset consists of. Every dataset is required to have a schema. This is how you can create a simple schema:
 
-```
+```python
 from hub.schema import ClassLabel, Image, BBox, Text
 
 my_schema = {
@@ -143,7 +143,7 @@ You can modify the data to the dataset with a regular assignment operator or by 
 You can delete your dataset with `.delete()` or through Activeloop's app on [app.activeloop.ai](https://app.activeloop.ai/) in a dataset overview tab.
 
 
-### Flush, commit and close
+### Flush, Commit and Close
 
 Since Hub implements caching, you need to tell the program to push the final changes to permanent storage. Hub Datasets have three methods that let you do that.
 
@@ -170,16 +170,13 @@ Option 1. You may try running hub as a module, i.e. `py -m hub` and add argument
 Option 2. You may try adding Python scripts to your path. First, you need to find out where your Python installation is located. Start from running:
 ```py --list-paths```
 If your Python interpreter is not on the list but you can run it (despite not knowing its path), you should paste the following excerpt to Python console to find out its location:
-```
+```python
 import os
 import sys
 os.path.dirname(sys.executable)
 ```
 
 Once you know the path to the directory with the Python version you are using, adapt it to match the pattern in the command below. If you are unsure whether it is correct, check if the path exists. Finally, run the command:
-```
-
-```
 <pre>
 setx /m PATH "%PATH%;C:\<i>path\to\Python</i>\Python3<i>X</i>\Scripts\"
 </pre>
@@ -188,5 +185,4 @@ Then refresh your CMD with:
 ```
 start & exit
 ```
-
 Now, you should be able to run activeloop commands.
