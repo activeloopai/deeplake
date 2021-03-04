@@ -134,11 +134,11 @@ ds.flush()  # executing the creation of the dataset
 
 1. [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme)에 무료 계정을 생성하고 로컬에서 인증합니다:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # alternatively, add username and password as arguments (use on platforms like Kaggle)
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. 데이터셋을 생성한 후 이름을 정하고, 당신의 계정에 업로드합니다. 예시는 다음과 같습니다:

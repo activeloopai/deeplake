@@ -128,11 +128,11 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # alternatively, add username and password as arguments (use on platforms like Kaggle)
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:

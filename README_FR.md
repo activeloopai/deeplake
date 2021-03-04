@@ -129,11 +129,11 @@ De plus, si vous avez besoin d'un ensemble de données accessible au public que 
 
 1. Enregistrez un compte gratuit sur [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) et s'authentifier localement:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # alternativement, ajouter le nom d'utilisateur et le mot de passe comme arguments (utilisation sur des plateformes comme Kaggle)
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. Créez ensuite un ensemble de données, en précisant son nom, et téléchargez-le sur votre compte. Par exemple :

@@ -23,11 +23,11 @@ Hub uses [Zarr](https://zarr.readthedocs.io/en/stable/) as a storage for chunked
 
 2. Register and authenticate to upload datasets
     ```
-    hub register
-    hub login
+    activeloop register
+    activeloop login
     
     # alternatively, add username and password as arguments (use on platforms like Kaggle)
-    hub login -u username -p password
+    activeloop login -u username -p password
     ```
 
 3. Lets start by creating a dataset
