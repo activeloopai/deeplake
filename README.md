@@ -31,7 +31,7 @@
 
 ---
 
-[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
+[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
 
 ### What is Hub for?
 
