@@ -159,4 +159,34 @@ with hub.Dataset(...) as ds:
     pass
 ```
 
-This works as well.
+### Windows FAQ
+
+**Q: Running `activeloop` commands results in an error with a message stating that `'activeloop' is not recognized as an internal or external command, operable program or batch file.` What should I do to use such commands?**
+
+A: If you are having troubles running `activeloop` commands on Windows, it usually means there are issues with your PATH environmental variable and `activeloop` commands are only affected by this underlying problem. Regardless, there are several ways in which you can still be able to use the CLI.
+
+Option 1. You may try running hub as a module, i.e. `py -m hub` and add arguments as necessary.
+
+Option 2. You may try adding Python scripts to your path. First, you need to find out where your Python installation is located. Start from running:
+```py --list-paths```
+If your Python interpreter is not on the list but you can run it (despite not knowing its path), you should paste the following excerpt to Python console to find out its location:
+```
+import os
+import sys
+os.path.dirname(sys.executable)
+```
+
+Once you know the path to the directory with the Python version you are using, adapt it to match the pattern in the command below. If you are unsure whether it is correct, check if the path exists. Finally, run the command:
+```
+
+```
+<pre>
+setx /m PATH "%PATH%;C:\<i>path\to\Python</i>\Python3<i>X</i>\Scripts\"
+</pre>
+
+Then refresh your CMD with:
+```
+start & exit
+```
+
+Now, you should be able to run activeloop commands.
