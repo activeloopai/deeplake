@@ -38,7 +38,7 @@ class BBox(Tensor):
     >>> # Load data
     >>> ds = Dataset(tag)
     >>>
-    >>> print(ds["bbox"][0].compute())
+    >>> print(ds["bbox"][1].compute())
     [1 2 3 4]
 
     """
