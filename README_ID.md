@@ -135,12 +135,12 @@ Kamu juga dapat menggunakan `s3://bucket/path`, `gcs://bucket/path` atau azure u
 1. Buatlah akun di [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) dan ontentikasi secara lokal:
 
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # cara lainnya, tambahkan username dan password sebagai argumen
 # (seperti yang digunakan pada platform Kaggle)
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. Buatlah dataset, dengan merincikan nama dan unggahlah ke akunmu. Contohnya:

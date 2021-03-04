@@ -125,11 +125,11 @@ Ayrıca `s3://bucket/path`, `gcs://bucket/path` ya da Azure yolu da belirtebilir
 
 1. [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme)'a ücretsiz bir şekilde üye olun ve yerel olarak giriş yapın:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # Eger isterseniz parametre olarak kullanıcı adı ve parola ekleyin (Kaggle gibi platformlarda kullanılır) 
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. Ardından isim vererek veri setinizi oluşturun ve bunu hesabınıza yükleyin. Örneğin:  
