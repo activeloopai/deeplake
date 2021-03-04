@@ -176,7 +176,7 @@ import sys
 os.path.dirname(sys.executable)
 ```
 
-Once you know the path to the directory with the Python version you are using, adapt it to match the pattern in the command below. If you are unsure whether it is correct, check if the path exists. Finally, run the command:
+Once you know the path to the directory with the Python version you are using, adapt it to match the pattern in the command below. If you are unsure whether it is correct, check if the path exists. Finally, run this command in the command prompt (CMD):
 <pre>
 setx /m PATH "%PATH%;C:\<i>path\to\Python</i>\Python3<i>X</i>\Scripts\"
 </pre>
