@@ -31,7 +31,9 @@
 
 ---
 
-[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
+[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)]
+
+<i> Note: the translations of this document may not be up-to-date. For the latest version, please check the README in English. </i>
 
 ### What is Hub for?
 
@@ -127,6 +129,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
+<<<<<<< HEAD
 ```sh
 activeloop register
 activeloop login
@@ -134,33 +137,50 @@ activeloop login
 # alternatively, add username and password as arguments (use on platforms like Kaggle)
 activeloop login -u username -p password
 ```
+=======
+    ```sh
+    hub register
+    hub login
+
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    hub login -u username -p password
+    ```
+    Future release will introduce the `activeloop` command. Here is the syntax for using it:
+    ```sh
+    activeloop register
+    activeloop login
+
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    activeloop login -u username -p password
+    ```
+>>>>>>> master
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
-```python
-from hub import Dataset, schema
-import numpy as np
+    ```python
+    from hub import Dataset, schema
+    import numpy as np
 
-ds = Dataset(
-    "username/dataset_name",
-    shape = (4,),
-    mode = "w+",
-    schema = {
-        "image": schema.Tensor((512, 512), dtype="float"),
-        "label": schema.Tensor((512, 512), dtype="float"),
-    }
-)
+    ds = Dataset(
+        "username/dataset_name",
+        shape = (4,),
+        mode = "w+",
+        schema = {
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
+        }
+    )
 
-ds["image"][:] = np.zeros((4, 512, 512))
-ds["label"][:] = np.zeros((4, 512, 512))
-ds.flush()
-```
+    ds["image"][:] = np.zeros((4, 512, 512))
+    ds["label"][:] = np.zeros((4, 512, 512))
+    ds.flush()
+    ```
 
 3. Access it from anywhere else in the world, on any device having a command line:
-```python
-from hub import Dataset
+    ```python
+    from hub import Dataset
 
-ds = Dataset("username/dataset_name")
-```
+    ds = Dataset("username/dataset_name")
+    ```
 
 
 ## Documentation

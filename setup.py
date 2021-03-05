@@ -54,6 +54,7 @@ setup(
             "activeloop = hub.cli.command:cli",
             "activeloop-local = hub.cli.local:cli",
             "activeloop-dev = hub.cli.dev:cli",
+            "hub = hub.cli.command:cli",
         ]
     },
     tests_require=["pytest", "mock>=1.0.1"],
