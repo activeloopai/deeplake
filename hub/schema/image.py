@@ -26,11 +26,11 @@ class Image(Tensor):
     >>>
     >>> # Create dataset
     >>> ds=Dataset(
-    >>>  tag,
-    >>>  shape=(10,),
-    >>>  schema={
-    >>>      "image": schema.Image((height, width, 3), dtype="uint8"),
-    >>>  },
+    >>>     tag,
+    >>>     shape=(10,),
+    >>>     schema={
+    >>>         "image": schema.Image((height, width, 3), dtype="uint8"),
+    >>>     },
     >>> )
     >>>
     >>> for index, image in enumerate(os.listdir("path/to/folder")):

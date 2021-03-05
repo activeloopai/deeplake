@@ -14,8 +14,113 @@ def _load_names_from_file(names_filepath):
 
 
 class ClassLabel(Tensor):
-    """`HubSchema` for integer class labels."""
+    """        
+        | Constructs a ClassLabel HubSchema.
+        | Returns an integer representations of given classes. Preserves the names of classes to convert those back to strings if needed.
+        | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
+               Note: In python2, the strings are encoded as utf-8.
+        
+        | 1. `num_classes`: create 0 to (num_classes-1) labels using ClassLabel(num_classes=`number of classes`)
 
+        ----------
+        >>> tag = "username/dataset"
+        >>>
+        >>> # Create dataset
+        >>> ds=Dataset(
+        >>>    tag,
+        >>>    shape=(10,),
+        >>>    schema = {
+        >>>         "label_1": ClassLabel(num_classes=3),
+        >>>    },
+        >>> )
+        >>>
+        >>> ds["label_1",0] = 0
+        >>> ds["label_1",1] = 1
+        >>> ds["label_1",2] = 2
+        >>>
+        >>> ds.flush()
+        >>>
+        >>> # Load data
+        >>> ds = Dataset(tag)
+        >>>
+        >>> print(ds["label_1"][0].compute(True))
+        >>> print(ds["label_1"][1].compute(True))
+        >>> print(ds["label_1"][2].compute(True))
+        0
+        1
+        2
+
+
+        | 2. `names`: a list of label strings. ClassLabel=(names=[`class1`,`class2`])
+
+        ----------
+        >>> tag = "username/dataset"
+        >>>
+        >>> # Define schema
+        >>> my_schema = {
+        >>>     "label_2": ClassLabel(names=['class1', 'class2', 'class3']),
+        >>> }
+        >>>
+        >>> # Create dataset
+        >>> ds=Dataset(
+        >>>    tag,
+        >>>    shape=(10,),
+        >>>    schema = my_schema,
+        >>> )
+        >>>
+        >>> ds.flush()
+        >>>
+        >>> # Load data
+        >>> ds = Dataset(tag)
+        
+        | Note: ClassLabel HubSchema returnsan interger representation of classes. 
+        | Hence use `str2int()` and `int2str()` to load classes.
+
+        >>> print(my_schema["label_2"].str2int("class1"))
+        >>> print(my_schema["label_2"].int2str(0))
+        0
+        class1
+
+
+        | 3. `names_file`: a file containing the list of labels. ClassLabel(names_file="/path/to/file/names.txt")
+
+        Let's assume `names.txt` is located at `/dataset`:
+        
+        ----------
+        >>> # Contents of "names.txt"
+        welcome
+        to
+        hub
+    
+        
+        >>> tag = "username/dataset"
+        >>>
+        >>> # Define Schema
+        >>> my_schema = { 
+        >>>     "label_3": ClassLabel(names_file="/content/names.txt"),
+        >>> }
+        >>>
+        # Create dataset
+        >>> ds=Dataset(
+        >>>    tag,
+        >>>    shape=(10,),
+        >>>    schema = my_schema,
+        >>> )
+        >>>
+        >>> ds.flush()
+        >>>
+        >>> # Load data
+        >>> ds = Dataset(tag)
+        >>>
+        >>> print(my_schema["label_3"].int2str(0))
+        >>> print(my_schema["label_3"].int2str(1))
+        >>> print(my_schema["label_3"].int2str(2))
+        welcome
+        to
+        hub
+
+    """
+    
     def __init__(
         self,
         num_classes: int = None,
@@ -24,19 +129,7 @@ class ClassLabel(Tensor):
         chunks=None,
         compressor="lz4",
     ):
-        """| Constructs a ClassLabel HubSchema.
-        | Returns an integer representations of given classes. Preserves the names of classes to convert those back to strings if needed.
-        | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
-        | * `num_classes`: create 0 to (num_classes-1) labels
-        | * `names`: a list of label strings
-        | * `names_file`: a file containing the list of labels.
-        Note: In python2, the strings are encoded as utf-8.
-
-        | Usage:
-        ----------
-        >>> class_label_tensor = ClassLabel(num_classes=10)
-        >>> class_label_tensor = ClassLabel(names=['class1', 'class2', 'class3', ...])
-        >>> class_label_tensor = ClassLabel(names_file='/path/to/file/with/names')
+        """
 
         Parameters
         ----------

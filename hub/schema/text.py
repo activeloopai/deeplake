@@ -59,7 +59,7 @@ class Text(Tensor):
     >>> 
     >>> ds.flush()
     >>> 
-    >>> # Load the data
+    >>> # Load data
     >>> ds = Dataset(tag)
     >>>
     >>> print(ds["text"][0].compute())
