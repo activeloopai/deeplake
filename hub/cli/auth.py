@@ -3,13 +3,17 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
+import textwrap
 
 import click
+from humbug.report import Report
+
 from hub.log import logger
 from hub import config
 from hub.client.auth import AuthClient
 from hub.client.token_manager import TokenManager
 from hub.client.hub_control import HubControlClient
+from hub.report import configure_reporting, get_reporting_config, hub_reporter
 
 
 @click.command()
@@ -49,6 +53,37 @@ def register(username, email, password):
     AuthClient().register(username, email, password)
     token = AuthClient().get_access_token(username, password)
     TokenManager.set_token(token)
+    consent_message = textwrap.dedent(
+        """
+        Privacy policy:
+        We collect basic system information and crash reports so that we can keep
+        improving your experience using Hub to work with your data.
+
+        You can find out more by reading our privacy policy:
+            https://www.activeloop.ai/privacy/
+
+        If you would like to opt out of reporting crashes and system information,
+        run the following command:
+            $ hub reporting --off
+        """
+    )
+    logger.info(consent_message)
+    configure_reporting(True, username=username)
+
+
+@click.command()
+@click.option("--on/--off", help="Turn crash report on/off")
+def reporting(on):
+    """
+    Enable or disable sending crash reports to Activeloop AI.
+    """
+    report = Report(
+        title="Consent change",
+        tags=hub_reporter.system_tags(),
+        content="Consent? `{}`".format(on),
+    )
+    hub_reporter.publish(report)
+    configure_reporting(on)
 
 
 def login_fn(username, password):
@@ -80,3 +115,6 @@ def login_fn(username, password):
     TokenManager.set_token(token)
     HubControlClient().get_credentials()
     logger.info("Login Successful.")
+    reporting_config = get_reporting_config()
+    if reporting_config.get("username") != username:
+        configure_reporting(True, username=username)
