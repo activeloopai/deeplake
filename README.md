@@ -31,7 +31,7 @@
 
 ---
 
-[ English | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)]
+[ English | [Français](./README_translations/README_FR.md) | [简体中文](./README_translations/README_CN.md) | [Türkçe](./README_translations/README_TR.md) | [한글](./README_translations/README_KR.md) | [Bahasa Indonesia](./README_translations/README_ID.md)]
 
 <i> Note: the translations of this document may not be up-to-date. For the latest version, please check the README in English. </i>
 
