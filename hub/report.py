@@ -8,7 +8,7 @@ import os
 import json
 import uuid
 
-from humbug.consent import HumbugConsent, environment_variable_opt_out
+from humbug.consent import HumbugConsent
 from humbug.report import Reporter
 
 from hub.config import (
