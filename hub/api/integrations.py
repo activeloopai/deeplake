@@ -186,12 +186,10 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
 
     def tf_gen():
         key_dtype_map = {key: dataset[key, indexes[0]].dtype for key in dataset.keys}
-        i = 0
         for index in indexes:
             d = {}
             for key in dataset.keys:
-                split_key = key.split("/")
-                cur = d
+                split_key, cur = key.split("/"), d
                 for i in range(1, len(split_key) - 1):
                     if split_key[i] in cur.keys():
                         cur = cur[split_key[i]]
@@ -201,13 +199,12 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
                 cur[split_key[-1]] = _get_active_item(key, index)
                 if isinstance(key_dtype_map[key], Text):
                     value = cur[split_key[-1]]
-                    if value.ndim == 1:
-                        value = "".join(chr(it) for it in value.tolist())
-                    elif value.ndim == 2:
-                        value = [
-                            "".join(chr(it) for it in val.tolist()) for val in value
-                        ]
-                    cur[split_key[-1]] = value
+                    cur[split_key[-1]] = (
+                        "".join(chr(it) for it in value.tolist())
+                        if value.ndim == 1
+                        else ["".join(chr(it) for it in val.tolist()) for val in value]
+                    )
+
             yield (d)
 
     def dict_to_tf(my_dtype):
@@ -237,12 +234,10 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
     def get_output_shapes(my_dtype):
         if isinstance(my_dtype, SchemaDict):
             return output_shapes_from_dict(my_dtype)
-        elif isinstance(my_dtype, Text):
+        elif isinstance(my_dtype, (Text, Primitive)):
             return ()
         elif isinstance(my_dtype, Tensor):
             return my_dtype.shape
-        elif isinstance(my_dtype, Primitive):
-            return ()
 
     def output_shapes_from_dict(my_dtype):
         d = {}
