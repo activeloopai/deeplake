@@ -71,8 +71,9 @@ class ClassLabel(Tensor):
         """
         self.check_shape(shape)
         super().__init__(
-            shape=(),
-            dtype="int64",
+            shape=shape,
+            max_shape=max_shape,
+            dtype="uint16",
             chunks=chunks,
             compressor=compressor,
         )
