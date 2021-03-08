@@ -810,7 +810,7 @@ def test_dataset_copy_s3_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1")
+    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
     ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -827,7 +827,7 @@ def test_dataset_copy_gcs_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1")
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
     ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -884,12 +884,12 @@ def test_dataset_copy_hub_local():
 )
 def test_dataset_copy_gcs_s3():
     ds = Dataset(
-        "s3://snark-test/cp_original_ds_s3_2", shape=(100,), schema=simple_schema
+        "s3://snark-test/cp_original_ds_s3_2_a", shape=(100,), schema=simple_schema
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2")
-    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3")
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
