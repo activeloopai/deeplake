@@ -143,7 +143,7 @@ def _from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     return my_transform(dataset)
 
 
-def _to_tensorflow(dataset, indexes=None, include_shapes=False):
+def _to_tensorflow(dataset, indexes=None, include_shapes=False, repeat=False):
     """| Converts the dataset into a tensorflow compatible format
 
     Parameters
@@ -186,7 +186,9 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
 
     def tf_gen():
         key_dtype_map = {key: dataset[key, indexes[0]].dtype for key in dataset.keys}
-        for index in indexes:
+        i = 0
+        while i < len(indexes):
+            index = indexes[i]
             d = {}
             for key in dataset.keys:
                 split_key = key.split("/")
@@ -208,6 +210,7 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
                         ]
                     cur[split_key[-1]] = value
             yield (d)
+            i = 0 if repeat and i == len(indexes) - 1 else i + 1
 
     def dict_to_tf(my_dtype):
         d = {}
