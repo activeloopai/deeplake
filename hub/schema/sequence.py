@@ -12,12 +12,12 @@ class Sequence(Tensor):
     At generation time, a list for each of the sequence element is given. The output
     of `Dataset` will batch all the elements of the sequence together.
     If the length of the sequence is static and known in advance, it should be
-    specified in the constructor using the `length` param.
+    specified in the constructor using the `shape` param.
 
     | Usage:
     ----------
 
-    >>> sequence = Sequence(Image(), length=NB_FRAME)
+    >>> sequence = Sequence(shape=(5,), dtype = Image((100, 100, 3)))
     """
 
     def __init__(

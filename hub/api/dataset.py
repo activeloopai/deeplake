@@ -748,7 +748,6 @@ class Dataset:
 
     def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
-
         Parameters
         ----------
         indexes: list or int, optional

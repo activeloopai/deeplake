@@ -98,9 +98,18 @@ class TensorView:
 
         if isinstance(self.dtype, hub.schema.class_label.ClassLabel) and label_name:
             if isinstance(self.indexes, int):
-                value = self.dtype.int2str(value)
+                if value.ndim == 0:
+                    value = self.dtype.int2str(value)
+                elif value.ndim == 1:
+                    value = [self.dtype.int2str(value[i]) for i in range(value.size)]
             else:
-                value = [self.dtype.int2str(value[i]) for i in range(value.size)]
+                if value.ndim == 1:
+                    value = [self.dtype.int2str(value[i]) for i in range(value.size)]
+                elif value.ndim == 2:
+                    value = [
+                        [self.dtype.int2str(item[i]) for i in range(item.size)]
+                        for item in value
+                    ]
 
         if isinstance(self.dtype, hub.schema.text.Text):
             if self.dataset.tokenizer is not None:

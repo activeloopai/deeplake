@@ -250,7 +250,7 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self, include_shapes):
+    def to_tensorflow(self, include_shapes=False):
         """|Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -295,6 +295,10 @@ class DatasetView:
     def commit(self, message="") -> None:
         """Commit dataset"""
         self.dataset.commit(message)
+
+    def flush(self) -> None:
+        """Flush dataset"""
+        self.dataset.flush()
 
     def flush(self) -> None:
         """Flush dataset"""
