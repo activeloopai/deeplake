@@ -584,9 +584,8 @@ class Dataset:
         ds = _to_pytorch(self, transform, inplace, output_type, indexes)
         return ds
 
-    def to_tensorflow(self, indexes=None, include_shapes=False):
+    def to_tensorflow(self, indexes=None, include_shapes=False, repeat=False):
         """| Converts the dataset into a tensorflow compatible format
-
         Parameters
         ----------
         indexes: list or int, optional
@@ -597,7 +596,7 @@ class Dataset:
         """
         from .integrations import _to_tensorflow
 
-        ds = _to_tensorflow(self, indexes, include_shapes)
+        ds = _to_tensorflow(self, indexes, include_shapes, repeat=repeat)
         return ds
 
     def _get_dictionary(self, subpath, slice_=None):

@@ -33,7 +33,7 @@ def time_batches(dataset, batch_size=1, num_batches=1, hub=False):
                 dataset["label"][
                     batch * batch_size : (batch + 1) * batch_size
                 ] = np.random.randint(10, size=(batch_size, 1))
-                dataset.commit()
+                dataset.flush()
             counter += 1
             t1 = time()
             print("Batch", counter, f"dt: {t1 - t0}")

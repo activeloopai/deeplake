@@ -56,10 +56,7 @@ def test_dataset_append_and_read():
     shutil.rmtree("./data/test/test_dataset_append_and_read")
 
     ds = Dataset(
-        schema=dt,
-        shape=(2,),
-        url="./data/test/test_dataset_append_and_read",
-        mode="a",
+        schema=dt, shape=(2,), url="./data/test/test_dataset_append_and_read", mode="a",
     )
 
     ds["first"][0] = 2.3
@@ -68,10 +65,7 @@ def test_dataset_append_and_read():
     assert ds["second"][0].numpy() != 2.3
     ds.close()
 
-    ds = Dataset(
-        url="./data/test/test_dataset_append_and_read",
-        mode="r",
-    )
+    ds = Dataset(url="./data/test/test_dataset_append_and_read", mode="r",)
     assert ds.meta_information["description"] == "This is my description"
     ds.meta_information["hello"] = 5
     ds.delete()
@@ -160,19 +154,10 @@ def test_dataset_with_chunks():
 def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
     schema = {
         "first": Tensor(
-            shape=(None, None),
-            dtype="int32",
-            max_shape=(100, 100),
-            chunks=(100,),
+            shape=(None, None), dtype="int32", max_shape=(100, 100), chunks=(100,),
         )
     }
-    ds = Dataset(
-        url=url,
-        token=None,
-        shape=(1000,),
-        mode="w",
-        schema=schema,
-    )
+    ds = Dataset(url=url, token=None, shape=(1000,), mode="w", schema=schema,)
 
     ds["first"][0] = np.ones((10, 10))
 
@@ -194,10 +179,7 @@ def test_pickleability_gcs():
 def test_dataset_dynamic_shaped():
     schema = {
         "first": Tensor(
-            shape=(None, None),
-            dtype="int32",
-            max_shape=(100, 100),
-            chunks=(100,),
+            shape=(None, None), dtype="int32", max_shape=(100, 100), chunks=(100,),
         )
     }
     ds = Dataset(
@@ -554,7 +536,7 @@ def test_append_dataset():
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
-    ds.commit()
+    ds.flush()
 
     ds = Dataset(url)
     assert ds["first"].shape[0] == 120
@@ -751,9 +733,7 @@ def test_dataset_casting():
     assert ds["a", 30].compute() == np.array([0.2])
 
     ds2 = Dataset(schema=my_schema, url="./data/casting3", shape=(100,))
-    ds2["a", 0:100] = np.ones(
-        100,
-    )
+    ds2["a", 0:100] = np.ones(100,)
     assert ds2["a", 30].compute() == np.array([1])
 
 

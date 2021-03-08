@@ -249,7 +249,7 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self, include_shapes):
+    def to_tensorflow(self, include_shapes=False, repeat=False):
         """|Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -260,7 +260,7 @@ class DatasetView:
         """
 
         return self.dataset.to_tensorflow(
-            indexes=self.indexes, include_shapes=include_shapes
+            indexes=self.indexes, include_shapes=include_shapes, repeat=repeat
         )
 
     def to_pytorch(
@@ -294,6 +294,10 @@ class DatasetView:
     def commit(self) -> None:
         """Commit dataset"""
         self.dataset.commit()
+
+    def flush(self) -> None:
+        """Flush dataset"""
+        self.dataset.flush()
 
     def numpy(self, label_name=False):
         """Gets the value from different tensorview objects in the datasetview schema
