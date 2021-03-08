@@ -101,13 +101,6 @@ def test_polygon():
         poly2 = Polygon(shape=(11, 4, 2))
 
 
-def test_mask():
-    with pytest.raises(ValueError):
-        mask1 = Mask(shape=(11, 5))
-    with pytest.raises(ValueError):
-        mask2 = Mask(shape=(11, 4, 2))
-
-
 test_image_inputs = [
     "uint32",
     "int16",

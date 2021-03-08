@@ -31,7 +31,9 @@
 
 ---
 
-[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) ]
+[ English | [Français](./README_translations/README_FR.md) | [简体中文](./README_translations/README_CN.md) | [Türkçe](./README_translations/README_TR.md) | [한글](./README_translations/README_KR.md) | [Bahasa Indonesia](./README_translations/README_ID.md)]
+
+<i> Note: the translations of this document may not be up-to-date. For the latest version, please check the README in English. </i>
 
 ### What is Hub for?
 
@@ -118,7 +120,7 @@ ds = Dataset(
 # filling the data containers with data (here - zeroes to initialize)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # executing the creation of the dataset
+ds.flush()  # executing the creation of the dataset
 ```
 
 You can also specify `s3://bucket/path`, `gcs://bucket/path` or azure path. [Here](https://docs.activeloop.ai/en/latest/simple.html#data-storage) you can find more information on cloud storage.
@@ -127,40 +129,48 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
-```sh
-hub register
-hub login
+    ```sh
+    hub register
+    hub login
 
-# alternatively, add username and password as arguments (use on platforms like Kaggle)
-hub login -u username -p password
-```
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    hub login -u username -p password
+    ```
+    Future release will introduce the `activeloop` command. Here is the syntax for using it:
+    ```sh
+    activeloop register
+    activeloop login
+
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    activeloop login -u username -p password
+    ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
-```python
-from hub import Dataset, schema
-import numpy as np
+    ```python
+    from hub import Dataset, schema
+    import numpy as np
 
-ds = Dataset(
-    "username/dataset_name",
-    shape = (4,),
-    mode = "w+",
-    schema = {
-        "image": schema.Tensor((512, 512), dtype="float"),
-        "label": schema.Tensor((512, 512), dtype="float"),
-    }
-)
+    ds = Dataset(
+        "username/dataset_name",
+        shape = (4,),
+        mode = "w+",
+        schema = {
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
+        }
+    )
 
-ds["image"][:] = np.zeros((4, 512, 512))
-ds["label"][:] = np.zeros((4, 512, 512))
-ds.flush()
-```
+    ds["image"][:] = np.zeros((4, 512, 512))
+    ds["label"][:] = np.zeros((4, 512, 512))
+    ds.flush()
+    ```
 
 3. Access it from anywhere else in the world, on any device having a command line:
-```python
-from hub import Dataset
+    ```python
+    from hub import Dataset
 
-ds = Dataset("username/dataset_name")
-```
+    ds = Dataset("username/dataset_name")
+    ```
 
 
 ## Documentation
@@ -168,7 +178,7 @@ ds = Dataset("username/dataset_name")
 For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
 
 ## Tutorial Notebooks
-The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and notebooks giving an overview of Hub. Some of the notebooks are listed of below.
+The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directory has a series of examples and the [notebooks](https://github.com/activeloopai/Hub/tree/master/examples/notebooks) has some notebooks with use cases. Some of the notebooks are listed of below.
 
 | Notebook  	|   Description	|   	|
 |:---	|:---	|---:	|
@@ -177,8 +187,8 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 | [Uploading Audio](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) | Explains how to handle audio data in Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%201c%20-%20Uploading%20Audio.ipynb) |
 | [Retrieving Remote Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) | Explains how to retrieve Data| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/tutorial/Tutorial%202%20-%20Retrieving%20Remote%20Data.ipynb) |
 | [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
-| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
-| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/nlp_using_hub.ipynb) |
+| [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) |
+| [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) |
 
 
 ## Use Cases
