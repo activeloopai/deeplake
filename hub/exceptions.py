@@ -197,6 +197,12 @@ class SchemaArgumentNotFoundException(HubException):
         hub_reporter.error_report(self, tags=hub_tags)
 
 
+class InvalidVersionInfoException(HubException):
+    def __init__(self):
+        message = "The pickle file with version info exists but the version info inside is invalid. Proceeding without version control."
+        super(HubException, self).__init__(message=message)
+
+
 class ValueShapeError(HubException):
     def __init__(self, correct_shape, wrong_shape):
         message = f"parameter 'value': expected array with shape {correct_shape}, got {wrong_shape}"
@@ -223,6 +229,18 @@ class ModuleNotInstalledException(HubException):
         message = f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
         super(HubException, self).__init__(message=message)
         hub_reporter.error_report(self, tags=hub_tags)
+
+
+class ReadModeException(HubException):
+    def __init__(self, method_name):
+        message = f"Can't call {method_name} as the dataset is in read mode"
+        super(HubException, self).__init__(message=message)
+
+
+class VersioningNotSupportedException(HubException):
+    def __init__(self, method_name):
+        message = f"This dataset was created before version control, it does not support {method_name} functionality."
+        super(HubException, self).__init__(message=message)
 
 
 class DaskModuleNotInstalledException(HubException):
@@ -289,6 +307,13 @@ class DynamicTensorShapeException(HubException):
 class NotIterable(HubException):
     def __init__(self):
         message = "First argument to transform function should be iterable"
+        super(HubException, self).__init__(message=message)
+        hub_reporter.error_report(self, tags=hub_tags)
+
+
+class AddressNotFound(HubException):
+    def __init__(self, address):
+        message = f"The address {address} does not refer to any existing branch or commit id. use create=True to create a new branch with this address"
         super(HubException, self).__init__(message=message)
         hub_reporter.error_report(self, tags=hub_tags)
 
