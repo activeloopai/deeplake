@@ -248,6 +248,11 @@ Using Hub? Add a README badge to let everyone know:
 ```
 [![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
 ```
+## Usage Tracking
+By default, we collect anonymous usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It only logs Hub library's own actions and parameters, and no user/ model data is collected.
+
+This helps the Activeloop team to understand how the tool is used and how to deliver maximum value to the community by building features that matter to you. You can easily opt-out of usage tracking during login.
+
 
 ## Disclaimers
 
