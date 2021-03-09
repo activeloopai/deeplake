@@ -359,7 +359,7 @@ def test_to_pytorch_bug():
     data = ds.to_pytorch()
 
 
-@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+@pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_to_tensorflow_bug():
     ds = hub.Dataset("activeloop/coco_train")
     data = ds.to_tensorflow()

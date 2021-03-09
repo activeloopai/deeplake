@@ -5,9 +5,8 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from collections.abc import Iterable
-
-from hub.api.datasetview import DatasetView
-from hub.exceptions import AdvancedSlicingNotSupported
+from hub.api.dataset_utils import slice_split
+from hub.api.compute_list import ComputeList
 
 
 class ShardedDatasetView:
@@ -55,33 +54,79 @@ class ShardedDatasetView:
             shard_id += 1
         return 0, 0
 
-    def slicing(self, slice_):
+    def slicing(self, slice_list):
         """
         Identifies the dataset shard that should be used
-        Notes:
-            Features of advanced slicing are missing as one would expect from a DatasetView
-            E.g. cross sharded dataset access is missing
         """
+        shard_id, offset = self.identify_shard(slice_list[0])
+        slice_list[0] = slice_list[0] - offset
+        return slice_list, shard_id
+
+    def __getitem__(self, slice_):
         if not isinstance(slice_, Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
-
         slice_ = list(slice_)
-        if not isinstance(slice_[0], int):
-            # TODO add advanced slicing options
-            raise AdvancedSlicingNotSupported()
-
-        shard_id, offset = self.identify_shard(slice_[0])
-        slice_[0] = slice_[0] - offset
-
-        return slice_, shard_id
-
-    def __getitem__(self, slice_) -> DatasetView:
-        slice_, shard_id = self.slicing(slice_)
-        return self.datasets[shard_id][slice_]
+        subpath, slice_list = slice_split(slice_)
+        slice_list = slice_list or [slice(0, self.num_samples)]
+        if isinstance(slice_list[0], int):
+            # if integer it fetches the data from the corresponding dataset
+            slice_list, shard_id = self.slicing(slice_list)
+            slice_ = slice_list + [subpath] if subpath else slice_list
+            return self.datasets[shard_id][slice_]
+        else:
+            # if slice it finds all the corresponding datasets included in the slice and generates tensorviews or datasetviews (depending on slice)
+            # these views are stored in a ComputeList, calling compute on which will fetch data from all corresponding datasets and return a single result
+            results = []
+            cur_index = slice_list[0].start or 0
+            cur_index = cur_index + self.num_samples if cur_index < 0 else cur_index
+            cur_index = max(cur_index, 0)
+            stop_index = slice_list[0].stop or self.num_samples
+            stop_index = min(stop_index, self.num_samples)
+            while cur_index < stop_index:
+                shard_id, offset = self.identify_shard(cur_index)
+                end_index = min(offset + len(self.datasets[shard_id]), stop_index)
+                cur_slice_list = [
+                    slice(cur_index - offset, end_index - offset)
+                ] + slice_list[1:]
+                current_slice = (
+                    cur_slice_list + [subpath] if subpath else cur_slice_list
+                )
+                results.append(self.datasets[shard_id][current_slice])
+                cur_index = end_index
+            return ComputeList(results)
 
     def __setitem__(self, slice_, value) -> None:
-        slice_, shard_id = self.slicing(slice_)
-        self.datasets[shard_id][slice_] = value
+        if not isinstance(slice_, Iterable) or isinstance(slice_, str):
+            slice_ = [slice_]
+        slice_ = list(slice_)
+        subpath, slice_list = slice_split(slice_)
+        slice_list = slice_list or [slice(0, self.num_samples)]
+        if isinstance(slice_list[0], int):
+            # if integer it assigns the data to the corresponding dataset
+            slice_list, shard_id = self.slicing(slice_list)
+            slice_ = slice_list + [subpath] if subpath else slice_list
+            self.datasets[shard_id][slice_] = value
+        else:
+            # if slice it finds all the corresponding datasets and assigns slices of the value one by one
+            cur_index = slice_list[0].start or 0
+            cur_index = cur_index + self.num_samples if cur_index < 0 else cur_index
+            cur_index = max(cur_index, 0)
+            start_index = cur_index
+            stop_index = slice_list[0].stop or self.num_samples
+            stop_index = min(stop_index, self.num_samples)
+            while cur_index < stop_index:
+                shard_id, offset = self.identify_shard(cur_index)
+                end_index = min(offset + len(self.datasets[shard_id]), stop_index)
+                cur_slice_list = [
+                    slice(cur_index - offset, end_index - offset)
+                ] + slice_list[1:]
+                current_slice = (
+                    cur_slice_list + [subpath] if subpath else cur_slice_list
+                )
+                self.datasets[shard_id][current_slice] = value[
+                    cur_index - start_index : end_index - start_index
+                ]
+                cur_index = end_index
 
     def __iter__(self):
         """ Returns Iterable over samples """
