@@ -143,7 +143,7 @@ def _from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     return my_transform(dataset)
 
 
-def _to_tensorflow(dataset, indexes=None, include_shapes=False):
+def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
     """| Converts the dataset into a tensorflow compatible format
 
     Parameters
@@ -160,7 +160,10 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         global tf
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("tensorflow")
-
+    key_list = [key if key.startswith("/") else "/"+key for key in key_list]
+    for key in key_list:
+        if key not in dataset.keys:
+            raise KeyError()
     indexes = indexes or dataset.indexes
     indexes = [indexes] if isinstance(indexes, int) else indexes
     _samples_in_chunks = {
@@ -180,7 +183,7 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
             )
             _active_chunks_range[key] = active_range
             _active_chunks[key] = dataset._tensors[key][
-                active_range.start : active_range.stop
+                active_range.start: active_range.stop
             ]
         return _active_chunks[key][index % samples_per_chunk]
 
@@ -189,6 +192,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         for index in indexes:
             d = {}
             for key in dataset.keys:
+                if key not in key_list:
+                    continue
                 split_key, cur = key.split("/"), d
                 for i in range(1, len(split_key) - 1):
                     if split_key[i] in cur.keys():
@@ -210,6 +215,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
     def dict_to_tf(my_dtype):
         d = {}
         for k, v in my_dtype.dict_.items():
+            if "/" + k not in key_list:
+                continue
             d[k] = dtype_to_tf(v)
         return d
 
@@ -242,6 +249,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
     def output_shapes_from_dict(my_dtype):
         d = {}
         for k, v in my_dtype.dict_.items():
+            if "/" + k not in key_list:
+                continue
             d[k] = get_output_shapes(v)
         return d
 
@@ -459,7 +468,7 @@ def _from_tfds(
             return Text(shape=(None,), dtype="int64", max_shape=(100000,))
         dt = tf_dt.dtype.name
         if max_shape and len(max_shape) > len(tf_dt.shape):
-            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
 
         max_shape = max_shape or tuple(
             10000 if dim is None else dim for dim in tf_dt.shape
@@ -469,7 +478,7 @@ def _from_tfds(
     def image_to_hub(tf_dt, max_shape=None):
         dt = tf_dt.dtype.name
         if max_shape and len(max_shape) > len(tf_dt.shape):
-            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
 
         max_shape = max_shape or tuple(
             10000 if dim is None else dim for dim in tf_dt.shape
@@ -502,7 +511,7 @@ def _from_tfds(
 
     def audio_to_hub(tf_dt, max_shape=None):
         if max_shape and len(max_shape) > len(tf_dt.shape):
-            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
 
         max_shape = max_shape or tuple(
             100000 if dim is None else dim for dim in tf_dt.shape
@@ -518,7 +527,7 @@ def _from_tfds(
 
     def video_to_hub(tf_dt, max_shape=None):
         if max_shape and len(max_shape) > len(tf_dt.shape):
-            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
+            max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)):]
 
         max_shape = max_shape or tuple(
             10000 if dim is None else dim for dim in tf_dt.shape
@@ -587,7 +596,7 @@ class TorchDataset:
             )
             self._active_chunks_range[key] = active_range
             self._active_chunks[key] = self._ds._tensors[key][
-                active_range.start : active_range.stop
+                active_range.start: active_range.stop
             ]
         return self._active_chunks[key][index % samples_per_chunk]
 

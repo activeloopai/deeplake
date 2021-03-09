@@ -214,7 +214,7 @@ class DatasetView:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.keys:
             if key.startswith(subpath):
-                suffix_key = key[len(subpath) :]
+                suffix_key = key[len(subpath):]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for sub_key in split_key[:-1]:
@@ -250,7 +250,7 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self, include_shapes=False):
+    def to_tensorflow(self, include_shapes=False, key_list=None):
         """|Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -261,7 +261,7 @@ class DatasetView:
         """
 
         return self.dataset.to_tensorflow(
-            indexes=self.indexes, include_shapes=include_shapes
+            indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
     def to_pytorch(
