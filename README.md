@@ -129,7 +129,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
-<<<<<<< HEAD
+
 ```sh
 activeloop register
 activeloop login
@@ -137,23 +137,6 @@ activeloop login
 # alternatively, add username and password as arguments (use on platforms like Kaggle)
 activeloop login -u username -p password
 ```
-=======
-    ```sh
-    hub register
-    hub login
-
-    # alternatively, add username and password as arguments (use on platforms like Kaggle)
-    hub login -u username -p password
-    ```
-    Future release will introduce the `activeloop` command. Here is the syntax for using it:
-    ```sh
-    activeloop register
-    activeloop login
-
-    # alternatively, add username and password as arguments (use on platforms like Kaggle)
-    activeloop login -u username -p password
-    ```
->>>>>>> master
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
     ```python
