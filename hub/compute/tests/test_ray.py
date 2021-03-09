@@ -200,9 +200,9 @@ def test_stacked_transform():
 
 
 if __name__ == "__main__":
-    # test_ray_simple()
-    # test_ray_non_dynamic()
+    test_ray_simple()
+    test_ray_non_dynamic()
     test_ray_dynamic()
-    # test_ray_simple_generator()
-    # test_pipeline_ray()
-    # test_ray_pipeline_multiple()
+    test_ray_simple_generator()
+    test_pipeline_ray()
+    test_ray_pipeline_multiple()

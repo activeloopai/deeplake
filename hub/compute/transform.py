@@ -288,7 +288,7 @@ class Transform:
                     [slice(offset, offset + len(value))], value
                 )
 
-        ds.commit()
+        ds.flush()
         return ds
 
     def call_func(self, fn_index, item, as_list=False):
@@ -439,7 +439,7 @@ class Transform:
                 start += n_results
 
         ds_out.resize_shape(total)
-        ds_out.commit()
+        ds_out.flush()
         return ds_out
 
     @property
