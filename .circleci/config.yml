@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   slack: circleci/slack@3.4.2
   codecov: codecov/codecov@1.1.1
+  win: circleci/windows@2.2.0
 
 workflows:
   test:
@@ -15,6 +16,17 @@ workflows:
           context:
             - test
             - azure
+  windows_test:
+    triggers:
+      filters:
+        branches:
+          only: fix/circleci
+    jobs:
+      - windows_test:
+          context:
+            - test
+            - azure
+
 
   test_and_deploy:
     jobs:
@@ -157,6 +169,39 @@ jobs:
             docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
             docker push $IMAGE_NAME:latest
             docker push $IMAGE_NAME:$IMAGE_TAG
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
+  windows_test:
+    executor:
+      name: win/default
+      shell: powershell.exe
+    steps:
+      - checkout
+      - run:
+          name: "Python version check"
+          command: python -V -V
+      - run:
+          name: "Prep Google credentials"
+          command: |
+            $Env:CIRCLECI_PATH = "~/circleci/.secrets/"
+            mkdir $Env:CIRCLECI_PATH
+            [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) > ($Env:CIRCLECI_PATH + "gcs.json")
+      - run:
+          name: "Collecting requirements"
+          command: |
+            pip install -r requirements-dev.txt
+            pip install -r requirements-optional.txt
+            pip install -r requirements.txt
+            pip install -e .
+      - run:
+          name: "Checking code style"
+          command: |
+            flake8 . --count --exit-zero --max-complexity=10 --statistics
+      - run:
+          name: "Running tests"
+          command: |
+            pytest --cov-report=xml --cov=./
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
