@@ -17,16 +17,14 @@ workflows:
             - test
             - azure
   windows_test:
-    triggers:
-      filters:
-        branches:
-          only: fix/circleci
     jobs:
       - windows_test:
           context:
             - test
             - azure
-
+          filters:
+            branches:
+              only: fix/circleci
 
   test_and_deploy:
     jobs:
