@@ -10,7 +10,7 @@ import sys
 from hub import config
 from hub.log import logger
 from hub.client.token_manager import TokenManager
-from hub.cli.utils import get_cli_version
+from hub.version import __version__
 
 from hub.exceptions import (
     AuthenticationException,
@@ -58,7 +58,7 @@ class HubHttpClient:
             endpoint = config.HUB_REST_ENDPOINT
 
         request_url = urljoin(endpoint, relative_url)
-        headers["hub-cli-version"] = get_cli_version()
+        headers["hub-cli-version"] = __version__
         if (
             "Authorization" not in headers
             or headers["Authorization"] != self.auth_header

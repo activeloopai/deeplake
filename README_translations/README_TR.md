@@ -116,7 +116,7 @@ ds = Dataset(
 # veri konteynerlarına veri eklemek (burada sıfırlar ile baslatiliyor)
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()  # veri setinin derlenmesi
+ds.flush()  # veri setinin derlenmesi
 ```
 
 Ayrıca `s3://bucket/path`, `gcs://bucket/path` ya da Azure yolu da belirtebilirsiniz. [Buradan](https://docs.activeloop.ai/en/latest/simple.html#data-storage) bulut depolama hakkında daha fazla bilgi edinebilirsiniz. Aynı zamanda Hub'da bulamadığınız herkese açık veri setleri için [dosya talebinde](https://github.com/activeloopai/Hub/issues/new?assignees=&labels=i%3A+enhancement%2C+i%3A+needs+triage&template=feature_request.md&title=[FEATURE]+New+Dataset+Required%3A+%2Adataset_name%2A) bulunabilirsiniz. Mümkün olan en kısa süre içerisinde veri setini herkese açık olarak etkinleştireceğiz!
@@ -125,11 +125,11 @@ Ayrıca `s3://bucket/path`, `gcs://bucket/path` ya da Azure yolu da belirtebilir
 
 1. [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme)'a ücretsiz bir şekilde üye olun ve yerel olarak giriş yapın:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 
 # Eger isterseniz parametre olarak kullanıcı adı ve parola ekleyin (Kaggle gibi platformlarda kullanılır) 
-hub login -u username -p password
+activeloop login -u username -p password
 ```
 
 2. Ardından isim vererek veri setinizi oluşturun ve bunu hesabınıza yükleyin. Örneğin:  
@@ -149,7 +149,7 @@ ds = Dataset(
 
 ds["image"][:] = np.zeros((4, 512, 512))
 ds["label"][:] = np.zeros((4, 512, 512))
-ds.commit()
+ds.flush()
 ```
 
 3. Komut satırına sahip herhangi bir cihazdan, dünyanın herhangi bir yerinden oluşturduğunuz veri setine erişin:  

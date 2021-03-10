@@ -1,18 +1,16 @@
-click>=6.7,<8
-numpy>=1.13.0,<2 
-requests>=2,<3
-cachey==0.2.1
-fsspec==0.8.5
-s3fs==0.4.2
-gcsfs==0.6.2
-outdated==0.2.0
-lz4>=3,<4
-zarr==2.6.1
-boto3==1.16.39
-tqdm==4.54.1
-azure-storage-blob==12.6.0
-pathos>=0.2.2
-psutil>=5.7.3
-Pillow>=8.0.1
-cloudpickle==1.6.0
-msgpack==1.0.2
+click>=6.7, <8
+numpy>=1.17, <2
+requests>=2, <3
+fsspec>=0.8, <1
+gcsfs>=0.6.2, <0.7  # newer versions fail tests #97
+s3fs==0.4.2, <0.5.2  # newer versions require Python 3.7+
+boto3==1.17.22
+lz4>=3, <4
+zarr>=2.4, <2.7
+tqdm>=4.1, <5
+azure-storage-blob>=12, <13
+pathos>=0.2, <0.3
+humbug>=0.1.4, <0.2
+Pillow>=6
+msgpack>=0.6
+psutil>=5.8  # needed only for deprecated code

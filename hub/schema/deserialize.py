@@ -35,22 +35,28 @@ def deserialize(inp):
             )
         elif inp["type"] == "BBox":
             return BBox(
+                shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
+                max_shape=tuple(inp["max_shape"]),
             )
         elif inp["type"] == "ClassLabel":
             if inp["_names"] is not None:
                 return ClassLabel(
+                    shape=tuple(inp["shape"]),
                     names=inp["_names"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
+                    max_shape=tuple(inp["max_shape"]),
                 )
             else:
                 return ClassLabel(
+                    shape=tuple(inp["shape"]),
                     num_classes=inp["_num_classes"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
+                    max_shape=tuple(inp["max_shape"]),
                 )
         elif inp["type"] == "SchemaDict" or inp["type"] == "FeatureDict":
             d = {}
