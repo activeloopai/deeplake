@@ -195,6 +195,7 @@ jobs:
       - run:
           name: "Checking code style"
           command: |
+            pip install flake8
             flake8 . --count --exit-zero --max-complexity=10 --statistics
       - run:
           name: "Running tests"
