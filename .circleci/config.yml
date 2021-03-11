@@ -200,6 +200,7 @@ jobs:
       - run:
           name: "Running tests"
           command: |
+            pip install pytest
             pytest --cov-report=xml --cov=./
       - slack/status:
           fail_only: true
