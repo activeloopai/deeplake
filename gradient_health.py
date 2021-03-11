@@ -91,7 +91,6 @@ class MimiciiiCxr:
                 shape=(None, image_size, image_size, 1),
                 max_shape=(MAX_IMAGE_COUNT, image_size, image_size, 1),
                 dtype="bool",
-                compressor=None
             ),
             "dicom_id": MY_LARGE_TEXT,  # different ids not separated i.e a|b|c
             "columns": schema.Tensor(max_shape=(MAX_IMAGE_COUNT,), dtype="int32"),
@@ -246,7 +245,7 @@ class MimiciiiCxr:
             row = row["row"]
             data = row.split(",")
             if len(data) == 11:
-                return [{"row": row}]
+                return {"row": row}
             else:
                 return []
 
@@ -463,7 +462,7 @@ class MimiciiiCxr:
         schema_ = self._info()
         schemai = self._intermitidate_schema()
         print("Number of samples: ", len(lines))
-        lines = lines[:1500]
+        lines = lines[:5000]
         if args.redisurl:
             sync = RedisSynchronizer(host=args.redisurl, password="5241590000000000")
         elif args.scheduler == "processed":
@@ -496,8 +495,8 @@ class MimiciiiCxr:
                     workers=args.workers,
                     # synchronizer=sync,
                 )(_process_example)(ds2)
-                ds3.store(f"{output_dir}/ds3", sample_per_shard=400)
-        print("Success, number of elements for phase 3:", len(ds2))
+                ds3.store(f"{output_dir}/ds3", sample_per_shard=50)
+        print("Success, number of elements for phase 3:", len(ds3))
 
 
 def main():
@@ -522,7 +521,7 @@ def main():
     parser.add_argument(
         "-o",
         "--output",
-        default="s3://snark-gradient-raw-data/output_single_8_1500_samples_max_4_boolean_no_comp_new",
+        default="s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed",
     )
     parser.add_argument("-w", "--workers", default=DEFAULT_WORKERS)
     parser.add_argument("-s", "--scheduler", default=DEFAULT_SCHEDULER)
