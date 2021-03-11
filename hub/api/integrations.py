@@ -160,6 +160,7 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
         global tf
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("tensorflow")
+    key_list = key_list or list(dataset.keys)
     key_list = [key if key.startswith("/") else "/"+key for key in key_list]
     for key in key_list:
         if key not in dataset.keys:
@@ -167,7 +168,7 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
     indexes = indexes or dataset.indexes
     indexes = [indexes] if isinstance(indexes, int) else indexes
     _samples_in_chunks = {
-        key: (None in value.shape) and 1 or value.chunks[0]
+        key: value.chunks[0]
         for key, value in dataset._tensors.items()
     }
     _active_chunks = {}

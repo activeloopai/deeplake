@@ -150,28 +150,38 @@ class DynamicTensor:
                     raise DynamicTensorShapeException("not_equal")
         self._enabled_dynamicness = True
 
+    def get_real_shape(self, slice_):
+        slice_ = [slice_] if isinstance(slice_, int) else slice_
+        if self._dynamic_tensor:
+            if isinstance(slice_[0], int):
+                real_shapes = self._dynamic_tensor[slice_[0]]
+            elif (  # fix
+                slice_[0].stop is not None
+                and slice_[0].stop - (slice_[0].start or 0) == 1
+            ):
+                real_shapes = self._dynamic_tensor[slice_[0].start]
+            else:
+                start = slice_[0].start or 0
+                end = slice_[0].stop or self.shape[0]
+                real_shapes = [self.get_real_shape(i) for i in range(start, end)]
+        else:
+            real_shapes = None
+        return real_shapes
+
     def __getitem__(self, slice_):
         """Gets a slice or slices from tensor"""
         if not isinstance(slice_, abc.Iterable):
             slice_ = [slice_]
         slice_ = list(slice_)
         # real_shapes is dynamic shapes based on first dim index, only dynamic dims are stored, static ones are ommitted
-        if self._dynamic_tensor:
-            if isinstance(slice_[0], int):
-                real_shapes = self._dynamic_tensor[slice_[0]]
-            elif (
-                slice_[0].stop is not None
-                and slice_[0].stop - (slice_[0].start or 0) == 1
-            ):
-                real_shapes = self._dynamic_tensor[slice_[0].start]
-            else:
-                raise ValueError(
-                    "Getting item across multiitem slices is not supported for tensors with dynamic shapes, access them item by item"
-                )
-        else:
-            real_shapes = None
+        real_shapes = self.get_real_shape(slice_)
         # Extend slice_ to dim count
-        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
+        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_):]]
+        if isinstance(real_shapes, list):
+            start = slice_[0].start or 0
+            slice_list = [self._get_slice([start + i] + slice_[1:], real_shapes[i])
+                          for i in range(len(real_shapes))]
+            return [self._storage_tensor[cur_slice] for cur_slice in slice_list]
         slice_ = self._get_slice(slice_, real_shapes)
         return self._storage_tensor[slice_]
 
@@ -182,7 +192,7 @@ class DynamicTensor:
         slice_ = list(slice_)
         if self._dynamic_tensor and self._enabled_dynamicness:
             self.set_shape(slice_, value)
-        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
+        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_):]]
 
         if self._dynamic_tensor and isinstance(slice_[0], int):
             real_shapes = self._dynamic_tensor[slice_[0]]
@@ -318,7 +328,7 @@ class DynamicTensor:
                     start = slice_[i].start if slice_[i].start is not None else 0
                     stop = slice_[i].stop
                     if stop is None:
-                        sh = shape[:, i : i + 1] - start
+                        sh = shape[:, i: i + 1] - start
                         sh[sh < 0] = 0  # if negative in shape, replace with 0
                         new_shape = np.append(new_shape, sh, axis=1)
                     else:
@@ -327,12 +337,11 @@ class DynamicTensor:
                             new_shape, new_shape.shape[1], sl, axis=1
                         )  # inserted as last column
                 elif i >= len(slice_):
-                    new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
+                    new_shape = np.append(new_shape, shape[:, i: i + 1], axis=1)
 
         return np.array(new_shape).astype("int")
 
     def get_shape(self, slice_):
-
         """Gets the shape of the slice from tensor"""
         if isinstance(slice_, (int, slice)):
             slice_ = [slice_]

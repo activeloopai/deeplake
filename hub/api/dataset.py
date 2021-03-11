@@ -477,7 +477,9 @@ class Dataset:
             return "object"
 
     def _get_compressor(self, compressor: str):
-        if compressor.lower() == "lz4":
+        if compressor is None:
+            return None
+        elif compressor.lower() == "lz4":
             return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
         elif compressor.lower() == "zstd":
             return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
@@ -767,7 +769,7 @@ class Dataset:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.keys:
             if key.startswith(subpath):
-                suffix_key = key[len(subpath) :]
+                suffix_key = key[len(subpath):]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for i in range(len(split_key) - 1):
