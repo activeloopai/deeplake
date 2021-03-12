@@ -179,10 +179,11 @@ jobs:
       - run:
           name: "Prep Google credentials"
           command: |
-            $Env:CIRCLECI_PATH = "~/circleci/.secrets/"
-            setx /m CIRCLECI_PATH "$Env:CIRCLECI_PATH"
-            mkdir $Env:CIRCLECI_PATH
-            [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) > ($Env:CIRCLECI_PATH + "gcs.json")
+            $Env:CI_SECRETS_PATH = "~/circleci/.secrets/"
+            $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "gcs.json"
+            setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
+            mkdir $Env:CI_SECRETS_PATH
+            [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) > $Env:CI_GCS_PATH
       - run:
           name: "Collecting requirements"
           command: |
@@ -199,7 +200,8 @@ jobs:
       - run:
           name: "Running tests"
           command: |
-            $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CIRCLECI_PATH
+            $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
+            setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
             pip install pytest
             pip install pytest-cov
             pip install --upgrade setuptools
