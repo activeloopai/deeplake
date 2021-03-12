@@ -179,11 +179,11 @@ jobs:
       - run:
           name: "Prep Google credentials"
           command: |
-            $Env:CI_SECRETS_PATH = "~/circleci/.secrets/"
-            $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "gcs.json"
+            $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
+            $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
             setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
             mkdir $Env:CI_SECRETS_PATH
-            [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) > $Env:CI_GCS_PATH
+            [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
       - run:
           name: "Collecting requirements"
           command: |
