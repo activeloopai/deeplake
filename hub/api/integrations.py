@@ -180,7 +180,7 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
         if active_range is None or index not in active_range:
             active_range_start = index - index % samples_per_chunk
             active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
+                active_range_start, min(active_range_start + samples_per_chunk, indexes[-1] + 1)
             )
             _active_chunks_range[key] = active_range
             _active_chunks[key] = dataset._tensors[key][

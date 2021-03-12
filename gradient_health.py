@@ -8,7 +8,6 @@ import os
 import posixpath
 from typing import Dict, Any
 
-# import tensorflow_datasets.public_api as tfds
 import tensorflow as tf
 from fsspec import AbstractFileSystem
 from s3fs import S3FileSystem
@@ -16,14 +15,9 @@ import argparse
 import pandas as pd
 import pydicom
 import numpy as np
-
-# import ray
-
 import hub
 from hub import schema
 from hub.utils import Timer
-
-# from ee.backend.synchronizer import RedisSynchronizer, ProcessSynchronizer
 
 _CITATION = """
 @article{Johnson2019,
@@ -462,20 +456,13 @@ class MimiciiiCxr:
         schema_ = self._info()
         schemai = self._intermitidate_schema()
         print("Number of samples: ", len(lines))
-        lines = lines[:5000]
-        if args.redisurl:
-            sync = RedisSynchronizer(host=args.redisurl, password="5241590000000000")
-        elif args.scheduler == "processed":
-            sync = ProcessSynchronizer("./data/process_sync")
-        else:
-            sync = None
+        # lines = lines[:2000]
         with Timer("Total time"):
             with Timer("Time of first transform"):
                 ds1 = hub.transform(
                     schemai,
                     scheduler=args.scheduler,
                     workers=args.workers,
-                    # synchronizer=sync,
                 )(_right_size)(lines)
                 ds1 = ds1.store(f"{output_dir}/ds1")
                 print("LEN DS1:", len(ds1))
@@ -484,7 +471,6 @@ class MimiciiiCxr:
                     schemai,
                     scheduler=args.scheduler,
                     workers=args.workers,
-                    # synchronizer=sync,
                 )(_check_files)(ds1)
                 ds2 = ds2.store(f"{output_dir}/ds2", sample_per_shard=400)
                 print("LEN DS2:", len(ds2))
@@ -493,39 +479,25 @@ class MimiciiiCxr:
                     schema_,
                     scheduler=args.scheduler,
                     workers=args.workers,
-                    # synchronizer=sync,
                 )(_process_example)(ds2)
-                ds3.store(f"{output_dir}/ds3", sample_per_shard=50)
+                ds3.store(f"{output_dir}/ds3", sample_per_shard=400)
         print("Success, number of elements for phase 3:", len(ds3))
 
 
 def main():
-    # DEFAULT_WORKERS = 100
-    # DEFAULT_SCHEDULER = "ray_generator"
-    DEFAULT_WORKERS = 8
+    DEFAULT_WORKERS = 10
     DEFAULT_SCHEDULER = "single"
-    if DEFAULT_SCHEDULER == "ray_generator":
-        DEFAULT_REDIS_URL = (
-            os.environ["RAY_HEAD_IP"] if "RAY_HEAD_IP" in os.environ else "localhost"
-        )
-    else:
-        DEFAULT_REDIS_URL = False
-    password = "5241590000000000"
-    # ray.init(address="auto", _redis_password=password)
-    # print("Nodes:", ray.nodes())
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-i", "--input", default="s3://snark-gradient-raw-data/mimic-cxr-2.0.0"
     )
-    # 146029
     parser.add_argument(
         "-o",
         "--output",
-        default="s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed",
+        default="s3://snark-gradient-raw-data/output_single_8_all_samples_max_4_boolean_m5_fixed_final_400",
     )
     parser.add_argument("-w", "--workers", default=DEFAULT_WORKERS)
     parser.add_argument("-s", "--scheduler", default=DEFAULT_SCHEDULER)
-    parser.add_argument("-r", "--redisurl", default=DEFAULT_REDIS_URL)
     args = parser.parse_args()
     handle = MimiciiiCxr()
     fs = S3FileSystem(default_block_size=2 ** 26)

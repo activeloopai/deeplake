@@ -252,21 +252,28 @@ class Transform:
         ds: hub.Dataset
             Uploaded dataset
         """
-
+        offset = ds.indexes[0]  # here ds.indexes will always be a contiguous list as obtained after slicing
         for key, value in results.items():
             chunk = ds[key].chunksize[0]
             chunk = 1 if chunk == 0 else chunk
             value = get_value(value)
             value = str_to_int(value, ds.dataset.tokenizer)
 
-            num_chunks = len(value) // (chunk * self.workers)
-            length = num_chunks * chunk if self.workers != 1 and num_chunks !=0 else len(value)
-            batched_values = batchify(value, length)
-
+            num_chunks = len(value) / (chunk * self.workers)
+            if num_chunks == 0:
+                length = len(value)
+            else:
+                num_chunks = 1 + int(num_chunks) if num_chunks != int(num_chunks) else num_chunks
+                length = num_chunks * chunk if self.workers != 1 else len(value)
+            batched_values = batchify(value, length, length + ((chunk - (offset % chunk)))%chunk) if length!=len(value) else batchify(value, length)
+            len_batches = [len(item) for item in batched_values]
             def upload_chunk(i_batch):
                 i, batch = i_batch
                 length = len(batch)
-                slice_ = slice(i * length, (i + 1) * length)
+                cur_offset = 0
+                for it in range(i):
+                    cur_offset += len_batches[it]
+                slice_ = slice(cur_offset, cur_offset + length)
                 ds[key, slice_] = batch
 
             index_batched_values = list(
@@ -279,9 +286,6 @@ class Transform:
                 list(self.map(upload_chunk, index_batched_values))
             else:
                 list(map(upload_chunk, index_batched_values))
-            offset = ds.indexes[
-                0
-            ]  # here ds.indexes will always be a contiguous list as obtained after slicing
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
