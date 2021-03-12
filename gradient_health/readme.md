@@ -6,4 +6,4 @@ explore.ipynb should give you an idea of how Hub is being used for training and 
 
 dataset_generation.py contains the transform code that we adapted to hub format from the tfds code provided
 
-model_training folder consists largely of the code from the repo https://github.com/brucechou1983/CheXNet-Keras adapted to use Hub. Only train.py and confi.ini should be relevant. 
+model_training folder consists largely of the code from the repo https://github.com/brucechou1983/CheXNet-Keras adapted to use Hub. Only train.py and confi.ini should be relevant. run train.py from the inner director ie. gradient_health/model_training as it relies on a files relative path and running it from outside might lead to "AttributeError: 'NoneType' object has no attribute 'split'"

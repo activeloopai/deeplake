@@ -91,10 +91,10 @@ def main():
             config_file, os.path.join(output_dir, os.path.split(config_file)[1])
         )
 
-        ds = hub.Dataset(
-            "s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed/ds3")
-        dsv_train = ds[0:3000]
-        dsv_val = ds[5000:]
+        ds = hub.Dataset("s3://snark-gradient-raw-data/output_single_8_all_samples_max_4_boolean_m5_fixed_final_400/ds3/")
+        dsv_train = ds[0:140000]
+        dsv_val = ds[140000:]
+        print("filtering only the frontal images, this will take a few minutes")
         dsf_train = dsv_train.filter(only_frontal)
         dsf_val = dsv_val.filter(only_frontal)
         print("filtering completed")
