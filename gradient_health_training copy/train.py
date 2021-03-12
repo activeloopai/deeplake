@@ -131,7 +131,8 @@ def main():
             config_file, os.path.join(output_dir, os.path.split(config_file)[1])
         )
 
-        ds = hub.Dataset("s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed/ds3")
+        ds = hub.Dataset(
+            "s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed/ds3")
         dsv_train = ds[0:3000]
         dsv_val = ds[5000:]
         dsf_train = dsv_train.filter(only_frontal)
@@ -203,10 +204,12 @@ def main():
         if show_model_summary:
             print(model.summary())
 
-        tds_train = dsf_train.to_tensorflow(key_list=["image", "label_chexpert", "viewPosition"])
+        tds_train = dsf_train.to_tensorflow(
+            key_list=["image", "label_chexpert", "viewPosition"])
         tds_train = tds_train.map(to_model_fit)
         tds_train = tds_train.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        tds_val = dsf_val.to_tensorflow(key_list=["image", "label_chexpert", "viewPosition"])
+        tds_val = dsf_val.to_tensorflow(
+            key_list=["image", "label_chexpert", "viewPosition"])
         tds_val = tds_val.map(to_model_fit)
         tds_val = tds_val.batch(batch_size).prefetch(tf.data.AUTOTUNE)
         print(f"Train data length: {len(dsf_train)}")
@@ -214,29 +217,26 @@ def main():
 
         output_weights_path = os.path.join(output_dir, output_weights_name)
         print(f"** set output weights path to: {output_weights_path} **")
-
+        optimizer = Adam(lr=initial_learning_rate)
         print("** check multiple gpu availability **")
-        gpus = len(os.getenv("CUDA_VISIBLE_DEVICES", "1").split(","))
+        strategy = tf.distribute.MirroredStrategy()
+        print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+        gpus = strategy.num_replicas_in_sync
         if gpus > 1:
             print(f"** multi_gpu_model is used! gpus={gpus} **")
-            model_train = multi_gpu_model(model, gpus)
-            # FIXME: currently (Keras 2.1.2) checkpoint doesn't work with multi_gpu_model
-            checkpoint = MultiGPUModelCheckpoint(
-                filepath=output_weights_path,
-                base_model=model,
-            )
+            with strategy.scope():
+                model_train = model_factory.get_model(
+                    class_names,
+                    model_name=base_model_name,
+                    use_base_weights=use_base_model_weights,
+                    weights_path=model_weights_file,
+                    input_shape=(image_dimension, image_dimension, 3),
+                )
+                model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
         else:
             model_train = model
-            checkpoint = ModelCheckpoint(
-                output_weights_path,
-                save_weights_only=True,
-                save_best_only=True,
-                verbose=1,
-            )
+            model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
 
-        print("** compile model with class weights **")
-        optimizer = Adam(lr=initial_learning_rate)
-        model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
         auroc = MultipleClassAUROC(
             sequence=tds_val,
             class_names=class_names,
@@ -245,7 +245,7 @@ def main():
             workers=generator_workers,
         )
         callbacks = [
-            checkpoint,
+            # checkpoint,
             TensorBoard(
                 log_dir=os.path.join(output_dir, "logs"), batch_size=batch_size
             ),
@@ -259,7 +259,6 @@ def main():
             ),
             # auroc,
         ]
-
         print("** start training **")
         history = model_train.fit(
             x=dummy_train.repeat(),
