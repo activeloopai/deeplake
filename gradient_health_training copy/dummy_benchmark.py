@@ -42,7 +42,7 @@ def benchmark(dataset, num_epochs=1):
         # for i in range(10):
         #     ds["image", slice(i*100, i*100 + 100)].compute()
         #     pbar.update(100)
-        for i in range(10):
+        for i in range(len(ds)):
             # print(np.max(sample["image"]))
             # for item in sample:
             #     x += item[0].shape[0]

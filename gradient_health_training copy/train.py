@@ -17,6 +17,38 @@ import tensorflow as tf
 import hub
 import numpy as np
 
+import wandb
+wandb.init()
+
+
+def train_gen():
+    for _ in range(10000000):
+        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
+
+
+def val_gen():
+    for _ in range(0):
+        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
+
+
+dummy_train = tf.data.Dataset.from_generator(
+    train_gen,
+    output_signature=(
+        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
+        tf.TensorSpec(shape=(14,), dtype=tf.int32),
+    ))
+
+dummy_val = tf.data.Dataset.from_generator(
+    val_gen,
+    output_signature=(
+        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
+        tf.TensorSpec(shape=(14,), dtype=tf.int32),
+    ))
+
+dummy_train = dummy_train.batch(8).prefetch(tf.data.AUTOTUNE)
+dummy_val = dummy_val.batch(8).prefetch(tf.data.AUTOTUNE)
+
+
 def only_frontal(sample):
     viewPosition = sample["viewPosition"].compute(True)
     return True if "PA" in viewPosition or "AP" in viewPosition else False
@@ -99,13 +131,10 @@ def main():
             config_file, os.path.join(output_dir, os.path.split(config_file)[1])
         )
 
-        # datasets = ["train", "dev", "test"]
-        # for dataset in datasets:
-        #     shutil.copy(os.path.join(dataset_csv_dir, f"{dataset}.csv"), output_dir)
-        # 63539
-        ds = hub.Dataset("s3://snark-gradient-raw-data/output_ray_single_8_100k_2/ds3/")
-        dsv_train = ds[0:2000]
-        dsv_val = ds[10000:11000]
+        ds = hub.Dataset(
+            "s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed/ds3")
+        dsv_train = ds[0:3000]
+        dsv_val = ds[5000:]
         dsf_train = dsv_train.filter(only_frontal)
         dsf_val = dsv_val.filter(only_frontal)
         print("filtering completed")
@@ -175,33 +204,12 @@ def main():
         if show_model_summary:
             print(model.summary())
 
-        # print("** create image generators **")
-        # train_sequence = AugmentedImageSequence(
-        #     dataset_csv_file=os.path.join(output_dir, "train.csv"),
-        #     class_names=class_names,
-        #     source_image_dir=image_source_dir,
-        #     batch_size=batch_size,
-        #     target_size=(image_dimension, image_dimension),
-        #     augmenter=augmenter,
-        #     steps=train_steps,
-        # )
-        # validation_sequence = AugmentedImageSequence(
-        #     dataset_csv_file=os.path.join(output_dir, "dev.csv"),
-        #     class_names=class_names,
-        #     source_image_dir=image_source_dir,
-        #     batch_size=batch_size,
-        #     target_size=(image_dimension, image_dimension),
-        #     augmenter=augmenter,
-        #     steps=validation_steps,
-        #     shuffle_on_epoch_end=False,
-        # )
-
-        # 1864 elements
-
-        tds_train = dsf_train.to_tensorflow(repeat=True)
+        tds_train = dsf_train.to_tensorflow(
+            key_list=["image", "label_chexpert", "viewPosition"])
         tds_train = tds_train.map(to_model_fit)
         tds_train = tds_train.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        tds_val = dsf_val.to_tensorflow(repeat=True)
+        tds_val = dsf_val.to_tensorflow(
+            key_list=["image", "label_chexpert", "viewPosition"])
         tds_val = tds_val.map(to_model_fit)
         tds_val = tds_val.batch(batch_size).prefetch(tf.data.AUTOTUNE)
         print(f"Train data length: {len(dsf_train)}")
@@ -209,29 +217,26 @@ def main():
 
         output_weights_path = os.path.join(output_dir, output_weights_name)
         print(f"** set output weights path to: {output_weights_path} **")
-
+        optimizer = Adam(lr=initial_learning_rate)
         print("** check multiple gpu availability **")
-        gpus = len(os.getenv("CUDA_VISIBLE_DEVICES", "1").split(","))
+        strategy = tf.distribute.MirroredStrategy()
+        print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+        gpus = strategy.num_replicas_in_sync
         if gpus > 1:
             print(f"** multi_gpu_model is used! gpus={gpus} **")
-            model_train = multi_gpu_model(model, gpus)
-            # FIXME: currently (Keras 2.1.2) checkpoint doesn't work with multi_gpu_model
-            checkpoint = MultiGPUModelCheckpoint(
-                filepath=output_weights_path,
-                base_model=model,
-            )
+            with strategy.scope():
+                model_train = model_factory.get_model(
+                    class_names,
+                    model_name=base_model_name,
+                    use_base_weights=use_base_model_weights,
+                    weights_path=model_weights_file,
+                    input_shape=(image_dimension, image_dimension, 3),
+                )
+                model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
         else:
             model_train = model
-            checkpoint = ModelCheckpoint(
-                output_weights_path,
-                save_weights_only=True,
-                save_best_only=True,
-                verbose=1,
-            )
+            model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
 
-        print("** compile model with class weights **")
-        optimizer = Adam(lr=initial_learning_rate)
-        model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
         auroc = MultipleClassAUROC(
             sequence=tds_val,
             class_names=class_names,
@@ -240,7 +245,7 @@ def main():
             workers=generator_workers,
         )
         callbacks = [
-            checkpoint,
+            # checkpoint,
             TensorBoard(
                 log_dir=os.path.join(output_dir, "logs"), batch_size=batch_size
             ),
@@ -254,16 +259,14 @@ def main():
             ),
             # auroc,
         ]
-
         print("** start training **")
-        history = model_train.fit_generator(
-            generator=tds_train,
+        history = model_train.fit(
+            x=tds_train.repeat(),
             steps_per_epoch=train_steps,
             epochs=epochs,
-            validation_data=tds_val,
+            validation_data=tds_val.repeat(),
             validation_steps=validation_steps,
             callbacks=callbacks,
-            # class_weight=class_weights,
             workers=generator_workers,
             shuffle=False,
         )
