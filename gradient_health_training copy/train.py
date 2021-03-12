@@ -23,12 +23,12 @@ wandb.init()
 
 def train_gen():
     for _ in range(10000000):
-        yield np.ones((512, 512, 3)), np.ones((14,))
+        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
 
 
 def val_gen():
     for _ in range(0):
-        yield np.ones((512, 512, 3)), np.ones((14,))
+        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
 
 
 dummy_train = tf.data.Dataset.from_generator(
@@ -45,8 +45,8 @@ dummy_val = tf.data.Dataset.from_generator(
         tf.TensorSpec(shape=(14,), dtype=tf.int32),
     ))
 
-dummy_train = dummy_train.batch(8)
-dummy_val = dummy_val.batch(8)
+dummy_train = dummy_train.batch(8).prefetch(tf.data.AUTOTUNE)
+dummy_val = dummy_val.batch(8).prefetch(tf.data.AUTOTUNE)
 
 
 def only_frontal(sample):
@@ -261,10 +261,10 @@ def main():
         ]
         print("** start training **")
         history = model_train.fit(
-            x=dummy_train.repeat(),
+            x=tds_train.repeat(),
             steps_per_epoch=train_steps,
             epochs=epochs,
-            validation_data=dummy_val.repeat(),
+            validation_data=tds_val.repeat(),
             validation_steps=validation_steps,
             callbacks=callbacks,
             workers=generator_workers,
