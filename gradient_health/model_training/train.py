@@ -2,51 +2,14 @@ import json
 import shutil
 import os
 import pickle
-from callback import MultipleClassAUROC, MultiGPUModelCheckpoint
 from configparser import ConfigParser
-from generator import AugmentedImageSequence
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau
 from keras.optimizers import Adam
-
-# from keras.utils import multi_gpu_model
 from models.keras import ModelFactory
 from utility import get_sample_counts
-from weights import get_class_weights
-from augmenter import augmenter
 import tensorflow as tf
 import hub
 import numpy as np
-
-import wandb
-wandb.init()
-
-
-def train_gen():
-    for _ in range(10000000):
-        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
-
-
-def val_gen():
-    for _ in range(0):
-        yield np.random.randint(low=0, high=2, size=(512, 512, 3)), np.random.randint(low=0, high=2, size=(14,))
-
-
-dummy_train = tf.data.Dataset.from_generator(
-    train_gen,
-    output_signature=(
-        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
-        tf.TensorSpec(shape=(14,), dtype=tf.int32),
-    ))
-
-dummy_val = tf.data.Dataset.from_generator(
-    val_gen,
-    output_signature=(
-        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
-        tf.TensorSpec(shape=(14,), dtype=tf.int32),
-    ))
-
-dummy_train = dummy_train.batch(8).prefetch(tf.data.AUTOTUNE)
-dummy_val = dummy_val.batch(8).prefetch(tf.data.AUTOTUNE)
 
 
 def only_frontal(sample):
@@ -76,7 +39,6 @@ def main():
 
     # default config
     output_dir = cp["DEFAULT"].get("output_dir")
-    image_source_dir = cp["DEFAULT"].get("image_source_dir")
     base_model_name = cp["DEFAULT"].get("base_model_name")
     print(base_model_name)
     class_names = cp["DEFAULT"].get("class_names").split(",")
@@ -95,8 +57,6 @@ def main():
     patience_reduce_lr = cp["TRAIN"].getint("patience_reduce_lr")
     min_lr = cp["TRAIN"].getfloat("min_lr")
     validation_steps = cp["TRAIN"].get("validation_steps")
-    positive_weights_multiply = cp["TRAIN"].getfloat("positive_weights_multiply")
-    dataset_csv_dir = cp["TRAIN"].get("dataset_csv_dir")
     # if previously trained weights is used, never re-split
     if use_trained_model_weights:
         # resuming mode
@@ -171,16 +131,6 @@ def main():
                 )
         print(f"** validation_steps: {validation_steps} **")
 
-        # compute class weights
-        print("** compute class weights from training data **")
-        class_weights = get_class_weights(
-            train_counts,
-            train_pos_counts,
-            multiply=positive_weights_multiply,
-        )
-        print("** class_weights **")
-        print(class_weights)
-
         print("** load model **")
         if use_trained_model_weights:
             if use_best_weights:
@@ -237,15 +187,7 @@ def main():
             model_train = model
             model_train.compile(optimizer=optimizer, loss="binary_crossentropy")
 
-        auroc = MultipleClassAUROC(
-            sequence=tds_val,
-            class_names=class_names,
-            weights_path=output_weights_path,
-            stats=training_stats,
-            workers=generator_workers,
-        )
         callbacks = [
-            # checkpoint,
             TensorBoard(
                 log_dir=os.path.join(output_dir, "logs"), batch_size=batch_size
             ),
@@ -257,7 +199,6 @@ def main():
                 mode="min",
                 min_lr=min_lr,
             ),
-            # auroc,
         ]
         print("** start training **")
         history = model_train.fit(
@@ -277,7 +218,6 @@ def main():
             pickle.dump(
                 {
                     "history": history.history,
-                    "auroc": auroc.aurocs,
                 },
                 f,
             )
