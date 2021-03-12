@@ -1,8 +1,6 @@
 # ChexNet-Keras
 This project is a tool to build CheXNet-like models, written in Keras.
 
-<img width="1350" height="450" src="cam_example.png" alt="CAM example image"/>
-
 ## What is [CheXNet](https://arxiv.org/pdf/1711.05225.pdf)?
 ChexNet is a deep learning algorithm that can detect and localize 14 kinds of diseases from chest X-ray images. As described in the paper, a 121-layer densely connected convolutional neural network is trained on ChestX-ray14 dataset, which contains 112,120 frontal view X-ray images from 30,805 unique patients. The result is so good that it surpasses the performance of practicing radiologists. If you are new to this project, [Luke Oakden-Rayner's post](https://lukeoakdenrayner.wordpress.com/2017/12/18/the-chestxray14-dataset-problems/) is highly recommended.
 
