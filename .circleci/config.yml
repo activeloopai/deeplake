@@ -22,9 +22,6 @@ workflows:
           context:
             - test
             - azure
-          filters:
-            branches:
-              only: fix/circleci
 
   test_and_deploy:
     jobs:
@@ -183,12 +180,13 @@ jobs:
           name: "Prep Google credentials"
           command: |
             $Env:CIRCLECI_PATH = "~/circleci/.secrets/"
+            setx /m CIRCLECI_PATH "$Env:CIRCLECI_PATH"
             mkdir $Env:CIRCLECI_PATH
             [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) > ($Env:CIRCLECI_PATH + "gcs.json")
       - run:
           name: "Collecting requirements"
           command: |
-            pip install --upgrade pip
+            pip install --upgrade pip --user
             pip install -r requirements-dev.txt
             pip install -r requirements-optional.txt
             pip install -r requirements.txt
@@ -201,6 +199,7 @@ jobs:
       - run:
           name: "Running tests"
           command: |
+            $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CIRCLECI_PATH
             pip install pytest
             pip install pytest-cov
             pip install --upgrade setuptools
