@@ -254,14 +254,13 @@ class Transform:
         """
 
         for key, value in results.items():
-
             chunk = ds[key].chunksize[0]
             chunk = 1 if chunk == 0 else chunk
             value = get_value(value)
             value = str_to_int(value, ds.dataset.tokenizer)
 
-            num_chunks = math.ceil(len(value) / (chunk * self.workers))
-            length = num_chunks * chunk if self.workers != 1 else len(value)
+            num_chunks = len(value) // (chunk * self.workers)
+            length = num_chunks * chunk if self.workers != 1 and num_chunks !=0 else len(value)
             batched_values = batchify(value, length)
 
             def upload_chunk(i_batch):
@@ -276,7 +275,10 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            list(self.map(upload_chunk, index_batched_values))
+            if num_chunks != 0:
+                list(self.map(upload_chunk, index_batched_values))
+            else:
+                list(map(upload_chunk, index_batched_values))
             offset = ds.indexes[
                 0
             ]  # here ds.indexes will always be a contiguous list as obtained after slicing
