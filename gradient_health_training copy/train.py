@@ -17,6 +17,38 @@ import tensorflow as tf
 import hub
 import numpy as np
 
+import wandb
+wandb.init()
+
+
+def train_gen():
+    for _ in range(10000000):
+        yield np.ones((512, 512, 3)), np.ones((14,))
+
+
+def val_gen():
+    for _ in range(0):
+        yield np.ones((512, 512, 3)), np.ones((14,))
+
+
+dummy_train = tf.data.Dataset.from_generator(
+    train_gen,
+    output_signature=(
+        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
+        tf.TensorSpec(shape=(14,), dtype=tf.int32),
+    ))
+
+dummy_val = tf.data.Dataset.from_generator(
+    val_gen,
+    output_signature=(
+        tf.TensorSpec(shape=(512, 512, 3), dtype=tf.uint16),
+        tf.TensorSpec(shape=(14,), dtype=tf.int32),
+    ))
+
+dummy_train = dummy_train.batch(8)
+dummy_val = dummy_val.batch(8)
+
+
 def only_frontal(sample):
     viewPosition = sample["viewPosition"].compute(True)
     return True if "PA" in viewPosition or "AP" in viewPosition else False
@@ -99,13 +131,9 @@ def main():
             config_file, os.path.join(output_dir, os.path.split(config_file)[1])
         )
 
-        # datasets = ["train", "dev", "test"]
-        # for dataset in datasets:
-        #     shutil.copy(os.path.join(dataset_csv_dir, f"{dataset}.csv"), output_dir)
-        # 63539
-        ds = hub.Dataset("s3://snark-gradient-raw-data/output_ray_single_8_100k_2/ds3/")
-        dsv_train = ds[0:2000]
-        dsv_val = ds[10000:11000]
+        ds = hub.Dataset("s3://snark-gradient-raw-data/output_single_8_5000_samples_max_4_boolean_m5_fixed/ds3")
+        dsv_train = ds[0:3000]
+        dsv_val = ds[5000:]
         dsf_train = dsv_train.filter(only_frontal)
         dsf_val = dsv_val.filter(only_frontal)
         print("filtering completed")
@@ -175,33 +203,10 @@ def main():
         if show_model_summary:
             print(model.summary())
 
-        # print("** create image generators **")
-        # train_sequence = AugmentedImageSequence(
-        #     dataset_csv_file=os.path.join(output_dir, "train.csv"),
-        #     class_names=class_names,
-        #     source_image_dir=image_source_dir,
-        #     batch_size=batch_size,
-        #     target_size=(image_dimension, image_dimension),
-        #     augmenter=augmenter,
-        #     steps=train_steps,
-        # )
-        # validation_sequence = AugmentedImageSequence(
-        #     dataset_csv_file=os.path.join(output_dir, "dev.csv"),
-        #     class_names=class_names,
-        #     source_image_dir=image_source_dir,
-        #     batch_size=batch_size,
-        #     target_size=(image_dimension, image_dimension),
-        #     augmenter=augmenter,
-        #     steps=validation_steps,
-        #     shuffle_on_epoch_end=False,
-        # )
-
-        # 1864 elements
-
-        tds_train = dsf_train.to_tensorflow(repeat=True)
+        tds_train = dsf_train.to_tensorflow(key_list=["image", "label_chexpert", "viewPosition"])
         tds_train = tds_train.map(to_model_fit)
         tds_train = tds_train.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        tds_val = dsf_val.to_tensorflow(repeat=True)
+        tds_val = dsf_val.to_tensorflow(key_list=["image", "label_chexpert", "viewPosition"])
         tds_val = tds_val.map(to_model_fit)
         tds_val = tds_val.batch(batch_size).prefetch(tf.data.AUTOTUNE)
         print(f"Train data length: {len(dsf_train)}")
@@ -256,14 +261,13 @@ def main():
         ]
 
         print("** start training **")
-        history = model_train.fit_generator(
-            generator=tds_train,
+        history = model_train.fit(
+            x=dummy_train.repeat(),
             steps_per_epoch=train_steps,
             epochs=epochs,
-            validation_data=tds_val,
+            validation_data=dummy_val.repeat(),
             validation_steps=validation_steps,
             callbacks=callbacks,
-            # class_weight=class_weights,
             workers=generator_workers,
             shuffle=False,
         )
