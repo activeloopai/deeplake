@@ -22,7 +22,7 @@ def main():
     ds.resize_shape(200)
     print(ds.shape)
     print(ds["label", 100:110].numpy())
-    with Timer("Committing"):
+    with Timer("Saving"):
         ds.flush()
 
     ds = Dataset(path)
