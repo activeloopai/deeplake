@@ -2,30 +2,45 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@3.4.2
-  codecov: codecov/codecov@1.1.1
-  win: circleci/windows@2.2.0
+  codecov: codecov/codecov@1.1.3
+  win: circleci/windows@2.4.0
 
 workflows:
   test:
     jobs:
       - test:
+          name: "test1"
+          e: linux
           context:
             - test
             - azure
-      - test_full:
+      - test:
+          name: "test2"
+          e: linux
+          optional: true
           context:
             - test
             - azure
-  windows_test:
-    jobs:
-      - windows_test:
+      - test:
+          name: "test3"
+          e: win64
+          optional: true
+          unix-like: false
           context:
             - test
             - azure
-
-  test_and_deploy:
+      - test:
+          name: "test4"
+          e: mac
+          optional: true
+          context:
+            - test
+            - azure
+  test-and-deploy:
     jobs:
       - test:
+          name: test-simple
+          e: linux
           context:
             - test
             - azure
@@ -34,7 +49,10 @@ workflows:
               only: /[0-9]+(\.[0-9]+)*/
             branches:
               ignore: /.*/
-      - test_full:
+      - test:
+          name: test-complex
+          e: linux
+          optional: true
           context:
             - test
             - azure
@@ -43,91 +61,143 @@ workflows:
               only: /[0-9]+(\.[0-9]+)*/
             branches:
               ignore: /.*/
+      - verify:
+          type: approval
+          requires:
+            - test-simple
+            - test-complex
       - deploy:
           context:
             - pypi
             - snark-docker
           requires:
-            - test
-            - test_full
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+            - verify
+  conda-deploy:
+    jobs:
+      - conda
 
-jobs:
-  test:
-   docker:
-      - image: circleci/python:3.8
-   steps:
-      - checkout
-      - run:
-          name: "Prep Google credentials"
-          command: |
-            mkdir -p "/home/circleci/.secrets/"
-            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
-      - run:
-          name: "Collecting requirements"
-          command: |
-            pip install -r requirements-dev.txt
-            pip install -r requirements.txt
-            pip install -e .
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-
-
-  test_full:
+executors:
+  linux:
     docker:
       - image: circleci/python:3.8
+  win64: win/default
+  mac:
+    macos:
+      xcode: "12.4.0"
+
+commands:
+  info:
     steps:
-      - checkout
       - run:
-          name: "Prep Google credentials"
-          command: |
-            mkdir -p "/home/circleci/.secrets/"
-            echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+          name: "Gather machine info"
+          command: python -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
+  google-creds:
+    description: "Prepare Google credentials"
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - unless:
+          condition: unix-like
+          steps:
+            - run: |
+                $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
+                $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
+                setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
+                mkdir $Env:CI_SECRETS_PATH
+                [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
+      - when:
+          condition: unix-like
+          steps:
+            - run: |
+                mkdir -p "/home/circleci/.secrets/"
+                echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+  requirements:
+    parameters:
+      optional:
+        description: "Include optional requirements"
+        type: boolean
+        default: false
+    steps:
       - run:
           name: "Collecting requirements"
           command: |
+            pip install --upgrade pip --user
+            pip install --upgrade setuptools
             pip install -r requirements-dev.txt
-            pip install -r requirements-optional.txt
+            <<# parameters.optional >> pip install -r requirements-optional.txt <</ parameters.optional >>
             pip install -r requirements.txt
             pip install -e .
+  style-check:
+    steps:
       - run:
           name: "Checking code style"
           command: |
             pip install flake8
             flake8 . --count --exit-zero --max-complexity=10 --statistics
+  run-tests:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - unless:
+          condition: unix-like
+          steps:
+            - run: |
+                $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
+                setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
+                pip install pytest
+                pip install pytest-cov
+      - when:
+          condition: unix-like
+          steps:
+            - run: export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
       - run:
           name: "Running tests"
-          command: |
-            export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-            pytest --cov-report=xml --cov=./
+          command: pytest --cov-report=xml --cov=./
+  report:
+    steps:
       - codecov/upload:
           file: coverage.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:
           path: test-reports
+  slack-status:
+    steps:
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
 
+jobs:
+  test:
+    parameters:
+      e:
+        type: executor
+      optional:
+        description: "Include optional requirements and reports"
+        type: boolean
+        default: false
+      unix-like:
+        type: boolean
+        default: true
+    executor: << parameters.e >>
+    steps:
+      - checkout
+      - info
+      - google-creds
+      - requirements
+      - style-check
+      - run-tests
+      - when:
+          condition: << parameters.optional >>
+          steps:
+            - report
+      - slack-status
   deploy:
-    docker:
-      - image: circleci/python:3.8
+    executor: linux
     environment:
       IMAGE_NAME: snarkai/hub
     steps:
@@ -164,48 +234,8 @@ jobs:
             docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
             docker push $IMAGE_NAME:latest
             docker push $IMAGE_NAME:$IMAGE_TAG
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
-  windows_test:
-    executor:
-      name: win/default
-      shell: powershell.exe
+      - slack-status
+  conda:
+    executor: linux
     steps:
       - checkout
-      - run:
-          name: "Python version check"
-          command: python -V -V
-      - run:
-          name: "Prep Google credentials"
-          command: |
-            $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
-            $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
-            setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
-            mkdir $Env:CI_SECRETS_PATH
-            [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
-      - run:
-          name: "Collecting requirements"
-          command: |
-            pip install --upgrade pip --user
-            pip install -r requirements-dev.txt
-            pip install -r requirements-optional.txt
-            pip install -r requirements.txt
-            pip install -e .
-      - run:
-          name: "Checking code style"
-          command: |
-            pip install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
-      - run:
-          name: "Running tests"
-          command: |
-            $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
-            setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-            pip install pytest
-            pip install pytest-cov
-            pip install --upgrade setuptools
-            pytest --cov-report=xml --cov=./
-      - slack/status:
-          fail_only: true
-          webhook: $SLACK_WEBHOOK
