@@ -88,19 +88,28 @@ executors:
 
 commands:
   info:
-    steps:
-      - run:
-          name: "Gather machine info"
-          command: python -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
-  google-creds:
     parameters:
       unix-like:
         type: boolean
         default: true
     steps:
       - run:
-          name: "Check parameters"
-          command: echo << parameters.unix-like >>
+          name: "Gather machine info"
+          command: python3 -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                name: "Setting aliases for Windows"
+                command: |
+                  echo "Set-Alias -Name python3 -Value python" >> $profile
+                  echo "Set-Alias -Name pip3 -Value pip" >> $profile
+  google-creds:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
       - unless:
           condition: << parameters.unix-like >>
           steps:
@@ -130,18 +139,18 @@ commands:
       - run:
           name: "Collecting requirements"
           command: |
-            pip install --upgrade pip --user
-            pip install --upgrade setuptools
-            pip install -r requirements-dev.txt
-            <<# parameters.optional >>pip install -r requirements-optional.txt<</ parameters.optional >>
-            pip install -r requirements.txt
-            pip install -e .
+            pip3 install --upgrade pip3 --user
+            pip3 install --upgrade setuptools
+            pip3 install -r requirements-dev.txt
+            <<# parameters.optional >>pip3 install -r requirements-optional.txt<</ parameters.optional >>
+            pip3 install -r requirements.txt
+            pip3 install -e .
   style-check:
     steps:
       - run:
           name: "Checking code style"
           command: |
-            pip install flake8
+            pip3 install flake8
             flake8 . --count --exit-zero --max-complexity=10 --statistics
   run-tests:
     parameters:
@@ -157,8 +166,8 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  pip install pytest
-                  pip install pytest-cov
+                  pip3 install pytest
+                  pip3 install pytest-cov
                   pytest --cov-report=xml --cov=./
       - when:
           condition: << parameters.unix-like >>
@@ -189,7 +198,7 @@ commands:
           steps:
             - codecov-upload
       - store_test_results:
-          path: test-reports
+          path: test-reports  # possibly change this path for Win
       - store_artifacts:
           path: test-reports
   slack-status:
@@ -213,7 +222,8 @@ jobs:
     executor: << parameters.e >>
     steps:
       - checkout
-      - info
+      - info:
+          unix-like: << parameters.unix-like >>
       - google-creds:
           unix-like: << parameters.unix-like >>
       - requirements:
@@ -243,12 +253,12 @@ jobs:
       - run:
           name: "Create a source distribution & wheel"
           command: |
-            python setup.py sdist
-            python setup.py bdist_wheel
+            python3 setup.py sdist
+            python3 setup.py bdist_wheel
       - run:
           name: "Install twine via pip"
           command: |
-            pip install twine
+            pip3 install twine
       - run:
           name: "Upload dist to PyPi"
           command: |
