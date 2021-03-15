@@ -139,7 +139,7 @@ commands:
       - run:
           name: "Collecting requirements"
           command: |
-            pip3 install --upgrade pip3 --user
+            pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
             pip3 install -r requirements-dev.txt
             <<# parameters.optional >>pip3 install -r requirements-optional.txt<</ parameters.optional >>
