@@ -195,10 +195,13 @@ jobs:
     steps:
       - checkout
       - info
-      - google-creds
-      - requirements
+      - google-creds:
+          unix-like: << parameters.unix-like >>
+      - requirements:
+          optional: << parameters.optional >>
       - style-check
-      - run-tests
+      - run-tests:
+          unix-like: << parameters.unix-like >>
       - when:
           condition: << parameters.optional >>
           steps:
