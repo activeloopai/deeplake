@@ -92,8 +92,8 @@ commands:
       - run:
           name: "Setting aliases for Windows"
           command: |
-            echo "Set-Alias -Name python3 -Value python" >> $profile
-            echo "Set-Alias -Name pip3 -Value pip" >> $profile
+            Add-Content -Path $profile -Value $(Set-Alias -Name python3 -Value python)
+            Add-Content -Path $profile -Value $(Set-Alias -Name pip3 -Value pip)
   info:
     steps:
       - run:
