@@ -222,8 +222,7 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - aliases
-      - info:
-          unix-like: << parameters.unix-like >>
+      - info
       - google-creds:
           unix-like: << parameters.unix-like >>
       - requirements:
