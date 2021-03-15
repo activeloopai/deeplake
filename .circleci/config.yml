@@ -97,14 +97,12 @@ commands:
       unix-like:
         type: boolean
         default: true
-      fast:
-        type: integer
     steps:
       - run:
           name: "Check parameters"
-          command: echo << parameters.unix-like >> << parameters.fast >>
+          command: echo << parameters.unix-like >>
       - unless:
-          condition: unix-like
+          condition: << parameters.unix-like >>
           steps:
             - run:
                 name: "Prepare Google credentials - Windows"
@@ -115,7 +113,7 @@ commands:
                   mkdir $Env:CI_SECRETS_PATH
                   [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
       - when:
-          condition: unix-like
+          condition: << parameters.unix-like >>
           steps:
             - run:
                 name: "Prepare Google credentials - Unix"
@@ -152,7 +150,7 @@ commands:
         default: true
     steps:
       - unless:
-          condition: unix-like
+          condition: << parameters.unix-like >>
           steps:
             - run:
                 name: "Running tests - Windows"
@@ -163,7 +161,7 @@ commands:
                   pip install pytest-cov
                   pytest --cov-report=xml --cov=./
       - when:
-          condition: unix-like
+          condition: << parameters.unix-like >>
           steps:
             - run:
                 name: "Running tests - Unix"
@@ -203,14 +201,11 @@ jobs:
       - run:
           name: "Check params"
           command: echo << parameters.unix-like >>
-      - google-creds:
-          unix-like: << parameters.unix-like >>
-          fast: 1
+      - google-creds
       - requirements:
           optional: << parameters.optional >>
       - style-check
-      - run-tests:
-          unix-like: << parameters.unix-like >>
+      - run-tests
       - when:
           condition: << parameters.optional >>
           steps:
