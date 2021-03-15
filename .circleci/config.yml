@@ -9,20 +9,20 @@ workflows:
   test:
     jobs:
       - test:
-          name: "test1"
+          name: "Linux Simple Test"
           e: linux
           context:
             - test
             - azure
       - test:
-          name: "test2"
+          name: "Linux Complex Test"
           e: linux
           optional: true
           context:
             - test
             - azure
       - test:
-          name: "test3"
+          name: "Windows Complex Test"
           e: win64
           unix-like: false
           optional: true
@@ -30,8 +30,9 @@ workflows:
             - test
             - azure
       - test:
-          name: "test4"
+          name: "Mac Complex Test"
           e: mac
+          mac-like: true
           optional: true
           context:
             - test
@@ -92,8 +93,15 @@ commands:
       - run:
           name: "Setting aliases for Windows"
           command: |
-            Add-Content -Path $profile -Value $(Set-Alias -Name python3 -Value python)
-            Add-Content -Path $profile -Value $(Set-Alias -Name pip3 -Value pip)
+            Add-Content -Path $profile -Value {Set-Alias -Name python3 -Value python}
+            Add-Content -Path $profile -Value {Set-Alias -Name pip3 -Value pip}
+  get-python:
+    steps:
+      - run:
+          name: "Install Python"
+          command: |
+            brew install python@3.7
+            brew link --overwrite python@3.7
   info:
     steps:
       - run:
@@ -215,6 +223,9 @@ jobs:
       unix-like:
         type: boolean
         default: true
+      mac-like:
+        type: boolean
+        default: false
     executor: << parameters.e >>
     steps:
       - checkout
@@ -222,6 +233,10 @@ jobs:
           condition: << parameters.unix-like >>
           steps:
             - aliases
+      - when:
+          condition: << parameters.mac-like >>
+          steps:
+            - get-python
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
