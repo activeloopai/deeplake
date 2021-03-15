@@ -76,6 +76,7 @@ workflows:
     jobs:
       - conda
 
+
 executors:
   linux:
     docker:
@@ -92,7 +93,6 @@ commands:
           name: "Gather machine info"
           command: python -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
   google-creds:
-    description: "Prepare Google credentials"
     parameters:
       unix-like:
         type: boolean
@@ -101,18 +101,22 @@ commands:
       - unless:
           condition: unix-like
           steps:
-            - run: |
-                $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
-                $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
-                setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
-                mkdir $Env:CI_SECRETS_PATH
-                [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
+            - run:
+                name: "Prepare Google credentials - Windows"
+                command: |
+                  $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
+                  $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
+                  setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
+                  mkdir $Env:CI_SECRETS_PATH
+                  [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
       - when:
           condition: unix-like
           steps:
-            - run: |
-                mkdir -p "/home/circleci/.secrets/"
-                echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+            - run:
+                name: "Prepare Google credentials - Unix"
+                command: |
+                  mkdir -p "/home/circleci/.secrets/"
+                  echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
   requirements:
     parameters:
       optional:
@@ -145,18 +149,22 @@ commands:
       - unless:
           condition: unix-like
           steps:
-            - run: |
-                $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
-                setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                pip install pytest
-                pip install pytest-cov
+            - run:
+                name: "Running tests - Windows"
+                command: |
+                  $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
+                  setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
+                  pip install pytest
+                  pip install pytest-cov
+                  pytest --cov-report=xml --cov=./
       - when:
           condition: unix-like
           steps:
-            - run: export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
-      - run:
-          name: "Running tests"
-          command: pytest --cov-report=xml --cov=./
+            - run:
+                name: "Running tests - Unix"
+                command: |
+                  export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+                  pytest --cov-report=xml --cov=./
   report:
     steps:
       - codecov/upload:
