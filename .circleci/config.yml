@@ -87,23 +87,19 @@ executors:
       xcode: "12.4.0"
 
 commands:
+  aliases:
+    steps:
+      - run:
+          name: "Setting aliases for Windows"
+          command: |
+            echo "Set-Alias -Name python3 -Value python" >> $profile
+            echo "Set-Alias -Name pip3 -Value pip" >> $profile
   info:
-    parameters:
-      unix-like:
-        type: boolean
-        default: true
     steps:
       - run:
           name: "Gather machine info"
           command: python3 -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
-      - unless:
-          condition: << parameters.unix-like >>
-          steps:
-            - run:
-                name: "Setting aliases for Windows"
-                command: |
-                  echo "Set-Alias -Name python3 -Value python" >> $profile
-                  echo "Set-Alias -Name pip3 -Value pip" >> $profile
+
   google-creds:
     parameters:
       unix-like:
@@ -222,6 +218,10 @@ jobs:
     executor: << parameters.e >>
     steps:
       - checkout
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - aliases
       - info:
           unix-like: << parameters.unix-like >>
       - google-creds:
