@@ -24,8 +24,8 @@ workflows:
       - test:
           name: "test3"
           e: win64
-          optional: true
           unix-like: false
+          optional: true
           context:
             - test
             - azure
@@ -118,8 +118,8 @@ commands:
             - run:
                 name: "Prepare Google credentials - Unix"
                 command: |
-                  mkdir -p "/home/circleci/.secrets/"
-                  echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "/home/circleci/.secrets/gcs.json"
+                  mkdir -p "$HOME/.secrets/"
+                  echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "$HOME/.secrets/gcs.json"
   requirements:
     parameters:
       optional:
@@ -166,12 +166,17 @@ commands:
             - run:
                 name: "Running tests - Unix"
                 command: |
-                  export GOOGLE_APPLICATION_CREDENTIALS=/home/circleci/.secrets/gcs.json
+                  export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   pytest --cov-report=xml --cov=./
   report:
     steps:
-      - codecov/upload:
-          file: coverage.xml
+      - run:
+          shell: /bin/bash -eo pipefail
+          command:
+            codecov/upload:
+              file: coverage.xml
+      # - codecov/upload:
+      #     file: coverage.xml
       - store_test_results:
           path: test-reports
       - store_artifacts:
@@ -198,9 +203,6 @@ jobs:
     steps:
       - checkout
       - info
-      - run:
-          name: "Check params"
-          command: echo << parameters.unix-like >>
       - google-creds:
           unix-like: << parameters.unix-like >>
       - requirements:
