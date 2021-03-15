@@ -97,7 +97,12 @@ commands:
       unix-like:
         type: boolean
         default: true
+      fast:
+        type: integer
     steps:
+      - run:
+          name: "Check parameters"
+          command: echo << parameters.unix-like >> << parameters.fast >>
       - unless:
           condition: unix-like
           steps:
@@ -130,7 +135,7 @@ commands:
             pip install --upgrade pip --user
             pip install --upgrade setuptools
             pip install -r requirements-dev.txt
-            <<# parameters.optional >> pip install -r requirements-optional.txt <</ parameters.optional >>
+            <<# parameters.optional >>pip install -r requirements-optional.txt<</ parameters.optional >>
             pip install -r requirements.txt
             pip install -e .
   style-check:
@@ -195,8 +200,12 @@ jobs:
     steps:
       - checkout
       - info
+      - run:
+          name: "Check params"
+          command: echo << parameters.unix-like >>
       - google-creds:
           unix-like: << parameters.unix-like >>
+          fast: 1
       - requirements:
           optional: << parameters.optional >>
       - style-check
