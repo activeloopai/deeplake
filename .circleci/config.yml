@@ -168,15 +168,26 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   pytest --cov-report=xml --cov=./
-  report:
+  codecov-upload:
     steps:
-      - run:
-          shell: /bin/bash -eo pipefail
-          command:
-            codecov/upload:
-              file: coverage.xml
-      # - codecov/upload:
-      #     file: coverage.xml
+      - codecov/upload:
+          file: coverage.xml
+  report:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                command: codecov-upload
+                shell: bash.exe
+      - when:
+          condition: << parameters.unix-like >>
+          steps:
+            - codecov-upload
       - store_test_results:
           path: test-reports
       - store_artifacts:
@@ -213,7 +224,8 @@ jobs:
       - when:
           condition: << parameters.optional >>
           steps:
-            - report
+            - report:
+                unix-like: << parameters.unix-like >>
       - slack-status
   deploy:
     executor: linux
