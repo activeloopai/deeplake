@@ -155,11 +155,6 @@ class DynamicTensor:
         if self._dynamic_tensor:
             if isinstance(slice_[0], int):
                 real_shapes = self._dynamic_tensor[slice_[0]]
-            elif (  # fix
-                slice_[0].stop is not None
-                and slice_[0].stop - (slice_[0].start or 0) == 1
-            ):
-                real_shapes = self._dynamic_tensor[slice_[0].start]
             else:
                 start = slice_[0].start or 0
                 end = slice_[0].stop or self.shape[0]
