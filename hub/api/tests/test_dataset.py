@@ -216,6 +216,32 @@ def test_dataset_dynamic_shaped():
     assert (ds["first", 0, 0:10, 0:10].numpy() == np.ones((10, 10), "int32")).all()
 
 
+def test_dataset_dynamic_shaped_slicing():
+    schema = {
+        "first": Tensor(
+            shape=(None, None),
+            dtype="int32",
+            max_shape=(100, 100),
+            chunks=(100,),
+        )
+    }
+    ds = Dataset(
+        "./data/test/test_dataset_dynamic_shaped",
+        token=None,
+        shape=(100,),
+        mode="w",
+        schema=schema,
+    )
+
+    for i in range(100):
+        ds["first", i] = i * np.ones((i, i))
+    items = ds["first", 0:100].compute()
+    for i in range(100):
+        assert (items[i] == i * np.ones((i, i))).all()
+
+    assert (ds["first", 1:2].compute()[0] == np.ones((1, 1))).all()
+
+
 def test_dataset_enter_exit():
     with Dataset(
         "./data/test/dataset", token=None, shape=(10000,), mode="w", schema=my_schema
@@ -416,9 +442,9 @@ def test_tensorview_slicing():
     tv = ds["first", 5:6, 7:10, 9:10]
     tv.disable_lazy()
     tv.enable_lazy()
-    assert tv.compute().shape == tuple(tv.shape) == (1, 3, 1)
+    assert tv.compute()[0].shape == tuple(tv.shape[0]) == (3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
-    assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
+    assert tv2.numpy()[0].shape == tuple(tv2.shape[0]) == (3,)
 
 
 def test_tensorview_iter():
@@ -1129,6 +1155,7 @@ def test_minio_endpoint():
 
 
 if __name__ == "__main__":
+    test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
     test_dataset_setting_shape()
     test_datasetview_repr()
@@ -1139,7 +1166,6 @@ if __name__ == "__main__":
     test_dataset_batch_write_2()
     test_append_dataset()
     test_dataset_2()
-
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()

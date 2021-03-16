@@ -350,8 +350,6 @@ class DynamicTensor:
         elif isinstance(slice_[0], (slice, list)):
             sample_shapes = self.get_shape_samples(slice_[0])
             final_shapes = self.combine_shape(sample_shapes, slice_[1:])
-            if len(final_shapes) == 1:
-                return np.insert(final_shapes[0], 0, 1)  # returns 1D np array
             return final_shapes  # returns 2D np array
 
     def set_shape(self, slice_, value):
