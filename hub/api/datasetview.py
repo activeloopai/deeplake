@@ -16,6 +16,7 @@ from hub.api.dataset_utils import (
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
 from hub.schema import Sequence
+import numpy as np
 
 
 class DatasetView:
@@ -131,6 +132,7 @@ class DatasetView:
         >>> ds_view = ds[5:15]
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
+        self.dataset._auto_checkout()
         assign_value = get_value(value)
         assign_value = str_to_int(
             assign_value, self.dataset.tokenizer
@@ -248,7 +250,7 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self, include_shapes):
+    def to_tensorflow(self, include_shapes=False):
         """|Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -290,9 +292,17 @@ class DatasetView:
         """Resize dataset shape, not DatasetView"""
         self.dataset.resize_shape(size)
 
-    def commit(self) -> None:
+    def commit(self, message="") -> None:
         """Commit dataset"""
-        self.dataset.commit()
+        self.dataset.commit(message)
+
+    def flush(self) -> None:
+        """Flush dataset"""
+        self.dataset.flush()
+
+    def flush(self) -> None:
+        """Flush dataset"""
+        self.dataset.flush()
 
     def numpy(self, label_name=False):
         """Gets the value from different tensorview objects in the datasetview schema
@@ -306,10 +316,12 @@ class DatasetView:
         if isinstance(self.indexes, int):
             return create_numpy_dict(self.dataset, self.indexes, label_name=label_name)
         else:
-            return [
-                create_numpy_dict(self.dataset, index, label_name=label_name)
-                for index in self.indexes
-            ]
+            return np.array(
+                [
+                    create_numpy_dict(self.dataset, index, label_name=label_name)
+                    for index in self.indexes
+                ]
+            )
 
     def disable_lazy(self):
         self.lazy = False

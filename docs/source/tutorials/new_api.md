@@ -52,7 +52,7 @@ for i in range(len(ds)):
 
 print(ds["image", 5].numpy())
 print(ds["label", 100:110].numpy())
-ds.commit()
+ds.flush()
 ```
 
 4) Transferring from TFSDS
@@ -75,7 +75,7 @@ This code creates dataset in *"./data/examples/new_api_intro"* folder with overw
 After this we can loop over dataset and read/write from it.
 
 
-### **Why commit?**
+### **Why flush?**
 
 Since caching is in place, you need to tell program to push final changes to permanent storage. 
 

@@ -117,7 +117,7 @@ def test_dataset(url="./data/test/dataset", token=None, public=True):
     ssds = sds[1:3, 4]
     sssds = ssds[1]
     assert (sssds.numpy() == 6 * np.ones((3))).all()
-    ds.flush()
+    ds.save()
 
     sds = ds["/label", 5:15, "c"]
     sds[2:4, 4, :] = 98 * np.ones((2, 3))
@@ -554,7 +554,7 @@ def test_append_dataset():
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
-    ds.commit()
+    ds.flush()
 
     ds = Dataset(url)
     assert ds["first"].shape[0] == 120
@@ -810,7 +810,7 @@ def test_dataset_copy_s3_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1")
+    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
     ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -827,7 +827,7 @@ def test_dataset_copy_gcs_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1")
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
     ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -884,12 +884,12 @@ def test_dataset_copy_hub_local():
 )
 def test_dataset_copy_gcs_s3():
     ds = Dataset(
-        "s3://snark-test/cp_original_ds_s3_2", shape=(100,), schema=simple_schema
+        "s3://snark-test/cp_original_ds_s3_2_a", shape=(100,), schema=simple_schema
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2")
-    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3")
+    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -1084,14 +1084,14 @@ def test_check_label_name():
     ds["label", 0] = 1
     ds["label", 1] = 2
     ds["label", 2] = 0
-    assert ds.compute(label_name=True) == [
+    assert ds.compute(label_name=True).tolist() == [
         {"label": "green"},
         {"label": "blue"},
         {"label": "red"},
         {"label": "red"},
         {"label": "red"},
     ]
-    assert ds.compute() == [
+    assert ds.compute().tolist() == [
         {"label": 1},
         {"label": 2},
         {"label": 0},
@@ -1100,8 +1100,11 @@ def test_check_label_name():
     ]
     assert ds[1].compute(label_name=True) == {"label": "blue"}
     assert ds[1].compute() == {"label": 2}
-    assert ds[1:3].compute(label_name=True) == [{"label": "blue"}, {"label": "red"}]
-    assert ds[1:3].compute() == [{"label": 2}, {"label": 0}]
+    assert ds[1:3].compute(label_name=True).tolist() == [
+        {"label": "blue"},
+        {"label": "red"},
+    ]
+    assert ds[1:3].compute().tolist() == [{"label": 2}, {"label": 0}]
 
 
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")

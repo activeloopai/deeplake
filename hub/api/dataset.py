@@ -3,7 +3,8 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
+import warnings
+from hub.api.versioning import VersionNode
 import os
 import posixpath
 import collections.abc as abc
@@ -19,13 +20,11 @@ from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-import numpy as np
 
 from hub.schema.features import (
     Primitive,
     Tensor,
     SchemaDict,
-    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -36,6 +35,7 @@ from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    generate_hash,
     get_value,
     slice_split,
     str_to_int,
@@ -50,15 +50,19 @@ from hub.schema import ClassLabel
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
+    AddressNotFound,
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
+    ReadModeException,
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
     ShapeLengthException,
+    VersioningNotSupportedException,
     WrongUsernameException,
+    InvalidVersionInfoException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -67,6 +71,7 @@ from hub.numcodecs import PngCodec
 
 from hub.utils import norm_cache, norm_shape, _tuple_product
 from hub import defaults
+import pickle
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -161,13 +166,43 @@ class Dataset:
         self.username = None
         self.dataset_name = None
         if not needcreate:
-            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.meta = json.loads(fs_map[defaults.META_FILE].decode("utf-8"))
             self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
+            try:
+                version_info = pickle.loads(fs_map[defaults.VERSION_INFO])
+                self._branch_node_map = version_info.get("branch_node_map")
+                self._commit_node_map = version_info.get("commit_node_map")
+                self._chunk_commit_map = version_info.get("chunk_commit_map")
+                if not (
+                    self._branch_node_map
+                    and self._commit_node_map
+                    and self._chunk_commit_map
+                ):
+                    raise InvalidVersionInfoException()
+                self._branch = "master"
+                self._version_node = self._branch_node_map[self._branch]
+                self._commit_id = self._version_node.commit_id
+            except KeyError:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._chunk_commit_map = None
+            except InvalidVersionInfoException:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._chunk_commit_map = None
+
             self._tensors = dict(self._open_storage_tensors())
+
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
                     f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
@@ -194,8 +229,14 @@ class Dataset:
                 self.meta = self._store_meta()
                 self._meta_information = meta_information
                 self._flat_tensors = tuple(flatten(self.schema))
+
+                self._commit_id = generate_hash()
+                self._branch = "master"
+                self._version_node = VersionNode(self._commit_id, self._branch)
+                self._branch_node_map = {self._branch: self._version_node}
+                self._commit_node_map = {self._commit_id: self._version_node}
                 self._tensors = dict(self._generate_storage_tensors())
-                self.flush()
+                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
@@ -204,7 +245,7 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
-
+        self.flush()
         self.indexes = list(range(self._shape[0]))
 
         if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
@@ -266,8 +307,124 @@ class Dataset:
             "name": self._name,
         }
 
-        self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+        self._fs_map[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
         return meta
+
+    def _store_version_info(self) -> dict:
+        if self._commit_id is not None:
+            d = {
+                "branch_node_map": self._branch_node_map,
+                "commit_node_map": self._commit_node_map,
+                "chunk_commit_map": self._chunk_commit_map,
+            }
+            self._fs_map[defaults.VERSION_INFO] = pickle.dumps(d)
+
+    def commit(self, message: str = "") -> str:
+        """| Saves the current state of the dataset and returns the commit id.
+        Checks out automatically to an auto branch if the current commit is not the head of the branch
+
+        Only saves the dataset without any version control information if the dataset was created before Hub v1.3.0
+
+        Parameters
+        ----------
+        message: str, optional
+            The commit message to store along with the commit
+        """
+        if self._commit_id is None:
+            warnings.warn(
+                "This dataset was created before version control, it does not support it. commit will behave same as flush"
+            )
+            self.flush()
+        elif "r" in self._mode:
+            raise ReadModeException("commit")
+        else:
+            self._auto_checkout()
+            stored_commit_id = self._commit_id
+            self._commit_id = generate_hash()
+            new_node = VersionNode(self._commit_id, self._branch)
+            self._version_node.insert(new_node, message)
+            self._version_node = new_node
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self.flush()
+            return stored_commit_id
+
+    def checkout(self, address: str, create: bool = False) -> str:
+        """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
+        Always checks out to the head of a branch if the address specified is a branch name.
+
+        Returns the commit id of the commit that has been switched to.
+
+        Only works if dataset was created on or after Hub v1.3.0
+
+        Parameters
+        ----------
+        address: str
+            The branch name or commit id to checkout to
+        create: bool, optional
+            Specifying create as True creates a new branch from the current commit if the address isn't an existing branch name or commit id
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("checkout")
+        self.flush()
+        if address in self._branch_node_map.keys():
+            self._branch = address
+            self._version_node = self._branch_node_map[address]
+            self._commit_id = self._version_node.commit_id
+        elif address in self._commit_node_map.keys():
+            self._version_node = self._commit_node_map[address]
+            self._branch = self._version_node.branch
+            self._commit_id = self._version_node.commit_id
+        elif create:
+            if "r" in self._mode:
+                raise ReadModeException("checkout to create new branch")
+            self._branch = address
+            new_commit_id = generate_hash()
+            new_node = VersionNode(new_commit_id, self._branch)
+            if not self._version_node.children:
+                for key in self.keys:
+                    self._tensors[key].fs_map.copy_all_chunks(
+                        self._commit_id, new_commit_id
+                    )
+                if self._version_node.parent is not None:
+                    self._version_node.parent.insert(
+                        new_node, f"switched to new branch {address}"
+                    )
+            else:
+                self._version_node.insert(new_node, f"switched to new branch {address}")
+            self._version_node = new_node
+            self._commit_id = new_commit_id
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self.flush()
+        else:
+            raise AddressNotFound(address)
+        return self._commit_id
+
+    def _auto_checkout(self):
+        """| Automatically checks out to a new branch if the current commit is not at the head of a branch"""
+        if self._version_node and self._version_node.children:
+            branch_name = f"'auto-{generate_hash()}'"
+            print(
+                f"automatically checking out to new branch {branch_name} as not at the head of branch {self._branch}"
+            )
+            self.checkout(branch_name, True)
+
+    def log(self):
+        """| Prints the commits in the commit tree before the current commit
+        Only works if dataset was created on or after Hub v1.3.0
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("log")
+        current_node = (
+            self._version_node.parent
+            if not self._version_node.children
+            else self._version_node
+        )
+        print(f"\n Current Branch: {self._branch}\n")
+        while current_node:
+            print(f"{current_node}\n")
+            current_node = current_node.parent
 
     def _check_and_prepare_dir(self):
         """
@@ -285,7 +442,7 @@ class Dataset:
                     fs.listdir(path)
                 except BaseException:
                     raise WrongUsernameException(stored_username)
-        meta_path = posixpath.join(path, "meta.json")
+        meta_path = posixpath.join(path, defaults.META_FILE)
         try:
             # Update boto3 cache
             fs.ls(path, detail=False, refresh=True)
@@ -349,6 +506,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
@@ -373,6 +531,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 # FIXME We don't need argument below here
@@ -453,6 +612,9 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        if "r" in self._mode:
+            raise ReadModeException("__setitem__")
+        self._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
         assign_value = str_to_int(assign_value, self.tokenizer)
@@ -549,7 +711,7 @@ class Dataset:
     def delete(self):
         """ Deletes the dataset """
         fs, path = self._fs, self._path
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
             if self.username is not None:
@@ -579,117 +741,25 @@ class Dataset:
         indexes: list or int, optional
             The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         """
-        try:
-            import torch
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException("torch")
+        from .integrations import _to_pytorch
 
-        global torch
-        indexes = indexes or self.indexes
-
-        if "r" not in self.mode:
-            self.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
-        return TorchDataset(
-            self, transform, inplace=inplace, output_type=output_type, indexes=indexes
-        )
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
+        return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False):
         """| Converts the dataset into a tensorflow compatible format
-
         Parameters
         ----------
         indexes: list or int, optional
             The samples to be converted into tensorflow format. Takes all samples in dataset by default.
         include_shapes: boolean, optional
-            False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
+            False by default. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
         """
-        try:
-            import tensorflow as tf
+        from .integrations import _to_tensorflow
 
-            global tf
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException("tensorflow")
-
-        indexes = indexes or self.indexes
-        indexes = [indexes] if isinstance(indexes, int) else indexes
-        _samples_in_chunks = {
-            key: (None in value.shape) and 1 or value.chunks[0]
-            for key, value in self._tensors.items()
-        }
-        _active_chunks = {}
-        _active_chunks_range = {}
-
-        def _get_active_item(key, index):
-            active_range = _active_chunks_range.get(key)
-            samples_per_chunk = _samples_in_chunks[key]
-            if active_range is None or index not in active_range:
-                active_range_start = index - index % samples_per_chunk
-                active_range = range(
-                    active_range_start, active_range_start + samples_per_chunk
-                )
-                _active_chunks_range[key] = active_range
-                _active_chunks[key] = self._tensors[key][
-                    active_range.start : active_range.stop
-                ]
-            return _active_chunks[key][index % samples_per_chunk]
-
-        def tf_gen():
-            for index in indexes:
-                d = {}
-                for key in self.keys:
-                    split_key = key.split("/")
-                    cur = d
-                    for i in range(1, len(split_key) - 1):
-                        if split_key[i] in cur.keys():
-                            cur = cur[split_key[i]]
-                        else:
-                            cur[split_key[i]] = {}
-                            cur = cur[split_key[i]]
-                    cur[split_key[-1]] = _get_active_item(key, index)
-                yield (d)
-
-        def dict_to_tf(my_dtype):
-            d = {}
-            for k, v in my_dtype.dict_.items():
-                d[k] = dtype_to_tf(v)
-            return d
-
-        def tensor_to_tf(my_dtype):
-            return dtype_to_tf(my_dtype.dtype)
-
-        def dtype_to_tf(my_dtype):
-            if isinstance(my_dtype, SchemaDict):
-                return dict_to_tf(my_dtype)
-            elif isinstance(my_dtype, Tensor):
-                return tensor_to_tf(my_dtype)
-            elif isinstance(my_dtype, Primitive):
-                if str(my_dtype._dtype) == "object":
-                    return "string"
-                return str(my_dtype._dtype)
-
-        def get_output_shapes(my_dtype):
-            if isinstance(my_dtype, SchemaDict):
-                return output_shapes_from_dict(my_dtype)
-            elif isinstance(my_dtype, Tensor):
-                return my_dtype.shape
-            elif isinstance(my_dtype, Primitive):
-                return ()
-
-        def output_shapes_from_dict(my_dtype):
-            d = {}
-            for k, v in my_dtype.dict_.items():
-                d[k] = get_output_shapes(v)
-            return d
-
-        output_types = dtype_to_tf(self._schema)
-        if include_shapes:
-            output_shapes = get_output_shapes(self._schema)
-            return tf.data.Dataset.from_generator(
-                tf_gen, output_types=output_types, output_shapes=output_shapes
-            )
-        else:
-            return tf.data.Dataset.from_generator(tf_gen, output_types=output_types)
+        ds = _to_tensorflow(self, indexes, include_shapes)
+        return ds
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -729,28 +799,31 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        _meta = json.loads(self._fs_map["meta.json"])
+        _meta = json.loads(self._fs_map[defaults.META_FILE])
         _meta["meta_info"] = self._meta_information
-        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+        self._fs_map[defaults.META_FILE] = json.dumps(_meta).encode("utf-8")
 
     def flush(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         Does not invalidate this object.
         """
         if "r" in self._mode:
             return
+        self._store_version_info()
         for t in self._tensors.values():
             t.flush()
         self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
 
-    def commit(self):
-        """ Deprecated alias to flush()"""
+    def save(self):
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
+        Does not invalidate this object.
+        """
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         This invalidates this object.
         """
         self.flush()
@@ -774,10 +847,12 @@ class Dataset:
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
-        return [
-            create_numpy_dict(self, i, label_name=label_name)
-            for i in range(self._shape[0])
-        ]
+        return np.array(
+            [
+                create_numpy_dict(self, i, label_name=label_name)
+                for i in range(self._shape[0])
+            ]
+        )
 
     def compute(self, label_name=False):
         """Gets the values from different tensorview objects in the dataset schema
@@ -822,6 +897,15 @@ class Dataset:
         """
         return self._tensors.keys()
 
+    @property
+    def branches(self) -> list:
+        """
+        Gets a list all the branches of the dataset
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("branches")
+        return self._branch_node_map.keys()
+
     def _get_mode(self, mode: str, fs: AbstractFileSystem):
         if mode:
             if mode not in ["r", "r+", "a", "a+", "w", "w+"]:
@@ -829,7 +913,7 @@ class Dataset:
             return mode
         else:
             try:
-                meta_path = posixpath.join(self._path, "meta.json")
+                meta_path = posixpath.join(self._path, defaults.META_FILE)
                 if not fs.exists(self._path) or not fs.exists(meta_path):
                     return "a"
                 bytes_ = bytes("Hello", "utf-8")
@@ -868,59 +952,10 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tensorflow(ds)
         >>> res_ds = out_ds.store("username/new_dataset") # res_ds is now a usable hub dataset
         """
-        if "tensorflow" not in sys.modules:
-            raise ModuleNotInstalledException("tensorflow")
-        else:
-            import tensorflow as tf
+        from .integrations import _from_tensorflow
 
-            global tf
-
-        def generate_schema(ds):
-            if isinstance(ds._structure, tf.TensorSpec):
-                return tf_to_hub({"data": ds._structure}).dict_
-            return tf_to_hub(ds._structure).dict_
-
-        def tf_to_hub(tf_dt):
-            if isinstance(tf_dt, dict):
-                return dict_to_hub(tf_dt)
-            elif isinstance(tf_dt, tf.TensorSpec):
-                return TensorSpec_to_hub(tf_dt)
-
-        def TensorSpec_to_hub(tf_dt):
-            dt = tf_dt.dtype.name if tf_dt.dtype.name != "string" else "object"
-            shape = tuple(tf_dt.shape) if tf_dt.shape.rank is not None else (None,)
-            return Tensor(shape=shape, dtype=dt)
-
-        def dict_to_hub(tf_dt):
-            d = {
-                key.replace("/", "_"): tf_to_hub(value) for key, value in tf_dt.items()
-            }
-            return SchemaDict(d)
-
-        my_schema = generate_schema(ds)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                if not isinstance(v, dict):
-                    if isinstance(v, (tuple, list)):
-                        new_v = list(v)
-                        for i in range(len(new_v)):
-                            new_v[i] = new_v[i].numpy()
-                        d[k] = tuple(new_v) if isinstance(v, tuple) else new_v
-                    else:
-                        d[k] = v.numpy()
-                else:
-                    d[k] = transform_numpy(v)
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            sample = sample if isinstance(sample, dict) else {"data": sample}
-            return transform_numpy(sample)
-
-        return my_transform(ds)
+        ds = _from_tensorflow(ds, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_tfds(
@@ -956,180 +991,10 @@ class Dataset:
         >>> out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
         >>> res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
         """
-        try:
-            import tensorflow_datasets as tfds
+        from .integrations import _from_tfds
 
-            global tfds
-        except Exception:
-            raise ModuleNotInstalledException("tensorflow_datasets")
-
-        ds_info = tfds.load(dataset, with_info=True)
-
-        if split is None:
-            all_splits = ds_info[1].splits.keys()
-            split = "+".join(all_splits)
-
-        ds = tfds.load(dataset, split=split)
-        ds = ds.take(num)
-        max_dict = defaultdict(lambda: None)
-
-        def sampling(ds):
-            try:
-                subset_len = len(ds) if hasattr(ds, "__len__") else num
-            except Exception:
-                subset_len = max(num, 5)
-
-            subset_len = int(max(subset_len * sampling_amount, 5))
-            samples = ds.take(subset_len)
-            for smp in samples:
-                dict_sampling(smp)
-
-        def dict_sampling(d, path=""):
-            for k, v in d.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    dict_sampling(v)
-                elif hasattr(v, "shape") and v.dtype != "string":
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = v.shape
-                    else:
-                        max_dict[cur_path] = tuple(
-                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
-                        )
-                elif hasattr(v, "shape") and v.dtype == "string":
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = (len(v.numpy()),)
-                    else:
-                        max_dict[cur_path] = max(
-                            ((len(v.numpy()),), max_dict[cur_path])
-                        )
-
-        if sampling_amount > 0:
-            sampling(ds)
-
-        def generate_schema(ds):
-            tf_schema = ds[1].features
-            return to_hub(tf_schema).dict_
-
-        def to_hub(tf_dt, max_shape=None, path=""):
-            if isinstance(tf_dt, tfds.features.FeaturesDict):
-                return sdict_to_hub(tf_dt, path=path)
-            elif isinstance(tf_dt, tfds.features.Image):
-                return image_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.ClassLabel):
-                return class_label_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Video):
-                return video_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Text):
-                return text_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Sequence):
-                return sequence_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.BBoxFeature):
-                return bbox_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Audio):
-                return audio_to_hub(tf_dt, max_shape=max_shape)
-            elif isinstance(tf_dt, tfds.features.Tensor):
-                return tensor_to_hub(tf_dt, max_shape=max_shape)
-            else:
-                if tf_dt.dtype.name != "string":
-                    return tf_dt.dtype.name
-
-        def sdict_to_hub(tf_dt, path=""):
-            d = {}
-            for key, value in tf_dt.items():
-                key = key.replace("/", "_")
-                cur_path = path + "/" + key
-                d[key] = to_hub(value, max_dict[cur_path], cur_path)
-            return SchemaDict(d)
-
-        def tensor_to_hub(tf_dt, max_shape=None):
-            if tf_dt.dtype.name == "string":
-                max_shape = max_shape or (100000,)
-                return Text(shape=(None,), dtype="int64", max_shape=(100000,))
-            dt = tf_dt.dtype.name
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            return Tensor(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
-
-        def image_to_hub(tf_dt, max_shape=None):
-            dt = tf_dt.dtype.name
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            return Image(
-                shape=tf_dt.shape,
-                dtype=dt,
-                max_shape=max_shape,  # compressor="png"
-            )
-
-        def class_label_to_hub(tf_dt, max_shape=None):
-            if hasattr(tf_dt, "_num_classes"):
-                return ClassLabel(
-                    num_classes=tf_dt.num_classes,
-                )
-            else:
-                return ClassLabel(names=tf_dt.names)
-
-        def text_to_hub(tf_dt, max_shape=None):
-            max_shape = max_shape or (100000,)
-            dt = "int64"
-            return Text(shape=(None,), dtype=dt, max_shape=max_shape)
-
-        def bbox_to_hub(tf_dt, max_shape=None):
-            dt = tf_dt.dtype.name
-            return BBox(dtype=dt)
-
-        def sequence_to_hub(tf_dt, max_shape=None):
-            return Sequence(dtype=to_hub(tf_dt._feature), shape=())
-
-        def audio_to_hub(tf_dt, max_shape=None):
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                100000 if dim is None else dim for dim in tf_dt.shape
-            )
-            dt = tf_dt.dtype.name
-            return Audio(
-                shape=tf_dt.shape,
-                dtype=dt,
-                max_shape=max_shape,
-                file_format=tf_dt._file_format,
-                sample_rate=tf_dt._sample_rate,
-            )
-
-        def video_to_hub(tf_dt, max_shape=None):
-            if max_shape and len(max_shape) > len(tf_dt.shape):
-                max_shape = max_shape[(len(max_shape) - len(tf_dt.shape)) :]
-
-            max_shape = max_shape or tuple(
-                10000 if dim is None else dim for dim in tf_dt.shape
-            )
-            dt = tf_dt.dtype.name
-            return Video(shape=tf_dt.shape, dtype=dt, max_shape=max_shape)
-
-        my_schema = generate_schema(ds_info)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                d[k] = transform_numpy(v) if isinstance(v, dict) else v.numpy()
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            return transform_numpy(sample)
-
-        return my_transform(ds)
+        ds = _from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
@@ -1145,84 +1010,10 @@ class Dataset:
             how many threads or processes to use
         """
 
-        if "torch" not in sys.modules:
-            raise ModuleNotInstalledException("torch")
-        else:
-            import torch
+        from .integrations import _from_pytorch
 
-            global torch
-
-        max_dict = defaultdict(lambda: None)
-
-        def sampling(ds):
-            for sample in ds:
-                dict_sampling(sample)
-
-        def dict_sampling(d, path=""):
-            for k, v in d.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    dict_sampling(v, path=cur_path)
-                elif isinstance(v, str):
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = (len(v),)
-                    else:
-                        max_dict[cur_path] = max(((len(v)),), max_dict[cur_path])
-                elif hasattr(v, "shape"):
-                    if cur_path not in max_dict.keys():
-                        max_dict[cur_path] = v.shape
-                    else:
-                        max_dict[cur_path] = tuple(
-                            [max(value) for value in zip(max_dict[cur_path], v.shape)]
-                        )
-
-        sampling(dataset)
-
-        def generate_schema(dataset):
-            sample = dataset[0]
-            return dict_to_hub(sample).dict_
-
-        def dict_to_hub(dic, path=""):
-            d = {}
-            for k, v in dic.items():
-                k = k.replace("/", "_")
-                cur_path = path + "/" + k
-                if isinstance(v, dict):
-                    d[k] = dict_to_hub(v, path=cur_path)
-                else:
-                    value_shape = v.shape if hasattr(v, "shape") else ()
-                    if isinstance(v, torch.Tensor):
-                        v = v.numpy()
-                    shape = tuple(None for it in value_shape)
-                    max_shape = (
-                        max_dict[cur_path] or tuple(10000 for it in value_shape)
-                        if not isinstance(v, str)
-                        else (10000,)
-                    )
-                    dtype = v.dtype.name if hasattr(v, "dtype") else type(v)
-                    dtype = "int64" if isinstance(v, str) else dtype
-                    d[k] = (
-                        Tensor(shape=shape, dtype=dtype, max_shape=max_shape)
-                        if not isinstance(v, str)
-                        else Text(shape=(None,), dtype=dtype, max_shape=max_shape)
-                    )
-            return SchemaDict(d)
-
-        my_schema = generate_schema(dataset)
-
-        def transform_numpy(sample):
-            d = {}
-            for k, v in sample.items():
-                k = k.replace("/", "_")
-                d[k] = transform_numpy(v) if isinstance(v, dict) else v
-            return d
-
-        @hub.transform(schema=my_schema, scheduler=scheduler, workers=workers)
-        def my_transform(sample):
-            return transform_numpy(sample)
-
-        return my_transform(dataset)
+        ds = _from_pytorch(dataset, scheduler, workers)
+        return ds
 
     @staticmethod
     def from_directory(
@@ -1374,86 +1165,3 @@ class Dataset:
 
         ds = upload_data(zip(labels_list, images, dataype))
         return ds
-
-
-class TorchDataset:
-    def __init__(
-        self, ds, transform=None, inplace=True, output_type=dict, indexes=None
-    ):
-        self._ds = None
-        self._url = ds.url
-        self._token = ds.token
-        self._transform = transform
-        self.inplace = inplace
-        self.output_type = output_type
-        self.indexes = indexes
-        self._inited = False
-
-    def _do_transform(self, data):
-        return self._transform(data) if self._transform else data
-
-    def _init_ds(self):
-        """
-        For each process, dataset should be independently loaded
-        """
-        if self._ds is None:
-            self._ds = Dataset(self._url, token=self._token, lock_cache=False)
-        if not self._inited:
-            self._inited = True
-            self._samples_in_chunks = {
-                key: (None in value.shape) and 1 or value.chunks[0]
-                for key, value in self._ds._tensors.items()
-            }
-            self._active_chunks = {}
-            self._active_chunks_range = {}
-
-    def __len__(self):
-        self._init_ds()
-        return len(self.indexes) if isinstance(self.indexes, list) else 1
-
-    def _get_active_item(self, key, index):
-        active_range = self._active_chunks_range.get(key)
-        samples_per_chunk = self._samples_in_chunks[key]
-        if active_range is None or index not in active_range:
-            active_range_start = index - index % samples_per_chunk
-            active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
-            )
-            self._active_chunks_range[key] = active_range
-            self._active_chunks[key] = self._ds._tensors[key][
-                active_range.start : active_range.stop
-            ]
-        return self._active_chunks[key][index % samples_per_chunk]
-
-    def __getitem__(self, ind):
-        if isinstance(self.indexes, int):
-            if ind != 0:
-                raise OutOfBoundsError(f"Got index {ind} for dataset of length 1")
-            index = self.indexes
-        else:
-            index = self.indexes[ind]
-        self._init_ds()
-        d = {}
-        for key in self._ds._tensors.keys():
-            split_key = key.split("/")
-            cur = d
-            for i in range(1, len(split_key) - 1):
-                if split_key[i] not in cur.keys():
-                    cur[split_key[i]] = {}
-                cur = cur[split_key[i]]
-
-            item = self._get_active_item(key, index)
-            if not isinstance(item, bytes) and not isinstance(item, str):
-                t = item
-                if self.inplace:
-                    t = torch.tensor(t)
-                cur[split_key[-1]] = t
-        d = self._do_transform(d)
-        if self.inplace & (self.output_type != dict) & (isinstance(d, dict)):
-            d = self.output_type(d.values())
-        return d
-
-    def __iter__(self):
-        self._init_ds()
-        for i in range(len(self)):
-            yield self[i]

@@ -5,7 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from hub.exceptions import (
-    AdvancedSlicingNotSupported,
     DaskModuleNotInstalledException,
     HubException,
     AuthenticationException,
@@ -70,10 +69,9 @@ def test_exceptions():
     NotHubDatasetToAppendException()
     DynamicTensorNotFoundException()
     NotIterable()
-    AdvancedSlicingNotSupported()
     DaskModuleNotInstalledException()
-
     DynamicTensorShapeException("none")
     DynamicTensorShapeException("length")
     DynamicTensorShapeException("not_equal")
     DynamicTensorShapeException("another_cause")
+    NotFound()
