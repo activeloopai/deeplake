@@ -22,7 +22,7 @@ class Text(Tensor):
     For data with fixed `shape`
     ----------
     >>> tag = "username/dataset"
-    >>> 
+    >>>
     >>> # Create dataset
     >>> ds = Dataset(
     >>>     tag,
@@ -33,9 +33,9 @@ class Text(Tensor):
     >>> )
     >>>
     >>> ds["text",0] = "Hello There"
-    >>> 
+    >>>
     >>> ds.flush()
-    >>> 
+    >>>
     >>> # Load the data
     >>> ds = Dataset(tag)
     >>>
@@ -56,9 +56,9 @@ class Text(Tensor):
     >>> ds["text",0] = "Welcome"
     >>> ds["text",1] = "to"
     >>> ds["text",2] = "Hub"
-    >>> 
+    >>>
     >>> ds.flush()
-    >>> 
+    >>>
     >>> # Load data
     >>> ds = Dataset(tag)
     >>>
@@ -68,8 +68,8 @@ class Text(Tensor):
     Welcome
     to
     Hub
+    """
 
-"""
     def __init__(
         self,
         shape: Tuple[int, ...] = (None,),

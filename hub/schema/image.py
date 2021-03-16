@@ -35,7 +35,7 @@ class Image(Tensor):
     >>>
     >>> for index, image in enumerate(os.listdir("path/to/folder")):
     >>>         data = asarray(Image.open(image))
-    >>>         
+    >>>
     >>>         # Upload data
     >>>         ds["image"][index] = data
     >>>

@@ -10,7 +10,7 @@ from hub.schema.features import Tensor
 
 
 class Audio(Tensor):
-    
+
     """Schema for audio would define the maximum shape of the audio dataset and their respective sampling rate.
 
     Example: This example uploads an `audio file` to a Hub dataset `audio_dataset` with `HubSchema` and retrieves it.
@@ -32,12 +32,12 @@ class Audio(Tensor):
     >>> @transform(schema=my_schema)
     >>> def load_transform(sample):
     >>>     audio, sr = librosa.load(sample, sr=None)
-    >>> 
+    >>>
     >>>     return {
     >>>         "wav": audio,
     >>>         "sampling_rate": sr
     >>>     }
-    >>> 
+    >>>
     >>> # Returns a transform object
     >>> ds = load_transform(sample)
 
@@ -45,25 +45,22 @@ class Audio(Tensor):
     >>> ds = Dataset(tag)
     >>>
     >>> tag = "username/audio_dataset"
-    >>> 
+    >>>
     >>> # Pushes to hub
     >>> ds2 = ds.store(tag)
 
     >>> # Fetching from Hub
     >>> data = Dataset(tag)
-    >>> 
+    >>>
     >>> # Fetch the first sample
     >>> audio_sample = data["wav"][0].compute()
-    >>> 
+    >>>
     >>> # Audio file
         array([ 9.15527344e-05,  2.13623047e-04,  0.00000000e+00, ...,
         -2.73132324e-02, -2.99072266e-02, -2.44750977e-02])
 
-  
+
     """
-
-
-
 
     def __init__(
         self,
