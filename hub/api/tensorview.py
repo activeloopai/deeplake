@@ -78,7 +78,7 @@ class TensorView:
         label_name: bool, optional
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
-        """            
+        """
         if isinstance(self.indexes, list):
             value = np.array(
                 [

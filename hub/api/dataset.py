@@ -769,7 +769,7 @@ class Dataset:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.keys:
             if key.startswith(subpath):
-                suffix_key = key[len(subpath):]
+                suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for i in range(len(split_key) - 1):

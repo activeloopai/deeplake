@@ -176,11 +176,13 @@ class DynamicTensor:
         # real_shapes is dynamic shapes based on first dim index, only dynamic dims are stored, static ones are ommitted
         real_shapes = self.get_real_shape(slice_)
         # Extend slice_ to dim count
-        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_):]]
+        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
         if isinstance(real_shapes, list):
             start = slice_[0].start or 0
-            slice_list = [self._get_slice([start + i] + slice_[1:], real_shapes[i])
-                          for i in range(len(real_shapes))]
+            slice_list = [
+                self._get_slice([start + i] + slice_[1:], real_shapes[i])
+                for i in range(len(real_shapes))
+            ]
             return [self._storage_tensor[cur_slice] for cur_slice in slice_list]
         slice_ = self._get_slice(slice_, real_shapes)
         return self._storage_tensor[slice_]
@@ -192,7 +194,7 @@ class DynamicTensor:
         slice_ = list(slice_)
         if self._dynamic_tensor and self._enabled_dynamicness:
             self.set_shape(slice_, value)
-        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_):]]
+        slice_ += [slice(0, None, 1) for i in self.max_shape[len(slice_) :]]
 
         if self._dynamic_tensor and isinstance(slice_[0], int):
             real_shapes = self._dynamic_tensor[slice_[0]]
@@ -328,7 +330,7 @@ class DynamicTensor:
                     start = slice_[i].start if slice_[i].start is not None else 0
                     stop = slice_[i].stop
                     if stop is None:
-                        sh = shape[:, i: i + 1] - start
+                        sh = shape[:, i : i + 1] - start
                         sh[sh < 0] = 0  # if negative in shape, replace with 0
                         new_shape = np.append(new_shape, sh, axis=1)
                     else:
@@ -337,7 +339,7 @@ class DynamicTensor:
                             new_shape, new_shape.shape[1], sl, axis=1
                         )  # inserted as last column
                 elif i >= len(slice_):
-                    new_shape = np.append(new_shape, shape[:, i: i + 1], axis=1)
+                    new_shape = np.append(new_shape, shape[:, i : i + 1], axis=1)
 
         return np.array(new_shape).astype("int")
 

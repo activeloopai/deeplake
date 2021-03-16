@@ -214,7 +214,7 @@ class DatasetView:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.keys:
             if key.startswith(subpath):
-                suffix_key = key[len(subpath):]
+                suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for sub_key in split_key[:-1]:
