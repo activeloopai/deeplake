@@ -65,7 +65,7 @@ def image_classification(path):
 
     # check if children's contents are all image files
     for child in children:
-        print(child)
-        print(files_are_of_extension(child, IMAGE_EXTS))
+        if not files_are_of_extension(child, IMAGE_EXTS):
+            return None
 
     return None
