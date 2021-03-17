@@ -836,8 +836,18 @@ def test_dataset_copy_s3_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
-    ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
+    try:
+        ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
+    except:
+        dsi = Dataset("s3://snark-test/cp_copy_data_s3_1_a")
+        dsi.delete()
+        ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
+    try:
+        ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
+    except:
+        dsi = Dataset("./data/testing/cp_copy_data_local_1")
+        dsi.delete()
+        ds3 = ds2.copy("s3://snark-test/cp_copy_data_s3_1_a")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -853,8 +863,19 @@ def test_dataset_copy_gcs_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
-    ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+    try:
+        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
+    except:
+        dsi = Dataset("gcs://snark-test/cp_copy_dataset_gcs_1a")
+        dsi.delete()
+        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
+    try:
+        ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+    except:
+        dsi = Dataset("./data/testing/cp_copy_ds_local_2")
+        dsi.delete()
+        ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -874,11 +895,28 @@ def test_dataset_copy_azure_local():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
-    ds3 = ds2.copy(
-        "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
-        token=token,
-    )
+    try:
+        ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
+    except:
+        dsi = Dataset("./data/testing/cp_copy_ds_local_4")
+        dsi.delete()
+        ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
+
+    try:
+        ds3 = ds2.copy(
+            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            token=token,
+        )
+    except:
+        dsi = Dataset(
+            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            token=token,
+        )
+        dsi.delete()
+        ds3 = ds2.copy(
+            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            token=token,
+        )
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -894,8 +932,20 @@ def test_dataset_copy_hub_local():
     ds = Dataset("testingacc/cp_original_ds_hub_1", shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
-    ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+    try:
+        ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
+    except:
+        dsi = Dataset("./data/testing/cp_copy_ds_local_5")
+        dsi.delete()
+        ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
+
+    try:
+        ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+    except:
+        dsi = Dataset("testingacc/cp_copy_dataset_testing_2")
+        dsi.delete()
+        ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -914,8 +964,20 @@ def test_dataset_copy_gcs_s3():
     )
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
-    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
+
+    try:
+        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+    except:
+        dsi = Dataset("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+        dsi.delete()
+        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+
+    try:
+        ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
+    except:
+        dsi = Dataset("s3://snark-test/cp_copy_ds_s3_3_a")
+        dsi.delete()
+        ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -1049,8 +1111,6 @@ def test_dataset_filter_3():
     ds["cl", 4] = 2
     ds_filtered = ds.filter(lambda x: x["cl"].compute() == 0)
     assert ds_filtered.indexes == [5 * i for i in range(20)]
-    with pytest.raises(ValueError):
-        ds_filtered["img"].compute()
     ds_filtered_2 = ds.filter(lambda x: x["cl"].compute() == 2)
     assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
     for item in ds_filtered_2:

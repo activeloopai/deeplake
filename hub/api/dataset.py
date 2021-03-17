@@ -757,6 +757,9 @@ class Dataset:
         include_shapes: boolean, optional
             False by default. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
+        key_list: list, optional
+            The list of keys that are needed in tensorflow format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_tensorflow
 

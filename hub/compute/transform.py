@@ -269,6 +269,7 @@ class Transform:
                     1 + int(num_chunks) if num_chunks != int(num_chunks) else num_chunks
                 )
                 length = num_chunks * chunk if self.workers != 1 else len(value)
+            length = int(length)
             batched_values = (
                 batchify(value, length, length + ((chunk - (offset % chunk))) % chunk)
                 if length != len(value)
