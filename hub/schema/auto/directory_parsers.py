@@ -1,12 +1,26 @@
 import os
+from tqdm import tqdm
+import numpy as np
 from glob import glob
+
+from PIL import Image
+
+import hub
 
 __all__ = ['get_parsers']
 
 _parsers = []
 _priorities = []
 
+USE_TQDM = True
 IMAGE_EXTS = ['.jpg', '.png', '.jpeg']
+
+
+def get_image_shape(path):
+    img = Image.open(path)
+    c = len(img.getbands())
+    w, h = img.size
+    return (c, h, w)
 
 
 def get_children(path):
@@ -68,4 +82,39 @@ def image_classification(path):
         if not files_are_of_extension(child, IMAGE_EXTS):
             return None
 
-    return None
+    # parse dataset
+    data = {}
+    max_shape = np.zeros(3, dtype=np.uint8)  # CHW
+    for child in tqdm(children,
+                      desc='parsing image classification dataset',
+                      total=len(children)):
+        label = os.path.basename(child)
+
+        if label in data.keys():
+            raise Exception('label %s is a duplicate' % label)
+
+        filepaths = get_children(child)
+        filenames = []
+        for filepath in filepaths:
+            shape = np.array(get_image_shape(filepath))
+            max_shape = np.maximum(max_shape, shape)
+            filenames.append(os.path.basename(filepath))
+
+        data[label] = {
+            'filenames': filenames,
+            'max_shape': max_shape,
+            'dir': child
+        }
+
+    # create schema
+    max_shape = tuple([int(x) for x in max_shape])
+    schema = {
+        'image':
+        hub.schema.Image(shape=(None, None, None),
+                         dtype='uint8',
+                         max_shape=max_shape),
+        'label':
+        hub.schema.ClassLabel(num_classes=len(children))
+    }
+
+    return schema, data
