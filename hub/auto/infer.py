@@ -2,7 +2,7 @@ import os
 from glob import glob
 
 import hub
-from hub.schema.auto.directory_parsers import get_parsers
+from hub.auto.directory_parsers import get_parsers
 
 __all__ = ['infer_dataset']
 
@@ -38,6 +38,8 @@ def _find_root(path):
 
 
 def infer_dataset(path):
+    # TODO: handle s3 path
+
     if not os.path.isdir(path):
         raise Exception('input path must be either a directory')
 

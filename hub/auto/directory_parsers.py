@@ -51,9 +51,9 @@ def get_parsers(priority_sort=True):
 
 def directory_parser(priority=0):
     """
-    a directory parser function is a function that takes in a path & returns a schema.
-    these functions make it easier to extend the schema infer domain. functions should
-    be as general as possible.
+    a directory parser function is a function that takes in a path & returns a dataset.
+    these functions make it easier to extend the dataset inference domain. 
+    functions should be as general as possible.
 
     Parameters
     ----------

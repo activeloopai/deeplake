@@ -46,7 +46,7 @@ import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
-from hub.schema import auto
+from hub import auto
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
