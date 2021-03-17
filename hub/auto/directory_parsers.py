@@ -39,7 +39,9 @@ def files_are_of_extension(path, allowed_extensions):
 
     allowed_extensions = [ext.lower() for ext in allowed_extensions]
     children = get_children(path)
-    return all([get_ext(child) in allowed_extensions for child in children])
+    # print(set([get_ext(child) for child in children]))
+    # print(set([child for child in children if get_ext(child) == '']))
+    return any([get_ext(child) in allowed_extensions for child in children])
 
 
 def get_parsers(priority_sort=True):
@@ -93,6 +95,10 @@ def image_classification(path, scheduler='single', workers=1):
 
         filepaths = get_children(child)
         for filepath in filepaths:
+            # ignore non-image extension files
+            if get_ext(filepath) not in IMAGE_EXTS:
+                continue
+
             shape = np.array(get_image_shape(filepath))
             max_shape = np.maximum(max_shape, shape)
             data.append((filepath, label.lower()))
@@ -114,7 +120,8 @@ def image_classification(path, scheduler='single', workers=1):
     # create transform for putting data into hub format
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
     def upload_data(sample):
-        img = Image.open(sample[0])
+        path = sample[0]
+        img = Image.open(path)
         img = np.asarray(img)
         label = class_names.index(sample[1])
         return {'image': img, 'label': label}
