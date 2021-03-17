@@ -2,7 +2,7 @@ import os
 from glob import glob
 from hub.schema.auto.directory_parsers import get_parsers
 
-__all__ = ['infer_schema_and_shape']
+__all__ = ['infer_schema_and_data']
 
 _directory_parsers = get_parsers()
 
@@ -32,7 +32,7 @@ def _find_root(path):
     return _find_root(subs[0])
 
 
-def infer_schema_and_shape(path):
+def infer_schema_and_data(path):
     if not os.path.isdir(path):
         raise Exception('input path must be either a directory or file')
 
@@ -40,13 +40,17 @@ def infer_schema_and_shape(path):
 
     # blank schema by default
     schema = None
-    shape = (1, )  # TODO
+    # shape = (1, )  # TODO
 
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
     for parser in _directory_parsers:
-        schema = parser(root)
+        schema, data = parser(root)
         if schema is not None:
+            if data is None:
+                raise Exception(
+                    'data return cannot be None if schema is not None. got schema: %s'
+                    % str(schema))
             break
 
     # TODO: determine input type
@@ -60,4 +64,4 @@ def infer_schema_and_shape(path):
             % root +
             '`hub.schema.auto.directory_parsers` or write a custom schema.')
 
-    return schema, shape
+    return schema, data

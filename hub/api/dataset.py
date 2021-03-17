@@ -142,15 +142,6 @@ class Dataset:
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
 
-        # infer schema if None
-        if schema is None:
-            if shape[0] is not None or len(shape) != 1:
-                raise Exception(
-                    'when inferring schema (schema=None), shape is also inferred.'
-                )
-
-            schema, shape = auto.infer_schema_and_shape(url)
-
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
@@ -1014,6 +1005,11 @@ class Dataset:
 
         ds = _from_pytorch(dataset, scheduler, workers)
         return ds
+
+    @staticmethod
+    def from_path(path):
+        # infer schema & get data (label -> input mapping with file refs)
+        schema, data = auto.infer_schema_and_data(path)  # TODO: handle s3
 
     @staticmethod
     def from_directory(
