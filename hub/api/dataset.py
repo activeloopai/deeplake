@@ -40,6 +40,8 @@ from hub.api.dataset_utils import (
     slice_split,
     str_to_int,
     _copy_helper,
+    _get_compressor,
+    _get_dynamic_tensor_dtype,
 )
 
 import hub.schema.serialize
@@ -67,8 +69,6 @@ from hub.exceptions import (
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
-from hub.numcodecs import PngCodec
-
 from hub.utils import norm_cache, norm_shape, _tuple_product
 from hub import defaults
 import pickle
@@ -468,30 +468,6 @@ class Dataset:
                     raise NotHubDatasetToAppendException()
             return True
 
-    def _get_dynamic_tensor_dtype(self, t_dtype):
-        if isinstance(t_dtype, Primitive):
-            return t_dtype.dtype
-        elif isinstance(t_dtype.dtype, Primitive):
-            return t_dtype.dtype.dtype
-        else:
-            return "object"
-
-    def _get_compressor(self, compressor: str):
-        if compressor is None:
-            return None
-        elif compressor.lower() == "lz4":
-            return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
-        elif compressor.lower() == "zstd":
-            return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
-        elif compressor.lower() == "default":
-            return "default"
-        elif compressor.lower() == "png":
-            return PngCodec(solo_channel=True)
-        else:
-            raise ValueError(
-                f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
-            )
-
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t_dtype, t_path = t
@@ -513,9 +489,9 @@ class Dataset:
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
                 max_shape=self._shape + t_dtype.max_shape,
-                dtype=self._get_dynamic_tensor_dtype(t_dtype),
+                dtype=_get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
-                compressor=self._get_compressor(t_dtype.compressor),
+                compressor=_get_compressor(t_dtype.compressor),
             )
 
     def _open_storage_tensors(self):
