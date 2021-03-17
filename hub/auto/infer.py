@@ -2,7 +2,7 @@ import os
 from glob import glob
 
 import hub
-from hub.auto.directory_parsers import get_parsers
+from hub.auto.util import get_parsers
 
 __all__ = ['infer_dataset']
 
