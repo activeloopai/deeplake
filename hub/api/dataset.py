@@ -1009,7 +1009,8 @@ class Dataset:
     @staticmethod
     def from_path(path):
         # infer schema & get data (label -> input mapping with file refs)
-        schema, data = auto.infer_schema_and_data(path)  # TODO: handle s3
+        ds = auto.infer_dataset(path)  # TODO: handle s3
+        return ds
 
     @staticmethod
     def from_directory(

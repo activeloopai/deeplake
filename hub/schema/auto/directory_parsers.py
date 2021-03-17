@@ -20,7 +20,7 @@ def get_image_shape(path):
     img = Image.open(path)
     c = len(img.getbands())
     w, h = img.size
-    return (c, h, w)
+    return (h, w, c)
 
 
 def get_children(path):
@@ -70,7 +70,7 @@ def directory_parser(priority=0):
 
 
 @directory_parser(priority=0)
-def image_classification(path):
+def image_classification(path, scheduler='single', workers=1):
     children = get_children(path)
 
     # check if all children are directories
@@ -83,28 +83,22 @@ def image_classification(path):
             return None
 
     # parse dataset
-    data = {}
+    data = []
+    class_names = set()
     max_shape = np.zeros(3, dtype=np.uint8)  # CHW
     for child in tqdm(children,
                       desc='parsing image classification dataset',
                       total=len(children)):
         label = os.path.basename(child)
 
-        if label in data.keys():
-            raise Exception('label %s is a duplicate' % label)
-
         filepaths = get_children(child)
-        filenames = []
         for filepath in filepaths:
             shape = np.array(get_image_shape(filepath))
             max_shape = np.maximum(max_shape, shape)
-            filenames.append(os.path.basename(filepath))
+            data.append((filepath, label.lower()))
+            class_names.add(label.lower())
 
-        data[label] = {
-            'filenames': filenames,
-            'max_shape': max_shape,
-            'dir': child
-        }
+    class_names = list(sorted(list(class_names)))
 
     # create schema
     max_shape = tuple([int(x) for x in max_shape])
@@ -114,7 +108,15 @@ def image_classification(path):
                          dtype='uint8',
                          max_shape=max_shape),
         'label':
-        hub.schema.ClassLabel(num_classes=len(children))
+        hub.schema.ClassLabel(names=class_names)
     }
 
-    return schema, data
+    # create transform for putting data into hub format
+    @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+    def upload_data(sample):
+        img = Image.open(sample[0])
+        img = np.asarray(img)
+        label = class_names.index(sample[1])
+        return {'image': img, 'label': label}
+
+    return upload_data(data)

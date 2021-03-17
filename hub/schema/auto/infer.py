@@ -1,8 +1,10 @@
 import os
 from glob import glob
+
+import hub
 from hub.schema.auto.directory_parsers import get_parsers
 
-__all__ = ['infer_schema_and_data']
+__all__ = ['infer_dataset']
 
 _directory_parsers = get_parsers()
 
@@ -27,41 +29,39 @@ def _find_root(path):
     """
 
     subs = glob(os.path.join(path, '*'))
+    hub_dir = os.path.join(path, 'hub')
+    if hub_dir in subs:
+        subs.remove(hub_dir)  # ignore the hub directory
     if len(subs) > 1:
         return path
     return _find_root(subs[0])
 
 
-def infer_schema_and_data(path):
+def infer_dataset(path):
     if not os.path.isdir(path):
-        raise Exception('input path must be either a directory or file')
+        raise Exception('input path must be either a directory')
+
+    hub_path = os.path.join('./', path, 'hub')
+
+    if os.path.isdir(hub_path):
+        print('inferred dataset found in "%s", using that' % hub_path)
+        return hub.Dataset(hub_path)
 
     root = _find_root(path)
-
-    # blank schema by default
-    schema = None
-    # shape = (1, )  # TODO
+    ds = None
 
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
     for parser in _directory_parsers:
-        schema, data = parser(root)
-        if schema is not None:
-            if data is None:
-                raise Exception(
-                    'data return cannot be None if schema is not None. got schema: %s'
-                    % str(schema))
+        ds = parser(root)
+        if ds is not None:
             break
 
-    # TODO: determine input type
-    # does it match an image classification dataset?
-
-    # TODO: determine label type
-
-    if schema is None:
+    if ds is None:
         raise Exception(
-            'could not infer schema for the root "%s". either add a new parser to'
+            'could not infer dataset for the root "%s". either add a new parser to'
             % root +
-            '`hub.schema.auto.directory_parsers` or write a custom schema.')
+            '`hub.schema.auto.directory_parsers` or write a custom transform + schema.'
+        )
 
-    return schema, data
+    return ds.store(hub_path)  # TODO: handle s3
