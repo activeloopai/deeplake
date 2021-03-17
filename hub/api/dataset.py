@@ -144,7 +144,12 @@ class Dataset:
 
         # infer schema if None
         if schema is None:
-            schema = auto.infer_schema(url)
+            if shape[0] is not None or len(shape) != 1:
+                raise Exception(
+                    'when inferring schema (schema=None), shape is also inferred.'
+                )
+
+            schema, shape = auto.infer_schema_and_shape(url)
 
         schema: SchemaDict = featurify(schema) if schema else None
 
