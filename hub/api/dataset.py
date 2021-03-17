@@ -1007,7 +1007,7 @@ class Dataset:
         return ds
 
     @staticmethod
-    def from_path(path):
+    def from_path(path, scheduler='single', workers=1):
         # infer schema & get data (label -> input mapping with file refs)
-        ds = auto.infer_dataset(path)
+        ds = auto.infer_dataset(path, scheduler=scheduler, workers=workers)
         return ds

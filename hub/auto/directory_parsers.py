@@ -11,7 +11,7 @@ USE_TQDM = True
 
 
 @util.directory_parser(priority=0)
-def image_classification(path, scheduler='single', workers=1):
+def image_classification(path, scheduler, workers):
     children = util.get_children(path)
 
     # check if all children are directories
