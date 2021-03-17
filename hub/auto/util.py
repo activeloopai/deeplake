@@ -54,7 +54,10 @@ def get_ext(path):
 
 
 def files_are_of_extension(path, allowed_extensions):
-    """helper function that checks if all files within the given directory have extensions that are allowed"""
+    """
+    helper function that checks if any files within the given directory have extensions
+    that are allowed
+    """
 
     allowed_extensions = [ext.lower() for ext in allowed_extensions]
     children = get_children(path)
