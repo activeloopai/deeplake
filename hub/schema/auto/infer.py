@@ -1,7 +1,10 @@
 import os
 from glob import glob
+from hub.schema.auto.directory_parsers import get_parsers
 
 __all__ = ['infer_schema_and_shape']
+
+_directory_parsers = get_parsers()
 
 
 def _find_root(path):
@@ -35,12 +38,26 @@ def infer_schema_and_shape(path):
 
     root = _find_root(path)
 
-    schema = {}
+    # blank schema by default
+    schema = None
     shape = (1, )  # TODO
+
+    # go through all functions created using the `directory_parser` decorator in
+    # `hub.schema.auto.directory_parsers`
+    for parser in _directory_parsers:
+        schema = parser(root)
+        if schema is not None:
+            break
 
     # TODO: determine input type
     # does it match an image classification dataset?
 
     # TODO: determine label type
+
+    if schema is None:
+        raise Exception(
+            'could not infer schema for the root "%s". either add a new parser to'
+            % root +
+            '`hub.schema.auto.directory_parsers` or write a custom schema.')
 
     return schema, shape
