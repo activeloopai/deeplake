@@ -9,8 +9,11 @@ from hub.auto import util
 
 USE_TQDM = True
 
+# manage directory parsers
+state = util.DirectoryParserState()
 
-@util.directory_parser(priority=0)
+
+@state.directory_parser(priority=0)
 def image_classification(path, scheduler, workers):
     children = util.get_children(path)
 
@@ -27,6 +30,8 @@ def image_classification(path, scheduler, workers):
     data = []
     class_names = set()
     max_shape = np.zeros(3, dtype=np.uint8)  # CHW
+    all_same_shape = True
+    image_shape = None  # if shape is all the same, use that instead of max_shape
     for child in tqdm(children,
                       desc='parsing image classification dataset',
                       total=len(children),
@@ -40,17 +45,26 @@ def image_classification(path, scheduler, workers):
                 continue
 
             shape = np.array(util.get_image_shape(filepath))
+
+            # check if all images have the same shape
+            if all_same_shape:
+                if image_shape is None:
+                    image_shape = shape
+                elif not np.array_equal(image_shape, shape):
+                    all_same_shape = False
+
             max_shape = np.maximum(max_shape, shape)
             data.append((filepath, label.lower()))
             class_names.add(label.lower())
 
-    class_names = list(sorted(list(class_names)))
-
     # create schema
+    class_names = list(sorted(list(class_names)))
     max_shape = tuple([int(x) for x in max_shape])
+    actual_shape = image_shape if all_same_shape else (None, None, None)
+    max_shape = None if all_same_shape else max_shape
     schema = {
         'image':
-        hub.schema.Image(shape=(None, None, None),
+        hub.schema.Image(shape=actual_shape,
                          dtype='uint8',
                          max_shape=max_shape),
         'label':

@@ -2,11 +2,13 @@ import os
 from glob import glob
 
 import hub
-from hub.auto.util import get_parsers
+from hub.auto.directory_parsers import state
 
 __all__ = ['infer_dataset']
 
-_directory_parsers = get_parsers()
+_directory_parsers = state.get_parsers()
+if len(_directory_parsers) <= 0:
+    raise Exception('directory parsers list was empty.')
 
 
 def _find_root(path):
