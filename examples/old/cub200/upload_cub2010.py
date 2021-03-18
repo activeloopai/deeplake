@@ -40,7 +40,6 @@ class CubGenerator(Transform):
 
         ds["bbox"] = np.empty(1, object)
         ds["bbox"][0] = image_info["anno"]["bbox"]
-        ds[""][0] = image_info["anno"]["bbox"]
 
         ds["flickr_url"] = np.empty(1, object)
         ds["flickr_url"][0] = image_info["anno"]["flickr_url"]
