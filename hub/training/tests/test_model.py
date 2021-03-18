@@ -69,7 +69,6 @@ def test_store():
 def test_store_load_tf():
     if tensorflow_spec is None:
         raise ModuleNotFoundError("Module 'tensorflow' is not installed")
-    ext = ".h5" if int((tf.__version__)[0]) < 2 else ".tf"
 
     model_dir = "./data/tensorflow_test/"
     shutil.rmtree(model_dir, ignore_errors=True)
@@ -91,7 +90,3 @@ def test_store_load_tf():
     np.testing.assert_allclose(
         model_init._model.predict(test_input), loaded_model._model.predict(test_input)
     )
-
-
-if __name__ == "__main__":
-    test_store()
