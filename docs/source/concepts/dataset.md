@@ -46,6 +46,7 @@ from hub.auto.infer import state
 @state.directory_parser(priority=0)
 def image_classification(path, scheduler, workers):
     data_iter = ...
+    schema = ...
 
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
     def upload_data(sample):
