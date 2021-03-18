@@ -7,10 +7,11 @@ from pathlib import PosixPath
 import hub
 
 
-def assert_conversion(kaggle_tag, hub_dir):
+def assert_conversion(kaggle_tag, hub_dir, after_download=None):
     """tries to create a dataset for the kaggle_tag & then convert it into hub format."""
 
     dataset_store = get_dataset_store(kaggle_tag)
+    _hub_dir = hub_dir
     hub_dir = dataset_store / hub_dir / "hub"
 
     # delete hub dataset so conversion test can be done
@@ -20,8 +21,11 @@ def assert_conversion(kaggle_tag, hub_dir):
 
     _download_kaggle(kaggle_tag, dataset_store)
 
+    if after_download is not None:
+        after_download(dataset_store / _hub_dir)
+
     try:
-        ds = hub.Dataset.from_path(dataset_store / "Images")
+        ds = hub.Dataset.from_path(str(dataset_store / _hub_dir))
     except Exception:
         assert False
 
@@ -63,6 +67,15 @@ def _download_kaggle(tag, dataset_store):
     _exec_command("%s unzip -n *.zip" % (setup))
 
 
-def test_image_classification():
+def test_dandelionimages():
     kaggle_tag = "coloradokb/dandelionimages"
     assert_conversion(kaggle_tag, "Images")
+
+
+def test_flowers_recognition():
+    kaggle_tag = "alxmamaev/flowers-recognition"
+    assert_conversion(
+        kaggle_tag,
+        "flowers",
+        after_download=lambda path: shutil.rmtree(path / "flowers"),
+    )
