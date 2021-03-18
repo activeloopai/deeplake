@@ -2,13 +2,11 @@ import os
 from glob import glob
 
 import hub
-from hub.auto.directory_parsers import state
+from hub.auto import util
+
+state = util.DirectoryParserState()
 
 __all__ = ['infer_dataset']
-
-_directory_parsers = state.get_parsers()
-if len(_directory_parsers) <= 0:
-    raise Exception('directory parsers list was empty.')
 
 
 def _find_root(path):
@@ -49,14 +47,18 @@ def infer_dataset(path, scheduler='single', workers=1):
 
     if os.path.isdir(hub_path):
         print('inferred dataset found in "%s", using that' % hub_path)
-        return hub.Dataset(hub_path)
+        return hub.Dataset(hub_path, mode='r')
 
     root = _find_root(path)
     ds = None
 
+    directory_parsers = state.get_parsers()
+    if len(directory_parsers) <= 0:
+        raise Exception('directory parsers list was empty.')
+
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
-    for parser in _directory_parsers:
+    for parser in directory_parsers:
         ds = parser(root, scheduler, workers)
         if ds is not None:
             break
@@ -68,4 +70,5 @@ def infer_dataset(path, scheduler='single', workers=1):
             '`hub.schema.auto.directory_parsers` or write a custom transform + schema.'
         )
 
-    return ds.store(hub_path)  # TODO: handle s3
+    ds.store(hub_path)  # TODO: handle s3
+    return hub.Dataset(hub_path, mode='r')

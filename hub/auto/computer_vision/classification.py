@@ -6,11 +6,9 @@ from PIL import Image
 import hub
 
 from hub.auto import util
+from hub.auto.infer import state
 
 USE_TQDM = True
-
-# manage directory parsers
-state = util.DirectoryParserState()
 
 
 @state.directory_parser(priority=0)
