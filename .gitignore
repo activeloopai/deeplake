@@ -1,6 +1,7 @@
 # pytest-cov #
 ##############
 
+PYTEST_TMPDIR
 .coverage
 .coverage.*
 htmlcov
