@@ -3,7 +3,12 @@ import os
 import zipfile
 from pathlib import PosixPath
 
-dataset_store = PosixPath("PYTEST_TMPDIR/datasets")
+import hub
+
+
+def get_dataset_store(tag):
+    tag = tag.replace("/", "_")
+    return PosixPath("PYTEST_TMPDIR/datasets") / tag
 
 
 def _exec_command(command):
@@ -16,6 +21,7 @@ def _exec_command(command):
 
 
 def _download_kaggle(tag):
+    dataset_store = get_dataset_store(tag)
     username = os.environ.get("KAGGLE_USERNAME")
     key = os.environ.get("KAGGLE_KEY")
     print("got credentials %s@%s" % (username, key))
@@ -27,9 +33,10 @@ def _download_kaggle(tag):
         key,
     )
     _exec_command("%s kaggle datasets download -d %s" % (setup, tag))
-    _exec_command("%s unzip *.zip" % (setup))
+    _exec_command("%s unzip -n *.zip" % (setup))
 
 
 def test_image_classification():
     kaggle_tag = "coloradokb/dandelionimages"
     _download_kaggle(kaggle_tag)
+    # ds = hub.Dataset.from_path(dataset_store / 'Images'
