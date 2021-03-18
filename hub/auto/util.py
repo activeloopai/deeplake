@@ -1,8 +1,9 @@
 import os
 from glob import glob
+
 from PIL import Image
 
-IMAGE_EXTS = ['.jpg', '.png', '.jpeg']
+IMAGE_EXTS = [".jpg", ".png", ".jpeg"]
 
 
 class DirectoryParserState:
@@ -20,8 +21,8 @@ class DirectoryParserState:
 
     def directory_parser(self, priority=0):
         """
-        a directory parser function is a function that takes in a path & returns a dataset.
-        these functions make it easier to extend the dataset inference domain. 
+        a directory parser function is a function that takes in a path & returns a
+        dataset. these functions make it easier to extend the dataset inference domain.
         functions should be as general as possible.
 
         Parameters
@@ -30,6 +31,7 @@ class DirectoryParserState:
             an arbitrary number that the parsers will be sorted by
             (lower the number = higher the priority)
         """
+
         def decorate(fn):
             self._parsers.append(fn)
             self._priorities.append(priority)
@@ -41,7 +43,7 @@ class DirectoryParserState:
 def get_children(path):
     """helper function to glob the given directory"""
 
-    return glob(os.path.join(path, '*'))
+    return glob(os.path.join(path, "*"))
 
 
 def get_image_shape(path):

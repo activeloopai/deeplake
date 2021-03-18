@@ -30,10 +30,12 @@ def image_classification(path, scheduler, workers):
     max_shape = np.zeros(3, dtype=np.uint8)  # CHW
     all_same_shape = True
     image_shape = None  # if shape is all the same, use that instead of max_shape
-    for child in tqdm(children,
-                      desc='parsing image classification dataset',
-                      total=len(children),
-                      disable=not USE_TQDM):
+    for child in tqdm(
+        children,
+        desc="parsing image classification dataset",
+        total=len(children),
+        disable=not USE_TQDM,
+    ):
         label = os.path.basename(child)
 
         filepaths = util.get_children(child)
@@ -61,12 +63,10 @@ def image_classification(path, scheduler, workers):
     actual_shape = image_shape if all_same_shape else (None, None, None)
     max_shape = None if all_same_shape else max_shape
     schema = {
-        'image':
-        hub.schema.Image(shape=actual_shape,
-                         dtype='uint8',
-                         max_shape=max_shape),
-        'label':
-        hub.schema.ClassLabel(names=class_names)
+        "image": hub.schema.Image(
+            shape=actual_shape, dtype="uint8", max_shape=max_shape
+        ),
+        "label": hub.schema.ClassLabel(names=class_names),
     }
 
     # create transform for putting data into hub format
@@ -76,6 +76,6 @@ def image_classification(path, scheduler, workers):
         img = Image.open(path)
         img = np.asarray(img)
         label = class_names.index(sample[1])
-        return {'image': img, 'label': label}
+        return {"image": img, "label": label}
 
     return upload_data(data)

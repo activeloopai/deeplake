@@ -6,7 +6,7 @@ from hub.auto import util
 
 state = util.DirectoryParserState()
 
-__all__ = ['infer_dataset']
+__all__ = ["infer_dataset"]
 
 
 def _find_root(path):
@@ -28,8 +28,8 @@ def _find_root(path):
     the output of this function should be "dataset/Images/" as that is the root.
     """
 
-    subs = glob(os.path.join(path, '*'))
-    hub_dir = os.path.join(path, 'hub')
+    subs = glob(os.path.join(path, "*"))
+    hub_dir = os.path.join(path, "hub")
     if hub_dir in subs:
         subs.remove(hub_dir)  # ignore the hub directory
     if len(subs) > 1:
@@ -37,24 +37,24 @@ def _find_root(path):
     return _find_root(subs[0])
 
 
-def infer_dataset(path, scheduler='single', workers=1):
+def infer_dataset(path, scheduler="single", workers=1):
     # TODO: handle s3 path
 
     if not os.path.isdir(path):
-        raise Exception('input path must be either a directory')
+        raise Exception("input path must be either a directory")
 
-    hub_path = os.path.join('./', path, 'hub')
+    hub_path = os.path.join("./", path, "hub")
 
     if os.path.isdir(hub_path):
         print('inferred dataset found in "%s", using that' % hub_path)
-        return hub.Dataset(hub_path, mode='r')
+        return hub.Dataset(hub_path, mode="r")
 
     root = _find_root(path)
     ds = None
 
     directory_parsers = state.get_parsers()
     if len(directory_parsers) <= 0:
-        raise Exception('directory parsers list was empty.')
+        raise Exception("directory parsers list was empty.")
 
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
@@ -66,9 +66,9 @@ def infer_dataset(path, scheduler='single', workers=1):
     if ds is None:
         raise Exception(
             'could not infer dataset for the root "%s". either add a new parser to'
-            % root +
-            '`hub.schema.auto.directory_parsers` or write a custom transform + schema.'
+            % root
+            + "`hub.schema.auto.directory_parsers` or write a custom transform + schema."
         )
 
     ds.store(hub_path)  # TODO: handle s3
-    return hub.Dataset(hub_path, mode='r')
+    return hub.Dataset(hub_path, mode="r")

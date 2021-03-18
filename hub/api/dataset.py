@@ -150,8 +150,9 @@ class Dataset:
         self.lazy = lazy
         self._name = name
 
-        self._fs, self._path = ((fs, url) if fs else get_fs_and_path(
-            self._url, token=token, public=public))
+        self._fs, self._path = (
+            (fs, url) if fs else get_fs_and_path(self._url, token=token, public=public)
+        )
         self._cache = cache
         self._storage_cache = storage_cache
         self.lock_cache = lock_cache
@@ -159,11 +160,9 @@ class Dataset:
         mode = self._get_mode(mode, self._fs)
         self._mode = mode
         needcreate = self._check_and_prepare_dir()
-        fs_map = fs_map or get_storage_map(self._fs,
-                                           self._path,
-                                           cache,
-                                           lock=lock_cache,
-                                           storage_cache=storage_cache)
+        fs_map = fs_map or get_storage_map(
+            self._fs, self._path, cache, lock=lock_cache, storage_cache=storage_cache
+        )
         self._fs_map = fs_map
         self._meta_information = meta_information
         self.username = None
@@ -172,8 +171,7 @@ class Dataset:
             self.meta = json.loads(fs_map[defaults.META_FILE].decode("utf-8"))
             self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
-            self._schema = hub.schema.deserialize.deserialize(
-                self.meta["schema"])
+            self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
             try:
@@ -181,8 +179,11 @@ class Dataset:
                 self._branch_node_map = version_info.get("branch_node_map")
                 self._commit_node_map = version_info.get("commit_node_map")
                 self._chunk_commit_map = version_info.get("chunk_commit_map")
-                if not (self._branch_node_map and self._commit_node_map
-                        and self._chunk_commit_map):
+                if not (
+                    self._branch_node_map
+                    and self._commit_node_map
+                    and self._chunk_commit_map
+                ):
                     raise InvalidVersionInfoException()
                 self._branch = "master"
                 self._version_node = self._branch_node_map[self._branch]
@@ -204,12 +205,13 @@ class Dataset:
 
             self._tensors = dict(self._open_storage_tensors())
 
-            if shape != (None, ) and shape != self._shape:
+            if shape != (None,) and shape != self._shape:
                 raise TypeError(
                     f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
                 )
             if schema is not None and sorted(schema.dict_.keys()) != sorted(
-                    self._schema.dict_.keys()):
+                self._schema.dict_.keys()
+            ):
                 raise TypeError(
                     "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
                 )
@@ -236,24 +238,21 @@ class Dataset:
                 self._branch_node_map = {self._branch: self._version_node}
                 self._commit_node_map = {self._commit_id: self._version_node}
                 self._tensors = dict(self._generate_storage_tensors())
-                self._chunk_commit_map = {
-                    key: defaultdict(set)
-                    for key in self.keys
-                }
+                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
                 except Exception:
                     pass
                 self._fs.rm(self._path, recursive=True)
-                logger.error("Deleting the dataset " + traceback.format_exc() +
-                             str(e))
+                logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
         self.flush()
         self.indexes = list(range(self._shape[0]))
 
-        if self._path.startswith("s3://snark-hub-dev/"
-                                 ) or self._path.startswith("s3://snark-hub/"):
+        if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
+            "s3://snark-hub/"
+        ):
             subpath = self._path[5:]
             spl = subpath.split("/")
             if len(spl) < 4:
@@ -261,10 +260,9 @@ class Dataset:
             self.username = spl[-2]
             self.dataset_name = spl[-1]
             if needcreate:
-                HubControlClient().create_dataset_entry(self.username,
-                                                        self.dataset_name,
-                                                        self.meta,
-                                                        public=public)
+                HubControlClient().create_dataset_entry(
+                    self.username, self.dataset_name, self.meta, public=public
+                )
 
     @property
     def mode(self):
@@ -388,13 +386,14 @@ class Dataset:
             if not self._version_node.children:
                 for key in self.keys:
                     self._tensors[key].fs_map.copy_all_chunks(
-                        self._commit_id, new_commit_id)
+                        self._commit_id, new_commit_id
+                    )
                 if self._version_node.parent is not None:
                     self._version_node.parent.insert(
-                        new_node, f"switched to new branch {address}")
+                        new_node, f"switched to new branch {address}"
+                    )
             else:
-                self._version_node.insert(new_node,
-                                          f"switched to new branch {address}")
+                self._version_node.insert(new_node, f"switched to new branch {address}")
             self._version_node = new_node
             self._commit_id = new_commit_id
             self._branch_node_map[self._branch] = new_node
@@ -419,9 +418,11 @@ class Dataset:
         """
         if self._commit_id is None:
             raise VersioningNotSupportedException("log")
-        current_node = (self._version_node.parent
-                        if not self._version_node.children else
-                        self._version_node)
+        current_node = (
+            self._version_node.parent
+            if not self._version_node.children
+            else self._version_node
+        )
         print(f"\n Current Branch: {self._branch}\n")
         while current_node:
             print(f"{current_node}\n")
@@ -556,7 +557,8 @@ class Dataset:
         if not subpath:
             if len(slice_list) > 1:
                 raise ValueError(
-                    "Can't slice a dataset with multiple slices without key")
+                    "Can't slice a dataset with multiple slices without key"
+                )
             indexes = self.indexes[slice_list[0]]
             return DatasetView(
                 dataset=self,
@@ -584,12 +586,12 @@ class Dataset:
             return self._get_dictionary(subpath)
         else:
             schema_obj = self.schema.dict_[subpath.split("/")[1]]
-            if subpath in self.keys and (not isinstance(schema_obj, Sequence)
-                                         or len(slice_list) <= 1):
-                tensorview = TensorView(dataset=self,
-                                        subpath=subpath,
-                                        slice_=slice_list,
-                                        lazy=self.lazy)
+            if subpath in self.keys and (
+                not isinstance(schema_obj, Sequence) or len(slice_list) <= 1
+            ):
+                tensorview = TensorView(
+                    dataset=self, subpath=subpath, slice_=slice_list, lazy=self.lazy
+                )
                 return tensorview if self.lazy else tensorview.compute()
             for key in self.keys:
                 if subpath.startswith(key):
@@ -673,25 +675,23 @@ class Dataset:
         )
 
         #  create entry in database if stored in hub storage
-        if path.startswith("s3://snark-hub-dev/") or path.startswith(
-                "s3://snark-hub/"):
+        if path.startswith("s3://snark-hub-dev/") or path.startswith("s3://snark-hub/"):
             subpath = path[5:]
             spl = subpath.split("/")
             if len(spl) < 4:
                 raise ValueError("Invalid Path for dataset")
             username = spl[-2]
             dataset_name = spl[-1]
-            HubControlClient().create_dataset_entry(username,
-                                                    dataset_name,
-                                                    self.meta,
-                                                    public=public)
+            HubControlClient().create_dataset_entry(
+                username, dataset_name, self.meta, public=public
+            )
         return hub.Dataset(destination, token=token, fs=fs, public=public)
 
     def resize_shape(self, size: int) -> None:
         """ Resize the shape of the dataset by resizing each tensor first dimension """
         if size == self._shape[0]:
             return
-        self._shape = (int(size), )
+        self._shape = (int(size),)
         self.indexes = list(range(self.shape[0]))
         self.meta = self._store_meta()
         for t in self._tensors.values():
@@ -718,7 +718,8 @@ class Dataset:
             fs.rm(path, recursive=True)
             if self.username is not None:
                 HubControlClient().delete_dataset_entry(
-                    self.username, self.dataset_name)
+                    self.username, self.dataset_name
+                )
             return True
         return False
 
@@ -768,7 +769,7 @@ class Dataset:
         subpath = subpath if subpath.endswith("/") else subpath + "/"
         for key in self.keys:
             if key.startswith(subpath):
-                suffix_key = key[len(subpath):]
+                suffix_key = key[len(subpath) :]
                 split_key = suffix_key.split("/")
                 cur = tensor_dict
                 for i in range(len(split_key) - 1):
@@ -776,12 +777,10 @@ class Dataset:
                         cur[split_key[i]] = {}
                     cur = cur[split_key[i]]
                 slice_ = slice_ or slice(0, self._shape[0])
-                tensorview = TensorView(dataset=self,
-                                        subpath=key,
-                                        slice_=slice_,
-                                        lazy=self.lazy)
-                cur[split_key[
-                    -1]] = tensorview if self.lazy else tensorview.compute()
+                tensorview = TensorView(
+                    dataset=self, subpath=key, slice_=slice_, lazy=self.lazy
+                )
+                cur[split_key[-1]] = tensorview if self.lazy else tensorview.compute()
         if not tensor_dict:
             raise KeyError(f"Key {subpath} was not found in dataset")
         return tensor_dict
@@ -837,9 +836,9 @@ class Dataset:
 
     def _update_dataset_state(self):
         if self.username is not None:
-            HubControlClient().update_dataset_state(self.username,
-                                                    self.dataset_name,
-                                                    "UPLOADED")
+            HubControlClient().update_dataset_state(
+                self.username, self.dataset_name, "UPLOADED"
+            )
 
     def numpy(self, label_name=False):
         """Gets the values from different tensorview objects in the dataset schema
@@ -850,10 +849,12 @@ class Dataset:
             If the TensorView object is of the ClassLabel type, setting this to True would retrieve the label names
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
-        return np.array([
-            create_numpy_dict(self, i, label_name=label_name)
-            for i in range(self._shape[0])
-        ])
+        return np.array(
+            [
+                create_numpy_dict(self, i, label_name=label_name)
+                for i in range(self._shape[0])
+            ]
+        )
 
     def compute(self, label_name=False):
         """Gets the values from different tensorview objects in the dataset schema
@@ -867,9 +868,20 @@ class Dataset:
         return self.numpy(label_name=label_name)
 
     def __str__(self):
-        return ("Dataset(schema=" + str(self._schema) + ", url=" + "'" +
-                self._url + "'" + ", shape=" + str(self._shape) + ", mode=" +
-                "'" + self._mode + "')")
+        return (
+            "Dataset(schema="
+            + str(self._schema)
+            + ", url="
+            + "'"
+            + self._url
+            + "'"
+            + ", shape="
+            + str(self._shape)
+            + ", mode="
+            + "'"
+            + self._mode
+            + "')"
+        )
 
     def __repr__(self):
         return self.__str__()
@@ -983,8 +995,7 @@ class Dataset:
         """
         from .integrations import _from_tfds
 
-        ds = _from_tfds(dataset, split, num, sampling_amount, scheduler,
-                        workers)
+        ds = _from_tfds(dataset, split, num, sampling_amount, scheduler, workers)
         return ds
 
     @staticmethod
@@ -1007,7 +1018,7 @@ class Dataset:
         return ds
 
     @staticmethod
-    def from_path(path, scheduler='single', workers=1):
+    def from_path(path, scheduler="single", workers=1):
         # infer schema & get data (label -> input mapping with file refs)
         ds = auto.infer_dataset(path, scheduler=scheduler, workers=workers)
         return ds
