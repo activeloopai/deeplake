@@ -32,6 +32,9 @@ def _find_root(path):
     hub_dir = os.path.join(path, "hub")
     if hub_dir in subs:
         subs.remove(hub_dir)  # ignore the hub directory
+    subs = [
+        sub for sub in subs if os.path.isdir(sub)
+    ]  # only keep directories (ignore files)
     if len(subs) > 1:
         return path
     return _find_root(subs[0])
