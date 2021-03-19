@@ -5,10 +5,13 @@ import zipfile
 from pathlib import PosixPath
 
 import hub
+import numpy as np
 from hub.auto.tests.util import get_dataset_store
 
 
-def assert_conversion(tag):
+def assert_conversion(
+    tag, num_samples=None, num_classes=None, image_shape=None, max_image_shape=None
+):
     """
     tries to create a dataset for the kaggle_tag & then convert it into hub format.
     """
@@ -32,8 +35,33 @@ def assert_conversion(tag):
     assert hub_dir.is_dir(), hub_dir
 
     # TODO: check if the hub dataset was properly uploaded
+    if num_samples is not None:
+        assert num_samples == ds.shape[0]
+
+    if num_classes is not None:
+        actual_num_classes = len(np.unique(ds["label"].compute()))
+        assert num_classes == actual_num_classes
+
+    actual_image_shape = ds["image"].shape
+    if image_shape is not None:
+        # check image shape (this is for when all images are the same shape)
+        expected_image_shape = np.array((num_samples, *image_shape))
+        assert np.array_equal(expected_image_shape, actual_image_shape)
+
+    if max_image_shape is not None:
+        # check image max shape (this is for when not all images are the same shape)
+        expected_max_image_shape = np.array((*max_image_shape,))
+        actual_max_image_shape = np.max(actual_image_shape, axis=0)
+        assert np.array_equal(expected_max_image_shape, actual_max_image_shape)
 
 
-def test_class_sample():
-    tag = "image_classification/class_sample"
-    assert_conversion(tag)
+def test_class_sample_same_shapes():
+    tag = "image_classification/class_sample_same_shapes"
+    assert_conversion(tag, num_samples=9, num_classes=3, image_shape=(256, 256, 4))
+
+
+def test_class_sample_different_shapes():
+    tag = "image_classification/class_sample_different_shapes"
+    assert_conversion(
+        tag, num_samples=10, num_classes=3, max_image_shape=(768, 1024, 4)
+    )
