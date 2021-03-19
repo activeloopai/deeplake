@@ -5,3 +5,4 @@ black==20.8b1
 ray==1.2.0
 cloudpickle>=1.6.0,<2
 cachey>=0.2.1
+kaggle==1.5.12
