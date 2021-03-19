@@ -262,14 +262,10 @@ class Transform:
             value = str_to_int(value, ds.dataset.tokenizer)
 
             num_chunks = len(value) / (chunk * self.workers)
-            if num_chunks == 0:
-                length = len(value)
-            else:
-                num_chunks = (
-                    1 + int(num_chunks) if num_chunks != int(num_chunks) else num_chunks
-                )
-                length = num_chunks * chunk if self.workers != 1 else len(value)
-            length = int(length)
+            num_chunks = (
+                1 + int(num_chunks) if num_chunks != int(num_chunks) else num_chunks
+            )
+            length = int(num_chunks * chunk) if self.workers != 1 else len(value)
             batched_values = (
                 batchify(value, length, length + ((chunk - (offset % chunk))) % chunk)
                 if length != len(value)
@@ -292,10 +288,7 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            if num_chunks != 0:
-                list(self.map(upload_chunk, index_batched_values))
-            else:
-                list(map(upload_chunk, index_batched_values))
+            list(map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
