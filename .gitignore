@@ -44,6 +44,7 @@ dask-worker-space/
 *.sql
 *.sqlite
 data/
+**/dummy_data/**/hub/
 
 # OS generated files #
 ######################
