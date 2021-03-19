@@ -140,6 +140,9 @@ def test_to_tensorflow_key_list():
         assert (item["abc"]["d"].numpy() == (i + 5) * np.ones((100, 100, 3))).all()
         assert (item["abc"]["f"]["g"].numpy() == (i + 5) * np.ones((100, 100, 3))).all()
 
+    with pytest.raises(KeyError):
+        tds = dsv.to_tensorflow(key_list=["xyz"])
+
 
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_to_from_tensorflow():
