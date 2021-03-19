@@ -3,6 +3,7 @@ from glob import glob
 
 from PIL import Image
 
+IGNORE_EXTS = [".DS_Store"]
 IMAGE_EXTS = [".jpg", ".png", ".jpeg"]
 
 
@@ -40,10 +41,21 @@ class DirectoryParserState:
         return decorate
 
 
-def get_children(path):
+def should_be_ignored(path):
+    for ignore in IGNORE_EXTS:
+        if path.endswith(ignore):
+            return True
+    return False
+
+
+def get_children(path, only_dirs=False):
     """helper function to glob the given directory"""
 
-    return glob(os.path.join(path, "*"))
+    children = glob(os.path.join(path, "*"))
+    children = [child for child in children if not should_be_ignored(child)]
+    if only_dirs:
+        children = [child for child in children if os.path.isdir(child)]
+    return children
 
 
 def get_image_shape(path):
