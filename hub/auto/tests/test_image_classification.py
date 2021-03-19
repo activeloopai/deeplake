@@ -34,22 +34,23 @@ def assert_conversion(
 
     assert hub_dir.is_dir(), hub_dir
 
-    # TODO: check if the hub dataset was properly uploaded
+    # validate num samples
     if num_samples is not None:
         assert num_samples == ds.shape[0]
 
+    # validate num classes
     if num_classes is not None:
         actual_num_classes = len(np.unique(ds["label"].compute()))
         assert num_classes == actual_num_classes
 
+    # validate image shape (this is for when all images are the same shape)
     actual_image_shape = ds["image"].shape
     if image_shape is not None:
-        # check image shape (this is for when all images are the same shape)
         expected_image_shape = np.array((num_samples, *image_shape))
         assert np.array_equal(expected_image_shape, actual_image_shape)
 
+    # validate image max shape (this is for when not all images are the same shape)
     if max_image_shape is not None:
-        # check image max shape (this is for when not all images are the same shape)
         expected_max_image_shape = np.array((*max_image_shape,))
         actual_max_image_shape = np.max(actual_image_shape, axis=0)
         assert np.array_equal(expected_max_image_shape, actual_max_image_shape)
