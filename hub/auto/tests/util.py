@@ -3,6 +3,8 @@ from pathlib import Path, PosixPath
 
 
 def get_dataset_store(tag):
+    """gets the absolute path to the test dataset named `tag`"""
+
     this_dir = Path(__file__).parent.absolute()
     return this_dir / "data" / tag
 

@@ -9,7 +9,9 @@ from hub.auto.tests.util import get_dataset_store
 
 
 def assert_conversion(tag):
-    """tries to create a dataset for the kaggle_tag & then convert it into hub format."""
+    """
+    tries to create a dataset for the kaggle_tag & then convert it into hub format.
+    """
 
     dataset_store = get_dataset_store(tag)
     hub_dir = dataset_store / "hub"
@@ -30,22 +32,6 @@ def assert_conversion(tag):
     assert hub_dir.is_dir(), hub_dir
 
     # TODO: check if the hub dataset was properly uploaded
-
-
-"""
-def test_dandelionimages():
-    kaggle_tag = "coloradokb/dandelionimages"
-    assert_conversion(kaggle_tag, "Images")
-
-
-def test_flowers_recognition():
-    kaggle_tag = "alxmamaev/flowers-recognition"
-    assert_conversion(
-        kaggle_tag,
-        "flowers",
-        after_download=lambda path: shutil.rmtree(path / "flowers"),
-    )
-"""
 
 
 def test_class_sample():

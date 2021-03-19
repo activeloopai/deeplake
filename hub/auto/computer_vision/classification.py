@@ -1,27 +1,28 @@
 import os
-from tqdm import tqdm
-import numpy as np
-from PIL import Image
 
 import hub
-
+import numpy as np
 from hub.auto import util
 from hub.auto.infer import state
+from PIL import Image
+from tqdm import tqdm
 
 USE_TQDM = True
 
 
 @state.directory_parser(priority=0)
 def image_classification(path, scheduler, workers):
-    children = util.get_children(path)
+    children = util.get_children(path, only_dirs=True)
 
-    # check if all children are directories
-    if not all([os.path.isdir(child) for child in children]):
+    # check if there is >= 2 children (means there are at least 2 folders)
+    if len(children) < 2:
+        print("test1")
         return None
 
-    # check if children's contents are all image files
+    # check if children's contents has image files
     for child in children:
         if not util.files_are_of_extension(child, util.IMAGE_EXTS):
+            print("test2")
             return None
 
     # parse dataset
@@ -60,7 +61,9 @@ def image_classification(path, scheduler, workers):
     # create schema
     class_names = list(sorted(list(class_names)))
     max_shape = tuple([int(x) for x in max_shape])
-    actual_shape = image_shape if all_same_shape else (None, None, None)
+    actual_shape = (
+        tuple([int(x) for x in image_shape]) if all_same_shape else (None, None, None)
+    )
     max_shape = None if all_same_shape else max_shape
     schema = {
         "image": hub.schema.Image(
