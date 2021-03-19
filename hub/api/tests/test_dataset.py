@@ -16,11 +16,16 @@ from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split
 from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException
-from hub.schema import (BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor,
-                        Text)
+from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
 from hub.schema.class_label import ClassLabel
-from hub.utils import (azure_creds_exist, gcp_creds_exist, hub_creds_exist,
-                       minio_creds_exist, s3_creds_exist, transformers_loaded)
+from hub.utils import (
+    azure_creds_exist,
+    gcp_creds_exist,
+    hub_creds_exist,
+    minio_creds_exist,
+    s3_creds_exist,
+    transformers_loaded,
+)
 
 Dataset = dataset.Dataset
 
