@@ -220,7 +220,7 @@ class Transform:
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
     ):
-        """Helper function to creat a dataset"""
+        """Helper function to create a dataset"""
         shape = (length,)
         ds = Dataset(
             url,
@@ -288,7 +288,7 @@ class Transform:
                     [slice(offset, offset + len(value))], value
                 )
 
-        ds.commit()
+        ds.flush()
         return ds
 
     def call_func(self, fn_index, item, as_list=False):
@@ -378,7 +378,7 @@ class Transform:
         url: str
             path where the data is going to be stored
         token: str or dict, optional
-            If url is refering to a place where authorization is required,
+            If url is referring to a place where authorization is required,
             token is the parameter to pass the credentials, it can be filepath or dict
         length: int
             in case shape is None, user can provide length
@@ -439,7 +439,7 @@ class Transform:
                 start += n_results
 
         ds_out.resize_shape(total)
-        ds_out.commit()
+        ds_out.flush()
         return ds_out
 
     @property

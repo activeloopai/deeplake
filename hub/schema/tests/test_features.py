@@ -15,6 +15,8 @@ from hub.schema import Segmentation
 from hub.schema.class_label import ClassLabel, _load_names_from_file
 from hub.schema.features import HubSchema, SchemaDict, Tensor
 import pytest
+from hub import Dataset
+import numpy as np
 
 
 def test_hub_feature_flatten():
@@ -94,6 +96,60 @@ def test_class_label():
         cl2.names = ["ab", "cd", "ef", "gh"]
 
 
+def test_class_label_2():
+    cl1 = ClassLabel(names=["apple", "banana", "cat"])
+    cl2 = ClassLabel((None,), (10,), names=["apple", "banana", "cat"])
+    cl3 = ClassLabel((3,), names=["apple", "banana", "cat"])
+    my_schema = {"cl1": cl1, "cl2": cl2, "cl3": cl3}
+
+    ds = Dataset("./data/cl_2d_3d", schema=my_schema, shape=(10), mode="w")
+
+    ds["cl1", 0] = cl1.str2int("cat")
+    ds["cl1", 1] = cl1.str2int("apple")
+    ds["cl1", 2] = cl1.str2int("apple")
+    ds["cl1", 3:5] = [cl1.str2int("banana"), cl1.str2int("banana")]
+    assert ds["cl1", 1].compute(True) == "apple"
+    assert ds["cl1", 0:3].compute(True) == ["cat", "apple", "apple"]
+    assert ds["cl1", 3:5].compute(True) == ["banana", "banana"]
+
+    ds["cl2", 0] = np.array(
+        [cl2.str2int("cat"), cl2.str2int("cat"), cl2.str2int("apple")]
+    )
+    ds["cl2", 1] = np.array([cl2.str2int("apple"), cl2.str2int("banana")])
+    ds["cl2", 2] = np.array(
+        [
+            cl2.str2int("cat"),
+            cl2.str2int("apple"),
+            cl2.str2int("banana"),
+            cl2.str2int("apple"),
+            cl2.str2int("banana"),
+        ]
+    )
+    ds["cl2", 3] = np.array([cl2.str2int("cat")])
+    assert ds["cl2", 0].compute(True) == ["cat", "cat", "apple"]
+    assert ds["cl2", 1].compute(True) == ["apple", "banana"]
+    assert ds["cl2", 2].compute(True) == ["cat", "apple", "banana", "apple", "banana"]
+    assert ds["cl2", 3].compute(True) == ["cat"]
+
+    ds["cl3", 0] = np.array(
+        [cl3.str2int("apple"), cl3.str2int("apple"), cl3.str2int("apple")]
+    )
+    ds["cl3", 1] = np.array(
+        [cl3.str2int("banana"), cl3.str2int("banana"), cl3.str2int("banana")]
+    )
+    ds["cl3", 2] = np.array(
+        [cl3.str2int("cat"), cl3.str2int("cat"), cl3.str2int("cat")]
+    )
+    assert ds["cl3", 0].compute(True) == ["apple", "apple", "apple"]
+    assert ds["cl3", 1].compute(True) == ["banana", "banana", "banana"]
+    assert ds["cl3", 2].compute(True) == ["cat", "cat", "cat"]
+    assert ds["cl3", 0:3].compute(True) == [
+        ["apple", "apple", "apple"],
+        ["banana", "banana", "banana"],
+        ["cat", "cat", "cat"],
+    ]
+
+
 def test_polygon():
     with pytest.raises(ValueError):
         poly1 = Polygon(shape=(11, 3))
@@ -101,11 +157,24 @@ def test_polygon():
         poly2 = Polygon(shape=(11, 4, 2))
 
 
-def test_mask():
+def test_bbox_shape():
     with pytest.raises(ValueError):
-        mask1 = Mask(shape=(11, 5))
+        bb1 = BBox(shape=(11, 3))
     with pytest.raises(ValueError):
-        mask2 = Mask(shape=(11, 4, 2))
+        bb2 = BBox(shape=(11, 4, 2))
+    bb3 = BBox(shape=(None, 4), max_shape=(10, 4))
+    bb4 = BBox(shape=(4,))
+    bb4 = BBox(shape=(5, 4))
+
+
+def test_classlabel_shape():
+    with pytest.raises(ValueError):
+        cl1 = ClassLabel(shape=(11, 3))
+    with pytest.raises(ValueError):
+        cl2 = ClassLabel(shape=(11, 4, 2))
+    cl3 = ClassLabel(shape=(None,), max_shape=(10,))
+    cl4 = ClassLabel()
+    cl4 = ClassLabel(shape=(5,))
 
 
 test_image_inputs = [
@@ -141,8 +210,8 @@ def test_classlabel_repr():
     cl1 = ClassLabel(num_classes=5)
     cl2 = ClassLabel(names=["apple", "orange", "banana"])
 
-    text1 = "ClassLabel(shape=(), dtype='int64', num_classes=5)"
-    text2 = "ClassLabel(shape=(), dtype='int64', names=['apple', 'orange', 'banana'], num_classes=3)"
+    text1 = "ClassLabel(shape=(), dtype='uint16', num_classes=5)"
+    text2 = "ClassLabel(shape=(), dtype='uint16', names=['apple', 'orange', 'banana'], num_classes=3)"
     assert cl1.__repr__() == text1
     assert cl2.__repr__() == text2
 

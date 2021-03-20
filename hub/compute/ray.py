@@ -225,7 +225,7 @@ class RayTransform(Transform):
 
         results = ray.get(tasks)
         self.set_dynamic_shapes(results, ds)
-        ds.commit()
+        ds.flush()
         return ds
 
     def set_dynamic_shapes(self, results, ds):

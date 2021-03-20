@@ -4,7 +4,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-from typing import List
+from typing import List, Tuple
 from hub.schema.features import Tensor
 
 
@@ -18,6 +18,8 @@ class ClassLabel(Tensor):
 
     def __init__(
         self,
+        shape: Tuple[int, ...] = (),
+        max_shape: Tuple[int, ...] = None,
         num_classes: int = None,
         names: List[str] = None,
         names_file: str = None,
@@ -40,15 +42,21 @@ class ClassLabel(Tensor):
 
         Parameters
         ----------
+        shape: tuple of ints or None
+            The shape of classlabel.
+            Will be () if only one classbabel corresponding to each sample.
+            If N classlabels corresponding to each sample, shape should be (N,)
+            If the number of classlabels for each sample vary from 0 to M. The shape should be set to (None,) and max_shape should be set to (M,)
+            Defaults to ().
+        max_shape : Tuple[int], optional
+            Maximum shape of ClassLabel
         num_classes: `int`
             number of classes. All labels must be < num_classes.
         names: `list<str>`
             string names for the integer classes. The order in which the names are provided is kept.
         names_file: `str`
             path to a file with names for the integer classes, one per line.
-        max_shape : Tuple[int]
-            Maximum shape of tensor shape if tensor is dynamic
-        chunks : Tuple[int] | True
+        chunks : Tuple[int] | True, optional
             Describes how to split tensor dimensions into chunks (files) to store them efficiently.
             It is anticipated that each file should be ~16MB.
             Sample Count is also in the list of tensor's dimensions (first dimension)
@@ -61,9 +69,11 @@ class ClassLabel(Tensor):
         ----------
         ValueError: If more than one argument is provided
         """
+        self.check_shape(shape)
         super().__init__(
-            shape=(),
-            dtype="int64",
+            shape=shape,
+            max_shape=max_shape,
+            dtype="uint16",
             chunks=chunks,
             compressor=compressor,
         )
@@ -158,3 +168,9 @@ class ClassLabel(Tensor):
 
     def __repr__(self):
         return self.__str__()
+
+    def check_shape(self, shape):
+        if len(shape) not in [0, 1]:
+            raise ValueError(
+                "Wrong ClassLabel shape provided, should be of the format () or (None,) or (N,)"
+            )
