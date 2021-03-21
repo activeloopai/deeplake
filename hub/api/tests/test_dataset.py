@@ -834,20 +834,22 @@ def test_dataset_copy_s3_local():
     ds = Dataset(
         "./data/testing/cp_original_data_local", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "s3://snark-test/cp_copy_data_s3_1_a"
+    DS3_PATH = "./data/testing/cp_copy_data_local_1"
     for i in range(100):
         ds["num", i] = 2 * i
     try:
-        ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
+        ds2 = ds.copy(DS2_PATH)
     except:
-        dsi = Dataset("s3://snark-test/cp_copy_data_s3_1_a")
+        dsi = Dataset(DS2_PATH)
         dsi.delete()
-        ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1_a")
+        ds2 = ds.copy(DS2_PATH)
     try:
-        ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
+        ds3 = ds2.copy(DS3_PATH)
     except:
-        dsi = Dataset("./data/testing/cp_copy_data_local_1")
+        dsi = Dataset(DS3_PATH)
         dsi.delete()
-        ds3 = ds2.copy("s3://snark-test/cp_copy_data_s3_1_a")
+        ds3 = ds2.copy(DS3_PATH)
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -861,20 +863,22 @@ def test_dataset_copy_gcs_local():
     ds = Dataset(
         "./data/testing/cp_original_ds_local_3", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "gcs://snark-test/cp_copy_dataset_gcs_1a"
+    DS3_PATH = "./data/testing/cp_copy_ds_local_2"
     for i in range(100):
         ds["num", i] = 2 * i
     try:
-        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
+        ds2 = ds.copy(DS2_PATH)
     except:
-        dsi = Dataset("gcs://snark-test/cp_copy_dataset_gcs_1a")
+        dsi = Dataset(DS2_PATH)
         dsi.delete()
-        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1a")
+        ds2 = ds.copy(DS2_PATH)
     try:
-        ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+        ds3 = ds2.copy(DS3_PATH)
     except:
-        dsi = Dataset("./data/testing/cp_copy_ds_local_2")
+        dsi = Dataset(DS3_PATH)
         dsi.delete()
-        ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+        ds3 = ds2.copy(DS3_PATH)
 
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -893,28 +897,30 @@ def test_dataset_copy_azure_local():
         shape=(100,),
         schema=simple_schema,
     )
+    DS2_PATH = "./data/testing/cp_copy_ds_local_4"
+    DS3_PATH = "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2"
     for i in range(100):
         ds["num", i] = 2 * i
     try:
-        ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
+        ds2 = ds.copy(DS2_PATH)
     except:
-        dsi = Dataset("./data/testing/cp_copy_ds_local_4")
+        dsi = Dataset(DS2_PATH)
         dsi.delete()
-        ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
+        ds2 = ds.copy(DS2_PATH)
 
     try:
         ds3 = ds2.copy(
-            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            DS3_PATH,
             token=token,
         )
     except:
         dsi = Dataset(
-            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            DS3_PATH,
             token=token,
         )
         dsi.delete()
         ds3 = ds2.copy(
-            "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
+            DS3_PATH,
             token=token,
         )
     for i in range(100):
@@ -930,21 +936,23 @@ def test_dataset_copy_hub_local():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
     ds = Dataset("testingacc/cp_original_ds_hub_1", shape=(100,), schema=simple_schema)
+    DS2_PATH = "./data/testing/cp_copy_ds_local_5"
+    DS3_PATH = "testingacc/cp_copy_dataset_testing_2"
     for i in range(100):
         ds["num", i] = 2 * i
     try:
-        ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
+        ds2 = ds.copy(DS2_PATH)
     except:
-        dsi = Dataset("./data/testing/cp_copy_ds_local_5")
+        dsi = Dataset(DS2_PATH)
         dsi.delete()
-        ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
+        ds2 = ds.copy(DS2_PATH)
 
     try:
-        ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+        ds3 = ds2.copy(DS3_PATH)
     except:
-        dsi = Dataset("testingacc/cp_copy_dataset_testing_2")
+        dsi = Dataset(DS3_PATH)
         dsi.delete()
-        ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+        ds3 = ds2.copy(DS3_PATH)
 
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
@@ -962,22 +970,24 @@ def test_dataset_copy_gcs_s3():
     ds = Dataset(
         "s3://snark-test/cp_original_ds_s3_2_a", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "gcs://snark-test/cp_copy_dataset_gcs_2_a"
+    DS3_PATH = "s3://snark-test/cp_copy_ds_s3_3_a"
     for i in range(100):
         ds["num", i] = 2 * i
 
     try:
-        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+        ds2 = ds.copy(DS2_PATH)
     except:
-        dsi = Dataset("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+        dsi = Dataset(DS2_PATH)
         dsi.delete()
-        ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2_a")
+        ds2 = ds.copy(DS2_PATH)
 
     try:
-        ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
+        ds3 = ds2.copy(DS3_PATH)
     except:
-        dsi = Dataset("s3://snark-test/cp_copy_ds_s3_3_a")
+        dsi = Dataset(DS3_PATH)
         dsi.delete()
-        ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3_a")
+        ds3 = ds2.copy(DS3_PATH)
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -988,14 +998,15 @@ def test_dataset_copy_gcs_s3():
 
 def test_dataset_copy_exception():
     ds = Dataset("./data/test_data_cp", shape=(100,), schema=simple_schema)
-    ds2 = Dataset("./data/test_data_cp_2", shape=(100,), schema=simple_schema)
+    DS_PATH = "./data/test_data_cp_2"
+    ds2 = Dataset(DS_PATH, shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = i
         ds2["num", i] = 2 * i
     ds.flush()
     ds2.flush()
     with pytest.raises(DirectoryNotEmptyException):
-        ds3 = ds.copy("./data/test_data_cp_2")
+        ds3 = ds.copy(DS_PATH)
     ds.delete()
     ds2.delete()
 
