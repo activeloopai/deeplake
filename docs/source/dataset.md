@@ -21,9 +21,9 @@ ds.store("username/dataset") # Upload
 
 ## Notes 
 
-For small datasets that would fit into your RAM you can directly upload by converting a numpy array into hub tensor. For complete example please check [Uploading MNIST](https://github.com/activeloopai/Hub/blob/master/examples/mnist/upload.py) and [Uploading CIFAR](https://github.com/activeloopai/Hub/blob/master/examples/cifar/upload_cifar10.py)
+For small datasets that would fit into your RAM you can directly upload by converting a numpy array into hub tensor. For complete example please check [Uploading MNIST](https://github.com/activeloopai/Hub/blob/master/examples/old/mnist/upload.py) and [Uploading CIFAR](https://github.com/activeloopai/Hub/blob/master/examples/old/cifar/upload_cifar10.py)
 
-For larger datasets you would need to define a dataset generator and apply the transformation iteratively. Please see an example below [Uploading COCO](https://github.com/activeloopai/Hub/blob/master/examples/coco/upload_coco2017.py).
+For larger datasets you would need to define a dataset generator and apply the transformation iteratively. Please see an example below [Uploading COCO](https://github.com/activeloopai/Hub/blob/master/examples/old/coco/upload_coco2017.py).
 Please pay careful attention to `meta(...)` function where you describe each tensor properties. Please pay careful attention providing full meta description including shape, dtype, dtag, chunk_shape etc.
 
 ## Dtag
