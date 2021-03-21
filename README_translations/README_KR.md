@@ -31,7 +31,7 @@
 
 ---
 
-[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | 한글 | [Bahasa Indonesia](./README_ID.md)]
+[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | 한글 | [Bahasa Indonesia](./README_ID.md)] | [Русский](./README_translations/README_RU.md)]
 
 ### Hub는 무엇인가요?
 
