@@ -3,7 +3,7 @@ numpy>=1.17, <2
 requests>=2, <3
 fsspec>=0.8, <1
 gcsfs>=0.6.2, <0.7  # newer versions fail tests #97
-s3fs==0.4.2, <0.5.2  # newer versions require Python 3.7+
+s3fs==0.5.2  # newer versions require Python 3.7+
 boto3==1.17.30
 lz4>=3, <4
 zarr>=2.4, <2.7
