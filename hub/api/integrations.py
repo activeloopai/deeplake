@@ -143,7 +143,7 @@ def _from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     return my_transform(dataset)
 
 
-def _to_tensorflow(dataset, indexes=None, include_shapes=False):
+def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
     """| Converts the dataset into a tensorflow compatible format
 
     Parameters
@@ -160,12 +160,15 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         global tf
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("tensorflow")
-
+    key_list = key_list or list(dataset.keys)
+    key_list = [key if key.startswith("/") else "/" + key for key in key_list]
+    for key in key_list:
+        if key not in dataset.keys:
+            raise KeyError()
     indexes = indexes or dataset.indexes
     indexes = [indexes] if isinstance(indexes, int) else indexes
     _samples_in_chunks = {
-        key: (None in value.shape) and 1 or value.chunks[0]
-        for key, value in dataset._tensors.items()
+        key: value.chunks[0] for key, value in dataset._tensors.items()
     }
     _active_chunks = {}
     _active_chunks_range = {}
@@ -176,7 +179,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         if active_range is None or index not in active_range:
             active_range_start = index - index % samples_per_chunk
             active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
+                active_range_start,
+                min(active_range_start + samples_per_chunk, indexes[-1] + 1),
             )
             _active_chunks_range[key] = active_range
             _active_chunks[key] = dataset._tensors[key][
@@ -185,11 +189,13 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         return _active_chunks[key][index % samples_per_chunk]
 
     def tf_gen():
+        key_dtype_map = {key: dataset[key, indexes[0]].dtype for key in dataset.keys}
         for index in indexes:
             d = {}
             for key in dataset.keys:
-                split_key = key.split("/")
-                cur = d
+                if key not in key_list:
+                    continue
+                split_key, cur = key.split("/"), d
                 for i in range(1, len(split_key) - 1):
                     if split_key[i] in cur.keys():
                         cur = cur[split_key[i]]
@@ -197,20 +203,36 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
                         cur[split_key[i]] = {}
                         cur = cur[split_key[i]]
                 cur[split_key[-1]] = _get_active_item(key, index)
+                if isinstance(key_dtype_map[key], Text):
+                    value = cur[split_key[-1]]
+                    cur[split_key[-1]] = (
+                        "".join(chr(it) for it in value.tolist())
+                        if value.ndim == 1
+                        else ["".join(chr(it) for it in val.tolist()) for val in value]
+                    )
+
             yield (d)
 
-    def dict_to_tf(my_dtype):
+    def dict_to_tf(my_dtype, path=""):
         d = {}
         for k, v in my_dtype.dict_.items():
-            d[k] = dtype_to_tf(v)
+            for key in key_list:
+                if key.startswith(path + "/" + k):
+                    d[k] = dtype_to_tf(v, path + "/" + k)
+                    break
         return d
 
     def tensor_to_tf(my_dtype):
         return dtype_to_tf(my_dtype.dtype)
 
-    def dtype_to_tf(my_dtype):
+    def text_to_tf(my_dtype):
+        return "string"
+
+    def dtype_to_tf(my_dtype, path=""):
         if isinstance(my_dtype, SchemaDict):
-            return dict_to_tf(my_dtype)
+            return dict_to_tf(my_dtype, path=path)
+        elif isinstance(my_dtype, Text):
+            return text_to_tf(my_dtype)
         elif isinstance(my_dtype, Tensor):
             return tensor_to_tf(my_dtype)
         elif isinstance(my_dtype, Primitive):
@@ -218,18 +240,21 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
                 return "string"
             return str(my_dtype._dtype)
 
-    def get_output_shapes(my_dtype):
+    def get_output_shapes(my_dtype, path=""):
         if isinstance(my_dtype, SchemaDict):
-            return output_shapes_from_dict(my_dtype)
+            return output_shapes_from_dict(my_dtype, path=path)
+        elif isinstance(my_dtype, (Text, Primitive)):
+            return ()
         elif isinstance(my_dtype, Tensor):
             return my_dtype.shape
-        elif isinstance(my_dtype, Primitive):
-            return ()
 
-    def output_shapes_from_dict(my_dtype):
+    def output_shapes_from_dict(my_dtype, path=""):
         d = {}
         for k, v in my_dtype.dict_.items():
-            d[k] = get_output_shapes(v)
+            for key in key_list:
+                if key.startswith(path + "/" + k):
+                    d[k] = get_output_shapes(v, path + "/" + k)
+                    break
         return d
 
     output_types = dtype_to_tf(dataset._schema)

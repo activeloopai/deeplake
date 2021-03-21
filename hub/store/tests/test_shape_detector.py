@@ -6,6 +6,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 from hub.exceptions import HubException
 from hub.store.shape_detector import ShapeDetector
+import pytest
 
 
 def test_shape_detector():
@@ -21,23 +22,25 @@ def test_shape_detector_2():
 
 
 def test_shape_detector_wrong_shape():
-    try:
+    with pytest.raises(HubException):
         ShapeDetector((10, 10, 10), (10, 10, 20))
-    except HubException:
-        return
 
 
 def test_shape_detector_wrong_shape_2():
-    try:
+    with pytest.raises(AssertionError):
         ShapeDetector((10, 10, 10), 20)
-    except AssertionError:
-        return
-    assert False
 
 
 def test_shape_detector_wrong_shape_3():
-    try:
+    with pytest.raises(HubException):
         ShapeDetector((10, 10, None), (10, 10, None))
-    except HubException:
-        return
-    assert False
+
+
+def test_shape_detector_wrong_chunk_shape():
+    with pytest.raises(Exception):
+        ShapeDetector((10, 10, 10), (10, 10, 10), (10, 10))
+
+
+def test_shape_detector_wrong_chunk_value():
+    with pytest.raises(Exception):
+        ShapeDetector((10, 10, 10), (10, 10, 10), (2, 10, 10))
