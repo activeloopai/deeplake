@@ -220,7 +220,7 @@ class Transform:
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
     ):
-        """Helper function to creat a dataset"""
+        """Helper function to create a dataset"""
         shape = (length,)
         ds = Dataset(
             url,
@@ -252,22 +252,34 @@ class Transform:
         ds: hub.Dataset
             Uploaded dataset
         """
-
+        offset = ds.indexes[
+            0
+        ]  # here ds.indexes will always be a contiguous list as obtained after slicing
         for key, value in results.items():
-
             chunk = ds[key].chunksize[0]
             chunk = 1 if chunk == 0 else chunk
             value = get_value(value)
             value = str_to_int(value, ds.dataset.tokenizer)
 
-            num_chunks = math.ceil(len(value) / (chunk * self.workers))
-            length = num_chunks * chunk if self.workers != 1 else len(value)
-            batched_values = batchify(value, length)
+            num_chunks = len(value) / (chunk * self.workers)
+            num_chunks = (
+                1 + int(num_chunks) if num_chunks != int(num_chunks) else num_chunks
+            )
+            length = int(num_chunks * chunk) if self.workers != 1 else len(value)
+            batched_values = (
+                batchify(value, length, length + ((chunk - (offset % chunk))) % chunk)
+                if length != len(value)
+                else batchify(value, length)
+            )
+            len_batches = [len(item) for item in batched_values]
 
             def upload_chunk(i_batch):
                 i, batch = i_batch
                 length = len(batch)
-                slice_ = slice(i * length, (i + 1) * length)
+                cur_offset = 0
+                for it in range(i):
+                    cur_offset += len_batches[it]
+                slice_ = slice(cur_offset, cur_offset + length)
                 ds[key, slice_] = batch
 
             index_batched_values = list(
@@ -276,10 +288,7 @@ class Transform:
 
             # Disable dynamic arrays
             ds.dataset._tensors[f"/{key}"].disable_dynamicness()
-            list(self.map(upload_chunk, index_batched_values))
-            offset = ds.indexes[
-                0
-            ]  # here ds.indexes will always be a contiguous list as obtained after slicing
+            list(map(upload_chunk, index_batched_values))
 
             # Enable and rewrite shapes
             if ds.dataset._tensors[f"/{key}"].is_dynamic:
@@ -378,7 +387,7 @@ class Transform:
         url: str
             path where the data is going to be stored
         token: str or dict, optional
-            If url is refering to a place where authorization is required,
+            If url is referring to a place where authorization is required,
             token is the parameter to pass the credentials, it can be filepath or dict
         length: int
             in case shape is None, user can provide length

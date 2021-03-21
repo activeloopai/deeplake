@@ -98,6 +98,10 @@ hub_reporter = Reporter(
 hub_version_tag = "version:{}".format(hub_version)
 hub_tags = [hub_version_tag]
 
+hub_user = get_reporting_config().get("username")
+if hub_user is not None:
+    hub_tags.append("username:{}".format(hub_user))
+
 
 class ExceptionWithReporting(Exception):
     def __init__(self, *args, **kwargs):
