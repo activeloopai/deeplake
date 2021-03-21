@@ -250,7 +250,7 @@ class DatasetView:
     def __repr__(self):
         return self.__str__()
 
-    def to_tensorflow(self, include_shapes=False):
+    def to_tensorflow(self, include_shapes=False, key_list=None):
         """|Converts the dataset into a tensorflow compatible format
 
         Parameters
@@ -258,10 +258,13 @@ class DatasetView:
         include_shapes: boolean, optional
             False by deefault. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
+        key_list: list, optional
+            The list of keys that are needed in tensorflow format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
 
         return self.dataset.to_tensorflow(
-            indexes=self.indexes, include_shapes=include_shapes
+            indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
     def to_pytorch(

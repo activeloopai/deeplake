@@ -86,7 +86,7 @@ def test_dynamic_tensor_2():
     t[0, 6] = 2 * np.ones((20,), dtype="int32")
     assert t[0, 5, :].tolist() == [1] * 10 + [0] * 10
     assert t.get_shape(0).tolist() == [10, 20]
-    assert t.get_shape(slice(0, 1)).tolist() == [1, 10, 20]
+    assert t.get_shape(slice(0, 1)).tolist() == [[10, 20]]
 
 
 def test_dynamic_tensor_3():
