@@ -14,3 +14,4 @@ humbug>=0.1.6, <0.2
 Pillow>=6
 msgpack>=0.6
 psutil>=5.8  # needed only for deprecated code
+cachey>=0.2.1 # needed only for deprecated code
