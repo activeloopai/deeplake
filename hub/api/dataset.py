@@ -48,7 +48,6 @@ import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
-from hub import auto
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
@@ -141,7 +140,6 @@ class Dataset:
 
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
-
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
@@ -999,7 +997,152 @@ class Dataset:
         return ds
 
     @staticmethod
-    def from_path(path, scheduler="single", workers=1):
-        # infer schema & get data (label -> input mapping with file refs)
-        ds = auto.infer_dataset(path, scheduler=scheduler, workers=workers)
+    def from_directory(
+        path_to_dir,
+        labels=None,
+        dtype="uint8",
+        scheduler: str = "single",
+        workers: int = 1,
+    ):
+        """|  This utility function is specific to create dataset from the categorical image dataset to easy use for the categorical image usecase.
+
+        Parameters
+        --------
+            path_to_dir:str
+            path of the directory where the image dataset root folder exists.
+
+            labels:list
+            passed a list of class names
+
+            dtype:str
+            datatype of the images can be defined by user.Default uint8.
+
+            scheduler: str
+            choice between "single", "threaded", "processed"
+
+            workers: int
+            how many threads or processes to use
+
+
+        ---------
+        Returns A dataset object for user use and to store a defined path.
+
+        >>>ds = Dataset.from_directory('path/test')
+        >>>ds.store('store_here')
+        """
+
+        def get_max_shape(path_to_dir):
+            """| get_max_shape from  the images.
+
+            -------
+            path_to_dir:str path to the root directory
+
+            -------
+            return the maximum shape of the image
+
+            -------
+
+            """
+            try:
+
+                for i in os.listdir(path_to_dir):
+                    for j in os.listdir(os.path.join(path_to_dir, i)):
+
+                        if j.endswith((".png", ".jpg", ".jpeg", ".tiff", ".bmp")):
+                            img_path = os.path.join(path_to_dir, i, j)
+                        else:
+                            print(
+                                f"{os.path.join(path_to_dir,i,j)} is a non image file please remove it to execute...."
+                            )
+
+                        image = im.open(img_path)
+
+                        width = set()
+                        height = set()
+                        mode = set()
+
+                        detail = list(image.size)
+
+                        width.add(detail[0])
+                        height.add(detail[1])
+
+                        if image.mode == "RGB":
+                            mode.add(3)
+                        elif image.mode == "RGBA":
+                            mode.add(4)
+                        elif image.mode == "LA":
+                            mode.add(2)
+                        else:
+                            mode.add(1)
+
+                max_shape = [max(width), max(height), max(mode)]
+                return max_shape
+            except Exception:
+                print("check your data for fix")
+
+        def make_schema(path_to_dir, labels, dtype):
+            """| make_schema internal function to generate the schema internally."""
+            max_shape = get_max_shape(path_to_dir)
+            image_shape = (None, None, None)
+            if labels is None:
+                labels = ClassLabel(names=os.listdir(path_to_dir))
+            else:
+                labels = ClassLabel(labels)
+            schema = {
+                "label": labels,
+                "image": Tensor(
+                    shape=image_shape,
+                    max_shape=max_shape,
+                    dtype=dtype,
+                ),
+            }
+
+            return schema
+
+        schema = make_schema(path_to_dir, labels, dtype)
+
+        if labels is not None:
+
+            label_dic = {}
+            for i, label in enumerate(labels):
+                label_dic[label] = i
+        else:
+            labels_v = os.listdir(path_to_dir)
+            label_dic = {}
+            for i, label in enumerate(labels_v):
+                label_dic[label] = i
+
+        @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+        def upload_data(sample):
+            """| This upload_data function is for upload the images internally using `hub.transform`."""
+
+            path_to_image = sample[1]
+
+            pre_image = im.open(path_to_image)
+            image = np.asarray(pre_image)
+            image = image.astype(sample[2])
+            image_shape = get_max_shape(path_to_dir)
+
+            if pre_image.mode == "RGB":
+                image = np.resize(image, (*image_shape[:2], 3))
+            elif pre_image.mode == "RGBA":
+                image = np.resize(image, (*image_shape[:2], 4))
+            elif pre_image.mode == "LA":
+                image = np.resize(image, (*image_shape[:2], 2))
+            else:
+                image = np.resize(image, (*image_shape[:2], 1))
+
+            return {"label": label_dic[sample[0]], "image": image}
+
+        images = []
+        labels_list = []
+        dataype = []
+        for i in os.listdir(path_to_dir):
+            for j in os.listdir(os.path.join(path_to_dir, i)):
+                image = os.path.join(path_to_dir, i, j)
+                images.append(image)
+                labels_list.append(i)
+                dataype.append(dtype)
+
+        ds = upload_data(zip(labels_list, images, dataype))
         return ds

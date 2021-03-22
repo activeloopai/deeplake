@@ -4,27 +4,27 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-import os
-import pickle
-import shutil
-
-import cloudpickle
-import hub.api.dataset as dataset
-import numpy as np
-import pytest
-from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.schema.class_label import ClassLabel
+import os
+import shutil
+import cloudpickle
+import pickle
 from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException
-from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
-from hub.schema.class_label import ClassLabel
+import numpy as np
+import pytest
+from hub import transform
+from hub import load
+import hub.api.dataset as dataset
+from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict, ClassLabel
 from hub.utils import (
-    azure_creds_exist,
     gcp_creds_exist,
     hub_creds_exist,
-    minio_creds_exist,
     s3_creds_exist,
+    azure_creds_exist,
     transformers_loaded,
+    minio_creds_exist,
 )
 
 Dataset = dataset.Dataset
@@ -481,6 +481,57 @@ def test_text_dataset():
     ds2 = Dataset("./data/test/testing_text_2", mode="w", schema=schema2, shape=(10,))
     ds2[0:5, "id"] = ["abcd", "efgh", "ijkl", "mnop", "qrst"]
     assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
+
+
+def test_dataset_from_directory():
+    def create_image(path_to_direcotry):
+        from PIL import Image
+
+        shape = (512, 512, 3)
+        for i in range(10):
+            img = np.ones(shape, dtype="uint8")
+            img = Image.fromarray(img)
+            img.save(os.path.join(path_to_direcotry, str(i) + ".png"))
+
+    def data_in_dir(path_to_direcotry):
+        if os.path.exists(path_to_direcotry):
+            create_image(path_to_direcotry)
+        else:
+            os.mkdir(os.path.join(path_to_direcotry))
+            create_image(path_to_direcotry)
+
+    def root_dir_image(root):
+        if os.path.exists(root):
+            import shutil
+
+            shutil.rmtree(root)
+        os.mkdir(root)
+        for i in range(10):
+            dir_name = "data_" + str(i)
+            data_in_dir(os.path.join(root, dir_name))
+
+    def del_data(*path_to_dir):
+        for i in path_to_dir:
+            import shutil
+
+            shutil.rmtree(i)
+
+    root_url = "./data/categorical_label_data"
+    store_url = "./data/categorical_label_data_store"
+
+    root_dir_image(root_url)
+
+    ds = Dataset.from_directory(root_url)
+    ds.store(store_url)
+
+    ds = load(store_url)
+
+    labels = ClassLabel(names=os.listdir(root_url))
+    label = os.listdir(root_url)
+
+    assert ds["image", 0].compute().shape == (512, 512, 3)
+    assert ds["label", 0].compute() == labels.str2int(label[0])
+    del_data(root_url, store_url)
 
 
 @pytest.mark.skipif(

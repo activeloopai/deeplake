@@ -1,7 +1,6 @@
 # pytest-cov #
 ##############
 
-PYTEST_TMPDIR
 .coverage
 .coverage.*
 htmlcov
@@ -44,7 +43,6 @@ dask-worker-space/
 *.sql
 *.sqlite
 data/
-**/dummy_data/**/hub/
 
 # OS generated files #
 ######################
