@@ -20,6 +20,10 @@ class ClassLabel(Tensor):
     | There are 3 ways to define a ClassLabel, which correspond to the 3 arguments:
            Note: In python2, the strings are encoded as utf-8.
 
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import ClassLabel
+
     | 1. `num_classes`: create 0 to (num_classes-1) labels using ClassLabel(num_classes=`number of classes`)
 
     ----------

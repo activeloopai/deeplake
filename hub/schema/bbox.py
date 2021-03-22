@@ -18,8 +18,11 @@ class BBox(Tensor):
     Example: This example uploads a dataset with a Bounding box schema and retrieves it.
 
     ----------
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import BBox
     >>> from numpy import asarray
-    >>>
+
     >>> tag = "username/dataset"
     >>>
     >>> # Create dataset

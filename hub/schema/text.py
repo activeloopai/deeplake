@@ -21,6 +21,10 @@ class Text(Tensor):
 
     For data with fixed `shape`
     ----------
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import Text
+
     >>> tag = "username/dataset"
     >>>
     >>> # Create dataset

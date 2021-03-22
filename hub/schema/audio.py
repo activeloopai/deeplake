@@ -16,10 +16,13 @@ class Audio(Tensor):
     Example: This example uploads an `audio file` to a Hub dataset `audio_dataset` with `HubSchema` and retrieves it.
 
     ----------
-    >>> import numpy as np
+    >>> import hub
+    >>> from hub.schema import Audio
+    >>> from hub import transform, schema
     >>> import librosa
     >>> from librosa import display
-    >>>
+    >>> import numpy as np
+
     >>> # Define schema
     >>> my_schema={
     >>>     "wav": Audio(shape=(None,), max_shape=(1920000,), file_format="wav", dtype=float),

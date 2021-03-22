@@ -20,8 +20,11 @@ class Image(Tensor):
     Example: This example uploads an `image` to a Hub dataset `image_dataset` with `HubSchema` and retrieves it.
 
     ----------
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import Image
     >>> from numpy import asarray
-    >>>
+
     >>> tag = "username/image_dataset"
     >>>
     >>> # Create dataset
