@@ -24,11 +24,6 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
     except Exception:
         assert False
 
-    # try:
-    #     ds = hub.Dataset(tag)
-    # except Exception:
-    #     assert False
-
     print("dataset obj:", ds)
     assert ds is not None
 
@@ -49,7 +44,6 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
 
 def test_class_sample_single_csv():
     tag = "tabular/single_csv"
-    # tag = "dhiganthrao/single-csv"
     assert_conversion(
         tag, dataset_shape=(8333,), max_review_shape=13704, max_filename_shape=14
     )
@@ -57,7 +51,6 @@ def test_class_sample_single_csv():
 
 def test_class_sample_multiple_csv():
     tag = "tabular/multiple_csv"
-    # tag = "dhiganthrao/multiple-csv"
     assert_conversion(
         tag, dataset_shape=(25000,), max_review_shape=13704, max_filename_shape=14
     )

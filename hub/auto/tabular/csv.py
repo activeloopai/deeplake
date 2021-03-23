@@ -12,7 +12,7 @@ from hub.auto.infer import state
 @state.directory_parser(priority=1)
 def data_from_csv(path, scheduler, workers):
 
-    # check if children's contents are all csv files
+    # check if path's contents are all csv files
     if not util.files_are_of_extension(path, util.CSV_EXTS):
         return None
 
