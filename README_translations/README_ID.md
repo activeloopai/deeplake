@@ -31,7 +31,7 @@
 
 ---
 
-[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | Bahasa Indonesia ]
+[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | Bahasa Indonesia ] | [Русский](./README_translations/README_RU.md)]
 
 <i>Perhatian: translasi ini mungkin bukan berasal dari dokumen yang paling baru</i>
 
