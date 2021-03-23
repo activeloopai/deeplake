@@ -28,6 +28,15 @@ Supports `[.png, .jpg, .jpeg]` file extensions.
                 - ...
             - ...
 
+#### Tabular Data
+Supports `.csv` file formats.
+
+Expects the folder path to point to a directory where the folder structure is the following:
+- Your folder
+  - file1.csv
+  - file2.csv
+
+You can have a single `.csv` file if you wish.
 ## Auto Usage
 If your dataset is supported (see [above](#supported-dataset-formats)), you can convert it into hub format with a single line of code:
 
