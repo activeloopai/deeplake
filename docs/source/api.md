@@ -53,12 +53,6 @@
 ```
 
 ## Schema
-### Serialization
-```eval_rst
-.. automodule:: hub.schema.serialize
-   :members:
-``` 
-### Schema
 ```eval_rst
 .. autoclass:: hub.schema.audio.Audio
    :members:
