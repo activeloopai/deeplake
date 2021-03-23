@@ -5,6 +5,7 @@ from PIL import Image
 
 IGNORE_EXTS = [".DS_Store"]
 IMAGE_EXTS = [".jpg", ".png", ".jpeg"]
+CSV_EXTS = [".csv"]
 
 
 class DirectoryParserState:

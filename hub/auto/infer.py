@@ -35,6 +35,8 @@ def _find_root(path):
     subs = [
         sub for sub in subs if os.path.isdir(sub)
     ]  # only keep directories (ignore files)
+    if len(subs) == 0:
+        return path
     if len(subs) > 1:
         return path
     return _find_root(subs[0])
