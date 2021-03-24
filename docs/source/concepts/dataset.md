@@ -31,7 +31,7 @@ Supports `[.png, .jpg, .jpeg]` file extensions.
 #### Tabular
 | Dataset Link |  Example Notebook  |
 |:---   |---:   |
-| [IMDb Movie Reviews (Kaggle)](https://www.kaggle.com/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews) |  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1gz01A1dn6YRFk8kBIEyncHSscz0pey8_?usp=sharing) |
+| [IMDb Movie Reviews (Kaggle)](https://www.kaggle.com/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews) |  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1a5HBelRGmKAxMqm6xK17qKCHvuJxCpHe?usp=sharing) |
 
 Supports `.csv` file formats.
 
