@@ -1,5 +1,6 @@
 click>=6.7, <8
 numpy>=1.17, <2
+pandas>=1.2.3  # hub.auto package uses pandas
 requests>=2, <3
 fsspec>=0.8, <1
 gcsfs>=0.6.2, <0.7  # newer versions fail tests #97
