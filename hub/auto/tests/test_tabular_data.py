@@ -27,7 +27,7 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
     print("dataset obj:", ds)
     assert ds is not None
 
-    # assert hub_dir.is_dir(), hub_dir
+    assert hub_dir.is_dir(), hub_dir
 
     if dataset_shape is not None:
         assert dataset_shape == ds.shape
