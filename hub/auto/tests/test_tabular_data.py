@@ -47,7 +47,7 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
 def test_class_sample_single_csv():
     tag = "tabular/single_csv"
     assert_conversion(
-        tag, dataset_shape=(8333,), max_review_shape=13704, max_filename_shape=14
+        tag, dataset_shape=(7,), max_review_shape=13704, max_filename_shape=14
     )
 
 
