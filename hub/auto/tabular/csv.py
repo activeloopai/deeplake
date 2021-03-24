@@ -41,13 +41,12 @@ def data_from_csv(path, scheduler, workers):
         #         schema[keys] = hub.schema.Primitive(dtype=schema[keys])
         else:
             schema[keys] = hub.schema.Primitive(dtype=schema[keys])
-    # print(f"Your schema is: {schema}")
 
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
-    def csv_data(index, df):
+    def upload_data(index, df):
         dictionary_cols = {}
         for column in df.columns:
             dictionary_cols[column] = df[column].iloc[index]
         return dictionary_cols
 
-    return csv_data(range(len(df)), df=df)
+    return upload_data(range(len(df)), df=df)

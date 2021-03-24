@@ -28,15 +28,19 @@ Supports `[.png, .jpg, .jpeg]` file extensions.
                 - ...
             - ...
 
-#### Tabular Data
+#### Tabular
+| Dataset Link |  Example Notebook  |
+|:---   |---:   |
+| [IMDb Movie Reviews (Kaggle)](https://www.kaggle.com/lakshmi25npathi/imdb-dataset-of-50k-movie-reviews) |  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1gz01A1dn6YRFk8kBIEyncHSscz0pey8_?usp=sharing) |
+
 Supports `.csv` file formats.
 
 Expects the folder path to point to a directory where the folder structure is the following:
-- Your folder
+- root
   - file1.csv
   - file2.csv
+  - ...
 
-You can have a single `.csv` file if you wish.
 ## Auto Usage
 If your dataset is supported (see [above](#supported-dataset-formats)), you can convert it into hub format with a single line of code:
 
