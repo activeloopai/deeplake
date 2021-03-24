@@ -6,7 +6,9 @@ from pathlib import PosixPath
 
 import hub
 import numpy as np
+import pytest
 from hub.auto.tests.util import get_dataset_store
+from hub.utils import pandas_loaded
 
 
 def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
@@ -36,12 +38,12 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
         actual_max_review_shape = np.max(ds["Review"].shape)
         assert max_review_shape == actual_max_review_shape
 
-    # validate image max shape (this is for when not all images are the same shape)
     if max_filename_shape is not None:
         actual_max_filename_shape = np.max(ds["Filename"].shape)
-        assert max_review_shape == actual_max_review_shape
+        assert max_filename_shape == actual_max_filename_shape
 
 
+@pytest.mark.skipif(not pandas_loaded(), reason="requires pandas to be loaded")
 def test_class_sample_single_csv():
     tag = "tabular/single_csv"
     assert_conversion(
@@ -49,6 +51,7 @@ def test_class_sample_single_csv():
     )
 
 
+@pytest.mark.skipif(not pandas_loaded(), reason="requires pandas to be loaded")
 def test_class_sample_multiple_csv():
     tag = "tabular/multiple_csv"
     assert_conversion(

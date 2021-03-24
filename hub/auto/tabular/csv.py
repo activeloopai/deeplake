@@ -1,16 +1,19 @@
 import os
-from tqdm import tqdm
-import numpy as np
-import pandas as pd
 
 import hub
-
+import numpy as np
 from hub.auto import util
 from hub.auto.infer import state
+from hub.exceptions import ModuleNotInstalledException
+from tqdm import tqdm
 
 
 @state.directory_parser(priority=1)
 def data_from_csv(path, scheduler, workers):
+    try:
+        import pandas as pd
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("pandas")
 
     # check if path's contents are all csv files
     if not util.files_are_of_extension(path, util.CSV_EXTS):
