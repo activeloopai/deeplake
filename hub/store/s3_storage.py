@@ -25,9 +25,9 @@ class S3Storage(MutableMapping):
         aws_access_key_id=None,
         aws_secret_access_key=None,
         aws_session_token=None,
-        aws_region=None,
         parallel=25,
         endpoint_url=None,
+        aws_region=None,
     ):
         self.s3fs = s3fs
         self.root = {}
