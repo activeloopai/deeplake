@@ -25,6 +25,7 @@ class S3Storage(MutableMapping):
         aws_access_key_id=None,
         aws_secret_access_key=None,
         aws_session_token=None,
+        aws_region=None,
         parallel=25,
         endpoint_url=None,
     ):
@@ -33,6 +34,7 @@ class S3Storage(MutableMapping):
         self.url = url
         self.public = public
         self.parallel = parallel
+        self.aws_region = aws_region
         self.endpoint_url = endpoint_url
         self.bucket = url.split("/")[2]
         self.path = "/".join(url.split("/")[3:])
@@ -54,6 +56,7 @@ class S3Storage(MutableMapping):
             aws_session_token=aws_session_token,
             config=client_config,
             endpoint_url=endpoint_url,
+            region_name=aws_region,
         )
 
         self.resource = boto3.resource(
@@ -63,6 +66,7 @@ class S3Storage(MutableMapping):
             aws_session_token=aws_session_token,
             config=client_config,
             endpoint_url=endpoint_url,
+            region_name=aws_region,
         )
 
     def __setitem__(self, path, content):
