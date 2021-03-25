@@ -4,6 +4,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
+from typing import Iterable
 from hub.utils import _tuple_product
 from hub.api.tensorview import TensorView
 import collections.abc as abc
@@ -13,9 +14,9 @@ from hub.api.dataset_utils import (
     slice_split,
     str_to_int,
 )
-from hub.exceptions import NoneValueException
+from hub.exceptions import NoneValueException, ClassLabelValueError
 from hub.api.objectview import ObjectView
-from hub.schema import Sequence
+from hub.schema import Sequence, ClassLabel
 import numpy as np
 
 
@@ -143,6 +144,28 @@ class DatasetView:
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
+
+        subpath_type = self.dataset.schema.dict_[subpath.replace("/", "")]
+        if isinstance(subpath_type, ClassLabel):
+            if not isinstance(value, Iterable) or isinstance(value, str):
+                assign_class_labels = [value]
+            else:
+                assign_class_labels = value
+            for assign_class_label in assign_class_labels:
+                if assign_class_label.isdigit():
+                    assign_class_label = int(assign_class_label)
+                if (
+                    isinstance(assign_class_label, str)
+                    and assign_class_label not in subpath_type.names
+                ):
+                    raise ClassLabelValueError(subpath_type.names, assign_class_label)
+                elif (
+                    isinstance(assign_class_label, int)
+                    and assign_class_label >= subpath_type.num_classes
+                ):
+                    raise ClassLabelValueError(
+                        range(subpath_type.num_classes - 1), assign_class_label
+                    )
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without key")

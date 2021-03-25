@@ -14,6 +14,7 @@ import traceback
 from collections import defaultdict
 import numpy as np
 from PIL import Image as im, ImageChops
+from typing import Iterable
 
 import fsspec
 from fsspec.spec import AbstractFileSystem
@@ -63,6 +64,7 @@ from hub.exceptions import (
     VersioningNotSupportedException,
     WrongUsernameException,
     InvalidVersionInfoException,
+    ClassLabelValueError,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -629,6 +631,27 @@ class Dataset:
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
 
+        subpath_type = self.schema.dict_[subpath.replace("/", "")]
+        if isinstance(subpath_type, ClassLabel):
+            if not isinstance(value, Iterable) or isinstance(value, str):
+                assign_class_labels = [value]
+            else:
+                assign_class_labels = value
+            for assign_class_label in assign_class_labels:
+                if assign_class_label.isdigit():
+                    assign_class_label = int(assign_class_label)
+                if (
+                    isinstance(assign_class_label, str)
+                    and assign_class_label not in subpath_type.names
+                ):
+                    raise ClassLabelValueError(subpath_type.names, assign_class_label)
+                elif (
+                    isinstance(assign_class_label, int)
+                    and assign_class_label >= subpath_type.num_classes
+                ):
+                    raise ClassLabelValueError(
+                        range(subpath_type.num_classes - 1), assign_class_label
+                    )
         if not slice_list:
             self._tensors[subpath][:] = assign_value
         else:
