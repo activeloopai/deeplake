@@ -8,12 +8,12 @@ import hub
 import numpy as np
 import pytest
 from hub.auto.tests.util import get_dataset_store
-import pandas as pd
 from hub.utils import pandas_loaded
 from hub.auto.util import get_children
 
 
 def assert_conversion(tag):
+    import pandas as pd
 
     dataset_store = get_dataset_store(tag)
     hub_dir = dataset_store / "hub"
