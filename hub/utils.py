@@ -159,13 +159,15 @@ def compute_lcm(a):
     return int(lcm)
 
 
-def batchify(iterable, n=1):
+def batchify(iterable, n=1, initial=None):
     """
     Batchify an iteratable
     """
     ls = len(iterable)
     batches = []
-    for ndx in range(0, ls, n):
+    initial = initial or n
+    batches.append(iterable[0 : min(initial, ls)])
+    for ndx in range(initial, ls, n):
         batches.append(iterable[ndx : min(ndx + n, ls)])
     return batches
 

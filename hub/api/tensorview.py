@@ -80,13 +80,6 @@ class TensorView:
             instead of the label encoded integers, otherwise this parameter is ignored.
         """
         if isinstance(self.indexes, list):
-            if (
-                len(self.indexes) > 1
-                and self.dataset._tensors[self.subpath]._dynamic_tensor
-            ):
-                raise ValueError(
-                    "Getting item across multiitem slices is not supported for tensors with dynamic shapes, access them item by item"
-                )
             value = np.array(
                 [
                     self.dataset._tensors[self.subpath][[index] + self.slice_[1:]]
