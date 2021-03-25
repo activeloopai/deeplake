@@ -8,10 +8,12 @@ import hub
 import numpy as np
 import pytest
 from hub.auto.tests.util import get_dataset_store
+import pandas as pd
 from hub.utils import pandas_loaded
+from hub.auto.util import get_children
 
 
-def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
+def assert_conversion(tag):
 
     dataset_store = get_dataset_store(tag)
     hub_dir = dataset_store / "hub"
@@ -20,6 +22,13 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
     if hub_dir.is_dir():
         print("hub_dir was found (%s), deleting..." % hub_dir)
         shutil.rmtree(hub_dir)
+
+    df = pd.DataFrame()
+    files = get_children(dataset_store)
+    for i in files:
+        df_csv = pd.read_csv(i)
+        df_csv["Filename"] = os.path.basename(i)
+        df = pd.concat([df, df_csv])
 
     try:
         ds = hub.Dataset.from_path(str(dataset_store))
@@ -31,29 +40,48 @@ def assert_conversion(tag, dataset_shape, max_review_shape, max_filename_shape):
 
     assert hub_dir.is_dir(), hub_dir
 
-    if dataset_shape is not None:
-        assert dataset_shape == ds.shape
+    # df = Pandas dataframe, ds = Dataset obtained from hub.auto
+    if df is not None:
+        assert ds.shape == (df.shape[0],)
 
-    if max_review_shape is not None:
-        actual_max_review_shape = np.max(ds["Review"].shape)
-        assert max_review_shape == actual_max_review_shape
+    # Checking if the column names are the same
+    keys_csv_parser = [i[1:] for i in ds.keys]
+    keys_df = list(df.columns)
+    assert keys_csv_parser == keys_df
 
-    if max_filename_shape is not None:
-        actual_max_filename_shape = np.max(ds["Filename"].shape)
-        assert max_filename_shape == actual_max_filename_shape
+    # Checking if all elements are parsed correctly
+    for i in keys_df:
+        column = []
+        if df[i].dtype == np.dtype("O"):
+            for j in range(df.shape[0]):
+                column.append(ds[i, j].compute())
+        else:
+            column = ds[i].compute()
+        assert list(column) == list(df[i])
+
+    # Checking if the datatypes of the columns match
+    for i in keys_csv_parser:
+        if df[i].dtype == np.dtype("O"):
+            assert ds[i].dtype == np.dtype("int64")
+        else:
+            assert ds[i].dtype == df[i].dtype
+
+    # Checking if all the filenames are parsed correctly
+    list_names = []
+    for i in range(len(ds)):
+        if ds["Filename", i].compute() in list_names:
+            continue
+        list_names.append(ds["Filename", i].compute())
+    assert list(df["Filename"].unique()) == list_names
 
 
 @pytest.mark.skipif(not pandas_loaded(), reason="requires pandas to be loaded")
 def test_class_sample_single_csv():
     tag = "tabular/single_csv"
-    assert_conversion(
-        tag, dataset_shape=(7,), max_review_shape=13704, max_filename_shape=14
-    )
+    assert_conversion(tag)
 
 
 @pytest.mark.skipif(not pandas_loaded(), reason="requires pandas to be loaded")
 def test_class_sample_multiple_csv():
     tag = "tabular/multiple_csv"
-    assert_conversion(
-        tag, dataset_shape=(25000,), max_review_shape=13704, max_filename_shape=14
-    )
+    assert_conversion(tag)
