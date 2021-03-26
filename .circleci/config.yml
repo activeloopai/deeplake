@@ -40,7 +40,7 @@ workflows:
   test-and-deploy:
     jobs:
       - test:
-          name: "Linux Simple Test"
+          name: test-simple
           e: linux
           context:
             - test
@@ -51,7 +51,7 @@ workflows:
             branches:
               ignore: /.*/
       - test:
-          name: "Linux Complex Test"
+          name: test-complex
           e: linux
           optional: true
           context:
@@ -75,7 +75,9 @@ workflows:
             - verify
   conda-deploy:
     jobs:
-      - conda
+      - conda:
+          context:
+            - conda
 
 
 executors:
