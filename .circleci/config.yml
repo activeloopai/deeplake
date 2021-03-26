@@ -73,12 +73,11 @@ workflows:
             - snark-docker
           requires:
             - verify
-  conda-deploy:
-    jobs:
       - conda:
           context:
             - conda
-
+          requires:
+            - deploy
 
 executors:
   linux:
@@ -232,8 +231,9 @@ commands:
   conda-build:
     steps:
       - run:
-          name: "Build Hub"
+          name: "Build Hub for conda"
           command: |
+            pip install -e .
             export HUB_VERSION=$(awk -F'=' '/^__version__/ { print $2}' $HOME/project/hub/version.py | tr -d ' "')
             conda build .
 jobs:
@@ -322,3 +322,4 @@ jobs:
       - conda-install
       - conda-setup
       - conda-build
+      - slack-status
