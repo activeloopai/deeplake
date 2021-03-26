@@ -318,7 +318,6 @@ jobs:
     executor: linux
     environment:
       MINICONDA: $HOME/miniconda
-      PATH: $MINICONDA/bin:$PATH
     steps:
       - checkout
       - conda-install
