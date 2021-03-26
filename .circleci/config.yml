@@ -234,8 +234,8 @@ commands:
       - run:
           name: "Build Hub"
           command: |
-            export HUB_VERSION=$(awk -F' = ' '/^__version__/ { print $2}' $HOME/project/hub/version.py)
-            conda build project
+            export HUB_VERSION=$(awk -F'=' '/^__version__/ { print $2}' $HOME/project/hub/version.py | tr -d ' "')
+            conda build .
 jobs:
   test:
     parameters:
