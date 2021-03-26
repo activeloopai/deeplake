@@ -220,6 +220,7 @@ commands:
             curl -O https://repo.anaconda.com/miniconda/Miniconda3-py38_4.9.2-Linux-x86_64.sh
             echo "1314b90489f154602fd794accfc90446111514a5a72fe1f71ab83e07de9504a7 Miniconda3-py38_4.9.2-Linux-x86_64.sh" | sha256sum -c
             bash Miniconda3-py38_4.9.2-Linux-x86_64.sh -b
+            echo 'export PATH=$HOME/miniconda3/bin:$PATH' >> $BASH_ENV
   conda-setup:
     steps:
       - run:
@@ -316,8 +317,6 @@ jobs:
       - slack-status
   conda:
     executor: linux
-    environment:
-      MINICONDA: $HOME/miniconda
     steps:
       - checkout
       - conda-install
