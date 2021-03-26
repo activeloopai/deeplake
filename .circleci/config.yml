@@ -232,8 +232,9 @@ commands:
     steps:
       - run:
           name: "Build Hub"
-          command: ":"
-
+          command: |
+            export HUB_VERSION=$(awk -F' = ' '/^__version__/ { print $2}' $HOME/project/hub/version.py)
+            conda build project
 jobs:
   test:
     parameters:
@@ -315,6 +316,9 @@ jobs:
       - slack-status
   conda:
     executor: linux
+    environment:
+      MINICONDA: $HOME/miniconda
+      PATH: $MINICONDA/bin:$PATH
     steps:
       - checkout
       - conda-install
