@@ -537,6 +537,16 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+def test_append_resize():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    url = "./data/test/append_resize"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="a")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    ds.resize_shape(150)
+    assert len(ds) == 150
+
+
 def test_meta_information():
     description = {"author": "testing", "description": "here goes the testing text"}
 
@@ -1185,6 +1195,7 @@ if __name__ == "__main__":
     test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
+    test_append_resize()
     test_dataset_2()
     test_text_dataset()
     test_text_dataset_tokenizer()
