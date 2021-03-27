@@ -300,11 +300,7 @@ class Dataset:
     
     @property
     def info(self):
-        return self.info
-   
-     @property
-    def property(self):
-        return self.property    
+        return self.info  
 
     def _store_meta(self) -> dict:
         meta = {
