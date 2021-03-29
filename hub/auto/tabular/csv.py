@@ -45,7 +45,8 @@ def data_from_csv(path, config):
         else:
             schema[keys] = hub.schema.Primitive(dtype=schema[keys])
 
-    @hub.transform(schema=schema, scheduler=config["scheduler"], workers=config["workers"])
+    @hub.transform(schema=schema, scheduler=config["scheduler"], 
+                   workers=config["workers"])
     def upload_data(index, df):
         dictionary_cols = {}
         for column in df.columns:

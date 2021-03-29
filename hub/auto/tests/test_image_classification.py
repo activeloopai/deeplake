@@ -13,7 +13,7 @@ def assert_conversion(
     tag, num_samples=None, num_classes=None, image_shape=None, max_image_shape=None
 ):
     """
-    tries to create a dataset for the kaggle_tag & then convert it into hub format.
+    tries to create a dataset for the tag & then convert it into hub format.
     """
 
     dataset_store = get_dataset_store(tag)
