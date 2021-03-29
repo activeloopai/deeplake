@@ -49,15 +49,14 @@ def image_classification(path, config):
     class_names = list(sorted(list(class_names)))
     shape, max_shape = util.infer_shape(path, p=config["p"], use_tqdm=USE_TQDM)
     schema = {
-        "image": hub.schema.Image(
-            shape=shape, dtype="uint8", max_shape=max_shape
-        ),
+        "image": hub.schema.Image(shape=shape, dtype="uint8", max_shape=max_shape),
         "label": hub.schema.ClassLabel(names=class_names),
     }
 
     # create transform for putting data into hub format
-    @hub.transform(schema=schema, scheduler=config["scheduler"], 
-                   workers=config["workers"])
+    @hub.transform(
+        schema=schema, scheduler=config["scheduler"], workers=config["workers"]
+    )
     def upload_data(sample):
         path = sample[0]
         img = Image.open(path)

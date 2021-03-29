@@ -54,7 +54,7 @@ def should_be_ignored(path):
 def get_children(path, only_dirs=False, only_files=False):
     """helper function to glob the given directory"""
     if only_dirs and only_dirs == only_files:
-        raise Exception('can\'t have both only_dirs & only_paths be true.')
+        raise Exception("can't have both only_dirs & only_paths be true.")
 
     children = glob(os.path.join(path, "*"))
     children = [child for child in children if not should_be_ignored(child)]
@@ -118,7 +118,7 @@ def infer_shape(path, p=1.0, use_tqdm=True, _state=None):
         _state = {
             "max_shape": np.zeros(3, dtype=np.uint8),  # CHW
             "all_same_shape": True,
-            "image_shape": None
+            "image_shape": None,
         }
 
     for child in tqdm(
@@ -151,7 +151,7 @@ def infer_shape(path, p=1.0, use_tqdm=True, _state=None):
             _state = new_state
 
         else:
-            raise Exception('%s is not a child or file.' % str(child))
+            raise Exception("%s is not a child or file." % str(child))
 
     if state_provided:
         # recursive call
