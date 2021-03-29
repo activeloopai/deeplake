@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 
 @state.directory_parser(priority=1)
-def data_from_csv(path, scheduler, workers):
+def data_from_csv(path, config):
     try:
         import pandas as pd
     except ModuleNotFoundError:
@@ -45,7 +45,7 @@ def data_from_csv(path, scheduler, workers):
         else:
             schema[keys] = hub.schema.Primitive(dtype=schema[keys])
 
-    @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+    @hub.transform(schema=schema, scheduler=config["scheduler"], workers=config["workers"])
     def upload_data(index, df):
         dictionary_cols = {}
         for column in df.columns:
