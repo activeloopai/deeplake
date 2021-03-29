@@ -9,6 +9,13 @@ state = util.DirectoryParserState()
 __all__ = ["infer_dataset"]
 
 
+DEFAULT_CONFIG = {
+    "scheduler": "single",
+    "workers": 1,
+    "p": 1.0,
+}
+
+
 def _find_root(path):
     """
     find the root of the dataset within the given path.
@@ -40,7 +47,7 @@ def _find_root(path):
     return path
 
 
-def infer_dataset(path, scheduler="single", workers=1):
+def infer_dataset(path, config=DEFAULT_CONFIG):
     # TODO: handle s3 path
 
     if not os.path.isdir(path):
@@ -62,7 +69,7 @@ def infer_dataset(path, scheduler="single", workers=1):
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
     for parser in directory_parsers:
-        ds = parser(root, scheduler, workers)
+        ds = parser(root, config)
         if ds is not None:
             break
 
