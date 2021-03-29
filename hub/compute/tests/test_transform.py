@@ -6,7 +6,8 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import numpy as np
 import zarr
-
+import os
+from hub.cli.auth import login_fn
 import hub
 from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
@@ -362,6 +363,29 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
         with Timer(name):
             out_ds = my_transform(ds_fs)
             out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
+
+
+def test_transform_overwrite():
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    login_fn("testingacc", password)
+
+    schema = {
+        "image": hub.schema.Image(
+            shape=(None, None, 1), dtype="uint8", max_shape=(1, 1, 1)
+        ),
+    }
+
+    @hub.transform(schema=schema)
+    def create_image(value):
+        return {"image": np.ones((1, 1, 1), dtype="uint8") * value}
+
+    ds1 = create_image(range(5))
+    ds = ds1.store("testingacc/ds_transform", public=False)
+    for i in range(5):
+        assert (ds["image", i].compute() == i * np.ones((1, 1, 1))).all()
+    ds = ds1.store("testingacc/ds_transform", public=False)
+    for i in range(5):
+        assert (ds["image", i].compute() == i * np.ones((1, 1, 1))).all()
 
 
 if __name__ == "__main__":
