@@ -1,5 +1,7 @@
 import os
 from glob import glob
+import numpy as np
+from tqdm import tqdm
 
 from PIL import Image
 
@@ -60,10 +62,92 @@ def get_children(path, only_dirs=False):
 
 
 def get_image_shape(path):
+    if get_ext(path) not in IMAGE_EXTS:
+        return None
+
     img = Image.open(path)
     c = len(img.getbands())
     w, h = img.size
     return (h, w, c)
+
+
+def infer_shape(path, p=1.0, use_tqdm=True):
+    """infers the shape of the given path. if path is a directory, it will analyze all subdirectories & their image files"""
+
+
+    # TODO: handle stochastic inference (determine shape based on a small random subset of the data)
+    assert p <= 1 and p > 0
+
+    # TODO: if path is file (not directory), handle
+
+    children = get_children(path, only_dirs=False)
+    np.random.shuffle(children)
+    num_samples = int(float(p) * float(len(children)))
+    children = children[:num_samples]
+    print(num_samples)
+    print(len(children))
+
+    max_shape = np.zeros(3, dtype=np.uint8)  # CHW
+    all_same_shape = True
+    image_shape = None  # if shape is all the same, use that instead of max_shape
+    for child in tqdm(
+        children,
+        desc="parsing image classification dataset",
+        total=len(children),
+        disable=not use_tqdm,
+    ):
+        # if child is a file, handle
+        if os.path.isfile(child):
+            shape = get_image_shape(child)
+
+            if shape is None:
+                continue
+
+            shape = np.array(shape)
+
+            # check if all images have the same shape
+            if all_same_shape:
+                if image_shape is None:
+                    image_shape = shape
+                elif not np.array_equal(image_shape, shape):
+                    all_same_shape = False
+
+            max_shape = np.maximum(max_shape, shape)
+
+        # if child is a directory, handle
+        elif os.path.isdir(child):
+            raise NotImplementedError()
+
+        else:
+            raise Exception('%s is not a child or file.' % str(child))
+
+        """
+        label = os.path.basename(child)
+
+        filepaths = get_children(child)
+        for filepath in filepaths:
+            # ignore non-image extension files
+            if util.get_ext(filepath) not in util.IMAGE_EXTS:
+                continue
+
+            shape = np.array(util.get_image_shape(filepath))
+
+            # check if all images have the same shape
+            if all_same_shape:
+                if image_shape is None:
+                    image_shape = shape
+                elif not np.array_equal(image_shape, shape):
+                    all_same_shape = False
+
+            max_shape = np.maximum(max_shape, shape)
+            data.append((filepath, label.lower()))
+            class_names.add(label.lower())
+        """
+
+    if all_same_shape:
+        return shape, None
+
+    return (None, None, None), max_shape
 
 
 def get_ext(path):
