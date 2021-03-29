@@ -51,13 +51,19 @@ def should_be_ignored(path):
     return False
 
 
-def get_children(path, only_dirs=False):
+def get_children(path, only_dirs=False, only_files=False):
     """helper function to glob the given directory"""
+    if only_dirs and only_dirs == only_files:
+        raise Exception('can\'t have both only_dirs & only_paths be true.')
 
     children = glob(os.path.join(path, "*"))
     children = [child for child in children if not should_be_ignored(child)]
+
     if only_dirs:
         children = [child for child in children if os.path.isdir(child)]
+    elif only_files:
+        children = [child for child in children if os.path.isfile(child)]
+
     return children
 
 
@@ -71,7 +77,7 @@ def get_image_shape(path):
     return (h, w, c)
 
 
-def infer_shape(path, p=1.0, use_tqdm=True):
+def infer_shape(path, p=1.0, use_tqdm=True, _state=None):
     """infers the shape of the given path. if path is a directory, it will analyze all subdirectories & their image files"""
 
 
@@ -80,21 +86,34 @@ def infer_shape(path, p=1.0, use_tqdm=True):
 
     # TODO: if path is file (not directory), handle
 
-    children = get_children(path, only_dirs=False)
-    np.random.shuffle(children)
-    num_samples = int(float(p) * float(len(children)))
-    children = children[:num_samples]
-    print(num_samples)
-    print(len(children))
+    # children dirs should not to be affected by `p`
+    children_dirs = get_children(path, only_dirs=True)
+    children_files = get_children(path, only_files=True)
 
-    max_shape = np.zeros(3, dtype=np.uint8)  # CHW
-    all_same_shape = True
-    image_shape = None  # if shape is all the same, use that instead of max_shape
+    # children files should be affected by `p`
+    if len(children_files) > 0:
+        np.random.shuffle(children_files)
+        num_samples = int(float(p) * float(len(children_files)))
+        num_samples = max(1, num_samples)
+        children_files = children_files[:num_samples]
+
+    children = children_dirs + children_files
+
+    state_provided = True
+    if _state is None:
+        state_provided = False
+
+        _state = {
+            "max_shape": np.zeros(3, dtype=np.uint8),  # CHW
+            "all_same_shape": True,
+            "image_shape": None
+        }
+
     for child in tqdm(
         children,
         desc="parsing image classification dataset",
         total=len(children),
-        disable=not use_tqdm,
+        disable=(not use_tqdm or state_provided),
     ):
         # if child is a file, handle
         if os.path.isfile(child):
@@ -106,17 +125,18 @@ def infer_shape(path, p=1.0, use_tqdm=True):
             shape = np.array(shape)
 
             # check if all images have the same shape
-            if all_same_shape:
-                if image_shape is None:
-                    image_shape = shape
-                elif not np.array_equal(image_shape, shape):
-                    all_same_shape = False
+            if _state["all_same_shape"]:
+                if _state["image_shape"] is None:
+                    _state["image_shape"] = shape
+                elif not np.array_equal(_state["image_shape"], shape):
+                    _state["all_same_shape"] = False
 
-            max_shape = np.maximum(max_shape, shape)
+            _state["max_shape"] = np.maximum(_state["max_shape"], shape)
 
         # if child is a directory, handle
         elif os.path.isdir(child):
-            raise NotImplementedError()
+            new_state = infer_shape(child, p=p, use_tqdm=use_tqdm, _state=_state)
+            _state = new_state
 
         else:
             raise Exception('%s is not a child or file.' % str(child))
@@ -144,10 +164,16 @@ def infer_shape(path, p=1.0, use_tqdm=True):
             class_names.add(label.lower())
         """
 
-    if all_same_shape:
-        return shape, None
+    if state_provided:
+        # recursive call
+        return _state
 
-    return (None, None, None), max_shape
+    tuplize = lambda shape: tuple([int(x) for x in shape])
+
+    if _state["all_same_shape"]:
+        return tuplize(_state["image_shape"]), None
+
+    return (None, None, None), tuplize(_state["max_shape"])
 
 
 def get_ext(path):
