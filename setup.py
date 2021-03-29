@@ -9,10 +9,10 @@ import os
 from setuptools import find_packages, setup
 
 project = "hub"
-VERSION = "1.2.2"
+VERSION = "1.3.2"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(this_directory, "README.md")) as f:
+with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 with open(os.path.join(this_directory, "requirements.txt")) as f:
@@ -51,9 +51,10 @@ setup(
     dependency_links=[],
     entry_points={
         "console_scripts": [
+            "activeloop = hub.cli.command:cli",
+            "activeloop-local = hub.cli.local:cli",
+            "activeloop-dev = hub.cli.dev:cli",
             "hub = hub.cli.command:cli",
-            "hub-local = hub.cli.local:cli",
-            "hub-dev = hub.cli.dev:cli",
         ]
     },
     tests_require=["pytest", "mock>=1.0.1"],

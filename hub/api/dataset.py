@@ -3,7 +3,8 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
+import warnings
+from hub.api.versioning import VersionNode
 import os
 import posixpath
 import collections.abc as abc
@@ -19,13 +20,11 @@ from fsspec.spec import AbstractFileSystem
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-import numpy as np
 
 from hub.schema.features import (
     Primitive,
     Tensor,
     SchemaDict,
-    HubSchema,
     featurify,
 )
 from hub.log import logger
@@ -36,37 +35,44 @@ from hub.api.objectview import ObjectView
 from hub.api.tensorview import TensorView
 from hub.api.dataset_utils import (
     create_numpy_dict,
+    generate_hash,
     get_value,
     slice_split,
     str_to_int,
     _copy_helper,
+    _get_compressor,
+    _get_dynamic_tensor_dtype,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
+from hub import auto
 
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
+    AddressNotFound,
     HubDatasetNotFoundException,
     NotHubDatasetToOverwriteException,
     NotHubDatasetToAppendException,
     OutOfBoundsError,
+    ReadModeException,
     ShapeArgumentNotFoundException,
     SchemaArgumentNotFoundException,
     ModuleNotInstalledException,
     ShapeLengthException,
+    VersioningNotSupportedException,
     WrongUsernameException,
+    InvalidVersionInfoException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
 from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
-from hub.numcodecs import PngCodec
-
 from hub.utils import norm_cache, norm_shape, _tuple_product
 from hub import defaults
+import pickle
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
@@ -135,6 +141,7 @@ class Dataset:
 
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
+
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
@@ -161,13 +168,43 @@ class Dataset:
         self.username = None
         self.dataset_name = None
         if not needcreate:
-            self.meta = json.loads(fs_map["meta.json"].decode("utf-8"))
+            self.meta = json.loads(fs_map[defaults.META_FILE].decode("utf-8"))
             self._name = self.meta.get("name") or None
             self._shape = tuple(self.meta["shape"])
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
+            try:
+                version_info = pickle.loads(fs_map[defaults.VERSION_INFO])
+                self._branch_node_map = version_info.get("branch_node_map")
+                self._commit_node_map = version_info.get("commit_node_map")
+                self._chunk_commit_map = version_info.get("chunk_commit_map")
+                if not (
+                    self._branch_node_map
+                    and self._commit_node_map
+                    and self._chunk_commit_map
+                ):
+                    raise InvalidVersionInfoException()
+                self._branch = "master"
+                self._version_node = self._branch_node_map[self._branch]
+                self._commit_id = self._version_node.commit_id
+            except KeyError:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._chunk_commit_map = None
+            except InvalidVersionInfoException:
+                self._commit_id = None
+                self._branch = None
+                self._version_node = None
+                self._branch_node_map = None
+                self._commit_node_map = None
+                self._chunk_commit_map = None
+
             self._tensors = dict(self._open_storage_tensors())
+
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
                     f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
@@ -194,8 +231,14 @@ class Dataset:
                 self.meta = self._store_meta()
                 self._meta_information = meta_information
                 self._flat_tensors = tuple(flatten(self.schema))
+
+                self._commit_id = generate_hash()
+                self._branch = "master"
+                self._version_node = VersionNode(self._commit_id, self._branch)
+                self._branch_node_map = {self._branch: self._version_node}
+                self._commit_node_map = {self._commit_id: self._version_node}
                 self._tensors = dict(self._generate_storage_tensors())
-                self.flush()
+                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
@@ -204,7 +247,7 @@ class Dataset:
                 self._fs.rm(self._path, recursive=True)
                 logger.error("Deleting the dataset " + traceback.format_exc() + str(e))
                 raise
-
+        self.flush()
         self.indexes = list(range(self._shape[0]))
 
         if self._path.startswith("s3://snark-hub-dev/") or self._path.startswith(
@@ -266,8 +309,124 @@ class Dataset:
             "name": self._name,
         }
 
-        self._fs_map["meta.json"] = bytes(json.dumps(meta), "utf-8")
+        self._fs_map[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
         return meta
+
+    def _store_version_info(self) -> dict:
+        if self._commit_id is not None:
+            d = {
+                "branch_node_map": self._branch_node_map,
+                "commit_node_map": self._commit_node_map,
+                "chunk_commit_map": self._chunk_commit_map,
+            }
+            self._fs_map[defaults.VERSION_INFO] = pickle.dumps(d)
+
+    def commit(self, message: str = "") -> str:
+        """| Saves the current state of the dataset and returns the commit id.
+        Checks out automatically to an auto branch if the current commit is not the head of the branch
+
+        Only saves the dataset without any version control information if the dataset was created before Hub v1.3.0
+
+        Parameters
+        ----------
+        message: str, optional
+            The commit message to store along with the commit
+        """
+        if self._commit_id is None:
+            warnings.warn(
+                "This dataset was created before version control, it does not support it. commit will behave same as flush"
+            )
+            self.flush()
+        elif "r" in self._mode:
+            raise ReadModeException("commit")
+        else:
+            self._auto_checkout()
+            stored_commit_id = self._commit_id
+            self._commit_id = generate_hash()
+            new_node = VersionNode(self._commit_id, self._branch)
+            self._version_node.insert(new_node, message)
+            self._version_node = new_node
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self.flush()
+            return stored_commit_id
+
+    def checkout(self, address: str, create: bool = False) -> str:
+        """| Changes the state of the dataset to the address mentioned. Creates a new branch if address isn't a commit id or branch name and create is True.
+        Always checks out to the head of a branch if the address specified is a branch name.
+
+        Returns the commit id of the commit that has been switched to.
+
+        Only works if dataset was created on or after Hub v1.3.0
+
+        Parameters
+        ----------
+        address: str
+            The branch name or commit id to checkout to
+        create: bool, optional
+            Specifying create as True creates a new branch from the current commit if the address isn't an existing branch name or commit id
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("checkout")
+        self.flush()
+        if address in self._branch_node_map.keys():
+            self._branch = address
+            self._version_node = self._branch_node_map[address]
+            self._commit_id = self._version_node.commit_id
+        elif address in self._commit_node_map.keys():
+            self._version_node = self._commit_node_map[address]
+            self._branch = self._version_node.branch
+            self._commit_id = self._version_node.commit_id
+        elif create:
+            if "r" in self._mode:
+                raise ReadModeException("checkout to create new branch")
+            self._branch = address
+            new_commit_id = generate_hash()
+            new_node = VersionNode(new_commit_id, self._branch)
+            if not self._version_node.children:
+                for key in self.keys:
+                    self._tensors[key].fs_map.copy_all_chunks(
+                        self._commit_id, new_commit_id
+                    )
+                if self._version_node.parent is not None:
+                    self._version_node.parent.insert(
+                        new_node, f"switched to new branch {address}"
+                    )
+            else:
+                self._version_node.insert(new_node, f"switched to new branch {address}")
+            self._version_node = new_node
+            self._commit_id = new_commit_id
+            self._branch_node_map[self._branch] = new_node
+            self._commit_node_map[self._commit_id] = new_node
+            self.flush()
+        else:
+            raise AddressNotFound(address)
+        return self._commit_id
+
+    def _auto_checkout(self):
+        """| Automatically checks out to a new branch if the current commit is not at the head of a branch"""
+        if self._version_node and self._version_node.children:
+            branch_name = f"'auto-{generate_hash()}'"
+            print(
+                f"automatically checking out to new branch {branch_name} as not at the head of branch {self._branch}"
+            )
+            self.checkout(branch_name, True)
+
+    def log(self):
+        """| Prints the commits in the commit tree before the current commit
+        Only works if dataset was created on or after Hub v1.3.0
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("log")
+        current_node = (
+            self._version_node.parent
+            if not self._version_node.children
+            else self._version_node
+        )
+        print(f"\n Current Branch: {self._branch}\n")
+        while current_node:
+            print(f"{current_node}\n")
+            current_node = current_node.parent
 
     def _check_and_prepare_dir(self):
         """
@@ -285,7 +444,7 @@ class Dataset:
                     fs.listdir(path)
                 except BaseException:
                     raise WrongUsernameException(stored_username)
-        meta_path = posixpath.join(path, "meta.json")
+        meta_path = posixpath.join(path, defaults.META_FILE)
         try:
             # Update boto3 cache
             fs.ls(path, detail=False, refresh=True)
@@ -311,28 +470,6 @@ class Dataset:
                     raise NotHubDatasetToAppendException()
             return True
 
-    def _get_dynamic_tensor_dtype(self, t_dtype):
-        if isinstance(t_dtype, Primitive):
-            return t_dtype.dtype
-        elif isinstance(t_dtype.dtype, Primitive):
-            return t_dtype.dtype.dtype
-        else:
-            return "object"
-
-    def _get_compressor(self, compressor: str):
-        if compressor.lower() == "lz4":
-            return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
-        elif compressor.lower() == "zstd":
-            return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
-        elif compressor.lower() == "default":
-            return "default"
-        elif compressor.lower() == "png":
-            return PngCodec(solo_channel=True)
-        else:
-            raise ValueError(
-                f"Wrong compressor: {compressor}, only LZ4 and ZSTD are supported"
-            )
-
     def _generate_storage_tensors(self):
         for t in self._flat_tensors:
             t_dtype, t_path = t
@@ -349,13 +486,14 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 shape=self._shape + t_dtype.shape,
                 max_shape=self._shape + t_dtype.max_shape,
-                dtype=self._get_dynamic_tensor_dtype(t_dtype),
+                dtype=_get_dynamic_tensor_dtype(t_dtype),
                 chunks=t_dtype.chunks,
-                compressor=self._get_compressor(t_dtype.compressor),
+                compressor=_get_compressor(t_dtype.compressor),
             )
 
     def _open_storage_tensors(self):
@@ -373,6 +511,7 @@ class Dataset:
                         storage_cache=self._storage_cache,
                     ),
                     self._fs_map,
+                    self,
                 ),
                 mode=self._mode,
                 # FIXME We don't need argument below here
@@ -453,6 +592,9 @@ class Dataset:
         >>> image = images[5]
         >>> image[0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8")
         """
+        if "r" in self._mode:
+            raise ReadModeException("__setitem__")
+        self._auto_checkout()
         assign_value = get_value(value)
         # handling strings and bytes
         assign_value = str_to_int(assign_value, self.tokenizer)
@@ -549,7 +691,7 @@ class Dataset:
     def delete(self):
         """ Deletes the dataset """
         fs, path = self._fs, self._path
-        exist_meta = fs.exists(posixpath.join(path, "meta.json"))
+        exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
             if self.username is not None:
@@ -584,9 +726,8 @@ class Dataset:
         ds = _to_pytorch(self, transform, inplace, output_type, indexes)
         return ds
 
-    def to_tensorflow(self, indexes=None, include_shapes=False):
+    def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
         """| Converts the dataset into a tensorflow compatible format
-
         Parameters
         ----------
         indexes: list or int, optional
@@ -594,10 +735,13 @@ class Dataset:
         include_shapes: boolean, optional
             False by default. Setting it to True passes the shapes to tf.data.Dataset.from_generator.
             Setting to True could lead to issues with dictionaries inside Tensors.
+        key_list: list, optional
+            The list of keys that are needed in tensorflow format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_tensorflow
 
-        ds = _to_tensorflow(self, indexes, include_shapes)
+        ds = _to_tensorflow(self, indexes, include_shapes, key_list)
         return ds
 
     def _get_dictionary(self, subpath, slice_=None):
@@ -638,29 +782,31 @@ class Dataset:
         self.lazy = True
 
     def _save_meta(self):
-        _meta = json.loads(self._fs_map["meta.json"])
+        _meta = json.loads(self._fs_map[defaults.META_FILE])
         _meta["meta_info"] = self._meta_information
-        self._fs_map["meta.json"] = json.dumps(_meta).encode("utf-8")
+        self._fs_map[defaults.META_FILE] = json.dumps(_meta).encode("utf-8")
 
     def flush(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         Does not invalidate this object.
         """
         if "r" in self._mode:
             return
+        self._store_version_info()
         for t in self._tensors.values():
             t.flush()
         self._save_meta()
         self._fs_map.flush()
         self._update_dataset_state()
 
-    def commit(self):
-        """ Deprecated alias to flush()"""
-        logger.warning("commit() is deprecated. Use flush() instead")
+    def save(self):
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
+        Does not invalidate this object.
+        """
         self.flush()
 
     def close(self):
-        """Save changes from cache to dataset final storage.
+        """Save changes from cache to dataset final storage. Doesn't create a new commit.
         This invalidates this object.
         """
         self.flush()
@@ -734,6 +880,15 @@ class Dataset:
         """
         return self._tensors.keys()
 
+    @property
+    def branches(self) -> list:
+        """
+        Gets a list all the branches of the dataset
+        """
+        if self._commit_id is None:
+            raise VersioningNotSupportedException("branches")
+        return self._branch_node_map.keys()
+
     def _get_mode(self, mode: str, fs: AbstractFileSystem):
         if mode:
             if mode not in ["r", "r+", "a", "a+", "w", "w+"]:
@@ -741,7 +896,7 @@ class Dataset:
             return mode
         else:
             try:
-                meta_path = posixpath.join(self._path, "meta.json")
+                meta_path = posixpath.join(self._path, defaults.META_FILE)
                 if not fs.exists(self._path) or not fs.exists(meta_path):
                     return "a"
                 bytes_ = bytes("Hello", "utf-8")
@@ -844,152 +999,7 @@ class Dataset:
         return ds
 
     @staticmethod
-    def from_directory(
-        path_to_dir,
-        labels=None,
-        dtype="uint8",
-        scheduler: str = "single",
-        workers: int = 1,
-    ):
-        """|  This utility function is specific to create dataset from the categorical image dataset to easy use for the categorical image usecase.
-
-        Parameters
-        --------
-            path_to_dir:str
-            path of the directory where the image dataset root folder exists.
-
-            labels:list
-            passed a list of class names
-
-            dtype:str
-            datatype of the images can be defined by user.Default uint8.
-
-            scheduler: str
-            choice between "single", "threaded", "processed"
-
-            workers: int
-            how many threads or processes to use
-
-
-        ---------
-        Returns A dataset object for user use and to store a defined path.
-
-        >>>ds = Dataset.from_directory('path/test')
-        >>>ds.store('store_here')
-        """
-
-        def get_max_shape(path_to_dir):
-            """| get_max_shape from  the images.
-
-            -------
-            path_to_dir:str path to the root directory
-
-            -------
-            return the maximum shape of the image
-
-            -------
-
-            """
-            try:
-
-                for i in os.listdir(path_to_dir):
-                    for j in os.listdir(os.path.join(path_to_dir, i)):
-
-                        if j.endswith((".png", ".jpg", ".jpeg", ".tiff", ".bmp")):
-                            img_path = os.path.join(path_to_dir, i, j)
-                        else:
-                            print(
-                                f"{os.path.join(path_to_dir,i,j)} is a non image file please remove it to execute...."
-                            )
-
-                        image = im.open(img_path)
-
-                        width = set()
-                        height = set()
-                        mode = set()
-
-                        detail = list(image.size)
-
-                        width.add(detail[0])
-                        height.add(detail[1])
-
-                        if image.mode == "RGB":
-                            mode.add(3)
-                        elif image.mode == "RGBA":
-                            mode.add(4)
-                        elif image.mode == "LA":
-                            mode.add(2)
-                        else:
-                            mode.add(1)
-
-                max_shape = [max(width), max(height), max(mode)]
-                return max_shape
-            except Exception:
-                print("check your data for fix")
-
-        def make_schema(path_to_dir, labels, dtype):
-            """| make_schema internal function to generate the schema internally."""
-            max_shape = get_max_shape(path_to_dir)
-            image_shape = (None, None, None)
-            if labels is None:
-                labels = ClassLabel(names=os.listdir(path_to_dir))
-            else:
-                labels = ClassLabel(labels)
-            schema = {
-                "label": labels,
-                "image": Tensor(
-                    shape=image_shape,
-                    max_shape=max_shape,
-                    dtype=dtype,
-                ),
-            }
-
-            return schema
-
-        schema = make_schema(path_to_dir, labels, dtype)
-
-        if labels is not None:
-
-            label_dic = {}
-            for i, label in enumerate(labels):
-                label_dic[label] = i
-        else:
-            labels_v = os.listdir(path_to_dir)
-            label_dic = {}
-            for i, label in enumerate(labels_v):
-                label_dic[label] = i
-
-        @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
-        def upload_data(sample):
-            """| This upload_data function is for upload the images internally using `hub.transform`."""
-
-            path_to_image = sample[1]
-
-            pre_image = im.open(path_to_image)
-            image = np.asarray(pre_image)
-            image = image.astype(sample[2])
-            image_shape = get_max_shape(path_to_dir)
-
-            if pre_image.mode == "RGB":
-                image = np.resize(image, (*image_shape[:2], 3))
-            elif pre_image.mode == "RGBA":
-                image = np.resize(image, (*image_shape[:2], 4))
-            elif pre_image.mode == "LA":
-                image = np.resize(image, (*image_shape[:2], 2))
-            else:
-                image = np.resize(image, (*image_shape[:2], 1))
-
-            return {"label": label_dic[sample[0]], "image": image}
-
-        images = []
-        labels_list = []
-        dataype = []
-        for i in os.listdir(path_to_dir):
-            for j in os.listdir(os.path.join(path_to_dir, i)):
-                image = os.path.join(path_to_dir, i, j)
-                images.append(image)
-                labels_list.append(i)
-                dataype.append(dtype)
-
-        ds = upload_data(zip(labels_list, images, dataype))
+    def from_path(path, scheduler="single", workers=1):
+        # infer schema & get data (label -> input mapping with file refs)
+        ds = auto.infer_dataset(path, scheduler=scheduler, workers=workers)
         return ds

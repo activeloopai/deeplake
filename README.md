@@ -31,7 +31,9 @@
 
 ---
 
-[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
+[ English | [Français](./README_translations/README_FR.md) | [简体中文](./README_translations/README_CN.md) | [Türkçe](./README_translations/README_TR.md) | [한글](./README_translations/README_KR.md) | [Bahasa Indonesia](./README_translations/README_ID.md)] | [Русский](./README_translations/README_RU.md)]
+
+<i> Note: the translations of this document may not be up-to-date. For the latest version, please check the README in English. </i>
 
 ### What is Hub for?
 
@@ -127,40 +129,41 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 ### Upload your dataset and access it from <ins>anywhere</ins> in 3 simple steps
 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
-```sh
-hub register
-hub login
 
-# alternatively, add username and password as arguments (use on platforms like Kaggle)
-hub login -u username -p password
-```
+    ```sh
+    activeloop register
+    activeloop login
+
+    # alternatively, add username and password as arguments (use on platforms like Kaggle)
+    activeloop login -u username -p password
+    ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
-```python
-from hub import Dataset, schema
-import numpy as np
+    ```python
+    from hub import Dataset, schema
+    import numpy as np
 
-ds = Dataset(
-    "username/dataset_name",
-    shape = (4,),
-    mode = "w+",
-    schema = {
-        "image": schema.Tensor((512, 512), dtype="float"),
-        "label": schema.Tensor((512, 512), dtype="float"),
-    }
-)
+    ds = Dataset(
+        "username/dataset_name",
+        shape = (4,),
+        mode = "w+",
+        schema = {
+            "image": schema.Tensor((512, 512), dtype="float"),
+            "label": schema.Tensor((512, 512), dtype="float"),
+        }
+    )
 
-ds["image"][:] = np.zeros((4, 512, 512))
-ds["label"][:] = np.zeros((4, 512, 512))
-ds.flush()
-```
+    ds["image"][:] = np.zeros((4, 512, 512))
+    ds["label"][:] = np.zeros((4, 512, 512))
+    ds.flush()
+    ```
 
 3. Access it from anywhere else in the world, on any device having a command line:
-```python
-from hub import Dataset
+    ```python
+    from hub import Dataset
 
-ds = Dataset("username/dataset_name")
-```
+    ds = Dataset("username/dataset_name")
+    ```
 
 
 ## Documentation
@@ -179,6 +182,7 @@ The [examples](https://github.com/activeloopai/Hub/tree/master/examples) directo
 | [Transforming Data](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) | Briefs on how data transformation with Hub|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%203%20-%20Transforming%20Data.ipynb) |
 | [Dynamic Tensors](https://github.com/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) | Handling data with variable shape and sizes|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/tutorial/Tutorial%204%20-%20What%20are%20Dynamic%20Tensors.ipynb) |
 | [NLP using Hub](https://github.com/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) | Fine Tuning Bert for CoLA|[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/notebooks/nlp_using_hub.ipynb) |
+| [Getting Started with Text on Hub](https://github.com/activeloopai/Hub/blob/master/examples/notebooks/Getting_Started_with_Text_on_Hub.ipynb) | Overview on using Text datasets in Hub | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/activeloopai/Hub/blob/master/examples/notebooks/Getting_Started_with_Text_on_Hub.ipynb) |
 
 
 ## Use Cases
@@ -238,6 +242,11 @@ Using Hub? Add a README badge to let everyone know:
 ```
 [![hub](https://img.shields.io/badge/powered%20by-hub%20-ff5a1f.svg)](https://github.com/activeloopai/Hub)
 ```
+## Usage Tracking
+By default, we collect anonymous usage data using Bugout (here's the [code](https://github.com/activeloopai/Hub/blob/853456a314b4fb5623c936c825601097b0685119/hub/__init__.py#L24) that does it). It only logs Hub library's own actions and parameters, and no user/ model data is collected.
+
+This helps the Activeloop team to understand how the tool is used and how to deliver maximum value to the community by building features that matter to you. You can easily opt-out of usage tracking during login.
+
 
 ## Disclaimers
 

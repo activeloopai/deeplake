@@ -4,3 +4,5 @@ DEFAULT_COMPRESSOR = "default"
 DEFAULT_MEMORY_CACHE_SIZE = 2 ** 26
 DEFAULT_STORAGE_CACHE_SIZE = 2 ** 28
 AZURE_HOST_SUFFIX = "blob.core.windows.net"
+META_FILE = "meta.json"
+VERSION_INFO = "version.pkl"

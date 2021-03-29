@@ -4,27 +4,27 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-from hub.api.dataset_utils import slice_extract_info, slice_split
-from hub.schema.class_label import ClassLabel
 import os
-import shutil
-import cloudpickle
 import pickle
-from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException
+import shutil
+
+import cloudpickle
+import hub.api.dataset as dataset
 import numpy as np
 import pytest
-from hub import transform
-from hub import load
-import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict, ClassLabel
+from hub import load, transform
+from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.cli.auth import login_fn
+from hub.exceptions import DirectoryNotEmptyException
+from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
+from hub.schema.class_label import ClassLabel
 from hub.utils import (
+    azure_creds_exist,
     gcp_creds_exist,
     hub_creds_exist,
-    s3_creds_exist,
-    azure_creds_exist,
-    transformers_loaded,
     minio_creds_exist,
+    s3_creds_exist,
+    transformers_loaded,
 )
 
 Dataset = dataset.Dataset
@@ -117,7 +117,7 @@ def test_dataset(url="./data/test/dataset", token=None, public=True):
     ssds = sds[1:3, 4]
     sssds = ssds[1]
     assert (sssds.numpy() == 6 * np.ones((3))).all()
-    ds.flush()
+    ds.save()
 
     sds = ds["/label", 5:15, "c"]
     sds[2:4, 4, :] = 98 * np.ones((2, 3))
@@ -214,6 +214,32 @@ def test_dataset_dynamic_shaped():
     ds["first", 0, :10, :10] = np.ones((10, 10), "int32")
     ds["first", 0, 10:20, 10:20] = 5 * np.ones((10, 10), "int32")
     assert (ds["first", 0, 0:10, 0:10].numpy() == np.ones((10, 10), "int32")).all()
+
+
+def test_dataset_dynamic_shaped_slicing():
+    schema = {
+        "first": Tensor(
+            shape=(None, None),
+            dtype="int32",
+            max_shape=(100, 100),
+            chunks=(100,),
+        )
+    }
+    ds = Dataset(
+        "./data/test/test_dataset_dynamic_shaped",
+        token=None,
+        shape=(100,),
+        mode="w",
+        schema=schema,
+    )
+
+    for i in range(100):
+        ds["first", i] = i * np.ones((i, i))
+    items = ds["first", 0:100].compute()
+    for i in range(100):
+        assert (items[i] == i * np.ones((i, i))).all()
+
+    assert (ds["first", 1:2].compute()[0] == np.ones((1, 1))).all()
 
 
 def test_dataset_enter_exit():
@@ -416,9 +442,9 @@ def test_tensorview_slicing():
     tv = ds["first", 5:6, 7:10, 9:10]
     tv.disable_lazy()
     tv.enable_lazy()
-    assert tv.compute().shape == tuple(tv.shape) == (1, 3, 1)
+    assert tv.compute()[0].shape == tuple(tv.shape[0]) == (3, 1)
     tv2 = ds["first", 5:6, 7:10, 9]
-    assert tv2.numpy().shape == tuple(tv2.shape) == (1, 3)
+    assert tv2.numpy()[0].shape == tuple(tv2.shape[0]) == (3,)
 
 
 def test_tensorview_iter():
@@ -455,57 +481,6 @@ def test_text_dataset():
     ds2 = Dataset("./data/test/testing_text_2", mode="w", schema=schema2, shape=(10,))
     ds2[0:5, "id"] = ["abcd", "efgh", "ijkl", "mnop", "qrst"]
     assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
-
-
-def test_dataset_from_directory():
-    def create_image(path_to_direcotry):
-        from PIL import Image
-
-        shape = (512, 512, 3)
-        for i in range(10):
-            img = np.ones(shape, dtype="uint8")
-            img = Image.fromarray(img)
-            img.save(os.path.join(path_to_direcotry, str(i) + ".png"))
-
-    def data_in_dir(path_to_direcotry):
-        if os.path.exists(path_to_direcotry):
-            create_image(path_to_direcotry)
-        else:
-            os.mkdir(os.path.join(path_to_direcotry))
-            create_image(path_to_direcotry)
-
-    def root_dir_image(root):
-        if os.path.exists(root):
-            import shutil
-
-            shutil.rmtree(root)
-        os.mkdir(root)
-        for i in range(10):
-            dir_name = "data_" + str(i)
-            data_in_dir(os.path.join(root, dir_name))
-
-    def del_data(*path_to_dir):
-        for i in path_to_dir:
-            import shutil
-
-            shutil.rmtree(i)
-
-    root_url = "./data/categorical_label_data"
-    store_url = "./data/categorical_label_data_store"
-
-    root_dir_image(root_url)
-
-    ds = Dataset.from_directory(root_url)
-    ds.store(store_url)
-
-    ds = load(store_url)
-
-    labels = ClassLabel(names=os.listdir(root_url))
-    label = os.listdir(root_url)
-
-    assert ds["image", 0].compute().shape == (512, 512, 3)
-    assert ds["label", 0].compute() == labels.str2int(label[0])
-    del_data(root_url, store_url)
 
 
 @pytest.mark.skipif(
@@ -554,12 +529,22 @@ def test_append_dataset():
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
-    ds.commit()
+    ds.flush()
 
     ds = Dataset(url)
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
+
+
+def test_append_resize():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    url = "./data/test/append_resize"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="a")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    ds.resize_shape(150)
+    assert len(ds) == 150
 
 
 def test_meta_information():
@@ -808,10 +793,22 @@ def test_dataset_copy_s3_local():
     ds = Dataset(
         "./data/testing/cp_original_data_local", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "s3://snark-test/cp_copy_data_s3_1_a"
+    DS3_PATH = "./data/testing/cp_copy_data_local_1"
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("s3://snark-test/cp_copy_data_s3_1")
-    ds3 = ds2.copy("./data/testing/cp_copy_data_local_1")
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+    try:
+        ds3 = ds2.copy(DS3_PATH)
+    except:
+        dsi = Dataset(DS3_PATH)
+        dsi.delete()
+        ds3 = ds2.copy(DS3_PATH)
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -825,10 +822,23 @@ def test_dataset_copy_gcs_local():
     ds = Dataset(
         "./data/testing/cp_original_ds_local_3", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "gcs://snark-test/cp_copy_dataset_gcs_1a"
+    DS3_PATH = "./data/testing/cp_copy_ds_local_2"
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_1")
-    ds3 = ds2.copy("./data/testing/cp_copy_ds_local_2")
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+    try:
+        ds3 = ds2.copy(DS3_PATH)
+    except:
+        dsi = Dataset(DS3_PATH)
+        dsi.delete()
+        ds3 = ds2.copy(DS3_PATH)
+
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -846,13 +856,32 @@ def test_dataset_copy_azure_local():
         shape=(100,),
         schema=simple_schema,
     )
+    DS2_PATH = "./data/testing/cp_copy_ds_local_4"
+    DS3_PATH = "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2"
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/cp_copy_ds_local_4")
-    ds3 = ds2.copy(
-        "https://activeloop.blob.core.windows.net/activeloop-hub/cp_copy_test_ds_azure_2",
-        token=token,
-    )
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+
+    try:
+        ds3 = ds2.copy(
+            DS3_PATH,
+            token=token,
+        )
+    except:
+        dsi = Dataset(
+            DS3_PATH,
+            token=token,
+        )
+        dsi.delete()
+        ds3 = ds2.copy(
+            DS3_PATH,
+            token=token,
+        )
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -866,10 +895,24 @@ def test_dataset_copy_hub_local():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
     ds = Dataset("testingacc/cp_original_ds_hub_1", shape=(100,), schema=simple_schema)
+    DS2_PATH = "./data/testing/cp_copy_ds_local_5"
+    DS3_PATH = "testingacc/cp_copy_dataset_testing_2"
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("./data/testing/cp_copy_ds_local_5")
-    ds3 = ds2.copy("testingacc/cp_copy_dataset_testing_2")
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+
+    try:
+        ds3 = ds2.copy(DS3_PATH)
+    except:
+        dsi = Dataset(DS3_PATH)
+        dsi.delete()
+        ds3 = ds2.copy(DS3_PATH)
+
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -884,12 +927,26 @@ def test_dataset_copy_hub_local():
 )
 def test_dataset_copy_gcs_s3():
     ds = Dataset(
-        "s3://snark-test/cp_original_ds_s3_2", shape=(100,), schema=simple_schema
+        "s3://snark-test/cp_original_ds_s3_2_a", shape=(100,), schema=simple_schema
     )
+    DS2_PATH = "gcs://snark-test/cp_copy_dataset_gcs_2_a"
+    DS3_PATH = "s3://snark-test/cp_copy_ds_s3_3_a"
     for i in range(100):
         ds["num", i] = 2 * i
-    ds2 = ds.copy("gcs://snark-test/cp_copy_dataset_gcs_2")
-    ds3 = ds2.copy("s3://snark-test/cp_copy_ds_s3_3")
+
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+
+    try:
+        ds3 = ds2.copy(DS3_PATH)
+    except:
+        dsi = Dataset(DS3_PATH)
+        dsi.delete()
+        ds3 = ds2.copy(DS3_PATH)
     for i in range(100):
         assert ds2["num", i].compute() == 2 * i
         assert ds3["num", i].compute() == 2 * i
@@ -900,14 +957,15 @@ def test_dataset_copy_gcs_s3():
 
 def test_dataset_copy_exception():
     ds = Dataset("./data/test_data_cp", shape=(100,), schema=simple_schema)
-    ds2 = Dataset("./data/test_data_cp_2", shape=(100,), schema=simple_schema)
+    DS_PATH = "./data/test_data_cp_2"
+    ds2 = Dataset(DS_PATH, shape=(100,), schema=simple_schema)
     for i in range(100):
         ds["num", i] = i
         ds2["num", i] = 2 * i
     ds.flush()
     ds2.flush()
     with pytest.raises(DirectoryNotEmptyException):
-        ds3 = ds.copy("./data/test_data_cp_2")
+        ds3 = ds.copy(DS_PATH)
     ds.delete()
     ds2.delete()
 
@@ -1023,8 +1081,6 @@ def test_dataset_filter_3():
     ds["cl", 4] = 2
     ds_filtered = ds.filter(lambda x: x["cl"].compute() == 0)
     assert ds_filtered.indexes == [5 * i for i in range(20)]
-    with pytest.raises(ValueError):
-        ds_filtered["img"].compute()
     ds_filtered_2 = ds.filter(lambda x: x["cl"].compute() == 2)
     assert (ds_filtered_2["img"].compute() == 4 * np.ones((1, 5, 6, 3))).all()
     for item in ds_filtered_2:
@@ -1129,6 +1185,7 @@ def test_minio_endpoint():
 
 
 if __name__ == "__main__":
+    test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
     test_dataset_setting_shape()
     test_datasetview_repr()
@@ -1138,8 +1195,8 @@ if __name__ == "__main__":
     test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
+    test_append_resize()
     test_dataset_2()
-
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()

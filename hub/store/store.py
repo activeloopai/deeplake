@@ -22,6 +22,11 @@ from hub.store.azure_fs import AzureBlobFileSystem
 from hub.store.s3_file_system_replacement import S3FileSystemReplacement
 
 
+def get_user_name():
+    creds = HubControlClient().get_config()
+    return creds["_id"]
+
+
 def _connect(tag, public=True):
     """Connects to the backend and receives credentials"""
 

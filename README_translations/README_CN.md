@@ -31,7 +31,7 @@
 
 ---
 
-[ [English](./README.md) | 简体中文 | [Türkçe](./README_TR.md) | [한글](./README_KR.md)]
+[ [English](../README.md) | [Français](./README_FR.md) | 简体中文 | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)] | [Русский](./README_translations/README_RU.md)]
 
 ### Hub 的作用是什么?
 
@@ -129,8 +129,8 @@ ds.flush()  # executing the creation of the dataset
 
 1. 在 [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) 上注册一个免费账户并在本地认证:
 ```sh
-hub register
-hub login
+activeloop register
+activeloop login
 ```
 
 2. 然后创建一个数据集，注明它的名字，然后将它上传到您的账户。例如：
