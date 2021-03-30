@@ -5,6 +5,7 @@ import os
 
 from hub import Dataset
 
+
 class HubAdapter(torch.utils.data.Dataset):
     def __init__(self, ds):
         self.ds = ds
@@ -24,23 +25,35 @@ class HubAdapter(torch.utils.data.Dataset):
         img, label = self.ds.__getitem__(index)
         return {"image": img, "label": label}
 
-def benchmark_iterate_hub_local_pytorch_setup(dataset_name, dataset_split, batch_size, prefetch_factor, num_workers=1):
+
+def benchmark_iterate_hub_local_pytorch_setup(
+    dataset_name, dataset_split, batch_size, prefetch_factor, num_workers=1
+):
     trans = transforms.Compose([transforms.ToTensor()])
     data_path = os.path.join(".", "torch_data")
     dset_type = getattr(torchvision.datasets, dataset_name)
     path = os.path.join(".", "hub_data", "tfds")
-    dset = dset_type(data_path, transform=trans, train=(False if "test" in dataset_split else None), download=True)
+    dset = dset_type(
+        data_path,
+        transform=trans,
+        train=(False if "test" in dataset_split else None),
+        download=True,
+    )
 
     Dataset.from_pytorch(HubAdapter(dset)).store(path)
     dset = Dataset(path, cache=False, storage_cache=False, mode="r")
 
-    loader = torch.utils.data.DataLoader(dset.to_pytorch(
-    ), batch_size=batch_size, prefetch_factor=prefetch_factor, num_workers=num_workers)
+    loader = torch.utils.data.DataLoader(
+        dset.to_pytorch(),
+        batch_size=batch_size,
+        prefetch_factor=prefetch_factor,
+        num_workers=num_workers,
+    )
 
     return (loader,)
 
 
 def benchmark_iterate_hub_local_pytorch_run(params):
-    loader, = params
+    (loader,) = params
     for _ in loader:
         pass

@@ -9,6 +9,6 @@ def benchmark_iterate_hub_tensorflow_setup(dataset_name, batch_size, prefetch_fa
 
 
 def benchmark_iterate_hub_tensorflow_run(params):
-    loader, = params
+    (loader,) = params
     for _ in loader:
         pass

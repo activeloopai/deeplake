@@ -4,7 +4,9 @@ from PIL import Image
 import hub
 
 
-def benchmark_compress_hub_setup(times, image_path="./images/compression_benchmark_image.png"):
+def benchmark_compress_hub_setup(
+    times, image_path="./images/compression_benchmark_image.png"
+):
     img = Image.open(image_path)
     arr = np.array(img)
     ds = hub.Dataset(
