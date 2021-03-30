@@ -82,7 +82,7 @@ class MetaStorage(MutableMapping):
             if check and self._ds._commit_id:
                 old_filename = self.find_chunk(k)
                 k = f"{k}:{self._ds._commit_id}"
-                if old_filename:
+                if old_filename and k != old_filename:
                     self.copy_chunk(old_filename, k)
             commit_id = k.split(":")[-1]
             self._ds._chunk_commit_map[self._path][chunk_key].add(commit_id)

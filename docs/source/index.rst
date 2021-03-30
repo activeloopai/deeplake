@@ -42,6 +42,7 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
    :caption: Getting Started
 
    simple.md
+   working_with_text.md
 
 .. toctree::
    :maxdepth: 3

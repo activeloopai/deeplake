@@ -13,7 +13,7 @@ from hub import config
 from hub.client.auth import AuthClient
 from hub.client.token_manager import TokenManager
 from hub.client.hub_control import HubControlClient
-from hub.report import configure_reporting, get_reporting_config, hub_reporter
+from hub.report import configure_reporting, get_reporting_config, hub_reporter, hub_tags
 
 
 @click.command()
@@ -79,7 +79,7 @@ def reporting(on):
     """
     report = Report(
         title="Consent change",
-        tags=hub_reporter.system_tags(),
+        tags=hub_reporter.system_tags() + hub_tags,
         content="Consent? `{}`".format(on),
     )
     hub_reporter.publish(report)
