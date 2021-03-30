@@ -11,6 +11,8 @@ HUB_PATH = "../../../Hub"
 
 
 class RayTask(Task):
+    """A class to execute python scripts on a ray cluster created from generated .yaml file"""
+
     def __init__(
         self,
         name: str,
@@ -74,6 +76,7 @@ class RayTask(Task):
         return output_path
 
     def get_pids(self, pgrep_output: str):
+        "Get pids of main running script"
         pids = [
             line.strip()
             for line in pgrep_output.split("\n")
@@ -82,12 +85,13 @@ class RayTask(Task):
         return pids
 
     def get_process_pid(self):
+        """Read pid stored in file"""
         with open("ray_pid.txt", "r") as f:
             pid = f.readline().strip()
         return pid
 
     def launch_cluster(self) -> bool:
-        """ Launch the cluster """
+        """Start a cluster with given configurations"""
         try:
             self._state = self.LAUNCHED
             logs = exec(f"ray up -y {self.config_path}", sync=True)
@@ -100,7 +104,7 @@ class RayTask(Task):
         return True
 
     def stop_cluster(self) -> bool:
-        """ shut down the cluster """
+        """ Shut down the cluster """
         self._state = self.DONE
         try:
             logs = exec(f"ray down -y {self.config_path}", sync=True)
@@ -112,7 +116,7 @@ class RayTask(Task):
         return True
 
     def submit(self, script) -> bool:
-        """ Execute the task """
+        """ Execute the task and write the process pid to the file"""
         try:
             exec(f"rm -f {self.log_path}", sync=True)
             if "submit" in script or "exec" in script:
@@ -148,6 +152,7 @@ class RayTask(Task):
         return True
 
     def resubmit(self, script):
+        """Stop executing the script if it is running and restart execution"""
         if self.is_running(script):
             self.stop(script)
         self.submit(script)
