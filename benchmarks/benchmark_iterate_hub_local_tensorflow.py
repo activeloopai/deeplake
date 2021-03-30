@@ -1,7 +1,8 @@
 from hub import Dataset
+import os
 
 
-def benchmark_iterate_hub_local_tensorflow_setup(dataset_name, batch_size, prefetch_factor):
+def benchmark_iterate_hub_local_tensorflow_setup(dataset_name, dataset_split, batch_size, prefetch_factor):
     dset = Dataset.from_tfds(dataset_name, split=dataset_split)
     path = os.path.join(".", "hub_data", "tfds")
     dset.store(path)
