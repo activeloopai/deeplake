@@ -97,6 +97,7 @@ class Dataset:
         lazy: bool = True,
         public: bool = True,
         name: str = None,
+        info=dict(),
     ):
         """| Open a new or existing dataset for read/write
 
@@ -133,6 +134,7 @@ class Dataset:
             the dataset won't be visible in the visualizer to the public
         name: str, optional
             only applicable when using hub storage, this is the name that shows up on the visualizer
+        info: used for description, citation, license and any arbitrary info about the dataset
         """
 
         shape = norm_shape(shape)
@@ -174,6 +176,7 @@ class Dataset:
             self._schema = hub.schema.deserialize.deserialize(self.meta["schema"])
             self._meta_information = self.meta.get("meta_info") or dict()
             self._flat_tensors = tuple(flatten(self._schema))
+            self._info=self.meta.get("meta_info") or dict()
             try:
                 version_info = pickle.loads(fs_map[defaults.VERSION_INFO])
                 self._branch_node_map = version_info.get("branch_node_map")
@@ -230,6 +233,7 @@ class Dataset:
                 self._shape = tuple(shape)
                 self.meta = self._store_meta()
                 self._meta_information = meta_information
+                self._info = info
                 self._flat_tensors = tuple(flatten(self.schema))
 
                 self._commit_id = generate_hash()
@@ -302,7 +306,7 @@ class Dataset:
     
     @property
     def info(self):
-        return self.info
+        return self._info
 
     def _store_meta(self) -> dict:
         meta = {
@@ -311,6 +315,7 @@ class Dataset:
             "version": 1,
             "meta_info": self._meta_information or dict(),
             "name": self._name,
+            "info":self._info,
         }
 
         self._fs_map[defaults.META_FILE] = bytes(json.dumps(meta), "utf-8")
