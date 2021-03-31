@@ -22,14 +22,6 @@ workflows:
             - test
             - azure
       - test:
-          name: "Windows Complex Test"
-          e: win64
-          unix-like: false
-          optional: true
-          context:
-            - test
-            - azure
-      - test:
           name: "Mac Complex Test"
           e: mac
           mac-like: true
