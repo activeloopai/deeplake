@@ -5,7 +5,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 from hub.utils import *
-from hub.utils import _flatten
+from hub.utils import _flatten, _tuple_product
 
 
 def test_flatten_array():
@@ -79,3 +79,9 @@ def test_batchify():
     actual = iter(batchify([1, 2, 3, 4], 2))
     assert next(actual) == [1, 2]
     assert next(actual) == [3, 4]
+
+
+def test_tuple_product():
+    expected_result = 24
+    result = _tuple_product(tuple((1, 2, 3, 4)))
+    assert result == expected_result

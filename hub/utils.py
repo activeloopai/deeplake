@@ -4,14 +4,14 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-from math import gcd
 import time
 from collections import abc
+from math import gcd
 
 from numpy.lib.arraysetops import isin
 
-from hub.exceptions import ShapeLengthException
 from hub import defaults
+from hub.exceptions import ShapeLengthException
 
 
 def _flatten(list_):
@@ -75,6 +75,16 @@ def minio_creds_exist():
     env1 = os.getenv("ACTIVELOOP_MINIO_KEY")
     env2 = os.getenv("ACTIVELOOP_MINIO_SECRET_ACCESS_KEY")
     return env1 is not None and env2 is not None
+
+
+def pandas_loaded():
+    try:
+        import pandas as pd
+
+        pd.__version__
+    except ImportError:
+        return False
+    return True
 
 
 def pytorch_loaded():
@@ -159,13 +169,15 @@ def compute_lcm(a):
     return int(lcm)
 
 
-def batchify(iterable, n=1):
+def batchify(iterable, n=1, initial=None):
     """
     Batchify an iteratable
     """
     ls = len(iterable)
     batches = []
-    for ndx in range(0, ls, n):
+    initial = initial or n
+    batches.append(iterable[0 : min(initial, ls)])
+    for ndx in range(initial, ls, n):
         batches.append(iterable[ndx : min(ndx + n, ls)])
     return batches
 

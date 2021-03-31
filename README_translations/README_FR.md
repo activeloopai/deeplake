@@ -31,7 +31,7 @@
 
 ---
 
-[ English | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Français](./READE_FR.md)]
+[ [English](../README.md) | Français | [简体中文](./README_CN.md) | [Türkçe](./README_TR.md) | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)] | [Русский](./README_translations/README_RU.md)]
 
 ### À quoi sert Hub ?
 
