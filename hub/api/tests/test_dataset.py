@@ -1184,6 +1184,51 @@ def test_minio_endpoint():
         assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
+def test_dataset_copy_local():
+    ds = Dataset(
+        "./data/testing/cp_original_ds_hub_1", shape=(100,), schema=simple_schema
+    )
+    DS2_PATH = "./data/testing/cp_copy_ds_local_5"
+    DS3_PATH = "./data/testing/cp_original_ds_hub_1"
+    for i in range(100):
+        ds["num", i] = 2 * i
+    try:
+        ds2 = ds.copy(DS2_PATH)
+    except:
+        dsi = Dataset(DS2_PATH)
+        dsi.delete()
+        ds2 = ds.copy(DS2_PATH)
+
+    try:
+        ds3 = ds2.copy(DS3_PATH)
+    except:
+        dsi = Dataset(DS3_PATH)
+        dsi.delete()
+        ds3 = ds2.copy(DS3_PATH)
+
+    for i in range(100):
+        assert ds2["num", i].compute() == 2 * i
+        assert ds3["num", i].compute() == 2 * i
+    ds.delete()
+    ds2.delete()
+    ds3.delete()
+
+
+def test_dataset_close():
+    schema = {
+        "img": Image((None, None, 3), max_shape=(100, 100, 3)),
+    }
+    ds_url = "./data/test/dataset_close"
+    ds = Dataset(ds_url, shape=(5,), schema=schema, mode="w")
+    for i in range(len(ds)):
+        ds["img", i] = i * np.ones((100, 100, 3))
+    ds.flush()
+    store_path = os.path.join(ds_url, list(ds.keys)[0].replace("/", ""))
+    tensor_file = os.path.join(store_path, os.listdir(store_path)[0])
+    assert os.path.getsize(tensor_file)
+    ds.delete()
+
+
 if __name__ == "__main__":
     test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
@@ -1215,3 +1260,5 @@ if __name__ == "__main__":
     test_dataset_3()
     test_dataset_utils()
     test_check_label_name()
+    test_dataset_close()
+    test_dataset_copy_local()
