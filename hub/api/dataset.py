@@ -237,8 +237,10 @@ class Dataset:
                 self._version_node = VersionNode(self._commit_id, self._branch)
                 self._branch_node_map = {self._branch: self._version_node}
                 self._commit_node_map = {self._commit_id: self._version_node}
+                self._chunk_commit_map = {
+                    path: defaultdict(set) for schema, path in self._flat_tensors
+                }
                 self._tensors = dict(self._generate_storage_tensors())
-                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()

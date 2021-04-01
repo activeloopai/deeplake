@@ -1,5 +1,6 @@
 tensorflow==2.4.1
 torch>=1,<2
+pandas>=1.0
 ray>=1.0
 transformers>=3.5.1
 dask[complete]>=2.30
