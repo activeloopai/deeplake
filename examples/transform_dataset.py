@@ -1,5 +1,9 @@
+"""Example of using @hub.transform to modify datasets
+"""
+
 import os
 import numpy as np
+
 import hub
 
 # Load the dataset

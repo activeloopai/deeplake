@@ -1,3 +1,6 @@
+"""Basic example of training pytorch model on hub.Dataset
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

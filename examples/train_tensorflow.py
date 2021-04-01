@@ -1,4 +1,8 @@
+"""Basic example of training tensorflow model on hub.Dataset
+"""
+
 import tensorflow as tf
+
 import hub
 from hub.training.model import Model
 
