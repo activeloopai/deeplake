@@ -17,6 +17,7 @@ from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
 from hub.schema import Sequence
 import numpy as np
+from hub import transform
 
 
 class DatasetView:
@@ -196,6 +197,51 @@ class DatasetView:
         else:
             indexes = [index for index in self.indexes if fn(self.dataset[index])]
         return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
+
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        sample_per_shard: int = None,
+        public: bool = True,
+        scheduler="single",
+        workers=1,
+    ):
+        """| Used to save the datasetview as a new dataset
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is referring to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        @transform(schema=self.schema, workers=workers, scheduler=scheduler)
+        def identity(sample):
+            return sample
+
+        ds = identity(self)
+        return ds.store(
+            url, token=token, sample_per_shard=sample_per_shard, public=public
+        )
 
     @property
     def keys(self):
