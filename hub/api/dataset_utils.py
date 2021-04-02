@@ -205,6 +205,25 @@ def _copy_helper(
     return dst_url
 
 
+def _store_helper(
+    ds,
+    url: str,
+    token: dict = None,
+    sample_per_shard: int = None,
+    public: bool = True,
+    scheduler="single",
+    workers=1,
+):
+    from hub import transform
+
+    @transform(schema=ds.schema, workers=workers, scheduler=scheduler)
+    def identity(sample):
+        return sample
+
+    ds2 = identity(ds)
+    return ds2.store(url, token=token, sample_per_shard=sample_per_shard, public=public)
+
+
 def _get_dynamic_tensor_dtype(t_dtype):
     if isinstance(t_dtype, Primitive):
         return t_dtype.dtype
