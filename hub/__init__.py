@@ -19,6 +19,7 @@ from hub.log import logger
 import traceback
 from hub.exceptions import DaskModuleNotInstalledException, HubDatasetNotFoundException
 from hub.report import hub_reporter, hub_tags
+from hub.version import __version__
 
 hub_reporter.setup_excepthook(tags=hub_tags)
 hub_reporter.system_report(tags=hub_tags)
