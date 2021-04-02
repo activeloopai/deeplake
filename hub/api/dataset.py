@@ -42,6 +42,7 @@ from hub.api.dataset_utils import (
     _copy_helper,
     _get_compressor,
     _get_dynamic_tensor_dtype,
+    _store_helper,
 )
 
 import hub.schema.serialize
@@ -49,7 +50,6 @@ import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
 from hub import auto
-from hub import transform
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
@@ -664,13 +664,8 @@ class Dataset:
             uploaded dataset
         """
 
-        @transform(schema=self.schema, workers=workers, scheduler=scheduler)
-        def identity(sample):
-            return sample
-
-        ds = identity(self)
-        return ds.store(
-            url, token=token, sample_per_shard=sample_per_shard, public=public
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
         )
 
     def copy(self, dst_url: str, token=None, fs=None, public=True):

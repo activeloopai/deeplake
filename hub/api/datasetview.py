@@ -12,12 +12,12 @@ from hub.api.dataset_utils import (
     get_value,
     slice_split,
     str_to_int,
+    _store_helper,
 )
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
 from hub.schema import Sequence
 import numpy as np
-from hub import transform
 
 
 class DatasetView:
@@ -234,13 +234,8 @@ class DatasetView:
             uploaded dataset
         """
 
-        @transform(schema=self.schema, workers=workers, scheduler=scheduler)
-        def identity(sample):
-            return sample
-
-        ds = identity(self)
-        return ds.store(
-            url, token=token, sample_per_shard=sample_per_shard, public=public
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
         )
 
     @property
