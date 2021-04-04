@@ -9,11 +9,19 @@ First, let's import all the necessary packages and libraries:
 ```py
 import os
 import pandas as pd
+import numpy as np
+from numpy import asarray
 from tqdm import tqdm
 import hub
 from hub.schema import Image, ClassLabel
+from PIL import Image
+from skimage.transform import resize
+from skimage import img_as_ubyte
+from hub import Dataset, transform, schema
 from sklearn.model_selection import train_test_split
-from sklearn.feature_extraction.text import TfidfTransformer
+
+import matplotlib.pyplot as plt
+%matplotlib inline
 ```
 
 ### Reading Sample Images
@@ -32,21 +40,6 @@ pyplot.show()
 ```
 ![](/img/working_with_images1.png)
 
-### Pre-processing Data
-Let's resize all images before uploading them to Hub.
-```py
-path = "/content/train"
-dirs = os.listdir(path)
-def resize():
-    for item in dirs:
-        if os.path.isfile(path+item):
-            im = Image.open(path+item)
-            f, e = os.path.splitext(path+item)
-            imResize = im.resize((150,150), Image.ANTIALIAS)
-            imResize.save(f + ' resized.jpg', 'JPEG', quality=90)
-
-resize()
-```
 
 Now, let's just collect all the filenames corresponding to cat images and append them to one common DataFrame.
 ```py
@@ -76,13 +69,13 @@ url = "Eshan/dogsvscats"
 
 # Define the schema for our dataset, out dataset will include an image with a corresponding label
 my_schema={
-        "Image": schema.Image(shape=(None,None , 3), max_shape=(150,150,3), dtype="uint8"),
-        "Label": ClassLabel(num_classes=2)}
+        "image": schema.Image(shape=(None,None , 3), max_shape=(150,150,3), dtype="uint8"),
+        "label": ClassLabel(num_classes=2)}
 
 ds = hub.Dataset(url, shape=(25000,), schema=my_schema)
 for i in tqdm(range(len(ds))):
-    ds["Image", i] = images_df["Image"][i]
-    ds["Label", i] = images_df["Label"][i]
+    ds["image", i] = images_df["Image"][i]
+    ds["label", i] = images_df["Label"][i]
 # Saving the dataset to the cloud:
 ds.flush()
 ```
@@ -92,15 +85,47 @@ ds = hub.Dataset(url) # Where url is the same as the code above
 ```
 Upload your dataset once, then just keep calling it for your use case! In the cases of many popular datasets such as the one we're using right now, you don't even need to download the dataset yourself. Simply run the code above with the correct `url`, and you're good to go!
 
+### Pre-processing Data using Hub Transform
+Our dataset would require pre-processing before we train on it. Let's use Hub's transform method to quickly resize all images to 150x150x3 and store it in a new dataset **resized_dogsvscats**
+
+Schema for new dataset
+```py
+new_schema = {
+    "resized_image": schema.Image(shape=(150, 150, 3), dtype="uint8"),
+    "label": ClassLabel(num_classes=2)
+}
+```
+
+Hub transform method to resize images
+```py
+@hub.transform(schema=new_schema)
+def resize_transform(index):
+    image = resize(ds['image', index].compute(), (150, 150, 3), anti_aliasing=True)
+    image = img_as_ubyte(image)  # recast from float to uint8
+    label = int(ds['label', index].compute())
+    return {
+        "resized_image": image,
+        "label": label
+    }
+```
+
+Transform object and store in our Resized dataset
+```py
+ds2 = resize_transform(range(25000))
+
+url = "Eshan/resized_dogsvscats"
+ds3 = ds2.store(url)
+```
+
 ### Hub in Action
 Let's try to see Hub in action. We'll train a binary classification model, streaming the data from Hub. 
 
 ```py
 # Training dataset
-train_dataset = np.array([item["Image"].compute() for item in ds])
+train_dataset = np.array([item["resized_image"].compute() for item in ds3])
 X = np.reshape(train_dataset, (train_dataset.shape[0], -1))
 # Training Labels
-y = ds["Label"].compute() 
+y = ds["label"].compute() 
 ```
 ```py
 from sklearn.model_selection import train_test_split
