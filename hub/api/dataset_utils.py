@@ -271,9 +271,8 @@ def check_class_label(value: Union[np.ndarray, list], subpath_type=None):
             and assign_class_label not in subpath_type.names
         ):
             raise ClassLabelValueError(subpath_type.names, assign_class_label)
-        elif (
-            isinstance(assign_class_label, int)
-            and assign_class_label >= subpath_type.num_classes
+        elif isinstance(assign_class_label, int) and (
+            assign_class_label >= subpath_type.num_classes or assign_class_label < 0
         ):
             raise ClassLabelValueError(
                 range(subpath_type.num_classes - 1), assign_class_label

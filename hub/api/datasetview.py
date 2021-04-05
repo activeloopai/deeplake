@@ -146,7 +146,7 @@ class DatasetView:
         subpath, slice_list = slice_split(slice_)
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
 
-        subpath_type = self.dataset.schema.dict_[subpath.replace("/", "")]
+        subpath_type = self.dataset.schema.dict_.get(subpath.replace("/", ""), None)
         if isinstance(subpath_type, ClassLabel):
             check_class_label(value, subpath_type)
 

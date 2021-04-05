@@ -208,7 +208,7 @@ class TensorView:
         if subpath:
             raise ValueError("Can't setitem of TensorView with subpath")
 
-        subpath_type = self.dataset.schema.dict_[self.subpath.replace("/", "")]
+        subpath_type = self.dataset.schema.dict_.get(subpath.replace("/", ""), None)
         if isinstance(subpath_type, ClassLabel):
             check_class_label(value, subpath_type)
 

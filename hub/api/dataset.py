@@ -612,7 +612,7 @@ class Dataset:
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
 
-        subpath_type = self.schema.dict_[subpath.replace("/", "")]
+        subpath_type = self.schema.dict_.get(subpath.replace("/", ""), None)
         if isinstance(subpath_type, ClassLabel):
             check_class_label(value, subpath_type)
         if not slice_list:
