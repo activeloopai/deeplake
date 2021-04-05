@@ -187,6 +187,19 @@ def test_to_pytorch_key_list():
         tds = dsv.to_pytorch(key_list=["xyz"])
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_dtype_coversion():
+    schema = {
+        "abc": "uint16",
+        "def": "uint32",
+        "ghi": "uint64",
+    }
+    ds = hub.Dataset("./data/ds_type_conversion", schema=schema, shape=(10,))
+    pt_ds = ds.to_pytorch()
+    for item in pt_ds:
+        pass
+
+
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_to_from_tensorflow():
     my_schema = {
