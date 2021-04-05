@@ -709,8 +709,12 @@ class Dataset:
         inplace=True,
         output_type=dict,
         indexes=None,
+        key_list=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -721,11 +725,14 @@ class Dataset:
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
         indexes: list or int, optional
-            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+            The samples to be converted into Pytorch format. Takes all samples in dataset by default.
+        key_list: list, optional
+            The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
