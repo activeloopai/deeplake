@@ -1,6 +1,7 @@
 # pytest-cov #
 ##############
 
+PYTEST_TMPDIR
 .coverage
 .coverage.*
 htmlcov
@@ -43,6 +44,7 @@ dask-worker-space/
 *.sql
 *.sqlite
 data/
+**/dummy_data/**/hub/
 
 # OS generated files #
 ######################
@@ -193,3 +195,7 @@ cov.xml
 hub/api/cov.xml
 hub/api/nested_seq
 nested_seq
+
+# Benchmark local test data (auto-downloaded)
+benchmarks/hub_data
+benchmarks/torch_data

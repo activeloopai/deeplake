@@ -30,7 +30,7 @@
 
 ---
 
-[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | Türkçe | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)]
+[ [English](../README.md) | [Français](./README_FR.md) | [简体中文](./README_CN.md) | Türkçe | [한글](./README_KR.md) | [Bahasa Indonesia](./README_ID.md)] | [Русский](./README_translations/README_RU.md)]
 
 ### Hub ne içindir?
 
