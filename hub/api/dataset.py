@@ -14,7 +14,6 @@ import traceback
 from collections import defaultdict
 import numpy as np
 from PIL import Image as im, ImageChops
-from typing import Iterable
 
 import fsspec
 from fsspec.spec import AbstractFileSystem

@@ -258,6 +258,7 @@ def _get_compressor(compressor: str):
 
 
 def check_class_label(value: Union[np.ndarray, list], subpath_type=None):
+    """Check if value can be assigned to predefined ClassLabel"""
     if not isinstance(value, Iterable) or isinstance(value, str):
         assign_class_labels = [value]
     else:
