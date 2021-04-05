@@ -27,7 +27,7 @@
 </a>
 </p>
 
-<h3 align="center">  Présentation de Data 2.0, développé par Hub. </br>Le moyen le plus rapide pour stocker, accéder et gérer des ensembles de données avec contrôle de version pour PyTorch/TensorFlow.  Fonctionne localement ou sur n'importe quel Cloud. Pipeline de données évolutif.</h3>
+<h3 align="center">  Présentation de Data 2.0, développé par Hub. </br>Le moyen le plus rapide pour stocker, accéder et gérer des jeux de données avec contrôle de version pour PyTorch/TensorFlow.  Fonctionne localement ou sur n'importe quel Cloud. Pipeline de données évolutif.</h3>
 
 ---
 
@@ -35,14 +35,13 @@
 
 ### À quoi sert Hub ?
 
-Data 2.0 dont a besoin Software 2.0 est fournit par Hub. La plupart du temps, les Data Scientists/ML travaillent sur la gestion et le préparation des données plutôt que sur le training des modèles eux-mêmes. Avec Hub, nous remédions à cette situation. Nous stockons vos ensembles de données (même à l'échelle du pétaoctet) sous la forme d'un tableau numérique unique sur le cloud, de sorte que vous pouvez y accéder et travailler de manière transparente depuis n'importe quelle machine. Hub rend tout type de données (images, fichiers texte, audio ou vidéo) stockées dans le Cloud utilisables aussi rapidement que si elles étaient stockées sur place. Avec la même vue de l'ensemble des données, votre équipe peut toujours être synchronisée. 
+Data 2.0 dont a besoin Software 2.0 est fournit par Hub. La plupart du temps, les Data Scientists/ML travaillent sur la gestion et la préparation des données plutôt que sur l'entraînement des modèles eux-mêmes. Avec Hub, nous remédions à cette situation. Nous stockons vos jeux de données (même à l'échelle du pétaoctet) sous la forme d'un tableau numérique unique sur le cloud, de sorte que vous puissiez y accéder et travailler de manière transparente depuis n'importe quelle machine. Hub rend tout type de données (images, fichiers texte, audio ou vidéo) stockées dans le Cloud utilisables aussi rapidement que si elles étaient stockées sur place. Avec la même vue du jeu des données, votre équipe peut toujours être synchronisée. 
 
 Hub est utilisé par Waymo, la Croix-Rouge, le World Resources Institute, Omdena, et d'autres.
 
 ### Caractéristiques 
 
-* Stocker et récupérer de grands ensembles de données avec contrôle de version
-* Collaborate as in Google Docs: Multiple data scientists working on the same data in sync with no interruptions
+* Stocker et récupérer de grands jeux de données avec contrôle de version
 * Collaborer comme dans Google Docs : Plusieurs scientifiques travaillant sur les mêmes données en synchronisation sans interruption
 * Déployer n'importe où - localement, sur Google Cloud, S3, Azure ainsi qu'Activeloop (par défaut - et gratuitement !) 
 * Intégrez avec vos outils de ML comme Numpy, Dask, Ray, [PyTorch](https://docs.activeloop.ai/en/latest/integrations/pytorch.html), ou [TensorFlow](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html)
@@ -54,13 +53,13 @@ Hub est utilisé par Waymo, la Croix-Rouge, le World Resources Institute, Omdena
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
     </br>
-Visualisation d'un ensemble de données téléchargées vers le Hub via app.activeloop.ai (outil gratuit).
+Visualisation d'un jeu de données téléchargé vers le Hub via app.activeloop.ai (outil gratuit).
 
 </p>
 
 
 ## Pour commencer
-Travaillez avec des données publiques ou vos propres données, localement ou n'importe quel Cloud.
+Travaillez avec des données publiques ou vos propres données, localement ou sur n'importe quel Cloud.
 
 ### Accéder aux données publiques. Rapidement.
 
