@@ -5,10 +5,16 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import os
+import time
+from typing import Union, Iterable
 from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
-from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
+from hub.exceptions import (
+    ModuleNotInstalledException,
+    DirectoryNotEmptyException,
+    ClassLabelValueError,
+)
 import hashlib
 import time
 import numcodecs
@@ -16,6 +22,7 @@ import numcodecs.lz4
 import numcodecs.zstd
 from hub.schema.features import Primitive
 from hub.numcodecs import PngCodec
+from hub.schema import ClassLabel
 
 
 def slice_split(slice_):
@@ -248,3 +255,25 @@ def _get_compressor(compressor: str):
         raise ValueError(
             f"Wrong compressor: {compressor}, only LZ4, PNG and ZSTD are supported"
         )
+
+
+def check_class_label(value: Union[np.ndarray, list], subpath_type=None):
+    if not isinstance(value, Iterable) or isinstance(value, str):
+        assign_class_labels = [value]
+    else:
+        assign_class_labels = value
+    for assign_class_label in assign_class_labels:
+        if str(assign_class_label).isdigit():
+            assign_class_label = int(assign_class_label)
+        if (
+            isinstance(assign_class_label, str)
+            and assign_class_label not in subpath_type.names
+        ):
+            raise ClassLabelValueError(subpath_type.names, assign_class_label)
+        elif (
+            isinstance(assign_class_label, int)
+            and assign_class_label >= subpath_type.num_classes
+        ):
+            raise ClassLabelValueError(
+                range(subpath_type.num_classes - 1), assign_class_label
+            )

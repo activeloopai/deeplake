@@ -8,10 +8,10 @@ from typing import Iterable
 import numpy as np
 import hub
 import collections.abc as abc
-from hub.api.dataset_utils import get_value, slice_split, str_to_int
-from hub.exceptions import NoneValueException, ClassLabelValueError
-import hub.api.objectview as objv
+from hub.api.dataset_utils import get_value, slice_split, str_to_int, check_class_label
+from hub.exceptions import NoneValueException
 from hub.schema import ClassLabel
+import hub.api.objectview as objv
 
 
 class TensorView:
@@ -212,25 +212,7 @@ class TensorView:
 
         subpath_type = self.dataset.schema.dict_[self.subpath.replace("/", "")]
         if isinstance(subpath_type, ClassLabel):
-            if not isinstance(value, Iterable) or isinstance(value, str):
-                assign_class_labels = [value]
-            else:
-                assign_class_labels = value
-            for assign_class_label in assign_class_labels:
-                if assign_class_label.isdigit():
-                    assign_class_label = int(assign_class_label)
-                if (
-                    isinstance(assign_class_label, str)
-                    and assign_class_label not in subpath_type.names
-                ):
-                    raise ClassLabelValueError(subpath_type.names, assign_class_label)
-                elif (
-                    isinstance(assign_class_label, int)
-                    and assign_class_label >= subpath_type.num_classes
-                ):
-                    raise ClassLabelValueError(
-                        range(subpath_type.num_classes - 1), assign_class_label
-                    )
+            check_class_label(value, subpath_type)
 
         new_nums = self.nums.copy()
         new_offsets = self.offsets.copy()
