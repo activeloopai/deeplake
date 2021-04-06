@@ -12,7 +12,67 @@ from hub.schema.features import Tensor
 
 
 class Text(Tensor):
-    """`HubSchema` for text"""
+    """Schema for text would define the shape and structure for the dataset.
+
+    Output: `Tensor` of type `uint8` and shape `[height, width, num_channels]`
+    for BMP, JPEG, and PNG images
+
+    Example: This example uploads an `image` to a Hub dataset `image_dataset` with `HubSchema` and retrieves it.
+
+    For data with fixed `shape`
+    ----------
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import Text
+
+    >>> tag = "username/dataset"
+    >>>
+    >>> # Create dataset
+    >>> ds = Dataset(
+    >>>     tag,
+    >>>     shape=(5,),
+    >>>     schema = {
+    >>>         "text": Text(shape=(11,)),
+    >>>    },
+    >>> )
+    >>>
+    >>> ds["text",0] = "Hello There"
+    >>>
+    >>> ds.flush()
+    >>>
+    >>> # Load the data
+    >>> ds = Dataset(tag)
+    >>>
+    >>> print(ds["text"][0].compute())
+    Hello There
+
+
+    For data with variable `shape`, it is recommended to use `max_shape`
+
+    >>> ds = Dataset(
+    >>>     tag,
+    >>>     shape=(5,),
+    >>>     schema = {
+    >>>         "text": Text(max_shape=(10,)),
+    >>>    },
+    >>> )
+    >>>
+    >>> ds["text",0] = "Welcome"
+    >>> ds["text",1] = "to"
+    >>> ds["text",2] = "Hub"
+    >>>
+    >>> ds.flush()
+    >>>
+    >>> # Load data
+    >>> ds = Dataset(tag)
+    >>>
+    >>> print(ds["text"][0].compute())
+    >>> print(ds["text"][1].compute())
+    >>> print(ds["text"][2].compute())
+    Welcome
+    to
+    Hub
+    """
 
     def __init__(
         self,

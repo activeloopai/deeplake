@@ -16,11 +16,7 @@ import hub.schema.deserialize
 
 
 def _to_pytorch(
-    dataset,
-    transform=None,
-    inplace=True,
-    output_type=dict,
-    indexes=None,
+    dataset, transform=None, inplace=True, output_type=dict, indexes=None, key_list=None
 ):
     """| Converts the dataset into a pytorch compatible format.
 
@@ -33,7 +29,10 @@ def _to_pytorch(
     output_type: one of list, tuple, dict, optional
         Defines the output type. Default is dict - same as in original Hub Dataset.
     indexes: list or int, optional
-        The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+        The samples to be converted into Pytorch format. Takes all samples in dataset by default.
+    key_list: list, optional
+        The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+        use ["a/b/c"] as key_list
     """
     try:
         import torch
@@ -46,7 +45,12 @@ def _to_pytorch(
     if "r" not in dataset.mode:
         dataset.flush()  # FIXME Without this some tests in test_converters.py fails, not clear why
     return TorchDataset(
-        dataset, transform, inplace=inplace, output_type=output_type, indexes=indexes
+        dataset,
+        transform,
+        inplace=inplace,
+        output_type=output_type,
+        indexes=indexes,
+        key_list=key_list,
     )
 
 
@@ -143,7 +147,7 @@ def _from_pytorch(dataset, scheduler: str = "single", workers: int = 1):
     return my_transform(dataset)
 
 
-def _to_tensorflow(dataset, indexes=None, include_shapes=False):
+def _to_tensorflow(dataset, indexes=None, include_shapes=False, key_list=None):
     """| Converts the dataset into a tensorflow compatible format
 
     Parameters
@@ -160,12 +164,15 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         global tf
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("tensorflow")
-
+    key_list = key_list or list(dataset.keys)
+    key_list = [key if key.startswith("/") else "/" + key for key in key_list]
+    for key in key_list:
+        if key not in dataset.keys:
+            raise KeyError(key)
     indexes = indexes or dataset.indexes
     indexes = [indexes] if isinstance(indexes, int) else indexes
     _samples_in_chunks = {
-        key: (None in value.shape) and 1 or value.chunks[0]
-        for key, value in dataset._tensors.items()
+        key: value.chunks[0] for key, value in dataset._tensors.items()
     }
     _active_chunks = {}
     _active_chunks_range = {}
@@ -176,7 +183,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         if active_range is None or index not in active_range:
             active_range_start = index - index % samples_per_chunk
             active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
+                active_range_start,
+                min(active_range_start + samples_per_chunk, indexes[-1] + 1),
             )
             _active_chunks_range[key] = active_range
             _active_chunks[key] = dataset._tensors[key][
@@ -189,6 +197,8 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
         for index in indexes:
             d = {}
             for key in dataset.keys:
+                if key not in key_list:
+                    continue
                 split_key, cur = key.split("/"), d
                 for i in range(1, len(split_key) - 1):
                     if split_key[i] in cur.keys():
@@ -207,10 +217,13 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
 
             yield (d)
 
-    def dict_to_tf(my_dtype):
+    def dict_to_tf(my_dtype, path=""):
         d = {}
         for k, v in my_dtype.dict_.items():
-            d[k] = dtype_to_tf(v)
+            for key in key_list:
+                if key.startswith(path + "/" + k):
+                    d[k] = dtype_to_tf(v, path + "/" + k)
+                    break
         return d
 
     def tensor_to_tf(my_dtype):
@@ -219,9 +232,9 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
     def text_to_tf(my_dtype):
         return "string"
 
-    def dtype_to_tf(my_dtype):
+    def dtype_to_tf(my_dtype, path=""):
         if isinstance(my_dtype, SchemaDict):
-            return dict_to_tf(my_dtype)
+            return dict_to_tf(my_dtype, path=path)
         elif isinstance(my_dtype, Text):
             return text_to_tf(my_dtype)
         elif isinstance(my_dtype, Tensor):
@@ -231,18 +244,21 @@ def _to_tensorflow(dataset, indexes=None, include_shapes=False):
                 return "string"
             return str(my_dtype._dtype)
 
-    def get_output_shapes(my_dtype):
+    def get_output_shapes(my_dtype, path=""):
         if isinstance(my_dtype, SchemaDict):
-            return output_shapes_from_dict(my_dtype)
+            return output_shapes_from_dict(my_dtype, path=path)
         elif isinstance(my_dtype, (Text, Primitive)):
             return ()
         elif isinstance(my_dtype, Tensor):
             return my_dtype.shape
 
-    def output_shapes_from_dict(my_dtype):
+    def output_shapes_from_dict(my_dtype, path=""):
         d = {}
         for k, v in my_dtype.dict_.items():
-            d[k] = get_output_shapes(v)
+            for key in key_list:
+                if key.startswith(path + "/" + k):
+                    d[k] = get_output_shapes(v, path + "/" + k)
+                    break
         return d
 
     output_types = dtype_to_tf(dataset._schema)
@@ -544,7 +560,13 @@ def _from_tfds(
 
 class TorchDataset:
     def __init__(
-        self, ds, transform=None, inplace=True, output_type=dict, indexes=None
+        self,
+        ds,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        indexes=None,
+        key_list=None,
     ):
         self._ds = None
         self._url = ds.url
@@ -554,6 +576,14 @@ class TorchDataset:
         self.output_type = output_type
         self.indexes = indexes
         self._inited = False
+        self.key_list = key_list
+        self.key_list = self.key_list or list(ds.keys)
+        self.key_list = [
+            key if key.startswith("/") else "/" + key for key in self.key_list
+        ]
+        for key in self.key_list:
+            if key not in ds.keys:
+                raise KeyError(key)
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -567,8 +597,7 @@ class TorchDataset:
         if not self._inited:
             self._inited = True
             self._samples_in_chunks = {
-                key: (None in value.shape) and 1 or value.chunks[0]
-                for key, value in self._ds._tensors.items()
+                key: value.chunks[0] for key, value in self._ds._tensors.items()
             }
             self._active_chunks = {}
             self._active_chunks_range = {}
@@ -583,7 +612,8 @@ class TorchDataset:
         if active_range is None or index not in active_range:
             active_range_start = index - index % samples_per_chunk
             active_range = range(
-                active_range_start, active_range_start + samples_per_chunk
+                active_range_start,
+                min(active_range_start + samples_per_chunk, self.indexes[-1] + 1),
             )
             self._active_chunks_range[key] = active_range
             self._active_chunks[key] = self._ds._tensors[key][
@@ -601,6 +631,8 @@ class TorchDataset:
         self._init_ds()
         d = {}
         for key in self._ds._tensors.keys():
+            if key not in self.key_list:
+                continue
             split_key = key.split("/")
             cur = d
             for i in range(1, len(split_key) - 1):
@@ -612,6 +644,10 @@ class TorchDataset:
             if not isinstance(item, bytes) and not isinstance(item, str):
                 t = item
                 if self.inplace:
+                    if t.dtype == "uint16":
+                        t = t.astype("int32")
+                    elif t.dtype == "uint32" or t.dtype == "uint64":
+                        t = t.astype("int64")
                     t = torch.tensor(t)
                 cur[split_key[-1]] = t
         d = self._do_transform(d)

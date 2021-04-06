@@ -11,6 +11,11 @@ import sys
 from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
 import hashlib
 import time
+import numcodecs
+import numcodecs.lz4
+import numcodecs.zstd
+from hub.schema.features import Primitive
+from hub.numcodecs import PngCodec
 
 
 def slice_split(slice_):
@@ -198,3 +203,48 @@ def _copy_helper(
                 src_fs=src_fs,
             )
     return dst_url
+
+
+def _store_helper(
+    ds,
+    url: str,
+    token: dict = None,
+    sample_per_shard: int = None,
+    public: bool = True,
+    scheduler="single",
+    workers=1,
+):
+    from hub import transform
+
+    @transform(schema=ds.schema, workers=workers, scheduler=scheduler)
+    def identity(sample):
+        return sample
+
+    ds2 = identity(ds)
+    return ds2.store(url, token=token, sample_per_shard=sample_per_shard, public=public)
+
+
+def _get_dynamic_tensor_dtype(t_dtype):
+    if isinstance(t_dtype, Primitive):
+        return t_dtype.dtype
+    elif isinstance(t_dtype.dtype, Primitive):
+        return t_dtype.dtype.dtype
+    else:
+        return "object"
+
+
+def _get_compressor(compressor: str):
+    if compressor is None:
+        return None
+    elif compressor.lower() == "lz4":
+        return numcodecs.LZ4(numcodecs.lz4.DEFAULT_ACCELERATION)
+    elif compressor.lower() == "zstd":
+        return numcodecs.Zstd(numcodecs.zstd.DEFAULT_CLEVEL)
+    elif compressor.lower() == "default":
+        return "default"
+    elif compressor.lower() == "png":
+        return PngCodec(solo_channel=True)
+    else:
+        raise ValueError(
+            f"Wrong compressor: {compressor}, only LZ4, PNG and ZSTD are supported"
+        )
