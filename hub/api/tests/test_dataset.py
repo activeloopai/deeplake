@@ -9,17 +9,14 @@ import shutil
 
 import cloudpickle
 import hub.api.dataset as dataset
-import pickle
 from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException, ClassLabelValueError
 import numpy as np
 import pytest
 from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
-from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException
 from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
-from hub.schema.class_label import ClassLabel
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
@@ -1168,18 +1165,25 @@ def test_check_label_name():
 def test_class_label_value():
     ds = Dataset(
         "./data/tests/test_check_label",
-        mode="a",
+        mode="w",
         shape=(5,),
-        schema={"label": ClassLabel(names=["name1", "name2", "name3"])},
+        schema={
+            "label": ClassLabel(names=["name1", "name2", "name3"]),
+            "label/b": ClassLabel(num_classes=5),
+        },
     )
     ds["label", 0:7] = 2
     ds["label", 0:2] = np.array([0, 1])
     try:
-        ds["label", 0] = 4
+        ds["label/b", 0] = 6
     except Exception as ex:
         assert isinstance(ex, ClassLabelValueError)
     try:
-        ds[0:4]["label"] = np.array([0, 1, 2, 3])
+        ds[0:4]["label/b"] = np.array([0, 1, 2, 3, 7])
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds["label", 4] = "name4"
     except Exception as ex:
         assert isinstance(ex, ClassLabelValueError)
 

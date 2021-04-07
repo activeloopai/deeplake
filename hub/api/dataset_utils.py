@@ -257,23 +257,21 @@ def _get_compressor(compressor: str):
         )
 
 
-def check_class_label(value: Union[np.ndarray, list], subpath_type=None):
+def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
     """Check if value can be assigned to predefined ClassLabel"""
     if not isinstance(value, Iterable) or isinstance(value, str):
         assign_class_labels = [value]
     else:
         assign_class_labels = value
-    for assign_class_label in assign_class_labels:
-        if str(assign_class_label).isdigit():
-            assign_class_label = int(assign_class_label)
-        if (
-            isinstance(assign_class_label, str)
-            and assign_class_label not in subpath_type.names
-        ):
-            raise ClassLabelValueError(subpath_type.names, assign_class_label)
-        elif isinstance(assign_class_label, int) and (
-            assign_class_label >= subpath_type.num_classes or assign_class_label < 0
-        ):
-            raise ClassLabelValueError(
-                range(subpath_type.num_classes - 1), assign_class_label
-            )
+    for i, assign_class_label in enumerate(assign_class_labels):
+        if isinstance(assign_class_label, str):
+            try:
+                assign_class_labels[i] = label.str2int(assign_class_label)
+            except KeyError:
+                raise ClassLabelValueError(label.names, assign_class_label)
+
+    if min(assign_class_labels) < 0 or max(assign_class_labels) > label.num_classes - 1:
+        raise ClassLabelValueError(range(label.num_classes - 1), assign_class_label)
+    if len(assign_class_labels) == 1:
+        return assign_class_labels[0]
+    return assign_class_labels

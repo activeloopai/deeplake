@@ -17,7 +17,7 @@ from hub.api.dataset_utils import (
 )
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
-from hub.schema import Sequence, ClassLabel
+from hub.schema import Sequence, ClassLabel, Text, SchemaDict
 import numpy as np
 
 
@@ -135,10 +135,6 @@ class DatasetView:
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
         self.dataset._auto_checkout()
-        assign_value = get_value(value)
-        assign_value = str_to_int(
-            assign_value, self.dataset.tokenizer
-        )  # handling strings and bytes
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -146,9 +142,23 @@ class DatasetView:
         subpath, slice_list = slice_split(slice_)
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
 
-        subpath_type = self.dataset.schema.dict_.get(subpath.replace("/", ""), None)
-        if isinstance(subpath_type, ClassLabel):
-            check_class_label(value, subpath_type)
+        assign_value = get_value(value)
+        schema_dict = self.dataset.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if (
+            isinstance(schema_key, (Text, bytes))
+            or np.array(assign_value).dtype.type is np.str_
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without key")

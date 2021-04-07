@@ -598,9 +598,6 @@ class Dataset:
         if "r" in self._mode:
             raise ReadModeException("__setitem__")
         self._auto_checkout()
-        assign_value = get_value(value)
-        # handling strings and bytes
-        assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -612,9 +609,24 @@ class Dataset:
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
 
-        subpath_type = self.schema.dict_.get(subpath.replace("/", ""), None)
-        if isinstance(subpath_type, ClassLabel):
-            check_class_label(value, subpath_type)
+        assign_value = get_value(value)
+        schema_dict = self.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if (
+            isinstance(schema_key, (Text, bytes))
+            or np.array(assign_value).dtype.type is np.str_
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.tokenizer)
+
         if not slice_list:
             self._tensors[subpath][:] = assign_value
         else:
