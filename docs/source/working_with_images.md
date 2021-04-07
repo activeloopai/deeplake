@@ -42,6 +42,9 @@ pyplot.show()
 
 
 Now, let's just collect all the filenames corresponding to cat images and append them to one common DataFrame.
+
+*Note: There are various ways of uploading datasets to Hub. However, we will use a DataFrame for this example.*
+
 ```py
 images_df = pd.DataFrame()
 root_dir = '/content/train/'
