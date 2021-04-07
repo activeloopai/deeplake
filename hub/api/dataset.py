@@ -10,6 +10,7 @@ import posixpath
 import collections.abc as abc
 import json
 import sys
+from typing import Iterable
 import traceback
 from collections import defaultdict
 import numpy as np
@@ -620,9 +621,9 @@ class Dataset:
                     schema_key = schema_dict
         if isinstance(schema_key, ClassLabel):
             assign_value = check_class_label(assign_value, schema_key)
-        if (
-            isinstance(schema_key, (Text, bytes))
-            or np.array(assign_value).dtype.type is np.str_
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
         ):
             # handling strings and bytes
             assign_value = str_to_int(assign_value, self.tokenizer)

@@ -4,6 +4,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 import numpy as np
+from typing import Iterable
 import hub
 import collections.abc as abc
 from hub.api.dataset_utils import get_value, slice_split, str_to_int, check_class_label
@@ -216,12 +217,13 @@ class TensorView:
                     schema_key = schema_dict
         if isinstance(schema_key, ClassLabel):
             assign_value = check_class_label(assign_value, schema_key)
-        if (
-            isinstance(schema_key, (Text, bytes))
-            or np.array(assign_value).dtype.type is np.str_
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
         ):
             # handling strings and bytes
             assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+
         new_nums = self.nums.copy()
         new_offsets = self.offsets.copy()
         if isinstance(self.indexes, list):
