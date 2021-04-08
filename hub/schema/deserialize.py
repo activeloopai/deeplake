@@ -45,6 +45,7 @@ def deserialize(inp):
             if inp["_names"] is not None:
                 return ClassLabel(
                     shape=tuple(inp["shape"]),
+                    dtype=deserialize(inp["dtype"]),
                     names=inp["_names"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
@@ -53,6 +54,7 @@ def deserialize(inp):
             else:
                 return ClassLabel(
                     shape=tuple(inp["shape"]),
+                    dtype=deserialize(inp["dtype"]),
                     num_classes=inp["_num_classes"],
                     chunks=inp["chunks"],
                     compressor=_get_compressor(inp),
@@ -67,8 +69,6 @@ def deserialize(inp):
             return Image(
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
-                # TODO uncomment back when image encoding will be added
-                # encoding_format=inp["encoding_format"],
                 max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),

@@ -4,7 +4,7 @@ requests>=2, <3
 fsspec>=0.8, <1
 gcsfs>=0.6.2, <0.7  # newer versions fail tests #97
 s3fs==0.4.2, <0.5.2  # newer versions require Python 3.7+
-boto3==1.17.41
+boto3==1.17.43
 lz4>=3, <4
 zarr>=2.4, <2.8
 tqdm>=4.1, <5

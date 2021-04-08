@@ -128,6 +128,7 @@ class ClassLabel(Tensor):
     def __init__(
         self,
         shape: Tuple[int, ...] = (),
+        dtype="uint8",
         max_shape: Tuple[int, ...] = None,
         num_classes: int = None,
         names: List[str] = None,
@@ -170,7 +171,7 @@ class ClassLabel(Tensor):
         super().__init__(
             shape=shape,
             max_shape=max_shape,
-            dtype="uint16",
+            dtype=dtype,
             chunks=chunks,
             compressor=compressor,
         )

@@ -98,7 +98,7 @@ def test_class_label():
 
 def test_class_label_2():
     cl1 = ClassLabel(names=["apple", "banana", "cat"])
-    cl2 = ClassLabel((None,), (10,), names=["apple", "banana", "cat"])
+    cl2 = ClassLabel((None,), max_shape=(10,), names=["apple", "banana", "cat"])
     cl3 = ClassLabel((3,), names=["apple", "banana", "cat"])
     my_schema = {"cl1": cl1, "cl2": cl2, "cl3": cl3}
 
@@ -210,8 +210,8 @@ def test_classlabel_repr():
     cl1 = ClassLabel(num_classes=5)
     cl2 = ClassLabel(names=["apple", "orange", "banana"])
 
-    text1 = "ClassLabel(shape=(), dtype='uint16', num_classes=5)"
-    text2 = "ClassLabel(shape=(), dtype='uint16', names=['apple', 'orange', 'banana'], num_classes=3)"
+    text1 = "ClassLabel(shape=(), dtype='uint8', num_classes=5)"
+    text2 = "ClassLabel(shape=(), dtype='uint8', names=['apple', 'orange', 'banana'], num_classes=3)"
     assert cl1.__repr__() == text1
     assert cl2.__repr__() == text2
 

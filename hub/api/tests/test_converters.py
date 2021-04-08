@@ -144,6 +144,62 @@ def test_to_tensorflow_key_list():
         tds = dsv.to_tensorflow(key_list=["xyz"])
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_key_list():
+    schema = {
+        "abc": {
+            "d": Tensor((100, 100, 3)),
+            "e": Tensor((100, 100, 3)),
+            "f": {"g": Tensor((100, 100, 3))},
+        },
+        "int": "uint32",
+    }
+    ds = hub.Dataset("./data/test_to_pt_key_list", shape=(10,), schema=schema, mode="w")
+    for i in range(10):
+        ds["abc/d", i] = i * np.ones((100, 100, 3))
+        ds["abc/e", i] = i * np.ones((100, 100, 3))
+        ds["abc/f/g", i] = i * np.ones((100, 100, 3))
+        ds["int", i] = i
+    tds = ds.to_pytorch(key_list=["abc/d", "abc/f/g"])
+    for i, item in enumerate(tds):
+        d = item
+        assert list(d.keys()) == ["abc"]
+        d = d["abc"]
+        assert list(d.keys()) == ["d", "f"]
+        d = d["f"]
+        assert list(d.keys()) == ["g"]
+        assert (item["abc"]["d"].numpy() == i * np.ones((100, 100, 3))).all()
+        assert (item["abc"]["f"]["g"].numpy() == i * np.ones((100, 100, 3))).all()
+
+    dsv = ds[5:]
+    tds = dsv.to_pytorch(key_list=["abc/d", "abc/f/g"])
+    for i, item in enumerate(tds):
+        d = item
+        assert list(d.keys()) == ["abc"]
+        d = d["abc"]
+        assert list(d.keys()) == ["d", "f"]
+        d = d["f"]
+        assert list(d.keys()) == ["g"]
+        assert (item["abc"]["d"].numpy() == (i + 5) * np.ones((100, 100, 3))).all()
+        assert (item["abc"]["f"]["g"].numpy() == (i + 5) * np.ones((100, 100, 3))).all()
+
+    with pytest.raises(KeyError):
+        tds = dsv.to_pytorch(key_list=["xyz"])
+
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_dtype_coversion():
+    schema = {
+        "abc": "uint16",
+        "def": "uint32",
+        "ghi": "uint64",
+    }
+    ds = hub.Dataset("./data/ds_type_conversion", schema=schema, shape=(10,))
+    pt_ds = ds.to_pytorch()
+    for item in pt_ds:
+        pass
+
+
 @pytest.mark.skipif(not tensorflow_loaded(), reason="requires tensorflow to be loaded")
 def test_to_from_tensorflow():
     my_schema = {

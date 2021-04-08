@@ -308,13 +308,11 @@ class DatasetView:
             indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
-    def to_pytorch(
-        self,
-        transform=None,
-        inplace=True,
-        output_type=dict,
-    ):
+    def to_pytorch(self, transform=None, inplace=True, output_type=dict, key_list=None):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -330,6 +328,7 @@ class DatasetView:
             indexes=self.indexes,
             inplace=inplace,
             output_type=output_type,
+            key_list=key_list,
         )
 
     def resize_shape(self, size: int) -> None:
