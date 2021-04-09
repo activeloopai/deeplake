@@ -1,5 +1,5 @@
 {% set name = "hub" %}
-{% set version = HUB_VERSION %}
+{% set version = "1.2.2" %}
 
 package:
   name: "{{ name }}"
