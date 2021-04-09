@@ -26,6 +26,7 @@ We realized that there are a few problems related with current workflow in deep 
 Wouldn’t it be more convenient to have large datasets stored & version-controlled as single numpy-like array on the cloud and have access to it from any machine at scale?
 
 
+.. include:: /img/image_link.rst
 
 .. toctree::
    :maxdepth: 3
@@ -43,6 +44,7 @@ Wouldn’t it be more convenient to have large datasets stored & version-control
 
    simple.md
    working_with_text.md
+   working_with_images.md
 
 .. toctree::
    :maxdepth: 3
