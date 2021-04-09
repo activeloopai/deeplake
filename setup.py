@@ -7,9 +7,9 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 import os
 
 from setuptools import find_packages, setup
+from hub.version import __version__ as VERSION
 
 project = "hub"
-VERSION = "1.3.3"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
