@@ -46,11 +46,10 @@ def data_from_audio(path, scheduler, workers):
 
     # create transform for putting data into hub format
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
-    def upload_data(df):
-        for index, row in df.iterrows():
-            # for i in tqdm(range(df.columns)):
-            #   ds["audio", i] = df["Audio"][i]
-            #   ds["sampling_rate", i] = images_df["Sample Rate"][i]
-            return {"image": index, "sampling_rate": row}
+    def upload_data(index, df):
+        audio_dictionary = {}
+        for column in df.columns:
+            audio_dictionary[column] = df[column].iloc[index]
+        return audio_dictionary
 
-        return upload_data(data)
+    return upload_data(range(len(df)), df=df)
