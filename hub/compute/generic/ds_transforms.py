@@ -26,6 +26,7 @@ def horizonatal_flip(
     ds: Union[Dataset, DatasetView],
     keys: Union[List[str], Tuple[str]] = ["image"],
     p: float = 1.0,
+    scheduler: str = "threaded",
 ):
     """Generic transform for horizontal flip
     Parameters
@@ -35,6 +36,8 @@ def horizonatal_flip(
     keys: List or Tuple of str. Default: ['image']
         Apply horizontal flip only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.0
 
@@ -53,9 +56,7 @@ def horizonatal_flip(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_flip(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -69,6 +70,7 @@ def horizonatal_flip(
 def vertical_flip(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
 ):
     """Generic transform for vertical flip
@@ -79,6 +81,8 @@ def vertical_flip(
     keys: List or Tuple of str. Default: ['image']
         Apply vertical flip only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.0
 
@@ -97,9 +101,7 @@ def vertical_flip(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_flip(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -113,6 +115,7 @@ def vertical_flip(
 def shift_scale_rotate(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
     shift_limit=0.0625,
     scale_limit=0.1,
@@ -132,6 +135,8 @@ def shift_scale_rotate(
     keys: List or Tuple of str. Default: ['image']
         Apply shift_scale_rotate only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.0
     shift_limit: (float, float) or float. Default: (-0.0625, 0.0625).
@@ -182,9 +187,7 @@ def shift_scale_rotate(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_ssr(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -209,6 +212,7 @@ def shift_scale_rotate(
 def blur(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
     blur_limit: float = 7,
 ):
@@ -220,6 +224,8 @@ def blur(
     keys: List or Tuple of str. Default: ['image']
         Apply blur transform only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.
     blur_limit: int, (int, int). Default: (3, 7).
@@ -241,9 +247,7 @@ def blur(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_blur(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -257,6 +261,7 @@ def blur(
 def random_brightness_contrast(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
     brightness_limit=0.2,
     contrast_limit=0.2,
@@ -270,6 +275,8 @@ def random_brightness_contrast(
     keys: List or Tuple of str. Default: ['image']
         Apply random brightness contrast transform only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.
     brightness_limit: (float, float) or float. Default: (-0.2, 0.2).
@@ -296,9 +303,7 @@ def random_brightness_contrast(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_rbc(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -317,6 +322,7 @@ def random_brightness_contrast(
 def gausse_noise(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
     var_limit=(10.0, 50.0),
     mean=0,
@@ -329,6 +335,8 @@ def gausse_noise(
     keys: List or Tuple of str. Default: ['image']
         Apply gausse_noise transform only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.
     var_limit: (float, float) or float. Default: (10.0, 50.0).
@@ -351,9 +359,7 @@ def gausse_noise(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_gn(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -369,6 +375,7 @@ def gausse_noise(
 def transpose(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
+    scheduler: str = "threaded",
     p: float = 1.0,
 ):
     """Generic transform for transpose
@@ -379,6 +386,8 @@ def transpose(
     keys: List or Tuple of str. Default: ['image']
         Apply transpose transform only on specified keys from Dataset schema.
         Supproted input types: uint8, float32
+    schduler: str. Default: 'threaded'.
+        Use transform with this scheduler. Choices: ['threaded', 'ray_generator']
     p: float
         Probability of applying the transform. Default: 1.
 
@@ -397,9 +406,7 @@ def transpose(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(
-        schema=schema_dict, scheduler="ray_generator", workers=os.cpu_count() - 1
-    )
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
     def run_transpose(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
