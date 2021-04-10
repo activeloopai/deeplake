@@ -77,5 +77,5 @@ def test_transforms_input():
 
 
 if __name__ == "__main__":
-    # test_transforms()
+    test_transforms()
     test_transforms_input()
