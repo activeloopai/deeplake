@@ -22,7 +22,6 @@ def data_from_audio(path, scheduler, workers):
         return None
 
     max_shape = max_shape = (1920000,)
-
     filepaths = util.get_children(child)
 
     for filepath in filepaths:
