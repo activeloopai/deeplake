@@ -6,6 +6,7 @@ from PIL import Image
 IGNORE_EXTS = [".DS_Store"]
 IMAGE_EXTS = [".jpg", ".png", ".jpeg"]
 CSV_EXTS = [".csv"]
+AUDIO_EXTS = [".aac", ".au", ".flac", ".m4a", ".mp3", ".ogg", ".wav"]
 
 
 class DirectoryParserState:
