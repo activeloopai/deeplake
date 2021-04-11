@@ -21,7 +21,7 @@ def data_from_audio(path, scheduler, workers):
     if not util.files_are_of_extension(path, AUDIO_EXTS):
         return None
 
-    max_shape = max_shape = (1920000,)
+    max_shape = (None,)
     filepaths = util.get_children(child)
 
     for filepath in filepaths:
