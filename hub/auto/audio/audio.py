@@ -4,7 +4,6 @@ import hub
 import numpy as np
 from hub.auto import util
 from hub.auto.infer import state
-import librosa
 from tqdm import tqdm
 
 USE_TQDM = True
@@ -17,6 +16,11 @@ def data_from_audio(path, scheduler, workers):
         import librosa
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("librosa")
+
+    try:
+        import pandas as pd
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("pandas")
 
     if not util.files_are_of_extension(path, AUDIO_EXTS):
         return None
