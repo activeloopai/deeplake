@@ -21,12 +21,7 @@ def data_from_audio(path, scheduler, workers):
     if not util.files_are_of_extension(path, AUDIO_EXTS):
         return None
 
-    max_shape = (None,)
-    filepaths = util.get_children(child)
-
-    for filepath in filepaths:
-        if util.get_ext(filepath) not in AUDIO_EXTS:
-            continue
+    max_shape = (0,)
 
     df = pd.DataFrame()
     files = util.get_children(path)
@@ -44,7 +39,7 @@ def data_from_audio(path, scheduler, workers):
         "sampling_rate": hub.schema.Primitive(dtype=int),
     }
 
-    # create transform for putting data into hub format
+    # Create transform for putting data into hub format
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
     def upload_data(index, df):
         audio_dictionary = {}
