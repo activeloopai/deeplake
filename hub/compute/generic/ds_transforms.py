@@ -27,6 +27,7 @@ def horizonatal_flip(
     keys: Union[List[str], Tuple[str]] = ["image"],
     p: float = 1.0,
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
 ):
     """Generic transform for horizontal flip
     Parameters
@@ -56,7 +57,7 @@ def horizonatal_flip(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_flip(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -71,6 +72,7 @@ def vertical_flip(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
 ):
     """Generic transform for vertical flip
@@ -101,7 +103,7 @@ def vertical_flip(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_flip(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -116,6 +118,7 @@ def shift_scale_rotate(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
     shift_limit=0.0625,
     scale_limit=0.1,
@@ -187,7 +190,7 @@ def shift_scale_rotate(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_ssr(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -213,6 +216,7 @@ def blur(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
     blur_limit: float = 7,
 ):
@@ -247,7 +251,7 @@ def blur(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_blur(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -262,6 +266,7 @@ def random_brightness_contrast(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
     brightness_limit=0.2,
     contrast_limit=0.2,
@@ -303,7 +308,7 @@ def random_brightness_contrast(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_rbc(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -323,6 +328,7 @@ def gausse_noise(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
     var_limit=(10.0, 50.0),
     mean=0,
@@ -359,7 +365,7 @@ def gausse_noise(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_gn(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -376,6 +382,7 @@ def transpose(
     ds: Union[Dataset, DatasetView],
     keys: Union[List, Tuple] = ["image"],
     scheduler: str = "threaded",
+    workers: int = os.cpu_count() - 1,
     p: float = 1.0,
 ):
     """Generic transform for transpose
@@ -406,7 +413,7 @@ def transpose(
     else:
         schema_dict = ds.schema.dict_
 
-    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=os.cpu_count() - 1)
+    @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_transpose(sample, keys):
         for key in keys:
             if sample[key].dtype == "bool":
@@ -419,7 +426,7 @@ def transpose(
 
 if __name__ == "__main__":
     ds = hub.Dataset("activeloop/cifar10_test")[:20]
-    transformed_ds = horizonatal_flip(ds, ["image"])
+    transformed_ds = horizonatal_flip(ds, ["image"], workers=2)
     transformed_ds.store("./transformed_cifar")
 
     ds = hub.Dataset("./transformed_cifar")
