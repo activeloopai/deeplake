@@ -7,9 +7,8 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 import hub.api.tests.test_converters
 from hub.schema.features import Tensor
 import numpy as np
-from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded
+from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded, supervisely_loaded, Timer
 import pytest
-from hub.utils import Timer
 
 
 @pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
@@ -462,6 +461,24 @@ def test_to_pytorch_bug():
 def test_to_tensorflow_bug():
     ds = hub.Dataset("activeloop/coco_train")
     data = ds.to_tensorflow()
+
+
+@pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
+def test_to_supervisely():
+    ds = hub.Dataset("activeloop/mnist", mode="r")
+    data = ds.to_supervisely()
+
+
+@pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
+def test_from_supervisely():
+    import supervisely_lib as sly
+
+    project_path = "data/test_from_supervisely/project1"
+    project = sly.Project(project_path, sly.OpenMode.CREATE)
+    project_ds = project.create_dataset("example")
+    img = np.array([[255, 255, 255]])
+    project_ds.add_item_np("pixel.jpeg", img)
+    ds = hub.Dataset.from_supervisely(project_path)
 
 
 if __name__ == "__main__":
