@@ -5,6 +5,9 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import sys
+import numpy as np
+import json
+from itertools import chain
 from collections import defaultdict
 from hub.exceptions import ModuleNotInstalledException, OutOfBoundsError
 from hub.schema.features import Primitive, Tensor, SchemaDict
@@ -659,3 +662,123 @@ class TorchDataset:
         self._init_ds()
         for i in range(len(self)):
             yield self[i]
+
+
+def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
+    try:
+        import supervisely_lib as sly
+        from supervisely_lib.project import project as sly_image_project
+        from supervisely_lib.project import video_project as sly_video_project
+        from skvideo.io import FFmpegReader, vread
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("supervisely")
+
+    with open(project + "meta.json") as meta_file:
+        project_meta_dict = json.load(meta_file)
+    project_type = project_meta_dict['projectType']
+    mode = sly.OpenMode.READ
+    def infer_project(project, project_type, read_mode):
+        def infer_shape_image(paths):
+            item_path, item_ann_path = paths
+            ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
+            ann_dict = ann.to_json()
+            return list(ann_dict['size'].values())
+        def infer_shape_video(paths):
+            item_path, item_ann_path = paths
+            vreader = FFmpegReader(item_path)
+            return vreader.getShape()
+        if project_type == 'images':
+            project = sly_image_project.Project(project, mode)
+            max_shape = (0, 0)
+            return project, Image, infer_shape_image, max_shape
+        elif project_type == 'videos':
+            project = sly_video_project.VideoProject(project, mode)
+            max_shape = (0, 0, 0, 0)
+            return project, Video, infer_shape_video, max_shape
+        # else:
+        #     project = sly_pcd_project.PointcloudProject(project, mode)
+        #     return project, None, None
+            # blob_type = PointCloud # once this schema is defined
+    project, main_blob, infer_shape, max_shape = infer_project(project, project_type, mode)
+    label_names = []
+    datasets = project.datasets.items()
+    uniform = True
+    for ds in datasets:
+        for item in ds:
+            shape = infer_shape(ds.get_item_paths(item))
+            max_shape = np.maximum(shape, max_shape)
+            if uniform and max_shape.any() and (shape != max_shape).any():
+                uniform = False
+        label_names.append(ds.name)
+    items = chain(*datasets)
+    idatasets = iter(datasets)
+    ds, i = next(idatasets), 0
+    key = 'shape' if uniform else 'max_shape'
+    if project_type == 'images':
+        read = sly.imaging.image.read
+        blob_shape = {key: (*max_shape.tolist(), 3)}
+    elif project_type == 'videos':
+        read = vread
+        blob_shape = {key: max_shape.tolist()}
+        if key == 'max_shape':
+            blob_shape['shape'] = (None, None, None, 3)
+    schema = {project_type: main_blob(**blob_shape), "dataset": ClassLabel(names=label_names)}
+    @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+    def transformation(item):
+        nonlocal i, ds
+        if i >= len(ds):
+            ds, i = next(idatasets), 0
+        item_path, item_ann_path = ds.get_item_paths(item)
+        i += 1
+        return {project_type: read(item_path), "dataset": schema["dataset"].str2int(ds.name)}
+    return transformation(items)
+
+
+def _to_supervisely(dataset, output):
+    try:
+        import supervisely_lib as sly
+        from skvideo.io import vwrite
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("supervisely")
+
+    schema_dict = dataset.schema.dict_
+    for key, schem in schema_dict.items():
+        if isinstance(schem, Image):
+            project_type = "images"
+            extension = "jpeg"
+            break
+        elif isinstance(schem, Video):
+            project_type = "videos"
+            extension = "mp4"
+            break
+    else:
+        raise Exception
+    mode = sly.OpenMode.CREATE
+    if project_type == 'images':
+        _project = sly.Project
+    elif project_type == 'videos':
+        _project = sly.VideoProject
+    else:
+        raise Exception
+    pr = _project(output, mode)
+    # probably here we can create multiple datasets
+    out_ds = pr.create_dataset(output)
+    try:
+        fn_key = "filename"
+        dataset[fn_key]
+    except KeyError:
+        fn_key = None
+    for idx, view in enumerate(dataset):
+        obj = view[key].compute()
+        fn = view[fn_key].compute() if fn_key else str(idx)
+        fn = "{}.{}".format(fn, extension)
+        # strangely supervisely prevents from using this method on videos
+        try:
+            out_ds.add_item_np(fn, obj)
+        except RuntimeError:
+            # fix with in-memory file
+            path = "{}/{}".format(out_ds.item_dir, fn)
+            vwrite(path, obj)
+            out_ds._item_to_ann[fn] = fn + ".json"
+            out_ds.set_ann(fn, out_ds._get_empty_annotaion(path))
+    return pr
