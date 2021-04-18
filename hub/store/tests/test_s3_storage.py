@@ -44,7 +44,7 @@ def test_s3_storage_pickability():
     _storage = S3FileSystem()
     storage = S3Storage(_storage, "s3://snark-test/test_s3_storage")
 
-    pickle.dumps(storage)
+    cloudpickle.dumps(storage)
 
 
 if __name__ == "__main__":
