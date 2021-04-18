@@ -6,6 +6,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import os
 import pickle
+import pickle5
 import shutil
 
 import cloudpickle
@@ -177,7 +178,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
     ds["first"][0] = np.ones((10, 10))
 
     pickled_ds = cloudpickle.dumps(ds)
-    new_ds = pickle.loads(pickled_ds)
+    new_ds = pickle5.loads(pickled_ds)
     assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
 
 
