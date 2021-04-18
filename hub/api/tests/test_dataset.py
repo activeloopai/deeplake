@@ -180,7 +180,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
     ds["first"][0] = np.ones((10, 10))
 
     pickled_ds = cloudpickle.dumps(ds)
-    if platform.system().lower() == "windows" and sys.version_info >= (3,8):
+    if platform.system().lower() == "windows" and sys.version_info >= (3, 8):
         new_ds = pickle.loads(pickled_ds)
     else:
         new_ds = pickle5.loads(pickled_ds)
