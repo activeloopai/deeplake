@@ -90,8 +90,8 @@ jobs:
         run: |
           black --version
           black --check .
-#      - name: Test with pytest and generate coverage report
-#        run: |
-#          pytest --cov=hub --cov-report=html hub
-#      - name: Codecov
-#        uses: codecov/codecov-action@v1.0.15
+      - name: Test with pytest and generate coverage report
+        run: |
+          pytest --cov=hub --cov-report=html hub
+      - name: Codecov
+        uses: codecov/codecov-action@v1
