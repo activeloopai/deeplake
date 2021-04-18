@@ -52,6 +52,7 @@ data/
 ehthumbs.db
 Icon?
 Thumbs.db
+.dccache
 
 # Editor backup files #
 #######################
