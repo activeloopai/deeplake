@@ -177,7 +177,7 @@ def test_multiprocessing(sample_size=200, width=100, channels=4, dtype="uint8"):
         def my_transform(x):
 
             a = np.random.random((width, width, channels))
-            for i in range(100):
+            for _ in range(100):
                 a *= np.random.random((width, width, channels))
 
             return {
