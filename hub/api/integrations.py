@@ -679,29 +679,35 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
     else:
         project_meta_dict = project.meta.to_json()
         instantiated = True
-    project_type = project_meta_dict['projectType']
+    project_type = project_meta_dict["projectType"]
     mode = sly.OpenMode.READ
+
     def infer_project(project, project_type, read_mode):
         def infer_shape_image(paths):
             item_path, item_ann_path = paths
             ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
             ann_dict = ann.to_json()
-            return list(ann_dict['size'].values())
+            return list(ann_dict["size"].values())
+
         def infer_shape_video(paths):
             item_path, item_ann_path = paths
             vreader = FFmpegReader(item_path)
             return vreader.getShape()
-        if project_type == 'images':
+
+        if project_type == "images":
             if not instantiated:
                 project = sly_image_project.Project(project, mode)
             max_shape = (0, 0)
             return project, Image, infer_shape_image, max_shape
-        elif project_type == 'videos':
+        elif project_type == "videos":
             if not instantiated:
                 project = sly_video_project.VideoProject(project, mode)
             max_shape = (0, 0, 0, 0)
             return project, Video, infer_shape_video, max_shape
-    project, main_blob, infer_shape, max_shape = infer_project(project, project_type, mode)
+
+    project, main_blob, infer_shape, max_shape = infer_project(
+        project, project_type, mode
+    )
     label_names = []
     datasets = project.datasets.items()
     uniform = True
@@ -715,16 +721,20 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
     items = chain(*datasets)
     idatasets = iter(datasets)
     ds, i = next(idatasets), 0
-    key = 'shape' if uniform else 'max_shape'
-    if project_type == 'images':
+    key = "shape" if uniform else "max_shape"
+    if project_type == "images":
         read = sly.imaging.image.read
         blob_shape = {key: (*max_shape.tolist(), 3)}
-    elif project_type == 'videos':
+    elif project_type == "videos":
         read = vread
         blob_shape = {key: max_shape.tolist()}
-        if key == 'max_shape':
-            blob_shape['shape'] = (None, None, None, 3)
-    schema = {project_type: main_blob(**blob_shape), "dataset": ClassLabel(names=label_names)}
+        if key == "max_shape":
+            blob_shape["shape"] = (None, None, None, 3)
+    schema = {
+        project_type: main_blob(**blob_shape),
+        "dataset": ClassLabel(names=label_names),
+    }
+
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
     def transformation(item):
         nonlocal i, ds
@@ -732,7 +742,11 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
             ds, i = next(idatasets), 0
         item_path, item_ann_path = ds.get_item_paths(item)
         i += 1
-        return {project_type: read(item_path), "dataset": schema["dataset"].str2int(ds.name)}
+        return {
+            project_type: read(item_path),
+            "dataset": schema["dataset"].str2int(ds.name),
+        }
+
     return transformation(items)
 
 
@@ -755,9 +769,9 @@ def _to_supervisely(dataset, output):
     else:
         raise Exception
     mode = sly.OpenMode.CREATE
-    if project_type == 'images':
+    if project_type == "images":
         _project = sly.Project
-    elif project_type == 'videos':
+    elif project_type == "videos":
         _project = sly.VideoProject
     else:
         raise Exception

@@ -9,7 +9,13 @@ from hub.schema.features import Tensor
 import numpy as np
 import shutil
 import os.path
-from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded, supervisely_loaded, Timer
+from hub.utils import (
+    tfds_loaded,
+    tensorflow_loaded,
+    pytorch_loaded,
+    supervisely_loaded,
+    Timer,
+)
 import pytest
 
 
@@ -465,7 +471,9 @@ def test_to_tensorflow_bug():
     data = ds.to_tensorflow()
 
 
-@pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
 def test_to_supervisely():
     data_path = "./data/test_supervisely/to_from"
     dataset_name = "rock_paper_scissors_test"
@@ -477,7 +485,9 @@ def test_to_supervisely():
     new_dataset = trans.store(os.path.join(data_path, "new_rpst"))
 
 
-@pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
 def test_from_supervisely():
     import supervisely_lib as sly
 
