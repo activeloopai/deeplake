@@ -1184,6 +1184,30 @@ def test_minio_endpoint():
         assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
+def test_dataset_store():
+    my_schema = {"image": Tensor((100, 100), "uint8"), "abc": "uint8"}
+
+    ds = Dataset("./test/ds_store", schema=my_schema, shape=(100,))
+    for i in range(100):
+        ds["image", i] = i * np.ones((100, 100))
+        ds["abc", i] = i
+
+    def my_filter(sample):
+        return sample["abc"].compute() % 5 == 0
+
+    dsv = ds.filter(my_filter)
+
+    ds2 = ds.store("./test/ds2_store")
+    for i in range(100):
+        assert (ds2["image", i].compute() == i * np.ones((100, 100))).all()
+        assert ds["abc", i].compute() == i
+
+    ds3 = dsv.store("./test/ds3_store")
+    for i in range(20):
+        assert (ds3["image", i].compute() == 5 * i * np.ones((100, 100))).all()
+        assert ds3["abc", i].compute() == 5 * i
+
+
 if __name__ == "__main__":
     test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()

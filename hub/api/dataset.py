@@ -42,6 +42,7 @@ from hub.api.dataset_utils import (
     _copy_helper,
     _get_compressor,
     _get_dynamic_tensor_dtype,
+    _store_helper,
 )
 
 import hub.schema.serialize
@@ -49,7 +50,6 @@ import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
 from hub import auto
-
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
@@ -628,6 +628,46 @@ class Dataset:
         indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        sample_per_shard: int = None,
+        public: bool = True,
+        scheduler="single",
+        workers=1,
+    ):
+        """| Used to save the dataset as a new dataset, very similar to copy but uses transforms instead
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is referring to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
+        )
+
     def copy(self, dst_url: str, token=None, fs=None, public=True):
         """| Creates a copy of the dataset at the specified url and returns the dataset object
         Parameters
@@ -709,8 +749,12 @@ class Dataset:
         inplace=True,
         output_type=dict,
         indexes=None,
+        key_list=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -721,11 +765,14 @@ class Dataset:
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
         indexes: list or int, optional
-            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+            The samples to be converted into Pytorch format. Takes all samples in dataset by default.
+        key_list: list, optional
+            The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):

@@ -1,5 +1,5 @@
 {% set name = "hub" %}
-{% set version = HUB_VERSION %}
+{% set version = "1.2.2" %}
 
 package:
   name: "{{ name }}"
@@ -7,7 +7,6 @@ package:
 
 source:
   url: "https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/{{ name }}-{{ version }}.tar.gz"
-  sha256: f3ceafffdbc70c309fdd44654775668fa5cdca438309267a05faa6dd58636d7e
 
 build:
   number: 0
@@ -16,49 +15,50 @@ build:
     - hub-local = hub.cli.local:cli
     - hub-dev = hub.cli.dev:cli
   script: "{{ PYTHON }} -m pip install . -vv"
+  noarch: python
 
 requirements:
   host:
-    - azure-storage-blob ==12.6.0
-    - boto3 ==1.16.39
-    - cachey ==0.2.1
-    - click >=6.7,<8
-    - cloudpickle ==1.6.0
-    - fsspec ==0.8.5
-    - gcsfs ==0.6.2
-    - lz4 >=3,<4
-    - msgpack-python ==1.0.2
-    - numpy >=1.13.0,<2
-    - outdated ==0.2.0
-    - pathos >=0.2.2
-    - pillow >=8.0.1
+    - azure-storage-blob
+    - boto3
+    - cachey
+    - click
+    - cloudpickle
+    - fsspec
+    - gcsfs
+    - lz4
+    - msgpack-python
+    - numpy
+    - outdated
+    - pathos
+    - pillow
     - pip
-    - psutil >=5.7.3
+    - psutil
     - python
-    - requests >=2,<3
-    - s3fs ==0.4.2
-    - tqdm ==4.54.1
-    - zarr ==2.6.1
+    - requests
+    - s3fs
+    - tqdm
+    - zarr
   run:
-    - azure-storage-blob ==12.6.0
-    - boto3 ==1.16.39
-    - cachey ==0.2.1
-    - click >=6.7,<8
-    - cloudpickle ==1.6.0
-    - fsspec ==0.8.5
-    - gcsfs ==0.6.2
-    - lz4 >=3,<4
-    - msgpack-python ==1.0.2
-    - numpy >=1.13.0,<2
-    - outdated ==0.2.0
-    - pathos >=0.2.2
-    - pillow >=8.0.1
-    - psutil >=5.7.3
+    - azure-storage-blob
+    - boto3
+    - cachey
+    - click
+    - cloudpickle
+    - fsspec
+    - gcsfs
+    - lz4
+    - msgpack-python
+    - numpy
+    - outdated
+    - pathos
+    - pillow
+    - psutil
     - python
-    - requests >=2,<3
-    - s3fs ==0.4.2
-    - tqdm ==4.54.1
-    - zarr ==2.6.1
+    - requests
+    - s3fs
+    - tqdm
+    - zarr
 
 test:
   imports:

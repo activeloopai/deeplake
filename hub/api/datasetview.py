@@ -12,6 +12,7 @@ from hub.api.dataset_utils import (
     get_value,
     slice_split,
     str_to_int,
+    _store_helper,
 )
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
@@ -197,6 +198,46 @@ class DatasetView:
             indexes = [index for index in self.indexes if fn(self.dataset[index])]
         return DatasetView(dataset=self.dataset, lazy=self.lazy, indexes=indexes)
 
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        sample_per_shard: int = None,
+        public: bool = True,
+        scheduler="single",
+        workers=1,
+    ):
+        """| Used to save the datasetview as a new dataset
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is referring to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
+        )
+
     @property
     def keys(self):
         """
@@ -267,13 +308,11 @@ class DatasetView:
             indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
-    def to_pytorch(
-        self,
-        transform=None,
-        inplace=True,
-        output_type=dict,
-    ):
+    def to_pytorch(self, transform=None, inplace=True, output_type=dict, key_list=None):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -289,6 +328,7 @@ class DatasetView:
             indexes=self.indexes,
             inplace=inplace,
             output_type=output_type,
+            key_list=key_list,
         )
 
     def resize_shape(self, size: int) -> None:
