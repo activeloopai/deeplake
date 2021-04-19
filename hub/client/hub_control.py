@@ -66,7 +66,6 @@ class HubControlClient(HubHttpClient):
         return details
 
     def get_config(self, reset=False):
-
         if not os.path.isfile(config.STORE_CONFIG_PATH) or self.auth_header is None:
             self.get_credentials()
 

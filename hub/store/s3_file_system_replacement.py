@@ -29,4 +29,5 @@ class S3FileSystemReplacement(S3FileSystem):
             aws_session_token=self._kwargs.get("token"),
             aws_region=aws_region,
             endpoint_url=endpoint_url,
+            expiration=self._kwargs.get("expiration"),
         )

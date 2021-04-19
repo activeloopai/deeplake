@@ -99,6 +99,7 @@ def get_fs_and_path(
                 "endpoint_url": creds["endpoint"],
                 "region_name": creds["region"],
             },
+            expiration=creds["expiration"],
         )
         return (fs, url)
 
