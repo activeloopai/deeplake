@@ -7,6 +7,8 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 import hub.api.tests.test_converters
 from hub.schema.features import Tensor
 import numpy as np
+import shutil
+import os.path
 from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded, supervisely_loaded, Timer
 import pytest
 
@@ -465,20 +467,33 @@ def test_to_tensorflow_bug():
 
 @pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
 def test_to_supervisely():
-    ds = hub.Dataset("activeloop/mnist", mode="r")
-    data = ds.to_supervisely()
+    data_path = "./data/test_supervisely/to_from"
+    dataset_name = "rock_paper_scissors_test"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    original_dataset = hub.Dataset(f"activeloop/{dataset_name}", mode="r")
+    project = original_dataset.to_supervisely(os.path.join(data_path, dataset_name))
+    trans = hub.Dataset.from_supervisely(project)
+    new_dataset = trans.store(os.path.join(data_path, "new_rpst"))
 
 
 @pytest.mark.skipif(not supervisely_loaded(), reason="requires supervisely to be loaded")
 def test_from_supervisely():
     import supervisely_lib as sly
 
-    project_path = "data/test_from_supervisely/project1"
+    data_path = "./data/test_supervisely/from_to"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    project_name = "pixel_project"
+    project_path = os.path.join(data_path, project_name)
     project = sly.Project(project_path, sly.OpenMode.CREATE)
-    project_ds = project.create_dataset("example")
+    project.meta._project_type = "images"
+    project_ds = project.create_dataset(project_name)
     img = np.array([[255, 255, 255]])
     project_ds.add_item_np("pixel.jpeg", img)
-    ds = hub.Dataset.from_supervisely(project_path)
+    trans = hub.Dataset.from_supervisely(project)
+    dataset = trans.store(os.path.join(data_path, "pixel_dataset"))
+    project_back = dataset.to_supervisely(os.path.join(data_path, "pixel_project_back"))
 
 
 if __name__ == "__main__":

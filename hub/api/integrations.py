@@ -672,9 +672,13 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
         from skvideo.io import FFmpegReader, vread
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("supervisely")
-
-    with open(project + "meta.json") as meta_file:
-        project_meta_dict = json.load(meta_file)
+    if isinstance(project, str):
+        with open(project + "meta.json") as meta_file:
+            project_meta_dict = json.load(meta_file)
+        instantiated = False
+    else:
+        project_meta_dict = project.meta.to_json()
+        instantiated = True
     project_type = project_meta_dict['projectType']
     mode = sly.OpenMode.READ
     def infer_project(project, project_type, read_mode):
@@ -688,17 +692,15 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
             vreader = FFmpegReader(item_path)
             return vreader.getShape()
         if project_type == 'images':
-            project = sly_image_project.Project(project, mode)
+            if not instantiated:
+                project = sly_image_project.Project(project, mode)
             max_shape = (0, 0)
             return project, Image, infer_shape_image, max_shape
         elif project_type == 'videos':
-            project = sly_video_project.VideoProject(project, mode)
+            if not instantiated:
+                project = sly_video_project.VideoProject(project, mode)
             max_shape = (0, 0, 0, 0)
             return project, Video, infer_shape_video, max_shape
-        # else:
-        #     project = sly_pcd_project.PointcloudProject(project, mode)
-        #     return project, None, None
-            # blob_type = PointCloud # once this schema is defined
     project, main_blob, infer_shape, max_shape = infer_project(project, project_type, mode)
     label_names = []
     datasets = project.datasets.items()
@@ -740,7 +742,6 @@ def _to_supervisely(dataset, output):
         from skvideo.io import vwrite
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("supervisely")
-
     schema_dict = dataset.schema.dict_
     for key, schem in schema_dict.items():
         if isinstance(schem, Image):
@@ -761,6 +762,8 @@ def _to_supervisely(dataset, output):
     else:
         raise Exception
     pr = _project(output, mode)
+    meta = pr.meta
+    meta._project_type = project_type
     # probably here we can create multiple datasets
     out_ds = pr.create_dataset(output)
     try:
@@ -768,9 +771,13 @@ def _to_supervisely(dataset, output):
         dataset[fn_key]
     except KeyError:
         fn_key = None
+        zeroes = len(str(len(dataset)))
     for idx, view in enumerate(dataset):
         obj = view[key].compute()
-        fn = view[fn_key].compute() if fn_key else str(idx)
+        if fn_key:
+            fn = view[fn_key].compute()
+        else:
+            fn = f"{idx:0{zeroes}}"
         fn = "{}.{}".format(fn, extension)
         # strangely supervisely prevents from using this method on videos
         try:
@@ -781,4 +788,5 @@ def _to_supervisely(dataset, output):
             vwrite(path, obj)
             out_ds._item_to_ann[fn] = fn + ".json"
             out_ds.set_ann(fn, out_ds._get_empty_annotaion(path))
+    pr.set_meta(meta)
     return pr
