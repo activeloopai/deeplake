@@ -597,7 +597,8 @@ class TorchDataset:
         if not self._inited:
             self._inited = True
             self._samples_in_chunks = {
-                key: value.chunks[0] for key, value in self._ds._tensors.items()
+                key: (None in value.shape) and 1 or value.chunks[0]
+                for key, value in self._ds._tensors.items()
             }
             self._active_chunks = {}
             self._active_chunks_range = {}
