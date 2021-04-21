@@ -62,7 +62,7 @@ def assert_conversion(tag):
     # Checking if the datatypes of the columns match
     for i in keys_csv_parser:
         if df[i].dtype == np.dtype("O"):
-            assert ds[i].dtype == np.dtype("int64")
+            assert ds[i].dtype == np.dtype("uint8")
         else:
             assert ds[i].dtype == df[i].dtype
 
