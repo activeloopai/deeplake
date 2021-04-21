@@ -329,15 +329,11 @@ def test_dataset_wrong_append(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds.close()
-    try:
+    with pytest.raises(TypeError):
         ds = Dataset(url, shape=100)
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
 
-    try:
+    with pytest.raises(SchemaMismatchException):
         ds = Dataset(url, schema={"hello": "uint8"})
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
 
 
 def test_dataset_change_schema():
@@ -1045,7 +1041,7 @@ def test_datasetview_filter():
         return sample["ab"].compute().startswith("abc")
 
     my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
-    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    ds = Dataset("./data/new_filter_2", shape=(10,), schema=my_schema)
     for i in range(10):
         ds["img", i] = i * np.ones((100, 100))
         ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
