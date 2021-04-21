@@ -43,6 +43,7 @@ from hub.api.dataset_utils import (
     _get_compressor,
     _get_dynamic_tensor_dtype,
     _store_helper,
+    same_schema,
 )
 
 import hub.schema.serialize
@@ -207,13 +208,11 @@ class Dataset:
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
-                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                    f"Shape stored previously [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
                 )
-            if schema is not None and sorted(schema.dict_.keys()) != sorted(
-                self._schema.dict_.keys()
-            ):
+            if schema is not None and not same_schema(schema, self._schema):
                 raise TypeError(
-                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
+                    "Schema stored previously and schema in arguments do not match, use mode='w' to overwrite dataset"
                 )
 
         else:

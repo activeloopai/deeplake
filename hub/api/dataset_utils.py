@@ -14,7 +14,7 @@ import time
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-from hub.schema.features import Primitive
+from hub.schema.features import Primitive, SchemaDict
 from hub.numcodecs import PngCodec
 
 
@@ -32,6 +32,28 @@ def slice_split(slice_):
                 "type {} isn't supported in dataset slicing".format(type(sl))
             )
     return path, list_slice
+
+
+def same_schema(schema1, schema2):
+    # returns True if same, else False
+    if schema1.dict_.keys() != schema2.dict_.keys():
+        return False
+    for k, v in schema1.dict_.items():
+        if isinstance(v, SchemaDict):
+            if not same_schema(v, schema2.dict_[k]):
+                return False
+        else:
+            if v.shape != schema2.dict_[k].shape:
+                return False
+            elif v.max_shape != schema2.dict_[k].max_shape:
+                return False
+            elif v.chunks != schema2.dict_[k].chunks:
+                return False
+            elif v.dtype != schema2.dict_[k].dtype:
+                return False
+            elif v.compressor != schema2.dict_[k].compressor:
+                return False
+    return True
 
 
 def slice_extract_info(slice_, num):
