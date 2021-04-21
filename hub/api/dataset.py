@@ -167,7 +167,6 @@ class Dataset:
         self._meta_information = meta_information
         self.username = None
         self.dataset_name = None
-        self.uses_hub_storage = False
         if not needcreate:
             self.meta = json.loads(fs_map[defaults.META_FILE].decode("utf-8"))
             self._name = self.meta.get("name") or None
@@ -262,7 +261,6 @@ class Dataset:
                 raise ValueError("Invalid Path for dataset")
             self.username = spl[-2]
             self.dataset_name = spl[-1]
-            self.uses_hub_storage = True
             if needcreate:
                 HubControlClient().create_dataset_entry(
                     self.username, self.dataset_name, self.meta, public=public
@@ -738,7 +736,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.uses_hub_storage:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -867,7 +865,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.uses_hub_storage:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )

@@ -77,23 +77,20 @@ class S3Storage(MutableMapping):
         if self.expiration and float(self.expiration) < time.time():
             details = HubControlClient().get_credentials()
             self.expiration = details["expiration"]
-            aws_access_key_id = details["access_key"]
-            aws_secret_access_key = details["secret_key"]
-            aws_session_token = details["session_token"]
             self.client = boto3.client(
                 "s3",
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
+                aws_access_key_id=details["access_key"],
+                aws_secret_access_key=details["secret_key"],
+                aws_session_token=details["session_token"],
                 config=self.client_config,
                 endpoint_url=self.endpoint_url,
                 region_name=self.aws_region,
             )
             self.resource = boto3.resource(
                 "s3",
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
+                aws_access_key_id=details["access_key"],
+                aws_secret_access_key=details["secret_key"],
+                aws_session_token=details["session_token"],
                 config=self.client_config,
                 endpoint_url=self.endpoint_url,
                 region_name=self.aws_region,
