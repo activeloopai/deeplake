@@ -40,15 +40,16 @@ class HubControlClient(HubHttpClient):
         return dataset
 
     def get_credentials(self):
-
         if self.auth_header is None:
             token = AuthClient().get_access_token(username="public", password="")
             self.auth_header = f"Bearer {token}"
-
         r = self.request(
             "GET",
             config.GET_CREDENTIALS_SUFFIX,
             endpoint=config.HUB_REST_ENDPOINT,
+            params={
+                "duration": 36000,
+            },
         ).json()
 
         details = {
@@ -72,8 +73,7 @@ class HubControlClient(HubHttpClient):
         with open(config.STORE_CONFIG_PATH) as file:
             details = file.readlines()
             details = json.loads("".join(details))
-
-        if float(details["expiration"]) < time.time() - 36000 or reset:
+        if float(details["expiration"]) < time.time() or reset:
             details = self.get_credentials()
         return details
 

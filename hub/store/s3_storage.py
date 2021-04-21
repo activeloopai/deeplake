@@ -74,8 +74,9 @@ class S3Storage(MutableMapping):
         )
 
     def check_update_creds(self):
-        if self.expiration and float(self["expiration"]) < time.time() - 36000:
-            details = HubControlClient.get_credentials()
+        if self.expiration and float(self.expiration) < time.time():
+            details = HubControlClient().get_credentials()
+            self.expiration = details["expiration"]
             aws_access_key_id = details["access_key"]
             aws_secret_access_key = details["secret_key"]
             aws_session_token = details["session_token"]
