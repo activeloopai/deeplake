@@ -522,7 +522,7 @@ def test_to_supervisely_video():
     )
     filenames = ["one", "two", "three"]
     ds["filename"][:] = filenames
-    project = _to_supervisely(ds, os.path.join(data_path, "sly_video_dataset"))
+    project = ds.to_supervisely(os.path.join(data_path, "sly_video_dataset"))
 
 
 @pytest.mark.skipif(
@@ -548,7 +548,7 @@ def test_from_supervisely_video():
         ds._item_to_ann[item_name] = item_name + ".json"
         ds.set_ann(item_name, ds._get_empty_annotaion(item_path))
     project.set_meta(project.meta)
-    trans = _from_supervisely(os.path.join(data_path, project_name))
+    trans = hub.Dataset.from_supervisely(os.path.join(data_path, project_name))
 
 
 if __name__ == "__main__":

@@ -90,11 +90,17 @@ commands:
   get-python:
     steps:
       - run:
-          name: "Install Python"
+          name: "Install Python & ffmpeg"
           command: |
             brew update
             brew install python@3.7
             brew link --overwrite python@3.7
+            brew install ffmpeg
+  get-linux-ffmpeg:
+    steps:
+      - run:
+          name: "Install ffmpeg"
+          command: apt-get update && apt-get install ffmpeg
   info:
     steps:
       - run:
@@ -254,6 +260,13 @@ jobs:
           condition: << parameters.mac-like >>
           steps:
             - get-python
+      - when:
+          condition:
+            and:
+              - not: << parameters.mac-like >>
+              - << parameters.unix-like >>
+          steps:
+            - get-linux-ffmpeg
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
