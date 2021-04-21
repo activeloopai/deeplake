@@ -15,7 +15,7 @@ import pytest
 from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split
 from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException
+from hub.exceptions import DirectoryNotEmptyException, SchemaMismatchException
 from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
 from hub.schema.class_label import ClassLabel
 from hub.utils import (
@@ -338,6 +338,62 @@ def test_dataset_wrong_append(url="./data/test/dataset", token=None):
         ds = Dataset(url, schema={"hello": "uint8"})
     except Exception as ex:
         assert isinstance(ex, TypeError)
+
+
+def test_dataset_change_schema():
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/test_schema_change", schema=schema, shape=(100,))
+    new_schema_1 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((200, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_2 = {
+        "abrs": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_3 = {
+        "abc": "uint8",
+        "def": {
+            "ghijk": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_4 = {
+        "abc": "uint16",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_5 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100, 3)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_1, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_2, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_3, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_4, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_5, shape=(100,))
 
 
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
