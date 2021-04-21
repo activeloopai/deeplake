@@ -506,6 +506,51 @@ def test_from_supervisely():
     project_back = dataset.to_supervisely(os.path.join(data_path, "pixel_project_back"))
 
 
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_to_supervisely_video():
+    data_path = "./data/test_supervisely/video_to"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    schema = {
+        "vid": hub.schema.Video(shape=(1, 1, 2, 3)),
+        "filename": hub.schema.Text(max_shape=5),
+    }
+    ds = hub.Dataset(
+        os.path.join(data_path, "hub_video_dataset"), schema=schema, shape=3
+    )
+    filenames = ["one", "two", "three"]
+    ds["filename"][:] = filenames
+    project = _to_supervisely(ds, os.path.join(data_path, "sly_video_dataset"))
+
+
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_from_supervisely_video():
+    import supervisely_lib as sly
+    from skvideo.io import vwrite
+
+    data_path = "./data/test_supervisely/video_from"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    project_name = "minuscule_videos/"
+    project_path = os.path.join(data_path, project_name)
+    project = sly.VideoProject(project_path, sly.OpenMode.CREATE)
+    project.meta._project_type = "videos"
+    item_name = "item.mp4"
+    np.random.seed(0)
+    for name in ["foofoo", "bar"]:
+        ds = project.create_dataset(name)
+        item_path = os.path.join(ds.item_dir, item_name)
+        vwrite(item_path, (np.random.rand(len(name), 2, 2, 3) * 255).astype("uint8"))
+        ds._item_to_ann[item_name] = item_name + ".json"
+        ds.set_ann(item_name, ds._get_empty_annotaion(item_path))
+    project.set_meta(project.meta)
+    trans = _from_supervisely(os.path.join(data_path, project_name))
+
+
 if __name__ == "__main__":
     with Timer("Test Converters"):
         with Timer("from MNIST"):
