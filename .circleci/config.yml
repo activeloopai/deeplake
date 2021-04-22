@@ -92,6 +92,7 @@ commands:
       - run:
           name: "Install Python"
           command: |
+            brew update
             brew install python@3.7
             brew link --overwrite python@3.7
   info:

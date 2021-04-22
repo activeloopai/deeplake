@@ -11,6 +11,8 @@ from hub.cli.auth import login_fn
 import hub
 from hub.schema import Tensor, Image, Text
 from hub.utils import Timer
+from hub.utils import hub_creds_exist
+import pytest
 
 my_schema = {
     "image": Tensor((28, 28, 4), "int32", (28, 28, 4)),
@@ -365,6 +367,7 @@ def benchmark(sample_size=100, width=1000, channels=4, dtype="int8"):
             out_ds.store(f"./data/test/test_pipeline_basic_output_{name}")
 
 
+@pytest.mark.skipif(not hub_creds_exist(), reason="requires hub credentials")
 def test_transform_overwrite():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     login_fn("testingacc", password)
