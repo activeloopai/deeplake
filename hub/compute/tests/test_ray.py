@@ -27,8 +27,9 @@ my_schema = {
 
 ray.init(
     ignore_reinit_error=True,
-    memory=2500 * 1024 * 1024,
-    object_store_memory=2500 * 1024 * 1024,
+    lru_evict=True
+    # memory=2500 * 1024 * 1024,
+    # object_store_memory=2500 * 1024 * 1024,
 )
 
 
