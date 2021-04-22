@@ -75,6 +75,17 @@ To load a public dataset, one needs to write dozens of lines of code and spend h
 pip3 install hub
 ```
 
+To be able to download datasets stores on hub platform, you would need to login:
+You can register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
+
+```sh
+hub register
+hub login
+
+# alternatively, add username and password as arguments (use on platforms like Kaggle)
+hub login -u username -p password
+```
+
 Access public datasets in Hub by following a straight-forward convention which merely requires a few lines of simple code. Run this excerpt to get the first thousand images in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
 from hub import Dataset
@@ -134,11 +145,11 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 1. Register a free account at [Activeloop](https://app.activeloop.ai/register/?utm_source=github&utm_medium=repo&utm_campaign=readme) and authenticate locally:
 
     ```sh
-    activeloop register
-    activeloop login
+    hub register
+    hub login
 
     # alternatively, add username and password as arguments (use on platforms like Kaggle)
-    activeloop login -u username -p password
+    hub login -u username -p password
     ```
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
