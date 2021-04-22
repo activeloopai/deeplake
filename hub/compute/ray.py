@@ -5,7 +5,6 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import sys
-import psutil
 from hub import Dataset
 from hub.api.datasetview import DatasetView
 from hub.utils import batchify
@@ -48,9 +47,8 @@ class RayTransform(Transform):
         if "ray" not in sys.modules:
             raise ModuleNotInstalledException("ray")
 
-        num_cpus = psutil.cpu_count(logical=False)
         if not ray.is_initialized():
-            ray.init(num_cpus=num_cpus, local_mode=True)
+            ray.init(local_mode=True)
 
     @remote
     def _func_argd(_func, index, _ds, schema, kwargs):
