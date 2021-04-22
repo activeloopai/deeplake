@@ -11,7 +11,7 @@ from hub import config
 from hub.client.base import HubHttpClient
 from hub.client.auth import AuthClient
 from pathlib import Path
-
+from hub import defaults
 from hub.exceptions import NotFoundException
 from hub.log import logger
 import traceback
@@ -49,7 +49,7 @@ class HubControlClient(HubHttpClient):
             "GET",
             config.GET_CREDENTIALS_SUFFIX,
             endpoint=config.HUB_REST_ENDPOINT,
-            params={"duration": 36000},
+            params={"duration": defaults.CRED_EXPIRATION},
         ).json()
 
         details = {
