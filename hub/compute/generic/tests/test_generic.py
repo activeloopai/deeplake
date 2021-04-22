@@ -1,3 +1,5 @@
+import gc
+
 import numpy as np
 
 import hub
@@ -79,7 +81,7 @@ def test_transforms_input():
     except Exception as e:
         assert isinstance(e, AttributeError)
     ds.delete()
-    ds_1.delete()
+    gc.collect()
 
 
 if __name__ == "__main__":
