@@ -11,7 +11,7 @@ import pytest
 from hub.compute.ray import empty_remote
 
 import numpy as np
-import ray
+
 
 dynamic_schema = {
     "image": Tensor(shape=(None, None, None), dtype="int32", max_shape=(32, 32, 3)),
