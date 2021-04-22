@@ -4,7 +4,7 @@ import numpy as np
 
 import hub
 from hub.schema import Image, Mask, ClassLabel, Text
-from hub.compute.generic.ds_transforms import (
+from hub.compute.transforms_generic.ds_transforms import (
     horizonatal_flip,
     vertical_flip,
     shift_scale_rotate,
