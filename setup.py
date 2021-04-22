@@ -9,9 +9,14 @@ import os
 from setuptools import find_packages, setup
 
 project = "hub"
-VERSION = "1.3.2"
+
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
+
+with open(os.path.join(this_directory, project, "version.py")) as f:
+    exec(f.read())
+
+
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
@@ -20,7 +25,7 @@ with open(os.path.join(this_directory, "requirements.txt")) as f:
 
 setup(
     name=project,
-    version=VERSION,
+    version=__version__,
     description="Activeloop Hub",
     long_description=long_description,
     long_description_content_type="text/markdown",

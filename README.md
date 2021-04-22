@@ -1,14 +1,17 @@
 <p align="center">
+ <a href="https://github.com/activeloopai/Hub/wiki/Hub-Kaggle's-Herbarium-2021--Half-Earth-Challenge">
+  <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/Use_Hub_in_a_CVPR_challenge_and_win_up_to_$1000_(read_more).png" height="35" /></a>
+</p>
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
-</p>
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
     </a>
     <a href="https://pypi.org/project/hub/"><img src="https://badge.fury.io/py/hub.svg" alt="PyPI version" height="18"></a>
-    <a href="https://pypi.org/project/hub/"><img src="https://img.shields.io/pypi/dm/hub.svg" alt="PyPI version" height="18"></a>
+    <a href="https://pepy.tech/project/hub"><img src="https://static.pepy.tech/personalized-badge/hub?period=month&units=international_system&left_color=grey&right_color=orange&left_text=Downloads" alt="PyPI version" height="18"></a>
     <a href="https://app.circleci.com/pipelines/github/activeloopai/Hub">
     <img alt="CircleCI" src="https://img.shields.io/circleci/build/github/activeloopai/Hub?logo=circleci"> </a>
      <a href="https://github.com/activeloopai/Hub/issues">
