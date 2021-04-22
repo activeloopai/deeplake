@@ -734,7 +734,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.username is not None:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -863,7 +863,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.username is not None:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )
