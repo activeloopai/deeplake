@@ -77,7 +77,7 @@ class Text(Tensor):
     def __init__(
         self,
         shape: Tuple[int, ...] = (None,),
-        dtype="int64",
+        dtype="uint8",
         max_shape: Tuple[int, ...] = None,
         chunks=None,
         compressor="lz4",

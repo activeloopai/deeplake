@@ -89,7 +89,7 @@ class HubControlClient(HubHttpClient):
             tag = f"{username}/{dataset_name}"
             repo = f"public/{username}" if public else f"private/{username}"
 
-            self.request(
+            response = self.request(
                 "POST",
                 config.CREATE_DATASET_SUFFIX,
                 json={
@@ -99,7 +99,16 @@ class HubControlClient(HubHttpClient):
                     "rewrite": True,
                 },
                 endpoint=config.HUB_REST_ENDPOINT,
-            ).json()
+            )
+
+            if response.status_code == 200:
+                logger.info(
+                    f"Your dataset is available at {config.HUB_REST_ENDPOINT}/datasets/explore?tag={tag}"
+                )
+                if public is False:
+                    logger.info(
+                        "The dataset is private so make sure you are logged in!"
+                    )
         except Exception as e:
             logger.error(
                 "Unable to create Dataset entry" + traceback.format_exc() + str(e)

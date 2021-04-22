@@ -37,7 +37,7 @@ workflows:
           context:
             - test
             - azure
-          filters:
+          filters: &version
             tags:
               only: /[0-9]+(\.[0-9]+)*/
             branches:
@@ -49,27 +49,26 @@ workflows:
           context:
             - test
             - azure
-          filters:
-            tags:
-              only: /[0-9]+(\.[0-9]+)*/
-            branches:
-              ignore: /.*/
+          filters: *version
       - verify:
           type: approval
           requires:
             - test-simple
             - test-complex
+          filters: *version
       - deploy:
           context:
             - pypi
             - snark-docker
           requires:
             - verify
+          filters: *version
       - conda:
           context:
             - conda
           requires:
             - deploy
+          filters: *version
 
 executors:
   linux:
@@ -93,6 +92,7 @@ commands:
       - run:
           name: "Install Python"
           command: |
+            brew update
             brew install python@3.7
             brew link --overwrite python@3.7
   info:
@@ -195,7 +195,7 @@ commands:
           steps:
             - codecov-upload
       - store_test_results:
-          path: test-reports  # possibly change this path for Win
+          path: test-reports # possibly change this path for Win
       - store_artifacts:
           path: test-reports
   slack-status:
