@@ -25,12 +25,7 @@ my_schema = {
     "confidence": {"confidence": "float"},
 }
 
-ray.init(
-    ignore_reinit_error=True,
-    lru_evict=True
-    # memory=2500 * 1024 * 1024,
-    # object_store_memory=2500 * 1024 * 1024,
-)
+ray.init(ignore_reinit_error=True, object_store_memory=10 ** 9)
 
 
 def test_wrapper():
