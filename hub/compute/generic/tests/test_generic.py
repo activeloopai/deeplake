@@ -52,6 +52,10 @@ def test_transforms():
     ds_4.store(url + "_4")
     ds_4 = hub.Dataset(url + "_4")
     assert not np.all(ds_3[0]["img"] == ds_4[0]["img"].compute())
+    ds_1.delete()
+    ds_2.delete()
+    ds_3.delete()
+    ds_4.delete()
 
 
 def test_transforms_input():
@@ -74,6 +78,8 @@ def test_transforms_input():
         ds_1.store(url + "_1")
     except Exception as e:
         assert isinstance(e, AttributeError)
+    ds.delete()
+    ds_1.delete()
 
 
 if __name__ == "__main__":
