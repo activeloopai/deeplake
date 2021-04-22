@@ -1,5 +1,3 @@
-import gc
-
 import numpy as np
 
 import hub
@@ -54,7 +52,6 @@ def test_transforms():
     ds_4.store(url + "_4")
     ds_4 = hub.Dataset(url + "_4")
     assert not np.all(ds_3[0]["img"] == ds_4[0]["img"].compute())
-    gc.collect()
 
 
 def test_transforms_input():
@@ -77,7 +74,6 @@ def test_transforms_input():
         ds_1.store(url + "_1")
     except Exception as e:
         assert isinstance(e, AttributeError)
-    gc.collect()
 
 
 if __name__ == "__main__":
