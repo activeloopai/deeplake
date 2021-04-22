@@ -14,6 +14,8 @@ from s3fs import S3FileSystem
 
 from hub.exceptions import S3Exception
 from hub.log import logger
+from hub.client.hub_control import HubControlClient
+import time
 
 
 class S3Storage(MutableMapping):
@@ -28,6 +30,7 @@ class S3Storage(MutableMapping):
         parallel=25,
         endpoint_url=None,
         aws_region=None,
+        expiration=None,
     ):
         self.s3fs = s3fs
         self.root = {}
@@ -36,6 +39,7 @@ class S3Storage(MutableMapping):
         self.parallel = parallel
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
+        self.expiration = expiration
         self.bucket = url.split("/")[2]
         self.path = "/".join(url.split("/")[3:])
         if self.bucket == "s3:":
@@ -45,7 +49,7 @@ class S3Storage(MutableMapping):
         self.bucketpath = posixpath.join(self.bucket, self.path)
         self.protocol = "object"
 
-        client_config = botocore.config.Config(
+        self.client_config = botocore.config.Config(
             max_pool_connections=parallel,
         )
 
@@ -54,9 +58,9 @@ class S3Storage(MutableMapping):
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
-            config=client_config,
-            endpoint_url=endpoint_url,
-            region_name=aws_region,
+            config=self.client_config,
+            endpoint_url=self.endpoint_url,
+            region_name=self.aws_region,
         )
 
         self.resource = boto3.resource(
@@ -64,12 +68,36 @@ class S3Storage(MutableMapping):
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token,
-            config=client_config,
-            endpoint_url=endpoint_url,
-            region_name=aws_region,
+            config=self.client_config,
+            endpoint_url=self.endpoint_url,
+            region_name=self.aws_region,
         )
 
+    def check_update_creds(self):
+        if self.expiration and float(self.expiration) < time.time():
+            details = HubControlClient().get_credentials()
+            self.expiration = details["expiration"]
+            self.client = boto3.client(
+                "s3",
+                aws_access_key_id=details["access_key"],
+                aws_secret_access_key=details["secret_key"],
+                aws_session_token=details["session_token"],
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
+            self.resource = boto3.resource(
+                "s3",
+                aws_access_key_id=details["access_key"],
+                aws_secret_access_key=details["secret_key"],
+                aws_session_token=details["session_token"],
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
+
     def __setitem__(self, path, content):
+        self.check_update_creds()
         try:
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
@@ -86,6 +114,7 @@ class S3Storage(MutableMapping):
             raise S3Exception(err)
 
     def __getitem__(self, path):
+        self.check_update_creds()
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -104,6 +133,7 @@ class S3Storage(MutableMapping):
             raise S3Exception(err)
 
     def __delitem__(self, path):
+        self.check_update_creds()
         try:
             path = posixpath.join(self.bucketpath, path)
             self.s3fs.rm(path, recursive=True)
@@ -112,8 +142,10 @@ class S3Storage(MutableMapping):
             raise S3Exception(err)
 
     def __len__(self):
+        self.check_update_creds()
         return len(self.s3fs.ls(self.bucketpath, detail=False, refresh=True))
 
     def __iter__(self):
+        self.check_update_creds()
         items = self.s3fs.ls(self.bucketpath, detail=False, refresh=True)
         yield from [item[len(self.bucketpath) + 1 :] for item in items]

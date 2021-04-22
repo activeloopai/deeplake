@@ -92,6 +92,7 @@ def get_fs_and_path(
         # TOOD check if url is username/dataset:version
         url, creds = _connect(url, public=public)
         fs = S3FileSystemReplacement(
+            expiration=creds["expiration"],
             key=creds["access_key"],
             secret=creds["secret_key"],
             token=creds["session_token"],

@@ -266,6 +266,12 @@ class DynamicTensorNotFoundException(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class SchemaMismatchException(HubException):
+    def __init__(self):
+        message = "Schema stored previously and schema in arguments do not match, use mode='w' to overwrite dataset"
+        super(HubException, self).__init__(message=message)
+
+
 class DynamicTensorShapeException(HubException):
     def __init__(self, exc_type):
         if exc_type == "none":
