@@ -21,6 +21,22 @@ tensorflow_spec = importlib.util.find_spec("tensorflow")
 if tensorflow_spec is not None:
     import tensorflow as tf
 
+PYTORCH_MODEL_DIR = "./data/pytorch_test/"
+TF_MODEL_DIR = "./data/tensorflow_test/"
+
+
+def create_pytorch_model(epoch=None):
+    shutil.rmtree(PYTORCH_MODEL_DIR, ignore_errors=True)
+    os.makedirs(PYTORCH_MODEL_DIR)
+    model_arch = torch.nn.Sequential(
+        torch.nn.Linear(1000, 100),
+        torch.nn.ReLU(),
+        torch.nn.Linear(100, 10),
+    )
+    model_init = Model(model_arch)
+    model_init.store(PYTORCH_MODEL_DIR, epoch=epoch)
+    return model_init
+
 
 @pytest.mark.skipif(
     not pytorch_loaded(),
@@ -29,18 +45,9 @@ if tensorflow_spec is not None:
 def test_store_load_torch():
     if torch_spec is None:
         raise ModuleNotFoundError("Module 'torch' is not installed")
-    model_dir = "./data/pytorch_test/"
-    shutil.rmtree(model_dir, ignore_errors=True)
-    os.makedirs(model_dir)
-    model_arch = torch.nn.Sequential(
-        torch.nn.Linear(1000, 100),
-        torch.nn.ReLU(),
-        torch.nn.Linear(100, 10),
-    )
-    model_init = Model(model_arch)
-    model_init.store(model_dir)
+    model_init = create_pytorch_model()
     loaded_model = Model()
-    loaded_model.load(glob.glob(f"{model_dir}*.pth")[0])
+    loaded_model.load(glob.glob(f"{PYTORCH_MODEL_DIR}*.pth")[0])
     assert repr(model_init._model) == repr(loaded_model._model)
     with torch.no_grad():
         for (p1, p2) in zip(
@@ -51,14 +58,13 @@ def test_store_load_torch():
 
 
 def test_store():
-    model_dir = "./data/pytorch_test/"
-    shutil.rmtree(model_dir, ignore_errors=True)
-    os.makedirs(model_dir)
+    shutil.rmtree(PYTORCH_MODEL_DIR, ignore_errors=True)
+    os.makedirs(PYTORCH_MODEL_DIR)
     model_init = 5
     model_arch = Model(model_init)
 
     with pytest.raises(ValueError) as exc:
-        model_arch.store(model_dir)
+        model_arch.store(PYTORCH_MODEL_DIR)
     assert exc.type == ValueError
 
 
@@ -70,9 +76,8 @@ def test_store_load_tf():
     if tensorflow_spec is None:
         raise ModuleNotFoundError("Module 'tensorflow' is not installed")
 
-    model_dir = "./data/tensorflow_test/"
-    shutil.rmtree(model_dir, ignore_errors=True)
-    os.makedirs(model_dir)
+    shutil.rmtree(TF_MODEL_DIR, ignore_errors=True)
+    os.makedirs(TF_MODEL_DIR)
 
     def get_model():
         inputs = tf.keras.Input(shape=(32,))
@@ -84,9 +89,26 @@ def test_store_load_tf():
     model_arch = get_model()
     model_init = Model(model_arch)
     test_input = np.random.random((128, 32))
-    model_init.store(model_dir)
+    model_init.store(TF_MODEL_DIR)
     loaded_model = Model()
-    loaded_model.load(glob.glob(f"{model_dir}*.h5")[0])
+    loaded_model.load(glob.glob(f"{TF_MODEL_DIR}*.h5")[0])
     np.testing.assert_allclose(
         model_init._model.predict(test_input), loaded_model._model.predict(test_input)
     )
+
+
+def test_pytorch_lightning_import():
+    pytorch_lightning_spec = importlib.util.find_spec("pytorch_lightning")
+    if pytorch_lightning_spec is not None:
+        try:
+            import pytorch_lightning as pl
+
+            PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
+            assert True
+        except:
+            assert False
+
+
+def test_epoch():
+    model = create_pytorch_model(epoch=5)
+    assert any("_5.pth" in filename for filename in os.listdir(PYTORCH_MODEL_DIR))
