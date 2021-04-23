@@ -8,7 +8,6 @@ import os
 import pickle
 import shutil
 
-import cloudpickle
 import hub.api.dataset as dataset
 import numpy as np
 import pytest
@@ -176,7 +175,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
 
     ds["first"][0] = np.ones((10, 10))
 
-    pickled_ds = cloudpickle.dumps(ds)
+    pickled_ds = pickle.dumps(ds)
     new_ds = pickle.loads(pickled_ds)
     assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
 
