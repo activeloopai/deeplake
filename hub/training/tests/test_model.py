@@ -9,7 +9,7 @@ import glob
 import shutil
 import numpy as np
 import pytest
-from hub.utils import pytorch_loaded, tensorflow_loaded
+from hub.utils import pytorch_loaded, tensorflow_loaded, pytorch_lightning_loaded
 from hub.training.model import Model
 
 import importlib
@@ -20,6 +20,9 @@ if torch_spec is not None:
 tensorflow_spec = importlib.util.find_spec("tensorflow")
 if tensorflow_spec is not None:
     import tensorflow as tf
+pytorch_lightning_spec = importlib.util.find_spec("pytorch_lightning")
+if pytorch_lightning_spec is not None:
+    import pytorch_lightning as pl
 
 PYTORCH_MODEL_DIR = "./data/pytorch_test/"
 TF_MODEL_DIR = "./data/tensorflow_test/"
@@ -99,18 +102,16 @@ def test_store_load_tf():
     )
 
 
+@pytest.mark.skipif(
+    not pytorch_lightning_loaded(),
+    reason="requires tensorflow to be loaded",
+)
 def test_pytorch_lightning_import():
-    pytorch_lightning_spec = importlib.util.find_spec("pytorch_lightning")
-    if pytorch_lightning_spec is not None:
-        try:
-            import pytorch_lightning as pl
-
-            PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
-            assert True
-        except:
-            assert False
-    else:
+    try:
+        PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
         assert True
+    except:
+        assert False
 
 
 @pytest.mark.skipif(
