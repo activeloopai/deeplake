@@ -4,27 +4,27 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-from hub.api.dataset_utils import slice_extract_info, slice_split
-from hub.schema.class_label import ClassLabel
 import os
-import shutil
-import cloudpickle
 import pickle
-from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException
+import shutil
+
+import cloudpickle
+import hub.api.dataset as dataset
 import numpy as np
 import pytest
-from hub import transform
-from hub import load
-import hub.api.dataset as dataset
-from hub.schema import Tensor, Text, Image, Sequence, BBox, SchemaDict, ClassLabel
+from hub import load, transform
+from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.cli.auth import login_fn
+from hub.exceptions import DirectoryNotEmptyException, SchemaMismatchException
+from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
+from hub.schema.class_label import ClassLabel
 from hub.utils import (
+    azure_creds_exist,
     gcp_creds_exist,
     hub_creds_exist,
-    s3_creds_exist,
-    azure_creds_exist,
-    transformers_loaded,
     minio_creds_exist,
+    s3_creds_exist,
+    transformers_loaded,
 )
 
 Dataset = dataset.Dataset
@@ -329,15 +329,67 @@ def test_dataset_wrong_append(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds.close()
-    try:
+    with pytest.raises(TypeError):
         ds = Dataset(url, shape=100)
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
 
-    try:
+    with pytest.raises(SchemaMismatchException):
         ds = Dataset(url, schema={"hello": "uint8"})
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
+
+
+def test_dataset_change_schema():
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/test_schema_change", schema=schema, shape=(100,))
+    new_schema_1 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((200, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_2 = {
+        "abrs": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_3 = {
+        "abc": "uint8",
+        "def": {
+            "ghijk": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_4 = {
+        "abc": "uint16",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_5 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100, 3)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_1, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_2, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_3, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_4, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_5, shape=(100,))
 
 
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
@@ -483,57 +535,6 @@ def test_text_dataset():
     assert ds2[2:4, "id"].compute() == ["ijkl", "mnop"]
 
 
-def test_dataset_from_directory():
-    def create_image(path_to_direcotry):
-        from PIL import Image
-
-        shape = (512, 512, 3)
-        for i in range(10):
-            img = np.ones(shape, dtype="uint8")
-            img = Image.fromarray(img)
-            img.save(os.path.join(path_to_direcotry, str(i) + ".png"))
-
-    def data_in_dir(path_to_direcotry):
-        if os.path.exists(path_to_direcotry):
-            create_image(path_to_direcotry)
-        else:
-            os.mkdir(os.path.join(path_to_direcotry))
-            create_image(path_to_direcotry)
-
-    def root_dir_image(root):
-        if os.path.exists(root):
-            import shutil
-
-            shutil.rmtree(root)
-        os.mkdir(root)
-        for i in range(10):
-            dir_name = "data_" + str(i)
-            data_in_dir(os.path.join(root, dir_name))
-
-    def del_data(*path_to_dir):
-        for i in path_to_dir:
-            import shutil
-
-            shutil.rmtree(i)
-
-    root_url = "./data/categorical_label_data"
-    store_url = "./data/categorical_label_data_store"
-
-    root_dir_image(root_url)
-
-    ds = Dataset.from_directory(root_url)
-    ds.store(store_url)
-
-    ds = load(store_url)
-
-    labels = ClassLabel(names=os.listdir(root_url))
-    label = os.listdir(root_url)
-
-    assert ds["image", 0].compute().shape == (512, 512, 3)
-    assert ds["label", 0].compute() == labels.str2int(label[0])
-    del_data(root_url, store_url)
-
-
 @pytest.mark.skipif(
     not transformers_loaded(), reason="requires transformers to be loaded"
 )
@@ -586,6 +587,16 @@ def test_append_dataset():
     assert ds["first"].shape[0] == 120
     assert ds["first", 5:10].shape[0] == 5
     assert ds["second"].shape[0] == 120
+
+
+def test_append_resize():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    url = "./data/test/append_resize"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="a")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    ds.resize_shape(150)
+    assert len(ds) == 150
 
 
 def test_meta_information():
@@ -715,7 +726,7 @@ def test_datasetview_repr():
     url = "./data/test/dsv_repr"
     ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
     dsv = ds[2:]
-    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'))"
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='uint8', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'))"
     assert dsv.__repr__() == print_text
 
 
@@ -1030,7 +1041,7 @@ def test_datasetview_filter():
         return sample["ab"].compute().startswith("abc")
 
     my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
-    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    ds = Dataset("./data/new_filter_2", shape=(10,), schema=my_schema)
     for i in range(10):
         ds["img", i] = i * np.ones((100, 100))
         ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
@@ -1225,6 +1236,30 @@ def test_minio_endpoint():
         assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
+def test_dataset_store():
+    my_schema = {"image": Tensor((100, 100), "uint8"), "abc": "uint8"}
+
+    ds = Dataset("./test/ds_store", schema=my_schema, shape=(100,))
+    for i in range(100):
+        ds["image", i] = i * np.ones((100, 100))
+        ds["abc", i] = i
+
+    def my_filter(sample):
+        return sample["abc"].compute() % 5 == 0
+
+    dsv = ds.filter(my_filter)
+
+    ds2 = ds.store("./test/ds2_store")
+    for i in range(100):
+        assert (ds2["image", i].compute() == i * np.ones((100, 100))).all()
+        assert ds["abc", i].compute() == i
+
+    ds3 = dsv.store("./test/ds3_store")
+    for i in range(20):
+        assert (ds3["image", i].compute() == 5 * i * np.ones((100, 100))).all()
+        assert ds3["abc", i].compute() == 5 * i
+
+
 if __name__ == "__main__":
     test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
@@ -1236,6 +1271,7 @@ if __name__ == "__main__":
     test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
+    test_append_resize()
     test_dataset_2()
     test_text_dataset()
     test_text_dataset_tokenizer()

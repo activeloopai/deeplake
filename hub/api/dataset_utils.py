@@ -14,7 +14,7 @@ import time
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-from hub.schema.features import Primitive
+from hub.schema.features import Primitive, SchemaDict
 from hub.numcodecs import PngCodec
 
 
@@ -32,6 +32,24 @@ def slice_split(slice_):
                 "type {} isn't supported in dataset slicing".format(type(sl))
             )
     return path, list_slice
+
+
+def same_schema(schema1, schema2):
+    """returns True if same, else False"""
+    if schema1.dict_.keys() != schema2.dict_.keys():
+        return False
+    for k, v in schema1.dict_.items():
+        if isinstance(v, SchemaDict) and not same_schema(v, schema2.dict_[k]):
+            return False
+        elif (
+            v.shape != schema2.dict_[k].shape
+            or v.max_shape != schema2.dict_[k].max_shape
+            or v.chunks != schema2.dict_[k].chunks
+            or v.dtype != schema2.dict_[k].dtype
+            or v.compressor != schema2.dict_[k].compressor
+        ):
+            return False
+    return True
 
 
 def slice_extract_info(slice_, num):
@@ -203,6 +221,25 @@ def _copy_helper(
                 src_fs=src_fs,
             )
     return dst_url
+
+
+def _store_helper(
+    ds,
+    url: str,
+    token: dict = None,
+    sample_per_shard: int = None,
+    public: bool = True,
+    scheduler="single",
+    workers=1,
+):
+    from hub import transform
+
+    @transform(schema=ds.schema, workers=workers, scheduler=scheduler)
+    def identity(sample):
+        return sample
+
+    ds2 = identity(ds)
+    return ds2.store(url, token=token, sample_per_shard=sample_per_shard, public=public)
 
 
 def _get_dynamic_tensor_dtype(t_dtype):

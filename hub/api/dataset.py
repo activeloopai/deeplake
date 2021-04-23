@@ -42,13 +42,15 @@ from hub.api.dataset_utils import (
     _copy_helper,
     _get_compressor,
     _get_dynamic_tensor_dtype,
+    _store_helper,
+    same_schema,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
 from hub.schema import ClassLabel
-
+from hub import auto
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
@@ -65,6 +67,7 @@ from hub.exceptions import (
     VersioningNotSupportedException,
     WrongUsernameException,
     InvalidVersionInfoException,
+    SchemaMismatchException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -140,6 +143,7 @@ class Dataset:
 
         storage_cache = norm_cache(storage_cache) if cache else 0
         cache = norm_cache(cache)
+
         schema: SchemaDict = featurify(schema) if schema else None
 
         self._url = url
@@ -205,14 +209,10 @@ class Dataset:
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
-                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                    f"Shape stored previously [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
                 )
-            if schema is not None and sorted(schema.dict_.keys()) != sorted(
-                self._schema.dict_.keys()
-            ):
-                raise TypeError(
-                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
-                )
+            if schema is not None and not same_schema(schema, self._schema):
+                raise SchemaMismatchException()
 
         else:
             if shape[0] is None:
@@ -235,8 +235,10 @@ class Dataset:
                 self._version_node = VersionNode(self._commit_id, self._branch)
                 self._branch_node_map = {self._branch: self._version_node}
                 self._commit_node_map = {self._commit_id: self._version_node}
+                self._chunk_commit_map = {
+                    path: defaultdict(set) for schema, path in self._flat_tensors
+                }
                 self._tensors = dict(self._generate_storage_tensors())
-                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
@@ -624,6 +626,46 @@ class Dataset:
         indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
 
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        sample_per_shard: int = None,
+        public: bool = True,
+        scheduler="single",
+        workers=1,
+    ):
+        """| Used to save the dataset as a new dataset, very similar to copy but uses transforms instead
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is referring to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
+        )
+
     def copy(self, dst_url: str, token=None, fs=None, public=True):
         """| Creates a copy of the dataset at the specified url and returns the dataset object
         Parameters
@@ -692,7 +734,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.username is not None:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -705,8 +747,12 @@ class Dataset:
         inplace=True,
         output_type=dict,
         indexes=None,
+        key_list=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -717,11 +763,14 @@ class Dataset:
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
         indexes: list or int, optional
-            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+            The samples to be converted into Pytorch format. Takes all samples in dataset by default.
+        key_list: list, optional
+            The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
@@ -814,7 +863,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.username is not None:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )
@@ -997,152 +1046,7 @@ class Dataset:
         return ds
 
     @staticmethod
-    def from_directory(
-        path_to_dir,
-        labels=None,
-        dtype="uint8",
-        scheduler: str = "single",
-        workers: int = 1,
-    ):
-        """|  This utility function is specific to create dataset from the categorical image dataset to easy use for the categorical image usecase.
-
-        Parameters
-        --------
-            path_to_dir:str
-            path of the directory where the image dataset root folder exists.
-
-            labels:list
-            passed a list of class names
-
-            dtype:str
-            datatype of the images can be defined by user.Default uint8.
-
-            scheduler: str
-            choice between "single", "threaded", "processed"
-
-            workers: int
-            how many threads or processes to use
-
-
-        ---------
-        Returns A dataset object for user use and to store a defined path.
-
-        >>>ds = Dataset.from_directory('path/test')
-        >>>ds.store('store_here')
-        """
-
-        def get_max_shape(path_to_dir):
-            """| get_max_shape from  the images.
-
-            -------
-            path_to_dir:str path to the root directory
-
-            -------
-            return the maximum shape of the image
-
-            -------
-
-            """
-            try:
-
-                for i in os.listdir(path_to_dir):
-                    for j in os.listdir(os.path.join(path_to_dir, i)):
-
-                        if j.endswith((".png", ".jpg", ".jpeg", ".tiff", ".bmp")):
-                            img_path = os.path.join(path_to_dir, i, j)
-                        else:
-                            print(
-                                f"{os.path.join(path_to_dir,i,j)} is a non image file please remove it to execute...."
-                            )
-
-                        image = im.open(img_path)
-
-                        width = set()
-                        height = set()
-                        mode = set()
-
-                        detail = list(image.size)
-
-                        width.add(detail[0])
-                        height.add(detail[1])
-
-                        if image.mode == "RGB":
-                            mode.add(3)
-                        elif image.mode == "RGBA":
-                            mode.add(4)
-                        elif image.mode == "LA":
-                            mode.add(2)
-                        else:
-                            mode.add(1)
-
-                max_shape = [max(width), max(height), max(mode)]
-                return max_shape
-            except Exception:
-                print("check your data for fix")
-
-        def make_schema(path_to_dir, labels, dtype):
-            """| make_schema internal function to generate the schema internally."""
-            max_shape = get_max_shape(path_to_dir)
-            image_shape = (None, None, None)
-            if labels is None:
-                labels = ClassLabel(names=os.listdir(path_to_dir))
-            else:
-                labels = ClassLabel(labels)
-            schema = {
-                "label": labels,
-                "image": Tensor(
-                    shape=image_shape,
-                    max_shape=max_shape,
-                    dtype=dtype,
-                ),
-            }
-
-            return schema
-
-        schema = make_schema(path_to_dir, labels, dtype)
-
-        if labels is not None:
-
-            label_dic = {}
-            for i, label in enumerate(labels):
-                label_dic[label] = i
-        else:
-            labels_v = os.listdir(path_to_dir)
-            label_dic = {}
-            for i, label in enumerate(labels_v):
-                label_dic[label] = i
-
-        @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
-        def upload_data(sample):
-            """| This upload_data function is for upload the images internally using `hub.transform`."""
-
-            path_to_image = sample[1]
-
-            pre_image = im.open(path_to_image)
-            image = np.asarray(pre_image)
-            image = image.astype(sample[2])
-            image_shape = get_max_shape(path_to_dir)
-
-            if pre_image.mode == "RGB":
-                image = np.resize(image, (*image_shape[:2], 3))
-            elif pre_image.mode == "RGBA":
-                image = np.resize(image, (*image_shape[:2], 4))
-            elif pre_image.mode == "LA":
-                image = np.resize(image, (*image_shape[:2], 2))
-            else:
-                image = np.resize(image, (*image_shape[:2], 1))
-
-            return {"label": label_dic[sample[0]], "image": image}
-
-        images = []
-        labels_list = []
-        dataype = []
-        for i in os.listdir(path_to_dir):
-            for j in os.listdir(os.path.join(path_to_dir, i)):
-                image = os.path.join(path_to_dir, i, j)
-                images.append(image)
-                labels_list.append(i)
-                dataype.append(dtype)
-
-        ds = upload_data(zip(labels_list, images, dataype))
+    def from_path(path, scheduler="single", workers=1):
+        # infer schema & get data (label -> input mapping with file refs)
+        ds = auto.infer_dataset(path, scheduler=scheduler, workers=workers)
         return ds
