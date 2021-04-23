@@ -127,6 +127,16 @@ def tensorflow_loaded():
     return True
 
 
+def pytorch_lightning_loaded():
+    try:
+        import pytorch_lightning as pl
+
+        pl.__version__
+    except ImportError:
+        return False
+    return True
+
+
 def tfds_loaded():
     try:
         import tensorflow_datasets
