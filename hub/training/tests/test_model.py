@@ -107,6 +107,8 @@ def test_pytorch_lightning_import():
             assert True
         except:
             assert False
+    else:
+        assert False
 
 
 @pytest.mark.skipif(
