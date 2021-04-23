@@ -135,3 +135,6 @@ def test_token():
     os.environ["AWS_DEFAULT_REGION"] = "us-east1"
     with pytest.raises(botocore.exceptions.EndpointConnectionError):
         create_pytorch_model(model_dir=model_dir)
+    with pytest.raises(botocore.exceptions.EndpointConnectionError):
+        loaded_model = Model()
+        loaded_model.load(os.path.join(model_dir, "model.pth"))
