@@ -100,12 +100,13 @@ def test_store_load_tf():
 def test_pytorch_lightning_import():
     pytorch_lightning_spec = importlib.util.find_spec("pytorch_lightning")
     if pytorch_lightning_spec is not None:
-        import pytorch_lightning as pl
+        try:
+            import pytorch_lightning as pl
 
-        PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
-        assert True
-    else:
-        assert False
+            PYTORCH_LIGHTNING_MODEL_CLASSES = (pl.LightningModule,)
+            assert True
+        except:
+            assert False
 
 
 @pytest.mark.skipif(
