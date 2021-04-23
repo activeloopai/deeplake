@@ -25,6 +25,10 @@ PYTORCH_MODEL_DIR = "./data/pytorch_test/"
 TF_MODEL_DIR = "./data/tensorflow_test/"
 
 
+@pytest.mark.skipif(
+    not pytorch_loaded(),
+    reason="requires pytorch to be loaded",
+)
 def create_pytorch_model(epoch=None):
     shutil.rmtree(PYTORCH_MODEL_DIR, ignore_errors=True)
     os.makedirs(PYTORCH_MODEL_DIR)
