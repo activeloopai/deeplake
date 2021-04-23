@@ -30,6 +30,8 @@ TF_MODEL_DIR = "./data/tensorflow_test/"
     reason="requires pytorch to be loaded",
 )
 def create_pytorch_model(epoch=None):
+    if torch_spec is None:
+        import torch
     shutil.rmtree(PYTORCH_MODEL_DIR, ignore_errors=True)
     os.makedirs(PYTORCH_MODEL_DIR)
     model_arch = torch.nn.Sequential(
@@ -114,5 +116,5 @@ def test_pytorch_lightning_import():
 
 
 def test_epoch():
-    model = create_pytorch_model(epoch=5)
+    create_pytorch_model(epoch=5)
     assert any("_5.pth" in filename for filename in os.listdir(PYTORCH_MODEL_DIR))
