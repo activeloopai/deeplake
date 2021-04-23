@@ -25,16 +25,18 @@ PYTORCH_MODEL_DIR = "./data/pytorch_test/"
 TF_MODEL_DIR = "./data/tensorflow_test/"
 
 
-def create_pytorch_model(epoch=None):
-    shutil.rmtree(PYTORCH_MODEL_DIR, ignore_errors=True)
-    os.makedirs(PYTORCH_MODEL_DIR)
+def create_pytorch_model(model_dir=None, epoch=None):
+    if not model_dir:
+        model_dir = PYTORCH_MODEL_DIR
+    shutil.rmtree(model_dir, ignore_errors=True)
+    os.makedirs(model_dir)
     model_arch = torch.nn.Sequential(
         torch.nn.Linear(1000, 100),
         torch.nn.ReLU(),
         torch.nn.Linear(100, 10),
     )
     model_init = Model(model_arch)
-    model_init.store(PYTORCH_MODEL_DIR, epoch=epoch)
+    model_init.store(model_dir, epoch=epoch)
     return model_init
 
 
@@ -118,3 +120,18 @@ def test_pytorch_lightning_import():
 def test_epoch():
     create_pytorch_model(epoch=5)
     assert any("_5.pth" in filename for filename in os.listdir(PYTORCH_MODEL_DIR))
+
+
+@pytest.mark.skipif(
+    not pytorch_loaded(),
+    reason="requires pytorch to be loaded",
+)
+def test_token():
+    import botocore
+
+    model_dir = "s3://test"
+    os.environ["AWS_ACCESS_KEY_ID"] = "AWS_ACCESS_KEY_ID"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "AWS_SECRET_ACCESS_KEY"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east1"
+    with pytest.raises(botocore.exceptions.EndpointConnectionError):
+        create_pytorch_model(model_dir=model_dir)
