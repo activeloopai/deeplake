@@ -97,8 +97,10 @@ def multiple_image_parse(path, scheduler=None, workers=None):
 
     """
     list_folder = os.listdir(path)
+    directory_dict = dict()
     store_ds = []
     for files in list_folder:
+        tag = str(files)
         ds = image_classification(os.path.join(path, files), scheduler, workers)
-        store_ds.append(ds)
-    return store_ds
+        directory_dict[tag] = ds
+    return directory_dict
