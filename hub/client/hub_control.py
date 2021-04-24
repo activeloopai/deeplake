@@ -40,7 +40,6 @@ class HubControlClient(HubHttpClient):
         return dataset
 
     def get_credentials(self):
-
         if self.auth_header is None:
             token = AuthClient().get_access_token(username="public", password="")
             self.auth_header = f"Bearer {token}"
@@ -64,6 +63,22 @@ class HubControlClient(HubHttpClient):
 
         self.save_config(details)
         return details
+
+    def get_dataset_credentials(self, org_id, ds_name):
+        if self.auth_header is None:
+            token = AuthClient().get_access_token(username="public", password="")
+            self.auth_header = f"Bearer {token}"
+        relative_url = config.GET_DATASET_CREDENTIALS_SUFFIX
+        relative_url = relative_url.split("/")
+        relative_url[3] = org_id
+        relative_url[5] = ds_name
+        relative_url = "/".join(relative_url)
+        r = self.request(
+            "GET",
+            relative_url,
+            endpoint=config.HUB_REST_ENDPOINT,
+        ).json()
+        return r["creds"], r["path"]
 
     def get_config(self, reset=False):
 
