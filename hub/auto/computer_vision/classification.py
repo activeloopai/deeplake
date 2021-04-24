@@ -7,6 +7,7 @@ from hub.auto.infer import state
 from PIL import Image
 from tqdm import tqdm
 
+
 USE_TQDM = True
 
 
@@ -82,3 +83,22 @@ def image_classification(path, scheduler, workers):
         return {"image": img, "label": label}
 
     return upload_data(data)
+
+
+@state.directory_parser(priority=2)
+def multiple_image_parse(path, scheduler=None, workers=None):
+    """Helper function to upload classification dataset of the following directory structure.
+
+    ```python3
+    >>> import hub.auto.computer_vision.classification as auto
+    >>> dss = auto.multiple_image_parse("hub/auto/computer_vision/data/dataset",scheduler="single",workers=2)
+
+    ```
+
+    """
+    list_folder = os.listdir(path)
+    store_ds = []
+    for files in list_folder:
+        ds = image_classification(os.path.join(path, files), scheduler, workers)
+        store_ds.append(ds)
+    return store_ds
