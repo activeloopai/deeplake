@@ -43,6 +43,7 @@ from hub.api.dataset_utils import (
     _get_compressor,
     _get_dynamic_tensor_dtype,
     _store_helper,
+    same_schema,
 )
 
 import hub.schema.serialize
@@ -66,6 +67,7 @@ from hub.exceptions import (
     VersioningNotSupportedException,
     WrongUsernameException,
     InvalidVersionInfoException,
+    SchemaMismatchException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -207,14 +209,10 @@ class Dataset:
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
-                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                    f"Shape stored previously [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
                 )
-            if schema is not None and sorted(schema.dict_.keys()) != sorted(
-                self._schema.dict_.keys()
-            ):
-                raise TypeError(
-                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
-                )
+            if schema is not None and not same_schema(schema, self._schema):
+                raise SchemaMismatchException()
 
         else:
             if shape[0] is None:
@@ -736,7 +734,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.username is not None:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -865,7 +863,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.username is not None:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )

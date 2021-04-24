@@ -11,7 +11,7 @@ from hub import config
 from hub.client.base import HubHttpClient
 from hub.client.auth import AuthClient
 from pathlib import Path
-
+from hub import defaults
 from hub.exceptions import NotFoundException
 from hub.log import logger
 import traceback
@@ -48,6 +48,7 @@ class HubControlClient(HubHttpClient):
             "GET",
             config.GET_CREDENTIALS_SUFFIX,
             endpoint=config.HUB_REST_ENDPOINT,
+            params={"duration": defaults.CRED_EXPIRATION},
         ).json()
 
         details = {
@@ -81,15 +82,13 @@ class HubControlClient(HubHttpClient):
         return r["creds"], r["path"]
 
     def get_config(self, reset=False):
-
         if not os.path.isfile(config.STORE_CONFIG_PATH) or self.auth_header is None:
             self.get_credentials()
 
         with open(config.STORE_CONFIG_PATH) as file:
             details = file.readlines()
             details = json.loads("".join(details))
-
-        if float(details["expiration"]) < time.time() - 36000 or reset:
+        if float(details["expiration"]) < time.time() or reset:
             details = self.get_credentials()
         return details
 
