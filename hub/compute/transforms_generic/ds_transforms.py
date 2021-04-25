@@ -22,7 +22,7 @@ from hub import Dataset
 from hub.api.datasetview import DatasetView
 
 
-def horizonatal_flip(
+def horizontal_flip(
     ds: Union[Dataset, DatasetView],
     keys: Union[List[str], Tuple[str]] = ["image"],
     p: float = 1.0,

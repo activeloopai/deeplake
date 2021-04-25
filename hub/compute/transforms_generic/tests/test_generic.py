@@ -5,7 +5,7 @@ import numpy as np
 import hub
 from hub.schema import Image, Mask, ClassLabel, Text
 from hub.compute.transforms_generic.ds_transforms import (
-    horizonatal_flip,
+    horizontal_flip,
     vertical_flip,
     shift_scale_rotate,
     transpose,
@@ -29,7 +29,7 @@ def test_transforms():
         ds[i]["mask"] = np.ones((100, 100, 1))
         ds[i]["label"] = np.random.choice([0, 1, 2])
         ds[i]["id"] = i
-    ds_1 = horizonatal_flip(ds, keys=["img"])
+    ds_1 = horizontal_flip(ds, keys=["img"])
     ds_1.store(url + "_1")
     ds_1 = hub.Dataset(url + "_1")
     assert not np.all(ds[0]["img"] == ds_1[0]["img"].compute())
@@ -71,12 +71,12 @@ def test_transforms_input():
         ds[i]["label"] = np.random.choice([0, 1, 2])
         ds[i]["text"] = "text_label"
     try:
-        ds_1 = horizonatal_flip(ds, keys=["label"])
+        ds_1 = horizontal_flip(ds, keys=["label"])
         ds_1.store(url + "_1")
     except Exception as e:
         assert isinstance(e, IndexError)
     try:
-        ds_1 = horizonatal_flip(ds, keys=["text"])
+        ds_1 = horizontal_flip(ds, keys=["text"])
         ds_1.store(url + "_1")
     except Exception as e:
         assert isinstance(e, AttributeError)
