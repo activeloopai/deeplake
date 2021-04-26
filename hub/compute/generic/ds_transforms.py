@@ -23,6 +23,7 @@ from hub.api.datasetview import DatasetView
 
 
 def get_transform_keys(sample, keys):
+    """Infer image, mask and bbox keys from Dataset sample"""
     img_keys = [key for key in keys if len(sample[key].shape) == 3]
     bbox_keys = [
         key
@@ -42,6 +43,26 @@ def get_transform_keys(sample, keys):
         img_key = mask_key
         mask_key = None
     return img_key, mask_key, bbox_key
+
+
+def transform_sample(sample, keys, transform_fn):
+    """Apply specific augmentation to sample"""
+    img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
+
+    for key in keys:
+        if sample[key].dtype == "bool":
+            sample[key] = sample[key].astype("uint8")
+
+    sample_img = sample[img_key]
+    sample_mask = sample[mask_key] if mask_key in sample.keys() else None
+    sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
+    transformed = transform_fn(image=sample_img, bboxes=sample_bboxes, mask=sample_mask)
+    sample[img_key] = transformed["image"]
+    if sample_mask is not None:
+        sample[mask_key] = transformed["mask"]
+    if sample_bboxes is not None:
+        sample[bbox_key] = transformed["bboxes"]
+    return sample
 
 
 def horizontal_flip(
@@ -81,23 +102,7 @@ def horizontal_flip(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_flip(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = HorizontalFlip(p=p)(
-            image=sample_img, bboxes=sample_bboxes, mask=sample_mask
-        )
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(sample, keys, HorizontalFlip(p=p))
         return sample
 
     return run_flip(ds, keys=keys)
@@ -140,23 +145,7 @@ def vertical_flip(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_flip(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = VerticalFlip(p=p)(
-            image=sample_img, bboxes=sample_bboxes, mask=sample_mask
-        )
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(sample, keys, VerticalFlip(p=p))
         return sample
 
     return run_flip(ds, keys=keys)
@@ -240,32 +229,22 @@ def shift_scale_rotate(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_ssr(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = ShiftScaleRotate(
-            p=p,
-            shift_limit=shift_limit,
-            scale_limit=scale_limit,
-            rotate_limit=rotate_limit,
-            interpolation=interpolation,
-            border_mode=border_mode,
-            value=value,
-            mask_value=mask_value,
-            shift_limit_x=shift_limit_x,
-            shift_limit_y=shift_limit_y,
-        )(image=sample_img, bboxes=sample_bboxes, mask=sample_mask)
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(
+            sample,
+            keys,
+            ShiftScaleRotate(
+                p=p,
+                shift_limit=shift_limit,
+                scale_limit=scale_limit,
+                rotate_limit=rotate_limit,
+                interpolation=interpolation,
+                border_mode=border_mode,
+                value=value,
+                mask_value=mask_value,
+                shift_limit_x=shift_limit_x,
+                shift_limit_y=shift_limit_y,
+            ),
+        )
         return sample
 
     return run_ssr(ds, keys=keys)
@@ -312,23 +291,7 @@ def blur(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_blur(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = Blur(p=p, blur_limit=blur_limit)(
-            image=sample_img, bboxes=sample_bboxes, mask=sample_mask
-        )
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(sample, keys, Blur(p=p, blur_limit=blur_limit))
         return sample
 
     return run_blur(ds, keys=keys)
@@ -382,26 +345,16 @@ def random_brightness_contrast(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_rbc(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = RandomBrightnessContrast(
-            p=p,
-            brightness_limit=brightness_limit,
-            contrast_limit=contrast_limit,
-            brightness_by_max=brightness_by_max,
-        )(image=sample_img, bboxes=sample_bboxes, mask=sample_mask)
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(
+            sample,
+            keys,
+            RandomBrightnessContrast(
+                p=p,
+                brightness_limit=brightness_limit,
+                contrast_limit=contrast_limit,
+                brightness_by_max=brightness_by_max,
+            ),
+        )
         return sample
 
     return run_rbc(ds, keys=keys)
@@ -450,23 +403,9 @@ def gausse_noise(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_gn(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = GaussNoise(p=p, var_limit=var_limit, mean=mean)(
-            image=sample_img, bboxes=sample_bboxes, mask=sample_mask
+        sample = transform_sample(
+            sample, keys, GaussNoise(p=p, var_limit=var_limit, mean=mean)
         )
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
         return sample
 
     return run_gn(ds, keys=keys)
@@ -509,23 +448,7 @@ def transpose(
 
     @hub.transform(schema=schema_dict, scheduler=scheduler, workers=workers)
     def run_transpose(sample, keys):
-        img_key, mask_key, bbox_key = get_transform_keys(sample, keys)
-
-        for key in keys:
-            if sample[key].dtype == "bool":
-                sample[key] = sample[key].astype("uint8")
-
-        sample_img = sample[img_key]
-        sample_mask = sample[mask_key] if mask_key in sample.keys() else None
-        sample_bboxes = sample[bbox_key] if bbox_key in sample.keys() else None
-        transformed = Transpose(p=p)(
-            image=sample_img, bboxes=sample_bboxes, mask=sample_mask
-        )
-        sample[img_key] = transformed["image"]
-        if sample_mask is not None:
-            sample[mask_key] = transformed["mask"]
-        if sample_bboxes is not None:
-            sample[bbox_key] = transformed["bboxes"]
+        sample = transform_sample(sample, keys, Transpose(p=p))
         return sample
 
     return run_transpose(ds, keys=keys)
