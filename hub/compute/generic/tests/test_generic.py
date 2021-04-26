@@ -4,7 +4,7 @@ import numpy as np
 
 import hub
 from hub.schema import Image, Mask, ClassLabel, Text
-from hub.compute.transforms_generic.ds_transforms import (
+from hub.compute.generic.ds_transforms import (
     horizontal_flip,
     vertical_flip,
     shift_scale_rotate,
@@ -18,15 +18,15 @@ from hub.compute.transforms_generic.ds_transforms import (
 def test_transforms():
     url = "./tmp/test_transforms"
     schema = {
-        "img": Image(shape=(100, 100, 3)),
-        "mask": Mask(shape=(100, 100, 1)),
+        "img": Image(shape=(20, 20, 3)),
+        "mask": Mask(shape=(20, 20, 1)),
         "label": ClassLabel(num_classes=3),
         "id": "int8",
     }
     ds = hub.Dataset(url, mode="w", shape=(140,), schema=schema)
     for i, _ in enumerate(ds):
-        ds[i]["img"] = np.ones((100, 100, 3))
-        ds[i]["mask"] = np.ones((100, 100, 1))
+        ds[i]["img"] = np.ones((20, 20, 3))
+        ds[i]["mask"] = np.ones((20, 20, 1))
         ds[i]["label"] = np.random.choice([0, 1, 2])
         ds[i]["id"] = i
     ds_1 = horizontal_flip(ds, keys=["img"])
@@ -74,7 +74,7 @@ def test_transforms_input():
         ds_1 = horizontal_flip(ds, keys=["label"])
         ds_1.store(url + "_1")
     except Exception as e:
-        assert isinstance(e, IndexError)
+        assert isinstance(e, KeyError)
     try:
         ds_1 = horizontal_flip(ds, keys=["text"])
         ds_1.store(url + "_1")
