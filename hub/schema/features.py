@@ -84,7 +84,7 @@ class SchemaDict(HubSchema):
 
 
 def featurify(schema) -> HubSchema:
-    """This functions converts naked primitive datatypes and ditcs into Primitives and SchemaDicts.
+    """This functions converts naked primitive datatypes and dicts into Primitives and SchemaDicts.
     That way every node in dtype tree is a SchemaConnector type object.
     """
     if isinstance(schema, dict):
