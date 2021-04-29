@@ -1208,6 +1208,12 @@ def test_dataset_store():
         assert ds3["abc", i].compute() == 5 * i
 
 
+def test_dataset_store_bug():
+    ds = Dataset("activeloop/coco_train")
+    subset = ds[0:5]
+    subset.store("./coco_subset")
+
+
 if __name__ == "__main__":
     test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
