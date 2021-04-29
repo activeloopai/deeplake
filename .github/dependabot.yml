@@ -1,0 +1,109 @@
+version: 2
+updates:
+- package-ecosystem: pip
+  directory: "/"
+  schedule:
+    interval: daily
+    time: "13:00"
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: docutils
+    versions:
+    - "0.17"
+    - 0.17.1
+  - dependency-name: black
+    versions:
+    - 21.4b0
+    - 21.4b1
+  - dependency-name: boto3
+    versions:
+    - 1.16.62
+    - 1.16.63
+    - 1.17.0
+    - 1.17.1
+    - 1.17.10
+    - 1.17.11
+    - 1.17.12
+    - 1.17.13
+    - 1.17.14
+    - 1.17.15
+    - 1.17.16
+    - 1.17.17
+    - 1.17.18
+    - 1.17.19
+    - 1.17.2
+    - 1.17.21
+    - 1.17.22
+    - 1.17.23
+    - 1.17.24
+    - 1.17.25
+    - 1.17.26
+    - 1.17.27
+    - 1.17.28
+    - 1.17.29
+    - 1.17.3
+    - 1.17.32
+    - 1.17.34
+    - 1.17.35
+    - 1.17.38
+    - 1.17.4
+    - 1.17.42
+    - 1.17.44
+    - 1.17.45
+    - 1.17.46
+    - 1.17.47
+    - 1.17.48
+    - 1.17.49
+    - 1.17.5
+    - 1.17.50
+    - 1.17.51
+    - 1.17.52
+    - 1.17.53
+    - 1.17.55
+    - 1.17.56
+    - 1.17.57
+    - 1.17.58
+    - 1.17.6
+    - 1.17.7
+    - 1.17.8
+    - 1.17.9
+  - dependency-name: gcsfs
+    versions:
+    - 0.7.2
+    - 0.8.0
+  - dependency-name: s3fs
+    versions:
+    - 0.5.2
+    - 0.6.0
+  - dependency-name: humbug
+    versions:
+    - 0.1.5
+  - dependency-name: tiledb
+    versions:
+    - 0.8.4
+  - dependency-name: tqdm
+    versions:
+    - 4.56.0
+    - 4.56.1
+    - 4.56.2
+    - 4.57.0
+    - 4.58.0
+    - 4.59.0
+  - dependency-name: fsspec
+    versions:
+    - 0.8.7
+  - dependency-name: azure-storage-blob
+    versions:
+    - 12.7.1
+    - 12.8.0
+  - dependency-name: pytest
+    versions:
+    - 6.2.2
+  - dependency-name: sphinx
+    versions:
+    - 3.4.3
+    - 3.5.0
+    - 3.5.1
+  - dependency-name: ray
+    versions:
+    - 1.1.0
