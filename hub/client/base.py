@@ -78,7 +78,6 @@ class HubHttpClient:
             or headers["Authorization"] != self.auth_header
         ):
             headers["Authorization"] = self.auth_header
-
         try:
             logger.debug(f"Sending: Headers {headers}, Json: {json}")
 
