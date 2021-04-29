@@ -188,6 +188,12 @@ class ValueShapeError(HubException):
         super(HubException, self).__init__(message=message)
 
 
+class ClassLabelValueError(HubException):
+    def __init__(self, expected_classes, value):
+        message = f"Expected ClassLabel to be in {expected_classes}, got {value}"
+        super(HubException, self).__init__(message=message)
+
+
 class NoneValueException(HubException):
     def __init__(self, param):
         message = f"Parameter '{param}' should be provided"

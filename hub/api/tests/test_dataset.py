@@ -3,20 +3,20 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
 import os
 import pickle
 import shutil
 
 import hub.api.dataset as dataset
+from hub.cli.auth import login_fn
+from hub.exceptions import DirectoryNotEmptyException, ClassLabelValueError
 import numpy as np
 import pytest
 from hub import load, transform
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
 from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException, SchemaMismatchException
 from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
-from hub.schema.class_label import ClassLabel
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
@@ -1214,6 +1214,38 @@ def test_check_label_name():
     assert ds[1:3].compute().tolist() == [{"label": 2}, {"label": 0}]
 
 
+def test_class_label_value():
+    ds = Dataset(
+        "./data/tests/test_check_label",
+        mode="w",
+        shape=(5,),
+        schema={
+            "label": ClassLabel(names=["name1", "name2", "name3"]),
+            "label/b": ClassLabel(num_classes=5),
+        },
+    )
+    ds["label", 0:7] = 2
+    ds["label", 0:2] = np.array([0, 1])
+    ds["label", 0:3] = ["name1", "name2", "name3"]
+    ds[0:3]["label"] = [0, "name2", 2]
+    try:
+        ds["label/b", 0] = 6
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0:4]["label/b"] = np.array([0, 1, 2, 3, 7])
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds["label", 4] = "name4"
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0]["label/b"] = ["name"]
+    except Exception as ex:
+        assert isinstance(ex, ValueError)
+
+
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
 def test_minio_endpoint():
     token = {
@@ -1260,33 +1292,33 @@ def test_dataset_store():
 
 
 if __name__ == "__main__":
-    test_dataset_dynamic_shaped_slicing()
-    test_dataset_assign_value()
-    test_dataset_setting_shape()
-    test_datasetview_repr()
-    test_datasetview_get_dictionary()
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
-    test_dataset_batch_write_2()
-    test_append_dataset()
-    test_append_resize()
-    test_dataset_2()
-    test_text_dataset()
-    test_text_dataset_tokenizer()
-    test_dataset_compute()
-    test_dataset_view_compute()
-    test_dataset_lazy()
-    test_dataset_view_lazy()
-    test_dataset_hub()
-    test_meta_information()
-    test_dataset_filter_2()
-    test_dataset_filter_3()
-    test_pickleability()
-    test_dataset_append_and_read()
-    test_tensorview_iter()
-    test_dataset_filter_4()
-    test_datasetview_2()
-    test_dataset_3()
-    test_dataset_utils()
-    test_check_label_name()
+    # test_dataset_assign_value()
+    # test_dataset_setting_shape()
+    # test_datasetview_repr()
+    # test_datasetview_get_dictionary()
+    # test_tensorview_slicing()
+    # test_datasetview_slicing()
+    # test_dataset()
+    # test_dataset_batch_write_2()
+    # test_append_dataset()
+    # test_dataset_2()
+
+    # test_text_dataset()
+    # test_text_dataset_tokenizer()
+    # test_dataset_compute()
+    # test_dataset_view_compute()
+    # test_dataset_lazy()
+    # test_dataset_view_lazy()
+    # test_dataset_hub()
+    # test_meta_information()
+    # test_dataset_filter_2()
+    # test_dataset_filter_3()
+    # test_pickleability()
+    # test_dataset_append_and_read()
+    # test_tensorview_iter()
+    # test_dataset_filter_4()
+    # test_datasetview_2()
+    # test_dataset_3()
+    # test_dataset_utils()
+    # test_check_label_name()
+    test_class_label_value()

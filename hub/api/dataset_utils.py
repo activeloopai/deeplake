@@ -5,10 +5,16 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import os
+import time
+from typing import Union, Iterable
 from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
-from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
+from hub.exceptions import (
+    ModuleNotInstalledException,
+    DirectoryNotEmptyException,
+    ClassLabelValueError,
+)
 import hashlib
 import time
 import numcodecs
@@ -16,6 +22,7 @@ import numcodecs.lz4
 import numcodecs.zstd
 from hub.schema.features import Primitive, SchemaDict
 from hub.numcodecs import PngCodec
+from hub.schema import ClassLabel
 
 
 def slice_split(slice_):
@@ -266,3 +273,23 @@ def _get_compressor(compressor: str):
         raise ValueError(
             f"Wrong compressor: {compressor}, only LZ4, PNG and ZSTD are supported"
         )
+
+
+def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
+    """Check if value can be assigned to predefined ClassLabel"""
+    if not isinstance(value, Iterable) or isinstance(value, str):
+        assign_class_labels = [value]
+    else:
+        assign_class_labels = value
+    for i, assign_class_label in enumerate(assign_class_labels):
+        if isinstance(assign_class_label, str):
+            try:
+                assign_class_labels[i] = label.str2int(assign_class_label)
+            except KeyError:
+                raise ClassLabelValueError(label.names, assign_class_label)
+
+    if min(assign_class_labels) < 0 or max(assign_class_labels) > label.num_classes - 1:
+        raise ClassLabelValueError(range(label.num_classes - 1), assign_class_label)
+    if len(assign_class_labels) == 1:
+        return assign_class_labels[0]
+    return assign_class_labels
