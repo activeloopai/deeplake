@@ -24,7 +24,6 @@ from hub.defaults import OBJECT_CHUNK
 
 def get_sample_size(schema, workers):
     """Given Schema, decides how many samples to take at once and returns it"""
-    schema = featurify(schema)
     samples = 10000
     for feature in schema._flatten():
         shp = list(feature.max_shape)
@@ -68,7 +67,7 @@ class Transform:
             additional arguments that will be passed to func as static argument for all samples
         """
         self._func = func
-        self.schema = schema
+        self.schema = featurify(schema)
         self._ds = ds
         self.kwargs = kwargs
         self.workers = workers
@@ -163,7 +162,7 @@ class Transform:
         Helper function to get the dtype from the path
         """
         path = path.split("/")
-        cur_type = schema
+        cur_type = schema.dict_
         for subpath in path[:-1]:
             cur_type = cur_type[subpath]
             cur_type = cur_type.dict_
