@@ -1233,7 +1233,8 @@ def test_class_label_value():
     ds["label", 0:3] = ["name1", "name2", "name3"]
     ds[0:3]["label"] = [0, "name2", 2]
     ds[0]["label_mult"] = np.array(["name1", "name3"])
-    ds["label_mult", 1] = "name1"
+    ds["label_mult", 1] = "name2"
+    ds["label_mult", 2:4] = [np.array(["name2", "name3"]), np.array(["name1"])]
     try:
         ds["label/b", 0] = 6
     except Exception as ex:
