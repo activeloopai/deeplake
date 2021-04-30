@@ -1,8 +1,11 @@
 <p align="center">
+ <a href="https://github.com/activeloopai/Hub/wiki/Hub-Kaggle's-Herbarium-2021--Half-Earth-Challenge">
+  <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/Use_Hub_in_a_CVPR_challenge_and_win_up_to_$1000_(read_more).png" height="35" /></a>
+</p>
+<p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/logo/logo-explainer-bg.png" width="50%"/>
     </br>
-</p>
 <p align="center">
     <a href="http://docs.activeloop.ai/">
         <img alt="Docs" src="https://readthedocs.org/projects/hubdb/badge/?version=latest">
@@ -206,6 +209,8 @@ There are quite a few dataset management libraries which offer functionality tha
 ## Community
 
 Join our [**Slack community**](https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ) to get help from Activeloop team and other users, as well as stay up-to-date on dataset management/preprocessing best practices.
+
+We'd love your feedback by completing our 3-minute [**survey**](https://forms.gle/rLi4w33dow6CSMcm9).
 
 <img alt="tweet" src="https://img.shields.io/twitter/follow/activeloopai?label=stay%20in%20the%20Loop&style=social"> on Twitter.
 
