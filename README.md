@@ -56,7 +56,7 @@ Write new APIs here
 
 ---
 
-[ English | [Français](./README_translations/README_FR.md) | [简体中文](./README_translations/README_CN.md) | [Türkçe](./README_translations/README_TR.md) | [한글](./README_translations/README_KR.md) | [Bahasa Indonesia](./README_translations/README_ID.md)] | [Русский](./README_translations/README_RU.md)]
+[ English | [Français](docs/README_translations/README_FR.md) | [简体中文](docs/README_translations/README_CN.md) | [Türkçe](docs/README_translations/README_TR.md) | [한글](docs/README_translations/README_KR.md) | [Bahasa Indonesia](docs/README_translations/README_ID.md)] | [Русский](docs/README_translations/README_RU.md)]
 
 <i> Note: the translations of this document may not be up-to-date. For the latest version, please check the README in English. </i>
 
@@ -244,7 +244,7 @@ As always, thanks to our amazing contributors!
 
 Made with [contributors-img](https://contrib.rocks).
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) to know how to get started with making contributions to Hub.
+Please read [CONTRIBUTING.md](docs/legal/CONTRIBUTING.md) to know how to get started with making contributions to Hub.
 
 ## Examples
 Activeloop's Hub format lets you achieve faster inference at a lower cost. We have 30+ popular datasets already on our platform. These include:

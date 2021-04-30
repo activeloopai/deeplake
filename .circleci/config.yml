@@ -159,7 +159,7 @@ commands:
           condition: << parameters.unix-like >>
           steps:
             - run:
-                name: "Running tests - Windows"
+                name: "Running test - Windows"
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
@@ -170,7 +170,7 @@ commands:
           condition: << parameters.unix-like >>
           steps:
             - run:
-                name: "Running tests - Unix"
+                name: "Running test - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   pytest --cov-report=xml --cov=./

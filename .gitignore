@@ -68,7 +68,7 @@ terraform.tfstate
 terraform.tfstate.backup
 .secrets
 node/.secrets
-examples/real/*
+hub/examples/real/*
 node/*.pem
 
 # C extensions

@@ -73,7 +73,7 @@ test:
     - hub.compute
     - hub.schema
     - hub.store
-    - hub.store.tests
+    - hub.store.test
   commands:
     - hub --help
     - hub-local --help
