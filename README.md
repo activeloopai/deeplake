@@ -15,6 +15,79 @@ Write new APIs here
 ## Train using hub Dataset on Neuro
 
 
+## Folder Structure:
+
+├── hub 
+
+│   ├── __init__.py
+
+│   ├── api
+
+
+│   │   ├── dataset
+
+
+│   │   │   ├── dataset.py
+
+│   │   │   └── datasetview.py
+
+│   │   ├── tensor
+
+
+│   │   │   └── tensorview.py
+
+│   │   └── tests
+
+│   │       └── test_dataset.py
+
+│   ├── benchmarks
+
+│   ├── cli
+
+│   ├── client
+
+│   ├── compute
+
+│   │   └── provider
+
+│   ├── core
+
+│   │   └── controller
+
+│   │       ├── auth
+
+│   │       ├── cache_engine
+
+│   │       ├── chunker
+
+│   │       └── version_control
+
+│   ├── examples
+
+│   ├── exceptions.py
+
+│   ├── integrations
+
+│   ├── log.py
+
+│   ├── query
+
+│   ├── storage
+
+│   │   └── provider
+
+│   │       ├── SPECS.MD
+
+│   ├── test
+
+│   │   └── benchmark
+
+│   ├── transform
+
+│   └── version.py
+├── meta.yaml
+├── requirements.txt
+└── setup.py
 
 
 ---
