@@ -48,6 +48,7 @@ data/
 
 # OS generated files #
 ######################
+.dccache
 .DS_Store?
 ehthumbs.db
 Icon?
