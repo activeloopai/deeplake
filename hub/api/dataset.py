@@ -10,6 +10,7 @@ import posixpath
 import collections.abc as abc
 import json
 import sys
+from typing import Iterable
 import traceback
 from collections import defaultdict
 import numpy as np
@@ -43,14 +44,15 @@ from hub.api.dataset_utils import (
     _get_compressor,
     _get_dynamic_tensor_dtype,
     _store_helper,
+    check_class_label,
     same_schema,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
-from hub.schema import ClassLabel
 from hub import auto
+
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
@@ -595,9 +597,6 @@ class Dataset:
         if "r" in self._mode:
             raise ReadModeException("__setitem__")
         self._auto_checkout()
-        assign_value = get_value(value)
-        # handling strings and bytes
-        assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -608,6 +607,24 @@ class Dataset:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
+
+        assign_value = get_value(value)
+        schema_dict = self.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not slice_list:
             self._tensors[subpath][:] = assign_value
