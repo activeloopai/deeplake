@@ -15,7 +15,11 @@ import pytest
 from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
 from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException, SchemaMismatchException
+from hub.exceptions import (
+    DirectoryNotEmptyException,
+    SchemaMismatchException,
+    ReadModeException,
+)
 from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
 from hub.utils import (
     azure_creds_exist,
@@ -1295,6 +1299,45 @@ def test_dataset_store_bug():
     ds = Dataset("activeloop/coco_train")
     subset = ds[0:5]
     subset.store("./coco_subset")
+
+
+def test_dataset_google():
+    ds = Dataset("google/bike")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/bottle")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/book")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cereal_box")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/chair")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cup")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/camera")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/laptop")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/shoe")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
 
 
 if __name__ == "__main__":
