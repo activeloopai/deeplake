@@ -287,9 +287,22 @@ def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
                 assign_class_labels[i] = label.str2int(assign_class_label)
             except KeyError:
                 raise ClassLabelValueError(label.names, assign_class_label)
-
-    if min(assign_class_labels) < 0 or max(assign_class_labels) > label.num_classes - 1:
-        raise ClassLabelValueError(range(label.num_classes - 1), assign_class_label)
+    if (
+        isinstance(assign_class_labels, np.ndarray)
+        and assign_class_labels.dtype.type is np.str_
+    ):
+        assign_class_labels = np.array([int(i) for i in assign_class_labels])
+    if any((isinstance(val, np.ndarray) for val in assign_class_labels)):
+        assign_class_labels_flat = np.hstack(assign_class_labels)
+    else:
+        assign_class_labels_flat = assign_class_labels
+    if (
+        min(assign_class_labels_flat) < 0
+        or max(assign_class_labels_flat) > label.num_classes - 1
+    ):
+        raise ClassLabelValueError(
+            range(label.num_classes - 1), assign_class_labels_flat
+        )
     if len(assign_class_labels) == 1:
         return assign_class_labels[0]
     return assign_class_labels

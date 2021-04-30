@@ -1223,12 +1223,17 @@ def test_class_label_value():
         schema={
             "label": ClassLabel(names=["name1", "name2", "name3"]),
             "label/b": ClassLabel(num_classes=5),
+            "label_mult": ClassLabel(
+                shape=(None,), max_shape=(3,), names=["name1", "name2", "name3"]
+            ),
         },
     )
     ds["label", 0:7] = 2
     ds["label", 0:2] = np.array([0, 1])
     ds["label", 0:3] = ["name1", "name2", "name3"]
     ds[0:3]["label"] = [0, "name2", 2]
+    ds[0]["label_mult"] = np.array(["name1", "name3"])
+    ds["label_mult", 1] = "name1"
     try:
         ds["label/b", 0] = 6
     except Exception as ex:
@@ -1293,33 +1298,33 @@ def test_dataset_store():
 
 
 if __name__ == "__main__":
-    # test_dataset_assign_value()
-    # test_dataset_setting_shape()
-    # test_datasetview_repr()
-    # test_datasetview_get_dictionary()
-    # test_tensorview_slicing()
-    # test_datasetview_slicing()
-    # test_dataset()
-    # test_dataset_batch_write_2()
-    # test_append_dataset()
-    # test_dataset_2()
+    test_dataset_assign_value()
+    test_dataset_setting_shape()
+    test_datasetview_repr()
+    test_datasetview_get_dictionary()
+    test_tensorview_slicing()
+    test_datasetview_slicing()
+    test_dataset()
+    test_dataset_batch_write_2()
+    test_append_dataset()
+    test_dataset_2()
 
-    # test_text_dataset()
-    # test_text_dataset_tokenizer()
-    # test_dataset_compute()
-    # test_dataset_view_compute()
-    # test_dataset_lazy()
-    # test_dataset_view_lazy()
-    # test_dataset_hub()
-    # test_meta_information()
-    # test_dataset_filter_2()
-    # test_dataset_filter_3()
-    # test_pickleability()
-    # test_dataset_append_and_read()
-    # test_tensorview_iter()
-    # test_dataset_filter_4()
-    # test_datasetview_2()
-    # test_dataset_3()
-    # test_dataset_utils()
-    # test_check_label_name()
+    test_text_dataset()
+    test_text_dataset_tokenizer()
+    test_dataset_compute()
+    test_dataset_view_compute()
+    test_dataset_lazy()
+    test_dataset_view_lazy()
+    test_dataset_hub()
+    test_meta_information()
+    test_dataset_filter_2()
+    test_dataset_filter_3()
+    test_pickleability()
+    test_dataset_append_and_read()
+    test_tensorview_iter()
+    test_dataset_filter_4()
+    test_datasetview_2()
+    test_dataset_3()
+    test_dataset_utils()
+    test_check_label_name()
     test_class_label_value()
