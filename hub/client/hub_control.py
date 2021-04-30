@@ -11,7 +11,7 @@ from hub import config
 from hub.client.base import HubHttpClient
 from hub.client.auth import AuthClient
 from pathlib import Path
-
+from hub import defaults
 from hub.exceptions import NotFoundException
 from hub.log import logger
 import traceback
@@ -40,7 +40,6 @@ class HubControlClient(HubHttpClient):
         return dataset
 
     def get_credentials(self):
-
         if self.auth_header is None:
             token = AuthClient().get_access_token(username="public", password="")
             self.auth_header = f"Bearer {token}"
@@ -49,6 +48,7 @@ class HubControlClient(HubHttpClient):
             "GET",
             config.GET_CREDENTIALS_SUFFIX,
             endpoint=config.HUB_REST_ENDPOINT,
+            params={"duration": defaults.CRED_EXPIRATION},
         ).json()
 
         details = {
@@ -65,16 +65,28 @@ class HubControlClient(HubHttpClient):
         self.save_config(details)
         return details
 
-    def get_config(self, reset=False):
+    def get_dataset_credentials(self, org_id, ds_name):
+        self.auth_header = (
+            self.auth_header
+            if self.auth_header is not None
+            else f'Bearer {AuthClient().get_access_token(username="public", password="")}'
+        )
+        relative_url = config.GET_DATASET_CREDENTIALS_SUFFIX % (org_id, ds_name)
+        r = self.request(
+            "GET",
+            relative_url,
+            endpoint=config.HUB_REST_ENDPOINT,
+        ).json()
+        return r["creds"], r["path"]
 
+    def get_config(self, reset=False):
         if not os.path.isfile(config.STORE_CONFIG_PATH) or self.auth_header is None:
             self.get_credentials()
 
         with open(config.STORE_CONFIG_PATH) as file:
             details = file.readlines()
             details = json.loads("".join(details))
-
-        if float(details["expiration"]) < time.time() - 36000 or reset:
+        if float(details["expiration"]) < time.time() or reset:
             details = self.get_credentials()
         return details
 
