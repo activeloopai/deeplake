@@ -36,8 +36,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-tests.txt
+          pip install -r requirements/common.txt
+          pip install -r requirements/tests.txt
       - name: Install Hub
         run: |
           pip install -e .
@@ -80,9 +80,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-tests.txt
-          pip install -r requirements-plugins.txt
+          pip install -r requirements/common.txt
+          pip install -r requirements/tests.txt
+          pip install -r requirements/plugins.txt
       - name: Install Hub
         run: |
           pip install -e .
