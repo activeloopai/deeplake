@@ -1,0 +1,6 @@
+./dask-worker-space/
+./cache
+./data
+./dist
+./.pytest_cache
+./hub.egg-info

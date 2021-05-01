@@ -1,0 +1,202 @@
+# pytest-cov #
+##############
+
+PYTEST_TMPDIR
+.coverage
+.coverage.*
+htmlcov
+
+# vim
+*.swp
+
+# Sphinix
+# sphinx build folder
+docs/_build
+docs/source/_build
+cache/
+dask-worker-space/
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+data/
+**/dummy_data/**/hub/
+
+# OS generated files #
+######################
+.dccache
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
+
+# Editor backup files #
+#######################
+*~
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+.terraform
+terraform.tfstate
+terraform.tfstate.backup
+.secrets
+node/.secrets
+examples/real/*
+node/*.pem
+
+# C extensions
+*.so
+.DS_Store
+.clusters
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.gz
+*.pkl
+hyper/cluster/terraform/asg/.ssh/
+hyper/cluster/terraform/asg/terraform.tfstate
+hyper/cluster/terraform/asg/terraform.tfstate.backup
+
+.kube
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+
+hyper.sublime-*
+.kube-temp
+
+hyper_search/
+yolo/
+logs/
+
+# other
+.vscode/
+.creds/
+.idea/
+waymo/
+output/
+cov.xml
+hub/api/cov.xml
+hub/api/nested_seq
+nested_seq
+
+# Benchmark local test data (auto-downloaded)
+benchmarks/hub_data
+benchmarks/torch_data
