@@ -17,7 +17,7 @@ workflows:
       - test:
           name: "Linux Complex Test"
           e: linux
-          optional: true
+          plugins: true
           context:
             - test
             - azure
@@ -25,7 +25,7 @@ workflows:
           name: "Mac Complex Test"
           e: mac
           mac-like: true
-          optional: true
+          plugins: true
           context:
             - test
             - azure
@@ -45,7 +45,7 @@ workflows:
       - test:
           name: test-complex
           e: linux
-          optional: true
+          plugins: true
           context:
             - test
             - azure
@@ -128,8 +128,8 @@ commands:
                   echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "$HOME/.secrets/gcs.json"
   requirements:
     parameters:
-      optional:
-        description: "Include optional requirements"
+      plugins:
+        description: "Include supported plugins requirements"
         type: boolean
         default: false
     steps:
@@ -138,8 +138,8 @@ commands:
           command: |
             pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
-            pip3 install -r requirements-dev.txt
-            <<# parameters.optional >>pip3 install -r requirements-optional.txt<</ parameters.optional >>
+            pip3 install -r requirements-tests.txt
+            <<# parameters.plugins >>pip3 install -r requirements-plugins.txt<</ parameters.plugins >>
             pip3 install -r requirements.txt
             pip3 install -e .
   style-check:
@@ -233,8 +233,8 @@ jobs:
     parameters:
       e:
         type: executor
-      optional:
-        description: "Include optional requirements and reports"
+      plugins:
+        description: "Include requirements for supported plugins"
         type: boolean
         default: false
       unix-like:
@@ -258,12 +258,12 @@ jobs:
       - google-creds:
           unix-like: << parameters.unix-like >>
       - requirements:
-          optional: << parameters.optional >>
+          plugins: << parameters.plugins >>
       - style-check
       - run-tests:
           unix-like: << parameters.unix-like >>
       - when:
-          condition: << parameters.optional >>
+          condition: << parameters.plugins >>
           steps:
             - report:
                 unix-like: << parameters.unix-like >>
