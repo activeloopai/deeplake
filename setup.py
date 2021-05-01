@@ -28,7 +28,7 @@ def get_property(prop, project):
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "requirements.txt")) as f:
+with open(os.path.join(this_directory, "requirements/common.txt")) as f:
     requirements = f.readlines()
 
 setup(
