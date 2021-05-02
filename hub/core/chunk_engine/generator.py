@@ -1,12 +1,12 @@
 import numpy as np
-from typing import Union
+from typing import Generator, Tuple
 
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 
 
 def chunk(
     content_bytes: bytes, previous_num_bytes: int, chunk_size: int
-) -> Union[bytes, int]:
+) -> Generator[Tuple[bytes, int], None, None]:
     """
     Generator function that chunks bytes.
 
