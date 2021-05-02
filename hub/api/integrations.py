@@ -9,9 +9,11 @@ import numpy as np
 import json
 from itertools import chain
 from collections import defaultdict
+import PIL.Image
+import PIL.ImageDraw
 from hub.exceptions import ModuleNotInstalledException, OutOfBoundsError
 from hub.schema.features import Primitive, Tensor, SchemaDict
-from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video, Mask
 from .dataset import Dataset
 import hub.store.pickle_s3_storage
 import hub.schema.serialize
@@ -683,42 +685,88 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
     project_type = project_meta_dict["projectType"]
     mode = sly.OpenMode.READ
 
+    def infer_image(paths):
+        bboxes, masks = [], []
+        classes_bb, classes_mask = [], []
+        item_path, item_ann_path = paths
+
+        ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
+        ann_dict = ann.to_json()
+        sizes = (ann_dict["size"]["height"], ann_dict["size"]["width"])
+        for obj in ann_dict["objects"]:
+            if obj["geometryType"] == "rectangle":
+                bboxes.append(
+                    [item for sublist in obj["points"]["exterior"] for item in sublist]
+                )
+                classes_bb.append(obj["classTitle"])
+            elif obj["geometryType"] == "polygon":
+                img = PIL.Image.new("L", (sizes[1], sizes[0]), 0)
+                PIL.ImageDraw.Draw(img).polygon(
+                    [tuple(obj) for obj in obj["points"]["exterior"]],
+                    outline=1,
+                    fill=1,
+                )
+                masks.append(np.array(img))
+                classes_mask.append(obj["classTitle"])
+        return sizes, bboxes, masks, classes_bb, classes_mask
+
+    def infer_video(paths):
+        item_path, item_ann_path = paths
+        vreader = FFmpegReader(item_path)
+        return (vreader.getShape(),)
+
     def infer_project(project, project_type, read_mode):
-        def infer_shape_image(paths):
-            item_path, item_ann_path = paths
-            ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
-            ann_dict = ann.to_json()
-            return list(ann_dict["size"].values())
-
-        def infer_shape_video(paths):
-            item_path, item_ann_path = paths
-            vreader = FFmpegReader(item_path)
-            return vreader.getShape()
-
         if project_type == "images":
             if not instantiated:
                 project = sly_image_project.Project(project, mode)
             max_shape = (0, 0)
-            return project, Image, infer_shape_image, max_shape
+            return (
+                project,
+                Image,
+                infer_image,
+                max_shape,
+            )
         elif project_type == "videos":
             if not instantiated:
                 project = sly_video_project.VideoProject(project, mode)
             max_shape = (0, 0, 0, 0)
-            return project, Video, infer_shape_video, max_shape
+            return (
+                project,
+                Video,
+                infer_video,
+                max_shape,
+            )
 
-    project, main_blob, infer_shape, max_shape = infer_project(
-        project, project_type, mode
-    )
+    project, main_blob, infer_ds, max_shape = infer_project(project, project_type, mode)
+
+    image_paths = []
     label_names = []
+    max_num_bboxes = 0
+    max_num_polys = 0
+    masks = False
     datasets = project.datasets.items()
     uniform = True
     for ds in datasets:
-        for item in ds:
-            shape = infer_shape(ds.get_item_paths(item))
+        for i, item in enumerate(ds):
+            path = ds.get_item_paths(item)
+            image_paths.append(path)
+            inf = infer_ds(path)
+            if len(inf) > 1:
+                if inf[3]:
+                    label_names.extend(inf[3])
+                    if len(inf[3]) > max_num_bboxes:
+                        max_num_bboxes = len(inf[3])
+                if inf[4]:
+                    label_names.extend(inf[4])
+                    if len(inf[3]) > max_num_polys:
+                        max_num_polys = len(inf[4])
+                if inf[2]:
+                    masks = True
+            shape = inf[0]
             max_shape = np.maximum(shape, max_shape)
             if uniform and max_shape.any() and (shape != max_shape).any():
                 uniform = False
-        label_names.append(ds.name)
+    label_names = list(np.unique(label_names))
     items = chain(*datasets)
     idatasets = iter(datasets)
     ds, i = next(idatasets), 0
@@ -731,24 +779,44 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
         blob_shape = {key: max_shape.tolist()}
         if key == "max_shape":
             blob_shape["shape"] = (None, None, None, 3)
+
     schema = {
         project_type: main_blob(**blob_shape),
-        "dataset": ClassLabel(names=label_names),
     }
+    if max_num_bboxes:
+        schema["bbox"] = BBox(shape=(None, 4), max_shape=(max_num_bboxes, 4))
+    if label_names:
+        schema["label"] = ClassLabel(
+            shape=(None,),
+            max_shape=(max(max_num_bboxes, max_num_polys),),
+            names=label_names,
+        )
+    if masks:
+        schema["mask"] = Mask(
+            shape=(None, None, None), max_shape=(*max_shape.tolist(), 1)
+        )
 
     @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
     def transformation(item):
         nonlocal i, ds
+        sample = {}
         if i >= len(ds):
             ds, i = next(idatasets), 0
         item_path, item_ann_path = ds.get_item_paths(item)
         i += 1
-        return {
-            project_type: read(item_path),
-            "dataset": schema["dataset"].str2int(ds.name),
-        }
+        _, bboxes, masks, classes_bbox, classes_mask = infer_ds(
+            (item_path, item_ann_path)
+        )
+        sample[project_type] = read(item_path)
+        if bboxes:
+            sample["bbox"] = np.array(bboxes)
+            sample["label"] = [label_names.index(i) for i in classes_bbox]
+        if masks:
+            sample["mask"] = np.expand_dims(masks[0], -1)
+            sample["label"] = [label_names.index(i) for i in classes_mask]
+        return sample
 
-    return transformation(items)
+    return transformation(list(items))
 
 
 def _to_supervisely(dataset, output):
