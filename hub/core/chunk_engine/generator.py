@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def _assert_valid_piece(piece, chunk_size):
+def _assert_valid_piece(piece: bytes, chunk_size: int):
     assert len(piece) > 0
     assert len(piece) <= chunk_size
 
 
-def chunk(content_bytes, previous_num_bytes, chunk_size):
+def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     """
     Generator function that chunks bytes.
 
