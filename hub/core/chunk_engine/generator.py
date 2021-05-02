@@ -1,5 +1,7 @@
 import numpy as np
 
+from hub.core.chunk_engine.exceptions import ChunkGeneratorError
+
 
 def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     """
@@ -32,6 +34,9 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
 
     Yields:
         Each yield is a chunk of the `content_bytes`. Each chunk is of length (0, `chunk_size`].
+
+    Raises:
+        ChunkGeneratorError: If leftover bytes are negative or the previous chunk was invalid.
     """
 
     if len(content_bytes) <= 0:
@@ -45,9 +50,8 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     content_num_bytes = len(content_bytes)
 
     if bytes_left < 0:
-        # TODO place in exceptions.py & update docstring
-        raise Exception(
-            "previous chunk exceeded chunk_size. %i > %i" % (bytes_left, chunk_size)
+        raise ChunkGeneratorError(
+            "Previous chunk exceeded `chunk_size` (%i > %i)." % (bytes_left, chunk_size)
         )
 
     # handle filling the rest of the previous chunk
@@ -81,8 +85,7 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     # handle leftover bytes
     num_leftover_bytes = content_num_bytes - total_bytes_yielded
     if num_leftover_bytes < 0:
-        # TODO place in exceptions.py & update docstring
-        raise Exception("leftover bytes should never be negative")
+        raise ChunkGeneratorError("Leftover bytes should never be negative.")
 
     if num_leftover_bytes > 0:
         leftover_bytes = content_bytes[end:]
