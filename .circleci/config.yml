@@ -1,4 +1,3 @@
-
 version: 2.1
 
 orbs:
@@ -82,7 +81,6 @@ executors:
 
 commands:
   aliases:
-    resource_class: medium+
     steps:
       - run:
           name: "Setting aliases for Windows"
@@ -90,23 +88,14 @@ commands:
             Add-Content -Path $profile -Value {Set-Alias -Name python3 -Value python}
             Add-Content -Path $profile -Value {Set-Alias -Name pip3 -Value pip}
   get-python:
-    resource_class: medium+
     steps:
       - run:
-          name: "Install Python & ffmpeg"
+          name: "Install Python"
           command: |
             brew update
             brew install python@3.7
             brew link --overwrite python@3.7
-            brew install ffmpeg
-  get-linux-ffmpeg:
-    resource_class: medium+
-    steps:
-      - run:
-          name: "Install ffmpeg"
-          command: sudo apt-get update && sudo apt-get install ffmpeg
   info:
-    resource_class: medium+
     steps:
       - run:
           name: "Gather machine info"
@@ -117,11 +106,9 @@ commands:
       unix-like:
         type: boolean
         default: true
-    resource_class: medium+
     steps:
       - unless:
           condition: << parameters.unix-like >>
-          resource_class: medium+
           steps:
             - run:
                 name: "Prepare Google credentials - Windows"
@@ -133,7 +120,6 @@ commands:
                   [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
       - when:
           condition: << parameters.unix-like >>
-          resource_class: medium+
           steps:
             - run:
                 name: "Prepare Google credentials - Unix"
@@ -146,7 +132,6 @@ commands:
         description: "Include optional requirements"
         type: boolean
         default: false
-    resource_class: medium+
     steps:
       - run:
           name: "Collecting requirements"
@@ -158,7 +143,6 @@ commands:
             pip3 install -r requirements.txt
             pip3 install -e .
   style-check:
-    resource_class: medium+
     steps:
       - run:
           name: "Checking code style"
@@ -170,7 +154,6 @@ commands:
       unix-like:
         type: boolean
         default: true
-    resource_class: medium+
     steps:
       - unless:
           condition: << parameters.unix-like >>
@@ -185,7 +168,6 @@ commands:
                   pytest --cov-report=xml --cov=./
       - when:
           condition: << parameters.unix-like >>
-          resource_class: medium+
           steps:
             - run:
                 name: "Running tests - Unix"
@@ -193,7 +175,6 @@ commands:
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   pytest --cov-report=xml --cov=./
   codecov-upload:
-    resource_class: medium+
     steps:
       - codecov/upload:
           file: coverage.xml
@@ -202,7 +183,6 @@ commands:
       unix-like:
         type: boolean
         default: true
-    resource_class: medium+
     steps:
       - unless:
           condition: << parameters.unix-like >>
@@ -219,13 +199,11 @@ commands:
       - store_artifacts:
           path: test-reports
   slack-status:
-    resource_class: medium+
     steps:
       - slack/status:
           fail_only: true
           webhook: $SLACK_WEBHOOK
   conda-install:
-    resource_class: medium+
     steps:
       - run:
           name: "Install Miniconda"
@@ -235,7 +213,6 @@ commands:
             bash Miniconda3-py38_4.9.2-Linux-x86_64.sh -b
             echo 'export PATH=$HOME/miniconda3/bin:$PATH' >> $BASH_ENV
   conda-setup:
-    resource_class: medium+
     steps:
       - run:
           name: "Install required conda packages and set config"
@@ -244,7 +221,6 @@ commands:
             conda config --add channels conda-forge
             conda config --set anaconda_upload yes
   conda-build:
-    resource_class: medium+
     steps:
       - run:
           name: "Build Hub for conda"
@@ -268,7 +244,6 @@ jobs:
         type: boolean
         default: false
     executor: << parameters.e >>
-    resource_class: medium+
     steps:
       - checkout
       - unless:
@@ -279,14 +254,6 @@ jobs:
           condition: << parameters.mac-like >>
           steps:
             - get-python
-      - when:
-          condition:
-            and:
-              - not: << parameters.mac-like >>
-              - << parameters.unix-like >>
-              - << parameters.optional >>
-          steps:
-            - get-linux-ffmpeg
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
@@ -305,7 +272,6 @@ jobs:
     executor: linux
     environment:
       IMAGE_NAME: snarkai/hub
-    resource_class: medium+
     steps:
       - setup_remote_docker
       - checkout
@@ -343,7 +309,6 @@ jobs:
       - slack-status
   conda:
     executor: linux
-    resource_class: medium+
     steps:
       - checkout
       - conda-install
