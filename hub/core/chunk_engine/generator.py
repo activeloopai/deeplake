@@ -1,11 +1,6 @@
 import numpy as np
 
 
-def _assert_valid_piece(piece: bytes, chunk_size: int):
-    assert len(piece) > 0
-    assert len(piece) <= chunk_size
-
-
 def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     """
     Generator function that chunks bytes.
@@ -39,7 +34,6 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     total_bytes_yielded = 0
     if bytes_left > 0:
         content_bytes_piece = content_bytes[:bytes_left]
-        _assert_valid_piece(content_bytes_piece, chunk_size)
         yield content_bytes_piece, 0
         total_bytes_yielded += bytes_left
 
@@ -61,7 +55,6 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
         if total_bytes_yielded >= content_num_bytes:
             # prevents empty pieces being generated
             break
-        _assert_valid_piece(content_bytes_piece, chunk_size)
         yield content_bytes_piece, relative_chunk_index
         total_bytes_yielded += len(content_bytes_piece)
 
@@ -73,5 +66,4 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
 
     if num_leftover_bytes > 0:
         leftover_bytes = content_bytes[end:]
-        _assert_valid_piece(leftover_bytes, chunk_size)
         yield leftover_bytes, relative_chunk_index + 1

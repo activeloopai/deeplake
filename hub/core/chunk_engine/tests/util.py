@@ -22,3 +22,8 @@ def get_random_num_samples():
 
 def get_random_partial(chunk_size: int):
     return np.random.randint(1, chunk_size - 1)
+
+
+def assert_valid_chunk(chunk: bytes, chunk_size: int):
+    assert len(chunk) > 0
+    assert len(chunk) <= chunk_size

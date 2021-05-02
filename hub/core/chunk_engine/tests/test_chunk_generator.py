@@ -4,6 +4,7 @@ from hub.core.chunk_engine.tests.util import (
     get_random_chunk_size,
     get_random_num_samples,
     get_random_partial,
+    assert_valid_chunk,
 )
 
 
@@ -22,6 +23,8 @@ def test_perfect_fit():
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
+            assert_valid_chunk(piece, chunk_size)
+
             expected_start = piece_count * chunk_size
             expected_end = (piece_count + 1) * chunk_size
             expected_bytes = content[expected_start:expected_end]
@@ -40,6 +43,7 @@ def test_perfect_fit():
 
 def test_first_partial_chunk():
     """This test is for the edge case where: (num_bytes < chunk_size). In other words, bytes only partially fill 1 chunk."""
+
     for _ in range(TRIALS_PER_TEST):
         chunk_size = get_random_chunk_size()
 
@@ -53,6 +57,8 @@ def test_first_partial_chunk():
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
+            assert_valid_chunk(piece, chunk_size)
+
             assert (
                 piece_count + 1 == relative_chunk_index
             ), "relative chunk index needs to start @ 1 since 1 means to create a new chunk"
@@ -76,6 +82,8 @@ def test_first_partial_chunk():
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
+            assert_valid_chunk(piece, chunk_size)
+
             assert (
                 piece_count == relative_chunk_index
             ), "relative chunk index needs to start @ 0 since 0 means to append to the previous chunk"
@@ -87,6 +95,7 @@ def test_first_partial_chunk():
 
 def test_nth_partial_chunk():
     """This test is for the edge case where: ((num_bytes > chunk_size) and (num_bytes % chunk_size != 0)). In other words, bytes fill at least 1 chunk fully, but the last chunk is only partially filled."""
+
     for _ in range(TRIALS_PER_TEST):
         chunk_size = get_random_chunk_size()
         n = get_random_num_samples()
@@ -101,6 +110,8 @@ def test_nth_partial_chunk():
         piece_count = 0
         previous_num_bytes = None
         for piece, relative_chunk_index in gen:
+            assert_valid_chunk(piece, chunk_size)
+
             expected_start = piece_count * chunk_size
             expected_end = (piece_count + 1) * chunk_size
             expected_bytes = content[expected_start:expected_end]
@@ -136,6 +147,8 @@ def test_nth_partial_chunk():
         bytes_left = chunk_size - previous_num_bytes
         is_first = True
         for piece, relative_chunk_index in gen:
+            assert_valid_chunk(piece, chunk_size)
+
             if is_first:
                 expected_bytes = content[:bytes_left]
             else:
