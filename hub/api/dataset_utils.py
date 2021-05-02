@@ -299,6 +299,13 @@ def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
             assign_class_labels[i] = convert_str_arr_to_int(val, label)
     if any((isinstance(val, np.ndarray) for val in assign_class_labels)):
         assign_class_labels_flat = np.hstack(assign_class_labels)
+    elif any((isinstance(val, List) for val in assign_class_labels)):
+        assign_class_labels_flat = [
+            item for sublist in assign_class_labels for item in sublist
+        ]
+        for i, val in enumerate(assign_class_labels):
+            if isinstance(val, List):
+                assign_class_labels[i] = np.array(val)
     else:
         assign_class_labels_flat = assign_class_labels
     if (
@@ -309,5 +316,7 @@ def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
             range(label.num_classes - 1), assign_class_labels_flat
         )
     if len(assign_class_labels) == 1:
+        if isinstance(assign_class_labels, List):
+            return [np.array(assign_class_labels[0])]
         return assign_class_labels[0]
     return assign_class_labels

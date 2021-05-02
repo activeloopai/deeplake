@@ -13,6 +13,7 @@ from hub.cli.auth import login_fn
 from hub.exceptions import DirectoryNotEmptyException, ClassLabelValueError
 import numpy as np
 import pytest
+import hub
 from hub import load, transform
 from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
 from hub.cli.auth import login_fn
@@ -1228,13 +1229,16 @@ def test_class_label_value():
             ),
         },
     )
-    ds["label", 0:7] = 2
     ds["label", 0:2] = np.array([0, 1])
     ds["label", 0:3] = ["name1", "name2", "name3"]
     ds[0:3]["label"] = [0, "name2", 2]
     ds[0]["label_mult"] = np.array(["name1", "name3"])
     ds["label_mult", 1] = "name2"
     ds["label_mult", 2:4] = [np.array(["name2", "name3"]), np.array(["name1"])]
+    try:
+        ds["label", 0:7] = 2
+    except Exception as ex:
+        assert isinstance(ex, hub.exceptions.ValueShapeError)
     try:
         ds["label/b", 0] = 6
     except Exception as ex:
