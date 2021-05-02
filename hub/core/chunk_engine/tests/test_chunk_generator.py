@@ -1,5 +1,6 @@
 from hub.core.chunk_engine.generator import chunk
-from hub.core.chunk_engine.tests.util import (
+
+from util import (
     make_dummy_byte_array,
     get_random_chunk_size,
     get_random_num_samples,
