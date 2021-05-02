@@ -1,9 +1,6 @@
 import numpy as np
 
 
-DEFAULT_CHUNK_SIZE = 16000000
-
-
 def _assert_valid_piece(piece, chunk_size):
     assert len(piece) > 0
     assert len(piece) <= chunk_size

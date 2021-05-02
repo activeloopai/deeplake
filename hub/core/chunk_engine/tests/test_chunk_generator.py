@@ -7,10 +7,13 @@ from hub.core.chunk_engine.tests.util import (
 )
 
 
-def test_perfect_fit():
-    trials = 10
+TRIALS_PER_TEST = 10
 
-    for _ in range(trials):
+
+def test_perfect_fit():
+    """This test is for the edge case where: (num_bytes % chunk_size == 0). In other words, bytes fit perfectly into chunks with none left over."""
+
+    for _ in range(TRIALS_PER_TEST):
         chunk_size = get_random_chunk_size()
         num_samples = get_random_num_samples()
 
@@ -36,9 +39,8 @@ def test_perfect_fit():
 
 
 def test_first_partial_chunk():
-    trials = 10
-
-    for _ in range(trials):
+    """This test is for the edge case where: (num_bytes < chunk_size). In other words, bytes only partially fill 1 chunk."""
+    for _ in range(TRIALS_PER_TEST):
         chunk_size = get_random_chunk_size()
 
         # divide by 2 so part 2 doesn't fill all the way
@@ -84,9 +86,8 @@ def test_first_partial_chunk():
 
 
 def test_nth_partial_chunk():
-    trials = 10
-
-    for _ in range(trials):
+    """This test is for the edge case where: ((num_bytes > chunk_size) and (num_bytes % chunk_size != 0)). In other words, bytes fill at least 1 chunk fully, but the last chunk is only partially filled."""
+    for _ in range(TRIALS_PER_TEST):
         chunk_size = get_random_chunk_size()
         n = get_random_num_samples()
         partial_length = get_random_partial(chunk_size)
