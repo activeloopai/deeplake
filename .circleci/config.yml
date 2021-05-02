@@ -73,7 +73,7 @@ workflows:
 executors:
   linux:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.7.10
   win64: win/default
   mac:
     macos:
@@ -93,8 +93,8 @@ commands:
           name: "Install Python"
           command: |
             brew update
-            brew install python@3.7
-            brew link --overwrite python@3.7
+            brew install python@3.7.10
+            brew link --overwrite python@3.7.10
   info:
     steps:
       - run:
@@ -163,7 +163,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  pytest --mypy --cov-report=xml --cov=./
+                  python3 -m pytest --mypy --cov-report=xml --cov=./
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -171,7 +171,7 @@ commands:
                 name: "Running tests - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  pytest --mypy --cov-report=xml --cov=./
+                  python3 -m pytest --mypy --cov-report=xml --cov=./
   codecov-upload:
     steps:
       - codecov/upload:
