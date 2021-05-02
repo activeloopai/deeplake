@@ -73,7 +73,7 @@ workflows:
 executors:
   linux:
     docker:
-      - image: circleci/python:3.8
+      - image: circleci/python:3.9
   win64: win/default
   mac:
     macos:
@@ -93,8 +93,8 @@ commands:
           name: "Install Python"
           command: |
             brew update
-            brew install python@3.8
-            brew link --overwrite python@3.8
+            brew install python@3.9
+            brew link --overwrite python@3.9
   info:
     steps:
       - run:
