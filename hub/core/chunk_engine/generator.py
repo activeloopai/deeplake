@@ -1,9 +1,12 @@
 import numpy as np
+from typing import Union
 
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 
 
-def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
+def chunk(
+    content_bytes: bytes, previous_num_bytes: int, chunk_size: int
+) -> Union[bytes, int]:
     """
     Generator function that chunks bytes.
 
