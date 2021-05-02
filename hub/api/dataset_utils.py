@@ -6,7 +6,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import os
 import time
-from typing import Union, Iterable
+from typing import Union, Iterable, List
 from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
@@ -275,21 +275,39 @@ def _get_compressor(compressor: str):
         )
 
 
+def convert_str_arr_to_int(array: Union[List, np.ndarray], label: ClassLabel):
+    for i, elem in enumerate(array):
+        if isinstance(elem, str):
+            try:
+                array[i] = label.str2int(elem)
+            except KeyError:
+                raise ClassLabelValueError(label.names, elem)
+    if isinstance(array, np.ndarray) and array.dtype.type is np.str_:
+        array = np.asarray(array, dtype="int8")
+    return array
+
+
 def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
     """Check if value can be assigned to predefined ClassLabel"""
     if not isinstance(value, Iterable) or isinstance(value, str):
         assign_class_labels = [value]
     else:
         assign_class_labels = value
-    for i, assign_class_label in enumerate(assign_class_labels):
-        if isinstance(assign_class_label, str):
-            try:
-                assign_class_labels[i] = label.str2int(assign_class_label)
-            except KeyError:
-                raise ClassLabelValueError(label.names, assign_class_label)
-
-    if min(assign_class_labels) < 0 or max(assign_class_labels) > label.num_classes - 1:
-        raise ClassLabelValueError(range(label.num_classes - 1), assign_class_label)
+    assign_class_labels = convert_str_arr_to_int(assign_class_labels, label)
+    for i, val in enumerate(assign_class_labels):
+        if isinstance(val, np.ndarray) and val.dtype.type is np.str_:
+            assign_class_labels[i] = convert_str_arr_to_int(val, label)
+    if any((isinstance(val, np.ndarray) for val in assign_class_labels)):
+        assign_class_labels_flat = np.hstack(assign_class_labels)
+    else:
+        assign_class_labels_flat = assign_class_labels
+    if (
+        min(assign_class_labels_flat) < 0
+        or max(assign_class_labels_flat) > label.num_classes - 1
+    ):
+        raise ClassLabelValueError(
+            range(label.num_classes - 1), assign_class_labels_flat
+        )
     if len(assign_class_labels) == 1:
         return assign_class_labels[0]
     return assign_class_labels
