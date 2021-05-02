@@ -5,6 +5,26 @@ def chunk(content_bytes: bytes, previous_num_bytes: int, chunk_size: int):
     """
     Generator function that chunks bytes.
 
+    Chunking is the process of taking the input `content_bytes` & breaking it up into smaller chunks,
+    the sizes of which are <= `chunk_size`.
+
+    Example 1:
+        content_bytes = b"101010101010"
+        chunk_size = 4
+        output_chunks = [b"1010", b"1010", b"1010"]
+
+        This is considered a "perfect fit" because all bytes fit perfectly into 3 chunks.
+
+
+    Example 2:
+        content_bytes = b"10101010111122"
+        chunk_size = 4
+        output_chunks = [b"1010", b"1010", b"1111", b"22"]
+
+        As you can see, the last chunk in `output_chunks` only has 2 bytes (chunk_size=4), which means
+        this is not a perfect fit, but rather it has a partial chunk at the end.
+
+
     Args:
         content_bytes(bytes): Bytes object with the data to be chunked.
         previous_num_bytes(int): The number of bytes in the previous chunk. This is helpful for filling the previous chunk before starting a new one.
