@@ -3,12 +3,13 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
 import numpy as np
+from typing import Iterable
 import hub
 import collections.abc as abc
-from hub.api.dataset_utils import get_value, slice_split, str_to_int
+from hub.api.dataset_utils import get_value, slice_split, str_to_int, check_class_label
 from hub.exceptions import NoneValueException
+from hub.schema import ClassLabel, Text, SchemaDict
 import hub.api.objectview as objv
 
 
@@ -196,9 +197,6 @@ class TensorView:
         >>> images_tensorview[7, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets 7th image
         """
         self.dataset._auto_checkout()
-        assign_value = get_value(value)
-        # handling strings and bytes
-        assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -207,6 +205,25 @@ class TensorView:
         subpath, slice_list = slice_split(slice_)
         if subpath:
             raise ValueError("Can't setitem of TensorView with subpath")
+
+        assign_value = get_value(value)
+        schema_dict = self.dataset.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.dataset.tokenizer)
+
         new_nums = self.nums.copy()
         new_offsets = self.offsets.copy()
         if isinstance(self.indexes, list):

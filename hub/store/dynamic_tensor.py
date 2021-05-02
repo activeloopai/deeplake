@@ -90,7 +90,7 @@ class DynamicTensor:
 
         if ("r" in mode or "a" in mode) and exist:
             meta = json.loads(fs_map.get(".hub.dynamic_tensor").decode("utf-8"))
-            shape = meta["shape"]
+            shape = tuple(meta["shape"])
             self._dynamic_dims = get_dynamic_dims(shape)
             self._storage_tensor = zarr.open_array(
                 store=fs_map, mode=mode, synchronizer=synchronizer

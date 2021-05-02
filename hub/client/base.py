@@ -47,13 +47,27 @@ class HubHttpClient:
         method,
         relative_url,
         endpoint=None,
-        params={},
-        data={},
-        files={},
-        json={},
+        params=None,
+        data=None,
+        files=None,
+        json=None,
         timeout=config.DEFAULT_TIMEOUT,
-        headers={},
+        headers=None,
     ):
+
+        if endpoint is None:
+            endpoint = {}
+        if params is None:
+            params = {}
+        if data is None:
+            data = {}
+        if files is None:
+            files = {}
+        if json is None:
+            json = {}
+        if headers is None:
+            headers = {}
+
         if not endpoint:
             endpoint = config.HUB_REST_ENDPOINT
 
@@ -64,7 +78,6 @@ class HubHttpClient:
             or headers["Authorization"] != self.auth_header
         ):
             headers["Authorization"] = self.auth_header
-
         try:
             logger.debug(f"Sending: Headers {headers}, Json: {json}")
 

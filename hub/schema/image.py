@@ -12,22 +12,56 @@ from hub.schema.features import Tensor
 
 
 class Image(Tensor):
-    """| `HubSchema` for images.
+    """Schema for images would define the shape and structure for the dataset.
 
-    Output: `tf.Tensor` of type `tf.uint8` and shape `[height, width, num_channels]`
+    Output: `Tensor` of type `uint8` and shape `[height, width, num_channels]`
     for BMP, JPEG, and PNG images
 
-    Example:
+    Example: This example uploads an `image` to a Hub dataset `image_dataset` with `HubSchema` and retrieves it.
+
     ----------
-    >>> image_tensor = Image(shape=(None, None, 1),
-    >>>                      encoding_format='png')
+    >>> import hub
+    >>> from hub import Dataset, schema
+    >>> from hub.schema import Image
+    >>> from numpy import asarray
+
+    >>> tag = "username/image_dataset"
+    >>>
+    >>> # Create dataset
+    >>> ds=Dataset(
+    >>>     tag,
+    >>>     shape=(10,),
+    >>>     schema={
+    >>>         "image": schema.Image((height, width, 3), dtype="uint8"),
+    >>>     },
+    >>> )
+    >>>
+    >>> for index, image in enumerate(os.listdir("path/to/folder")):
+    >>>         data = asarray(Image.open(image))
+    >>>
+    >>>         # Upload data
+    >>>         ds["image"][index] = data
+    >>>
+    >>> ds.flush()
+
+    >>> # Load data
+    >>> ds = Dataset(tag)
+    >>>
+    >>> for i in range(len(ds)):
+    >>>     print(ds["image"][i].compute())
+    [[[124 112  64]
+    [124 112  64]
+    [124 112  64]
+    ...
+    [236 237 232]
+    [238 239 234]
+    [238 239 234]]]
     """
 
     def __init__(
         self,
         shape: Tuple[int, ...] = (None, None, 3),
         dtype="uint8",
-        # TODO Add back encoding_format (probably named compress) when support for png and jpg support will be added
         max_shape: Tuple[int, ...] = None,
         chunks=None,
         compressor="lz4",

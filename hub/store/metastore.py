@@ -3,7 +3,6 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-from collections import defaultdict
 import json
 from collections.abc import MutableMapping
 import posixpath
@@ -125,8 +124,13 @@ class MetaStorage(MutableMapping):
             if self._ds._commit_id:
                 k = self.find_chunk(k) or f"{k}:{self._ds._commit_id}"
             commit_id = k.split(":")[-1]
-            self._ds._chunk_commit_map[self._path][chunk_key].remove(commit_id)
-            del self._fs_map[k]
+            try:
+                self._ds._chunk_commit_map[self._path][chunk_key].remove(commit_id)
+            except Exception:
+                try:
+                    del self._fs_map[k]
+                except Exception:
+                    pass
 
     def flush(self):
         self._meta.flush()

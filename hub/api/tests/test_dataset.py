@@ -3,21 +3,24 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
 import os
 import pickle
 import shutil
 
-import cloudpickle
 import hub.api.dataset as dataset
+from hub.cli.auth import login_fn
+from hub.exceptions import DirectoryNotEmptyException, ClassLabelValueError
 import numpy as np
 import pytest
 from hub import load, transform
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
 from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException
+from hub.exceptions import (
+    DirectoryNotEmptyException,
+    SchemaMismatchException,
+    ReadModeException,
+)
 from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
-from hub.schema.class_label import ClassLabel
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
@@ -176,7 +179,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
 
     ds["first"][0] = np.ones((10, 10))
 
-    pickled_ds = cloudpickle.dumps(ds)
+    pickled_ds = pickle.dumps(ds)
     new_ds = pickle.loads(pickled_ds)
     assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
 
@@ -329,15 +332,67 @@ def test_dataset_wrong_append(url="./data/test/dataset", token=None):
     }
     ds = Dataset(url, token=token, shape=(10000,), mode="w", schema=my_schema)
     ds.close()
-    try:
+    with pytest.raises(TypeError):
         ds = Dataset(url, shape=100)
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
 
-    try:
+    with pytest.raises(SchemaMismatchException):
         ds = Dataset(url, schema={"hello": "uint8"})
-    except Exception as ex:
-        assert isinstance(ex, TypeError)
+
+
+def test_dataset_change_schema():
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/test_schema_change", schema=schema, shape=(100,))
+    new_schema_1 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((200, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_2 = {
+        "abrs": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_3 = {
+        "abc": "uint8",
+        "def": {
+            "ghijk": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_4 = {
+        "abc": "uint16",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    new_schema_5 = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100, 3)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_1, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_2, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_3, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_4, shape=(100,))
+    with pytest.raises(SchemaMismatchException):
+        ds = Dataset("./data/test_schema_change", schema=new_schema_5, shape=(100,))
 
 
 def test_dataset_no_shape(url="./data/test/dataset", token=None):
@@ -537,6 +592,16 @@ def test_append_dataset():
     assert ds["second"].shape[0] == 120
 
 
+def test_append_resize():
+    dt = {"first": Tensor(shape=(250, 300)), "second": "float"}
+    url = "./data/test/append_resize"
+    ds = Dataset(schema=dt, shape=(100,), url=url, mode="a")
+    ds.append_shape(20)
+    assert len(ds) == 120
+    ds.resize_shape(150)
+    assert len(ds) == 150
+
+
 def test_meta_information():
     description = {"author": "testing", "description": "here goes the testing text"}
 
@@ -664,7 +729,7 @@ def test_datasetview_repr():
     url = "./data/test/dsv_repr"
     ds = Dataset(schema=dt, shape=(9,), url=url, mode="w", lazy=False)
     dsv = ds[2:]
-    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='int64', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'))"
+    print_text = "DatasetView(Dataset(schema=SchemaDict({'first': Tensor(shape=(2,), dtype='float64'), 'second': 'float64', 'text': Text(shape=(None,), dtype='uint8', max_shape=(12,))}), url='./data/test/dsv_repr', shape=(9,), mode='w'))"
     assert dsv.__repr__() == print_text
 
 
@@ -979,7 +1044,7 @@ def test_datasetview_filter():
         return sample["ab"].compute().startswith("abc")
 
     my_schema = {"img": Tensor((100, 100)), "ab": Text((None,), max_shape=(10,))}
-    ds = Dataset("./data/new_filter", shape=(10,), schema=my_schema)
+    ds = Dataset("./data/new_filter_2", shape=(10,), schema=my_schema)
     for i in range(10):
         ds["img", i] = i * np.ones((100, 100))
         ds["ab", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)
@@ -1153,6 +1218,38 @@ def test_check_label_name():
     assert ds[1:3].compute().tolist() == [{"label": 2}, {"label": 0}]
 
 
+def test_class_label_value():
+    ds = Dataset(
+        "./data/tests/test_check_label",
+        mode="w",
+        shape=(5,),
+        schema={
+            "label": ClassLabel(names=["name1", "name2", "name3"]),
+            "label/b": ClassLabel(num_classes=5),
+        },
+    )
+    ds["label", 0:7] = 2
+    ds["label", 0:2] = np.array([0, 1])
+    ds["label", 0:3] = ["name1", "name2", "name3"]
+    ds[0:3]["label"] = [0, "name2", 2]
+    try:
+        ds["label/b", 0] = 6
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0:4]["label/b"] = np.array([0, 1, 2, 3, 7])
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds["label", 4] = "name4"
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0]["label/b"] = ["name"]
+    except Exception as ex:
+        assert isinstance(ex, ValueError)
+
+
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
 def test_minio_endpoint():
     token = {
@@ -1174,33 +1271,97 @@ def test_minio_endpoint():
         assert (ds["abc", i].compute() == i * np.ones((100, 100, 3))).all()
 
 
+def test_dataset_store():
+    my_schema = {"image": Tensor((100, 100), "uint8"), "abc": "uint8"}
+
+    ds = Dataset("./test/ds_store", schema=my_schema, shape=(100,))
+    for i in range(100):
+        ds["image", i] = i * np.ones((100, 100))
+        ds["abc", i] = i
+
+    def my_filter(sample):
+        return sample["abc"].compute() % 5 == 0
+
+    dsv = ds.filter(my_filter)
+
+    ds2 = ds.store("./test/ds2_store")
+    for i in range(100):
+        assert (ds2["image", i].compute() == i * np.ones((100, 100))).all()
+        assert ds["abc", i].compute() == i
+
+    ds3 = dsv.store("./test/ds3_store")
+    for i in range(20):
+        assert (ds3["image", i].compute() == 5 * i * np.ones((100, 100))).all()
+        assert ds3["abc", i].compute() == 5 * i
+
+
+def test_dataset_google():
+    ds = Dataset("google/bike")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/bottle")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/book")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cereal_box")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/chair")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cup")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/camera")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/laptop")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/shoe")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+
+
 if __name__ == "__main__":
-    test_dataset_dynamic_shaped_slicing()
-    test_dataset_assign_value()
-    test_dataset_setting_shape()
-    test_datasetview_repr()
-    test_datasetview_get_dictionary()
-    test_tensorview_slicing()
-    test_datasetview_slicing()
-    test_dataset()
-    test_dataset_batch_write_2()
-    test_append_dataset()
-    test_dataset_2()
-    test_text_dataset()
-    test_text_dataset_tokenizer()
-    test_dataset_compute()
-    test_dataset_view_compute()
-    test_dataset_lazy()
-    test_dataset_view_lazy()
-    test_dataset_hub()
-    test_meta_information()
-    test_dataset_filter_2()
-    test_dataset_filter_3()
-    test_pickleability()
-    test_dataset_append_and_read()
-    test_tensorview_iter()
-    test_dataset_filter_4()
-    test_datasetview_2()
-    test_dataset_3()
-    test_dataset_utils()
-    test_check_label_name()
+    # test_dataset_assign_value()
+    # test_dataset_setting_shape()
+    # test_datasetview_repr()
+    # test_datasetview_get_dictionary()
+    # test_tensorview_slicing()
+    # test_datasetview_slicing()
+    # test_dataset()
+    # test_dataset_batch_write_2()
+    # test_append_dataset()
+    # test_dataset_2()
+
+    # test_text_dataset()
+    # test_text_dataset_tokenizer()
+    # test_dataset_compute()
+    # test_dataset_view_compute()
+    # test_dataset_lazy()
+    # test_dataset_view_lazy()
+    # test_dataset_hub()
+    # test_meta_information()
+    # test_dataset_filter_2()
+    # test_dataset_filter_3()
+    # test_pickleability()
+    # test_dataset_append_and_read()
+    # test_tensorview_iter()
+    # test_dataset_filter_4()
+    # test_datasetview_2()
+    # test_dataset_3()
+    # test_dataset_utils()
+    # test_check_label_name()
+    test_class_label_value()

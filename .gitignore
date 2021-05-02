@@ -48,6 +48,7 @@ data/
 
 # OS generated files #
 ######################
+.dccache
 .DS_Store?
 ehthumbs.db
 Icon?
@@ -195,3 +196,7 @@ cov.xml
 hub/api/cov.xml
 hub/api/nested_seq
 nested_seq
+
+# Benchmark local test data (auto-downloaded)
+benchmarks/hub_data
+benchmarks/torch_data

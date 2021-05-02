@@ -10,6 +10,7 @@ import posixpath
 import collections.abc as abc
 import json
 import sys
+from typing import Iterable
 import traceback
 from collections import defaultdict
 import numpy as np
@@ -42,12 +43,14 @@ from hub.api.dataset_utils import (
     _copy_helper,
     _get_compressor,
     _get_dynamic_tensor_dtype,
+    _store_helper,
+    check_class_label,
+    same_schema,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
-from hub.schema import ClassLabel
 from hub import auto
 
 from hub.store.dynamic_tensor import DynamicTensor
@@ -66,6 +69,7 @@ from hub.exceptions import (
     VersioningNotSupportedException,
     WrongUsernameException,
     InvalidVersionInfoException,
+    SchemaMismatchException,
 )
 from hub.store.metastore import MetaStorage
 from hub.client.hub_control import HubControlClient
@@ -207,14 +211,10 @@ class Dataset:
 
             if shape != (None,) and shape != self._shape:
                 raise TypeError(
-                    f"Shape in metafile [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
+                    f"Shape stored previously [{self._shape}]  and shape in arguments [{shape}] are !=, use mode='w' to overwrite dataset"
                 )
-            if schema is not None and sorted(schema.dict_.keys()) != sorted(
-                self._schema.dict_.keys()
-            ):
-                raise TypeError(
-                    "Schema in metafile and schema in arguments do not match, use mode='w' to overwrite dataset"
-                )
+            if schema is not None and not same_schema(schema, self._schema):
+                raise SchemaMismatchException()
 
         else:
             if shape[0] is None:
@@ -237,8 +237,10 @@ class Dataset:
                 self._version_node = VersionNode(self._commit_id, self._branch)
                 self._branch_node_map = {self._branch: self._version_node}
                 self._commit_node_map = {self._commit_id: self._version_node}
+                self._chunk_commit_map = {
+                    path: defaultdict(set) for schema, path in self._flat_tensors
+                }
                 self._tensors = dict(self._generate_storage_tensors())
-                self._chunk_commit_map = {key: defaultdict(set) for key in self.keys}
             except Exception as e:
                 try:
                     self.close()
@@ -595,9 +597,6 @@ class Dataset:
         if "r" in self._mode:
             raise ReadModeException("__setitem__")
         self._auto_checkout()
-        assign_value = get_value(value)
-        # handling strings and bytes
-        assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -608,6 +607,24 @@ class Dataset:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
+
+        assign_value = get_value(value)
+        schema_dict = self.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not slice_list:
             self._tensors[subpath][:] = assign_value
@@ -625,6 +642,46 @@ class Dataset:
         """
         indexes = [index for index in self.indexes if fn(self[index])]
         return DatasetView(dataset=self, lazy=self.lazy, indexes=indexes)
+
+    def store(
+        self,
+        url: str,
+        token: dict = None,
+        sample_per_shard: int = None,
+        public: bool = True,
+        scheduler="single",
+        workers=1,
+    ):
+        """| Used to save the dataset as a new dataset, very similar to copy but uses transforms instead
+
+        Parameters
+        ----------
+        url: str
+            path where the data is going to be stored
+        token: str or dict, optional
+            If url is referring to a place where authorization is required,
+            token is the parameter to pass the credentials, it can be filepath or dict
+        length: int
+            in case shape is None, user can provide length
+        sample_per_shard: int
+            How to split the iterator not to overfill RAM
+        public: bool, optional
+            only applicable if using hub storage, ignored otherwise
+            setting this to False allows only the user who created it to access the dataset and
+            the dataset won't be visible in the visualizer to the public
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        Returns
+        ----------
+        ds: hub.Dataset
+            uploaded dataset
+        """
+
+        return _store_helper(
+            self, url, token, sample_per_shard, public, scheduler, workers
+        )
 
     def copy(self, dst_url: str, token=None, fs=None, public=True):
         """| Creates a copy of the dataset at the specified url and returns the dataset object
@@ -694,7 +751,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.username is not None:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -707,8 +764,12 @@ class Dataset:
         inplace=True,
         output_type=dict,
         indexes=None,
+        key_list=None,
     ):
         """| Converts the dataset into a pytorch compatible format.
+        ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        Avoid having schema with these dtypes if you want to avoid this implicit conversion.
+        ** This method does not work with Sequence schema
 
         Parameters
         ----------
@@ -719,11 +780,14 @@ class Dataset:
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
         indexes: list or int, optional
-            The samples to be converted into tensorflow format. Takes all samples in dataset by default.
+            The samples to be converted into Pytorch format. Takes all samples in dataset by default.
+        key_list: list, optional
+            The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
+            use ["a/b/c"] as key_list
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes)
+        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
@@ -816,7 +880,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.username is not None:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )
