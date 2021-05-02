@@ -33,7 +33,7 @@ def chunk(content_bytes, previous_num_bytes, chunk_size):
     content_num_bytes = len(content_bytes)
 
     if bytes_left < 0:
-        # TODO place in exceptions.py
+        # TODO place in exceptions.py & update docstring
         raise Exception(
             "previous chunk exceeded chunk_size. %i > %i" % (bytes_left, chunk_size)
         )
@@ -71,7 +71,7 @@ def chunk(content_bytes, previous_num_bytes, chunk_size):
     # handle leftover bytes
     num_leftover_bytes = content_num_bytes - total_bytes_yielded
     if num_leftover_bytes < 0:
-        # TODO place in exceptions.py
+        # TODO place in exceptions.py & update docstring
         raise Exception("leftover bytes should never be negative")
 
     if num_leftover_bytes > 0:

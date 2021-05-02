@@ -8,7 +8,18 @@ import numpy as np
 
 
 def get_random_shaped_array(random_max_shape, dtype, fixed=False):
-    # get a random shape
+    """
+    Get a randomly shaped array that is between (1, 1...) & random_max_shape.
+
+    Args:
+        random_max_shape(tuple): The returned array will have the dimensionality of random_max_shape & each dim will be selected randomly between 1 & it's value. If `fixed=True`, dims are not random.
+        dtype(str): Datatype for the random array.
+        fixed(bool): If True, the random array will be of shape random_max_shape instead of a random selection between 1 & it's value.
+
+    Returns:
+        numpy array with the provided specifications.
+    """
+
     if fixed:
         dims = random_max_shape
     else:
@@ -31,15 +42,12 @@ def get_random_shaped_array(random_max_shape, dtype, fixed=False):
 
 
 def make_dummy_byte_array(length):
+    """Generate a random bytearray of the provided length."""
     content = bytearray()
     a = np.random.randint(128, size=length)
     content.extend(a.tolist())
     assert len(content) == length
     return content
-
-
-def get_chunk_lengths(chunks_simulator):
-    return [len(chunk) for chunk in chunks_simulator]
 
 
 def get_random_chunk_size():
