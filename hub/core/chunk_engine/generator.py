@@ -38,7 +38,12 @@ def chunk(
         last_chunk_bytes (int, optional): If chunks were created already, `last_chunk_bytes` should be set to the length of the last chunk created. This is so the generator's first output will be enough bytes to fill that chunk up to `chunk_size`.
 
     Yields:
-        Each yield is a chunk of the `content_bytes`. Each chunk is of length (0, `chunk_size`].
+        bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
+        int: Relative index of the yielded chunk (bytes) to previously created chunks (if any).
+            0: Append yielded chunk (bytes) to the previous chunk (bytes). 0 is only possible when `last_chunk_num_bytes` is provided and is less than `chunk_size`.
+            1: Create the first new chunk using yielded chunk (bytes).
+            2: Create the second new chunk using yielded chunk (bytes).
+            3+: ...
 
     Raises:
         ChunkGeneratorError: If leftover bytes are negative or the previous chunk was invalid.
