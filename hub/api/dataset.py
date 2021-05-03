@@ -23,7 +23,7 @@ class Dataset:
         self.slice = slice(None)
 
     def __len__(self):
-        """ Return the greatest length of tensors in a dataset """
+        """Return the greatest length of tensors in a dataset"""
         return max(map(len, self.tensors.values()), default=0)
 
     def __getitem__(self, ds_slice):

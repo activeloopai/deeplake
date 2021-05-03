@@ -19,7 +19,7 @@ class Tensor:
         self.shape = (0,)  # TODO: read metadata, get shape
 
     def __len__(self):
-        """ Return the length of the primary axis """
+        """Return the length of the primary axis"""
         return self.shape[0]
 
     def __getitem__(self, tensor_slice: slice):
