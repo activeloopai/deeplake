@@ -65,7 +65,7 @@ def chunk(
             % (bytes_left_in_last_chunk, chunk_size)
         )
 
-    # handle filling the rest of the previous chunk
+    # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
     if bytes_left_in_last_chunk > 0:
         content_bytes_piece = content_bytes[:bytes_left_in_last_chunk]
@@ -80,7 +80,7 @@ def chunk(
     num_chunks_to_create = max(1, int(np.floor(content_num_bytes / chunk_size)))
     start_chunk = 1
 
-    # handle full chunk bytes
+    # yield all chunks that are exactly equal to `chunk_size`
     for piece_index, relative_chunk_index in enumerate(
         range(start_chunk, num_chunks_to_create + start_chunk)
     ):
@@ -93,11 +93,8 @@ def chunk(
         yield content_bytes_piece, relative_chunk_index
         total_bytes_yielded += len(content_bytes_piece)
 
-    # handle leftover bytes
+    # yield an incomplete chunk if there are any leftover bytes
     num_leftover_bytes = content_num_bytes - total_bytes_yielded
-    if num_leftover_bytes < 0:
-        raise ChunkGeneratorError("Leftover bytes should never be negative.")
-
     if num_leftover_bytes > 0:
         leftover_bytes = content_bytes[end:]
         yield leftover_bytes, relative_chunk_index + 1
