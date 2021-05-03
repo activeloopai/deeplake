@@ -1,5 +1,5 @@
 def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
-    """ 
+    """
     Return a slice representing the composition of the given slices.
 
     Parameters
