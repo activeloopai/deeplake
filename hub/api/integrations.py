@@ -758,7 +758,7 @@ def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
                         max_num_bboxes = len(inf[3])
                 if inf[4]:
                     label_names.extend(inf[4])
-                    if len(inf[3]) > max_num_polys:
+                    if len(inf[4]) > max_num_polys:
                         max_num_polys = len(inf[4])
                 if inf[2]:
                     masks = True

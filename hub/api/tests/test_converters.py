@@ -497,13 +497,47 @@ def test_from_supervisely():
     project_name = "pixel_project"
     project_path = os.path.join(data_path, project_name)
     project = sly.Project(project_path, sly.OpenMode.CREATE)
+    init_meta = project.meta
     project.meta._project_type = "images"
     project_ds = project.create_dataset(project_name)
-    img = np.array([[255, 255, 255]])
+    img = np.ones((30, 30, 3))
     project_ds.add_item_np("pixel.jpeg", img)
+    item_path, item_ann_path = project_ds.get_item_paths("pixel.jpeg")
+    ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
+    bbox_class = sly.ObjClass(name="_bbox", geometry_type=sly.Rectangle)
+    meta_with_bboxes = project.meta.add_obj_classes([bbox_class])
+    bbox_label = sly.Label(
+        geometry=sly.Rectangle(0, 0, 10, 10),
+        obj_class=meta_with_bboxes.obj_classes.get("_bbox"),
+    )
+    ann_with_bboxes = ann.add_labels([bbox_label])
+    project_ds.set_ann("pixel.jpeg", ann_with_bboxes)
+    project.set_meta(meta_with_bboxes)
+
     trans = hub.Dataset.from_supervisely(project)
-    dataset = trans.store(os.path.join(data_path, "pixel_dataset"))
-    project_back = dataset.to_supervisely(os.path.join(data_path, "pixel_project_back"))
+    dataset = trans.store(os.path.join(data_path, "pixel_dataset_bbox"))
+    project_back = dataset.to_supervisely(
+        os.path.join(data_path, "pixel_project_bbox_back")
+    )
+    project.set_meta(init_meta)
+    poly_class = sly.ObjClass(name="_poly", geometry_type=sly.Polygon)
+    meta_with_poly = project.meta.add_obj_classes([poly_class])
+    points = [[0, 0], [0, 10], [10, 0], [10, 10]]
+    point_loc_points = [
+        sly.geometry.point_location.PointLocation(*point) for point in points
+    ]
+    poly_label = sly.Label(
+        geometry=sly.Polygon(exterior=point_loc_points, interior=[]),
+        obj_class=meta_with_poly.obj_classes.get("_poly"),
+    )
+    ann_with_polys = ann.add_labels([poly_label])
+    project_ds.set_ann("pixel.jpeg", ann_with_polys)
+    project.set_meta(meta_with_poly)
+    trans = hub.Dataset.from_supervisely(project)
+    dataset = trans.store(os.path.join(data_path, "pixel_dataset_poly"))
+    project_back = dataset.to_supervisely(
+        os.path.join(data_path, "pixel_project_poly_back")
+    )
 
 
 @pytest.mark.skipif(
