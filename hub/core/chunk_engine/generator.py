@@ -86,30 +86,19 @@ def chunk(
         yield content_bytes_piece, 0
         total_bytes_yielded += bytes_left_in_last_chunk
 
-        if bytes_left_in_last_chunk > content_num_bytes:
-            # if the previous chunk still isn't filled, that means there is no more
-            # data to write
-            return
-
-    # num_chunks_to_create = max(1, int(np.floor(content_num_bytes / chunk_size)))
-    num_chunks_to_create = max(1, content_num_bytes // chunk_size)
+    num_chunks_to_create = max(1, int(np.ceil(content_num_bytes / chunk_size)))
     start_chunk = 1
 
     # yield all chunks that are exactly equal to `chunk_size`
     for piece_index, relative_chunk_index in enumerate(
         range(start_chunk, num_chunks_to_create + start_chunk)
     ):
-        start = piece_index * chunk_size + bytes_left_in_last_chunk
-        end = (piece_index + 1) * chunk_size + bytes_left_in_last_chunk
-        content_bytes_piece = content_bytes[start:end]
+        end = total_bytes_yielded + chunk_size
+        content_bytes_piece = content_bytes[total_bytes_yielded:end]
+
         if total_bytes_yielded >= content_num_bytes:
             # prevents empty pieces being generated
             break
+
         yield content_bytes_piece, relative_chunk_index
         total_bytes_yielded += len(content_bytes_piece)
-
-    # yield an incomplete chunk if there are any leftover bytes
-    num_leftover_bytes = content_num_bytes - total_bytes_yielded
-    if num_leftover_bytes > 0:
-        leftover_bytes = content_bytes[end:]
-        yield leftover_bytes, relative_chunk_index + 1
