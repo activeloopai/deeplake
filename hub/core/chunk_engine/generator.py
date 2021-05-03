@@ -15,38 +15,52 @@ def chunk(
     Chunking is the process of taking the input `content_bytes` & breaking it up into a sequence of smaller bytes called "chunks".
     The sizes of each chunk are <= `chunk_size`.
 
-    Example 1:
+    Example 1 (Perfect Fit):
         content_bytes = b"1094jfnv841q"
         chunk_size = 4
         output_chunks = [b"1094", b"jfnv", b"841q"]
 
         This is considered a "perfect fit" because all bytes fit perfectly into 3 chunks.
 
-
-    Example 2:
+    Example 2 (Partial End):
         content_bytes = b"f8bkmc99911c94"
         chunk_size = 4
         output_chunks = [b"f8bk", b"mc99", b"911c", b"94"]
 
-        As you can see, the last chunk in `output_chunks` only has 2 bytes (chunk_size=4), which means
+        The last chunk in `output_chunks` only has 2 bytes (chunk_size=4), which means
         this is not a perfect fit, but rather it has a partial chunk at the end.
 
+    Example 3 (Fill Partial First):
+        last_chunks = [b"f8bk", b"mc99", b"911c", b"94"]
+
+        content_bytes = b"1c8494901048dcx"
+        chunk_size = 4
+        last_chunk_bytes = 2  # len(last_chunks[-1])
+        output_chunks = [b"1c", b"8494", b"9010", b"48dc", b"x"]
+
+        This example starts with `last_chunks` defined in the previous example (Example 2).
+        The first output chunk is of length 2 because the last chunk in `last_chunks` can hold
+        2 more bytes (`chunk_size - last_chunk_bytes == 2`). So the first yielded chunk is b"1c"
+        to fill it.
 
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
-        last_chunk_bytes (int, optional): If chunks were created already, `last_chunk_bytes` should be set to the length of the last chunk created. This is so the generator's first output will be enough bytes to fill that chunk up to `chunk_size`.
+        last_chunk_bytes (int, optional): If chunks were created already, `last_chunk_bytes`
+            should be set to the length of the last chunk created. This is so the generator's
+            first output will be enough bytes to fill that chunk up to `chunk_size`.
 
     Yields:
         bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
         int: Relative index of the yielded chunk (bytes) to previously created chunks (if any).
-            0: Append yielded chunk (bytes) to the previous chunk (bytes). 0 is only possible when `last_chunk_num_bytes` is provided and is less than `chunk_size`.
+            0: Append yielded chunk (bytes) to the previous chunk (bytes). 0 is only possible when
+                `last_chunk_num_bytes` is provided and is less than `chunk_size`.
             1: Create the first new chunk using yielded chunk (bytes).
             2: Create the second new chunk using yielded chunk (bytes).
             3+: ...
 
     Raises:
-        ChunkGeneratorError: If leftover bytes are negative or the previous chunk was invalid.
+        ChunkGeneratorError: If the provided `chunk_size` is smaller than the amount of bytes in the last chunk.
     """
 
     if len(content_bytes) <= 0:
@@ -61,8 +75,8 @@ def chunk(
 
     if bytes_left_in_last_chunk < 0:
         raise ChunkGeneratorError(
-            "Previous chunk exceeded `chunk_size` (%i > %i)."
-            % (bytes_left_in_last_chunk, chunk_size)
+            "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
+            % (chunk_size, last_chunk_num_bytes)
         )
 
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
@@ -77,7 +91,8 @@ def chunk(
             # data to write
             return
 
-    num_chunks_to_create = max(1, int(np.floor(content_num_bytes / chunk_size)))
+    # num_chunks_to_create = max(1, int(np.floor(content_num_bytes / chunk_size)))
+    num_chunks_to_create = max(1, content_num_bytes // chunk_size)
     start_chunk = 1
 
     # yield all chunks that are exactly equal to `chunk_size`
