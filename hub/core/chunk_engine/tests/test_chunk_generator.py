@@ -20,7 +20,7 @@ def test_perfect_fit():
         num_samples = get_random_num_samples()
 
         content = make_dummy_byte_array(chunk_size * num_samples)
-        gen = chunk(content, previous_num_bytes=None, chunk_size=chunk_size)
+        gen = chunk(content, chunk_size=chunk_size)
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
@@ -54,7 +54,7 @@ def test_first_partial_chunk():
         assert content_length < (chunk_size // 2), "test invalid"
 
         content = make_dummy_byte_array(content_length)
-        gen = chunk(content, previous_num_bytes=None, chunk_size=chunk_size)
+        gen = chunk(content, chunk_size)
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
@@ -77,9 +77,7 @@ def test_first_partial_chunk():
         assert old_content_length + content_length < chunk_size
 
         content = make_dummy_byte_array(content_length)
-        gen = chunk(
-            content, previous_num_bytes=old_content_length, chunk_size=chunk_size
-        )
+        gen = chunk(content, chunk_size, last_chunk_num_bytes=old_content_length)
 
         piece_count = 0
         for piece, relative_chunk_index in gen:
@@ -106,10 +104,10 @@ def test_nth_partial_chunk():
         assert content_length % chunk_size != 0
 
         content = make_dummy_byte_array(content_length)
-        gen = chunk(content, previous_num_bytes=None, chunk_size=chunk_size)
+        gen = chunk(content, chunk_size)
 
         piece_count = 0
-        previous_num_bytes = None
+        last_chunk_num_bytes = None
         for piece, relative_chunk_index in gen:
             assert_valid_chunk(piece, chunk_size)
 
@@ -124,11 +122,11 @@ def test_nth_partial_chunk():
                 "piece # %i doesn't match expected content" % piece_count
             )
 
-            previous_num_bytes = len(piece)
+            last_chunk_num_bytes = len(piece)
             piece_count += 1
 
         assert piece_count == n + 1  # plus 1 because partial
-        assert previous_num_bytes == partial_length, "invalid test"
+        assert last_chunk_num_bytes == partial_length, "invalid test"
 
         # part 2: need to add more content after the nth partial
         old_partial_length = partial_length
@@ -140,12 +138,10 @@ def test_nth_partial_chunk():
         assert content_length % chunk_size != 0
 
         content = make_dummy_byte_array(content_length)
-        gen = chunk(
-            content, previous_num_bytes=previous_num_bytes, chunk_size=chunk_size
-        )
+        gen = chunk(content, chunk_size, last_chunk_num_bytes=last_chunk_num_bytes)
 
         piece_count = 0
-        bytes_left = chunk_size - previous_num_bytes
+        bytes_left = chunk_size - last_chunk_num_bytes
         is_first = True
         for piece, relative_chunk_index in gen:
             assert_valid_chunk(piece, chunk_size)
