@@ -15,7 +15,7 @@ class Tensor:
         """
         self.uuid = uuid
         self.slice = tensor_slice
-        self.shape = (0,)  # TODO: read metadata, get shape
+        self.shape = (0,)  # Dataset should pass down relevant metadata
 
     def __len__(self):
         """Return the length of the primary axis"""
