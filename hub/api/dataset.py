@@ -24,10 +24,28 @@ class Dataset:
         """Return the greatest length of tensors"""
         return max(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, ds_slice):
+    def __getitem__(self, ds_slice: slice):
         new_slice = merge_slices(self.slice, ds_slice)
         return Dataset(self.path, self.mode, new_slice)
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    @staticmethod
+    def from_path(path: str):
+        """Create a local hub dataset from unstructured data.
+
+        Note:
+            This copies the data locally in hub format.
+            Be careful when using this with large datasets.
+
+        Args:
+            path (str): Path to the data to be converted
+
+        Returns:
+            A Dataset instance whose path points to the hub formatted
+            copy of the data.
+        """
+
+        return None  # TODO: hub.auto
