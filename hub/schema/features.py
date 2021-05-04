@@ -45,7 +45,7 @@ class Primitive(HubSchema):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
 
     def __str__(self):
-        return str(self.dtype)
+        return f"'{str(self.dtype)}'"
 
     def __repr__(self):
         return self.__str__()
@@ -196,7 +196,7 @@ class Tensor(HubSchema):
             )
 
     def __str__(self):
-        out = "Tensor(shape=" + str(self.shape) + ", dtype='" + str(self.dtype) + "'"
+        out = "Tensor(shape=" + str(self.shape) + ", dtype=" + str(self.dtype)
         out = (
             out + ", max_shape=" + str(self.max_shape)
             if self.max_shape != self.shape
