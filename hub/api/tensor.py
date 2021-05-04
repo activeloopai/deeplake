@@ -2,19 +2,18 @@ from hub.util.slice import merge_slices
 
 
 class Tensor:
-    def __init__(self, id: str, tensor_slice: slice = slice(None)):
-        """
-        Initialize a new tensor.
-        This operation should normally only be performed by Hub internals.
+    def __init__(self, uuid: str, tensor_slice: slice = slice(None)):
+        """Initialize a new tensor.
 
-        Parameters
-        ----------
-        id: str
-            The internal identifier for this tensor.
-        tensor_slice: slice, optional
-            The slice object on which to restrict the view of this tensor.
+        Note:
+            This operation does not create a new tensor in the backend,
+            and should normally only be performed by Hub internals.
+
+        Args:
+            uuid (str): The internal identifier for this tensor.
+            tensor_slice (slice, optional): The slice object restricting the view of this tensor.
         """
-        self.id = id
+        self.uuid = uuid
         self.slice = tensor_slice
         self.shape = (0,)  # TODO: read metadata, get shape
 
@@ -24,7 +23,7 @@ class Tensor:
 
     def __getitem__(self, tensor_slice: slice):
         new_slice = merge_slices(self.slice, tensor_slice)
-        return Tensor(id, new_slice)
+        return Tensor(self.uuid, new_slice)
 
     def __iter__(self):
         for i in range(len(self)):

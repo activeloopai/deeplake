@@ -3,27 +3,25 @@ from hub.util.slice import merge_slices
 
 class Dataset:
     def __init__(self, path: str, mode: str = "a", ds_slice: slice = slice(None)):
-        """
-        Initialize a new or existing dataset.
+        """Initialize a new or existing dataset.
 
-        Parameters
-        ----------
-        path: str
-            The location of the dataset. Can be a local path, or a url to a cloud storage provider.
-            Currently supported storage providers include [TODO].
-        mode: str, optional (default to "a")
-            Mode in which the dataset is opened. Supported modes include ("r", "w", "a") plus an optional "+" suffix.
-        ds_slice: slice, optional (default to slice(None, None, None))
-            The slice object on which to restrict the view of this dataset's tensors.
-            Used internally for iteration.
+        Args:
+            path (str): The location of the dataset.
+                Can be a local path, or a url to a cloud storage provider.
+            mode (str, optional): Mode in which the dataset is opened.
+                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
+                Defaults to "a".
+            ds_slice (slice, optional): The slice object restricting the view
+                of this dataset's tensors. Defaults to slice(None, None, None).
+                Used internally for iteration.
         """
         self.path = path
         self.mode = mode
         self.tensors = {}
-        self.slice = slice(None)
+        self.slice = ds_slice
 
     def __len__(self):
-        """Return the greatest length of tensors in a dataset"""
+        """Return the greatest length of tensors"""
         return max(map(len, self.tensors.values()), default=0)
 
     def __getitem__(self, ds_slice):
