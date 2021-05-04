@@ -62,9 +62,9 @@ def assert_conversion(tag):
     # Checking if the datatypes of the columns match
     for i in keys_csv_parser:
         if df[i].dtype == np.dtype("O"):
-            assert str(ds[i].dtype) == str(np.dtype("uint8"))
+            assert type(ds[0, i].compute()) == str
         else:
-            assert str(ds[i].dtype) == str(df[i].dtype)
+            assert str(ds[0, i].compute().dtype) == str(df[i].dtype)
 
     # Checking if all the filenames are parsed correctly
     list_names = []
