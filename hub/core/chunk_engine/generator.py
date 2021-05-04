@@ -16,13 +16,13 @@ def generate_chunks(
     The sizes of each chunk are <= `chunk_size`.
 
     Example:
-        content_bytes = b"1094jfnv841qx"
+        content_bytes = b"1234567890123"
         chunk_size = 4
         yields:
-            b"1094", 1
-            b"jfnv", 2
-            b"841q", 3
-            b"x", 4
+            b"1234", 1
+            b"5678", 2
+            b"9012", 3
+            b"3", 4
 
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
