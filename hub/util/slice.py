@@ -12,4 +12,26 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
     Returns:
         slice: the composition of the given slices
     """
-    return existing_slice  # TODO: implement this
+
+    # Combine the steps
+    step1 = existing_slice.step if existing_slice.step is not None else 1
+    step2 = new_slice.step if new_slice.step is not None else 1
+    step = step1 * step2
+
+    # Combine the start points
+    start1 = existing_slice.start if existing_slice.start is not None else 0
+    start2 = new_slice.start if new_slice.start is not None else 0
+    start = start1 + start2 * step1
+
+    # Combine the end points
+    stop1 = existing_slice.stop
+    stop2 = new_slice.stop
+
+    if stop2 is None:
+        stop = stop1
+    else:
+        stop = start + (stop2 - start2) * step1
+        if stop1 is not None:
+            stop = min(stop, stop1)
+
+    return slice(start, stop, step)
