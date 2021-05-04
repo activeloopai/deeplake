@@ -788,7 +788,9 @@ class Dataset:
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list, shuffle)
+        ds = _to_pytorch(
+            self, transform, inplace, output_type, indexes, key_list, shuffle
+        )
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):

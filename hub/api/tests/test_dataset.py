@@ -20,7 +20,16 @@ from hub.exceptions import (
     SchemaMismatchException,
     ReadModeException,
 )
-from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text, Primitive
+from hub.schema import (
+    BBox,
+    ClassLabel,
+    Image,
+    SchemaDict,
+    Sequence,
+    Tensor,
+    Text,
+    Primitive,
+)
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
