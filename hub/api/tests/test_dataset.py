@@ -1295,6 +1295,13 @@ def test_dataset_store():
         assert ds3["abc", i].compute() == 5 * i
 
 
+def test_dataset_schema_bug():
+    schema = {"abc": Primitive("int32"), "def": "int64"}
+    ds = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+
+
 def test_dataset_google():
     ds = Dataset("google/bike")
     assert ds["image_channels", 0].compute() == 3

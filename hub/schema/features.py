@@ -50,6 +50,20 @@ class Primitive(HubSchema):
     def __repr__(self):
         return self.__str__()
 
+    def __eq__(self, other):
+        if not isinstance(other, Primitive):
+            return False
+        return (
+            self.shape == other.shape
+            and self.max_shape == other.max_shape
+            and self.chunks == other.chunks
+            and self.dtype == other.dtype
+            and self.compressor == other.compressor
+        )
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 
 class SchemaDict(HubSchema):
     """Class for dict branching of a datatype.
