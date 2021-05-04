@@ -44,16 +44,14 @@ def generate_chunks(
         ChunkGeneratorError: If the provided `chunk_size` is smaller than the amount of bytes in the last chunk.
     """
 
+    # validate inputs
     if len(content_bytes) <= 0:
         return
-
     if last_chunk_num_bytes is None:
         bytes_left_in_last_chunk = 0
     else:
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
-
     content_num_bytes = len(content_bytes)
-
     if bytes_left_in_last_chunk < 0:
         raise ChunkGeneratorError(
             "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
