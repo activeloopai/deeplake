@@ -343,6 +343,8 @@ class DatasetView:
             type you need for Transforms). Default is True.
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
+        shuffle: bool, optional
+            whether to shuffle the data chunkwise or not. Default is False.
         """
         return self.dataset.to_pytorch(
             transform=transform,

@@ -1310,6 +1310,17 @@ def test_dataset_schema_bug():
     ds.flush()
     ds2 = Dataset("./data/schema_bug", schema=schema, shape=(100,))
 
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
+
 
 def test_dataset_google():
     ds = Dataset("google/bike")

@@ -40,6 +40,8 @@ def _to_pytorch(
     key_list: list, optional
         The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
         use ["a/b/c"] as key_list
+    shuffle: bool, optional
+        whether to shuffle the data chunkwise or not. Default is False.
     """
     try:
         import torch
