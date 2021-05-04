@@ -7,7 +7,7 @@ from hub.core.chunk_engine.generator import generate_chunks
 from typing import List
 
 
-def get_dummy_bytes_list(lengths: List[int]) -> List[bytes]:
+def get_dummy_bytes_batch(lengths: List[int]) -> List[bytes]:
     """Generate a list of random bytes with the provided lengths."""
     return [np.ones(length, dtype=bool).tobytes() for length in lengths]
 
@@ -25,9 +25,7 @@ for chunk_size in CHUNK_SIZES:
         perfect_fit_params.append((bytes_lengths, chunk_size))
 
 
-def run_test(bytes_lengths: List[int], chunk_size: int):
-    bytes_batch = get_dummy_bytes_list(bytes_lengths)
-
+def run_test(bytes_batch: List[bytes], chunk_size: int):
     last_chunk_num_bytes = None
     for input_bytes in bytes_batch:
         relative_chunk_indices = []
@@ -62,7 +60,8 @@ def test_perfect_fit(bytes_lengths: List[int], chunk_size: int):
         This is considered a "perfect fit" because all bytes fit perfectly into 3 chunks.
     """
 
-    run_test(bytes_lengths, chunk_size)
+    bytes_batch = get_dummy_bytes_batch(bytes_lengths)
+    run_test(bytes_batch, chunk_size)
 
 
 """

@@ -50,13 +50,15 @@ def generate_chunks(
     if last_chunk_num_bytes is None:
         bytes_left_in_last_chunk = 0
     else:
+        if chunk_size < last_chunk_num_bytes:
+            raise ChunkGeneratorError(
+                "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
+                % (chunk_size, last_chunk_num_bytes)
+            )
+
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
+
     content_num_bytes = len(content_bytes)
-    if bytes_left_in_last_chunk < 0:
-        raise ChunkGeneratorError(
-            "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
-            % (chunk_size, last_chunk_num_bytes)
-        )
 
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
