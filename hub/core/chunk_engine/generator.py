@@ -15,33 +15,14 @@ def generate_chunks(
     Chunking is the process of taking the input `content_bytes` & breaking it up into a sequence of smaller bytes called "chunks".
     The sizes of each chunk are <= `chunk_size`.
 
-    Example 1 (Perfect Fit):
-        content_bytes = b"1094jfnv841q"
+    Example:
+        content_bytes = b"1094jfnv841qx"
         chunk_size = 4
-        output_chunks = [b"1094", b"jfnv", b"841q"]
-
-        This is considered a "perfect fit" because all bytes fit perfectly into 3 chunks.
-
-    Example 2 (Partial End):
-        content_bytes = b"f8bkmc99911c94"
-        chunk_size = 4
-        output_chunks = [b"f8bk", b"mc99", b"911c", b"94"]
-
-        The last chunk in `output_chunks` only has 2 bytes (chunk_size=4), which means
-        this is not a perfect fit, but rather it has a partial chunk at the end.
-
-    Example 3 (Fill Partial First):
-        last_chunks = [b"f8bk", b"mc99", b"911c", b"94"]
-
-        content_bytes = b"1c8494901048dcx"
-        chunk_size = 4
-        last_chunk_bytes = 2  # len(last_chunks[-1])
-        output_chunks = [b"1c", b"8494", b"9010", b"48dc", b"x"]
-
-        This example starts with `last_chunks` defined in the previous example (Example 2).
-        The first output chunk is of length 2 because the last chunk in `last_chunks` can hold
-        2 more bytes (`chunk_size - last_chunk_bytes == 2`). So the first yielded chunk is b"1c"
-        to fill it.
+        yields:
+            b"1094", 1
+            b"jfnv", 2
+            b"841q", 3
+            b"x", 4
 
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
