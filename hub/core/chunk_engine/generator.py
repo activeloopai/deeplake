@@ -4,7 +4,7 @@ from typing import Generator, Tuple
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 
 
-def chunk(
+def generate_chunks(
     content_bytes: bytes,
     chunk_size: int,
     last_chunk_num_bytes: int = None,
