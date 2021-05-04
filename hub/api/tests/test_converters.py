@@ -464,6 +464,21 @@ def test_to_tensorflow_bug():
     data = ds.to_tensorflow()
 
 
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_shuffle():
+    schema = {
+        "image": hub.schema.Image((1000, 1000, 3)),
+        "cl": hub.schema.Primitive("uint16", chunks=16),
+    }
+
+    ds = hub.Dataset("./data/test_shuffle", schema=schema, shape=(1024), mode="w")
+    for i in range(len(ds)):
+        ds["cl", i] = i
+    pds = ds.to_pytorch(shuffle=True)
+    for i, item in enumerate(pds):
+        assert item["cl"].numpy() % 16 == i % 16
+
+
 if __name__ == "__main__":
     with Timer("Test Converters"):
         with Timer("from MNIST"):
