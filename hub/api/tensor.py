@@ -1,4 +1,5 @@
 from hub.util.slice import merge_slices
+import numpy as np
 
 
 class Tensor:
@@ -28,3 +29,11 @@ class Tensor:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def numpy(self):
+        """Compute the contents of this tensor in numpy format.
+
+        Returns:
+            A numpy array containing the data represented by this tensor.
+        """
+        return None  # TODO: fetch data from core
