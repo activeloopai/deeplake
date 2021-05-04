@@ -86,7 +86,9 @@ def chunk(
         yield content_bytes_piece, 0
         total_bytes_yielded += bytes_left_in_last_chunk
 
-    num_chunks_to_create = max(1, int(np.ceil(content_num_bytes / chunk_size)))
+    num_chunks_to_create = max(
+        1, int(np.ceil((content_num_bytes - total_bytes_yielded) / chunk_size))
+    )
     start_chunk = 1
 
     # yield all chunks that are exactly equal to `chunk_size`
