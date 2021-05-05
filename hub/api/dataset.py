@@ -1,5 +1,6 @@
+from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
-from typing import Union
+from typing import Union, Dict
 import numpy as np
 
 
@@ -20,7 +21,8 @@ class Dataset:
         self.path = path
         self.mode = mode
         self.slice = ds_slice
-        self.tensors = {}  # TODO: read metadata and initialize tensors
+        # TODO: read metadata and initialize tensors
+        self.tensors: Dict[str, Tensor] = {}
 
     def __len__(self):
         """Return the greatest length of tensors"""
@@ -37,7 +39,7 @@ class Dataset:
 
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
-            if isinstance(value, np.array):
+            if isinstance(value, np.ndarray):
                 # TODO: write data and create tensor
                 # self.tensors[item] = Tensor(...)
                 return self.tensors[item]
