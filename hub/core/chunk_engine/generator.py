@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Generator, Union
+from typing import Generator, Optional
 
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 
@@ -7,7 +7,7 @@ from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 def generate_chunks(
     content_bytes: bytes,
     chunk_size: int,
-    last_chunk_num_bytes: Union[None, int] = None,
+    last_chunk_num_bytes: Optional[int] = None,
 ) -> Generator[bytes, None, None]:
     """
     Generator function that chunks bytes.
