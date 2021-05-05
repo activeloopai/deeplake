@@ -49,6 +49,13 @@ def test_partial_fit(
 
 
 def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]):
+    """
+    This method iterates through the `chunk_generator(...)` & keeps a running list of the chunks.
+
+    When a chunk is yielded, it either adds it to the end of the previous chunk yielded (if relative chunk
+        index is 0) or creates a new chunk (if relative chunk index > 0).
+    """
+
     actual_chunks: List[bytearray] = []
     global_relative_indices: List[int] = []
     last_chunk_num_bytes: Union[int, None] = None
@@ -77,7 +84,7 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
 
     assert len(actual_chunks) == len(
         expected_chunks
-    ), "Got the wrong amount of output chunks. Relative indices: %s" % (
+    ), "Got the wrong amount of output chunks. Global relative indices: %s" % (
         str(global_relative_indices)
     )
     for actual_chunk, expected_chunk in zip(actual_chunks, expected_chunks):
