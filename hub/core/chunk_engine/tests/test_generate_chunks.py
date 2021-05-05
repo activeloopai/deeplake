@@ -36,6 +36,7 @@ PARTIAL_FIT: Tuple = (
 def test_perfect_fit(
     chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]
 ):
+    """All output chunks should be equal in length to `chunk_size`."""
     run_test(chunk_size, bytes_batch, expected_chunks)
 
 
@@ -43,6 +44,7 @@ def test_perfect_fit(
 def test_partial_fit(
     chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]
 ):
+    """Output chunks may differ in length to `chunk_size`."""
     run_test(chunk_size, bytes_batch, expected_chunks)
 
 
