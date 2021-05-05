@@ -5,11 +5,11 @@ import numpy as np
 
 from hub.core.chunk_engine.generator import generate_chunks
 
-from typing import Iterable, List
+from typing import List, Union, Tuple
 
 
 # chunk_size,bytes_batch,expected_chunks
-PERFECT_FIT = (
+PERFECT_FIT: Tuple = (
     (1, [b"1"], [b"1"]),
     (1, [b"1", b"2"], [b"1", b"2"]),
     (1, [b"1", b"2", b"3"], [b"1", b"2", b"3"]),
@@ -21,7 +21,7 @@ PERFECT_FIT = (
 )
 
 # chunk_size,bytes_batch,expected_chunks
-PARTIAL_FIT = (
+PARTIAL_FIT: Tuple = (
     (1, [b""], []),
     (2, [b"1"], [b"1"]),
     (2, [b"123"], [b"12", b"3"]),
@@ -33,24 +33,30 @@ PARTIAL_FIT = (
 
 
 @pytest.mark.parametrize("chunk_size,bytes_batch,expected_chunks", PERFECT_FIT)
-def test_perfect_fit(chunk_size, bytes_batch, expected_chunks):
+def test_perfect_fit(
+    chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]
+):
     run_test(chunk_size, bytes_batch, expected_chunks)
 
 
 @pytest.mark.parametrize("chunk_size,bytes_batch,expected_chunks", PARTIAL_FIT)
-def test_partial_fit(chunk_size, bytes_batch, expected_chunks):
+def test_partial_fit(
+    chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]
+):
     run_test(chunk_size, bytes_batch, expected_chunks)
 
 
-def run_test(chunk_size, bytes_batch, expected_chunks):
-    actual_chunks = []
-    global_relative_indices = []
-    last_chunk_num_bytes = None
+def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[bytes]):
+    actual_chunks: List[bytearray] = []
+    global_relative_indices: List[int] = []
+    last_chunk_num_bytes: Union[int, None] = None
     chunk = None
     for bytes_object in bytes_batch:
         relative_indices = []
         for chunk, relative_index in generate_chunks(
-            bytes_object, chunk_size, last_chunk_num_bytes=last_chunk_num_bytes
+            bytes_object,
+            chunk_size,
+            last_chunk_num_bytes=last_chunk_num_bytes,
         ):
             if relative_index == 0:
                 actual_chunks[-1].extend(chunk)

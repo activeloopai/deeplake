@@ -58,15 +58,13 @@ def generate_chunks(
 
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
 
-    # convert to bytearray to allow extending output chunks
-    content_bytes = bytearray(content_bytes)
     content_num_bytes = len(content_bytes)
 
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
     if bytes_left_in_last_chunk > 0:
         content_bytes_piece = content_bytes[:bytes_left_in_last_chunk]
-        yield content_bytes_piece, 0
+        yield bytearray(content_bytes_piece), 0
         total_bytes_yielded += bytes_left_in_last_chunk
 
     num_chunks_to_create = max(
@@ -85,5 +83,5 @@ def generate_chunks(
             # prevents empty pieces being generated
             break
 
-        yield content_bytes_piece, relative_chunk_index
+        yield bytearray(content_bytes_piece), relative_chunk_index
         total_bytes_yielded += len(content_bytes_piece)
