@@ -25,7 +25,7 @@ class MergeSlicesCases:
         return slice(4, 101, 2), slice(10, 20, 3)
 
 
-@parametrize_with_cases('first,second', cases=MergeSlicesCases)
+@parametrize_with_cases("first,second", cases=MergeSlicesCases)
 def test_merge_slices(first: slice, second: slice):
     r = range(100)
     assert r[first][second] == r[merge_slices(first, second)]
