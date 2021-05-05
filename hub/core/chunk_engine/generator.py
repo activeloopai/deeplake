@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Generator, Tuple
+from typing import Generator, Union
 
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 
@@ -7,8 +7,8 @@ from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 def generate_chunks(
     content_bytes: bytes,
     chunk_size: int,
-    last_chunk_num_bytes: int = None,
-) -> Generator[Tuple[bytearray, int], None, None]:
+    last_chunk_num_bytes: Union[None, int] = None,
+) -> Generator[bytearray, None, None]:
     """
     Generator function that chunks bytes.
 
@@ -33,18 +33,14 @@ def generate_chunks(
 
     Yields:
         bytearray: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
-        int: Relative index of the yielded chunk (bytes) to previously created chunks (if any).
-            0: Append yielded chunk (bytes) to the previous chunk (bytes). 0 is only possible when
-                `last_chunk_num_bytes` is provided and is less than `chunk_size`.
-            1: Create the first new chunk using yielded chunk (bytes).
-            2: Create the second new chunk using yielded chunk (bytes).
-            3+: ...
 
     Raises:
         ChunkGeneratorError: If the provided `chunk_size` is smaller than the amount of bytes in the last chunk.
     """
 
     # validate inputs
+    if chunk_size <= 0:
+        raise ChunkGeneratorError("Cannot generate chunks of size <= 0.")
     if len(content_bytes) <= 0:
         return
     if last_chunk_num_bytes is None:
@@ -58,30 +54,17 @@ def generate_chunks(
 
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
 
-    content_num_bytes = len(content_bytes)
-
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
     if bytes_left_in_last_chunk > 0:
-        content_bytes_piece = content_bytes[:bytes_left_in_last_chunk]
-        yield bytearray(content_bytes_piece), 0
+        chunk = content_bytes[:bytes_left_in_last_chunk]
+        yield bytearray(chunk)
         total_bytes_yielded += bytes_left_in_last_chunk
 
-    num_chunks_to_create = max(
-        1, int(np.ceil((content_num_bytes - total_bytes_yielded) / chunk_size))
-    )
-    start_chunk = 1
-
     # yield all new chunks
-    for piece_index, relative_chunk_index in enumerate(
-        range(start_chunk, num_chunks_to_create + start_chunk)
-    ):
+    while total_bytes_yielded < len(content_bytes):
         end = total_bytes_yielded + chunk_size
-        content_bytes_piece = content_bytes[total_bytes_yielded:end]
+        chunk = content_bytes[total_bytes_yielded:end]
 
-        if total_bytes_yielded >= content_num_bytes:
-            # prevents empty pieces being generated
-            break
-
-        yield bytearray(content_bytes_piece), relative_chunk_index
-        total_bytes_yielded += len(content_bytes_piece)
+        yield bytearray(chunk)
+        total_bytes_yielded += len(chunk)
