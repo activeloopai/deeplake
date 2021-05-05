@@ -5,7 +5,7 @@ import numpy as np
 
 from hub.core.chunk_engine.generator import generate_chunks
 
-from typing import List, Union, Tuple
+from typing import List, Optional, Tuple
 
 
 # chunk_size,bytes_batch,expected_chunks
@@ -57,26 +57,21 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
     """
 
     actual_chunks: List[bytearray] = []
-    last_chunk: Union[bytearray, None] = None
+    last_chunk_num_bytes: Optional[int] = None
     for bytes_object in bytes_batch:
-        chunk = None
-        for chunk in generate_chunks(
+        for chunk_bytes in generate_chunks(
             bytes_object,
             chunk_size,
-            last_chunk_num_bytes=None if last_chunk is None else len(last_chunk),
+            last_chunk_num_bytes=last_chunk_num_bytes,
         ):
-            chunk = bytearray(chunk)
+            chunk = bytearray(chunk_bytes)
 
-            last_chunk = None if len(actual_chunks) <= 0 else actual_chunks[-1]
-            if last_chunk is None or len(last_chunk) >= chunk_size:
+            # fill last chunk if possible, otherwise create new chunk
+            if len(actual_chunks) <= 0 or len(actual_chunks[-1]) >= chunk_size:
                 actual_chunks.append(chunk)
             else:
-                last_chunk.extend(chunk)
+                actual_chunks[-1].extend(chunk)
 
-        last_chunk = chunk
+            last_chunk_num_bytes = len(chunk)
 
-    assert len(actual_chunks) == len(
-        expected_chunks
-    ), "Got the wrong amount of output chunks."
-    for actual_chunk, expected_chunk in zip(actual_chunks, expected_chunks):
-        assert actual_chunk == expected_chunk
+    assert actual_chunks == expected_chunks
