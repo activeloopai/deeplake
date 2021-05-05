@@ -52,40 +52,30 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
     """
     This method iterates through the `chunk_generator(...)` & keeps a running list of the chunks.
 
-    When a chunk is yielded, it either adds it to the end of the previous chunk yielded (if relative chunk
-        index is 0) or creates a new chunk (if relative chunk index > 0).
+    When a chunk is yielded, it either adds it to the end of the previous chunk yielded (if it
+        exists & is not full) or creates a new chunk.
     """
 
     actual_chunks: List[bytearray] = []
-    global_relative_indices: List[int] = []
     last_chunk_num_bytes: Union[int, None] = None
-    chunk = None
+    last_chunk: Union[bytearray, None] = None
     for bytes_object in bytes_batch:
-        relative_indices = []
-        for chunk, relative_index in generate_chunks(
+        chunk = None
+        for chunk in generate_chunks(
             bytes_object,
             chunk_size,
-            last_chunk_num_bytes=last_chunk_num_bytes,
+            last_chunk_num_bytes=None if last_chunk is None else len(last_chunk),
         ):
-            if relative_index == 0:
-                actual_chunks[-1].extend(chunk)
-            else:
+            last_chunk = None if len(actual_chunks) <= 0 else actual_chunks[-1]
+            if last_chunk is None or len(last_chunk) >= chunk_size:
                 actual_chunks.append(chunk)
+            else:
+                last_chunk.extend(chunk)
 
-            relative_indices.append(relative_index)
-            global_relative_indices.append(relative_index)
-
-        assert np.all(
-            np.diff(relative_indices) == 1
-        ), "Relative chunk indices are expected to be a sequential counter."
-
-        if chunk is not None:
-            last_chunk_num_bytes = len(chunk)
+        last_chunk = chunk
 
     assert len(actual_chunks) == len(
         expected_chunks
-    ), "Got the wrong amount of output chunks. Global relative indices: %s" % (
-        str(global_relative_indices)
-    )
+    ), "Got the wrong amount of output chunks."
     for actual_chunk, expected_chunk in zip(actual_chunks, expected_chunks):
         assert actual_chunk == expected_chunk
