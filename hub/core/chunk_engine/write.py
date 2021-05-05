@@ -6,7 +6,7 @@ from hub.core.chunk_engine import generate_chunks
 from typing import Callable, Optional, List
 
 
-# TODO: remove this (this is just copy & pasted from @Abhinav's dev branch)
+# TODO: remove this after abhinav's providers are merged to release/2.0 (this is just copy & pasted from @Abhinav's dev branch)
 class MemoryProvider:
     def __init__(self):
         self.mapper = {}
@@ -50,7 +50,7 @@ def write(
     array -> bytes -> chunks -> compressor -> storage
     """
 
-    index_map = {}
+    index_map = {}  # TODO
 
     b = array.tobytes()
     last_chunk_num_bytes = None  # TODO
@@ -59,36 +59,51 @@ def write(
     ):
         chunk_key = os.path.join(key, ("c%i" % i))
         compressed_chunk = compressor(chunk)
-        store_chunk(chunk_key, compressed_chunk, cache_chain, storage)
 
-    # TODO: flush cache & send data to `storage`
+        if len(cache_chain) <= 0:
+            # if `cache_chain` is empty, store to main provider.
+            store_chunk(chunk_key, compressed_chunk, storage)
+        else:
+            # if `cache_chain` is not empty, prioritize cache storage over main provider.
+            cache_success = cache_chunk(chunk_key, compressed_chunk, cache_chain)
+
+            if not cache_success:
+                flush_cache(cache_chain, storage)
+                cache_success = cache_chunk(chunk_key, compressed_chunk, cache_chain)
+
+                if not cache_success:
+                    # TODO move into exceptions.py
+                    raise Exception("Caching chunk failed even after flushing.")
+
     flush_cache(cache_chain, storage)
 
 
-def store_chunk(
-    key: str, chunk: bytes, cache_chain: List[MemoryProvider], storage: MemoryProvider
-):
-    # TODO: function that maxes out cache_chain. / docstring
+def cache_chunk(key: str, chunk: bytes, cache_chain: List[MemoryProvider]) -> bool:
+    # max out cache
 
-    # if `cache_chain` is empty, store to main provider
-    if len(cache_chain) <= 0:
-        storage[key] = chunk
-        return
-
-    # if cache_chain is provided, we always want to fill all of them first
     # TODO: cross-cache storage (maybe the chunk doesn't fit in 1 cache, should we do so partially?)
     for cache in cache_chain:
         if cache.has_space(len(chunk)):
             cache[key] = chunk
-            return
+            return True
 
-    # if maxed out, flush the chain -> storage.
-    flush_cache(cache_chain, storage)
+    return False
 
-    # TODO: maybe put this in the cache since it's now flushed
+
+def store_chunk(key: str, chunk: bytes, storage: MemoryProvider):
     storage[key] = chunk
 
 
 def flush_cache(cache_chain: List[MemoryProvider], storage: MemoryProvider):
     # TODO: send all cached data -> storage & clear the caches.
-    pass
+
+    for cache in cache_chain:
+        keys = []
+        for key, chunk in cache:
+            storage[key] = chunk
+            keys.append(key)
+
+        for key in keys:
+            del cache[key]
+
+        # TODO: test flushing to make surec cache.used_space will return 0
