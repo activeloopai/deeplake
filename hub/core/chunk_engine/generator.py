@@ -35,7 +35,7 @@ def generate_chunks(
         bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
 
     Raises:
-        ChunkGeneratorError: If the provided `chunk_size` is smaller than the amount of bytes in the last chunk.
+        ChunkGeneratorError: If the provided `chunk_size` is <= 0 or smaller than the amount of bytes in the last chunk.
     """
 
     # validate inputs
