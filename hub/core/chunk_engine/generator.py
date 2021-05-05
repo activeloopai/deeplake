@@ -72,7 +72,7 @@ def generate_chunks(
     )
     start_chunk = 1
 
-    # yield all chunks that are exactly equal to `chunk_size`
+    # yield all new chunks
     for piece_index, relative_chunk_index in enumerate(
         range(start_chunk, num_chunks_to_create + start_chunk)
     ):
