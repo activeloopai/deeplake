@@ -93,8 +93,8 @@ commands:
           name: "Install Python"
           command: |
             brew update
-            brew install python@3.7
-            brew link --overwrite python@3.7
+            brew install python@3.8
+            brew link --overwrite python@3.8
   info:
     steps:
       - run:
@@ -163,9 +163,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  pip3 install pytest
-                  pip3 install pytest-cov
-                  pytest --cov-report=xml --cov=./
+                  python3 -m pytest --mypy --cov-report=xml --cov=./
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -173,7 +171,7 @@ commands:
                 name: "Running tests - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  pytest --cov-report=xml --cov=./
+                  python3 -m pytest --mypy --cov-report=xml --cov=./
   codecov-upload:
     steps:
       - codecov/upload:
