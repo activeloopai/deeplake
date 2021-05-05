@@ -57,7 +57,6 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
     """
 
     actual_chunks: List[bytearray] = []
-    last_chunk_num_bytes: Union[int, None] = None
     last_chunk: Union[bytearray, None] = None
     for bytes_object in bytes_batch:
         chunk = None
@@ -66,6 +65,8 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
             chunk_size,
             last_chunk_num_bytes=None if last_chunk is None else len(last_chunk),
         ):
+            chunk = bytearray(chunk)
+
             last_chunk = None if len(actual_chunks) <= 0 else actual_chunks[-1]
             if last_chunk is None or len(last_chunk) >= chunk_size:
                 actual_chunks.append(chunk)

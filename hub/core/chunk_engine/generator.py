@@ -8,7 +8,7 @@ def generate_chunks(
     content_bytes: bytes,
     chunk_size: int,
     last_chunk_num_bytes: Union[None, int] = None,
-) -> Generator[bytearray, None, None]:
+) -> Generator[bytes, None, None]:
     """
     Generator function that chunks bytes.
 
@@ -32,7 +32,7 @@ def generate_chunks(
             first output will be enough bytes to fill that chunk up to `chunk_size`.
 
     Yields:
-        bytearray: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
+        bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
 
     Raises:
         ChunkGeneratorError: If the provided `chunk_size` is smaller than the amount of bytes in the last chunk.
@@ -58,7 +58,7 @@ def generate_chunks(
     total_bytes_yielded = 0
     if bytes_left_in_last_chunk > 0:
         chunk = content_bytes[:bytes_left_in_last_chunk]
-        yield bytearray(chunk)
+        yield chunk
         total_bytes_yielded += bytes_left_in_last_chunk
 
     # yield all new chunks
@@ -66,5 +66,5 @@ def generate_chunks(
         end = total_bytes_yielded + chunk_size
         chunk = content_bytes[total_bytes_yielded:end]
 
-        yield bytearray(chunk)
+        yield chunk
         total_bytes_yielded += len(chunk)
