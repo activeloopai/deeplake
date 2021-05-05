@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pickle
 
 from hub.core.chunk_engine import generate_chunks
 
@@ -45,53 +46,69 @@ def write(
     compressor: Callable,
     chunk_size: int,
     cache_chain: List[MemoryProvider] = [],
+    batched: bool = False,
 ):
     """
     array -> bytes -> chunks -> compressor -> storage
     """
 
-    index_map = {}  # TODO
+    if batched:
+        raise NotImplemented
 
+    index_map = {}  # TODO
+    sample_index = 0  # TODO: determine sample index from index_map
+
+    # TODO: hilbert curves? tobytes() doesn't support efficient slicing
     b = array.tobytes()
+
     last_chunk_num_bytes = None  # TODO
-    for i, chunk in enumerate(
+    for chunk_index, chunk in enumerate(
         generate_chunks(b, chunk_size, last_chunk_num_bytes=last_chunk_num_bytes)
     ):
-        chunk_key = os.path.join(key, ("c%i" % i))
+        chunk_key = os.path.join(key, ("c%i" % chunk_index))
+        # TODO: don't compress an incomplete chunk (if it isn't == chunk_size it is incomplete)
         compressed_chunk = compressor(chunk)
 
         if len(cache_chain) <= 0:
             # if `cache_chain` is empty, store to main provider.
-            store_chunk(chunk_key, compressed_chunk, storage)
+            store(chunk_key, compressed_chunk, storage)
+
         else:
             # if `cache_chain` is not empty, prioritize cache storage over main provider.
-            cache_success = cache_chunk(chunk_key, compressed_chunk, cache_chain)
+            cache_success = cache(chunk_key, compressed_chunk, cache_chain)
 
             if not cache_success:
                 flush_cache(cache_chain, storage)
-                cache_success = cache_chunk(chunk_key, compressed_chunk, cache_chain)
+                cache_success = cache(chunk_key, compressed_chunk, cache_chain)
 
                 if not cache_success:
                     # TODO move into exceptions.py
                     raise Exception("Caching chunk failed even after flushing.")
 
+    # TODO: encode in array instead of dict
+    # TODO: start & end bytes
+    # TODO: chunk index map
+    index_map[sample_index] = {"start_chunk": 0, "end_chunk": chunk_index}
+    # TODO: don't use pickle
+    store("index_map", pickle.dumps(index_map), storage)
+
     flush_cache(cache_chain, storage)
 
 
-def cache_chunk(key: str, chunk: bytes, cache_chain: List[MemoryProvider]) -> bool:
+def cache(key: str, data: bytes, cache_chain: List[MemoryProvider]) -> bool:
     # max out cache
 
-    # TODO: cross-cache storage (maybe the chunk doesn't fit in 1 cache, should we do so partially?)
-    for cache in cache_chain:
-        if cache.has_space(len(chunk)):
-            cache[key] = chunk
+    # TODO: cross-cache storage (maybe the data doesn't fit in 1 cache, should we do so partially?)
+    for cache_provider in cache_chain:
+        if cache_provider.has_space(len(data)):
+            cache_provider[key] = data
             return True
 
     return False
 
 
-def store_chunk(key: str, chunk: bytes, storage: MemoryProvider):
-    storage[key] = chunk
+def store(key: str, data: bytes, storage: MemoryProvider):
+    storage[key] = data
 
 
 def flush_cache(cache_chain: List[MemoryProvider], storage: MemoryProvider):

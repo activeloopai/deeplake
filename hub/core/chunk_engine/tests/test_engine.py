@@ -17,7 +17,7 @@ def run_test(storage, a_in, cache_chain=[]):
 
 def test_no_cache():
     storage = MemoryProvider()
-    a_in = np.random.uniform((1, 100))
+    a_in = np.random.uniform(size=(100))
 
     run_test(storage, a_in)
 
@@ -26,5 +26,5 @@ def test_with_cache_chain():
     storage = MemoryProvider()
     cache_chain = [MemoryProvider()]
 
-    a_in = np.random.uniform((1, 100))
+    a_in = np.random.uniform(size=(100))
     run_test(storage, a_in, cache_chain=cache_chain)
