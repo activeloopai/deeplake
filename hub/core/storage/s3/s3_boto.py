@@ -13,7 +13,7 @@ class S3BotoProvider(Provider):
         aws_region=None,
     ):
         root = "s3://" + path
-        self.d = S3BotoStorage(
+        self.mapper = S3BotoStorage(
             self,
             root,
             aws_access_key_id=aws_access_key_id,
@@ -24,19 +24,19 @@ class S3BotoProvider(Provider):
         )
 
     def __getitem__(self, path):
-        return self.d[path]
+        return self.mapper[path]
 
     def __setitem__(self, path, value):
-        self.d[path] = value
+        self.mapper[path] = value
 
     def __iter__(self):
-        yield from self.d.items()
+        yield from self.mapper.items()
 
     def __delitem__(self, path):
-        del self.d[path]
+        del self.mapper[path]
 
     def __len__(self):
-        return len(self.d.keys)
+        return len(self.mapper.keys)
 
 
 def __init__(self, *args, expiration=None, **kwargs):
