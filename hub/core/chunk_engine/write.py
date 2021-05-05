@@ -42,9 +42,9 @@ class MemoryProvider:
 def write(
     key: str,
     array: np.ndarray,
-    storage: MemoryProvider,
     compressor: Callable,
     chunk_size: int,
+    storage: MemoryProvider,
     cache_chain: List[MemoryProvider] = [],
     batched: bool = False,
 ):
@@ -54,6 +54,9 @@ def write(
 
     if batched:
         raise NotImplemented
+
+    # TODO: normalize array shape
+    # TODO: make sure the provided shape has the same dimensionality of the other samples in the tensor being written to
 
     index_map = {}  # TODO
     sample_index = 0  # TODO: determine sample index from index_map
@@ -71,11 +74,11 @@ def write(
 
         if len(cache_chain) <= 0:
             # if `cache_chain` is empty, store to main provider.
-            store(chunk_key, compressed_chunk, storage)
+            write_to_storage(chunk_key, compressed_chunk, storage)
 
         else:
             # if `cache_chain` is not empty, prioritize cache storage over main provider.
-            cache_success = cache(chunk_key, compressed_chunk, cache_chain)
+            cache_success = write_to_cache(chunk_key, compressed_chunk, cache_chain)
 
             if not cache_success:
                 flush_cache(cache_chain, storage)
@@ -88,14 +91,21 @@ def write(
     # TODO: encode in array instead of dict
     # TODO: start & end bytes
     # TODO: chunk index map
-    index_map[sample_index] = {"start_chunk": 0, "end_chunk": chunk_index}
+    index_map[sample_index] = {
+        "start_chunk": 0,
+        "end_chunk": chunk_index,
+        "dtype": array.dtype,
+        "shape": array.shape,
+    }
+
     # TODO: don't use pickle
-    store("index_map", pickle.dumps(index_map), storage)
+    index_map_key = os.path.join(key, "index_map")
+    write_to_storage(index_map_key, pickle.dumps(index_map), storage)
 
     flush_cache(cache_chain, storage)
 
 
-def cache(key: str, data: bytes, cache_chain: List[MemoryProvider]) -> bool:
+def write_to_cache(key: str, data: bytes, cache_chain: List[MemoryProvider]) -> bool:
     # max out cache
 
     # TODO: cross-cache storage (maybe the data doesn't fit in 1 cache, should we do so partially?)
@@ -107,7 +117,7 @@ def cache(key: str, data: bytes, cache_chain: List[MemoryProvider]) -> bool:
     return False
 
 
-def store(key: str, data: bytes, storage: MemoryProvider):
+def write_to_storage(key: str, data: bytes, storage: MemoryProvider):
     storage[key] = data
 
 
