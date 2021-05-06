@@ -45,6 +45,8 @@ jobs:
         run: |
           black --version
           black --check .
+      - name: Lint docstrings with darglint
+        run: darglint .
 #      - name: Test with pytest and generate coverage report
 #        run: |
 #          pytest --cov=hub --cov-report=html hub
@@ -90,6 +92,8 @@ jobs:
         run: |
           black --version
           black --check .
+      - name: Lint docstrings with darglint
+        run: darglint .
 #      - name: Test with pytest and generate coverage report
 #        run: |
 #          pytest --cov=hub --cov-report=html hub
