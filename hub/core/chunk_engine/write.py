@@ -5,7 +5,7 @@ import pickle
 from typing import Any, Callable, List, Tuple
 
 from hub.core.chunk_engine import generate_chunks
-from .util import array_to_bytes, index_map_entry_to_bytes
+from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 from .write_impl import MemoryProvider
 
 
@@ -23,11 +23,7 @@ def chunk_and_write_array(
     """
 
     # TODO: validate array shape (no 0s in shape)
-    # TODO: normalize array shape
-
-    # if not batched, add a batch axis (of size 1)
-    if not batched:
-        array = np.expand_dims(array, axis=0)
+    array = normalize_and_batchify_shape(array, batched=batched)
 
     # TODO: validate meta matches tensor meta where it needs to (like dtype or strict-shape)
     # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
@@ -119,7 +115,7 @@ def write_bytes_with_caching(key, b, cache_chain, storage):
         # TODO: move into exceptions.py
         raise Exception("At least one cache inside of `cache_chain` is required.")
 
-    # if `cache_chain` is not empty, prioritize cache storage over main provider.
+    # prioritize cache storage over main storage.
     cache_success = write_to_cache(key, b, cache_chain)
 
     if not cache_success:
