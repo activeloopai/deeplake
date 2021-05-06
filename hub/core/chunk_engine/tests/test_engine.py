@@ -1,5 +1,5 @@
 import numpy as np
-from hub.core.chunk_engine import read, write, MemoryProvider
+from hub.core.chunk_engine import read, write_array, MemoryProvider
 
 dummy_compressor = lambda x: x
 dummy_decompressor = lambda x: x
@@ -8,17 +8,25 @@ chunk_size = 10
 
 
 def run_test(storage, a_in, cache_chain=[]):
-    write(
-        "tensor",
+    write_array(
         a_in,
+        "tensor",
         dummy_compressor,
         chunk_size,
         storage,
         cache_chain,
         batched=False,
     )
-    a_out = read("tensor", 0, dummy_decompressor, storage, cache_chain)
-    np.testing.assert_array_equal(a_in, a_out)
+
+    for cache in cache_chain:
+        assert (
+            len(cache.mapper.keys()) == 0
+        ), "write_array(...) should implicitly flush the cache (clear & migrate everything to storage)"
+
+    print(storage.mapper.keys())
+
+    # a_out = read("tensor", 0, dummy_decompressor, storage, cache_chain)
+    # np.testing.assert_array_equal(a_in, a_out)
 
 
 def test_no_cache():
