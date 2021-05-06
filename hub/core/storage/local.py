@@ -3,20 +3,26 @@ import fsspec
 
 
 class LocalProvider(Provider):
-    def __init__(self, path):
-        self.mapper = fsspec.filesystem("file").get_mapper(path, check=False, create=False)
+    """
+    Provider class for using the local filesystem
+    """
 
-    def __getitem__(self, path, start_byte=None, end_byte=None):
-        return self.mapper[path][slice(start_byte, end_byte)]
+    def __init__(self, root):
+        """
+        Initializes the LocalProvider
 
-    def __setitem__(self, path, value):
-        self.mapper[path] = value
+        Example:
+            local_provider = LocalProvider("/home/ubuntu/Documents/")
 
-    def __iter__(self):
-        yield from self.mapper.items()
+        Args:
+            root (str): the root of the provider
 
-    def __delitem__(self, path):
-        del self.mapper[path]
+        Returns:
+            None
 
-    def __len__(self):
-        return len(self.mapper.keys)
+        Raises:
+            Exception #TODO Proper
+        """
+        self.mapper = fsspec.filesystem("file").get_mapper(
+            root, check=False, create=False
+        )

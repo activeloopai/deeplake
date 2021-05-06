@@ -1,21 +1,24 @@
 from hub.core.storage.provider import Provider
+import fsspec
 
 
 class MemoryProvider(Provider):
     def __init__(self):
-        self.mapper = fsspec.filesystem("file").get_mapper(path, check=False, create=False)
+        """
+        Initializes the MemoryProvider
 
-    def __getitem__(self, path, start_byte=None, end_byte=None):
-        return self.mapper[path][slice(start_byte, end_byte)]
+        Example:
+            local_provider = MemoryProvider("/home/ubuntu/Documents/")
 
-    def __setitem__(self, path, value):
-        self.mapper[path] = value
+        Args:
+            root (str): the root of the provider
 
-    def __iter__(self):
-        yield from self.mapper.items()
+        Returns:
+            None
 
-    def __delitem__(self, path):
-        del self.mapper[path]
-
-    def __len__(self):
-        return len(self.mapper.keys)
+        Raises:
+            Exception #TODO Proper
+        """
+        self.mapper = fsspec.filesystem("memory").get_mapper(
+            root="./", check=False, create=False
+        )
