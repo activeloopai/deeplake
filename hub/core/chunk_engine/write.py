@@ -9,7 +9,7 @@ from .util import array_to_bytes, index_map_entry_to_bytes
 from .write_impl import MemoryProvider
 
 
-def write_array(
+def chunk_and_write_array(
     array: np.ndarray,
     key: str,
     compressor: Callable,
@@ -28,7 +28,7 @@ def write_array(
 
     # TODO: this can be replaced with hilbert curve or something
     b = array_to_bytes(array)
-    start_chunk, end_chunk = write_bytes(
+    start_chunk, end_chunk = chunk_and_write_bytes(
         b,
         key=key,
         compressor=compressor,
@@ -55,28 +55,7 @@ def write_array(
     write_to_storage(index_map_key, pickle.dumps(index_map), storage)
 
 
-def write_meta(
-    meta: dict,
-    key: str,
-    compressor: Callable,
-    chunk_size: int,
-    storage: MemoryProvider,
-    cache_chain: List[MemoryProvider] = [],
-    batched: bool = False,
-):
-    # TODO: don't use pickle
-    b = pickle.dumps(meta)
-    write_bytes(
-        b,
-        key=key,
-        compressor=compressor,
-        chunk_size=chunk_size,
-        storage=storage,
-        cache_chain=cache_chain,
-    )
-
-
-def write_bytes(
+def chunk_and_write_bytes(
     b: bytes,
     key: str,
     compressor: Callable,
@@ -97,7 +76,7 @@ def write_bytes(
         chunk_key = os.path.join(key, ("c%i" % local_chunk_index))
         compressed_chunk = compressor(chunk)
         # TODO: fill previous chunk if it is incomplete
-        cache_and_store(chunk_key, compressed_chunk, cache_chain, storage)
+        write_bytes_with_caching(chunk_key, compressed_chunk, cache_chain, storage)
 
     flush_cache(cache_chain, storage)
 
@@ -107,7 +86,7 @@ def write_bytes(
     return start_chunk, end_chunk
 
 
-def cache_and_store(key, b, cache_chain, storage):
+def write_bytes_with_caching(key, b, cache_chain, storage):
     if len(cache_chain) <= 0:
         # if `cache_chain` is empty, store to main provider.
         write_to_storage(key, b, storage)

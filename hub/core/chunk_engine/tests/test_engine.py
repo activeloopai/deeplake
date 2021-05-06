@@ -1,5 +1,5 @@
 import numpy as np
-from hub.core.chunk_engine import read, write_array, MemoryProvider
+from hub.core.chunk_engine import read, chunk_and_write_array, MemoryProvider
 
 dummy_compressor = lambda x: x
 dummy_decompressor = lambda x: x
@@ -8,7 +8,7 @@ chunk_size = 10
 
 
 def run_test(storage, a_in, cache_chain=[]):
-    write_array(
+    chunk_and_write_array(
         a_in,
         "tensor",
         dummy_compressor,
@@ -25,8 +25,8 @@ def run_test(storage, a_in, cache_chain=[]):
 
     print(storage.mapper.keys())
 
-    # a_out = read("tensor", 0, dummy_decompressor, storage, cache_chain)
-    # np.testing.assert_array_equal(a_in, a_out)
+    a_out = read("tensor", 0, dummy_decompressor, storage, cache_chain)
+    np.testing.assert_array_equal(a_in, a_out)
 
 
 def test_no_cache():
