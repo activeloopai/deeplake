@@ -50,17 +50,16 @@ def run_test(storage, a_in, batched, cache_chain=[]):
             len(cache.mapper.keys()) == 0
         ), "write_array(...) should implicitly flush the cache (clear & migrate everything to storage)"
 
+    # TODO: make sure no incomplete chunks exist on storage (unless there is a reason to keep them)
+
     a_out = read("tensor", dummy_decompressor, storage, cache_chain)
     print(a_in.shape, a_out.shape)
+
+    if not batched:
+        # if `a_in` is marked as not-batched, it will be given an extra batch axis
+        a_in = np.expand_dims(a_in, axis=0)
+
     np.testing.assert_array_equal(a_in, a_out)
-
-
-@pytest.mark.parametrize("shape,batched", ARRAY_SPECS)
-def test_no_cache(shape, batched):
-    storage = MemoryProvider()
-    a_in = np.random.uniform(size=shape)
-
-    run_test(storage, a_in, batched=batched)
 
 
 @pytest.mark.parametrize("shape,batched", ARRAY_SPECS)
