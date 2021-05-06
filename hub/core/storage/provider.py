@@ -5,7 +5,7 @@ from hub.core.storage.utils import check_byte_indexes
 
 class Provider(MutableMapping):
     def __init__(self):
-        raise NotImplementedError
+        self.mapper = {}
 
     def __getitem__(
         self,
@@ -40,7 +40,7 @@ class Provider(MutableMapping):
         path: str,
         value: bytes,
         start_byte: Optional[int] = None,
-        overwrite: bool = False,
+        overwrite: Optional[bool] = False,
     ):
         """
         Sets the object present at the path with the value

@@ -14,7 +14,6 @@ class S3BotoProvider(Provider):
         aws_region: Optional[int] = None,
     ):
         # passing no creds, would cause boto to read credentials
-        print
         self.mapper = S3BotoStorage(
             root,
             aws_access_key_id=aws_access_key_id,

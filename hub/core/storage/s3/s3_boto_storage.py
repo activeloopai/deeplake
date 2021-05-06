@@ -3,23 +3,21 @@ import posixpath
 import boto3
 import botocore
 from botocore.exceptions import ClientError
+from typing import Optional
 
 
 class S3BotoStorage(MutableMapping):
     def __init__(
         self,
-        url: str = None,
-        public=False,
-        aws_access_key_id=None,
-        aws_secret_access_key=None,
-        aws_session_token=None,
-        endpoint_url=None,
-        aws_region=None,
-        parallel=25,
+        url: str,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+        aws_session_token: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
+        aws_region: Optional[str] = None,
+        parallel: Optional[int] = 25,
     ):
-        self.root = {}
         self.url = url
-        self.public = public
         self.parallel = parallel
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
@@ -27,8 +25,6 @@ class S3BotoStorage(MutableMapping):
         # url should be "bucket_name/xyz/abc/..."
         self.bucket = url.split("/")[0]
         self.path = "/".join(url.split("/")[1:])
-        self.bucketpath = posixpath.join(self.bucket, self.path)
-        self.protocol = "object"
         self.client_config = botocore.config.Config(max_pool_connections=parallel,)
 
         self.client = boto3.client(
@@ -63,8 +59,7 @@ class S3BotoStorage(MutableMapping):
         except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
-            else:
-                raise
+            raise
         except Exception as err:  # TODO better exceptions
             raise
 

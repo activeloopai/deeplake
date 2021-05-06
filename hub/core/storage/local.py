@@ -7,7 +7,7 @@ class LocalProvider(Provider):
     Provider class for using the local filesystem
     """
 
-    def __init__(self, root):
+    def __init__(self, root: str):
         """
         Initializes the LocalProvider
 
