@@ -1,4 +1,3 @@
-import numpy as np
 from typing import Generator, Optional
 
 from hub.core.chunk_engine.exceptions import ChunkGeneratorError
@@ -10,10 +9,8 @@ def generate_chunks(
     last_chunk_num_bytes: Optional[int] = None,
 ) -> Generator[bytes, None, None]:
     """
-    Generator function that chunks bytes.
-
-    Chunking is the process of taking the input `content_bytes` & breaking it up into a sequence of smaller bytes called "chunks".
-    The sizes of each chunk are <= `chunk_size`.
+    Generator function that chunks some `content_bytes` into a sequence of
+    smaller bytes of size <= `chunk_size`
 
     Example:
         content_bytes = b"1234567890123"
@@ -26,16 +23,17 @@ def generate_chunks(
 
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
-        chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
-        last_chunk_num_bytes (int, optional): If chunks were created already, `last_chunk_bytes`
-            should be set to the length of the last chunk created. This is so the generator's
-            first output will be enough bytes to fill that chunk up to `chunk_size`.
+        chunk_size (int): Desired size of yielded chunks.
+        last_chunk_num_bytes (int, optional): If chunks were created already,
+            `last_chunk_num_bytes` should be given so that the first output
+            can yield the remaining bytes to fill the last previous chunk.
 
     Yields:
-        bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
+        bytes: Chunk of the `content_bytes`. Has length <= `chunk_size`.
 
     Raises:
-        ChunkGeneratorError: If the provided `chunk_size` is <= 0 or smaller than the amount of bytes in the last chunk.
+        ChunkGeneratorError: If the provided `chunk_size` is <= 0
+            or smaller than the amount of bytes in the last chunk.
     """
 
     # validate inputs
@@ -54,7 +52,7 @@ def generate_chunks(
 
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
 
-    # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
+    # yield the remainder of the last chunk (from `last_chunk_num_bytes`)
     total_bytes_yielded = 0
     if bytes_left_in_last_chunk > 0:
         chunk = content_bytes[:bytes_left_in_last_chunk]
