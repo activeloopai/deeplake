@@ -88,11 +88,24 @@ def chunk_and_write_bytes(
 
     for local_chunk_index, chunk in enumerate(chunk_gen):
         # TODO: get global_chunk_index (don't just use local_chunk_index)
-        chunk_key = os.path.join(key, ("c%i" % local_chunk_index))
-        compressed_chunk = compressor(chunk)
-        # TODO: fill previous chunk if it is incomplete
-        write_bytes_with_caching(chunk_key, compressed_chunk, cache_chain, storage)
 
+        full_chunk = len(chunk) == chunk_size
+
+        chunk_name = "c%i" % local_chunk_index
+
+        # TODO: fill previous chunk if it is incomplete
+        # TODO: after previous chunk is fully filled, compress
+
+        if full_chunk:
+            # only compress if it is a full chunk
+            chunk = compressor(chunk)
+        else:
+            chunk_name += "_incomplete"
+
+        chunk_key = os.path.join(key, chunk_name)
+        write_bytes_with_caching(chunk_key, chunk, cache_chain, storage)
+
+    # TODO: handle incomplete chunk if one exists
     flush_cache(cache_chain, storage)
 
     # TODO global start/end chunk instead of local
@@ -103,20 +116,19 @@ def chunk_and_write_bytes(
 
 def write_bytes_with_caching(key, b, cache_chain, storage):
     if len(cache_chain) <= 0:
-        # if `cache_chain` is empty, store to main provider.
-        write_to_storage(key, b, storage)
+        # TODO: move into exceptions.py
+        raise Exception("At least one cache inside of `cache_chain` is required.")
 
-    else:
-        # if `cache_chain` is not empty, prioritize cache storage over main provider.
+    # if `cache_chain` is not empty, prioritize cache storage over main provider.
+    cache_success = write_to_cache(key, b, cache_chain)
+
+    if not cache_success:
+        flush_cache(cache_chain, storage)
         cache_success = write_to_cache(key, b, cache_chain)
 
         if not cache_success:
-            flush_cache(cache_chain, storage)
-            cache_success = write_to_cache(key, b, cache_chain)
-
-            if not cache_success:
-                # TODO move into exceptions.py
-                raise Exception("Caching failed even after flushing.")
+            # TODO move into exceptions.py
+            raise Exception("Caching failed even after flushing.")
 
 
 def write_to_cache(key, b, cache_chain):
