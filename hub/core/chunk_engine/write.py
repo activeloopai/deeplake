@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pickle
 
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple
 
 from hub.core.chunk_engine import generate_chunks
 from .util import array_to_bytes, index_map_entry_to_bytes
@@ -22,9 +22,13 @@ def write_array(
     Chunk, cache, & write array to `storage`.
     """
 
+    if batched:
+        # TODO: implement batched
+        raise NotImplemented
+
     # TODO: this can be replaced with hilbert curve or something
     b = array_to_bytes(array)
-    write_bytes(
+    start_chunk, end_chunk = write_bytes(
         b,
         key=key,
         compressor=compressor,
@@ -32,6 +36,23 @@ def write_array(
         storage=storage,
         cache_chain=cache_chain,
     )
+
+    index_map = []
+
+    # TODO: encode index_map_entry as array instead of dictionary
+    index_map.append(
+        {
+            "start_chunk": start_chunk,
+            "end_chunk": end_chunk,
+            "dtype": array.dtype,
+            "shape": array.shape,
+        }
+    )
+
+    # TODO: chunk index_map (& add to the previous chunk until full)
+    # TODO: make note of this in docstring: no need to cache. for most efficiency, we should try to use `batched` as often as possible.
+    index_map_key = os.path.join(key, "index_map")
+    write_to_storage(index_map_key, pickle.dumps(index_map), storage)
 
 
 def write_meta(
@@ -63,7 +84,7 @@ def write_bytes(
     storage: MemoryProvider,
     cache_chain: List[MemoryProvider] = [],
     use_index_map: bool = True,
-):
+) -> Tuple[int, int]:
     """
     Chunk, cache, & write bytes to `storage`.
     """
@@ -78,12 +99,12 @@ def write_bytes(
         # TODO: fill previous chunk if it is incomplete
         cache_and_store(chunk_key, compressed_chunk, cache_chain, storage)
 
-    # TODO: create index_map_entry
-
-    # TODO: chunk index_map_entry
-    # TODO: cache/store index_map_entry_chunks
-
     flush_cache(cache_chain, storage)
+
+    # TODO global start/end chunk instead of local
+    start_chunk = 0
+    end_chunk = local_chunk_index
+    return start_chunk, end_chunk
 
 
 def cache_and_store(key, b, cache_chain, storage):
