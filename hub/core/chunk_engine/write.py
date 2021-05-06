@@ -22,37 +22,52 @@ def chunk_and_write_array(
     Chunk, cache, & write array to `storage`.
     """
 
-    if batched:
-        # TODO: implement batched
-        raise NotImplemented
+    # TODO: validate array shape (no 0s in shape)
+    # TODO: normalize array shape
 
-    # TODO: this can be replaced with hilbert curve or something
-    b = array_to_bytes(array)
-    start_chunk, end_chunk = chunk_and_write_bytes(
-        b,
-        key=key,
-        compressor=compressor,
-        chunk_size=chunk_size,
-        storage=storage,
-        cache_chain=cache_chain,
-    )
+    # if not batched, add a batch axis (of size 1)
+    if not batched:
+        array = np.expand_dims(array, axis=0)
+
+    # TODO: validate meta matches tensor meta where it needs to (like dtype or strict-shape)
+    # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
+    meta = {"dtype": array.dtype, "length": array.shape[0]}
 
     index_map = []
+    for i in range(array.shape[0]):
+        sample = array[i]
 
-    # TODO: encode index_map_entry as array instead of dictionary
-    index_map.append(
-        {
-            "start_chunk": start_chunk,
-            "end_chunk": end_chunk,
-            "dtype": array.dtype,
-            "shape": array.shape,
-        }
-    )
+        # TODO: this can be replaced with hilbert curve or something
+        b = array_to_bytes(sample)
+        start_chunk, end_chunk = chunk_and_write_bytes(
+            b,
+            key=key,
+            compressor=compressor,
+            chunk_size=chunk_size,
+            storage=storage,
+            cache_chain=cache_chain,
+        )
+
+        # TODO: keep track of `sample.shape` over time & add the max_shape:min_shape interval into meta.json for easy queries
+
+        # TODO: encode index_map_entry as array instead of dictionary
+        index_map.append(
+            {
+                "start_chunk": start_chunk,
+                "end_chunk": end_chunk,
+                "shape": sample.shape,  # shape per sample for dynamic tensors (if strictly fixed-size, store this in meta)
+            }
+        )
+
+    # TODO: don't use pickle for index_map/meta
 
     # TODO: chunk index_map (& add to the previous chunk until full)
-    # TODO: make note of this in docstring: no need to cache. for most efficiency, we should try to use `batched` as often as possible.
+    # TODO: make note of this in docstring: no need to cache index_map. for most efficiency, we should try to use `batched` as often as possible.
     index_map_key = os.path.join(key, "index_map")
     write_to_storage(index_map_key, pickle.dumps(index_map), storage)
+
+    meta_key = os.path.join(key, "meta.json")
+    write_to_storage(meta_key, pickle.dumps(meta), storage)
 
 
 def chunk_and_write_bytes(

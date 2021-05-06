@@ -50,7 +50,8 @@ def run_test(storage, a_in, batched, cache_chain=[]):
             len(cache.mapper.keys()) == 0
         ), "write_array(...) should implicitly flush the cache (clear & migrate everything to storage)"
 
-    a_out = read("tensor", 0, dummy_decompressor, storage, cache_chain)
+    a_out = read("tensor", dummy_decompressor, storage, cache_chain)
+    print(a_in.shape, a_out.shape)
     np.testing.assert_array_equal(a_in, a_out)
 
 
