@@ -1,18 +1,45 @@
+from typing import Optional
 from hub.core.storage.provider import Provider
 from hub.core.storage.s3.s3_mapper import S3Mapper
-from typing import Optional
 
 
 class S3Provider(Provider):
+    """
+    Provider class for using S3 storage.
+    """
+
     def __init__(
         self,
         root: str,
-        aws_access_key_id: Optional[int] = None,
-        aws_secret_access_key: Optional[int] = None,
-        aws_session_token: Optional[int] = None,
-        endpoint_url: Optional[int] = None,
-        aws_region: Optional[int] = None,
+        aws_access_key_id: Optional[str] = None,
+        aws_secret_access_key: Optional[str] = None,
+        aws_session_token: Optional[str] = None,
+        endpoint_url: Optional[str] = None,
+        aws_region: Optional[str] = None,
+        max_pool_connections: Optional[int] = 25,
     ):
+        """
+        Initializes the S3Provider
+
+        Example:
+            s3_provider = S3Provider("snark-test/benchmarks")
+
+        Args:
+            root (str): the root of the provider.
+            aws_access_key_id (optional, str): Specifies the AWS access key used as part of the credentials to authenticate the user.
+            aws_secret_access_key (optional, str): Specifies the AWS secret key used as part of the credentials to authenticate the user.
+            aws_session_token (optional, str): Specifies an AWS session token used as part of the credentials to authenticate the user.
+            endpoint_url (optional, str): Specify the endpoint url
+            aws_region (optional, str): Specifies the AWS Region to send requests to.
+            max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
+                If this value is not set, the default value of 10 is used.
+
+        Returns:
+            None
+
+        Raises:
+            None
+        """
         # passing no creds, would cause boto to read credentials
         self.mapper = S3Mapper(
             root,
@@ -21,4 +48,5 @@ class S3Provider(Provider):
             aws_session_token=aws_session_token,
             aws_region=aws_region,
             endpoint_url=endpoint_url,
+            max_pool_connections=max_pool_connections,
         )

@@ -3,7 +3,7 @@ import pytest
 from hub.core.utils import s3_creds_exist
 
 
-def test_provider(provider=MemoryProvider()):
+def test_provider(provider=MemoryProvider("abc/def")):
     FILE_1 = "abc.txt"
     FILE_2 = "def.txt"
 
@@ -13,7 +13,7 @@ def test_provider(provider=MemoryProvider()):
 
     provider.__setitem__(FILE_1, b"abcde", 6)
     assert provider[FILE_1] == b"hello abcde"
-    
+
     provider.__setitem__(FILE_1, b"tuvwxyz", 6)
     assert provider[FILE_1] == b"hello tuvwxyz"
 

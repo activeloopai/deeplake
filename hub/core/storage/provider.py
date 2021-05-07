@@ -23,15 +23,16 @@ class Provider(MutableMapping):
             my_data = local_provider("abc.txt")
 
         Args:
-            path (str): the path relative to the root of the provider
+            path (str): the path relative to the root of the provider.
             start_byte (int, optional): If only specific bytes starting from start_byte are required.
             end_byte (int, optional): If only specific bytes upto end_byte are required.
 
         Returns:
-            bytes: The bytes of the object present at the path
+            bytes: The bytes of the object present at the path.
 
         Raises:
-            Exception #TODO Proper
+            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
+            KeyError: If an object is not found at the path.
         """
         check_byte_indexes(start_byte, end_byte)
         return self.mapper[path][slice(start_byte, end_byte)]
@@ -51,9 +52,9 @@ class Provider(MutableMapping):
             local_provider("abc.txt") = b"abcd"
 
         Args:
-            path (str): the path relative to the root of the provider
-            value (bytes): the value to be assigned at the path
-            start_byte (int, optional): If only specific bytes starting from start_byte are to be assigned
+            path (str): the path relative to the root of the provider.
+            value (bytes): the value to be assigned at the path.
+            start_byte (int, optional): If only specific bytes starting from start_byte are to be assigned.
             overwrite (boolean, optional): If the value is True, if there is an object present at the path
                 it is completely overwritten, without fetching it's data.
 
@@ -61,7 +62,7 @@ class Provider(MutableMapping):
             None
 
         Raises:
-            Exception #TODO Proper
+            InvalidBytesRequestedError: If `start_byte` < 0.
         """
         start_byte = start_byte or 0
         end_byte = start_byte + len(value)
@@ -82,7 +83,7 @@ class Provider(MutableMapping):
             self.mapper[path] = value
 
     def __iter__(self):
-        """Generator function that iterates over the provider
+        """Generator function that iterates over the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
@@ -92,10 +93,10 @@ class Provider(MutableMapping):
             None
         
         Yields:
-            bytes: the bytes of the objects that it is iterating over
+            bytes: the bytes of the object that it is iterating over.
         
         Raises:
-            Exception #TODO Proper
+            None
         """
         yield from self.mapper.items()
 
@@ -108,31 +109,31 @@ class Provider(MutableMapping):
             del local_provider("abc.txt")
 
         Args:
-            path (str): the path to the object relative to the root of the provider
+            path (str): the path to the object relative to the root of the provider.
 
         Returns:
             None
 
         Raises:
-            Exception #TODO Proper
+            KeyError: If an object is not found at the path.
         """
         del self.mapper[path]
 
     def __len__(self):
         """
-        Returns the number of files present inside the root of the provider
+        Returns the number of files present inside the root of the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
             len(local_provider)
 
         Args:
-            path (str): the path to the object relative to the root of the provider
+            path (str): the path to the object relative to the root of the provider.
 
         Returns:
-            None
+            int: the number of files present inside the root
 
         Raises:
-            Exception #TODO Proper
+            None
         """
         return len(self.mapper)

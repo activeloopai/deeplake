@@ -3,22 +3,26 @@ import fsspec
 
 
 class MemoryProvider(Provider):
-    def __init__(self):
+    """
+    Provider class for using the memory.
+    """
+
+    def __init__(self, root):
         """
-        Initializes the MemoryProvider
+        Initializes the MemoryProvider.
 
         Example:
-            local_provider = MemoryProvider("/home/ubuntu/Documents/")
+            memory_provider = MemoryProvider("abcd/def")
 
         Args:
-            root (str): the root of the provider
+            root (str): the root of the provider.
 
         Returns:
             None
 
         Raises:
-            Exception #TODO Proper
+            None
         """
         self.mapper = fsspec.filesystem("memory").get_mapper(
-            root="./", check=False, create=False
+            root=root, check=False, create=False
         )
