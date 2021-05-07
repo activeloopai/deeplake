@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Generator, Optional
 
-from hub.core.chunk_engine.exceptions import ChunkGeneratorError
+from hub.util.exceptions import ChunkSizeTooSmallError
 
 
 def generate_chunks(
@@ -35,22 +35,20 @@ def generate_chunks(
         bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
 
     Raises:
-        ChunkGeneratorError: If the provided `chunk_size` is <= 0 or smaller than the amount of bytes in the last chunk.
+        ValueError: If `chunk_size` is <= 0
+        ChunkSizeTooSmallError: If `chunk_size` < `last_chunk_num_bytes`
     """
 
     # validate inputs
     if chunk_size <= 0:
-        raise ChunkGeneratorError("Cannot generate chunks of size <= 0.")
+        raise ValueError("chunk_size must be positive")
     if len(content_bytes) <= 0:
         return
     if last_chunk_num_bytes is None:
         bytes_left_in_last_chunk = 0
     else:
         if chunk_size < last_chunk_num_bytes:
-            raise ChunkGeneratorError(
-                "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
-                % (chunk_size, last_chunk_num_bytes)
-            )
+            raise ChunkSizeTooSmallError()
 
         bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
 
