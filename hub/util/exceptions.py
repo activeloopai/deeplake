@@ -7,7 +7,7 @@ class ChunkSizeTooSmallError(Exception):
 
 
 class InvalidBytesRequestedError(Exception):
-    def __init__(self,):
+    def __init__(self):
         super().__init__(
             "The byte range provided is invalid. Ensure that start_byte <= end_byte and start_byte > 0 and end_byte > 0"
         )

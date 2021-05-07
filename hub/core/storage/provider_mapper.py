@@ -23,7 +23,7 @@ class ProviderMapper(Provider):
         end_byte: Optional[int] = None,
     ):
         """
-        Gets the object present at the path. 
+        Gets the object present at the path.
         Optionally, if the start_byte and/or end_byte arguments are specified, it only returns required bytes
 
         Example:
@@ -99,10 +99,10 @@ class ProviderMapper(Provider):
                 pass
         Args:
             None
-        
+
         Yields:
             bytes: the bytes of the object that it is iterating over.
-        
+
         Raises:
             None
         """
@@ -110,7 +110,7 @@ class ProviderMapper(Provider):
 
     def __delitem__(self, path: str):
         """
-        Delete the object present at the path. 
+        Delete the object present at the path.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")

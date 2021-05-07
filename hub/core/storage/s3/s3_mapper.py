@@ -71,7 +71,7 @@ class S3Mapper(MutableMapping):
 
     def __getitem__(self, path):
         """
-        Gets the object present at the path. 
+        Gets the object present at the path.
 
         Args:
             path (str): the path relative to the root of the mapper.
@@ -85,7 +85,10 @@ class S3Mapper(MutableMapping):
         """
         try:
             path = posixpath.join(self.path, path)
-            resp = self.client.get_object(Bucket=self.bucket, Key=path,)
+            resp = self.client.get_object(
+                Bucket=self.bucket,
+                Key=path,
+            )
             return resp["Body"].read()
         except ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
@@ -96,7 +99,7 @@ class S3Mapper(MutableMapping):
 
     def __delitem__(self, path):
         """
-        Delete the object present at the path. 
+        Delete the object present at the path.
 
         Args:
             path (str): the path to the object relative to the root of the mapper.
@@ -124,7 +127,7 @@ class S3Mapper(MutableMapping):
             list: list of all the objects found at the root of the mapper.
 
         Raises:
-            S3ListError: Any S3 error encountered while listing the objects. 
+            S3ListError: Any S3 error encountered while listing the objects.
         """
         try:
             # TODO boto3 list_objects only returns first 1000 objects
@@ -149,7 +152,7 @@ class S3Mapper(MutableMapping):
             int: the number of files present inside the root
 
         Raises:
-            S3ListError: Any S3 error encountered while listing the objects. 
+            S3ListError: Any S3 error encountered while listing the objects.
         """
         names = self._list_objects()
         return len(names)
@@ -159,13 +162,12 @@ class S3Mapper(MutableMapping):
 
         Args:
             None
-        
+
         Yields:
             str: the name of the object that it is iterating over.
-        
+
         Raises:
             None
         """
         names = self._list_objects()
         yield from names
-
