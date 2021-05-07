@@ -2,11 +2,14 @@ import numpy as np
 
 from hub.core.chunk_engine import read, chunk_and_write_array, MemoryProvider
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.chunk_engine.dummy_util import (
+    MemoryProvider,
+    DummySampleCompression,
+    DummyChunkCompression,
+)
 
 import pytest
 
-dummy_compressor = lambda x: x
-dummy_decompressor = lambda x: x
 
 chunk_size = 4096
 
@@ -36,11 +39,11 @@ FIXED_SIZE = (
 )
 
 
-def run_test(a_in, storage, batched):
+def run_test(a_in, storage, compression, batched):
     chunk_and_write_array(
         a_in,
         "tensor",
-        dummy_compressor,
+        compression,
         chunk_size,
         storage,
         batched=batched,
@@ -61,8 +64,18 @@ def run_test(a_in, storage, batched):
 
 
 @pytest.mark.parametrize("shape,batched", FIXED_SIZE)
-def test_fixed_size(shape, batched):
+def test_fixed_size_chunk_compression(shape, batched):
     storage = MemoryProvider()
+    compression = DummyChunkCompression()
 
     a_in = np.random.uniform(size=shape)
-    run_test(a_in, storage, batched=batched)
+    run_test(a_in, storage, compression, batched=batched)
+
+
+@pytest.mark.parametrize("shape,batched", FIXED_SIZE)
+def test_fixed_size_sample_compression(shape, batched):
+    storage = MemoryProvider()
+    compression = DummySampleCompression()
+
+    a_in = np.random.uniform(size=shape)
+    run_test(a_in, storage, compression, batched=batched)

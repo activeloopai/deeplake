@@ -6,13 +6,13 @@ from typing import Any, Callable, List, Tuple
 
 from hub.core.chunk_engine import generate_chunks
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
-from .write_impl import MemoryProvider
+from .dummy_util import MemoryProvider
 
 
 def chunk_and_write_array(
     array: np.ndarray,
     key: str,
-    compressor: Callable,
+    compression,
     chunk_size: int,
     storage: MemoryProvider,
     batched: bool = False,
@@ -28,20 +28,25 @@ def chunk_and_write_array(
 
     # TODO: validate meta matches tensor meta where it needs to (like dtype or strict-shape)
     # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
-    meta = {"dtype": array.dtype, "length": array.shape[0]}
+    meta = {
+        "dtype": array.dtype,
+        "length": array.shape[0],
+        "compression": compression.__name__,
+    }
 
     index_map = []
     for i in range(array.shape[0]):
         sample = array[i]
-
-        # TODO: if compressor is sample-based ONLY, then we should compress `sample` here & `chunk_and_write_bytes` should not compress
+        if compression.subject == "sample":
+            # do sample-wise compression
+            sample = compression.compress(sample)
 
         # TODO: this can be replaced with hilbert curve or something
         b = array_to_bytes(sample)
         start_chunk, end_chunk = chunk_and_write_bytes(
             b,
             key=key,
-            compressor=compressor,
+            compression=compression,
             chunk_size=chunk_size,
             storage=storage,
         )
@@ -69,7 +74,7 @@ def chunk_and_write_array(
 def chunk_and_write_bytes(
     b: bytes,
     key: str,
-    compressor: Callable,
+    compression,
     chunk_size: int,
     storage: MemoryProvider,
     use_index_map: bool = True,
@@ -92,11 +97,10 @@ def chunk_and_write_bytes(
         # TODO: after previous chunk is fully filled, compress
 
         # TODO: add threshold for compressing (in case user specifies like 10gb chunk_size)
-        if full_chunk:
+        if full_chunk and compression.subject == "chunk":
             # only compress if it is a full chunk
 
-            # TODO: sample-based chunking
-            chunk = compressor(chunk)
+            chunk = compression.compress(chunk)
         else:
             chunk_name += "_incomplete"
 

@@ -4,38 +4,9 @@ import pickle
 
 from hub.core.chunk_engine import generate_chunks
 
+from .dummy_util import MemoryProvider
+
 from typing import Callable, Optional, List
-
-
-# TODO: remove this after abhinav's providers are merged to release/2.0 (this is just copy & pasted from @Abhinav's dev branch)
-class MemoryProvider:
-    def __init__(self):
-        self.mapper = {}
-        self.max_bytes = 4096  # TODO
-
-    def __getitem__(self, path, start_byte=None, end_byte=None):
-        return self.mapper[path][slice(start_byte, end_byte)]
-
-    def __setitem__(self, path, value):
-        self.mapper[path] = value
-
-    def __iter__(self):
-        yield from self.mapper.items()
-
-    def __delitem__(self, path):
-        del self.mapper[path]
-
-    def __len__(self):
-        return len(self.mapper.keys())
-
-    @property
-    def used_space(self):
-        # TODO: this is a slow operation
-        return sum([len(b) for b in self.mapper.values()])
-
-    def has_space(self, num_bytes: int) -> bool:
-        space_left = self.max_bytes - self.used_space
-        return num_bytes <= space_left
 
 
 # TODO change storage type to StorageProvider
