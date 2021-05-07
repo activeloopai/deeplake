@@ -17,7 +17,7 @@ import collections.abc as abc
 from hub.api.datasetview import DatasetView
 from pathos.pools import ProcessPool, ThreadPool
 from hub.schema.sequence import Sequence
-from hub.schema.features import featurify
+from hub.schema.features import featurify, SchemaDict
 import os
 from hub.defaults import OBJECT_CHUNK
 
@@ -144,6 +144,7 @@ class Transform:
         d: dict
         """
         items = []
+        d = d.dict_ if isinstance(d, SchemaDict) else d
         for k, v in d.items():
             new_key = parent_key + "/" + k if parent_key else k
             if isinstance(v, MutableMapping) and not isinstance(
@@ -340,10 +341,7 @@ class Transform:
             return result
 
         ds_in = list(ds_in)
-        results = self.map(
-            _func_argd,
-            ds_in,
-        )
+        results = self.map(_func_argd, ds_in,)
         results = self._unwrap(results)
         results = self.map(lambda x: self._flatten_dict(x, schema=self.schema), results)
         results = list(results)
@@ -362,9 +360,7 @@ class Transform:
         ds_out.append_shape(additional)
 
         self.upload(
-            results,
-            ds_out[offset : offset + n_results],
-            token=token,
+            results, ds_out[offset : offset + n_results], token=token,
         )
 
         return n_results
