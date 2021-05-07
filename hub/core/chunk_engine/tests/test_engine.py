@@ -54,11 +54,11 @@ def run_test(a_in, storage, compression, batched):
 
     # TODO:
     """
-    a_out = read("tensor", dummy_decompressor, storage)
+    a_out = read("tensor", storage)
 
     # writing implicitly normalizes/batchifies shape
     a_in = normalize_and_batchify_shape(a_in, batched=batched)
-    print(a_in.shape, a_out.shape, batched)
+    # print(a_in.shape, a_out.shape, batched)
     np.testing.assert_array_equal(a_in, a_out)
     """
 

@@ -34,6 +34,13 @@ class DummyChunkCompression:
         return x
 
 
+# TODO: obviously this is terrible...
+dummy_compression_map = {
+    DummySampleCompression().__name__: DummySampleCompression,
+    DummyChunkCompression().__name__: DummyChunkCompression,
+}
+
+
 # TODO: remove this after abhinav's providers are merged to release/2.0 (this is just copy & pasted from @Abhinav's dev branch)
 class MemoryProvider:
     def __init__(self):

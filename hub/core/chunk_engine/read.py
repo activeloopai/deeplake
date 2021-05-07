@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 
 from .write import MemoryProvider
+from .dummy_util import dummy_compression_map
 
 from typing import Callable, List
 
@@ -10,7 +11,6 @@ from typing import Callable, List
 # TODO: read with slice
 def read(
     key: str,
-    decompressor: Callable,
     storage: MemoryProvider,
 ) -> np.ndarray:
     """
@@ -25,6 +25,7 @@ def read(
     meta_key = os.path.join(key, "meta.json")
     meta = pickle.loads(storage[meta_key])
 
+    compression = dummy_compression_map[meta["compression"]]
     dtype = meta["dtype"]
     length = meta["length"]
 
@@ -47,8 +48,10 @@ def read(
             chunk_key = os.path.join(key, ("c%i" % chunk_index))
 
             chunk = storage[chunk_key]
+
             # TODO: check if chunk is compressed (if it's incomplete this is likely)
-            decompressed_chunk = decompressor(chunk)
+            # TODO: different `meta["version"]`s may have different compressor maps
+            decompressed_chunk = compression.decompress(chunk)
 
             b.extend(decompressed_chunk)
 
