@@ -1,6 +1,6 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 import pytest
-from hub.core.utils import s3_creds_exist
+from hub.util.check_s3_creds import s3_creds_exist
 
 
 def test_provider(provider=MemoryProvider("abc/def")):

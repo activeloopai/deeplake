@@ -1,6 +1,6 @@
 from collections.abc import MutableMapping
 from typing import Optional
-from hub.core.storage.utils import assert_byte_indexes
+from hub.util.assert_byte_indexes import assert_byte_indexes
 from hub.constants import BYTE_PADDING
 from hub.core.storage.provider import Provider
 
