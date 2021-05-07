@@ -8,6 +8,10 @@ from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListE
 
 
 class S3Mapper(MutableMapping):
+    """
+    An s3 mapper built using boto3. For internal use only (by class S3Provider)
+    """
+
     def __init__(
         self,
         url: str,

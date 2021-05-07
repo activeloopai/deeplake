@@ -1,9 +1,9 @@
 from typing import Optional
-from hub.core.storage.provider import Provider
+from hub.core.storage.provider_mapper import ProviderMapper
 from hub.core.storage.s3.s3_mapper import S3Mapper
 
 
-class S3Provider(Provider):
+class S3Provider(ProviderMapper):
     """
     Provider class for using S3 storage.
     """
@@ -25,11 +25,12 @@ class S3Provider(Provider):
             s3_provider = S3Provider("snark-test/benchmarks")
 
         Args:
-            root (str): the root of the provider.
+            root (str): The root of the provider. All read/write request keys will be appended to root.
             aws_access_key_id (optional, str): Specifies the AWS access key used as part of the credentials to authenticate the user.
             aws_secret_access_key (optional, str): Specifies the AWS secret key used as part of the credentials to authenticate the user.
             aws_session_token (optional, str): Specifies an AWS session token used as part of the credentials to authenticate the user.
-            endpoint_url (optional, str): Specify the endpoint url
+            endpoint_url (optional, str): The complete URL to use for the constructed client.
+                This needs to be provided for cases in which you're interacting with MinIO, Wasabi, etc.
             aws_region (optional, str): Specifies the AWS Region to send requests to.
             max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.

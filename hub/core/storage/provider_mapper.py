@@ -2,17 +2,20 @@ from collections.abc import MutableMapping
 from typing import Optional
 from hub.core.storage.utils import assert_byte_indexes
 from hub.constants import BYTE_PADDING
-from abc import ABC, abstractmethod
+from hub.core.storage.provider import Provider
 
 
-class Provider(ABC, MutableMapping):
+class ProviderMapper(Provider):
     """
-    An abstract base class for implementing a provider.
-    To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
-    Alternatively, you can inherit from ProviderMapper and have a simpler implementation.
+    A subclass of Provider. This uses a mapper to implement all the methods.
+    To add a new provider using ProviderMapper:-
+    - Create a subclass of this class
+    - Assign an object of type MutableMap to self.mapper in __init__.
     """
 
-    @abstractmethod
+    def __init__(self):
+        self.mapper = {}
+
     def __getitem__(
         self,
         path: str,
@@ -39,9 +42,9 @@ class Provider(ABC, MutableMapping):
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
         """
-        pass
+        assert_byte_indexes(start_byte, end_byte)
+        return self.mapper[path][slice(start_byte, end_byte)]
 
-    @abstractmethod
     def __setitem__(
         self,
         path: str,
@@ -69,9 +72,24 @@ class Provider(ABC, MutableMapping):
         Raises:
             InvalidBytesRequestedError: If `start_byte` < 0.
         """
-        pass
+        start_byte = start_byte or 0
+        end_byte = start_byte + len(value)
+        assert_byte_indexes(start_byte, end_byte)
+        # file already exists and doesn't need to be overwritten
+        if path in self.mapper and not overwrite:
+            current_value = bytearray(self.mapper[path])
+            # need to pad with zeros at the end to write extra bytes
+            if end_byte > len(current_value):
+                current_value = current_value.ljust(end_byte, BYTE_PADDING)
+            current_value[start_byte:end_byte] = value
+            self.mapper[path] = current_value
+        # file doesn't exist or needs to be overwritten completely
+        else:
+            # need to pad with zeros at the start to write from an offset
+            if start_byte != 0:
+                value = value.rjust(end_byte, BYTE_PADDING)
+            self.mapper[path] = value
 
-    @abstractmethod
     def __iter__(self):
         """Generator function that iterates over the provider.
 
@@ -88,9 +106,8 @@ class Provider(ABC, MutableMapping):
         Raises:
             None
         """
-        pass
+        yield from self.mapper.items()
 
-    @abstractmethod
     def __delitem__(self, path: str):
         """
         Delete the object present at the path. 
@@ -108,9 +125,8 @@ class Provider(ABC, MutableMapping):
         Raises:
             KeyError: If an object is not found at the path.
         """
-        pass
+        del self.mapper[path]
 
-    @abstractmethod
     def __len__(self):
         """
         Returns the number of files present inside the root of the provider.
@@ -128,4 +144,4 @@ class Provider(ABC, MutableMapping):
         Raises:
             None
         """
-        pass
+        return len(self.mapper)

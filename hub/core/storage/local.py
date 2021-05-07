@@ -1,8 +1,8 @@
-from hub.core.storage.provider import Provider
+from hub.core.storage.provider_mapper import ProviderMapper
 import fsspec
 
 
-class LocalProvider(Provider):
+class LocalProvider(ProviderMapper):
     """
     Provider class for using the local filesystem.
     """
@@ -15,7 +15,7 @@ class LocalProvider(Provider):
             local_provider = LocalProvider("/home/ubuntu/Documents/")
 
         Args:
-            root (str): the root of the provider.
+            root (str): The root of the provider. All read/write request keys will be appended to root."
 
         Returns:
             None

@@ -1,7 +1,7 @@
 from hub.util.exceptions import InvalidBytesRequestedError
 
 
-def check_byte_indexes(start_byte, end_byte):
+def assert_byte_indexes(start_byte, end_byte):
     """
     Checks the bytes passed to it, to see if they are valid.
 

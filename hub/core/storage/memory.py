@@ -1,8 +1,8 @@
-from hub.core.storage.provider import Provider
+from hub.core.storage.provider_mapper import ProviderMapper
 import fsspec
 
 
-class MemoryProvider(Provider):
+class MemoryProvider(ProviderMapper):
     """
     Provider class for using the memory.
     """
@@ -15,7 +15,7 @@ class MemoryProvider(Provider):
             memory_provider = MemoryProvider("abcd/def")
 
         Args:
-            root (str): the root of the provider.
+            root (str): The root of the provider. All read/write request keys will be appended to root.
 
         Returns:
             None
