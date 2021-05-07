@@ -8,8 +8,6 @@ from hub.core.chunk_engine import generate_chunks
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 from .write_impl import MemoryProvider
 
-from .storage_chain import write_bytes_with_caching, write_to_storage, flush_cache
-
 
 def chunk_and_write_array(
     array: np.ndarray,
@@ -17,12 +15,13 @@ def chunk_and_write_array(
     compressor: Callable,
     chunk_size: int,
     storage: MemoryProvider,
-    cache_chain: List[MemoryProvider] = [],
     batched: bool = False,
 ):
     """
-    Chunk, cache, & write array to `storage`.
+    Chunk, & write array to `storage`.
     """
+
+    # TODO: for most efficiency, we should try to use `batched` as often as possible.
 
     # TODO: validate array shape (no 0s in shape)
     array = normalize_and_batchify_shape(array, batched=batched)
@@ -45,7 +44,6 @@ def chunk_and_write_array(
             compressor=compressor,
             chunk_size=chunk_size,
             storage=storage,
-            cache_chain=cache_chain,
         )
 
         # TODO: keep track of `sample.shape` over time & add the max_shape:min_shape interval into meta.json for easy queries
@@ -60,14 +58,12 @@ def chunk_and_write_array(
         )
 
     # TODO: don't use pickle for index_map/meta
-
-    # TODO: chunk index_map (& add to the previous chunk until full)
-    # TODO: make note of this in docstring: no need to cache index_map. for most efficiency, we should try to use `batched` as often as possible.
+    # TODO: chunk index_map
     index_map_key = os.path.join(key, "index_map")
-    write_to_storage(index_map_key, pickle.dumps(index_map), storage)
+    storage[index_map_key] = pickle.dumps(index_map)
 
     meta_key = os.path.join(key, "meta.json")
-    write_to_storage(meta_key, pickle.dumps(meta), storage)
+    storage[meta_key] = pickle.dumps(meta)
 
 
 def chunk_and_write_bytes(
@@ -76,11 +72,10 @@ def chunk_and_write_bytes(
     compressor: Callable,
     chunk_size: int,
     storage: MemoryProvider,
-    cache_chain: List[MemoryProvider] = [],
     use_index_map: bool = True,
 ) -> Tuple[int, int]:
     """
-    Chunk, cache, & write bytes to `storage`.
+    Chunk, & write bytes to `storage`.
     """
 
     bllc = 0  # TODO
@@ -106,10 +101,7 @@ def chunk_and_write_bytes(
             chunk_name += "_incomplete"
 
         chunk_key = os.path.join(key, chunk_name)
-        write_bytes_with_caching(chunk_key, chunk, cache_chain, storage)
-
-    # TODO: handle incomplete chunk if one exists
-    flush_cache(cache_chain, storage)
+        storage[chunk_key] = chunk
 
     # TODO global start/end chunk instead of local
     start_chunk = 0
