@@ -35,6 +35,8 @@ def chunk_and_write_array(
     for i in range(array.shape[0]):
         sample = array[i]
 
+        # TODO: if compressor is sample-based ONLY, then we should compress `sample` here & `chunk_and_write_bytes` should not compress
+
         # TODO: this can be replaced with hilbert curve or something
         b = array_to_bytes(sample)
         start_chunk, end_chunk = chunk_and_write_bytes(
@@ -94,8 +96,11 @@ def chunk_and_write_bytes(
         # TODO: fill previous chunk if it is incomplete
         # TODO: after previous chunk is fully filled, compress
 
+        # TODO: add threshold for compressing (in case user specifies like 10gb chunk_size)
         if full_chunk:
             # only compress if it is a full chunk
+
+            # TODO: sample-based chunking
             chunk = compressor(chunk)
         else:
             chunk_name += "_incomplete"

@@ -1,4 +1,5 @@
 # TODO: merge cache_chain -> storage_chain. we can merge them to reduce params
+# TODO: create class to handle this merge, also the class should be moved from `chunk_engine/` to `storage/`
 
 
 def write_bytes_with_caching(key, b, cache_chain, storage):
@@ -44,4 +45,4 @@ def flush_cache(cache_chain, storage):
         for key in keys:
             del cache[key]
 
-        # TODO: test flushing to make surec cache.used_space will return 0
+        # TODO: test flushing to make sure cache.used_space will return 0
