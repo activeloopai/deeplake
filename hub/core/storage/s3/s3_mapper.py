@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 from typing import Optional
 
 
-class S3BotoStorage(MutableMapping):
+class S3Mapper(MutableMapping):
     def __init__(
         self,
         url: str,
@@ -18,7 +18,6 @@ class S3BotoStorage(MutableMapping):
         parallel: Optional[int] = 25,
     ):
         self.url = url
-        self.parallel = parallel
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
 
@@ -86,6 +85,5 @@ class S3BotoStorage(MutableMapping):
 
     def __iter__(self):
         names = self._list_objects()
-        for name in names:
-            yield (name, self[name])
+        yield from names
 

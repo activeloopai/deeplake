@@ -1,9 +1,9 @@
 from hub.core.storage.provider import Provider
-from hub.core.storage.s3.s3_boto_storage import S3BotoStorage
+from hub.core.storage.s3.s3_mapper import S3Mapper
 from typing import Optional
 
 
-class S3BotoProvider(Provider):
+class S3Provider(Provider):
     def __init__(
         self,
         root: str,
@@ -14,7 +14,7 @@ class S3BotoProvider(Provider):
         aws_region: Optional[int] = None,
     ):
         # passing no creds, would cause boto to read credentials
-        self.mapper = S3BotoStorage(
+        self.mapper = S3Mapper(
             root,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
@@ -22,9 +22,3 @@ class S3BotoProvider(Provider):
             aws_region=aws_region,
             endpoint_url=endpoint_url,
         )
-
-    def __iter__(self):
-        yield from self.mapper.__iter__()
-
-    def __len__(self):
-        return len(self.mapper)

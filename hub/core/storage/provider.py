@@ -1,6 +1,7 @@
 from collections.abc import MutableMapping
 from typing import Optional
 from hub.core.storage.utils import check_byte_indexes
+from hub.constants import BYTE_PADDING
 
 
 class Provider(MutableMapping):
@@ -70,18 +71,14 @@ class Provider(MutableMapping):
             current_value = bytearray(self.mapper[path])
             # need to pad with zeros at the end to write extra bytes
             if end_byte > len(current_value):
-                current_value = current_value.ljust(end_byte, b"\0")
+                current_value = current_value.ljust(end_byte, BYTE_PADDING)
             current_value[start_byte:end_byte] = value
             self.mapper[path] = current_value
         # file doesn't exist or needs to be overwritten completely
         else:
-            start_byte = start_byte or 0
-            end_byte = end_byte or len(value)
-            check_byte_indexes(start_byte, end_byte)
-
             # need to pad with zeros at the start to write from an offset
             if start_byte != 0:
-                value = value.rjust(end_byte, b"\0")
+                value = value.rjust(end_byte, BYTE_PADDING)
             self.mapper[path] = value
 
     def __iter__(self):
