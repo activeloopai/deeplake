@@ -57,12 +57,12 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
     """
 
     actual_chunks: List[bytearray] = []
-    last_chunk_num_bytes: Optional[int] = None
+    bytes_left_in_last_chunk: int = 0
     for bytes_object in bytes_batch:
         for chunk_bytes in generate_chunks(
             bytes_object,
             chunk_size,
-            last_chunk_num_bytes=last_chunk_num_bytes,
+            bytes_left_in_last_chunk=bytes_left_in_last_chunk,
         ):
             chunk = bytearray(chunk_bytes)
 
@@ -72,6 +72,6 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
             else:
                 actual_chunks[-1].extend(chunk)
 
-            last_chunk_num_bytes = len(chunk)
+            bytes_left_in_last_chunk = chunk_size - len(chunk)
 
     assert actual_chunks == expected_chunks

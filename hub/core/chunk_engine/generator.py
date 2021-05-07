@@ -7,7 +7,7 @@ from hub.core.chunk_engine.exceptions import ChunkGeneratorError
 def generate_chunks(
     content_bytes: bytes,
     chunk_size: int,
-    last_chunk_num_bytes: Optional[int] = None,
+    bytes_left_in_last_chunk: int = 0,
 ) -> Generator[bytes, None, None]:
     """
     Generator function that chunks bytes.
@@ -27,8 +27,8 @@ def generate_chunks(
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
-        last_chunk_bytes (int, optional): If chunks were created already, `last_chunk_bytes`
-            should be set to the length of the last chunk created. This is so the generator's
+        bytes_left_in_last_chunk (int): If chunks were created already, `bytes_left_in_last_chunk`
+            should be set to the `chunk_size - len(last_chunk)`. This is so the generator's
             first output will be enough bytes to fill that chunk up to `chunk_size`.
 
     Yields:
@@ -43,16 +43,8 @@ def generate_chunks(
         raise ChunkGeneratorError("Cannot generate chunks of size <= 0.")
     if len(content_bytes) <= 0:
         return
-    if last_chunk_num_bytes is None:
-        bytes_left_in_last_chunk = 0
-    else:
-        if chunk_size < last_chunk_num_bytes:
-            raise ChunkGeneratorError(
-                "The provided `chunk_size` should be >= the number of bytes in the last chunk (%i < %i)."
-                % (chunk_size, last_chunk_num_bytes)
-            )
-
-        bytes_left_in_last_chunk = chunk_size - last_chunk_num_bytes
+    if bytes_left_in_last_chunk < 0:
+        raise ValueError("Bytes left in last chunk must be >= 0.")
 
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
