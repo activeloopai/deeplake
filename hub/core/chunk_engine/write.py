@@ -7,6 +7,8 @@ from typing import Any, Callable, List, Tuple
 from hub.core.chunk_engine import generate_chunks
 
 from .meta import has_meta, get_meta, set_meta, default_meta
+from .index_map import has_index_map, get_index_map, set_index_map, default_index_map
+
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 from .dummy_util import MemoryProvider
 
@@ -58,7 +60,11 @@ def chunk_and_write_array(
     # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
 
     local_chunk_index = 0
-    index_map = []
+
+    if has_index_map(key, storage):
+        index_map = get_index_map(key, storage)
+    else:
+        index_map = default_index_map()
 
     for i in range(array.shape[0]):
         sample = array[i]
@@ -119,10 +125,8 @@ def chunk_and_write_array(
             }
         )
 
-    # TODO: don't use pickle for index_map/meta
     # TODO: chunk index_map
-    index_map_key = os.path.join(key, "index_map")
-    storage[index_map_key] = pickle.dumps(index_map)
+    set_index_map(key, storage, index_map)
 
     # update meta after everything is done
     set_meta(key, storage, meta)

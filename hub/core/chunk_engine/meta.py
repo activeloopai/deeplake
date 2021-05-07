@@ -25,7 +25,7 @@ def has_meta(key, storage):
 @meta_func
 def get_meta(key, storage):
     # TODO: don't use pickle
-    return pickle.loads(storage[meta_key])
+    return pickle.loads(storage[key])
 
 
 @meta_func

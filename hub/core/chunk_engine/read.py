@@ -5,6 +5,9 @@ import numpy as np
 from .write import MemoryProvider
 from .dummy_util import dummy_compression_map
 
+from .meta import get_meta
+from .index_map import get_index_map
+
 from typing import Callable, List
 
 # TODO change storage type to StorageProvider
@@ -17,13 +20,8 @@ def read(
     array <- bytes <- decompressor <- chunks <- storage
     """
 
-    # TODO: don't use pickle
-    index_map_key = os.path.join(key, "index_map")
-    index_map = pickle.loads(storage[index_map_key])
-
-    # TODO: don't use pickle
-    meta_key = os.path.join(key, "meta.json")
-    meta = pickle.loads(storage[meta_key])
+    meta = get_meta(key, storage)
+    index_map = get_index_map(key, storage)
 
     compression = dummy_compression_map[meta["compression"]]
     dtype = meta["dtype"]
