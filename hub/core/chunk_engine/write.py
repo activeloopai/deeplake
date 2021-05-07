@@ -11,24 +11,7 @@ from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchi
 from .dummy_util import MemoryProvider
 
 
-def chunk_and_write_array(
-    array: np.ndarray,
-    key: str,
-    compression,
-    chunk_size: int,
-    storage: MemoryProvider,
-    batched: bool = False,
-):
-    """
-    Chunk, & write array to `storage`.
-    """
-
-    # TODO: for most efficiency, we should try to use `batched` as often as possible.
-
-    # TODO: validate array shape (no 0s in shape)
-    array = normalize_and_batchify_shape(array, batched=batched)
-
-    # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
+def get_and_validate_meta(key, storage, array, compression):
     if has_meta(key, storage):
         meta = get_meta(key, storage)
 
@@ -49,6 +32,30 @@ def chunk_and_write_array(
                 "compression": compression.__name__,
             }
         )
+
+    return meta
+
+
+def chunk_and_write_array(
+    array: np.ndarray,
+    key: str,
+    compression,
+    chunk_size: int,
+    storage: MemoryProvider,
+    batched: bool = False,
+):
+    """
+    Chunk, & write array to `storage`.
+    """
+
+    # TODO: for most efficiency, we should try to use `batched` as often as possible.
+
+    # TODO: validate array shape (no 0s in shape)
+    array = normalize_and_batchify_shape(array, batched=batched)
+
+    meta = get_and_validate_meta(key, storage, array, compression)
+
+    # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
 
     local_chunk_index = 0
     index_map = []
