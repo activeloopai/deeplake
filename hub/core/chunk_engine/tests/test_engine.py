@@ -11,7 +11,7 @@ from hub.core.chunk_engine.dummy_util import (
 import pytest
 
 
-chunk_size = 4096
+chunk_size = 16000000
 
 
 # shape,batched
@@ -53,14 +53,12 @@ def run_test(a_in, storage, compression, batched):
     # more than 1 per tensor it can get inefficient
 
     # TODO:
-    """
     a_out = read("tensor", storage)
 
     # writing implicitly normalizes/batchifies shape
     a_in = normalize_and_batchify_shape(a_in, batched=batched)
     # print(a_in.shape, a_out.shape, batched)
     np.testing.assert_array_equal(a_in, a_out)
-    """
 
 
 @pytest.mark.parametrize("shape,batched", FIXED_SIZE)

@@ -34,26 +34,34 @@ def read(
     last_shape = None
     for index in range(length):
         index_entry = index_map[index]
+
         # TODO: decode from array instead of dictionary
-        start_chunk = index_entry["start_chunk"]
-        end_chunk = index_entry["end_chunk"]
+        chunk_names = index_entry["chunk_names"]
+        print(chunk_names)
+        incomplete_chunk_names = index_entry["incomplete_chunk_names"]
         shape = index_entry["shape"]
+        start_byte, end_byte = index_entry["start_byte"], index_entry["end_byte"]
 
         # TODO: make this more concise
         if last_shape is not None and last_shape != shape:
             all_same_shape = False
 
         b = bytearray()
-        for chunk_index in range(start_chunk, end_chunk + 1):
-            chunk_key = os.path.join(key, ("c%i" % chunk_index))
+        for chunk_name in chunk_names:
+            chunk_key = os.path.join(key, chunk_name)
 
-            chunk = storage[chunk_key]
+            raw_chunk = storage[chunk_key]
 
-            # TODO: check if chunk is compressed (if it's incomplete this is likely)
-            # TODO: different `meta["version"]`s may have different compressor maps
-            decompressed_chunk = compression.decompress(chunk)
+            if compression.subject == "chunk":
+                if chunk_name in incomplete_chunk_names:
+                    chunk = raw_chunk
+                else:
+                    # TODO: different `meta["version"]`s may have different compressor maps
+                    chunk = compression.decompress(raw_chunk)
+            else:
+                chunk = raw_chunk
 
-            b.extend(decompressed_chunk)
+            b.extend(chunk[start_byte:end_byte])
 
         a = np.frombuffer(b, dtype=dtype)
         last_shape = shape

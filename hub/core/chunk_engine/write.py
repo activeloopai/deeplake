@@ -50,7 +50,9 @@ def chunk_and_write_array(
             }
         )
 
+    local_chunk_index = 0
     index_map = []
+
     for i in range(array.shape[0]):
         sample = array[i]
         if compression.subject == "sample":
@@ -62,11 +64,13 @@ def chunk_and_write_array(
 
         """chunk & write bytes"""
         bllc = 0  # TODO
+        start_byte = 0  # TODO
         chunk_gen = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
         chunk_names = []
         incomplete_chunk_names = []
+        end_byte = None
 
-        for local_chunk_index, chunk in enumerate(chunk_gen):
+        for chunk in chunk_gen:
             # TODO: chunk_name should be based on `global_chunk_index`
             chunk_name = "c%i" % local_chunk_index
 
@@ -77,13 +81,18 @@ def chunk_and_write_array(
 
                 if len(chunk) >= chunk_size:
                     # only compress if it is a full chunk
+                    end_byte = len(chunk)  # end byte is based on the uncompressed chunk
                     chunk = compression.compress(chunk)
                 else:
                     incomplete_chunk_names.append(chunk_name)
+                    end_byte = len(chunk)
 
             chunk_names.append(chunk_name)
             chunk_key = os.path.join(key, chunk_name)
             storage[chunk_key] = chunk
+
+            local_chunk_index += 1
+
         """"""
 
         # TODO: make note of incomplete chunks
@@ -97,6 +106,8 @@ def chunk_and_write_array(
             {
                 "chunk_names": chunk_names,
                 "incomplete_chunk_names": incomplete_chunk_names,
+                "start_byte": start_byte,
+                "end_byte": end_byte,
                 "shape": sample.shape,  # shape per sample for dynamic tensors (if strictly fixed-size, store this in meta)
             }
         )
