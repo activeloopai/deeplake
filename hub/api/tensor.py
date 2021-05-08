@@ -23,11 +23,13 @@ class Tensor:
         """Return the length of the primary axis"""
         return self.shape[0]
 
-    def __getitem__(self, tensor_slice: Union[int, slice]):
+    def __getitem__(self, item: Union[int, slice]):
         if isinstance(item, int):
             item = slice(item, item + 1)
-        new_slice = merge_slices(self.slice, tensor_slice)
-        return Tensor(self.uuid, new_slice)
+
+        if isinstance(item, slice):
+            new_slice = merge_slices(self.slice, item)
+            return Tensor(self.uuid, new_slice)
 
     def __iter__(self):
         for i in range(len(self)):

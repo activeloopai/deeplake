@@ -1,3 +1,6 @@
+from typing import Any
+
+
 class ChunkSizeTooSmallError(Exception):
     def __init__(
         self,
@@ -14,7 +17,7 @@ class TensorNotFoundError(KeyError):
 
 
 class InvalidKeyTypeError(TypeError):
-    def __init__(self, item):
+    def __init__(self, item: Any):
         super().__init__(
             "Item {} is of type {} is not a valid key".format(
                 str(item), type(item).__name__
@@ -23,7 +26,7 @@ class InvalidKeyTypeError(TypeError):
 
 
 class UnsupportedTensorTypeError(TypeError):
-    def __init__(self, item):
+    def __init__(self, item: Any):
         super().__init__(
             "Key of type {} is not currently supported to convert to a tensor.".format(
                 type(item).__name__
