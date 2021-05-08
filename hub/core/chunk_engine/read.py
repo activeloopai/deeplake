@@ -12,8 +12,9 @@ from typing import Callable, List
 
 # TODO change storage type to StorageProvider
 # TODO: read with slice
-def read(
+def read_sample(
     key: str,
+    index: int,
     storage: MemoryProvider,
 ) -> np.ndarray:
     """
@@ -21,6 +22,8 @@ def read(
     """
 
     meta = get_meta(key, storage)
+
+    # TODO: don't get entire index_map, instead read entries
     index_map = get_index_map(key, storage)
 
     compression = dummy_compression_map[meta["compression"]]
@@ -30,12 +33,12 @@ def read(
     samples = []
     all_same_shape = True
     last_shape = None
+
     for index in range(length):
         index_entry = index_map[index]
 
         # TODO: decode from array instead of dictionary
         chunk_names = index_entry["chunk_names"]
-        print(chunk_names)
         incomplete_chunk_names = index_entry["incomplete_chunk_names"]
         shape = index_entry["shape"]
         start_byte, end_byte = index_entry["start_byte"], index_entry["end_byte"]

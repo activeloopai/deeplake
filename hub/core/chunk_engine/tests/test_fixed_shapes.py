@@ -1,0 +1,78 @@
+import pytest
+
+import numpy as np
+
+from hub.core.chunk_engine.dummy_util import (
+    MemoryProvider,
+    DummySampleCompression,
+    DummyChunkCompression,
+)
+
+from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
+
+
+# number of batches (unbatched implicitly = 1 sample per batch) per test for all FIXED_SIZE tests
+NUM_BATCHES_FIXED_SHAPES = (
+    1,
+    5,
+)
+
+
+UNBATCHED_FIXED_SHAPES = (
+    (1,),
+    (100,),
+    (100, 100),
+    (100, 100, 3),
+    (3, 100, 100),
+    (3, 100, 100, 1),
+)
+
+
+BATCHED_FIXED_SHAPES = (
+    (1, 1),
+    (10, 1),
+    (1, 100),
+    (10, 100),
+    (1, 100, 100),
+    (10, 100, 100),
+    (1, 100, 100, 3),
+    (10, 100, 100, 3),
+    (1, 3, 100, 100),
+    (10, 3, 100, 100),
+    (1, 3, 100, 100, 1),
+    (10, 3, 100, 100, 1),
+)
+
+
+@pytest.mark.parametrize("shape", UNBATCHED_FIXED_SHAPES)
+@pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
+@pytest.mark.parametrize("num_batches", NUM_BATCHES_FIXED_SHAPES)
+def test_unbatched(shape, chunk_size, num_batches):
+    """
+    Samples have FIXED shapes (must have the same shapes).
+    Samples are provided WITHOUT a batch axis.
+    """
+
+    storage = MemoryProvider()
+    compression = DummyChunkCompression()
+
+    arrays = [np.random.uniform(size=shape) for _ in range(num_batches)]
+
+    run_engine_test(arrays, storage, compression, batched=False, chunk_size=chunk_size)
+
+
+@pytest.mark.parametrize("shape", BATCHED_FIXED_SHAPES)
+@pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
+@pytest.mark.parametrize("num_batches", NUM_BATCHES_FIXED_SHAPES)
+def test_batched(shape, chunk_size, num_batches):
+    """
+    Samples have FIXED shapes (must have the same shapes).
+    Samples are provided WITH a batch axis.
+    """
+
+    storage = MemoryProvider()
+    compression = DummyChunkCompression()
+
+    arrays = [np.random.uniform(size=shape) for _ in range(num_batches)]
+
+    run_engine_test(arrays, storage, compression, batched=True, chunk_size=chunk_size)

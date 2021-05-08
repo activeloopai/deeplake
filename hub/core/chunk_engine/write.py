@@ -61,6 +61,7 @@ def chunk_and_write_array(
 
     local_chunk_index = 0
 
+    # TODO: move into function:
     if has_index_map(key, storage):
         index_map = get_index_map(key, storage)
     else:
