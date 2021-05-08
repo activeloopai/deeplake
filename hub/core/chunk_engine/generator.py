@@ -1,7 +1,7 @@
 import numpy as np
 from typing import Generator, Optional
 
-from hub.core.chunk_engine.exceptions import ChunkGeneratorError
+from hub.util.exceptions import ChunkSizeTooSmallError
 
 
 def generate_chunks(
@@ -9,8 +9,7 @@ def generate_chunks(
     chunk_size: int,
     bytes_left_in_last_chunk: int = 0,
 ) -> Generator[bytes, None, None]:
-    """
-    Generator function that chunks bytes.
+    """Generator function that chunks bytes.
 
     Chunking is the process of taking the input `content_bytes` & breaking it up into a sequence of smaller bytes called "chunks".
     The sizes of each chunk are <= `chunk_size`.
@@ -35,16 +34,17 @@ def generate_chunks(
         bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
 
     Raises:
-        ChunkGeneratorError: If the provided `chunk_size` is <= 0 or smaller than the amount of bytes in the last chunk.
+        ValueError: If `chunk_size` is <= 0
+        ChunkSizeTooSmallError: If `chunk_size` < `last_chunk_num_bytes`
     """
 
     # validate inputs
     if chunk_size <= 0:
-        raise ChunkGeneratorError("Cannot generate chunks of size <= 0.")
-    if len(content_bytes) <= 0:
-        return
+        raise ChunkSizeTooSmallError()
     if bytes_left_in_last_chunk < 0:
         raise ValueError("Bytes left in last chunk must be >= 0.")
+    if len(content_bytes) <= 0:
+        return
 
     # yield the remainder of the last chunk (provided as `last_chunk_num_bytes`)
     total_bytes_yielded = 0
