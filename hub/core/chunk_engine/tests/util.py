@@ -31,4 +31,5 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         # writing implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
         # print(a_in.shape, a_out.shape, batched)
-        np.testing.assert_array_equal(a_in, a_out)
+
+        assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
