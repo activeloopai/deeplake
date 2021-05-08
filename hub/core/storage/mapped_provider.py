@@ -31,7 +31,7 @@ class MappedProvider(Provider):
         Args:
             path (str): The path relative to the root of the provider.
             start_byte (int, optional): If only specific bytes starting from start_byte are required.
-            end_byte (int, optional): If only specific bytes upto end_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
 
         Returns:
             bytes: The bytes of the object present at the path within the given byte range.
