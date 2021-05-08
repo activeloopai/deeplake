@@ -11,24 +11,17 @@ from hub.core.chunk_engine.dummy_util import (
 from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
 
 
-UNBATCHED_DYNAMIC_SHAPES = (
+UNBATCHED_SHAPES = (
     [(1,), (2,), (3,)],
-    [(3,), (2,), (1,)],
     [(100,), (99,), (1000,)],
     [(100, 100), (1, 1), (200, 200), (50, 50)],
-    [(100, 100, 3), (100, 100, 1), (100, 100, 3), (10, 10, 1), (10, 10, 3)],
-    [(3, 100, 100), (1, 100, 100), (3, 100, 100), (1, 10, 10), (3, 10, 10)],
     [(3, 100, 100, 1), (3, 100, 100, 1), (3, 100, 100, 1), (3, 100, 100, 2)],
 )
 
 
-BATCHED_DYNAMIC_SHAPES = (
+BATCHED_SHAPES = (
     [(1, 1), (1, 2), (1, 3)],
-    [(1, 1), (2, 2), (3, 3)],
-    [(1, 3), (1, 2), (1, 1)],
     [(3, 3), (2, 2), (1, 1)],
-    [(1, 100), (2, 99), (3, 1000)],
-    [(3, 100), (2, 99), (1, 1000)],
     [
         (10, 3, 100, 100, 1),
         (1, 3, 100, 100, 1),
@@ -38,7 +31,7 @@ BATCHED_DYNAMIC_SHAPES = (
 )
 
 
-@pytest.mark.parametrize("shapes", UNBATCHED_DYNAMIC_SHAPES)
+@pytest.mark.parametrize("shapes", UNBATCHED_SHAPES)
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 def test_unbatched(shapes, chunk_size):
     """
@@ -54,7 +47,7 @@ def test_unbatched(shapes, chunk_size):
     run_engine_test(arrays, storage, compression, batched=False, chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize("shapes", BATCHED_DYNAMIC_SHAPES)
+@pytest.mark.parametrize("shapes", BATCHED_SHAPES)
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 def test_batched(shapes, chunk_size):
     """
