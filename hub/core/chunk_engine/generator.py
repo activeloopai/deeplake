@@ -8,8 +8,7 @@ def generate_chunks(
     chunk_size: int,
     last_chunk_num_bytes: Optional[int] = None,
 ) -> Generator[bytes, None, None]:
-    """
-    Generator function that chunks some `content_bytes` into a sequence of
+    """Generator function that chunks some `content_bytes` into a sequence of
     smaller bytes of size <= `chunk_size`
 
     Example:
