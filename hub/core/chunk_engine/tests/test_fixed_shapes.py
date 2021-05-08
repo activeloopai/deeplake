@@ -11,6 +11,9 @@ from hub.core.chunk_engine.dummy_util import (
 from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
 
 
+# TODO: add failure tests (where shape differs)
+
+
 # number of batches (unbatched implicitly = 1 sample per batch) per test
 NUM_BATCHES = (
     1,

@@ -11,6 +11,9 @@ from hub.core.chunk_engine.dummy_util import (
 from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
 
 
+# TODO: add failure tests (where len(shape) differs)
+
+
 UNBATCHED_SHAPES = (
     [(1,), (2,), (3,)],
     [(100,), (99,), (1000,)],
