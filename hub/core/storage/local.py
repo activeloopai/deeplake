@@ -1,5 +1,5 @@
 from hub.core.storage.mapped_provider import MappedProvider
-import fsspec
+import fsspec  # type: ignore
 
 
 class LocalProvider(MappedProvider):

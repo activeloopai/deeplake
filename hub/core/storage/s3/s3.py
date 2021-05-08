@@ -1,6 +1,6 @@
 from typing import Optional
 from hub.core.storage.mapped_provider import MappedProvider
-from hub.core.storage.s3.s3_mapper import S3Mapper
+from hub.core.storage.s3.s3_mapper import S3Mapper  # type: ignore
 
 
 class S3Provider(MappedProvider):

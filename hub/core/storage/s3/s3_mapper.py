@@ -1,9 +1,8 @@
-import posixpath
 import boto3
-import botocore
+import botocore  # type: ignore
+import posixpath
 from typing import Optional
 from collections.abc import MutableMapping
-from botocore.exceptions import ClientError
 from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
 
 
@@ -82,7 +81,7 @@ class S3Mapper(MutableMapping):
                 Key=path,
             )
             return resp["Body"].read()
-        except ClientError as err:
+        except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
             raise
