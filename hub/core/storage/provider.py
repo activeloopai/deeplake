@@ -7,7 +7,7 @@ class Provider(ABC, MutableMapping):
     """An abstract base class for implementing a provider.
 
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
-    Alternatively, you can inherit from ProviderMapper and have a simpler implementation.
+    Alternatively, you can inherit from MappedProvider and have a simpler implementation.
     """
 
     @abstractmethod
