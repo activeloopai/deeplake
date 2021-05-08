@@ -9,7 +9,7 @@ on:
       - '**'
 
 jobs:
-  test:
+  lint:
     name: Python ${{ matrix.python-version }} - ${{ matrix.os }} - ${{ github.event_name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -39,10 +39,12 @@ jobs:
           black --version
           black --check .
       - name: Lint docstrings with darglint
+        if: always() # Run even if previous check failed
         run: |
           darglint --version
           darglint .
       - name: Check typing with mypy
+        if: always() # Run even if previous check failed
         run: |
           mypy --version
           mypy .
