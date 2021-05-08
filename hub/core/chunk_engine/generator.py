@@ -9,8 +9,7 @@ def generate_chunks(
     chunk_size: int,
     last_chunk_num_bytes: Optional[int] = None,
 ) -> Generator[bytes, None, None]:
-    """
-    Generator function that chunks bytes.
+    """Generator function that chunks bytes.
 
     Chunking is the process of taking the input `content_bytes` & breaking it up into a sequence of smaller bytes called "chunks".
     The sizes of each chunk are <= `chunk_size`.

@@ -1,4 +1,5 @@
 def s3_creds_exist():
+    """Checks whether s3_creds exist in the environment"""
     import boto3
 
     sts = boto3.client("sts")

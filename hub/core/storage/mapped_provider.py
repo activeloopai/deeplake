@@ -5,10 +5,10 @@ from hub.constants import BYTE_PADDING
 from hub.core.storage.provider import Provider
 
 
-class ProviderMapper(Provider):
-    """
-    A subclass of Provider. This uses a mapper to implement all the methods.
-    To add a new provider using ProviderMapper:-
+class MappedProvider(Provider):
+    """A subclass of Provider. This uses a mapper to implement all the methods.
+
+    To add a new provider using MappedProvider:
     - Create a subclass of this class
     - Assign an object of type MutableMap to self.mapper in __init__.
     """
@@ -22,13 +22,11 @@ class ProviderMapper(Provider):
         start_byte: Optional[int] = None,
         end_byte: Optional[int] = None,
     ):
-        """
-        Gets the object present at the path.
-        Optionally, if the start_byte and/or end_byte arguments are specified, it only returns required bytes
+        """Gets the object present at the path within the given byte range.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider("abc.txt")
+            my_data = local_provider["abc.txt"]
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -36,7 +34,7 @@ class ProviderMapper(Provider):
             end_byte (int, optional): If only specific bytes upto end_byte are required.
 
         Returns:
-            bytes: The bytes of the object present at the path.
+            bytes: The bytes of the object present at the path within the given byte range.
 
         Raises:
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
@@ -52,12 +50,11 @@ class ProviderMapper(Provider):
         start_byte: Optional[int] = None,
         overwrite: Optional[bool] = False,
     ):
-        """
-        Sets the object present at the path with the value
+        """Sets the object present at the path with the value
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider("abc.txt") = b"abcd"
+            local_provider["abc.txt"] = b"abcd"
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -65,9 +62,6 @@ class ProviderMapper(Provider):
             start_byte (int, optional): If only specific bytes starting from start_byte are to be assigned.
             overwrite (boolean, optional): If the value is True, if there is an object present at the path
                 it is completely overwritten, without fetching it's data.
-
-        Returns:
-            None
 
         Raises:
             InvalidBytesRequestedError: If `start_byte` < 0.
@@ -97,30 +91,21 @@ class ProviderMapper(Provider):
             local_provider = LocalProvider("/home/ubuntu/Documents/")
             for my_data in local_provider:
                 pass
-        Args:
-            None
 
         Yields:
             bytes: the bytes of the object that it is iterating over.
-
-        Raises:
-            None
         """
         yield from self.mapper.items()
 
     def __delitem__(self, path: str):
-        """
-        Delete the object present at the path.
+        """Delete the object present at the path.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
-            del local_provider("abc.txt")
+            del local_provider["abc.txt"]
 
         Args:
             path (str): the path to the object relative to the root of the provider.
-
-        Returns:
-            None
 
         Raises:
             KeyError: If an object is not found at the path.
@@ -128,8 +113,7 @@ class ProviderMapper(Provider):
         del self.mapper[path]
 
     def __len__(self):
-        """
-        Returns the number of files present inside the root of the provider.
+        """Returns the number of files present inside the root of the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
@@ -140,8 +124,5 @@ class ProviderMapper(Provider):
 
         Returns:
             int: the number of files present inside the root
-
-        Raises:
-            None
         """
         return len(self.mapper)

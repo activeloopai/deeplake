@@ -13,6 +13,7 @@ class InvalidBytesRequestedError(Exception):
         )
 
 
+# TODO Better S3 Exception handling
 class S3GetError(Exception):
     """Catchall for all errors encountered while working getting an object from S3"""
 

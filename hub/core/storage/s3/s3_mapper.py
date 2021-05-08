@@ -8,9 +8,7 @@ from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListE
 
 
 class S3Mapper(MutableMapping):
-    """
-    An s3 mapper built using boto3. For internal use only (by class S3Provider)
-    """
+    """An s3 mapper built using boto3. For internal use only (by class S3Provider)"""
 
     def __init__(
         self,
@@ -20,7 +18,7 @@ class S3Mapper(MutableMapping):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
-        max_pool_connections: Optional[int] = 25,
+        max_pool_connections: Optional[int] = 10,
     ):
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
@@ -43,15 +41,11 @@ class S3Mapper(MutableMapping):
         )
 
     def __setitem__(self, path, content):
-        """
-        Sets the object present at the path with the value
+        """Sets the object present at the path with the value
 
         Args:
             path (str): the path relative to the root of the mapper.
             content (bytes): the value to be assigned at the path.
-
-        Returns:
-            None
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
@@ -59,19 +53,17 @@ class S3Mapper(MutableMapping):
         try:
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
-            attrs = {
-                "Bucket": self.bucket,
-                "Body": content,
-                "Key": path,
-                "ContentType": ("application/octet-stream"),
-            }
-            self.client.put_object(**attrs)
+            self.client.put_object(
+                Bucket=self.bucket,
+                Body=content,
+                Key=path,
+                ContentType="application/octet-stream",  # signifies binary data
+            )
         except Exception as err:
             raise S3SetError(err)
 
     def __getitem__(self, path):
-        """
-        Gets the object present at the path.
+        """Gets the object present at the path.
 
         Args:
             path (str): the path relative to the root of the mapper.
@@ -98,14 +90,10 @@ class S3Mapper(MutableMapping):
             raise S3GetError(err)
 
     def __delitem__(self, path):
-        """
-        Delete the object present at the path.
+        """Delete the object present at the path.
 
         Args:
             path (str): the path to the object relative to the root of the mapper.
-
-        Returns:
-            None
 
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3 won't raise KeyError.
@@ -117,11 +105,7 @@ class S3Mapper(MutableMapping):
             raise S3DeletionError(err)
 
     def _list_objects(self):
-        """
-        Helper function to list all the objects present at the root of the mapper.
-
-        Args:
-            None
+        """Helper function to list all the objects present at the root of the mapper.
 
         Returns:
             list: list of all the objects found at the root of the mapper.
@@ -142,14 +126,10 @@ class S3Mapper(MutableMapping):
             raise S3ListError(err)
 
     def __len__(self):
-        """
-        Returns the number of files present inside the root of the mapper.
-
-        Args:
-            None
+        """Returns the number of files present inside the root of the mapper. This is an expensive operation.
 
         Returns:
-            int: the number of files present inside the root
+            int: the number of files present inside the root.
 
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
@@ -158,16 +138,10 @@ class S3Mapper(MutableMapping):
         return len(names)
 
     def __iter__(self):
-        """Generator function that iterates over the keys of the mapper
-
-        Args:
-            None
+        """Generator function that iterates over the keys of the mapper.
 
         Yields:
             str: the name of the object that it is iterating over.
-
-        Raises:
-            None
         """
         names = self._list_objects()
         yield from names
