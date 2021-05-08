@@ -1,9 +1,10 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
+from hub.core.storage.mapped_provider import MappedProvider
 import pytest
 from hub.util.check_s3_creds import s3_creds_exist
 
 
-def test_provider(provider=MemoryProvider("abc/def")):
+def test_provider(provider=MappedProvider()):
     FILE_1 = "abc.txt"
     FILE_2 = "def.txt"
 
@@ -32,6 +33,10 @@ def test_provider(provider=MemoryProvider("abc/def")):
 
     with pytest.raises(KeyError):
         provider[FILE_1]
+
+
+def test_memory_provider():
+    test_provider(MemoryProvider("abc/def"))
 
 
 def test_local_provider():

@@ -17,22 +17,14 @@ class InvalidBytesRequestedError(Exception):
 class S3GetError(Exception):
     """Catchall for all errors encountered while working getting an object from S3"""
 
-    pass
-
 
 class S3SetError(Exception):
     """Catchall for all errors encountered while working setting an object in S3"""
-
-    pass
 
 
 class S3DeletionError(Exception):
     """Catchall for all errors encountered while working deleting an object in S3"""
 
-    pass
-
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
-
-    pass

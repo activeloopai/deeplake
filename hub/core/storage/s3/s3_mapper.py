@@ -84,7 +84,7 @@ class S3Mapper(MutableMapping):
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
-            raise
+            raise S3GetError(err)
         except Exception as err:
             raise S3GetError(err)
 
