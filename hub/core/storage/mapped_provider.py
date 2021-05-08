@@ -41,7 +41,7 @@ class MappedProvider(Provider):
             KeyError: If an object is not found at the path.
         """
         assert_byte_indexes(start_byte, end_byte)
-        return self.mapper[path][slice(start_byte, end_byte)]
+        return self.mapper[path][start_byte:end_byte]
 
     def __setitem__(
         self,
