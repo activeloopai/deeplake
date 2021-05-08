@@ -1,5 +1,10 @@
 from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
+from hub.util.exceptions import (
+    TensorNotFoundError,
+    InvalidKeyTypeError,
+    UnsupportedTensorTypeError,
+)
 from typing import Union, Dict
 import numpy as np
 
@@ -28,14 +33,20 @@ class Dataset:
         """Return the greatest length of tensors"""
         return max(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[slice, str]):
+    def __getitem__(self, item: Union[slice, str, int]):
+        if isinstance(item, int):
+            item = slice(item, item + 1)
+
         if isinstance(item, str):
-            return self.tensors[item]  # TODO: throw a pretty error
+            if item not in self.tensors:
+                raise TensorNotFoundError(item, self.path)
+            else:
+                return self.tensors[item]
         elif isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
             return Dataset(self.path, self.mode, new_slice)
         else:
-            return None  # TODO: throw a pretty error
+            raise InvalidKeyTypeError(item)
 
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
@@ -44,9 +55,9 @@ class Dataset:
                 # self.tensors[item] = Tensor(...)
                 return self.tensors[item]
             else:
-                return None  # TODO: throw a pretty error
+                raise UnsupportedTensorTypeError(item)
         else:
-            return None  # TODO: throw a pretty error
+            raise InvalidKeyTypeError(item)
 
     def __iter__(self):
         for i in range(len(self)):

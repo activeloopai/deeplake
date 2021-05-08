@@ -1,5 +1,6 @@
 from hub.util.slice import merge_slices
 import numpy as np
+from typing import Union
 
 
 class Tensor:
@@ -22,7 +23,9 @@ class Tensor:
         """Return the length of the primary axis"""
         return self.shape[0]
 
-    def __getitem__(self, tensor_slice: slice):
+    def __getitem__(self, tensor_slice: Union[int, slice]):
+        if isinstance(item, int):
+            item = slice(item, item + 1)
         new_slice = merge_slices(self.slice, tensor_slice)
         return Tensor(self.uuid, new_slice)
 
