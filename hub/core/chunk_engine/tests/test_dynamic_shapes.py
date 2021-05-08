@@ -11,6 +11,9 @@ from hub.core.chunk_engine.dummy_util import (
 from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
 
 
+np.random.seed(1)
+
+
 # TODO: add failure tests (where len(shape) differs)
 
 

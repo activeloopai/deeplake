@@ -10,6 +10,14 @@ CHUNK_SIZES = (
 )
 
 
+DTYPES = (
+    "uint8",
+    "int64",
+    "float64",
+    "bool",
+)
+
+
 def run_engine_test(arrays, storage, compression, batched, chunk_size):
 
     for i, a_in in enumerate(arrays):
@@ -25,7 +33,6 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         # TODO: make sure there is no more than 1 incomplete chunk at a time. because incomplete chunks are NOT compressed, if there is
         # more than 1 per tensor it can get inefficient
 
-        # TODO:
         a_out = read_sample("tensor", i, storage)
 
         # writing implicitly normalizes/batchifies shape
@@ -33,3 +40,15 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         # print(a_in.shape, a_out.shape, batched)
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+
+
+def get_random_array(shape, dtype):
+    if "int" in dtype:
+        return np.random.randint(shape, dtype=dtype)
+
+    if "float" in dtype:
+        return np.random.uniform(shape).astype(dtype)
+
+    if "bool" in dtype:
+        a = np.random.uniform(shape)
+        return a > 0.5

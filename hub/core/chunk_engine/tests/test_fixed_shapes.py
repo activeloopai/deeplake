@@ -8,7 +8,15 @@ from hub.core.chunk_engine.dummy_util import (
     DummyChunkCompression,
 )
 
-from hub.core.chunk_engine.tests.util import run_engine_test, CHUNK_SIZES
+from hub.core.chunk_engine.tests.util import (
+    run_engine_test,
+    CHUNK_SIZES,
+    DTYPES,
+    get_random_array,
+)
+
+
+np.random.seed(1)
 
 
 # TODO: add failure tests (where shape differs)
@@ -41,7 +49,8 @@ BATCHED_SHAPES = (
 @pytest.mark.parametrize("shape", UNBATCHED_SHAPES)
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
-def test_unbatched(shape, chunk_size, num_batches):
+@pytest.mark.parametrize("dtype", DTYPES)
+def test_unbatched(shape, chunk_size, num_batches, dtype):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITHOUT a batch axis.
@@ -50,7 +59,7 @@ def test_unbatched(shape, chunk_size, num_batches):
     storage = MemoryProvider()
     compression = DummyChunkCompression()
 
-    arrays = [np.random.uniform(size=shape) for _ in range(num_batches)]
+    arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
     run_engine_test(arrays, storage, compression, batched=False, chunk_size=chunk_size)
 
@@ -58,7 +67,8 @@ def test_unbatched(shape, chunk_size, num_batches):
 @pytest.mark.parametrize("shape", BATCHED_SHAPES)
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
-def test_batched(shape, chunk_size, num_batches):
+@pytest.mark.parametrize("dtype", DTYPES)
+def test_batched(shape, chunk_size, num_batches, dtype):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
@@ -67,6 +77,6 @@ def test_batched(shape, chunk_size, num_batches):
     storage = MemoryProvider()
     compression = DummyChunkCompression()
 
-    arrays = [np.random.uniform(size=shape) for _ in range(num_batches)]
+    arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
     run_engine_test(arrays, storage, compression, batched=True, chunk_size=chunk_size)
