@@ -27,7 +27,7 @@ np.random.seed(1)
 # number of batches (unbatched implicitly = 1 sample per batch) per test
 NUM_BATCHES = (
     1,
-    # 5,
+    5,
 )
 
 
