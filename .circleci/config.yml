@@ -156,7 +156,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./
+                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-autosave
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -164,11 +164,15 @@ commands:
                 name: "Running tests - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./
+                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-autosave
   codecov-upload:
     steps:
       - codecov/upload:
           file: coverage.xml
+  save-benchmarks:
+    steps:
+      - store_artifacts:
+          path: .benchmarks/
   report:
     parameters:
       unix-like:
@@ -252,6 +256,7 @@ jobs:
           plugins: << parameters.plugins >>
       - run-tests:
           unix-like: << parameters.unix-like >>
+      - save-benchmarks
       - when:
           condition: << parameters.plugins >>
           steps:
