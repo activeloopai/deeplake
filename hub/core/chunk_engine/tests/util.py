@@ -10,8 +10,8 @@ from hub.core.chunk_engine.dummy_util import (
 )
 
 
-# storage provider root
 ROOT = "PYTEST_TENSOR_COLLECTION"
+STORAGE_PROVIDERS = (MemoryProvider(ROOT),)
 
 
 CHUNK_SIZES = (
@@ -33,8 +33,6 @@ COMPRESSIONS = (
     DummySampleCompression(),
     DummyChunkCompression(),
 )
-
-STORAGE_PROVIDERS = (MemoryProvider,)
 
 
 def run_engine_test(arrays, storage, compression, batched, chunk_size):
