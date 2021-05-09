@@ -36,6 +36,8 @@ COMPRESSIONS = (
 
 
 def run_engine_test(arrays, storage, compression, batched, chunk_size):
+    storage.clear()
+
     for i, a_in in enumerate(arrays):
         chunk_and_write_array(
             a_in,
