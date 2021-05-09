@@ -2,6 +2,12 @@ import numpy as np
 
 from hub.core.chunk_engine import read_sample, chunk_and_write_array
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.storage import MemoryProvider
+
+from hub.core.chunk_engine.dummy_util import (
+    DummySampleCompression,
+    DummyChunkCompression,
+)
 
 
 # storage provider root
@@ -23,6 +29,14 @@ DTYPES = (
 )
 
 
+COMPRESSIONS = (
+    DummySampleCompression(),
+    DummyChunkCompression(),
+)
+
+STORAGE_PROVIDERS = (MemoryProvider,)
+
+
 def run_engine_test(arrays, storage, compression, batched, chunk_size):
     for i, a_in in enumerate(arrays):
         chunk_and_write_array(
@@ -41,7 +55,6 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
 
         # writing implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
-        # print(a_in.shape, a_out.shape, batched)
 
         print("in:")
         print(a_in)

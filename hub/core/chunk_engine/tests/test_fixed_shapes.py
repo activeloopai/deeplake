@@ -15,6 +15,8 @@ from hub.core.chunk_engine.tests.util import (
     DTYPES,
     get_random_array,
     ROOT,
+    COMPRESSIONS,
+    STORAGE_PROVIDERS,
 )
 
 
@@ -52,14 +54,17 @@ BATCHED_SHAPES = (
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
 @pytest.mark.parametrize("dtype", DTYPES)
-def test_unbatched(shape, chunk_size, num_batches, dtype):
+@pytest.mark.parametrize("compression", COMPRESSIONS)
+@pytest.mark.parametrize("storage_provider", STORAGE_PROVIDERS)
+def test_unbatched(
+    shape, chunk_size, num_batches, dtype, compression, storage_provider
+):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITHOUT a batch axis.
     """
 
-    storage = MemoryProvider(ROOT)
-    compression = DummyChunkCompression()
+    storage = storage_provider(ROOT)
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
@@ -70,14 +75,15 @@ def test_unbatched(shape, chunk_size, num_batches, dtype):
 @pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
 @pytest.mark.parametrize("dtype", DTYPES)
-def test_batched(shape, chunk_size, num_batches, dtype):
+@pytest.mark.parametrize("compression", COMPRESSIONS)
+@pytest.mark.parametrize("storage_provider", STORAGE_PROVIDERS)
+def test_batched(shape, chunk_size, num_batches, dtype, compression, storage_provider):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
     """
 
-    storage = MemoryProvider(ROOT)
-    compression = DummyChunkCompression()
+    storage = storage_provider(ROOT)
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
