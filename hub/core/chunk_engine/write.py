@@ -8,9 +8,7 @@ from hub.core.chunk_engine import generate_chunks
 
 from .meta import has_meta, get_meta, set_meta, default_meta
 from .index_map import has_index_map, get_index_map, set_index_map, default_index_map
-
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
-from .dummy_util import MemoryProvider
 
 
 def get_and_validate_meta(key, storage, array, compression):
@@ -24,7 +22,9 @@ def get_and_validate_meta(key, storage, array, compression):
             raise Exception()
         if meta["compression"] != compression.__name__:
             raise Exception()
+        print(meta)
         meta["length"] += array.shape[0]
+        print(meta)
     else:
         meta = default_meta()
         meta.update(
@@ -35,6 +35,8 @@ def get_and_validate_meta(key, storage, array, compression):
             }
         )
 
+    print(meta, array.shape)
+
     return meta
 
 
@@ -43,7 +45,7 @@ def chunk_and_write_array(
     key: str,
     compression,
     chunk_size: int,
-    storage: MemoryProvider,
+    storage,
     batched: bool = False,
 ):
     """

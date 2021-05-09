@@ -2,9 +2,9 @@ import os
 import pickle
 import numpy as np
 
-from .write import MemoryProvider
-from .dummy_util import dummy_compression_map
+from hub.core.storage import MemoryProvider
 
+from .dummy_util import dummy_compression_map
 from .meta import get_meta
 from .index_map import get_index_map
 
@@ -15,7 +15,7 @@ from typing import Callable, List
 def read_sample(
     key: str,
     index: int,
-    storage: MemoryProvider,
+    storage,
 ) -> np.ndarray:
     """
     array <- bytes <- decompressor <- chunks <- storage
@@ -46,6 +46,8 @@ def read_sample(
         # TODO: make this more concise
         if last_shape is not None and last_shape != shape:
             all_same_shape = False
+
+        print(chunk_names, length)
 
         b = bytearray()
         for chunk_name in chunk_names:

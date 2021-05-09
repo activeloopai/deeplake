@@ -2,8 +2,9 @@ import pytest
 
 import numpy as np
 
+from hub.core.storage import MemoryProvider
+
 from hub.core.chunk_engine.dummy_util import (
-    MemoryProvider,
     DummySampleCompression,
     DummyChunkCompression,
 )
@@ -13,6 +14,7 @@ from hub.core.chunk_engine.tests.util import (
     CHUNK_SIZES,
     DTYPES,
     get_random_array,
+    ROOT,
 )
 
 
@@ -25,7 +27,7 @@ np.random.seed(1)
 # number of batches (unbatched implicitly = 1 sample per batch) per test
 NUM_BATCHES = (
     1,
-    5,
+    # 5,
 )
 
 
@@ -42,7 +44,7 @@ BATCHED_SHAPES = (
     (1, 1),
     (10, 1),
     (1, 100, 100),
-    (10, 3, 100, 100, 1),
+    (100, 3, 100, 100, 1),
 )
 
 
@@ -56,7 +58,7 @@ def test_unbatched(shape, chunk_size, num_batches, dtype):
     Samples are provided WITHOUT a batch axis.
     """
 
-    storage = MemoryProvider()
+    storage = MemoryProvider(ROOT)
     compression = DummyChunkCompression()
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
@@ -74,7 +76,7 @@ def test_batched(shape, chunk_size, num_batches, dtype):
     Samples are provided WITH a batch axis.
     """
 
-    storage = MemoryProvider()
+    storage = MemoryProvider(ROOT)
     compression = DummyChunkCompression()
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]

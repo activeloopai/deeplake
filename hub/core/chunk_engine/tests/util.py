@@ -1,10 +1,15 @@
 import numpy as np
 
-from hub.core.chunk_engine import read_sample, chunk_and_write_array, MemoryProvider
+from hub.core.chunk_engine import read_sample, chunk_and_write_array
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
 
 
+# storage provider root
+ROOT = "PYTEST_TENSOR_COLLECTION"
+
+
 CHUNK_SIZES = (
+    128,
     4096,
     16000000,
 )
@@ -19,7 +24,6 @@ DTYPES = (
 
 
 def run_engine_test(arrays, storage, compression, batched, chunk_size):
-
     for i, a_in in enumerate(arrays):
         chunk_and_write_array(
             a_in,
@@ -39,7 +43,13 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
         # print(a_in.shape, a_out.shape, batched)
 
+        print("in:")
+        print(a_in)
+        print("out:")
+        print(a_out)
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+
+    storage.clear()
 
 
 def get_random_array(shape, dtype):
