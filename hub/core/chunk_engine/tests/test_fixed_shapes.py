@@ -60,7 +60,6 @@ def test_unbatched(shape, chunk_size, num_batches, dtype, compression, storage):
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-
     run_engine_test(arrays, storage, compression, batched=False, chunk_size=chunk_size)
 
 
@@ -77,5 +76,4 @@ def test_batched(shape, chunk_size, num_batches, dtype, compression, storage):
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-
     run_engine_test(arrays, storage, compression, batched=True, chunk_size=chunk_size)
