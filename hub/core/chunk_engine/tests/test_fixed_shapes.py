@@ -2,8 +2,6 @@ import pytest
 
 import numpy as np
 
-from hub.core.storage import MemoryProvider
-
 from hub.core.chunk_engine.dummy_util import (
     DummySampleCompression,
     DummyChunkCompression,
