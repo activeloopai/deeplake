@@ -26,7 +26,7 @@ def generate_chunks(
     Args:
         content_bytes (bytes): Bytes object with the data to be chunked.
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
-        last_chunk_bytes (int, optional): If chunks were created already, `last_chunk_bytes`
+        last_chunk_num_bytes (int, optional): If chunks were created already, `last_chunk_num_bytes`
             should be set to the length of the last chunk created. This is so the generator's
             first output will be enough bytes to fill that chunk up to `chunk_size`.
 
