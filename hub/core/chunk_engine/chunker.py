@@ -79,6 +79,9 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
         end_byte (int): The last chunk in the sequence will ignore the bytes after `end_byte`. If None, all bytes are included.
 
     Note: if `len(chunks) == 1`, `start_byte`:`end_byte` will be applied to the same chunk (the first & last one).
+
+    Returns:
+        bytes: The chunks joined as one bytes object.
     """
 
     b = bytearray()
