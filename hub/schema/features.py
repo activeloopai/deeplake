@@ -45,10 +45,24 @@ class Primitive(HubSchema):
         yield FlatTensor("", (), self._dtype, (), self.chunks)
 
     def __str__(self):
-        return "'" + str(self.dtype) + "'"
+        return f"'{str(self.dtype)}'"
 
     def __repr__(self):
         return self.__str__()
+
+    def __eq__(self, other):
+        if not isinstance(other, Primitive):
+            return False
+        return (
+            self.shape == other.shape
+            and self.max_shape == other.max_shape
+            and self.chunks == other.chunks
+            and self.dtype == other.dtype
+            and self.compressor == other.compressor
+        )
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class SchemaDict(HubSchema):

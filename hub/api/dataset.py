@@ -765,6 +765,7 @@ class Dataset:
         output_type=dict,
         indexes=None,
         key_list=None,
+        shuffle=False,
     ):
         """| Converts the dataset into a pytorch compatible format.
         ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
@@ -784,10 +785,14 @@ class Dataset:
         key_list: list, optional
             The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
             use ["a/b/c"] as key_list
+        shuffle: bool, optional
+            whether to shuffle the data chunkwise or not. Default is False.
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
+        ds = _to_pytorch(
+            self, transform, inplace, output_type, indexes, key_list, shuffle
+        )
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
