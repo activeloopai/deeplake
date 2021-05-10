@@ -10,26 +10,24 @@ from .meta import get_meta
 from .index_map import get_index_map
 
 from hub.core.typing import Provider
-from typing import Callable, List, Union, Optional
+from typing import Callable, List, Union
 
 
 def read_array(
     key: str,
     storage: Provider,
-    index: Optional[Union[int, slice]] = None,
+    index: Union[int, slice] = slice(None),
 ) -> np.ndarray:
     """Read, decompress, & unchunk an array slice from storage.
 
     Args:
         key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
-        index (int | slice, optional): Index/slice that represents which samples to read. If `index` is an int value, it
-            will be converted into a slice using: `slice(index)`. If no index is provided (default), all samples will be returned.
+        index (int | slice): Index/slice that represents which samples to read. If `index` is an int value, it
+            will be converted into a slice using: `slice(index)`. If no index is provided, all samples will be returned.
         storage (Provider): Provider for reading the chunks, index_map, & meta.
     """
 
-    if index is None:
-        index = slice(None)
-    elif isinstance(index, int):
+    if isinstance(index, int):
         index = slice(index + 1)
 
     meta = get_meta(key, storage)
