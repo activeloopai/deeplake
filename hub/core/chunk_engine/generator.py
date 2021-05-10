@@ -63,6 +63,7 @@ def generate_chunks(
 
 
 def unchunk(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
+    # TODO: write tests/docstring (also maybe move to another file/rename this one?)
     b = bytearray()
     for i, chunk in enumerate(chunks):
         actual_start_byte, actual_end_byte = start_byte, -1
@@ -72,6 +73,5 @@ def unchunk(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
         if i >= len(chunks) - 1:
             actual_end_byte = end_byte
 
-        print(i, actual_start_byte, actual_end_byte)
         b.extend(chunk[actual_start_byte:actual_end_byte])
     return bytes(b)

@@ -30,6 +30,7 @@ def get_meta(key, storage):
 
 @meta_func
 def set_meta(key, storage, meta):
+    # TODO: don't use pickle
     storage[key] = pickle.dumps(meta)
 
 

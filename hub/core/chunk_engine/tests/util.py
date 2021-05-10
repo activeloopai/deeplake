@@ -67,7 +67,9 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
 
 def get_random_array(shape, dtype):
     if "int" in dtype:
-        return np.random.randint(shape, dtype=dtype)
+        low = np.iinfo(dtype).min
+        high = np.iinfo(dtype).max
+        return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
 
     if "float" in dtype:
         return np.random.uniform(shape).astype(dtype)
