@@ -71,7 +71,7 @@ def write_array(
         incomplete_chunk_names = []
 
         for chunk in chunk_gen:
-            chunk_name = _create_chunk_name()
+            chunk_name = _random_chunk_name()
 
             end_byte = len(chunk)  # end byte is based on the uncompressed chunk
 
@@ -100,5 +100,5 @@ def write_array(
     set_meta(key, storage, meta)
 
 
-def _create_chunk_name() -> str:
+def _random_chunk_name() -> str:
     return str(uuid1())
