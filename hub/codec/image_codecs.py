@@ -7,19 +7,17 @@ import numpy as np
 from PIL import Image
 
 
-class BaseImgCodec(ABC, Codec):
+class BaseImgCodec(Codec):
     """Base class for image codecs"""
 
     def __init__(self, single_channel: bool = True):
         self.single_channel = single_channel
         self._msgpack = numcodecs.MsgPack()
 
-    @abstractmethod
-    def encode_single_image():
+    def encode_single_image(self, image: np.ndarray) -> bytes:
         pass
 
-    @abstractmethod
-    def decode_single_image():
+    def decode_single_image(self, buf: bytes) -> np.ndarray:
         pass
 
     def encode(self, arr: np.ndarray):
@@ -149,7 +147,7 @@ class JpegCodec(BaseImgCodec, Codec):
             )
             return buffer.getvalue()
 
-    def decode_single_image(self, buf) -> np.ndarray:
+    def decode_single_image(self, buf: bytes) -> np.ndarray:
         """
         Decode single image from buffer.
 
@@ -205,7 +203,7 @@ class PngCodec(BaseImgCodec, Codec):
             Image.fromarray(image).save(buffer, format=self.codec_id)
             return buffer.getvalue()
 
-    def decode_single_image(self, buf) -> np.ndarray:
+    def decode_single_image(self, buf: bytes) -> np.ndarray:
         """
         Decode single image from buffer.
 
