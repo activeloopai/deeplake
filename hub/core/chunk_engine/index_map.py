@@ -22,8 +22,10 @@ def has_index_map(key, storage):
 
 @index_map_func
 def get_index_map(key, storage):
-    # TODO: don't use pickle
-    return pickle.loads(storage[key])
+    if has_index_map(key, storage):
+        # TODO: don't use pickle
+        return pickle.loads(storage[key])
+    return default_index_map()
 
 
 # TODO: not set function, should be append (so we're not rewriting the index map every time)

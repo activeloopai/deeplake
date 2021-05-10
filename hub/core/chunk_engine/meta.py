@@ -61,3 +61,15 @@ def update_meta(key, storage, length=0, **kwargs):
         )
 
     return meta
+
+
+@meta_func
+def validate_and_update_meta(key, storage, **kwargs):
+    validate_meta_is_compatible(key, storage, **kwargs)
+    meta = update_meta(
+        key,
+        storage,
+        **kwargs,
+    )
+
+    return meta

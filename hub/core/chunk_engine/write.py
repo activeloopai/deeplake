@@ -11,14 +11,36 @@ from .meta import (
     get_meta,
     set_meta,
     default_meta,
-    validate_meta_is_compatible,
-    update_meta,
+    validate_and_update_meta,
 )
 from .index_map import has_index_map, get_index_map, set_index_map, default_index_map
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 
 
 def chunk_and_write_array(
+    array: np.ndarray,
+    key: str,
+    compression,
+    chunk_size: int,
+    storage,
+    batched: bool = False,
+):
+
+    array = normalize_and_batchify_shape(array, batched=batched)
+    meta = validate_and_update_meta(
+        key,
+        storage,
+        **{
+            "compression": compression.__name__,
+            "chunk_size": chunk_size,
+            "dtype": array.dtype.name,
+            "length": array.shape[0],
+        },
+    )
+    index_map = get_index_map(key, storage)
+
+
+def _OLD_chunk_and_write_array(
     array: np.ndarray,
     key: str,
     compression,
@@ -107,7 +129,6 @@ def chunk_and_write_array(
 
                 if len(chunk) >= chunk_size:
                     # only compress if it is a full chunk
-
                     chunk = compression.compress(chunk)
                 else:
                     incomplete_chunk_names.append(chunk_name)
