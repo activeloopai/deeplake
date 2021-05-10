@@ -13,12 +13,7 @@ class Provider(ABC, MutableMapping):
     """
 
     @abstractmethod
-    def __getitem__(
-        self,
-        path: str,
-        start_byte: Optional[int] = None,
-        end_byte: Optional[int] = None,
-    ):
+    def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
 
         Example:
@@ -27,14 +22,11 @@ class Provider(ABC, MutableMapping):
 
         Args:
             path (str): The path relative to the root of the provider.
-            start_byte (int, optional): If only specific bytes starting from start_byte are required.
-            end_byte (int, optional): If only specific bytes upto end_byte are required.
 
         Returns:
-            bytes: The bytes of the object present at the path within the given byte range.
+            bytes: The bytes of the object present at the path.
 
         Raises:
-            InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
         """
 
@@ -66,13 +58,7 @@ class Provider(ABC, MutableMapping):
         return self[path][start_byte:end_byte]
 
     @abstractmethod
-    def __setitem__(
-        self,
-        path: str,
-        value: bytes,
-        start_byte: Optional[int] = None,
-        overwrite: Optional[bool] = False,
-    ):
+    def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
 
         Example:
@@ -82,12 +68,6 @@ class Provider(ABC, MutableMapping):
         Args:
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
-            start_byte (int, optional): If only specific bytes starting from start_byte are to be assigned.
-            overwrite (boolean, optional): If the value is True, if there is an object present at the path
-                it is completely overwritten, without fetching it's data.
-
-        Raises:
-            InvalidBytesRequestedError: If `start_byte` < 0.
         """
 
     def set_bytes(
@@ -117,8 +97,8 @@ class Provider(ABC, MutableMapping):
         end_byte = start_byte + len(value)
         assert_byte_indexes(start_byte, end_byte)
         # file already exists and doesn't need to be overwritten
-        if path in self.mapper and not overwrite:
-            current_value = bytearray(self.mapper[path])
+        if path in self and not overwrite:
+            current_value = bytearray(self[path])
             # need to pad with zeros at the end to write extra bytes
             if end_byte > len(current_value):
                 current_value = current_value.ljust(end_byte, BYTE_PADDING)
