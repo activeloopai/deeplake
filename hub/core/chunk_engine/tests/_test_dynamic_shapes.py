@@ -7,7 +7,7 @@ from hub.core.chunk_engine.dummy_util import (
     DummyChunkCompression,
 )
 
-from hub.core.chunk_engine.tests.util import (
+from hub.core.chunk_engine.tests.common import (
     run_engine_test,
     CHUNK_SIZES,
     DTYPES,
