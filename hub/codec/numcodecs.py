@@ -1,22 +1,23 @@
 from io import BytesIO
+from abc import ABC, abstractmethod
 import numcodecs
 
 import numpy as np
 
 
-class Base:
+class BaseNumCodec(ABC):
     """Base class for numcodec compressors"""
 
+    @abstractmethod
     def encode(self, array: np.ndarray) -> bytes:
-        raise NotImplementedError()
+        pass
 
+    @abstractmethod
     def decode(self, bytes: bytes) -> np.ndarray:
-        raise NotImplementedError()
+        pass
 
 
-class NumPy(Base):
-    """Numpy compressor"""
-
+class NumPy(BaseNumCodec):
     def __init__(self):
         super().__init__()
 
@@ -55,9 +56,7 @@ class NumPy(Base):
             return np.load(f, allow_pickle=True)
 
 
-class Lz4(Base):
-    """Lz4 compressor"""
-
+class Lz4(BaseNumCodec):
     def __init__(self, acceleration: int):
         """
         Initialize Lz4 compressor
@@ -113,9 +112,7 @@ class Lz4(Base):
         return arr
 
 
-class Zstd(Base):
-    """Zstd compressor"""
-
+class Zstd(BaseNumCodec):
     def __init__(self, level: int):
         """
         Initialize Zstd compressor
