@@ -4,6 +4,7 @@ import numpy as np
 
 from hub.core.storage import MemoryProvider
 
+from .generator import unchunk
 from .dummy_util import dummy_compression_map
 from .meta import get_meta
 from .index_map import get_index_map
@@ -47,10 +48,10 @@ def read_sample(
         if last_shape is not None and last_shape != shape:
             all_same_shape = False
 
-        print(chunk_names, length)
-
+        """
         b = bytearray()
-        for chunk_name in chunk_names:
+        actual_start_byte = start_byte
+        for chunk_local_index, chunk_name in enumerate(chunk_names):
             chunk_key = os.path.join(key, chunk_name)
 
             raw_chunk = storage[chunk_key]
@@ -64,7 +65,36 @@ def read_sample(
             else:
                 chunk = raw_chunk
 
-            b.extend(chunk[start_byte:end_byte])
+            actual_end_byte = -1
+            if chunk_local_index >= len(chunk_names) - 1:
+                # last chunk will actually use `end_byte`
+                actual_end_byte = end_byte
+
+            b.extend(chunk[actual_start_byte:actual_end_byte])
+            print(b)
+            print(chunk_local_index, actual_start_byte, actual_end_byte)
+            # `start_byte` should only be used for the first chunk
+            actual_start_byte = 0
+            """
+
+        # TODO: put this in a separate function/class, ideally that caches decompressed chunks
+        def decompressed_chunks_generator():
+            for chunk_name in chunk_names:
+                chunk_key = os.path.join(key, chunk_name)
+                raw_chunk = storage[chunk_key]
+
+                if compression.subject == "chunk":
+                    if chunk_name in incomplete_chunk_names:
+                        chunk = raw_chunk
+                    else:
+                        # TODO: different `meta["version"]`s may have different compressor maps
+                        chunk = compression.decompress(raw_chunk)
+                else:
+                    chunk = raw_chunk
+
+                yield chunk
+
+        b = unchunk(list(decompressed_chunks_generator()), start_byte, end_byte)
 
         a = np.frombuffer(b, dtype=dtype)
         last_shape = shape

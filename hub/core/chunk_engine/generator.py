@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Generator, Optional
+from typing import Generator, Optional, List
 
 from hub.util.exceptions import ChunkSizeTooSmallError
 
@@ -60,3 +60,18 @@ def generate_chunks(
 
         yield chunk
         total_bytes_yielded += len(chunk)
+
+
+def unchunk(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
+    b = bytearray()
+    for i, chunk in enumerate(chunks):
+        actual_start_byte, actual_end_byte = start_byte, -1
+
+        if i <= 0:
+            actual_start_byte = start_byte
+        if i >= len(chunks) - 1:
+            actual_end_byte = end_byte
+
+        print(i, actual_start_byte, actual_end_byte)
+        b.extend(chunk[actual_start_byte:actual_end_byte])
+    return bytes(b)

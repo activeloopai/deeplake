@@ -11,20 +11,23 @@ from .index_map import has_index_map, get_index_map, set_index_map, default_inde
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 
 
-def get_and_validate_meta(key, storage, array, compression):
+def get_and_validate_meta(key, storage, array, compression, chunk_size):
     if has_meta(key, storage):
         meta = get_meta(key, storage)
 
         # TODO: validate meta matches tensor meta where it needs to (like dtype or strict-shape)
 
-        # TODO: exceptions.py
+        # TODO: move all these into exceptions.py
+        # TODO: can also make this more general by using **kwargs
         if meta["dtype"] != array.dtype.name:
-            raise Exception()
+
+            raise Exception("Dtype mismatch.")
         if meta["compression"] != compression.__name__:
-            raise Exception()
-        print(meta)
+            raise Exception("Compression mismatch.")
+        if meta["chunk_size"] != chunk_size:
+            raise Exception("Chunksize mismatch.")
+
         meta["length"] += array.shape[0]
-        print(meta)
     else:
         meta = default_meta()
         meta.update(
@@ -32,10 +35,9 @@ def get_and_validate_meta(key, storage, array, compression):
                 "dtype": array.dtype.name,
                 "length": array.shape[0],
                 "compression": compression.__name__,
+                "chunk_size": chunk_size,
             }
         )
-
-    print(meta, array.shape)
 
     return meta
 
@@ -57,7 +59,7 @@ def chunk_and_write_array(
     # TODO: validate array shape (no 0s in shape)
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    meta = get_and_validate_meta(key, storage, array, compression)
+    meta = get_and_validate_meta(key, storage, array, compression, chunk_size)
 
     # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
 
@@ -79,8 +81,30 @@ def chunk_and_write_array(
         b = array_to_bytes(sample)
 
         """chunk & write bytes"""
-        bllc = 0  # TODO
-        start_byte = 0  # TODO
+        # bytes left in last chunk
+        bllc = 0
+        start_byte = 0
+        im_len = len(index_map)
+        last_chunk = None
+        if im_len > 0:
+            last_index_entry = index_map[-1]
+            last_incomplete_chunk_names = last_index_entry["incomplete_chunk_names"]
+
+            if last_incomplete_chunk_names == 1:
+                last_chunk_index = im_len - 1
+                last_chunk = last_chunk_key = os.path.join(
+                    key, "c%i" % last_chunk_index
+                )
+                # `bllc` can't be negative, covered by `get_and_validate_meta`
+                bllc = chunk_size - len(last_chunk)
+                start_byte = len(last_chunk)
+
+            elif len(last_incomplete_chunk_names) > 1:
+                # TODO: exceptions.py
+                raise Exception(
+                    "There shouldn't be more than 1 incomplete chunk per sample."
+                )
+
         chunk_gen = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
         chunk_names = []
         incomplete_chunk_names = []
@@ -90,18 +114,24 @@ def chunk_and_write_array(
             # TODO: chunk_name should be based on `global_chunk_index`
             chunk_name = "c%i" % local_chunk_index
 
-            # TODO: fill previous chunk if it is incomplete (compress if filled)
+            end_byte = len(chunk)  # end byte is based on the uncompressed chunk
 
             if compression.subject == "chunk":
                 # TODO: add threshold for compressing (in case user specifies like 10gb chunk_size)
 
                 if len(chunk) >= chunk_size:
                     # only compress if it is a full chunk
-                    end_byte = len(chunk)  # end byte is based on the uncompressed chunk
+
                     chunk = compression.compress(chunk)
                 else:
                     incomplete_chunk_names.append(chunk_name)
-                    end_byte = len(chunk)
+
+                # TODO: make this more efficient
+                if last_chunk is not None:
+                    last_chunk = bytearray(last_chunk)
+                    last_chunk.extend(chunk[:bllc])
+                    last_chunk = None
+                    storage[last_chunk_index] = bytes(last_chunk)
 
             chunk_names.append(chunk_name)
             chunk_key = os.path.join(key, chunk_name)
@@ -118,15 +148,14 @@ def chunk_and_write_array(
         # TODO: keep track of `sample.shape` over time & add the max_shape:min_shape interval into meta.json for easy queries
 
         # TODO: encode index_map_entry as array instead of dictionary
-        index_map.append(
-            {
-                "chunk_names": chunk_names,
-                "incomplete_chunk_names": incomplete_chunk_names,
-                "start_byte": start_byte,
-                "end_byte": end_byte,
-                "shape": sample.shape,  # shape per sample for dynamic tensors (if strictly fixed-size, store this in meta)
-            }
-        )
+        index_map_entry = {
+            "chunk_names": chunk_names,
+            "incomplete_chunk_names": incomplete_chunk_names,
+            "start_byte": start_byte,
+            "end_byte": end_byte,
+            "shape": sample.shape,  # shape per sample for dynamic tensors (if strictly fixed-size, store this in meta)
+        }
+        index_map.append(index_map_entry)
 
     # TODO: chunk index_map
     set_index_map(key, storage, index_map)

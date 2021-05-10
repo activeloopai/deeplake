@@ -3,7 +3,7 @@ import itertools
 
 import numpy as np
 
-from hub.core.chunk_engine import generate_chunks
+from hub.core.chunk_engine import generate_chunks, unchunk
 
 from typing import List, Optional, Tuple
 
