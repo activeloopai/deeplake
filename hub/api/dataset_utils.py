@@ -19,21 +19,23 @@ def _get_compressor(compressor: str, **kwargs):
     """
     if compressor is None:
         return None
-    elif compressor.lower() == "lz4":
+    compressor = compressor.lower()
+    if compressor == "lz4":
         acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         return Lz4(acceleration)
-    elif compressor.lower() == "zstd":
+    elif compressor == "zstd":
         level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         return Zstd(level)
-    elif compressor.lower() == "numpy":
+    elif compressor == "numpy":
         return NumPy()
-    elif compressor.lower() == "png":
+    elif compressor == "png":
         single_channel = kwargs.get("single_channel", True)
         return PngCodec(single_channel=single_channel)
-    elif compressor.lower() == "jpeg":
+    elif compressor == "jpeg":
         single_channel = kwargs.get("single_channel", True)
-        return JpegCodec(single_channel=single_channel)
+        quality = kwargs.get("quality", 95)
+        return JpegCodec(single_channel=single_channel, quality=quality)
     else:
         raise ValueError(
-            f"Wrong compressor: {compressor}, only LZ4, PNG and ZSTD are supported"
+            f"Wrong compressor: {compressor}, only LZ4, PNG, JPEG, NumPy and ZSTD are supported"
         )

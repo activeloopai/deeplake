@@ -105,7 +105,7 @@ class BaseImgCodec(Codec):
 class JpegCodec(BaseImgCodec, Codec):
     """Jpeg compressor for image data"""
 
-    def __init__(self, single_channel: bool = True):
+    def __init__(self, single_channel: bool = True, quality: int = 95):
         """
         Initialize Jpeg compressor
 
@@ -115,6 +115,7 @@ class JpegCodec(BaseImgCodec, Codec):
         super().__init__()
         self.codec_id = "jpeg"
         self.single_channel = single_channel
+        self.quality = quality
 
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
@@ -132,7 +133,7 @@ class JpegCodec(BaseImgCodec, Codec):
         """
         with BytesIO() as buffer:
             Image.fromarray(image).save(
-                buffer, format=self.codec_id, subsampling=0, quality=90
+                buffer, format=self.codec_id, subsampling=0, quality=self.quality
             )
             return buffer.getvalue()
 
