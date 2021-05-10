@@ -29,7 +29,7 @@ def read_array(
 
     if index is None:
         index = slice(None)
-    elif type(index) == int:
+    elif isinstance(index, int):
         index = slice(index + 1)
 
     meta = get_meta(key, storage)
