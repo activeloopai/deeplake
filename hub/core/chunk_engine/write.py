@@ -6,40 +6,16 @@ from typing import Any, Callable, List, Tuple
 
 from hub.core.chunk_engine import generate_chunks
 
-from .meta import has_meta, get_meta, set_meta, default_meta
+from .meta import (
+    has_meta,
+    get_meta,
+    set_meta,
+    default_meta,
+    validate_meta_is_compatible,
+    update_meta,
+)
 from .index_map import has_index_map, get_index_map, set_index_map, default_index_map
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
-
-
-def get_and_validate_meta(key, storage, array, compression, chunk_size):
-    if has_meta(key, storage):
-        meta = get_meta(key, storage)
-
-        # TODO: validate meta matches tensor meta where it needs to (like dtype or strict-shape)
-
-        # TODO: move all these into exceptions.py
-        # TODO: can also make this more general by using **kwargs
-        if meta["dtype"] != array.dtype.name:
-
-            raise Exception("Dtype mismatch.")
-        if meta["compression"] != compression.__name__:
-            raise Exception("Compression mismatch.")
-        if meta["chunk_size"] != chunk_size:
-            raise Exception("Chunksize mismatch.")
-
-        meta["length"] += array.shape[0]
-    else:
-        meta = default_meta()
-        meta.update(
-            {
-                "dtype": array.dtype.name,
-                "length": array.shape[0],
-                "compression": compression.__name__,
-                "chunk_size": chunk_size,
-            }
-        )
-
-    return meta
 
 
 def chunk_and_write_array(
@@ -59,9 +35,19 @@ def chunk_and_write_array(
     # TODO: validate array shape (no 0s in shape)
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    meta = get_and_validate_meta(key, storage, array, compression, chunk_size)
-
-    # TODO: update existing meta. for example, if meta["length"] already exists, we will need to add instead of set
+    # validate & update meta
+    _meta = {
+        "compression": compression.__name__,
+        "chunk_size": chunk_size,
+        "dtype": array.dtype.name,
+    }
+    validate_meta_is_compatible(key, storage, **_meta)
+    meta = update_meta(
+        key,
+        storage,
+        length=array.shape[0],
+        **_meta,
+    )
 
     local_chunk_index = 0
 
@@ -95,7 +81,7 @@ def chunk_and_write_array(
                 last_chunk = last_chunk_key = os.path.join(
                     key, "c%i" % last_chunk_index
                 )
-                # `bllc` can't be negative, covered by `get_and_validate_meta`
+                # `bllc` can't be negative, covered by `validate_meta_is_compatible`
                 bllc = chunk_size - len(last_chunk)
                 start_byte = len(last_chunk)
 

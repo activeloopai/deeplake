@@ -31,3 +31,32 @@ def get_meta(key, storage):
 @meta_func
 def set_meta(key, storage, meta):
     storage[key] = pickle.dumps(meta)
+
+
+@meta_func
+def validate_meta_is_compatible(key, storage, **kwargs):
+    if has_meta(key, storage):
+        meta = get_meta(key, storage)
+
+        for arg_key, arg_v in kwargs.items():
+            if meta[arg_key] != arg_v:
+                # TODO: move into exceptions.py
+                raise Exception("`%s` mismatch." % arg_key)
+
+
+@meta_func
+def update_meta(key, storage, length=0, **kwargs):
+    if has_meta(key, storage):
+        meta = get_meta(key, storage)
+
+        meta["length"] += length
+    else:
+        meta = default_meta()
+        meta.update(
+            {
+                "length": length,
+                **kwargs,
+            }
+        )
+
+    return meta
