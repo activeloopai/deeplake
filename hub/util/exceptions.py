@@ -32,3 +32,26 @@ class UnsupportedTensorTypeError(TypeError):
                 type(item).__name__
             )
         )
+
+class InvalidBytesRequestedError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The byte range provided is invalid. Ensure that start_byte <= end_byte and start_byte > 0 and end_byte > 0"
+        )
+
+
+# TODO Better S3 Exception handling
+class S3GetError(Exception):
+    """Catchall for all errors encountered while working getting an object from S3"""
+
+
+class S3SetError(Exception):
+    """Catchall for all errors encountered while working setting an object in S3"""
+
+
+class S3DeletionError(Exception):
+    """Catchall for all errors encountered while working deleting an object in S3"""
+
+
+class S3ListError(Exception):
+    """Catchall for all errors encountered while retrieving a list of objects present in S3"""
