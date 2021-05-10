@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from multiprocessing import Lock
 from hub.core.storage.provider import Provider
+from typing import Set
 
 
 class DummyLock:
@@ -19,15 +20,17 @@ class LRUCache(Provider):
         self,
         cache_storage: Provider,
         next_storage: Provider,
-        cache_size,
+        cache_size: int,
     ):
         self._next_storage = next_storage
         self._cache_storage = cache_storage
         self._cache_size = cache_size  # max size of cache_storage
-        self._dirty_keys = set()  # keys stored in cache but not actual storage
+        self._dirty_keys: Set[str] = set()  # keys in cache but not next storage
         self._lock = DummyLock()  # TODO actual lock after testing
         self._cache_used = 0  # size of cache used
-        self._lru_lengths = OrderedDict()  # tracks key order and length of value
+        self._lru_lengths: OrderedDict[
+            str, int
+        ] = OrderedDict()  # tracks key order and length of value
 
     def flush(self):
         for item in self._dirty_keys:
