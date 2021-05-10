@@ -9,19 +9,21 @@ from .dummy_util import dummy_compression_map
 from .meta import get_meta
 from .index_map import get_index_map
 
-from typing import Callable, List
+from typing import Callable, List, Union
 
 # TODO change storage type to StorageProvider
-# TODO: read with slice
-def read_sample(
+def read_array(
     key: str,
-    index: int,
+    index: Union[int, slice],
     storage,
 ) -> np.ndarray:
     # TODO: docstring
     """
     array <- bytes <- decompressor <- chunks <- storage
     """
+
+    if type(index) == int:
+        index = slice(index + 1)
 
     meta = get_meta(key, storage)
 
@@ -36,8 +38,7 @@ def read_sample(
     all_same_shape = True
     last_shape = None
 
-    for index in range(length):
-        index_entry = index_map[index]
+    for index_entry in index_map[index]:
         shape = index_entry["shape"]
 
         # TODO: make this more concise

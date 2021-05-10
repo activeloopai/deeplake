@@ -1,6 +1,6 @@
 import numpy as np
 
-from hub.core.chunk_engine import read_sample, write_array
+from hub.core.chunk_engine import write_array, read_array
 from hub.core.chunk_engine.meta import get_meta, has_meta, validate_meta
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
 from hub.core.storage import MemoryProvider
@@ -61,10 +61,11 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         # TODO: make sure there is no more than 1 incomplete chunk at a time. because incomplete chunks are NOT compressed, if there is
         # more than 1 per tensor is inefficient
 
-        a_out = read_sample(tensor_key, i, storage)
-
         # writing implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
+
+        s = slice(0, a_in.shape[0])
+        a_out = read_array(tensor_key, s, storage)
 
         assert has_meta(tensor_key, storage), "Meta was not found."
         meta = get_meta(tensor_key, storage)
