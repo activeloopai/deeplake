@@ -45,7 +45,11 @@ class BaseImgCodec(Codec):
             shape_dims = 2
         else:
             shape_dims = 3
-        assert len(arr.shape) >= shape_dims
+        if len(arr.shape) >= shape_dims:
+            raise ValueError(
+                f"The shape length {len(arr.shape)} of the given array should"
+                f"be less than the number of expected dimensions {shape_dims}"
+            )
         if len(arr.shape) == shape_dims:
             return self._msgpack.encode(
                 [{"items": self.encode_single_image(arr), "append_one": append_one}]
