@@ -9,20 +9,27 @@ from .dummy_util import dummy_compression_map
 from .meta import get_meta
 from .index_map import get_index_map
 
-from typing import Callable, List, Union
+from hub.core.typing import Provider
+from typing import Callable, List, Union, Optional
 
-# TODO change storage type to StorageProvider
+
 def read_array(
     key: str,
-    index: Union[int, slice],
-    storage,
+    storage: Provider,
+    index: Optional[Union[int, slice]] = None,
 ) -> np.ndarray:
-    # TODO: docstring
-    """
-    array <- bytes <- decompressor <- chunks <- storage
+    """Read, decompress, & unchunk an array slice from storage.
+
+    Args:
+        key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
+        index (int | slice, optional): Index/slice that represents which samples to read. If `index` is an int value, it
+            will be converted into a slice using: `slice(index)`. If no index is provided (default), all samples will be returned.
+        storage (Provider): Provider for reading the chunks, index_map, & meta.
     """
 
-    if type(index) == int:
+    if index is None:
+        index = slice(None)
+    elif type(index) == int:
         index = slice(index + 1)
 
     meta = get_meta(key, storage)

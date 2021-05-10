@@ -64,8 +64,7 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         # writing implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        s = slice(0, a_in.shape[0])
-        a_out = read_array(tensor_key, s, storage)
+        a_out = read_array(tensor_key, storage)
 
         assert has_meta(tensor_key, storage), "Meta was not found."
         meta = get_meta(tensor_key, storage)

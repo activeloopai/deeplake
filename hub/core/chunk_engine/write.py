@@ -27,7 +27,7 @@ def write_array(
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = array_to_bytes,
 ):
-    """Chunk & write an array to the given storage.
+    """Chunk & write an array to storage.
 
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
@@ -36,7 +36,7 @@ def write_array(
         compression: Compression object that has methods for `compress`, `decompress`, & `subject`. `subject` decides what
             the `compress`/`decompress` methods will be called upon (ie. chunk/sample).
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
-        storage (Provider): Provider for storing the chunks, index_map, meta, etc.
+        storage (Provider): Provider for storing the chunks, index_map, & meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
         tobytes (Callable): Must accept an `np.ndarray` as it's argument & return `bytes`.
