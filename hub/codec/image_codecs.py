@@ -1,23 +1,26 @@
 from io import BytesIO
 import numcodecs
 from numcodecs.abc import Codec
+from abc import ABC, abstractmethod
 
 import numpy as np
 from PIL import Image
 
 
-class BaseImgCodec(Codec):
+class BaseImgCodec(ABC, Codec):
     """Base class for image codecs"""
 
     def __init__(self, single_channel: bool = True):
         self.single_channel = single_channel
         self._msgpack = numcodecs.MsgPack()
 
+    @abstractmethod
     def encode_single_image():
-        return NotImplementedError()
+        pass
 
+    @abstractmethod
     def decode_single_image():
-        return NotImplementedError()
+        pass
 
     def encode(self, arr: np.ndarray):
         """
