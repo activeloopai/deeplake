@@ -18,6 +18,7 @@ def read_sample(
     index: int,
     storage,
 ) -> np.ndarray:
+    # TODO: docstring
     """
     array <- bytes <- decompressor <- chunks <- storage
     """

@@ -16,6 +16,7 @@ from .index_map import has_index_map, get_index_map, set_index_map
 from .util import array_to_bytes, normalize_and_batchify_shape
 
 
+# TODO: docstring
 def write_array(
     array: np.ndarray,
     key: str,

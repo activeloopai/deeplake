@@ -6,6 +6,7 @@ def array_to_bytes(array: np.ndarray) -> bytes:
     return array.tobytes()
 
 
+# TODO: docstring
 def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray:
     # if the first axis is of length 1, but batched is true, it is only a single sample & squeeze will remove it
     actually_batched = batched and array.shape[0] != 1
