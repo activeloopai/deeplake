@@ -1,5 +1,5 @@
 import numcodecs
-from codecs import PngCodec, Lz4, NumPy, Zstd, JpegCodec
+from hub.codec.codecs import PngCodec, Lz4, NumPy, Zstd, JpegCodec
 
 
 def _get_compressor(compressor: str, **kwargs):
