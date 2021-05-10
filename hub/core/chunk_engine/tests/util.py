@@ -1,6 +1,6 @@
 import numpy as np
 
-from hub.core.chunk_engine import read_sample, chunk_and_write_array
+from hub.core.chunk_engine import read_sample, write_array
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
 from hub.core.storage import MemoryProvider
 
@@ -39,7 +39,7 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
     storage.clear()
 
     for i, a_in in enumerate(arrays):
-        chunk_and_write_array(
+        write_array(
             a_in,
             "tensor",
             compression,
@@ -60,6 +60,7 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         print(a_in)
         print("out:")
         print(a_out)
+
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
     storage.clear()

@@ -17,7 +17,7 @@ from .index_map import has_index_map, get_index_map, set_index_map, default_inde
 from .util import array_to_bytes, index_map_entry_to_bytes, normalize_and_batchify_shape
 
 
-def chunk_and_write_array(
+def write_array(
     array: np.ndarray,
     key: str,
     compression,
@@ -27,6 +27,11 @@ def chunk_and_write_array(
 ):
 
     array = normalize_and_batchify_shape(array, batched=batched)
+
+    if has_meta(key, storage):
+        # TODO: support appending
+        raise NotImplementedError("Appending is not supported yet.")
+
     meta = validate_and_update_meta(
         key,
         storage,

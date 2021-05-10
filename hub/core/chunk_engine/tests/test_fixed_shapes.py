@@ -24,10 +24,8 @@ np.random.seed(1)
 
 
 # number of batches (unbatched implicitly = 1 sample per batch) per test
-NUM_BATCHES = (
-    1,
-    5,
-)
+# TODO: add more batches (when appending is supported)
+NUM_BATCHES = (1,)
 
 
 UNBATCHED_SHAPES = (
