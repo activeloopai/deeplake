@@ -36,10 +36,6 @@ def set_meta(key, storage, meta):
 
 @meta_func
 def validate_meta(key, storage, **kwargs):
-    if kwargs["chunk_size"] <= 0:
-        # TODO: move into exceptions.py
-        raise Exception("Chunk size too small")
-
     if has_meta(key, storage):
         meta = get_meta(key, storage)
 
@@ -51,6 +47,11 @@ def validate_meta(key, storage, **kwargs):
 
 @meta_func
 def update_meta(key, storage, length=0, **kwargs):
+    if "chunk_size" in kwargs:
+        if kwargs["chunk_size"] <= 0:
+            # TODO: move into exceptions.py
+            raise Exception("Chunk size too small")
+
     if has_meta(key, storage):
         meta = get_meta(key, storage)
 

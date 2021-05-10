@@ -52,6 +52,8 @@ def write_array(
         "chunk_size": chunk_size,
         "dtype": array.dtype.name,
         "length": array.shape[0],
+        "min_shape": array.shape[1:],
+        "max_shape": array.shape[1:],
     }
     meta = validate_and_update_meta(key, storage, **_meta)
     index_map = get_index_map(key, storage)
@@ -81,11 +83,9 @@ def write_array(
                 incomplete_chunk_names.append(chunk_name)
 
             chunk_names.append(chunk_name)
-            # TODO: make function:
             chunk_key = os.path.join(key, "chunks", chunk_name)
             storage[chunk_key] = chunk
 
-        # TODO: keep track of `sample.shape` over time & add the max_shape:min_shape interval into meta.json for easy queries
         # TODO: encode index_map_entry as array instead of dictionary
         index_map_entry = {
             "chunk_names": chunk_names,

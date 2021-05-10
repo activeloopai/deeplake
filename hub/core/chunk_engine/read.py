@@ -47,7 +47,6 @@ def read_sample(
         # TODO: put this in a separate function/class, ideally that caches decompressed chunks
         def decompressed_chunks_generator():
             for chunk_name in index_entry["chunk_names"]:
-                # TODO make function:
                 chunk_key = os.path.join(key, "chunks", chunk_name)
                 raw_chunk = storage[chunk_key]
 
