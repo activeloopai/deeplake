@@ -10,17 +10,17 @@ def test_provider(provider=MappedProvider()):
 
     provider[FILE_1] = b"hello world"
     assert provider[FILE_1] == b"hello world"
-    assert provider.__getitem__(FILE_1, 2, 5) == b"llo"
+    assert provider.get_bytes(FILE_1, 2, 5) == b"llo"
 
-    provider.__setitem__(FILE_1, b"abcde", 6)
+    provider.set_bytes(FILE_1, b"abcde", 6)
     assert provider[FILE_1] == b"hello abcde"
 
-    provider.__setitem__(FILE_1, b"tuvwxyz", 6)
+    provider.set_bytes(FILE_1, b"tuvwxyz", 6)
     assert provider[FILE_1] == b"hello tuvwxyz"
 
-    provider.__setitem__(FILE_2, b"hello world", 3)
+    provider.set_bytes(FILE_2, b"hello world", 3)
     assert provider[FILE_2] == b"\x00\x00\x00hello world"
-    provider.__setitem__(FILE_2, b"new_text", overwrite=True)
+    provider.set_bytes(FILE_2, b"new_text", overwrite=True)
     assert provider[FILE_2] == b"new_text"
 
     assert len(provider) >= 1
