@@ -4,7 +4,7 @@ import numpy as np
 
 from hub.core.storage import MemoryProvider
 
-from .generator import unchunk
+from .chunker import join_chunks
 from .dummy_util import dummy_compression_map
 from .meta import get_meta
 from .index_map import get_index_map
@@ -18,7 +18,7 @@ def read_array(
     storage: Provider,
     index: Union[int, slice] = slice(None),
 ) -> np.ndarray:
-    """Read, decompress, & unchunk an array slice from storage.
+    """Read, decompress, & join chunks into an array from storage.
 
     Args:
         key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
@@ -61,7 +61,7 @@ def read_array(
 
             chunks.append(chunk)
 
-        b = unchunk(
+        b = join_chunks(
             chunks,
             index_entry["start_byte"],
             index_entry["end_byte"],

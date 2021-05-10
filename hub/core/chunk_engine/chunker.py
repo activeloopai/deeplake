@@ -62,7 +62,7 @@ def generate_chunks(
         total_bytes_yielded += len(chunk)
 
 
-def unchunk(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
+def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
     # TODO: write tests/docstring (also maybe move to another file/rename this one?)
     b = bytearray()
     for i, chunk in enumerate(chunks):
