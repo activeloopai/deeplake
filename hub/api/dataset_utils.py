@@ -1,15 +1,32 @@
-import numcodecs
-from hub.codec.codecs import PngCodec, Lz4, NumPy, Zstd, JpegCodec
+from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec
 
 
-def _get_compressor(compressor: str, **kwargs):
+compression_map = {
+    PngCodec().__name__: PngCodec,
+    JpegCodec().__name__: JpegCodec,
+    Lz4().__name__: Lz4,
+    Zstd().__name__: Zstd,
+    NumPy().__name__: NumPy,
+}
+
+
+def _get_compressor(compressor_name: str, **kwargs):
     """Get compressor object
 
     Example:
         compressor = _get_compressor('lz4', acceleration=2)
 
     Args:
-        compressor (str): lowercase name of the required compressor
+        compressor_name (str): lowercase name of the required compressor
+
+    Keyword Arguments:
+        acceleration (int): Lz4 codec argument. The larger the acceleration value,
+        the faster the algorithm, but also the lesser the compression.
+        level (int): Zstd codec argument. Sets the compression level (1-22).
+        single_channel (bool): PngCodec and JpegCodec argument. if True,
+        encoder will remove the last dimension of input if it is 1.
+        Doesn't have impact on 3-channel images.
+        quality (int): JpegCodec argument. The image quality on a scale from 1 (worst) to 95 (best).
 
     Returns:
         Codec object providing compression
@@ -17,24 +34,11 @@ def _get_compressor(compressor: str, **kwargs):
     Raises:
         ValueError: if the name of compressor isn't in ['lz4', 'zstd', 'numpy', 'png', 'jpeg']
     """
-    if compressor is None:
+    if compressor_name is None:
         return None
-    compressor = compressor.lower()
-    if compressor == "lz4":
-        acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
-        return Lz4(acceleration)
-    elif compressor == "zstd":
-        level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
-        return Zstd(level)
-    elif compressor == "numpy":
-        return NumPy()
-    elif compressor == "png":
-        single_channel = kwargs.get("single_channel", True)
-        return PngCodec(single_channel=single_channel)
-    elif compressor == "jpeg":
-        single_channel = kwargs.get("single_channel", True)
-        quality = kwargs.get("quality", 95)
-        return JpegCodec(single_channel=single_channel, quality=quality)
+    compressor = compression_map.get(compressor_name, None)
+    if compressor:
+        return compressor(**kwargs)
     else:
         raise ValueError(
             f"Wrong compressor: {compressor}, only LZ4, PNG, JPEG, NumPy and ZSTD are supported"

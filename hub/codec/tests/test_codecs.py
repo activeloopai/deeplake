@@ -37,7 +37,7 @@ def test_png_codec(from_config: bool, shape: tuple) -> None:
 
 @pytest.mark.parametrize("single_channel", [False, True])
 def test_png_codec_config(single_channel: bool) -> None:
-    codec = PngCodec(single_channel)
+    codec = PngCodec(single_channel=single_channel)
     config = codec.get_config()
     assert config["id"] == "png"
     assert config["single_channel"] == single_channel
@@ -45,7 +45,7 @@ def test_png_codec_config(single_channel: bool) -> None:
 
 @pytest.mark.parametrize("single_channel", [False, True])
 def test_png_codec_single_channel(single_channel: bool) -> None:
-    codec = PngCodec(single_channel)
+    codec = PngCodec(single_channel=single_channel)
     if single_channel:
         arr = np.ones((100, 100, 1), dtype="uint8")
     else:
@@ -66,7 +66,7 @@ def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
 
 @pytest.mark.parametrize("single_channel", [False, True])
 def test_jpeg_codec_config(single_channel: bool) -> None:
-    codec = JpegCodec(single_channel)
+    codec = JpegCodec(single_channel=single_channel)
     config = codec.get_config()
     assert config["id"] == "jpeg"
     assert config["single_channel"] == single_channel
@@ -74,7 +74,7 @@ def test_jpeg_codec_config(single_channel: bool) -> None:
 
 @pytest.mark.parametrize("single_channel", [False, True])
 def test_jpeg_codec_single_channel(single_channel: bool) -> None:
-    codec = JpegCodec(single_channel)
+    codec = JpegCodec(single_channel=single_channel)
     if single_channel:
         arr = np.ones((100, 100, 1), dtype="uint8")
     else:

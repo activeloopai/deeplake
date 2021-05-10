@@ -21,6 +21,10 @@ class NumPy(BaseNumCodec):
     def __init__(self):
         super().__init__()
 
+    @property
+    def __name__(self):
+        return "numpy"
+
     def encode(self, array: np.ndarray) -> bytes:
         """
         Encode given array
@@ -57,7 +61,7 @@ class NumPy(BaseNumCodec):
 
 
 class Lz4(BaseNumCodec):
-    def __init__(self, acceleration: int):
+    def __init__(self, **kwargs):
         """
         Initialize Lz4 compressor
 
@@ -65,8 +69,13 @@ class Lz4(BaseNumCodec):
             acceleration (int): Acceleration level.
             The larger the acceleration value, the faster the algorithm, but also the lesser the compression.
         """
+        acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         self.compressor = numcodecs.lz4.LZ4(acceleration)
         self._msgpack = numcodecs.MsgPack()
+
+    @property
+    def __name__(self):
+        return "lz4"
 
     def encode(self, array: np.ndarray) -> bytes:
         """
@@ -113,15 +122,20 @@ class Lz4(BaseNumCodec):
 
 
 class Zstd(BaseNumCodec):
-    def __init__(self, level: int):
+    def __init__(self, **kwargs):
         """
         Initialize Zstd compressor
 
         Args:
             level (int): Compression level (1-22).
         """
+        level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         self.compressor = numcodecs.zstd.Zstd(level)
         self._msgpack = numcodecs.MsgPack()
+
+    @property
+    def __name__(self):
+        return "zstd"
 
     def encode(self, array: np.ndarray) -> bytes:
         """

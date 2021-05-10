@@ -45,10 +45,10 @@ class BaseImgCodec(Codec):
             shape_dims = 2
         else:
             shape_dims = 3
-        if len(arr.shape) >= shape_dims:
+        if len(arr.shape) < shape_dims:
             raise ValueError(
-                f"The shape length {len(arr.shape)} of the given array should"
-                f"be less than the number of expected dimensions {shape_dims}"
+                f"The shape length {len(arr.shape)} of the given array should "
+                f"be greater than the number of expected dimensions {shape_dims}"
             )
         if len(arr.shape) == shape_dims:
             return self._msgpack.encode(
@@ -109,17 +109,22 @@ class BaseImgCodec(Codec):
 class JpegCodec(BaseImgCodec, Codec):
     """Jpeg compressor for image data"""
 
-    def __init__(self, single_channel: bool = True, quality: int = 95):
+    def __init__(self, **kwargs):
         """
-        Initialize Jpeg compressor
+        Initialize Jpeg compressor.
 
         Args:
             single_channel (bool): if True, encoder will remove the last dimension of input if it is 1.
+            quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
         """
         super().__init__()
         self.codec_id = "jpeg"
-        self.single_channel = single_channel
-        self.quality = quality
+        self.single_channel = kwargs.get("single_channel", True)
+        self.quality = kwargs.get("quality", 95)
+
+    @property
+    def __name__(self):
+        return self.codec_id
 
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
@@ -160,11 +165,11 @@ class JpegCodec(BaseImgCodec, Codec):
 
     @classmethod
     def from_config(cls, config):
-        return JpegCodec(config["single_channel"])
+        return JpegCodec(single_channel=config["single_channel"])
 
 
 class PngCodec(BaseImgCodec, Codec):
-    def __init__(self, single_channel: bool = True):
+    def __init__(self, **kwargs):
         """
         Initialize PNG compressor
 
@@ -173,7 +178,11 @@ class PngCodec(BaseImgCodec, Codec):
         """
         super().__init__()
         self.codec_id = "png"
-        self.single_channel = single_channel
+        self.single_channel = kwargs.get("single_channel", True)
+
+    @property
+    def __name__(self):
+        return "png"
 
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
@@ -212,7 +221,7 @@ class PngCodec(BaseImgCodec, Codec):
 
     @classmethod
     def from_config(cls, config):
-        return PngCodec(config["single_channel"])
+        return PngCodec(single_channel=config["single_channel"])
 
 
 numcodecs.register_codec(PngCodec, "png")
