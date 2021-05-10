@@ -66,7 +66,7 @@ def unchunk(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
     # TODO: write tests/docstring (also maybe move to another file/rename this one?)
     b = bytearray()
     for i, chunk in enumerate(chunks):
-        actual_start_byte, actual_end_byte = start_byte, -1
+        actual_start_byte, actual_end_byte = start_byte, len(chunk)
 
         if i <= 0:
             actual_start_byte = start_byte
