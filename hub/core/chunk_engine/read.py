@@ -25,6 +25,9 @@ def read_array(
         index (int | slice): Index/slice that represents which samples to read. If `index` is an int value, it
             will be converted into a slice using: `slice(index)`. If no index is provided, all samples will be returned.
         storage (Provider): Provider for reading the chunks, index_map, & meta.
+
+    Returns:
+        np.ndarray: Array containing the sample(s) in the `index` slice.
     """
 
     if isinstance(index, int):

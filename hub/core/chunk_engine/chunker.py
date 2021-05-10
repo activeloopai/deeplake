@@ -63,7 +63,24 @@ def generate_chunks(
 
 
 def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
-    # TODO: write tests/docstring (also maybe move to another file/rename this one?)
+    """Given a list of bytes that represent sequential chunks, join them into one bytes object.
+    For more on chunking, see the `generate_chunks` method.
+
+    Example:
+        chunks = [b"123", b"456", b"789"]
+        start_byte = 1
+        end_byte = 2
+        returns:
+            b"2345678"
+
+    Args:
+        chunks (list[bytes]): Sequential list of bytes objects that represent chunks.
+        start_byte (int): The first chunk in the sequence will ignore the bytes before `start_byte`. If 0, all bytes are included.
+        end_byte (int): The last chunk in the sequence will ignore the bytes after `end_byte`. If None, all bytes are included.
+
+    Note: if `len(chunks) == 1`, `start_byte`:`end_byte` will be applied to the same chunk (the first & last one).
+    """
+
     b = bytearray()
     for i, chunk in enumerate(chunks):
         actual_start_byte, actual_end_byte = start_byte, len(chunk)
