@@ -10,8 +10,6 @@ l3 = LocalProvider("./cache/l3")
 
 lru = get_cache_chain([l1, l2, l3], [64, 100])
 
-# lru = LRUCache(l1, l2, 64)
-
 lru["file1"] = b"1" * 80
 
 print(lru["file1"])

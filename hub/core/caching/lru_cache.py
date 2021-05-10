@@ -1,12 +1,4 @@
-"""
-License:
-This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
-If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
-"""
-
 from collections import OrderedDict
-
-# from collections.abc import MutableMapping
 from multiprocessing import Lock
 from hub.core.storage.provider import Provider
 
@@ -29,9 +21,6 @@ class LRUCache(Provider):
         next_storage: Provider,
         cache_size,
     ):
-        """Creates LRU cache using cache_storage and actual_storage containers
-        cache_size -> maximum cache size that is allowed
-        """
         self._next_storage = next_storage
         self._cache_storage = cache_storage
         self._cache_size = cache_size  # max size of cache_storage
@@ -39,12 +28,6 @@ class LRUCache(Provider):
         self._lock = DummyLock()  # TODO actual lock after testing
         self._cache_used = 0  # size of cache used
         self._lru_lengths = OrderedDict()  # tracks key order and length of value
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
 
     def flush(self):
         for item in self._dirty_keys:
@@ -116,7 +99,6 @@ class LRUCache(Provider):
         self._lru_lengths[key] = len(value)
 
     def __len__(self):
-        # TODO: In future might need to fix this to return proper len
         return len(self.actual_storage)
 
     def __iter__(self):
