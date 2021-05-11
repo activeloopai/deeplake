@@ -135,7 +135,7 @@ def get_random_array(shape: Tuple, dtype: str) -> np.ndarray:
         a = np.random.uniform(shape)
         return a > 0.5
 
-    assert False, 'Invalid dtype "%s".' % dtype
+    raise ValueError("Dtype %s not supported." % dtype)
 
 
 def assert_meta_is_valid(meta: dict, expected_meta: dict):
