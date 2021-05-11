@@ -142,13 +142,6 @@ commands:
             <<# parameters.plugins >>pip3 install -r requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r requirements/common.txt
             pip3 install -e .
-  style-check:
-    steps:
-      - run:
-          name: "Checking code style"
-          command: |
-            pip3 install flake8
-            flake8 . --count --exit-zero --max-complexity=10 --statistics
   run-tests:
     parameters:
       unix-like:
@@ -163,7 +156,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --mypy --cov-report=xml --cov=./
+                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-autosave
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -171,11 +164,15 @@ commands:
                 name: "Running tests - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --mypy --cov-report=xml --cov=./
+                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-autosave
   codecov-upload:
     steps:
       - codecov/upload:
           file: coverage.xml
+  save-benchmarks:
+    steps:
+      - store_artifacts:
+          path: .benchmarks/
   report:
     parameters:
       unix-like:
@@ -257,9 +254,9 @@ jobs:
           unix-like: << parameters.unix-like >>
       - requirements:
           plugins: << parameters.plugins >>
-      - style-check
       - run-tests:
           unix-like: << parameters.unix-like >>
+      - save-benchmarks
       - when:
           condition: << parameters.plugins >>
           steps:
