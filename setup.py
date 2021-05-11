@@ -9,12 +9,11 @@ project_name = "hub"
 
 def get_property(prop, project):
     """
-    this function allows you to get a property from the `project_name/__init__.py` file.
+    Get a property from the `project_name/__init__.py` file.
 
-    if you call `get_property("__version__", "hub")`, it will return the __version__ variable you
-    set inside `hub/__init__.py`.
-
-    this means we can define the package version once & hub.__version__ will return it.
+    Example:
+        `get_property("__version__", "hub")`,
+        returns the __version__ variable set inside `hub/__init__.py`.
     """
 
     fname = project + "/__init__.py"

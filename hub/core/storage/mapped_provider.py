@@ -88,9 +88,6 @@ class MappedProvider(StorageProvider):
             local_provider = LocalProvider("/home/ubuntu/Documents/")
             len(local_provider)
 
-        Args:
-            path (str): the path to the object relative to the root of the provider.
-
         Returns:
             int: the number of files present inside the root
         """
