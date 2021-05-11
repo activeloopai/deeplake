@@ -56,33 +56,50 @@ def write_array(
         "max_shape": array.shape[1:],
     }
 
+    last_chunk = None
     for i in range(array.shape[0]):
         sample = array[i]
 
         b = tobytes(sample)
 
-        chunk_gen = generate_chunks(b, chunk_size)
-        chunk_names = []
-        incomplete_chunk_names = []
+        bllc = 0
+        extend_last_chunk = False
+        if last_chunk is not None and len(last_chunk) < chunk_size:
+            bllc = chunk_size - len(last_chunk)
+            last_chunk = bytearray(last_chunk)
+            extend_last_chunk = True
 
+        chunk_gen = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
+        chunk_names = []
+
+        start_byte = 0
         for chunk in chunk_gen:
+            if extend_last_chunk:
+                chunk_name = last_chunk_name
+                last_chunk.extend(chunk)
+                chunk = bytes(last_chunk)
+                start_byte = index_map[-1]["end_byte"]
+
+                if len(chunk) >= chunk_size:
+                    extend_last_chunk = False
+            else:
+                chunk_name = _random_chunk_name()
+
             end_byte = len(chunk)
 
-            chunk_name = _random_chunk_name()
             chunk_key = get_chunk_key(key, chunk_name)
             storage[chunk_key] = chunk
 
-            if len(chunk) < chunk_size:
-                incomplete_chunk_names.append(chunk_name)
-            else:
-                chunk_names.append(chunk_name)
+            chunk_names.append(chunk_name)
+
+            last_chunk = chunk
+            last_chunk_name = chunk_name
 
         # TODO: encode index_map_entry as array instead of dictionary
         # TODO: encode shape into the sample's bytes instead of index_map
         index_map_entry = {
             "chunk_names": chunk_names,
-            "incomplete_chunk_names": incomplete_chunk_names,
-            "start_byte": 0,
+            "start_byte": start_byte,
             "end_byte": end_byte,
             "shape": sample.shape,  # shape per sample for dynamic tensors (if strictly fixed-size, store this in meta)
         }
