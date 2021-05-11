@@ -2,8 +2,6 @@ import os
 import pickle
 import numpy as np
 
-from hub.core.storage import MemoryProvider
-
 from .chunker import join_chunks
 from .util import get_meta_key, get_index_map_key
 
