@@ -2,7 +2,11 @@ import numpy as np
 import pickle
 
 from hub.core.chunk_engine import write_array, read_array
-from hub.core.chunk_engine.util import normalize_and_batchify_shape, get_meta_key
+from hub.core.chunk_engine.util import (
+    normalize_and_batchify_shape,
+    get_meta_key,
+    get_index_map_key,
+)
 from hub.core.storage import MemoryProvider
 
 
@@ -33,6 +37,18 @@ def get_max_shape(batch):
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
+def assert_incomplete_chunk_count_is_valid(key, storage):
+    index_map_key = get_index_map_key(key)
+    index_map = pickle.loads(storage[index_map_key])
+    incomplete_count = 0
+    for entry in index_map:
+        if "incomplete_chunk_names" in entry:
+            incomplete_count += len(entry["incomplete_chunk_names"])
+    assert incomplete_count <= 1, (
+        "Number of incomplete chunks should never exceed 1. Got: %i" % incomplete_count
+    )
+
+
 def run_engine_test(arrays, storage, batched, chunk_size):
     storage.clear()
     tensor_key = "tensor"
@@ -46,9 +62,9 @@ def run_engine_test(arrays, storage, batched, chunk_size):
             batched=batched,
         )
 
-        # TODO: make sure there is no more than 1 incomplete chunk at a time.
+        assert_incomplete_chunk_count_is_valid(tensor_key, storage)
 
-        # writing implicitly normalizes/batchifies shape
+        # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
         a_out = read_array(tensor_key, storage)
