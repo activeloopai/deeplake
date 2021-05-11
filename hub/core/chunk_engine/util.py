@@ -28,13 +28,13 @@ def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray
     return array
 
 
-def get_chunk_key(key, chunk_name):
+def get_chunk_key(key: str, chunk_name: str) -> str:
     return os.path.join(key, "chunks", chunk_name)
 
 
-def get_meta_key(key):
+def get_meta_key(key: str) -> str:
     return os.path.join(key, "meta.json")
 
 
-def get_index_map_key(key):
+def get_index_map_key(key: str) -> str:
     return os.path.join(key, "index_map.json")

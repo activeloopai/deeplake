@@ -6,8 +6,12 @@ from hub.core.chunk_engine.util import (
     normalize_and_batchify_shape,
     get_meta_key,
     get_index_map_key,
+    get_chunk_key,
 )
 from hub.core.storage import MemoryProvider
+from hub.core.typing import Provider
+
+from typing import List
 
 
 ROOT = "PYTEST_TENSOR_COLLECTION"
@@ -29,17 +33,15 @@ DTYPES = (
 )
 
 
-def get_min_shape(batch):
+def get_min_shape(batch: np.ndarray) -> np.ndarray:
     return tuple(np.minimum.reduce([sample.shape for sample in batch]))
 
 
-def get_max_shape(batch):
+def get_max_shape(batch: np.ndarray) -> np.ndarray:
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
-def assert_incomplete_chunk_count_is_valid(key, storage):
-    index_map_key = get_index_map_key(key)
-    index_map = pickle.loads(storage[index_map_key])
+def assert_incomplete_chunk_count_is_valid(index_map: List):
     incomplete_count = 0
     for entry in index_map:
         if "incomplete_chunk_names" in entry:
@@ -47,6 +49,22 @@ def assert_incomplete_chunk_count_is_valid(key, storage):
     assert incomplete_count <= 1, (
         "Number of incomplete chunks should never exceed 1. Got: %i" % incomplete_count
     )
+
+
+def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Provider):
+    for i, entry in enumerate(index_map):
+        for j, chunk_name in enumerate(entry["chunk_names"]):
+            chunk_key = get_chunk_key(key, chunk_name)
+            chunk_length = len(storage[chunk_key])
+            assert (
+                chunk_length == chunk_size
+            ), 'Chunk "%s" didn\'t match chunk_size=%i (got %i) @ [%i, %i].' % (
+                chunk_name,
+                chunk_size,
+                chunk_length,
+                i,
+                j,
+            )
 
 
 def run_engine_test(arrays, storage, batched, chunk_size):
@@ -62,7 +80,11 @@ def run_engine_test(arrays, storage, batched, chunk_size):
             batched=batched,
         )
 
-        assert_incomplete_chunk_count_is_valid(tensor_key, storage)
+        index_map_key = get_index_map_key(tensor_key)
+        index_map = pickle.loads(storage[index_map_key])
+
+        assert_incomplete_chunk_count_is_valid(index_map)
+        assert_chunk_sizes(tensor_key, index_map, chunk_size, storage)
 
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
