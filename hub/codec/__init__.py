@@ -1,2 +1,2 @@
-from hub.codec.numcodecs import NumPy, Lz4, Zstd
-from hub.codec.image_codecs import PngCodec, JpegCodec
+from hub.codec.numcodecs import NumPy, Lz4, Zstd, BaseNumCodec
+from hub.codec.image_codecs import PngCodec, JpegCodec, BaseImgCodec
