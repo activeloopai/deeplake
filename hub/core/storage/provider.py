@@ -5,7 +5,7 @@ from hub.util.assert_byte_indexes import assert_byte_indexes
 from hub.constants import BYTE_PADDING
 
 
-class Provider(ABC, MutableMapping):
+class StorageProvider(ABC, MutableMapping):
     """An abstract base class for implementing a provider.
 
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
@@ -155,3 +155,6 @@ class Provider(ABC, MutableMapping):
         Returns:
             int: the number of files present inside the root
         """
+
+    def flush(self):
+        """flush"""

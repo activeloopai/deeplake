@@ -1,112 +1,100 @@
 from collections import OrderedDict
-from multiprocessing import Lock
-from hub.core.storage.provider import Provider
+from hub.core.storage.provider import StorageProvider
 from typing import Set
 
-
-class DummyLock:
-    def __init__(self):
-        pass
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        pass
-
-
-class LRUCache(Provider):
+# TODO use lock for multiprocessing
+class LRUCache(StorageProvider):
     def __init__(
         self,
-        cache_storage: Provider,
-        next_storage: Provider,
+        cache_storage: StorageProvider,
+        next_storage: StorageProvider,
         cache_size: int,
     ):
         self._next_storage = next_storage
         self._cache_storage = cache_storage
         self._cache_size = cache_size  # max size of cache_storage
-        self._dirty_keys: Set[str] = set()  # keys in cache but not next storage
-        self._lock = DummyLock()  # TODO actual lock after testing
+
+        # LRU state variables
+        self._dirty_keys: Set[str] = set()  # keys in cache but not next_storage
         self._cache_used = 0  # size of cache used
-        self._lru_lengths: OrderedDict[
-            str, int
-        ] = OrderedDict()  # tracks key order and length of value
+        # tracks keys in lru order, stores size of value, only keys present in this exist in cache
+        self._lru_sizes: OrderedDict[str, int] = OrderedDict()
 
     def flush(self):
+        # writing all keys in cache but not in next_storage
         for item in self._dirty_keys:
             self._next_storage[item] = self._cache_storage[item]
         self._dirty_keys.clear()
-
-        # if next_storage is also a cache
-        if hasattr(self._next_storage, "flush"):
-            self._next_storage.flush()
+        self._next_storage.flush()
 
     def __getitem__(self, key):
         """Gets item and puts it in the cache if not there"""
-        with self._lock:
-            # already exists, move to end i.e. refresh position for LRU
-            if key in self._lru_lengths:
-                self._lru_lengths.move_to_end(key)
-                return self._cache_storage[key]
-            else:
-                result = self._next_storage[key]
-                # only insert in cache if it can fit
-                if len(result) < self._cache_size:
-                    self._free_up_space(len(result))
-                    self._insert_in_cache(key, result)
-                return result
+        if key in self._lru_sizes:
+            self._lru_sizes.move_to_end(key)  # refresh position for LRU
+            return self._cache_storage[key]
+        else:
+            result = self._next_storage[key]  # fetch from storage
+            if len(result) <= self._cache_size:  # insert in cache if it fits
+                self._insert_in_cache(key, result)
+            return result
 
     def __setitem__(self, key, value):
         """Sets item and puts it in the cache if not there"""
-        with self._lock:
-            if key in self._lru_lengths:
-                self._cache_used -= self._lru_lengths.pop(key)
-            if len(value) < self._cache_size:
-                self._free_up_space(len(value))
-                self._insert_in_cache(key, value)
-                if key not in self._dirty_keys:
-                    self._dirty_keys.add(key)
-            # value is larger than cache, directly set it in next layer
-            else:
-                if key in self._dirty_keys:
-                    self._dirty_keys.discard(key)
-                self._next_storage[key] = value
+        if key in self._lru_sizes:
+            size = self._lru_sizes.pop(key)
+            self._cache_used -= size
+
+        if len(value) <= self._cache_size:
+            self._insert_in_cache(key, value)
+            self._dirty_keys.add(key)
+        else:  # larger than cache, directly send to next layer
+            self._dirty_keys.discard(key)
+            self._next_storage[key] = value
 
     def __delitem__(self, key):
-        with self._lock:
-            deleted_from_cache = False
-            if key in self._lru_lengths:
-                self._cache_used -= self._lru_lengths.pop(key)
-                del self._cache_storage[key]
-                self._dirty_keys.discard(key)
-                deleted_from_cache = True
-            try:
-                del self._next_storage[key]
-            except KeyError:
-                if not deleted_from_cache:
-                    raise
+        deleted_from_cache = False
+        if key in self._lru_sizes:
+            size = self._lru_sizes.pop(key)
+            self._cache_used -= size
+            del self._cache_storage[key]
+            self._dirty_keys.discard(key)
+            deleted_from_cache = True
+
+        try:
+            del self._next_storage[key]
+        except KeyError:
+            if not deleted_from_cache:
+                raise
+
+    def __len__(self):
+        return len(self._list_keys())
+
+    def __iter__(self):
+        yield from self._list_keys()
 
     def _free_up_space(self, extra_size):
         # keep on freeing space in cache till extra_size can fit in
         while self._cache_used > 0 and extra_size + self._cache_used > self._cache_size:
-            item, itemsize = self._lru_lengths.popitem(last=False)
-            if item in self._dirty_keys:
-                self._next_storage[item] = self._cache_storage[item]
-                self._dirty_keys.discard(item)
-            del self._cache_storage[item]
-            self._cache_used -= itemsize
+            self._pop_from_cache()
+
+    def _pop_from_cache(self):
+        # removes the item that was used the longest time back
+        item, itemsize = self._lru_sizes.popitem(last=False)
+        if item in self._dirty_keys:
+            self._next_storage[item] = self._cache_storage[item]
+            self._dirty_keys.discard(item)
+        del self._cache_storage[item]
+        self._cache_used -= itemsize
 
     def _insert_in_cache(self, key, value):
+        # adds key value pair to cache
+        self._free_up_space(len(value))
         self._cache_storage[key] = value
         self._cache_used += len(value)
-        self._lru_lengths[key] = len(value)
+        self._lru_sizes[key] = len(value)
 
-    def __len__(self):
-        return len(self.actual_storage)
-
-    def __iter__(self):
-        cached_keys = self._dirty_keys.copy()
-        for i in self.actual_storage:
-            cached_keys.discard(i)
-            yield i
-        yield from sorted(cached_keys)
+    def _list_keys(self):
+        all_keys = {item for item in self._next_storage}
+        for item in self._cache_storage:
+            all_keys.add(item)
+        return all_keys

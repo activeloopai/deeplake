@@ -1,9 +1,9 @@
 from collections.abc import MutableMapping
 from typing import Optional
-from hub.core.storage.provider import Provider
+from hub.core.storage.provider import StorageProvider
 
 
-class MappedProvider(Provider):
+class MappedProvider(StorageProvider):
     """A subclass of Provider. This uses a mapper to implement all the methods.
 
     To add a new provider using MappedProvider:
