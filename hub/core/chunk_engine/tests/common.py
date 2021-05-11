@@ -1,7 +1,8 @@
 import numpy as np
+import pickle
 
 from hub.core.chunk_engine import write_array, read_array
-from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.chunk_engine.util import normalize_and_batchify_shape, get_meta_key
 from hub.core.storage import MemoryProvider
 
 
@@ -52,12 +53,13 @@ def run_engine_test(arrays, storage, batched, chunk_size):
 
         a_out = read_array(tensor_key, storage)
 
-        assert has_meta(tensor_key, storage), "Meta was not found."
-        meta = get_meta(tensor_key, storage)
-        validate_meta(
-            tensor_key,
-            storage,
-            **{
+        meta_key = get_meta_key(tensor_key)
+        assert meta_key in storage, "Meta was not found."
+        meta = pickle.loads(storage[meta_key])
+
+        assert_meta_is_valid(
+            meta,
+            {
                 "chunk_size": chunk_size,
                 "length": a_in.shape[0],
                 "dtype": a_in.dtype.name,
@@ -83,3 +85,9 @@ def get_random_array(shape, dtype):
     if "bool" in dtype:
         a = np.random.uniform(shape)
         return a > 0.5
+
+
+def assert_meta_is_valid(meta, expected_meta):
+    for k, v in expected_meta.items():
+        assert k in meta
+        assert v == meta[k]
