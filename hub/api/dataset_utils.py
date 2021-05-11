@@ -20,7 +20,7 @@ import time
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-from hub.schema.features import Primitive, SchemaDict
+from hub.schema.features import Primitive, SchemaDict, Tensor
 from hub.numcodecs import PngCodec
 from hub.schema import ClassLabel
 
@@ -46,15 +46,21 @@ def same_schema(schema1, schema2):
     if schema1.dict_.keys() != schema2.dict_.keys():
         return False
     for k, v in schema1.dict_.items():
-        if isinstance(v, SchemaDict) and not same_schema(v, schema2.dict_[k]):
-            return False
-        elif (
-            v.shape != schema2.dict_[k].shape
-            or v.max_shape != schema2.dict_[k].max_shape
-            or v.chunks != schema2.dict_[k].chunks
-            or v.dtype != schema2.dict_[k].dtype
-            or v.compressor != schema2.dict_[k].compressor
+        if isinstance(v, SchemaDict) and isinstance(schema2.dict_[k], SchemaDict):
+            if not same_schema(v, schema2.dict_[k]):
+                return False
+        elif (isinstance(v, Tensor) and isinstance(schema2.dict_[k], Tensor)) or (
+            isinstance(v, Primitive) and isinstance(schema2.dict_[k], Primitive)
         ):
+            if (
+                v.shape != schema2.dict_[k].shape
+                or v.max_shape != schema2.dict_[k].max_shape
+                or v.chunks != schema2.dict_[k].chunks
+                or v.dtype != schema2.dict_[k].dtype
+                or v.compressor != schema2.dict_[k].compressor
+            ):
+                return False
+        else:
             return False
     return True
 

@@ -21,7 +21,16 @@ from hub.exceptions import (
     SchemaMismatchException,
     ReadModeException,
 )
-from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
+from hub.schema import (
+    BBox,
+    ClassLabel,
+    Image,
+    SchemaDict,
+    Sequence,
+    Tensor,
+    Text,
+    Primitive,
+)
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
@@ -1306,6 +1315,24 @@ def test_dataset_store():
     for i in range(20):
         assert (ds3["image", i].compute() == 5 * i * np.ones((100, 100))).all()
         assert ds3["abc", i].compute() == 5 * i
+
+
+def test_dataset_schema_bug():
+    schema = {"abc": Primitive("int32"), "def": "int64"}
+    ds = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
 
 
 def test_dataset_google():

@@ -18,10 +18,17 @@ from .dataset import Dataset
 import hub.store.pickle_s3_storage
 import hub.schema.serialize
 import hub.schema.deserialize
+import random
 
 
 def _to_pytorch(
-    dataset, transform=None, inplace=True, output_type=dict, indexes=None, key_list=None
+    dataset,
+    transform=None,
+    inplace=True,
+    output_type=dict,
+    indexes=None,
+    key_list=None,
+    shuffle=False,
 ):
     """| Converts the dataset into a pytorch compatible format.
 
@@ -38,6 +45,8 @@ def _to_pytorch(
     key_list: list, optional
         The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
         use ["a/b/c"] as key_list
+    shuffle: bool, optional
+        whether to shuffle the data chunkwise or not. Default is False.
     """
     try:
         import torch
@@ -56,6 +65,7 @@ def _to_pytorch(
         output_type=output_type,
         indexes=indexes,
         key_list=key_list,
+        shuffle=shuffle,
     )
 
 
@@ -572,6 +582,7 @@ class TorchDataset:
         output_type=dict,
         indexes=None,
         key_list=None,
+        shuffle=False,
     ):
         self._ds = None
         self._url = ds.url
@@ -579,7 +590,6 @@ class TorchDataset:
         self._transform = transform
         self.inplace = inplace
         self.output_type = output_type
-        self.indexes = indexes
         self._inited = False
         self.key_list = key_list
         self.key_list = self.key_list or list(ds.keys)
@@ -589,6 +599,38 @@ class TorchDataset:
         for key in self.key_list:
             if key not in ds.keys:
                 raise KeyError(key)
+
+        self.max_chunk = self.get_max_chunk(ds)
+        self.last_index = None
+        if isinstance(indexes, int):
+            self.last_index = indexes
+        elif len(indexes) > 0:
+            self.last_index = indexes[-1]
+        self.indexes = self.shuffle_indexes(indexes, shuffle)
+
+    def shuffle_indexes(self, indexes, shuffle):
+        if not shuffle or isinstance(indexes, int):
+            return indexes
+        chunk_indexes_map = defaultdict(list)
+        chunk_size = self.max_chunk
+        for index in indexes:
+            chunk = index // chunk_size
+            chunk_indexes_map[chunk].append(index)
+        chunk_indexes = list(chunk_indexes_map.values())
+        random.shuffle(chunk_indexes)
+        new_indexes = []
+        for item in chunk_indexes:
+            new_indexes.extend(item)
+        return new_indexes
+
+    def get_max_chunk(self, ds):
+        max_chunk = 1
+        for key, value in ds._tensors.items():
+            if key in self.key_list:
+                max_chunk = max(
+                    max_chunk, ((None in value.shape) and 1 or value.chunks[0])
+                )
+        return max_chunk
 
     def _do_transform(self, data):
         return self._transform(data) if self._transform else data
@@ -619,7 +661,7 @@ class TorchDataset:
             active_range_start = index - index % samples_per_chunk
             active_range = range(
                 active_range_start,
-                min(active_range_start + samples_per_chunk, self.indexes[-1] + 1),
+                min(active_range_start + samples_per_chunk, self.last_index + 1),
             )
             self._active_chunks_range[key] = active_range
             self._active_chunks[key] = self._ds._tensors[key][

@@ -8,7 +8,7 @@ from hub.schema.video import Video
 from hub.schema.text import Text
 from hub.schema.sequence import Sequence
 import pytest
-from hub.schema.features import Tensor
+from hub.schema.features import Tensor, Primitive
 from hub.schema.serialize import serialize
 from hub.schema.deserialize import deserialize
 from hub.schema.image import Image
@@ -51,6 +51,7 @@ def test_serialize_deserialize():
             ),
             "text": Text((None,), max_shape=(10,)),
             "video": Video((100, 100, 3, 10)),
+            "prim": Primitive("uint16", chunks=5, compressor="zstd"),
         },
     )
     original_result = tuple(t._flatten())

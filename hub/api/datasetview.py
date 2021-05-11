@@ -322,7 +322,14 @@ class DatasetView:
             indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
-    def to_pytorch(self, transform=None, inplace=True, output_type=dict, key_list=None):
+    def to_pytorch(
+        self,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        key_list=None,
+        shuffle=False,
+    ):
         """| Converts the dataset into a pytorch compatible format.
         ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
         Avoid having schema with these dtypes if you want to avoid this implicit conversion.
@@ -336,6 +343,8 @@ class DatasetView:
             type you need for Transforms). Default is True.
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
+        shuffle: bool, optional
+            whether to shuffle the data chunkwise or not. Default is False.
         """
         return self.dataset.to_pytorch(
             transform=transform,
@@ -343,6 +352,7 @@ class DatasetView:
             inplace=inplace,
             output_type=output_type,
             key_list=key_list,
+            shuffle=shuffle,
         )
 
     def resize_shape(self, size: int) -> None:

@@ -44,4 +44,9 @@ def serialize_SchemaDict(fdict):
 
 def serialize_primitive(primitive):
     "Converts Primitive into a serializable format"
-    return str(primitive._dtype)
+    return {
+        "type": "Primitive",
+        "dtype": str(primitive._dtype),
+        "compressor": primitive.compressor,
+        "chunks": primitive.chunks,
+    }

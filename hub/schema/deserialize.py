@@ -4,7 +4,7 @@ This Source Code Form is subject to the terms of the Mozilla Public License, v. 
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
 
-from hub.schema.features import Tensor, SchemaDict
+from hub.schema.features import Tensor, SchemaDict, Primitive
 from hub.schema.image import Image
 from hub.schema.class_label import ClassLabel
 from hub.schema.polygon import Polygon
@@ -88,6 +88,12 @@ def deserialize(inp):
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
             )
+        elif inp["type"] == "Primitive":
+            return Primitive(
+                dtype=deserialize(inp["dtype"]),
+                chunks=inp["chunks"],
+                compressor=_get_compressor(inp),
+            )
         elif inp["type"] == "Segmentation":
             class_labels = deserialize(inp["class_labels"])
             if class_labels._names is not None:
@@ -136,8 +142,6 @@ def deserialize(inp):
             return Video(
                 shape=tuple(inp["shape"]),
                 dtype=deserialize(inp["dtype"]),
-                # TODO uncomment back when image encoding will be added
-                # encoding_format=inp["encoding_format"],
                 max_shape=tuple(inp["max_shape"]),
                 chunks=inp["chunks"],
                 compressor=_get_compressor(inp),
