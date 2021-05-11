@@ -47,7 +47,7 @@ def write_array(
     if meta_key in storage or index_map_key in storage:
         raise NotImplementedError("Appending is not supported yet.")
 
-    index_map = []
+    index_map: List[dict] = []
     meta = {
         "chunk_size": chunk_size,
         "dtype": array.dtype.name,
@@ -56,7 +56,8 @@ def write_array(
         "max_shape": array.shape[1:],
     }
 
-    last_chunk = None
+    last_chunk = bytes()
+    last_chunk_name = ""
     for i in range(array.shape[0]):
         sample = array[i]
 
@@ -64,9 +65,8 @@ def write_array(
 
         bllc = 0
         extend_last_chunk = False
-        if last_chunk is not None and len(last_chunk) < chunk_size:
+        if i > 0 and len(last_chunk) < chunk_size:
             bllc = chunk_size - len(last_chunk)
-            last_chunk = bytearray(last_chunk)
             extend_last_chunk = True
 
         chunk_gen = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
@@ -76,8 +76,9 @@ def write_array(
         for chunk in chunk_gen:
             if extend_last_chunk:
                 chunk_name = last_chunk_name
-                last_chunk.extend(chunk)
-                chunk = bytes(last_chunk)
+                last_chunk_bytearray = bytearray(last_chunk)
+                last_chunk_bytearray.extend(chunk)
+                chunk = bytes(last_chunk_bytearray)
                 start_byte = index_map[-1]["end_byte"]
 
                 if len(chunk) >= chunk_size:
