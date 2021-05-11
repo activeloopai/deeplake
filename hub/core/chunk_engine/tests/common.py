@@ -11,7 +11,7 @@ from hub.core.chunk_engine.util import (
 from hub.core.storage import MemoryProvider
 from hub.core.typing import Provider
 
-from typing import List
+from typing import List, Tuple
 
 
 ROOT = "PYTEST_TENSOR_COLLECTION"
@@ -33,11 +33,11 @@ DTYPES = (
 )
 
 
-def get_min_shape(batch: np.ndarray) -> np.ndarray:
+def get_min_shape(batch: np.ndarray) -> Tuple:
     return tuple(np.minimum.reduce([sample.shape for sample in batch]))
 
 
-def get_max_shape(batch: np.ndarray) -> np.ndarray:
+def get_max_shape(batch: np.ndarray) -> Tuple:
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
@@ -111,7 +111,7 @@ def run_engine_test(arrays, storage, batched, chunk_size):
     storage.clear()
 
 
-def get_random_array(shape, dtype):
+def get_random_array(shape: Tuple, dtype: str) -> np.ndarray:
     if "int" in dtype:
         low = np.iinfo(dtype).min
         high = np.iinfo(dtype).max
@@ -124,8 +124,10 @@ def get_random_array(shape, dtype):
         a = np.random.uniform(shape)
         return a > 0.5
 
+    assert False, 'Invalid dtype "%s".' % dtype
 
-def assert_meta_is_valid(meta, expected_meta):
+
+def assert_meta_is_valid(meta: dict, expected_meta: dict):
     for k, v in expected_meta.items():
         assert k in meta
         assert v == meta[k]
