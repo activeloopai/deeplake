@@ -69,6 +69,8 @@ class Lz4(BaseNumCodec):
             acceleration (int): Acceleration level.
             The larger the acceleration value, the faster the algorithm, but also the lesser the compression.
         """
+        if kwargs and "acceleration" not in kwargs:
+            raise ValueError("Invalid args:", kwargs.keys())
         acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         self.compressor = numcodecs.lz4.LZ4(acceleration)
         self._msgpack = numcodecs.MsgPack()
@@ -129,6 +131,8 @@ class Zstd(BaseNumCodec):
         Args:
             level (int): Compression level (1-22).
         """
+        if kwargs and "level" not in kwargs:
+            raise ValueError("Invalid args:", kwargs.keys())
         level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         self.compressor = numcodecs.zstd.Zstd(level)
         self._msgpack = numcodecs.MsgPack()
