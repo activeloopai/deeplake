@@ -18,11 +18,11 @@ def read_array(
 
     Args:
         key (str): Key for where the chunks, index_map, & meta are located in `storage` relative to it's root.
-        array_slice (slice): Slice that represents which samples to read. Default = returns all samples.
+        array_slice (slice): Slice that represents which samples to read. Default = slice representing all samples.
         storage (Provider): Provider for reading the chunks, index_map, & meta.
 
     Returns:
-        np.ndarray: Array containing the sample(s) in the `index` slice.
+        np.ndarray: Array containing the sample(s) in the `array_slice` slice.
     """
 
     # TODO: don't use pickle

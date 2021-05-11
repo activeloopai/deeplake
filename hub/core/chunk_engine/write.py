@@ -26,11 +26,13 @@ def write_array(
 ):
     """Chunk & write an array to storage.
 
+    For more on chunking, see the `generate_chunks` method.
+
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
-            batch dimension, you should pass `batched=True`.
+            batch dimension, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, & meta will be located in `storage` relative to it's root.
-        chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
+        chunk_size (int): Desired length of each chunk.
         storage (Provider): Provider for storing the chunks, index_map, & meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False

@@ -31,11 +31,11 @@ def generate_chunks(
             first output will be enough bytes to fill that chunk up to `chunk_size`.
 
     Yields:
-        bytes: Chunk of the `content_bytes`. Will have length on the interval (0, `chunk_size`].
+        bytes: Chunk of the `content_bytes`. Will have length on the interval (1, `chunk_size`].
 
     Raises:
-        ValueError: If `chunk_size` is <= 0
-        ChunkSizeTooSmallError: If `chunk_size` < `last_chunk_num_bytes`
+        ChunkSizeTooSmallError: If `chunk_size` <= 0
+        ValueError: If `bytes_left_in_last_chunk` < 0
     """
 
     # validate inputs
@@ -76,9 +76,11 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
     Args:
         chunks (list[bytes]): Sequential list of bytes objects that represent chunks.
         start_byte (int): The first chunk in the sequence will ignore the bytes before `start_byte`. If 0, all bytes are included.
-        end_byte (int): The last chunk in the sequence will ignore the bytes after `end_byte`. If None, all bytes are included.
+        end_byte (int): The last chunk in the sequence will ignore the bytes at and after `end_byte-1`. If None, all bytes are included.
 
-    Note: if `len(chunks) == 1`, `start_byte`:`end_byte` will be applied to the same chunk (the first & last one).
+    Notes:
+        Bytes are indexed using: chunk[start_byte:end_byte]. That is why `chunk[end_byte]` will not be included in `chunk[start_byte:end_byte]`.
+        If `len(chunks) == 1`, `start_byte`:`end_byte` will be applied to the same chunk (the first & last one).
 
     Returns:
         bytes: The chunks joined as one bytes object.
