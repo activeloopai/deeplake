@@ -29,7 +29,7 @@ def write_array(
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
             batch dimension, you should pass `batched=True`.
-        key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
+        key (str): Key for where the chunks, index_map, & meta will be located in `storage` relative to it's root.
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
         storage (Provider): Provider for storing the chunks, index_map, & meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
@@ -66,16 +66,16 @@ def write_array(
         incomplete_chunk_names = []
 
         for chunk in chunk_gen:
-            chunk_name = _random_chunk_name()
+            end_byte = len(chunk)
 
-            end_byte = len(chunk)  # end byte is based on the uncompressed chunk
+            chunk_name = _random_chunk_name()
+            chunk_key = get_chunk_key(key, chunk_name)
+            storage[chunk_key] = chunk
 
             if len(chunk) < chunk_size:
                 incomplete_chunk_names.append(chunk_name)
-
-            chunk_names.append(chunk_name)
-            chunk_key = get_chunk_key(key, chunk_name)
-            storage[chunk_key] = chunk
+            else:
+                chunk_names.append(chunk_name)
 
         # TODO: encode index_map_entry as array instead of dictionary
         # TODO: encode shape into the sample's bytes instead of index_map

@@ -17,7 +17,7 @@ def read_array(
     """Read & join chunks into an array from storage.
 
     Args:
-        key (str): Key for where the chunks/index_map/meta are located in `storage` relative to it's root.
+        key (str): Key for where the chunks, index_map, & meta are located in `storage` relative to it's root.
         array_slice (slice): Slice that represents which samples to read. Default = returns all samples.
         storage (Provider): Provider for reading the chunks, index_map, & meta.
 
