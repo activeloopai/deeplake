@@ -1,4 +1,4 @@
-from hub.core.caching.lru_cache import LRUCache  # type: ignore
+from hub.core.storage.lru_cache import LRUCache  # type: ignore
 from hub.core.storage import MemoryProvider, LocalProvider
 from hub.util.cache_chain import get_cache_chain
 

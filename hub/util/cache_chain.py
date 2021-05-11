@@ -1,4 +1,4 @@
-from hub.core.caching.lru_cache import LRUCache  # type: ignore
+from hub.core.storage.lru_cache import LRUCache  # type: ignore
 from typing import List
 from hub.core.storage.provider import StorageProvider
 
