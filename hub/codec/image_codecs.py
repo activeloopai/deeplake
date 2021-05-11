@@ -3,7 +3,7 @@ import numcodecs  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
 import numpy as np
-from PIL import Image
+from PIL import Image  # type: ignore
 
 
 class BaseImgCodec(Codec):
