@@ -5,11 +5,6 @@ from hub.core.chunk_engine.meta import get_meta, has_meta, validate_meta
 from hub.core.chunk_engine.util import normalize_and_batchify_shape
 from hub.core.storage import MemoryProvider
 
-from hub.core.chunk_engine.dummy_util import (
-    DummySampleCompression,
-    DummyChunkCompression,
-)
-
 
 ROOT = "PYTEST_TENSOR_COLLECTION"
 STORAGE_PROVIDERS = (MemoryProvider(ROOT),)
@@ -30,12 +25,6 @@ DTYPES = (
 )
 
 
-COMPRESSIONS = (
-    DummySampleCompression(),
-    DummyChunkCompression(),
-)
-
-
 def get_min_shape(batch):
     return tuple(np.minimum.reduce([sample.shape for sample in batch]))
 
@@ -44,7 +33,7 @@ def get_max_shape(batch):
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
-def run_engine_test(arrays, storage, compression, batched, chunk_size):
+def run_engine_test(arrays, storage, batched, chunk_size):
     storage.clear()
     tensor_key = "tensor"
 
@@ -52,14 +41,12 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
         write_array(
             a_in,
             tensor_key,
-            compression,
             chunk_size,
             storage,
             batched=batched,
         )
 
-        # TODO: make sure there is no more than 1 incomplete chunk at a time. because incomplete chunks are NOT compressed, if there is
-        # more than 1 per tensor is inefficient
+        # TODO: make sure there is no more than 1 incomplete chunk at a time.
 
         # writing implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
@@ -72,7 +59,6 @@ def run_engine_test(arrays, storage, compression, batched, chunk_size):
             tensor_key,
             storage,
             **{
-                "compression": compression.__name__,
                 "chunk_size": chunk_size,
                 "length": a_in.shape[0],
                 "dtype": a_in.dtype.name,

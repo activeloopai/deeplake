@@ -5,9 +5,7 @@ import numpy as np
 from hub.core.storage import MemoryProvider
 
 from .chunker import join_chunks
-from .dummy_util import dummy_compression_map
-from .meta import get_meta
-from .index_map import get_index_map
+from .util import get_meta_key, get_index_map_key
 
 from hub.core.typing import Provider
 from typing import Callable, List, Union
@@ -16,62 +14,39 @@ from typing import Callable, List, Union
 def read_array(
     key: str,
     storage: Provider,
-    index: Union[int, slice] = slice(None),
+    array_slice: slice = slice(None),
 ) -> np.ndarray:
-    """Read, decompress, & join chunks into an array from storage.
+    """Read & join chunks into an array from storage.
 
     Args:
         key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
-        index (int | slice): Index/slice that represents which samples to read. If `index` is an int value, it
-            will be converted into a slice using: `slice(index)`. If no index is provided, all samples will be returned.
+        array_slice (slice): Slice that represents which samples to read. Default = returns all samples.
         storage (Provider): Provider for reading the chunks, index_map, & meta.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `index` slice.
     """
 
-    if isinstance(index, int):
-        index = slice(index + 1)
-
-    meta = get_meta(key, storage)
-
-    # TODO: don't get entire index_map, instead read entries
-    index_map = get_index_map(key, storage)
-
-    compression = dummy_compression_map[meta["compression"]]
-    dtype = meta["dtype"]
-    length = meta["length"]
+    # TODO: don't use pickle
+    meta = pickle.loads(storage[get_meta_key(key)])
+    index_map = pickle.loads(storage[get_index_map_key(key)])
 
     samples = []
-
-    for index_entry in index_map[index]:
-        shape = index_entry["shape"]
-
+    for index_entry in index_map[array_slice]:
         chunks = []
         for chunk_name in index_entry["chunk_names"]:
             chunk_key = os.path.join(key, "chunks", chunk_name)
-            raw_chunk = storage[chunk_key]
-
-            if compression.subject == "chunk":
-                if chunk_name in index_entry["incomplete_chunk_names"]:
-                    chunk = raw_chunk
-                else:
-                    # TODO: backwards compatibility: different `meta["version"]`s may have different compressor maps
-                    # TODO: cache decompressed chunks
-                    chunk = compression.decompress(raw_chunk)
-            else:
-                chunk = raw_chunk
+            chunk = storage[chunk_key]
 
             chunks.append(chunk)
 
-        b = join_chunks(
+        combined_bytes = join_chunks(
             chunks,
             index_entry["start_byte"],
             index_entry["end_byte"],
         )
 
-        a = np.frombuffer(b, dtype=dtype)
-        samples.append(a.reshape(shape))
+        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
+        samples.append(out_array.reshape(index_entry["shape"]))
 
-    # TODO: dynamic shapes
-    return np.array(samples, dtype=dtype)
+    return np.array(samples)

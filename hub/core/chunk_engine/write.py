@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import pickle
 from uuid import uuid1
@@ -8,20 +7,18 @@ from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import Provider
 from typing import Any, Callable, List, Tuple
 
-from .meta import (
-    has_meta,
-    get_meta,
-    set_meta,
-    validate_and_update_meta,
+from .util import (
+    array_to_bytes,
+    normalize_and_batchify_shape,
+    get_meta_key,
+    get_index_map_key,
+    get_chunk_key,
 )
-from .index_map import has_index_map, get_index_map, set_index_map
-from .util import array_to_bytes, normalize_and_batchify_shape
 
 
 def write_array(
     array: np.ndarray,
     key: str,
-    compression,
     chunk_size: int,
     storage: Provider,
     batched: bool = False,
@@ -33,36 +30,34 @@ def write_array(
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
             batch dimension, you should pass `batched=True`.
         key (str): Key for where the chunks/index_map/meta will be located in `storage` relative to it's root.
-        compression: Compression object that has methods for `compress`, `decompress`, & `subject`. `subject` decides what
-            the `compress`/`decompress` methods will be called upon (ie. chunk/sample).
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
         storage (Provider): Provider for storing the chunks, index_map, & meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
         tobytes (Callable): Must accept an `np.ndarray` as it's argument & return `bytes`.
+
+    Raises:
+        NotImplementedError: Do not use this function for writing to a key that already exists.
     """
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    if has_meta(key, storage) or has_index_map(key, storage):
-        # TODO: support appending
+    meta_key = get_meta_key(key)
+    index_map_key = get_index_map_key(key)
+    if meta_key in storage or index_map_key in storage:
         raise NotImplementedError("Appending is not supported yet.")
-    _meta = {
-        "compression": compression.__name__,
+
+    index_map = []
+    meta = {
         "chunk_size": chunk_size,
         "dtype": array.dtype.name,
         "length": array.shape[0],
         "min_shape": array.shape[1:],
         "max_shape": array.shape[1:],
     }
-    meta = validate_and_update_meta(key, storage, **_meta)
-    index_map = get_index_map(key, storage)
 
     for i in range(array.shape[0]):
         sample = array[i]
-        if compression.subject == "sample":
-            # do sample-wise compression
-            sample = compression.compress(sample)
 
         b = tobytes(sample)
 
@@ -75,18 +70,15 @@ def write_array(
 
             end_byte = len(chunk)  # end byte is based on the uncompressed chunk
 
-            if len(chunk) >= chunk_size:
-                if compression.subject == "chunk":
-                    # TODO: add threshold for compressing (in case user specifies like 10gb chunk_size)
-                    chunk = compression.compress(chunk)
-            else:
+            if len(chunk) < chunk_size:
                 incomplete_chunk_names.append(chunk_name)
 
             chunk_names.append(chunk_name)
-            chunk_key = os.path.join(key, "chunks", chunk_name)
+            chunk_key = get_chunk_key(key, chunk_name)
             storage[chunk_key] = chunk
 
         # TODO: encode index_map_entry as array instead of dictionary
+        # TODO: encode shape into the sample's bytes instead of index_map
         index_map_entry = {
             "chunk_names": chunk_names,
             "incomplete_chunk_names": incomplete_chunk_names,
@@ -96,8 +88,9 @@ def write_array(
         }
         index_map.append(index_map_entry)
 
-    set_index_map(key, storage, index_map)
-    set_meta(key, storage, meta)
+    # TODO: don't use pickle
+    storage[meta_key] = pickle.dumps(meta)
+    storage[index_map_key] = pickle.dumps(index_map)
 
 
 def _random_chunk_name() -> str:
