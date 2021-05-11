@@ -1,0 +1,1 @@
+BYTE_PADDING = b"\0"

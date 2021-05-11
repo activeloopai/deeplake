@@ -1,7 +1,4 @@
 import pytest
-import itertools
-
-import numpy as np
 
 from hub.core.chunk_engine.generator import generate_chunks
 
@@ -75,3 +72,18 @@ def run_test(chunk_size: int, bytes_batch: List[bytes], expected_chunks: List[by
             last_chunk_num_bytes = len(chunk)
 
     assert actual_chunks == expected_chunks
+
+
+def test_benchmark_perfect_fit(benchmark):
+    """Example of a test using the benchmark fixture from pytest-benchmark
+
+    See: https://pytest-benchmark.readthedocs.io/en/stable/
+    """
+    data = b"12345678ABCDEFGH"
+
+    def chunk_to_list(b=data, chunk_size=4):
+        return list(generate_chunks(b, chunk_size))
+
+    result = benchmark(chunk_to_list)
+
+    assert result == [b"1234", b"5678", b"ABCD", b"EFGH"]

@@ -1,6 +1,6 @@
 from io import BytesIO
-from abc import ABC, abstractmethod
-import numcodecs
+from abc import ABC, abstractmethod  # type: ignore
+import numcodecs  # type: ignore
 
 import numpy as np
 

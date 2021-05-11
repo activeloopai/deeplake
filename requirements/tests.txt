@@ -1,4 +1,6 @@
 pytest
+pytest-benchmark
 pytest-cov
-pytest-mypy
+mypy
 black
+darglint

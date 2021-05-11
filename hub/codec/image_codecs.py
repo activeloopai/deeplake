@@ -1,7 +1,6 @@
 from io import BytesIO
-import numcodecs
-from numcodecs.abc import Codec
-from abc import ABC, abstractmethod
+import numcodecs  # type: ignore
+from numcodecs.abc import Codec  # type: ignore
 
 import numpy as np
 from PIL import Image
@@ -15,10 +14,10 @@ class BaseImgCodec(Codec):
         self._msgpack = numcodecs.MsgPack()
 
     def encode_single_image(self, image: np.ndarray) -> bytes:
-        pass
+        raise NotImplementedError()
 
     def decode_single_image(self, buf: bytes) -> np.ndarray:
-        pass
+        raise NotImplementedError()
 
     def encode(self, arr: np.ndarray):
         """
