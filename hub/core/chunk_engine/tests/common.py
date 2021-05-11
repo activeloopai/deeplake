@@ -41,30 +41,42 @@ def get_max_shape(batch: np.ndarray) -> Tuple:
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
-def assert_incomplete_chunk_count_is_valid(index_map: List):
-    incomplete_count = 0
-    for entry in index_map:
-        if "incomplete_chunk_names" in entry:
-            incomplete_count += len(entry["incomplete_chunk_names"])
-    assert incomplete_count <= 1, (
-        "Number of incomplete chunks should never exceed 1. Got: %i" % incomplete_count
-    )
-
-
 def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Provider):
+    incomplete_chunk_names = set()
+    complete_chunk_count = 0
+    total_chunks = 0
     for i, entry in enumerate(index_map):
         for j, chunk_name in enumerate(entry["chunk_names"]):
             chunk_key = get_chunk_key(key, chunk_name)
             chunk_length = len(storage[chunk_key])
+
+            # exceeding chunk_size is never acceptable
             assert (
-                chunk_length == chunk_size
-            ), 'Chunk "%s" didn\'t match chunk_size=%i (got %i) @ [%i, %i].' % (
+                chunk_length <= chunk_size
+            ), 'Chunk "%s" exceeded chunk_size=%i (got %i) @ [%i, %i].' % (
                 chunk_name,
                 chunk_size,
                 chunk_length,
                 i,
                 j,
             )
+
+            if chunk_length < chunk_size:
+                incomplete_chunk_names.add(chunk_name)
+            if chunk_length == chunk_size:
+                complete_chunk_count += 1
+
+            total_chunks += 1
+
+    incomplete_chunk_count = len(incomplete_chunk_names)
+    assert (
+        incomplete_chunk_count <= 1
+    ), "Incomplete chunk count should never exceed 1. Incomplete count: %i. Complete count: %i. Total: %i.\nIncomplete chunk names: %s" % (
+        incomplete_chunk_count,
+        complete_chunk_count,
+        total_chunks,
+        str(incomplete_chunk_names),
+    )
 
 
 def run_engine_test(arrays, storage, batched, chunk_size):
@@ -83,7 +95,6 @@ def run_engine_test(arrays, storage, batched, chunk_size):
         index_map_key = get_index_map_key(tensor_key)
         index_map = pickle.loads(storage[index_map_key])
 
-        assert_incomplete_chunk_count_is_valid(index_map)
         assert_chunk_sizes(tensor_key, index_map, chunk_size, storage)
 
         # `write_array` implicitly normalizes/batchifies shape
