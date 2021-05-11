@@ -19,6 +19,10 @@ class BaseImgCodec(Codec):
     def decode_single_image(self, buf: bytes) -> np.ndarray:
         raise NotImplementedError()
 
+    @property
+    def __name__(self):
+        raise NotImplementedError()
+
     def encode(self, arr: np.ndarray) -> bytes:
         """
         Encode array with one or multiple images.
@@ -110,7 +114,7 @@ class BaseImgCodec(Codec):
         return {"id": self.codec_id, "single_channel": self.single_channel}
 
 
-class JpegCodec(BaseImgCodec, Codec):
+class JpegCodec(BaseImgCodec):
     """Jpeg compressor for image data"""
 
     def __init__(self, **kwargs):
@@ -119,8 +123,8 @@ class JpegCodec(BaseImgCodec, Codec):
 
         Args:
             **kwargs: Optional; single_channel (bool): if True,
-            encoder will remove the last dimension of input if it is 1.
-            quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
+                encoder will remove the last dimension of input if it is 1.
+                quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
 
         Raises:
             ValueError: If ketword arguments contain not supported arguments.
@@ -182,7 +186,7 @@ class JpegCodec(BaseImgCodec, Codec):
         return JpegCodec(single_channel=config["single_channel"])
 
 
-class PngCodec(BaseImgCodec, Codec):
+class PngCodec(BaseImgCodec):
     def __init__(self, **kwargs):
         """
         Initialize PNG compressor

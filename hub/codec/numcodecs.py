@@ -16,6 +16,11 @@ class BaseNumCodec(ABC):
     def decode(self, bytes: bytes) -> np.ndarray:
         pass
 
+    @property
+    @abstractmethod
+    def __name__(self):
+        pass
+
 
 class NumPy(BaseNumCodec):
     def __init__(self):
