@@ -118,8 +118,12 @@ class JpegCodec(BaseImgCodec, Codec):
         Initialize Jpeg compressor.
 
         Args:
-            single_channel (bool): if True, encoder will remove the last dimension of input if it is 1.
+            **kwargs: Optional; single_channel (bool): if True,
+            encoder will remove the last dimension of input if it is 1.
             quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
+
+        Raises:
+            ValueError: If ketword arguments contain not supported arguments.
         """
         super().__init__()
         self.codec_id = "jpeg"
@@ -184,7 +188,11 @@ class PngCodec(BaseImgCodec, Codec):
         Initialize PNG compressor
 
         Args:
-            single_channel (bool): if True, encoder will remove the last dimension of input if it is 1.
+            **kwargs: Optional; single_channel (bool): if True,
+            encoder will remove the last dimension of input if it is 1.
+
+        Raises:
+            ValueError: If ketword arguments contain not supported arguments.
         """
         super().__init__()
         self.codec_id = "png"

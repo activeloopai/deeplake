@@ -1,5 +1,6 @@
+from typing import Union
 from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec
-
+from hub.codec import BaseImgCodec, BaseNumCodec
 
 compression_map = {
     PngCodec().__name__: PngCodec,
@@ -10,7 +11,9 @@ compression_map = {
 }
 
 
-def _get_compressor(compressor_name: str, **kwargs):
+def _get_compressor(
+    compressor_name: str, **kwargs
+) -> Union[BaseImgCodec, BaseNumCodec]:
     """Get compressor object
 
     Example:
