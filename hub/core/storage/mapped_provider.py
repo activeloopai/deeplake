@@ -39,7 +39,6 @@ class MappedProvider(StorageProvider):
         self,
         path: str,
         value: bytes,
-        overwrite: Optional[bool] = False,
     ):
         """Sets the object present at the path with the value
 
