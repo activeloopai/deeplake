@@ -19,7 +19,7 @@ class BaseImgCodec(Codec):
     def decode_single_image(self, buf: bytes) -> np.ndarray:
         raise NotImplementedError()
 
-    def encode(self, arr: np.ndarray):
+    def encode(self, arr: np.ndarray) -> bytes:
         """
         Encode array with one or multiple images.
 
@@ -28,11 +28,15 @@ class BaseImgCodec(Codec):
             encoding = codec.encode(img)
 
         Args:
-            array (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
+            arr (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
             (N, M) if image has one channel and single_channel is False,
             (N, M, 1) if image has one channel and single_channel is True,
             (N, M, 3).
             In case of multiple images they should be stacked across the first axis.
+
+        Raises:
+            ValueError: If yhe shape length of input array is
+            less than the number of expected dimensions"
 
         Returns:
             Encoded dictionary of images and metadata.
@@ -72,7 +76,7 @@ class BaseImgCodec(Codec):
                 ]
             )
 
-    def decode(self, buf, out=None):
+    def decode(self, buf: bytes) -> np.ndarray:
         """
         Decode images from buffer.
 
@@ -80,7 +84,7 @@ class BaseImgCodec(Codec):
             images_decoded = codec.decode(images_encoded)
 
         Args:
-            bytes_ (bytes): Encoded images and metadata.
+            buf (bytes): Encoded images and metadata.
 
         Returns:
             Decoded image or array with multiple images.
@@ -160,7 +164,7 @@ class JpegCodec(BaseImgCodec, Codec):
             imgs_decoded = jpeg_codec.decode(imgs_encoded)
 
         Args:
-            bytes_ (bytes): Encoded image
+            buf (bytes): Encoded image
 
         Returns:
             Decoded data.
@@ -219,7 +223,7 @@ class PngCodec(BaseImgCodec, Codec):
             imgs_decoded = png_codec.decode(imgs_encoded)
 
         Args:
-            bytes_ (bytes): Encoded image
+            buf (bytes): Encoded image
 
         Returns:
             Decoded data.

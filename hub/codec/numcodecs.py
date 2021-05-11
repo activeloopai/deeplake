@@ -66,8 +66,11 @@ class Lz4(BaseNumCodec):
         Initialize Lz4 compressor
 
         Args:
-            acceleration (int): Acceleration level.
+            **kwargs: Optional; acceleration (int): Acceleration level.
             The larger the acceleration value, the faster the algorithm, but also the lesser the compression.
+
+        Raises:
+            ValueError: If ketword arguments contain not supported arguments.
         """
         if kwargs and "acceleration" not in kwargs:
             raise ValueError("Invalid args:", kwargs.keys())
@@ -129,7 +132,10 @@ class Zstd(BaseNumCodec):
         Initialize Zstd compressor
 
         Args:
-            level (int): Compression level (1-22).
+            **kwargs: Optional; level (int): Compression level (1-22).
+
+        Raises:
+            ValueError: If ketword arguments contain not supported arguments.
         """
         if kwargs and "level" not in kwargs:
             raise ValueError("Invalid args:", kwargs.keys())
