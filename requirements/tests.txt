@@ -1,5 +1,7 @@
 pytest
 pytest-cases
+pytest-benchmark
 pytest-cov
-pytest-mypy
+mypy
 black
+darglint
