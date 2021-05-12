@@ -7,11 +7,15 @@ from hub.core.chunk_engine.util import (
     get_meta_key,
     get_index_map_key,
     get_chunk_key,
+    get_random_array,
 )
 from hub.core.storage import MappedProvider
 from hub.core.typing import Provider
 
 from typing import List, Tuple
+
+
+TENSOR_KEY = "TEST_TENSOR"
 
 
 STORAGE_PROVIDERS = (
@@ -40,6 +44,12 @@ def get_min_shape(batch: np.ndarray) -> Tuple:
 
 def get_max_shape(batch: np.ndarray) -> Tuple:
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
+
+
+def assert_meta_is_valid(meta: dict, expected_meta: dict):
+    for k, v in expected_meta.items():
+        assert k in meta
+        assert v == meta[k]
 
 
 def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Provider):
@@ -82,28 +92,27 @@ def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Prov
 
 def run_engine_test(arrays, storage, batched, chunk_size):
     storage.clear()
-    tensor_key = "tensor"
 
     for i, a_in in enumerate(arrays):
         write_array(
             a_in,
-            tensor_key,
+            TENSOR_KEY,
             chunk_size,
             storage,
             batched=batched,
         )
 
-        index_map_key = get_index_map_key(tensor_key)
+        index_map_key = get_index_map_key(TENSOR_KEY)
         index_map = pickle.loads(storage[index_map_key])
 
-        assert_chunk_sizes(tensor_key, index_map, chunk_size, storage)
+        assert_chunk_sizes(TENSOR_KEY, index_map, chunk_size, storage)
 
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        a_out = read_array(tensor_key, storage)
+        a_out = read_array(TENSOR_KEY, storage)
 
-        meta_key = get_meta_key(tensor_key)
+        meta_key = get_meta_key(TENSOR_KEY)
         assert meta_key in storage, "Meta was not found."
         meta = pickle.loads(storage[meta_key])
 
@@ -123,23 +132,21 @@ def run_engine_test(arrays, storage, batched, chunk_size):
     storage.clear()
 
 
-def get_random_array(shape: Tuple, dtype: str) -> np.ndarray:
-    if "int" in dtype:
-        low = np.iinfo(dtype).min
-        high = np.iinfo(dtype).max
-        return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
+def benchmark_write(arrays, chunk_size, storage, batched, clear_after_write=True):
+    storage.clear()
 
-    if "float" in dtype:
-        return np.random.uniform(shape).astype(dtype)
+    for a_in in arrays:
+        write_array(
+            a_in,
+            TENSOR_KEY,
+            chunk_size,
+            storage,
+            batched=batched,
+        )
 
-    if "bool" in dtype:
-        a = np.random.uniform(shape)
-        return a > 0.5
-
-    raise ValueError("Dtype %s not supported." % dtype)
+    if clear_after_write:
+        storage.clear()
 
 
-def assert_meta_is_valid(meta: dict, expected_meta: dict):
-    for k, v in expected_meta.items():
-        assert k in meta
-        assert v == meta[k]
+def benchmark_read(storage):
+    read_array(TENSOR_KEY, storage)

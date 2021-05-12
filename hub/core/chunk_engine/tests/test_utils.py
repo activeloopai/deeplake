@@ -2,7 +2,8 @@ import pytest
 
 import numpy as np
 
-from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.chunk_engine.util import normalize_and_batchify_shape, get_random_array
+from hub.core.chunk_engine.tests.common import DTYPES
 
 
 @pytest.mark.parametrize(
@@ -32,3 +33,18 @@ def test_normalize_and_batchify_shape(shape, expected_shape, batched):
     normal_a = normalize_and_batchify_shape(a, batched)
     assert normal_a.shape == expected_shape
     np.testing.assert_array_equal(a.flatten(), normal_a.flatten())
+
+
+@pytest.mark.parametrize("dtype", DTYPES)
+@pytest.mark.parametrize(
+    "shape",
+    (
+        (100, 100),
+        (1,),
+        (1, 1, 1, 1, 1),
+    ),
+)
+def test_get_random_array(shape, dtype):
+    array = get_random_array(shape, dtype)
+    assert array.shape == shape
+    assert array.dtype == dtype

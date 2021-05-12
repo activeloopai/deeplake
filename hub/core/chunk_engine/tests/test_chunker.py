@@ -97,18 +97,3 @@ def run_generate_chunks_test(
             bytes_left_in_last_chunk = chunk_size - len(chunk)
 
     assert actual_chunks == expected_chunks
-
-
-def test_benchmark_perfect_fit(benchmark):
-    """Example of a test using the benchmark fixture from pytest-benchmark
-
-    See: https://pytest-benchmark.readthedocs.io/en/stable/
-    """
-    data = b"12345678ABCDEFGH"
-
-    def chunk_to_list(b=data, chunk_size=4):
-        return list(generate_chunks(b, chunk_size))
-
-    result = benchmark(chunk_to_list)
-
-    assert result == [b"1234", b"5678", b"ABCD", b"EFGH"]

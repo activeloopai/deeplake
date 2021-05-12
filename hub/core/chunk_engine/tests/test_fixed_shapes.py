@@ -4,6 +4,8 @@ import numpy as np
 
 from hub.core.chunk_engine.tests.common import (
     run_engine_test,
+    benchmark_write,
+    benchmark_read,
     CHUNK_SIZES,
     DTYPES,
     get_random_array,
@@ -37,16 +39,17 @@ BATCHED_SHAPES = (
 
 # for benchmarks
 BENCHMARK_NUM_BATCHES = (1,)
-BENCHMARK_DTYPES = ("int64", "float64")
+BENCHMARK_DTYPES = (
+    "int64",
+    "float64",
+)
 BENCHMARK_CHUNK_SIZES = (
     16000000,  # 16MB
     3000000000,  # 3GB
 )
 BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
-    (100, 224, 224, 3),
-    # with int64/float64 = ~2GB
-    # (200, 224, 224, 3),
+    (840, 224, 224, 3),
 )
 
 
@@ -80,18 +83,45 @@ def test_batched(shape, chunk_size, num_batches, dtype, storage):
     run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
 
 
+@pytest.mark.benchmark(group="write_array")
 @pytest.mark.parametrize("shape", BENCHMARK_BATCHED_SHAPES)
 @pytest.mark.parametrize("chunk_size", BENCHMARK_CHUNK_SIZES)
 @pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
 @pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
-def test_benchmark_batched(benchmark, shape, chunk_size, num_batches, dtype, storage):
+def test_write(benchmark, shape, chunk_size, num_batches, dtype, storage):
     """
-    Benchmark with larger arrays.
+    Benchmark `write_array`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-    benchmark(run_engine_test, arrays, storage, batched=True, chunk_size=chunk_size)
+    benchmark(
+        benchmark_write,
+        arrays,
+        chunk_size,
+        storage,
+        batched=True,
+        clear_after_write=True,
+    )
+
+
+@pytest.mark.benchmark(group="read_array")
+@pytest.mark.parametrize("shape", BENCHMARK_BATCHED_SHAPES)
+@pytest.mark.parametrize("chunk_size", BENCHMARK_CHUNK_SIZES)
+@pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
+@pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
+@pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
+def test_read(benchmark, shape, chunk_size, num_batches, dtype, storage):
+    """
+    Benchmark `read_array`.
+
+    Samples have FIXED shapes (must have the same shapes).
+    Samples are provided WITH a batch axis.
+    """
+
+    arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
+    benchmark_write(arrays, chunk_size, storage, batched=True, clear_after_write=False)
+    benchmark(benchmark_read, storage)
