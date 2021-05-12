@@ -15,10 +15,6 @@ class StorageProvider(ABC, MutableMapping):
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider["abc.txt"]
-
         Args:
             path (str): The path relative to the root of the provider.
 
@@ -36,10 +32,6 @@ class StorageProvider(ABC, MutableMapping):
         end_byte: Optional[int] = None,
     ):
         """Gets the object present at the path within the given byte range.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider.get_bytes("abc.txt", 5, 10)
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -60,10 +52,6 @@ class StorageProvider(ABC, MutableMapping):
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider["abc.txt"] = b"abcd"
-
         Args:
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
@@ -77,10 +65,6 @@ class StorageProvider(ABC, MutableMapping):
         overwrite: Optional[bool] = False,
     ):
         """Sets the object present at the path with the value
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider.set_bytes("abc.txt", b"abcd", 5)
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -113,11 +97,6 @@ class StorageProvider(ABC, MutableMapping):
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            for my_data in local_provider:
-                pass
-
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
@@ -125,10 +104,6 @@ class StorageProvider(ABC, MutableMapping):
     @abstractmethod
     def __delitem__(self, path: str):
         """Delete the object present at the path.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            del local_provider["abc.txt"]
 
         Args:
             path (str): the path to the object relative to the root of the provider.
@@ -140,10 +115,6 @@ class StorageProvider(ABC, MutableMapping):
     @abstractmethod
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            len(local_provider)
 
         Returns:
             int: the number of files present inside the root.

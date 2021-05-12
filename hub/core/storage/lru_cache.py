@@ -12,15 +12,15 @@ class LRUCache(StorageProvider):
         next_storage: StorageProvider,
         cache_size: int,
     ):
-        """Initializes the LRUCache
+        """Initializes the LRUCache. This cache can be chained with
 
         Args:
             cache_storage (StorageProvider): The storage being used as the caching layer of the cache the.
                 This should be a base provider such as MemoryProvider, LocalProvider or S3Provider but not another LRUCache.
             next_storage (StorageProvider): The next storage layer of the cache.
+                This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of chained cache).
                 While reading data, all misses from cache would be retrieved from here.
                 While writing data, the data will be written to the next_storage when cache_storage is full or flush is called.
-                This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of chained cache).
             cache_size (int): The total space that can be used from the cache_storage in bytes.
                 This number may be less than the actual space available on the cache.
                 Setting it to a higher value than actually available space may lead to unexpected behaviors.
@@ -35,8 +35,7 @@ class LRUCache(StorageProvider):
         self.cache_used = 0
 
     def flush(self):
-        """Writes data from cache_storage to next_storage.
-
+        """Writes data from cache_storage to next_storage. Only the dirty keys are written.
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         for key in self.dirty_keys:

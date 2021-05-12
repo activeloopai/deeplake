@@ -14,8 +14,8 @@ class MemoryProvider(StorageProvider):
         """Gets the object present at the path within the given byte range.
 
         Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider["abc.txt"]
+            memory_provider = MemoryProvider("xyz")
+            my_data = memory_provider["abc.txt"]
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -36,8 +36,8 @@ class MemoryProvider(StorageProvider):
         """Sets the object present at the path with the value
 
         Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider["abc.txt"] = b"abcd"
+            memory_provider = MemoryProvider("xyz")
+            memory_provider["abc.txt"] = b"abcd"
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -49,8 +49,8 @@ class MemoryProvider(StorageProvider):
         """Generator function that iterates over the keys of the provider.
 
         Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            for my_data in local_provider:
+            memory_provider = MemoryProvider("xyz")
+            for my_data in memory_provider:
                 pass
 
         Yields:
@@ -62,8 +62,8 @@ class MemoryProvider(StorageProvider):
         """Delete the object present at the path.
 
         Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            del local_provider["abc.txt"]
+            memory_provider = MemoryProvider("xyz")
+            del memory_provider["abc.txt"]
 
         Args:
             path (str): the path to the object relative to the root of the provider.
@@ -77,8 +77,8 @@ class MemoryProvider(StorageProvider):
         """Returns the number of files present inside the root of the provider.
 
         Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            len(local_provider)
+            memory_provider = MemoryProvider("xyz")
+            len(memory_provider)
 
         Returns:
             int: the number of files present inside the root.
