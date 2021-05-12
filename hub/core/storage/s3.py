@@ -18,7 +18,7 @@ class S3Provider(StorageProvider):
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
         max_pool_connections: Optional[int] = 10,
-        client: botocore.client.S3 = None,
+        client=None,
     ):
         """Initializes the S3Provider
         Example:
@@ -33,7 +33,7 @@ class S3Provider(StorageProvider):
             aws_region (optional, str): Specifies the AWS Region to send requests to.
             max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
-            client (optional, botocore.client.S3): If this is passed, the other arguments except root are ignored and this is used as the client while making requests.
+            client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and this is used as the client while making requests.
         """
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url

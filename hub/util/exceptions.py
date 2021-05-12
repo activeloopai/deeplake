@@ -13,6 +13,32 @@ class InvalidBytesRequestedError(Exception):
         )
 
 
+class ProviderListEmptyError(Exception):
+    def __init__(self):
+        super().__init__(
+            "The provider_list passed to get_cache_chain needs to have 1 or more elements."
+        )
+
+
+class DirectoryAtPathException(Exception):
+    def __init__(self):
+        super().__init__(
+            "The provided path is incorrect for this operation, there is a directory at the path. Provide a path to a file."
+        )
+
+
+class FileAtRootException(Exception):
+    def __init__(self):
+        super().__init__(
+            "Can't initialize LocalProvider as there is a file at the root. Provide a path to a directory as the root."
+        )
+
+
+class ProviderSizeListMismatch(Exception):
+    def __init__(self):
+        super().__init__("Ensure that len(size_list) + 1 == len(provider_list)")
+
+
 # TODO Better S3 Exception handling
 class S3GetError(Exception):
     """Catchall for all errors encountered while working getting an object from S3"""

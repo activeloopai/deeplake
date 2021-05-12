@@ -1,3 +1,4 @@
+from hub.util.exceptions import FileAtRootException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
 
@@ -15,10 +16,10 @@ class LocalProvider(StorageProvider):
             root (str): The root of the provider. All read/write request keys will be appended to root."
 
         Raises:
-            Exception: If the root is a file instead of a directory.
+            FileAtRootException: If the root is a file instead of a directory.
         """
         if os.path.isfile(root):
-            raise Exception  # TODO better exception
+            raise FileAtRootException
         self.root = root
 
     def __getitem__(self, path: str):
@@ -36,11 +37,14 @@ class LocalProvider(StorageProvider):
 
         Raises:
             KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
         """
         try:
             full_path = self._check_is_file(path)
             file = open(full_path, "rb")
             return file.read()
+        except DirectoryAtPathException:
+            raise
         except Exception:
             raise KeyError
 
@@ -56,11 +60,14 @@ class LocalProvider(StorageProvider):
             value (bytes): the value to be assigned at the path.
 
         Raises:
-            Exception: If a directory is present at the path.
+            Exception: If unable to set item due to directory at path or permission or space issues.
         """
-        full_path = self._check_is_file(path)
-        file = open(full_path, "wb")
-        file.write(value)
+        try:
+            full_path = self._check_is_file(path)
+            file = open(full_path, "wb")
+            file.write(value)
+        except Exception:
+            raise
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -74,10 +81,13 @@ class LocalProvider(StorageProvider):
 
         Raises:
             KeyError: If an object is not found at the path.
+            DirectoryAtPathException: If a directory is found at the path.
         """
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
+        except DirectoryAtPathException:
+            raise
         except Exception:
             raise KeyError
 
@@ -129,11 +139,11 @@ class LocalProvider(StorageProvider):
             str: the full path to the requested file.
 
         Raises:
-            Exception: If there is a folder present at the path.
+            DirectoryAtPathException: If a directory is found at the path.
         """
         full_path = os.path.join(self.root, path)
         if os.path.isdir(full_path):
-            raise Exception  # TODO better exception
+            raise DirectoryAtPathException
         directory = os.path.dirname(full_path)
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
