@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Any
+from abc import ABC
 import numcodecs  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
@@ -7,18 +7,12 @@ import numpy as np
 from PIL import Image, ImageOps  # type: ignore
 
 
-class BaseImgCodec(Codec):
+class BaseImgCodec(ABC, Codec):
     """Base class for image codecs"""
 
-    def __init__(self, single_channel: bool = True):
+    def __init__(self, single_channel: bool = True) -> None:
         self.single_channel = single_channel
         self._msgpack = numcodecs.MsgPack()
-
-    def encode_single_image(self, image: np.ndarray) -> bytes:
-        raise NotImplementedError()
-
-    def decode_single_image(self, *args: Any, **kwargs: Any) -> np.ndarray:
-        raise NotImplementedError()
 
     @property
     def __name__(self):
