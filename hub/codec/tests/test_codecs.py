@@ -48,13 +48,13 @@ def check_codec_single_channel(codec: Union[BaseImgCodec]) -> None:
 
 @pytest.mark.parametrize("from_config", [False, True])
 @pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
-def test_png_codec(from_config: bool, shape: tuple) -> None:
+def test_png_codec(benchmark, from_config: bool, shape: tuple) -> None:
     codec = PngCodec()
     if from_config:
         config = codec.get_config()
         codec = PngCodec.from_config(config)
     arr = np.ones(shape, dtype="uint8")
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 @pytest.mark.parametrize("single_channel", [False, True])
@@ -71,13 +71,13 @@ def test_png_codec_single_channel(single_channel: bool) -> None:
 
 @pytest.mark.parametrize("from_config", [False, True])
 @pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
-def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
+def test_jpeg_codec(benchmark, from_config: bool, shape: tuple) -> None:
     codec = JpegCodec()
     if from_config:
         config = codec.get_config()
         codec = JpegCodec.from_config(config)
     arr = np.ones(shape, dtype="uint8")
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 @pytest.mark.parametrize("single_channel", [False, True])
@@ -94,13 +94,13 @@ def test_jpeg_codec_single_channel(single_channel: bool) -> None:
 
 @pytest.mark.parametrize("from_config", [False, True])
 @pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
-def test_webp_codec(from_config: bool, shape: tuple) -> None:
+def test_webp_codec(benchmark, from_config: bool, shape: tuple) -> None:
     codec = WebPCodec()
     if from_config:
         config = codec.get_config()
         codec = WebPCodec.from_config(config)
     arr = np.ones(shape, dtype="uint8")
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 @pytest.mark.parametrize("single_channel", [False, True])
@@ -117,25 +117,25 @@ def test_webp_codec_single_channel(single_channel: bool) -> None:
 
 @pytest.mark.parametrize("acceleration", LZ4_ACCELERATIONS)
 @pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
-def test_lz4(acceleration: int, shape: tuple) -> None:
+def test_lz4(benchmark, acceleration: int, shape: tuple) -> None:
     codec = Lz4(acceleration=acceleration)
     arr = np.random.rand(*shape)
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 @pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
-def test_numpy(shape: tuple) -> None:
+def test_numpy(benchmark, shape: tuple) -> None:
     codec = NumPy()
     arr = np.random.rand(*shape)
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 @pytest.mark.parametrize("level", ZSTD_LEVELS)
 @pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
-def test_zstd(level: int, shape: tuple) -> None:
+def test_zstd(benchmark, level: int, shape: tuple) -> None:
     codec = Zstd(level=level)
     arr = np.random.rand(*shape)
-    check_equals_decoded(arr, codec)
+    benchmark(check_equals_decoded, arr, codec)
 
 
 def test_base_name():
