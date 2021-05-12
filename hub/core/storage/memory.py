@@ -46,7 +46,7 @@ class MemoryProvider(StorageProvider):
         self.mapper[path] = value
 
     def __iter__(self):
-        """Generator function that iterates over the provider.
+        """Generator function that iterates over the keys of the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
@@ -54,9 +54,9 @@ class MemoryProvider(StorageProvider):
                 pass
 
         Yields:
-            bytes: the bytes of the object that it is iterating over.
+            str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self.mapper.items()
+        yield from self.mapper
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -81,6 +81,6 @@ class MemoryProvider(StorageProvider):
             len(local_provider)
 
         Returns:
-            int: the number of files present inside the root
+            int: the number of files present inside the root.
         """
         return len(self.mapper)

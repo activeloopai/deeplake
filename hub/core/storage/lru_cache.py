@@ -4,97 +4,161 @@ from typing import Set
 
 # TODO use lock for multiprocessing
 class LRUCache(StorageProvider):
+    """LRU Cache that uses StorageProvider for caching"""
+
     def __init__(
         self,
         cache_storage: StorageProvider,
         next_storage: StorageProvider,
         cache_size: int,
     ):
-        self._next_storage = next_storage
-        self._cache_storage = cache_storage
-        self._cache_size = cache_size  # max size of cache_storage
+        """Initializes the LRUCache
 
-        # LRU state variables
-        self._dirty_keys: Set[str] = set()  # keys in cache but not next_storage
-        self._cache_used = 0  # size of cache used
+        Args:
+            cache_storage (StorageProvider): The storage being used as the caching layer of the cache the.
+                This should be a base provider such as MemoryProvider, LocalProvider or S3Provider but not another LRUCache.
+            next_storage (StorageProvider): The next storage layer of the cache.
+                While reading data, all misses from cache would be retrieved from here.
+                While writing data, the data will be written to the next_storage when cache_storage is full or flush is called.
+                This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of chained cache).
+            cache_size (int): The total space that can be used from the cache_storage in bytes.
+                This number may be less than the actual space available on the cache.
+                Setting it to a higher value than actually available space may lead to unexpected behaviors.
+        """
+        self.next_storage = next_storage
+        self.cache_storage = cache_storage
+        self.cache_size = cache_size
+
         # tracks keys in lru order, stores size of value, only keys present in this exist in cache
-        self._lru_sizes: OrderedDict[str, int] = OrderedDict()
+        self.lru_sizes: OrderedDict[str, int] = OrderedDict()
+        self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
+        self.cache_used = 0
 
     def flush(self):
-        # writing all keys in cache but not in next_storage
-        for item in self._dirty_keys:
-            self._next_storage[item] = self._cache_storage[item]
-        self._dirty_keys.clear()
-        self._next_storage.flush()
+        """Writes data from cache_storage to next_storage.
 
-    def __getitem__(self, key):
-        """Gets item and puts it in the cache if not there"""
-        if key in self._lru_sizes:
-            self._lru_sizes.move_to_end(key)  # refresh position for LRU
-            return self._cache_storage[key]
+        This is a cascading function and leads to data being written to the final storage in case of a chained cache.
+        """
+        for key in self.dirty_keys:
+            self.next_storage[key] = self.cache_storage[key]
+        self.dirty_keys.clear()
+
+        self.next_storage.flush()
+
+    def __getitem__(self, path: str):
+        """If item is in cache_storage, retrieves from there and returns.
+        If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
+
+        Args:
+            path (str): the path relative to the root of the underlying storage.
+
+        Returns:
+            bytes: The bytes of the object present at the path
+        """
+        if path in self.lru_sizes:
+            self.lru_sizes.move_to_end(path)  # refresh position for LRU
+            return self.cache_storage[path]
         else:
-            result = self._next_storage[key]  # fetch from storage
-            if len(result) <= self._cache_size:  # insert in cache if it fits
-                self._insert_in_cache(key, result)
+            result = self.next_storage[path]  # fetch from storage
+            if len(result) <= self.cache_size:  # insert in cache if it fits
+                self._insert_in_cache(path, result)
             return result
 
-    def __setitem__(self, key, value):
-        """Sets item and puts it in the cache if not there"""
-        if key in self._lru_sizes:
-            size = self._lru_sizes.pop(key)
-            self._cache_used -= size
+    def __setitem__(self, path: str, value: bytes):
+        """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
-        if len(value) <= self._cache_size:
-            self._insert_in_cache(key, value)
-            self._dirty_keys.add(key)
+        Args:
+            path (str): the path relative to the root of the underlying storage.
+            value (bytes): the value to be assigned at the path.
+        """
+        if path in self.lru_sizes:
+            size = self.lru_sizes.pop(path)
+            self.cache_used -= size
+
+        if len(value) <= self.cache_size:
+            self._insert_in_cache(path, value)
+            self.dirty_keys.add(path)
         else:  # larger than cache, directly send to next layer
-            self._dirty_keys.discard(key)
-            self._next_storage[key] = value
+            self.dirty_keys.discard(path)
+            self.next_storage[path] = value
 
-    def __delitem__(self, key):
+    def __delitem__(self, path: str):
+        """Deletes the object present at the path from the cache and the underlying storage.
+
+        Args:
+            path (str): the path to the object relative to the root of the provider.
+
+        Raises:
+            KeyError: If an object is not found at the path.
+        """
         deleted_from_cache = False
-        if key in self._lru_sizes:
-            size = self._lru_sizes.pop(key)
-            self._cache_used -= size
-            del self._cache_storage[key]
-            self._dirty_keys.discard(key)
+        if path in self.lru_sizes:
+            size = self.lru_sizes.pop(path)
+            self.cache_used -= size
+            del self.cache_storage[path]
+            self.dirty_keys.discard(path)
             deleted_from_cache = True
 
         try:
-            del self._next_storage[key]
+            del self.next_storage[path]
         except KeyError:
             if not deleted_from_cache:
                 raise
 
     def __len__(self):
+        """Returns the number of files present in the cache and the underlying storage.
+
+        Returns:
+            int: the number of files present inside the root.
+        """
         return len(self._list_keys())
 
     def __iter__(self):
+        """Generator function that iterates over the keys of the cache and the underlying storage.
+
+        Yields:
+            str: the path of the object that it is iterating over, relative to the root of the provider.
+        """
         yield from self._list_keys()
 
-    def _free_up_space(self, extra_size):
-        # keep on freeing space in cache till extra_size can fit in
-        while self._cache_used > 0 and extra_size + self._cache_used > self._cache_size:
+    def _free_up_space(self, extra_size: int):
+        """Helper function that frees up space the requred space in cache.
+            No action is taken if there is sufficient space in the cache.
+
+        Args:
+            extra_size (int): the space that needs is required in bytes.
+        """
+        while self.cache_used > 0 and extra_size + self.cache_used > self.cache_size:
             self._pop_from_cache()
 
     def _pop_from_cache(self):
-        # removes the item that was used the longest time back
-        item, itemsize = self._lru_sizes.popitem(last=False)
-        if item in self._dirty_keys:
-            self._next_storage[item] = self._cache_storage[item]
-            self._dirty_keys.discard(item)
-        del self._cache_storage[item]
-        self._cache_used -= itemsize
+        """Helper function that pops the least recently used key, value pair from the cache"""
+        key, itemsize = self.lru_sizes.popitem(last=False)
+        if key in self.dirty_keys:
+            self.next_storage[key] = self.cache_storage[key]
+            self.dirty_keys.discard(key)
+        del self.cache_storage[key]
+        self.cache_used -= itemsize
 
-    def _insert_in_cache(self, key, value):
-        # adds key value pair to cache
+    def _insert_in_cache(self, path: str, value: bytes):
+        """Helper function that adds a key value pair to the cache.
+
+        Args:
+            path (str): the path relative to the root of the underlying storage.
+            value (bytes): the value to be assigned at the path.
+        """
         self._free_up_space(len(value))
-        self._cache_storage[key] = value
-        self._cache_used += len(value)
-        self._lru_sizes[key] = len(value)
+        self.cache_storage[path] = value
+        self.cache_used += len(value)
+        self.lru_sizes[path] = len(value)
 
     def _list_keys(self):
-        all_keys = {item for item in self._next_storage}
-        for item in self._cache_storage:
-            all_keys.add(item)
-        return all_keys
+        """Helper function that lists all the objects present in the cache and the underlying storage.
+
+        Returns:
+            list: list of all the objects found in the cache and the underlying storage.
+        """
+        all_keys = {key for key in self.next_storage}
+        for key in self.cache_storage:
+            all_keys.add(key)
+        return list(all_keys)

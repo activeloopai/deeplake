@@ -111,7 +111,7 @@ class StorageProvider(ABC, MutableMapping):
 
     @abstractmethod
     def __iter__(self):
-        """Generator function that iterates over the provider.
+        """Generator function that iterates over the keys of the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
@@ -119,13 +119,12 @@ class StorageProvider(ABC, MutableMapping):
                 pass
 
         Yields:
-            bytes: the bytes of the object that it is iterating over.
+            str: the path of the object that it is iterating over, relative to the root of the provider.
         """
 
     @abstractmethod
     def __delitem__(self, path: str):
-        """
-        Delete the object present at the path.
+        """Delete the object present at the path.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
@@ -140,16 +139,17 @@ class StorageProvider(ABC, MutableMapping):
 
     @abstractmethod
     def __len__(self):
-        """
-        Returns the number of files present inside the root of the provider.
+        """Returns the number of files present inside the root of the provider.
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
             len(local_provider)
 
         Returns:
-            int: the number of files present inside the root
+            int: the number of files present inside the root.
         """
 
     def flush(self):
-        """flush"""
+        """Only needs to be implemented for caches. Flushes the data to the next storage provider.
+        Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
+        """
