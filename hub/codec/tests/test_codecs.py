@@ -146,3 +146,16 @@ def test_base_name():
     new_compressor = RandomCompressor()
     with pytest.raises(NotImplementedError):
         new_compressor.__name__
+
+
+def test_kwargs():
+    with pytest.raises(ValueError):
+        compressor = Lz4(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = Zstd(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = PngCodec(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = JpegCodec(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = WebPCodec(another_kwarg=1)
