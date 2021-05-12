@@ -1,4 +1,5 @@
 pytest
+pytest-cases
 pytest-benchmark
 pytest-cov
 mypy
