@@ -98,6 +98,10 @@ def test_write(benchmark, shape, chunk_size, num_batches, dtype, storage):
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
+
+    gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) // (1_000_000_000)
+    print("\nBenchmarking array with size: %.2fGB." % gbs)
+
     benchmark(
         benchmark_write,
         arrays,
