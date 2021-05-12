@@ -14,7 +14,7 @@ compression_map = {
 
 def _get_compressor(
     compressor_name: Optional[str] = None, **kwargs
-) -> Union[BaseImgCodec, BaseNumCodec]:
+) -> Union[BaseImgCodec, BaseNumCodec, None]:
     """Get compressor object
 
     Example:
