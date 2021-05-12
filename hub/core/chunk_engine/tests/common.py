@@ -8,20 +8,21 @@ from hub.core.chunk_engine.util import (
     get_index_map_key,
     get_chunk_key,
 )
-from hub.core.storage import MemoryProvider
+from hub.core.storage import MappedProvider
 from hub.core.typing import Provider
 
 from typing import List, Tuple
 
 
-ROOT = "PYTEST_TENSOR_COLLECTION"
-STORAGE_PROVIDERS = (MemoryProvider(ROOT),)
+STORAGE_PROVIDERS = (
+    MappedProvider(),
+)  # TODO: replace MappedProvider with MemoryProvider
 
 
 CHUNK_SIZES = (
     128,
     4096,
-    16000000,
+    16000000,  # 16MB
 )
 
 
