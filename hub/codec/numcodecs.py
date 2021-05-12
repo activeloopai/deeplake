@@ -1,6 +1,8 @@
 from io import BytesIO
+from typing import Union
 from abc import ABC, abstractmethod  # type: ignore
 import numcodecs  # type: ignore
+import msgpack  # type: ignore
 
 import numpy as np
 
@@ -9,11 +11,11 @@ class BaseNumCodec(ABC):
     """Base class for numcodec compressors"""
 
     @abstractmethod
-    def encode(self, array: np.ndarray) -> bytes:
+    def encode(self, input: np.ndarray) -> bytes:
         pass
 
     @abstractmethod
-    def decode(self, bytes: bytes) -> np.ndarray:
+    def decode(self, bytes: bytes) -> Union[np.ndarray, bytes]:
         pass
 
     @property
@@ -87,7 +89,7 @@ class Lz4(BaseNumCodec):
     def __name__(self):
         return "lz4"
 
-    def encode(self, array: np.ndarray) -> bytes:
+    def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array
 
@@ -96,22 +98,24 @@ class Lz4(BaseNumCodec):
             arr_encoded = lz4_codec.encode(x)
 
         Args:
-            array (np.ndarray): Data to be encoded
+            input (np.ndarray/bytes): Data to be encoded
 
         Returns:
             Encoded data.
         """
+        if isinstance(input, bytes):
+            return self.compressor.encode(input)
         return self._msgpack.encode(
             [
                 {
-                    "item": self.compressor.encode(array),
-                    "dtype": array.dtype.name,
-                    "shape": array.shape,
+                    "item": self.compressor.encode(input),
+                    "dtype": input.dtype.name,
+                    "shape": input.shape,
                 }
             ]
         )
 
-    def decode(self, bytes_: bytes) -> np.ndarray:
+    def decode(self, bytes_: bytes) -> Union[np.ndarray, bytes]:
         """
         Decode data from buffer.
 
@@ -124,7 +128,10 @@ class Lz4(BaseNumCodec):
         Returns:
             Decoded data.
         """
-        data = self._msgpack.decode(bytes_)[0]
+        try:
+            data = self._msgpack.decode(bytes_)[0]
+        except msgpack.exceptions.ExtraData:
+            return self.compressor.decode(bytes_)
         decoded_buf = self.compressor.decode(data["item"])
         arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
         arr = arr.reshape(data["shape"])
@@ -152,7 +159,7 @@ class Zstd(BaseNumCodec):
     def __name__(self):
         return "zstd"
 
-    def encode(self, array: np.ndarray) -> bytes:
+    def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array
 
@@ -161,22 +168,24 @@ class Zstd(BaseNumCodec):
             arr_encoded = zstd_codec.encode(x)
 
         Args:
-            array (np.ndarray): Data to be encoded
+            input (np.ndarray/bytes): Data to be encoded
 
         Returns:
             Encoded data.
         """
+        if isinstance(input, bytes):
+            return self.compressor.encode(input)
         return self._msgpack.encode(
             [
                 {
-                    "item": self.compressor.encode(array),
-                    "dtype": array.dtype.name,
-                    "shape": array.shape,
+                    "item": self.compressor.encode(input),
+                    "dtype": input.dtype.name,
+                    "shape": input.shape,
                 }
             ]
         )
 
-    def decode(self, bytes_: bytes) -> np.ndarray:
+    def decode(self, bytes_: bytes) -> Union[np.ndarray, bytes]:
         """
         Decode data from buffer.
 
@@ -189,7 +198,10 @@ class Zstd(BaseNumCodec):
         Returns:
             Decoded data.
         """
-        data = self._msgpack.decode(bytes_)[0]
+        try:
+            data = self._msgpack.decode(bytes_)[0]
+        except msgpack.exceptions.ExtraData:
+            return self.compressor.decode(bytes_)
         decoded_buf = self.compressor.decode(data["item"])
         arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
         arr = arr.reshape(data["shape"])
