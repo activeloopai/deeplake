@@ -8,8 +8,6 @@ CODECS = ("lz4", "zstd", "numpy", "png", "jpeg")
 def test_get_compressor(codec_name: str) -> None:
     compressor = _get_compressor(codec_name)
     assert compressor.__name__ == codec_name
-    compressor = _get_compressor(None)
-    assert compressor is None
 
 
 def test_unavailable_codec():

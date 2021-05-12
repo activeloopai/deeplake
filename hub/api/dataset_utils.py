@@ -1,4 +1,4 @@
-from typing import Union, Optional
+from typing import Union
 from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec, WebPCodec
 from hub.codec import BaseImgCodec, BaseNumCodec
 
@@ -13,8 +13,8 @@ compression_map = {
 
 
 def _get_compressor(
-    compressor_name: Optional[str] = None, **kwargs
-) -> Union[BaseImgCodec, BaseNumCodec, None]:
+    compressor_name: str, **kwargs
+) -> Union[BaseImgCodec, BaseNumCodec]:
     """Get compressor object
 
     Example:
@@ -37,8 +37,6 @@ def _get_compressor(
     Raises:
         ValueError: if the name of compressor isn't in ['lz4', 'zstd', 'numpy', 'png', 'jpeg']
     """
-    if compressor_name is None:
-        return None
     compressor = compression_map.get(compressor_name, None)
     if compressor:
         return compressor(**kwargs)
