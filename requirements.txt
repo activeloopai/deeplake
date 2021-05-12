@@ -1,4 +1,4 @@
-click>=6.7, <8
+click>=6.7, <9
 numpy>=1.17, <2
 requests>=2, <3
 fsspec>=0.8, <2022
