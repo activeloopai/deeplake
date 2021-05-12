@@ -13,7 +13,7 @@ class Tensor:
 
         Args:
             uuid (str): The internal identifier for this tensor.
-            tensor_slice (slice, optional): The slice object restricting the view of this tensor.
+            tensor_slice (slice): The slice object restricting the view of this tensor.
         """
         self.uuid = uuid
         self.slice = tensor_slice

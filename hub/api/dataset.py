@@ -16,10 +16,10 @@ class Dataset:
         Args:
             path (str): The location of the dataset.
                 Can be a local path, or a url to a cloud storage provider.
-            mode (str, optional): Mode in which the dataset is opened.
+            mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            ds_slice (slice, optional): The slice object restricting the view
+            ds_slice (slice): The slice object restricting the view
                 of this dataset's tensors. Defaults to slice(None, None, None).
                 Used internally for iteration.
         """
