@@ -42,6 +42,7 @@ def generate_chunks(
     if chunk_size <= 0:
         raise ChunkSizeTooSmallError()
     if bytes_left_in_last_chunk < 0:
+        # TODO: move error message to separate file
         raise ValueError("Bytes left in last chunk must be >= 0.")
     if len(content_bytes) <= 0:
         return

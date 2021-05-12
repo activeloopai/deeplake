@@ -29,6 +29,7 @@ def read_array(
     meta = pickle.loads(storage[get_meta_key(key)])
     index_map = pickle.loads(storage[get_index_map_key(key)])
 
+    # TODO: read samples in parallel
     samples = []
     for index_entry in index_map[array_slice]:
         chunks = []
