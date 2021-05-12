@@ -5,6 +5,8 @@ import numpy as np
 from hub.core.chunk_engine.util import normalize_and_batchify_shape, get_random_array
 from hub.core.chunk_engine.tests.common import DTYPES
 
+from typing import Tuple
+
 
 @pytest.mark.parametrize(
     "shape,expected_shape,batched",
@@ -28,7 +30,9 @@ from hub.core.chunk_engine.tests.common import DTYPES
         [(1, 1, 1, 1, 1, 1, 1), (1, 1), False],
     ),
 )
-def test_normalize_and_batchify_shape(shape, expected_shape, batched):
+def test_normalize_and_batchify_shape(
+    shape: Tuple[int], expected_shape: Tuple[int], batched: bool
+):
     a = np.random.uniform(size=shape)
     normal_a = normalize_and_batchify_shape(a, batched)
     assert normal_a.shape == expected_shape
@@ -44,7 +48,7 @@ def test_normalize_and_batchify_shape(shape, expected_shape, batched):
         (1, 1, 1, 1, 1),
     ),
 )
-def test_get_random_array(shape, dtype):
+def test_get_random_array(shape: Tuple[int], dtype: str):
     array = get_random_array(shape, dtype)
     assert array.shape == shape
     assert array.dtype == dtype

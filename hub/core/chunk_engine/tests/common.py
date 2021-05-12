@@ -90,7 +90,9 @@ def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Prov
     )
 
 
-def run_engine_test(arrays, storage, batched, chunk_size):
+def run_engine_test(
+    arrays: List[np.ndarray], storage: Provider, batched: bool, chunk_size: int
+):
     storage.clear()
 
     for i, a_in in enumerate(arrays):

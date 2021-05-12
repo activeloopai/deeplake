@@ -12,6 +12,9 @@ from hub.core.chunk_engine.tests.common import (
     STORAGE_PROVIDERS,
 )
 
+from typing import Tuple
+from hub.core.typing import Provider
+
 
 np.random.seed(1)
 
@@ -58,7 +61,9 @@ BENCHMARK_BATCHED_SHAPES = (
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
 @pytest.mark.parametrize("dtype", DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
-def test_unbatched(shape, chunk_size, num_batches, dtype, storage):
+def test_unbatched(
+    shape: Tuple[int], chunk_size: int, num_batches: int, dtype: str, storage: Provider
+):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITHOUT a batch axis.
@@ -73,7 +78,9 @@ def test_unbatched(shape, chunk_size, num_batches, dtype, storage):
 @pytest.mark.parametrize("num_batches", NUM_BATCHES)
 @pytest.mark.parametrize("dtype", DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
-def test_batched(shape, chunk_size, num_batches, dtype, storage):
+def test_batched(
+    shape: Tuple[int], chunk_size: int, num_batches: int, dtype: str, storage: Provider
+):
     """
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
@@ -89,7 +96,14 @@ def test_batched(shape, chunk_size, num_batches, dtype, storage):
 @pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
 @pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
-def test_write(benchmark, shape, chunk_size, num_batches, dtype, storage):
+def test_write(
+    benchmark,
+    shape: Tuple[int],
+    chunk_size: int,
+    num_batches: int,
+    dtype: str,
+    storage: Provider,
+):
     """
     Benchmark `write_array`.
 
@@ -118,7 +132,14 @@ def test_write(benchmark, shape, chunk_size, num_batches, dtype, storage):
 @pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
 @pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
-def test_read(benchmark, shape, chunk_size, num_batches, dtype, storage):
+def test_read(
+    benchmark,
+    shape: Tuple[int],
+    chunk_size: int,
+    num_batches: int,
+    dtype: str,
+    storage: Provider,
+):
     """
     Benchmark `read_array`.
 
