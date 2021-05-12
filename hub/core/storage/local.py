@@ -1,8 +1,8 @@
-from hub.core.storage.mapped_provider import MappedProvider
+from hub.core.storage.provider import StorageProvider
 import os
 
 
-class LocalProvider(MappedProvider):
+class LocalProvider(StorageProvider):
     """Provider class for using the local filesystem."""
 
     def __init__(self, root: str):
@@ -13,6 +13,9 @@ class LocalProvider(MappedProvider):
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root."
+
+        Raises:
+            Exception: If the root is a file instead of a directory.
         """
         if os.path.isfile(root):
             raise Exception  # TODO better exception
@@ -42,7 +45,7 @@ class LocalProvider(MappedProvider):
         yield from self._list_keys()
 
     def __len__(self):
-        return len(self._list_keys)
+        return len(self._list_keys())
 
     def _list_keys(self):
         ls = []
@@ -55,4 +58,7 @@ class LocalProvider(MappedProvider):
         full_path = os.path.join(self.root, path)
         if os.path.isdir(full_path):
             raise Exception  # TODO better exception
+        directory = os.path.dirname(full_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
         return full_path

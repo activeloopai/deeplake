@@ -1,13 +1,11 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
-from hub.core.storage.mapped_provider import MappedProvider
-import pytest
 from hub.util.check_s3_creds import s3_creds_exist
 from hub.util.cache_chain import get_cache_chain
+from hub.constants import MB
+import pytest
 
-MB = 1024 * 1024
 
-
-def test_storage_provider(provider=MappedProvider()):
+def check_storage_provider(provider):
     FILE_1 = "abc.txt"
     FILE_2 = "def.txt"
 
@@ -38,34 +36,38 @@ def test_storage_provider(provider=MappedProvider()):
         provider[FILE_1]
 
 
+def test_memory_provider():
+    check_storage_provider(MemoryProvider("abcd/efgh"))
+
+
 def test_local_provider():
-    test_storage_provider(LocalProvider("./hub_storage_local_test"))
+    check_storage_provider(LocalProvider("./hub_storage_local_test"))
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_provider():
-    test_storage_provider(S3Provider("snark-test/hub_storage_s3_test"))
+    check_storage_provider(S3Provider("snark-test/hub_storage_s3_test"))
 
 
-def write_to_files(provider=MappedProvider()):
+def write_to_files(provider):
     chunk = b"0123456789123456" * MB
     for i in range(20):
         provider[f"file_{i}"] = chunk
     provider.flush()
 
 
-def read_from_files(provider=MappedProvider()):
+def read_from_files(provider):
     for i in range(20):
         provider[f"file_{i}"]
 
 
-def delete_files(provider=MappedProvider()):
+def delete_files(provider):
     for i in range(20):
         del provider[f"file_{i}"]
 
 
-local_provider = LocalProvider("./benchmark")
-memory_provider = MappedProvider()
+local_provider = LocalProvider("./test/benchmark")
+memory_provider = MemoryProvider("test/benchmark")
 s3_provider = S3Provider("snark-test/hub2/benchmark")
 
 
@@ -172,7 +174,6 @@ def test_full_cache_read_lru_mem_local(benchmark):
     write_to_files(local_provider)
     lru = get_cache_chain([memory_provider, local_provider], [320 * MB])
     read_from_files(lru)
-    lru.flush()
     benchmark(read_from_files, lru)
     delete_files(lru)
 
@@ -182,7 +183,6 @@ def test_full_cache_read_lru_mem_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([memory_provider, s3_provider], [320 * MB])
     read_from_files(lru)
-    lru.flush()
     benchmark(read_from_files, lru)
     delete_files(lru)
 
@@ -192,7 +192,6 @@ def test_full_cache_read_lru_local_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([local_provider, s3_provider], [320 * MB])
     read_from_files(lru)
-    lru.flush()
     benchmark(read_from_files, lru)
     delete_files(lru)
 
@@ -205,6 +204,5 @@ def test_full_cache_read_lru_mem_local_s3(benchmark):
         [32 * MB, 320 * MB],
     )
     read_from_files(lru)
-    lru.flush()
     benchmark(read_from_files, lru)
     delete_files(lru)

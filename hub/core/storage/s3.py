@@ -2,16 +2,16 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 from typing import Optional
-from collections.abc import MutableMapping
+from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
 
 
-class S3Mapper(MutableMapping):
-    """An s3 mapper built using boto3. For internal use only (by class S3Provider)"""
+class S3Provider(StorageProvider):
+    """Provider class for using S3 storage."""
 
     def __init__(
         self,
-        url: str,
+        root: str,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
         aws_session_token: Optional[str] = None,
@@ -22,8 +22,8 @@ class S3Mapper(MutableMapping):
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
 
-        self.bucket = url.split("/")[0]
-        self.path = "/".join(url.split("/")[1:])
+        self.bucket = root.split("/")[0]
+        self.path = "/".join(root.split("/")[1:])
 
         self.client_config = botocore.config.Config(
             max_pool_connections=max_pool_connections,
@@ -103,7 +103,7 @@ class S3Mapper(MutableMapping):
         except Exception as err:
             raise S3DeletionError(err)
 
-    def _list_objects(self):
+    def _list_keys(self):
         """Helper function to list all the objects present at the root of the mapper.
 
         Returns:
@@ -133,8 +133,7 @@ class S3Mapper(MutableMapping):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        names = self._list_objects()
-        return len(names)
+        return len(self._list_keys())
 
     def __iter__(self):
         """Generator function that iterates over the keys of the mapper.
@@ -142,5 +141,4 @@ class S3Mapper(MutableMapping):
         Yields:
             str: the name of the object that it is iterating over.
         """
-        names = self._list_objects()
-        yield from names
+        yield from self._list_keys()
