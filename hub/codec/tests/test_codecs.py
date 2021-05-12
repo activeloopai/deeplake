@@ -35,7 +35,7 @@ def check_codec_config(codec: Union[BaseImgCodec]) -> None:
     assert config["single_channel"] == codec.single_channel
 
 
-def check_codec_single_channel(codec: Union[BaseImgCodec, BaseNumCodec]) -> None:
+def check_codec_single_channel(codec: Union[BaseImgCodec]) -> None:
     if codec.single_channel:
         arr = np.ones((100, 100, 1), dtype="uint8")
     else:

@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Any
 import numcodecs  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
@@ -16,7 +17,7 @@ class BaseImgCodec(Codec):
     def encode_single_image(self, image: np.ndarray) -> bytes:
         raise NotImplementedError()
 
-    def decode_single_image(self, *args, **kwargs) -> np.ndarray:
+    def decode_single_image(self, *args: Any, **kwargs: Any) -> np.ndarray:
         raise NotImplementedError()
 
     @property
@@ -320,6 +321,7 @@ class WebPCodec(BaseImgCodec):
 
         Args:
             buf (bytes): Encoded image
+            image_shape (tuple): Shape of encoded image.
 
         Returns:
             Decoded data.

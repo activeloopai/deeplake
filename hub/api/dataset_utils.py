@@ -1,10 +1,11 @@
 from typing import Union
-from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec
+from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec, WebPCodec
 from hub.codec import BaseImgCodec, BaseNumCodec
 
 compression_map = {
     PngCodec().__name__: PngCodec,
     JpegCodec().__name__: JpegCodec,
+    WebPCodec().__name__: WebPCodec,
     Lz4().__name__: Lz4,
     Zstd().__name__: Zstd,
     NumPy().__name__: NumPy,
