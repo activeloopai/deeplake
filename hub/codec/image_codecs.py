@@ -3,7 +3,7 @@ import numcodecs  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
 import numpy as np
-from PIL import Image  # type: ignore
+from PIL import Image, ImageOps  # type: ignore
 
 
 class BaseImgCodec(Codec):
@@ -35,12 +35,11 @@ class BaseImgCodec(Codec):
             arr (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
             (N, M) if image has one channel and single_channel is False,
             (N, M, 1) if image has one channel and single_channel is True,
-            (N, M, 3).
-            In case of multiple images they should be stacked across the first axis.
+            (N, M, 3). In case of multiple images they should be stacked across the first axis.
 
         Raises:
-            ValueError: If yhe shape length of input array is
-            less than the number of expected dimensions"
+            ValueError: If the shape length of input array is
+            less than the number of expected dimensions.
 
         Returns:
             Encoded dictionary of images and metadata.
@@ -60,7 +59,13 @@ class BaseImgCodec(Codec):
             )
         if len(arr.shape) == shape_dims:
             return self._msgpack.encode(
-                [{"items": self.encode_single_image(arr), "append_one": append_one}]
+                [
+                    {
+                        "items": self.encode_single_image(arr),
+                        "append_one": append_one,
+                        "image_shape": arr.shape,
+                    }
+                ]
             )
         else:
             image_shape = arr.shape[-shape_dims:]
@@ -94,8 +99,12 @@ class BaseImgCodec(Codec):
             Decoded image or array with multiple images.
         """
         data = self._msgpack.decode(buf)[0]
+        pass_shape = True if self.__name__ == "webp" else False
         if "items_shape" not in data:
-            images = self.decode_single_image(data["items"])
+            if pass_shape:
+                images = self.decode_single_image(data["items"], data["image_shape"])
+            else:
+                images = self.decode_single_image(data["items"])
         else:
             items = data["items"]
             images = np.zeros(
@@ -103,7 +112,12 @@ class BaseImgCodec(Codec):
             )
 
             for i, index in enumerate(np.ndindex(tuple(data["items_shape"]))):
-                images[index] = self.decode_single_image(items[i])
+                if pass_shape:
+                    images[index] = self.decode_single_image(
+                        items[i], data["image_shape"]
+                    )
+                else:
+                    images[index] = self.decode_single_image(items[i])
 
         if data.get("append_one"):
             images = np.reshape(images, images.shape + (1,))
@@ -189,7 +203,7 @@ class JpegCodec(BaseImgCodec):
 class PngCodec(BaseImgCodec):
     def __init__(self, **kwargs):
         """
-        Initialize PNG compressor
+        Initialize PNG compressor.
 
         Args:
             **kwargs: Optional; single_channel (bool): if True,
@@ -249,5 +263,79 @@ class PngCodec(BaseImgCodec):
         return PngCodec(single_channel=config["single_channel"])
 
 
+class WebPCodec(BaseImgCodec):
+    def __init__(self, **kwargs):
+        """
+        Initialize WebP compressor.
+
+        Args:
+            **kwargs: Optional; single_channel (bool): if True,
+            encoder will remove the last dimension of input if it is 1.
+            quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
+
+        Raises:
+            ValueError: If keyword arguments contain not supported arguments.
+        """
+        super().__init__()
+        self.codec_id = "webp"
+        webp_args = {"single_channel": True, "quality": 95}
+
+        diff = set(kwargs.keys()) - set(webp_args.keys())
+        if diff:
+            raise ValueError("Invalid args:", tuple(diff))
+
+        self.single_channel = kwargs.get("single_channel", webp_args["single_channel"])
+        self.quality = kwargs.get("quality", webp_args["quality"])
+
+    @property
+    def __name__(self):
+        return "webp"
+
+    def encode_single_image(self, image: np.ndarray) -> bytes:
+        """
+        Encode single image.
+
+        Example:
+            img = np.ones(100, 100, 3)
+            img_encoded = png_codec.encode_single_image(img)
+
+        Args:
+            image (np.ndarray): Single image to be encoded
+
+        Returns:
+            Encoded data.
+        """
+        with BytesIO() as buffer:
+            image = Image.fromarray(image)
+            image = image.convert("RGB")
+            image.save(buffer, format=self.codec_id, quality=self.quality)
+            return buffer.getvalue()
+
+    def decode_single_image(self, buf: bytes, image_shape: tuple) -> np.ndarray:
+        """
+        Decode single image from buffer.
+
+        Example:
+            imgs_decoded = png_codec.decode(imgs_encoded)
+
+        Args:
+            buf (bytes): Encoded image
+
+        Returns:
+            Decoded data.
+        """
+        with BytesIO(buf) as buffer:
+            buffer.seek(0)
+            image = Image.open(buffer, mode="r")
+            if len(image_shape) == 2:
+                return np.array(ImageOps.grayscale(image))
+            return np.array(image)
+
+    @classmethod
+    def from_config(cls, config):
+        return WebPCodec(single_channel=config["single_channel"])
+
+
 numcodecs.register_codec(PngCodec, "png")
 numcodecs.register_codec(JpegCodec, "jpeg")
+numcodecs.register_codec(WebPCodec, "webp")

@@ -68,7 +68,7 @@ class NumPy(BaseNumCodec):
 class Lz4(BaseNumCodec):
     def __init__(self, **kwargs):
         """
-        Initialize Lz4 compressor
+        Initialize Lz4 compressor.
 
         Args:
             **kwargs: Optional; acceleration (int): Acceleration level.
