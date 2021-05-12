@@ -16,7 +16,7 @@ class BaseImgCodec(Codec):
     def encode_single_image(self, image: np.ndarray) -> bytes:
         raise NotImplementedError()
 
-    def decode_single_image(self, buf: bytes) -> np.ndarray:
+    def decode_single_image(self, *args, **kwargs) -> np.ndarray:
         raise NotImplementedError()
 
     @property
@@ -33,13 +33,13 @@ class BaseImgCodec(Codec):
 
         Args:
             arr (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
-            (N, M) if image has one channel and single_channel is False,
-            (N, M, 1) if image has one channel and single_channel is True,
-            (N, M, 3). In case of multiple images they should be stacked across the first axis.
+                (N, M) if image has one channel and single_channel is False,
+                (N, M, 1) if image has one channel and single_channel is True,
+                (N, M, 3). In case of multiple images they should be stacked across the first axis.
 
         Raises:
             ValueError: If the shape length of input array is
-            less than the number of expected dimensions.
+                less than the number of expected dimensions.
 
         Returns:
             Encoded dictionary of images and metadata.
@@ -207,7 +207,7 @@ class PngCodec(BaseImgCodec):
 
         Args:
             **kwargs: Optional; single_channel (bool): if True,
-            encoder will remove the last dimension of input if it is 1.
+                encoder will remove the last dimension of input if it is 1.
 
         Raises:
             ValueError: If ketword arguments contain not supported arguments.
@@ -270,8 +270,8 @@ class WebPCodec(BaseImgCodec):
 
         Args:
             **kwargs: Optional; single_channel (bool): if True,
-            encoder will remove the last dimension of input if it is 1.
-            quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
+                encoder will remove the last dimension of input if it is 1.
+                quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
 
         Raises:
             ValueError: If keyword arguments contain not supported arguments.

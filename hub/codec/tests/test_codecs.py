@@ -23,13 +23,13 @@ ZSTD_LEVELS = (1, 11, 22)
 
 def check_equals_decoded(
     actual_array: np.ndarray, codec: Union[BaseImgCodec, BaseNumCodec]
-):
+) -> None:
     bytes_ = codec.encode(actual_array)
     decoded_array = codec.decode(bytes_)
     assert (actual_array == decoded_array).all()
 
 
-def check_codec_config(codec: Union[BaseImgCodec, BaseNumCodec]) -> None:
+def check_codec_config(codec: Union[BaseImgCodec]) -> None:
     config = codec.get_config()
     assert config["id"] == codec.__name__
     assert config["single_channel"] == codec.single_channel
