@@ -38,10 +38,6 @@ def test_storage_provider(provider=MappedProvider()):
         provider[FILE_1]
 
 
-def test_memory_provider():
-    test_storage_provider(MemoryProvider("abc/def"))
-
-
 def test_local_provider():
     test_storage_provider(LocalProvider("./hub_storage_local_test"))
 
@@ -51,98 +47,164 @@ def test_s3_provider():
     test_storage_provider(S3Provider("snark-test/hub_storage_s3_test"))
 
 
-def speed_check(provider=MappedProvider()):
+def write_to_files(provider=MappedProvider()):
     chunk = b"0123456789123456" * MB
     for i in range(20):
         provider[f"file_{i}"] = chunk
+    provider.flush()
+
+
+def read_from_files(provider=MappedProvider()):
     for i in range(20):
         provider[f"file_{i}"]
+
+
+def delete_files(provider=MappedProvider()):
     for i in range(20):
         del provider[f"file_{i}"]
 
 
-def test_speed_memory(benchmark):
-    benchmark(speed_check, MemoryProvider("benchmark"))
+local_provider = LocalProvider("./benchmark")
+memory_provider = MappedProvider()
+s3_provider = S3Provider("snark-test/hub2/benchmark")
 
 
-def test_speed_local(benchmark):
-    benchmark(speed_check, LocalProvider("./benchmark"))
+def test_write_memory(benchmark):
+    benchmark(write_to_files, memory_provider)
+    delete_files(memory_provider)
 
 
-def test_speed_s3(benchmark):
-    benchmark(speed_check, S3Provider("snark-test/hub2/benchmark"))
+def test_write_local(benchmark):
+    benchmark(write_to_files, local_provider)
+    delete_files(local_provider)
 
 
-def test_speed_lru_mem_local(benchmark):
-    local_provider = LocalProvider("./benchmark")
-    memory_provider = MemoryProvider("benchmark")
-    s3_provider = S3Provider("snark-test/hub2/benchmark")
-    lru_0 = get_cache_chain([memory_provider, local_provider], [32 * MB])
-    benchmark(speed_check, lru_0)
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_write_s3(benchmark):
+    benchmark(write_to_files, s3_provider)
+    delete_files(s3_provider)
 
 
-def test_speed_lru_mem_s3(benchmark):
-    local_provider = LocalProvider("./benchmark")
-    memory_provider = MemoryProvider("benchmark")
+def test_write_lru_mem_local(benchmark):
+    lru = get_cache_chain([memory_provider, local_provider], [32 * MB])
+    benchmark(write_to_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_write_lru_mem_s3(benchmark):
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
-    benchmark(speed_check, lru)
+    benchmark(write_to_files, lru)
+    delete_files(lru)
 
 
-def test_speed_lru_local_s3(benchmark):
-    local_provider = LocalProvider("./benchmark")
-    s3_provider = S3Provider("snark-test/hub2/benchmark")
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_write_lru_local_s3(benchmark):
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
-    benchmark(speed_check, lru)
+    benchmark(write_to_files, lru)
+    delete_files(lru)
 
 
-def test_speed_lru_local_mem_s3(benchmark):
-    local_provider = LocalProvider("./benchmark")
-    memory_provider = MemoryProvider("benchmark")
-    s3_provider = S3Provider("snark-test/hub2/benchmark")
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_write_lru_mem_local_s3(benchmark):
     lru = get_cache_chain(
         [memory_provider, local_provider, s3_provider],
         [32 * MB, 160 * MB],
     )
-    benchmark(speed_check, lru)
-
-    # local_provider = LocalProvider("./benchmark")
-    # memory_provider = MemoryProvider("benchmark")
-    # s3_provider = S3Provider("snark-test/hub2/benchmark")
-
-    # benchmark(write_speed, memory_provider)
-    # benchmark(read_speed, memory_provider)
-    # benchmark(delete_speed, memory_provider)
-
-    # benchmark(write_speed, local_provider)
-    # benchmark(read_speed, local_provider)
-    # benchmark(delete_speed, local_provider)
-
-    # benchmark(write_speed, s3_provider)
-    # benchmark(read_speed, s3_provider)
-    # benchmark(delete_speed, s3_provider)
-
-    # lru_0 = get_cache_chain([memory_provider, local_provider], [32 * MB])
-    # benchmark(write_speed, lru_0)
-    # benchmark(read_speed, lru_0)
-    # benchmark(delete_speed, lru_0)
-
-    # lru_1 = get_cache_chain([memory_provider, s3_provider], [32 * MB])
-    # benchmark(write_speed, lru_1)
-    # benchmark(read_speed, lru_1)
-    # benchmark(delete_speed, lru_1)
-
-    # lru_2 = get_cache_chain([local_provider, s3_provider], [160 * MB])
-    # benchmark(write_speed, lru_2)
-    # benchmark(read_speed, lru_2)
-    # benchmark(delete_speed, lru_2)
-
-    # lru_3 = get_cache_chain(
-    #     [memory_provider, local_provider, s3_provider],
-    #     [32 * MB, 160 * MB],
-    # )
-    # benchmark(write_speed, lru_3)
-    # benchmark(read_speed, lru_3)
-    # benchmark(delete_speed, lru_3)
+    benchmark(write_to_files, lru)
+    delete_files(lru)
 
 
-# TODO add pytest benchmarks
+def test_read_memory(benchmark):
+    write_to_files(memory_provider)
+    benchmark(read_from_files, memory_provider)
+    delete_files(memory_provider)
+
+
+def test_read_local(benchmark):
+    write_to_files(local_provider)
+    benchmark(read_from_files, local_provider)
+    delete_files(local_provider)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_read_s3(benchmark):
+    write_to_files(s3_provider)
+    benchmark(read_from_files, s3_provider)
+    delete_files(s3_provider)
+
+
+def test_read_lru_mem_local(benchmark):
+    write_to_files(local_provider)
+    lru = get_cache_chain([memory_provider, local_provider], [32 * MB])
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_read_lru_mem_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_read_lru_local_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_read_lru_mem_local_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain(
+        [memory_provider, local_provider, s3_provider],
+        [32 * MB, 160 * MB],
+    )
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+def test_full_cache_read_lru_mem_local(benchmark):
+    write_to_files(local_provider)
+    lru = get_cache_chain([memory_provider, local_provider], [320 * MB])
+    read_from_files(lru)
+    lru.flush()
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_full_cache_read_lru_mem_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain([memory_provider, s3_provider], [320 * MB])
+    read_from_files(lru)
+    lru.flush()
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_full_cache_read_lru_local_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain([local_provider, s3_provider], [320 * MB])
+    read_from_files(lru)
+    lru.flush()
+    benchmark(read_from_files, lru)
+    delete_files(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_full_cache_read_lru_mem_local_s3(benchmark):
+    write_to_files(s3_provider)
+    lru = get_cache_chain(
+        [memory_provider, local_provider, s3_provider],
+        [32 * MB, 320 * MB],
+    )
+    read_from_files(lru)
+    lru.flush()
+    benchmark(read_from_files, lru)
+    delete_files(lru)

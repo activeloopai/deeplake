@@ -40,7 +40,7 @@ class StorageProvider(ABC, MutableMapping):
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider["abc.txt"]
+            my_data = local_provider.get_bytes("abc.txt", 5, 10)
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -81,7 +81,7 @@ class StorageProvider(ABC, MutableMapping):
 
         Example:
             local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider["abc.txt"] = b"abcd"
+            local_provider.set_bytes("abc.txt", b"abcd", 5)
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -96,7 +96,7 @@ class StorageProvider(ABC, MutableMapping):
         start_byte = start_byte or 0
         end_byte = start_byte + len(value)
         assert_byte_indexes(start_byte, end_byte)
-        # file already exists and doesn't need to be overwritten
+
         if path in self and not overwrite:
             current_value = bytearray(self[path])
             # need to pad with zeros at the end to write extra bytes
@@ -104,7 +104,6 @@ class StorageProvider(ABC, MutableMapping):
                 current_value = current_value.ljust(end_byte, BYTE_PADDING)
             current_value[start_byte:end_byte] = value
             self[path] = current_value
-        # file doesn't exist or needs to be overwritten completely
         else:
             # need to pad with zeros at the start to write from an offset
             if start_byte != 0:
