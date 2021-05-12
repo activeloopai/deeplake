@@ -5,6 +5,11 @@ from hub.constants import MB
 import pytest
 
 
+local_provider = LocalProvider("./test/benchmark")
+memory_provider = MemoryProvider("test/benchmark")
+s3_provider = S3Provider("snark-test/hub2/benchmark")
+
+
 def check_storage_provider(provider):
     FILE_1 = "abc.txt"
     FILE_2 = "def.txt"
@@ -35,18 +40,46 @@ def check_storage_provider(provider):
     with pytest.raises(KeyError):
         provider[FILE_1]
 
+    provider.flush()
+
 
 def test_memory_provider():
-    check_storage_provider(MemoryProvider("abcd/efgh"))
+    check_storage_provider(memory_provider)
 
 
 def test_local_provider():
-    check_storage_provider(LocalProvider("./hub_storage_local_test"))
+    check_storage_provider(local_provider)
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
 def test_s3_provider():
-    check_storage_provider(S3Provider("snark-test/hub_storage_s3_test"))
+    check_storage_provider(s3_provider)
+
+
+def test_lru_mem_local(benchmark):
+    lru = get_cache_chain([memory_provider, local_provider], [32 * MB])
+    check_storage_provider(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_lru_mem_s3(benchmark):
+    lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
+    check_storage_provider(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_lru_local_s3(benchmark):
+    lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
+    check_storage_provider(lru)
+
+
+@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+def test_lru_mem_local_s3(benchmark):
+    lru = get_cache_chain(
+        [memory_provider, local_provider, s3_provider],
+        [32 * MB, 160 * MB],
+    )
+    check_storage_provider(lru)
 
 
 def write_to_files(provider):
@@ -64,11 +97,6 @@ def read_from_files(provider):
 def delete_files(provider):
     for i in range(20):
         del provider[f"file_{i}"]
-
-
-local_provider = LocalProvider("./test/benchmark")
-memory_provider = MemoryProvider("test/benchmark")
-s3_provider = S3Provider("snark-test/hub2/benchmark")
 
 
 def test_write_memory(benchmark):
