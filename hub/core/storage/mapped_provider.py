@@ -95,7 +95,7 @@ class MappedProvider(Provider):
         Yields:
             bytes: the bytes of the object that it is iterating over.
         """
-        yield from self.mapper.items()
+        yield from self.mapper
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
