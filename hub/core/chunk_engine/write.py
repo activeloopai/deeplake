@@ -4,7 +4,7 @@ from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
 
-from hub.core.typing import Provider
+from hub.core.typing import StorageProvider
 from typing import Any, Callable, List, Tuple
 
 from .flatten import row_wise_to_bytes
@@ -18,7 +18,7 @@ def write_array(
     array: np.ndarray,
     key: str,
     chunk_size: int,
-    storage: Provider,
+    storage: StorageProvider,
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
@@ -31,7 +31,7 @@ def write_array(
             batch dimension, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         chunk_size (int): Desired length of each chunk.
-        storage (Provider): Provider for storing the chunks, index_map, and meta.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
         tobytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
@@ -73,7 +73,7 @@ def write_array(
 
 
 def write_bytes(
-    b: bytes, key: str, chunk_size: int, storage: Provider, index_map: List[dict]
+    b: bytes, key: str, chunk_size: int, storage: StorageProvider, index_map: List[dict]
 ) -> dict:
     """For internal use only. Chunk and write bytes to storage and return the index_map entry.
     The provided bytes are treated as a single sample.
@@ -84,7 +84,7 @@ def write_bytes(
         key (str): Key for where the index_map, and meta are located in `storage` relative to it's root. A subdirectory
             is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
         chunk_size (int): Desired length of each chunk.
-        storage (Provider): Provider for storing the chunks, index_map, and meta.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
         index_map (list): List of dictionaries that represent each sample. An entry for `index_map` is returned
             but not appended to `index_map`.
 
@@ -143,14 +143,14 @@ def write_bytes(
 
 
 def _get_last_chunk(
-    key: str, index_map: List[dict], storage: Provider
+    key: str, index_map: List[dict], storage: StorageProvider
 ) -> Tuple[str, bytes]:
     """For internal use only. Retrieves the name and bytes for the last chunk.
 
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
         index_map (list): List of dictionaries that maps each sample to the `chunk_names`, `start_byte`, and `end_byte`.
-        storage (Provider): Provider where the chunks are stored.
+        storage (StorageProvider): StorageProvider where the chunks are stored.
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.

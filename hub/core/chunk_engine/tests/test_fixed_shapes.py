@@ -15,7 +15,7 @@ from hub.core.chunk_engine.tests.common import (
 )
 
 from typing import Tuple
-from hub.core.typing import Provider
+from hub.core.typing import StorageProvider
 
 
 np.random.seed(1)
@@ -61,7 +61,11 @@ BENCHMARK_BATCHED_SHAPES = (
 @pytest.mark.parametrize("dtype", DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
 def test_unbatched(
-    shape: Tuple[int], chunk_size: int, num_batches: int, dtype: str, storage: Provider
+    shape: Tuple[int],
+    chunk_size: int,
+    num_batches: int,
+    dtype: str,
+    storage: StorageProvider,
 ):
     """
     Samples have FIXED shapes (must have the same shapes).
@@ -80,7 +84,11 @@ def test_unbatched(
 @pytest.mark.parametrize("dtype", DTYPES)
 @pytest.mark.parametrize("storage", STORAGE_PROVIDERS)
 def test_batched(
-    shape: Tuple[int], chunk_size: int, num_batches: int, dtype: str, storage: Provider
+    shape: Tuple[int],
+    chunk_size: int,
+    num_batches: int,
+    dtype: str,
+    storage: StorageProvider,
 ):
     """
     Samples have FIXED shapes (must have the same shapes).
@@ -105,7 +113,7 @@ def test_write(
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: Provider,
+    storage: StorageProvider,
 ):
     """
     Benchmark `write_array`.
@@ -146,7 +154,7 @@ def test_read(
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: Provider,
+    storage: StorageProvider,
 ):
     """
     Benchmark `read_array`.

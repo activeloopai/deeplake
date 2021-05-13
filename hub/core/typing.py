@@ -1,1 +1,1 @@
-from .storage.provider import Provider
+from hub.core.storage.provider import StorageProvider

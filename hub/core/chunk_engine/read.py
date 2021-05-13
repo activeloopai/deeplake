@@ -6,13 +6,13 @@ from .chunker import join_chunks
 
 from hub.util.keys import get_meta_key, get_index_map_key
 
-from hub.core.typing import Provider
+from hub.core.typing import StorageProvider
 from typing import Callable, List, Union
 
 
 def read_array(
     key: str,
-    storage: Provider,
+    storage: StorageProvider,
     array_slice: slice = slice(None),
 ) -> np.ndarray:
     """Read and join chunks into an array from storage.
@@ -20,7 +20,7 @@ def read_array(
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
         array_slice (slice): Slice that represents which samples to read. Default = slice representing all samples.
-        storage (Provider): Provider for reading the chunks, index_map, and meta.
+        storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.

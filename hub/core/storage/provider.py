@@ -1,17 +1,31 @@
 from collections.abc import MutableMapping
 from typing import Optional
 from abc import ABC, abstractmethod
+from hub.util.assert_byte_indexes import assert_byte_indexes
+from hub.constants import BYTE_PADDING
 
 
-class Provider(ABC, MutableMapping):
-    """An abstract base class for implementing a provider.
+class StorageProvider(ABC, MutableMapping):
+    """An abstract base class for implementing a storage provider.
 
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
-    Alternatively, you can inherit from MappedProvider and have a simpler implementation.
     """
 
     @abstractmethod
-    def __getitem__(
+    def __getitem__(self, path: str):
+        """Gets the object present at the path within the given byte range.
+
+        Args:
+            path (str): The path relative to the root of the provider.
+
+        Returns:
+            bytes: The bytes of the object present at the path.
+
+        Raises:
+            KeyError: If an object is not found at the path.
+        """
+
+    def get_bytes(
         self,
         path: str,
         start_byte: Optional[int] = None,
@@ -19,14 +33,10 @@ class Provider(ABC, MutableMapping):
     ):
         """Gets the object present at the path within the given byte range.
 
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            my_data = local_provider["abc.txt"]
-
         Args:
             path (str): The path relative to the root of the provider.
             start_byte (int, optional): If only specific bytes starting from start_byte are required.
-            end_byte (int, optional): If only specific bytes upto end_byte are required.
+            end_byte (int, optional): If only specific bytes up to end_byte are required.
 
         Returns:
             bytes: The bytes of the object present at the path within the given byte range.
@@ -35,9 +45,19 @@ class Provider(ABC, MutableMapping):
             InvalidBytesRequestedError: If `start_byte` > `end_byte` or `start_byte` < 0 or `end_byte` < 0.
             KeyError: If an object is not found at the path.
         """
+        assert_byte_indexes(start_byte, end_byte)
+        return self[path][start_byte:end_byte]
 
     @abstractmethod
-    def __setitem__(
+    def __setitem__(self, path: str, value: bytes):
+        """Sets the object present at the path with the value
+
+        Args:
+            path (str): the path relative to the root of the provider.
+            value (bytes): the value to be assigned at the path.
+        """
+
+    def set_bytes(
         self,
         path: str,
         value: bytes,
@@ -45,10 +65,6 @@ class Provider(ABC, MutableMapping):
         overwrite: Optional[bool] = False,
     ):
         """Sets the object present at the path with the value
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            local_provider["abc.txt"] = b"abcd"
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -60,28 +76,34 @@ class Provider(ABC, MutableMapping):
         Raises:
             InvalidBytesRequestedError: If `start_byte` < 0.
         """
+        start_byte = start_byte or 0
+        end_byte = start_byte + len(value)
+        assert_byte_indexes(start_byte, end_byte)
+
+        if path in self and not overwrite:
+            current_value = bytearray(self[path])
+            # need to pad with zeros at the end to write extra bytes
+            if end_byte > len(current_value):
+                current_value = current_value.ljust(end_byte, BYTE_PADDING)
+            current_value[start_byte:end_byte] = value
+            self[path] = current_value
+        else:
+            # need to pad with zeros at the start to write from an offset
+            if start_byte != 0:
+                value = value.rjust(end_byte, BYTE_PADDING)
+            self[path] = value
 
     @abstractmethod
     def __iter__(self):
-        """Generator function that iterates over the provider.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            for my_data in local_provider:
-                pass
+        """Generator function that iterates over the keys of the provider.
 
         Yields:
-            bytes: the bytes of the object that it is iterating over.
+            str: the path of the object that it is iterating over, relative to the root of the provider.
         """
 
     @abstractmethod
     def __delitem__(self, path: str):
-        """
-        Delete the object present at the path.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            del local_provider["abc.txt"]
+        """Delete the object present at the path.
 
         Args:
             path (str): the path to the object relative to the root of the provider.
@@ -92,13 +114,13 @@ class Provider(ABC, MutableMapping):
 
     @abstractmethod
     def __len__(self):
-        """
-        Returns the number of files present inside the root of the provider.
-
-        Example:
-            local_provider = LocalProvider("/home/ubuntu/Documents/")
-            len(local_provider)
+        """Returns the number of files present inside the root of the provider.
 
         Returns:
-            int: the number of files present inside the root
+            int: the number of files present inside the root.
+        """
+
+    def flush(self):
+        """Only needs to be implemented for caches. Flushes the data to the next storage provider.
+        Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
         """
