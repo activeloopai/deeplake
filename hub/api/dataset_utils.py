@@ -42,5 +42,6 @@ def _get_compressor(
         return compressor(**kwargs)
     else:
         raise ValueError(
-            f"Wrong compressor: {compressor}, only LZ4, PNG, JPEG, NumPy and ZSTD are supported"
+            f"Wrong compressor: {compressor}"
+            " only 'lz4', 'png', 'jpeg', 'numpy', 'zstd' and 'webp' are supported."
         )
