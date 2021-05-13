@@ -47,6 +47,7 @@ def write_array(
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
     if meta_key in storage or index_map_key in storage:
+        # TODO: when appending is done change this error
         raise NotImplementedError("Appending is not supported yet.")
 
     index_map: List[dict] = []
