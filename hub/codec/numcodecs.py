@@ -75,6 +75,7 @@ class Lz4(BaseNumCodec):
         Args:
             **kwargs: Optional; acceleration (int): Acceleration level.
                 The larger the acceleration value, the faster the algorithm, but also the lesser the compression.
+                For more information see: http://fastcompression.blogspot.com/2015/04/sampling-or-faster-lz4.html
 
         Raises:
             ValueError: If ketword arguments contain not supported arguments.
