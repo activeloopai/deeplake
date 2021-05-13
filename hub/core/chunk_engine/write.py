@@ -148,6 +148,11 @@ def _get_last_chunk(
 ) -> Tuple[str, bytes]:
     """For internal use only. Retrieves the name and bytes for the last chunk.
 
+    Args:
+        key (str): Key for where the chunks are located in `storage` relative to it's root.
+        index_map (list): List of dictionaries that maps each sample to the `chunk_names`, `start_byte`, and `end_byte`.
+        storage (Provider): Provider where the chunks are stored.
+
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
         bytes: Content of the last chunk. If the last chunk doesn't exist, returns empty bytes.
