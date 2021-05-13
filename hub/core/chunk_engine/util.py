@@ -5,10 +5,6 @@ import numpy as np
 from typing import Tuple
 
 
-def array_to_bytes(array: np.ndarray) -> bytes:
-    return array.tobytes()
-
-
 def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray:
     """Remove all `array.shape` axes with a value of 1 & add a batch dimension if needed.
 

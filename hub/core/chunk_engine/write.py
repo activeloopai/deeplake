@@ -7,8 +7,8 @@ from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import Provider
 from typing import Any, Callable, List, Tuple
 
+from .flatten import row_wise_to_bytes
 from .util import (
-    array_to_bytes,
     normalize_and_batchify_shape,
 )
 
@@ -21,7 +21,7 @@ def write_array(
     chunk_size: int,
     storage: Provider,
     batched: bool = False,
-    tobytes: Callable[[np.ndarray], bytes] = array_to_bytes,
+    tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
     """Chunk and write an array to storage.
 
@@ -35,7 +35,7 @@ def write_array(
         storage (Provider): Provider for storing the chunks, index_map, and meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-        tobytes (Callable): Must accept an `np.ndarray` as it's argument and return `bytes`.
+        tobytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
 
     Raises:
         NotImplementedError: Do not use this function for writing to a key that already exists.
