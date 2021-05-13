@@ -8,7 +8,6 @@ from hub.core.chunk_engine.util import (
     get_meta_key,
     get_index_map_key,
     get_chunk_key,
-    get_random_array,
 )
 from hub.util.check_s3_creds import s3_creds_exist
 from hub.core.storage import MappedProvider, S3Provider
@@ -50,6 +49,27 @@ def get_min_shape(batch: np.ndarray) -> Tuple:
 
 def get_max_shape(batch: np.ndarray) -> Tuple:
     return tuple(np.maximum.reduce([sample.shape for sample in batch]))
+
+
+def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
+    dtype = dtype.lower()
+
+    if "int" in dtype:
+        low = np.iinfo(dtype).min
+        high = np.iinfo(dtype).max
+        return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
+
+    if "float" in dtype:
+        # get float16 because np.random.uniform doesn't support the `dtype` argument.
+        low = np.finfo("float16").min
+        high = np.finfo("float16").max
+        return np.random.uniform(low=low, high=high, size=shape).astype(dtype)
+
+    if "bool" in dtype:
+        a = np.random.uniform(size=shape)
+        return a > 0.5
+
+    raise ValueError("Dtype %s not supported." % dtype)
 
 
 def assert_meta_is_valid(meta: dict, expected_meta: dict):

@@ -2,8 +2,8 @@ import pytest
 
 import numpy as np
 
-from hub.core.chunk_engine.util import normalize_and_batchify_shape, get_random_array
-from hub.core.chunk_engine.tests.common import DTYPES
+from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.chunk_engine.tests.common import get_random_array, DTYPES
 
 from typing import Tuple
 
