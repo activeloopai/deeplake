@@ -1,5 +1,5 @@
-def has_s3_creds():
-    """Checks whether s3_creds exist in the environment"""
+def has_s3_credentials():
+    """Checks if s3 credentials are accessible to boto3."""
     import boto3
 
     sts = boto3.client("sts")

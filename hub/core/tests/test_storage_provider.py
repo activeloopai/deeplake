@@ -1,7 +1,7 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
-from hub.util.s3 import has_s3_creds
 from hub.util.cache_chain import get_cache_chain
 import pytest
+from hub.util.s3 import has_s3_credentials
 
 NUM_FILES = 20
 MB = 1024 * 1024
@@ -52,7 +52,7 @@ def test_local_provider():
     check_storage_provider(local_provider)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_s3_provider():
     check_storage_provider(s3_provider)
 
@@ -62,19 +62,19 @@ def test_lru_mem_local():
     check_storage_provider(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_lru_mem_s3():
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
     check_storage_provider(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_lru_local_s3():
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
     check_storage_provider(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_lru_mem_local_s3():
     lru = get_cache_chain(
         [memory_provider, local_provider, s3_provider],
@@ -201,19 +201,19 @@ def detailed_test_lru_mem_local():
     detailed_check_lru(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def detailed_test_lru_mem_s3(benchmark):
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
     detailed_check_lru(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def detailed_test_lru_local_s3(benchmark):
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
     detailed_check_lru(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def detailed_test_lru_mem_local_s3(benchmark):
     lru = get_cache_chain(
         [memory_provider, local_provider, s3_provider],
@@ -249,7 +249,7 @@ def test_write_local(benchmark):
     delete_files(local_provider)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_write_s3(benchmark):
     benchmark(write_to_files, s3_provider)
     delete_files(s3_provider)
@@ -261,21 +261,21 @@ def test_write_lru_mem_local(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_write_lru_mem_s3(benchmark):
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
     benchmark(write_to_files, lru)
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_write_lru_local_s3(benchmark):
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
     benchmark(write_to_files, lru)
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_write_lru_mem_local_s3(benchmark):
     lru = get_cache_chain(
         [memory_provider, local_provider, s3_provider],
@@ -297,7 +297,7 @@ def test_read_local(benchmark):
     delete_files(local_provider)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_read_s3(benchmark):
     write_to_files(s3_provider)
     benchmark(read_from_files, s3_provider)
@@ -311,7 +311,7 @@ def test_read_lru_mem_local(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_read_lru_mem_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
@@ -319,7 +319,7 @@ def test_read_lru_mem_s3(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_read_lru_local_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
@@ -327,7 +327,7 @@ def test_read_lru_local_s3(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_read_lru_mem_local_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain(
@@ -346,7 +346,7 @@ def test_full_cache_read_lru_mem_local(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_full_cache_read_lru_mem_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([memory_provider, s3_provider], [320 * MB])
@@ -355,7 +355,7 @@ def test_full_cache_read_lru_mem_s3(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_full_cache_read_lru_local_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain([local_provider, s3_provider], [320 * MB])
@@ -364,7 +364,7 @@ def test_full_cache_read_lru_local_s3(benchmark):
     delete_files(lru)
 
 
-@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_full_cache_read_lru_mem_local_s3(benchmark):
     write_to_files(s3_provider)
     lru = get_cache_chain(
