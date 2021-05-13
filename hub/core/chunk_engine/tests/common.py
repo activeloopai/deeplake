@@ -13,20 +13,9 @@ from hub.core.chunk_engine.util import (
 from hub.util.check_s3_creds import s3_creds_exist
 from hub.core.storage import MappedProvider, S3Provider
 from hub.core.typing import Provider
+from hub.core.tests.common import current_test_name
 
 from typing import List, Tuple
-
-from uuid import uuid1
-
-
-def random_key(prefix="test_"):
-    return prefix + str(uuid1())
-
-
-STORAGE_PROVIDERS = (
-    MappedProvider(),
-    S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-)  # TODO: replace MappedProvider with MemoryProvider
 
 
 CHUNK_SIZES = (
@@ -120,9 +109,8 @@ def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Prov
 def run_engine_test(
     arrays: List[np.ndarray], storage: Provider, batched: bool, chunk_size: int
 ):
+    key = current_test_name(with_uuid=True)
     clear_if_memory_provider(storage)
-
-    key = random_key()
 
     for i, a_in in enumerate(arrays):
         write_array(
@@ -183,14 +171,6 @@ def benchmark_write(
 
 def benchmark_read(key: str, storage: Provider):
     read_array(key, storage)
-
-
-def skip_if_no_required_creds(storage: Provider):
-    """If `storage` is a provider that requires creds, and they are not found, skip the current test."""
-
-    if type(storage) == S3Provider:
-        if not s3_creds_exist():
-            pytest.skip()
 
 
 def clear_if_memory_provider(storage: Provider):

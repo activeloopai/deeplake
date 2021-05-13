@@ -1,10 +1,14 @@
+import pytest
+
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 from hub.core.storage.mapped_provider import MappedProvider
-import pytest
+
 from hub.util.check_s3_creds import s3_creds_exist
+from hub.core.tests.common import parametrize_all_storage_providers
 
 
-def run_provider_test(storage):
+@parametrize_all_storage_providers
+def test_storage_provider(storage):
     FILE_1 = "abc.txt"
     FILE_2 = "def.txt"
 
@@ -33,18 +37,6 @@ def run_provider_test(storage):
 
     with pytest.raises(KeyError):
         storage[FILE_1]
-
-
-def test_memory_provider(memory_storage):
-    run_provider_test(memory_storage)
-
-
-def test_local_provider(local_storage):
-    run_provider_test(local_storage)
-
-
-def test_s3_provider(s3_storage):
-    run_provider_test(S3Provider("snark-test/hub_storage_s3_test"))
 
 
 # TODO add pytest benchmarks
