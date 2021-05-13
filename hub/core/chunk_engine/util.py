@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from hub import constants
+
 
 from typing import Tuple
 
@@ -40,15 +40,3 @@ def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray
     if len(array.shape) == 1:
         array = np.expand_dims(array, axis=0)
     return array
-
-
-def get_chunk_key(key: str, chunk_name: str) -> str:
-    return os.path.join(key, constants.CHUNKS_FOLDER, chunk_name)
-
-
-def get_meta_key(key: str) -> str:
-    return os.path.join(key, constants.META_FILENAME)
-
-
-def get_index_map_key(key: str) -> str:
-    return os.path.join(key, constants.INDEX_MAP_FILENAME)

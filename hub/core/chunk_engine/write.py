@@ -10,10 +10,9 @@ from typing import Any, Callable, List, Tuple
 from .util import (
     array_to_bytes,
     normalize_and_batchify_shape,
-    get_meta_key,
-    get_index_map_key,
-    get_chunk_key,
 )
+
+from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 
 
 def write_array(
