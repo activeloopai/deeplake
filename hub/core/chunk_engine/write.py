@@ -8,11 +8,10 @@ from hub.core.typing import Provider
 from typing import Any, Callable, List, Tuple
 
 from .flatten import row_wise_to_bytes
-from .util import (
-    normalize_and_batchify_shape,
-)
+
 
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
+from hub.util.array import normalize_and_batchify_shape
 
 
 def write_array(

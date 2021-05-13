@@ -3,11 +3,12 @@ import numpy as np
 import pickle
 
 from hub.core.chunk_engine import write_array, read_array
-from hub.core.chunk_engine.util import normalize_and_batchify_shape
+from hub.core.storage import MappedProvider, S3Provider
 
+from hub.util.array import normalize_and_batchify_shape
 from hub.util.s3 import has_s3_credentials
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
-from hub.core.storage import MappedProvider, S3Provider
+
 from hub.core.typing import Provider
 
 from typing import List, Tuple
