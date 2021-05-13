@@ -83,6 +83,145 @@ def test_lru_mem_local_s3():
     check_storage_provider(lru)
 
 
+def detailed_check_lru(lru):
+    chunk = b"0123456789123456" * MB
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {}
+    assert len(lru.cache_storage) == 0
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 0
+    assert len(lru) == 0
+
+    lru["file_1"] = chunk
+    assert lru.dirty_keys == {"file_1"}
+    assert set(lru.lru_sizes.keys()) == {"file_1"}
+    assert len(lru.cache_storage) == 1
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 16 * MB
+    assert len(lru) == 1
+
+    lru["file_2"] = chunk
+    assert lru.dirty_keys == {"file_1", "file_2"}
+    assert set(lru.lru_sizes.keys()) == {"file_1", "file_2"}
+    assert len(lru.cache_storage) == 2
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 2
+
+    lru["file_3"] = chunk
+    assert lru.dirty_keys == {"file_3", "file_2"}
+    assert set(lru.lru_sizes.keys()) == {"file_2", "file_3"}
+    assert len(lru.cache_storage) == 2
+    assert len(lru.next_storage) == 1
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 3
+
+    lru["file_1"]
+    assert lru.dirty_keys == {"file_3"}
+    assert set(lru.lru_sizes.keys()) == {"file_1", "file_3"}
+    assert len(lru.cache_storage) == 2
+    assert len(lru.next_storage) == 2
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 3
+
+    lru["file_3"]
+    assert lru.dirty_keys == {"file_3"}
+    assert set(lru.lru_sizes.keys()) == {"file_1", "file_3"}
+    assert len(lru.cache_storage) == 2
+    assert len(lru.next_storage) == 2
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 3
+
+    del lru["file_3"]
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {"file_1"}
+    assert len(lru.cache_storage) == 1
+    assert len(lru.next_storage) == 1
+    assert lru.cache_used == 16 * MB
+    assert len(lru) == 2
+
+    del lru["file_1"]
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {}
+    assert len(lru.cache_storage) == 0
+    assert len(lru.next_storage) == 1
+    assert lru.cache_used == 0
+    assert len(lru) == 1
+
+    del lru["file_2"]
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {}
+    assert len(lru.cache_storage) == 0
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 0
+    assert len(lru) == 0
+
+    with pytest.raises(KeyError):
+        lru["file_1"]
+    with pytest.raises(KeyError):
+        del lru["file_1"]
+
+    lru["file_1"] = chunk
+    assert lru.dirty_keys == {"file_1"}
+    assert set(lru.lru_sizes.keys()) == {"file_1"}
+    assert len(lru.cache_storage) == 1
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 16 * MB
+    assert len(lru) == 1
+
+    lru["file_2"] = chunk
+    assert lru.dirty_keys == {"file_1", "file_2"}
+    assert set(lru.lru_sizes.keys()) == {"file_1", "file_2"}
+    assert len(lru.cache_storage) == 2
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 2
+
+    lru.flush()
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {"file_1", "file_2"}
+    assert len(lru.cache_storage) == 0
+    assert len(lru.next_storage) == 2
+    assert lru.cache_used == 32 * MB
+    assert len(lru) == 2
+
+    del lru["file_1"]
+    del lru["file_2"]
+
+    assert lru.dirty_keys == {}
+    assert set(lru.lru_sizes.keys()) == {}
+    assert len(lru.cache_storage) == 0
+    assert len(lru.next_storage) == 0
+    assert lru.cache_used == 0
+    assert len(lru) == 0
+
+
+def detailed_test_lru_mem_local():
+    lru = get_cache_chain([memory_provider, local_provider], [32 * MB])
+    detailed_check_lru(lru)
+
+
+@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+def detailed_test_lru_mem_s3(benchmark):
+    lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
+    detailed_check_lru(lru)
+
+
+@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+def detailed_test_lru_local_s3(benchmark):
+    lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
+    detailed_check_lru(lru)
+
+
+@pytest.mark.skipif(not has_s3_creds(), reason="requires s3 credentials")
+def detailed_test_lru_mem_local_s3(benchmark):
+    lru = get_cache_chain(
+        [memory_provider, local_provider, s3_provider],
+        [32 * MB, 160 * MB],
+    )
+    detailed_check_lru(lru)
+
+
 def write_to_files(provider):
     chunk = b"0123456789123456" * MB
     for i in range(NUM_FILES):
