@@ -162,7 +162,6 @@ def benchmark_write(
 
 def benchmark_read(key: str, storage: Provider):
     read_array(key, storage)
-    clear_if_memory_provider(storage)
 
 
 def skip_if_no_required_creds(storage: Provider):
