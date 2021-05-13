@@ -5,12 +5,24 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     UnsupportedTensorTypeError,
 )
+from hub.core.storage.provider import StorageProvider
+from hub.core.storage.memory import MemoryProvider
+from hub.core.storage.local import LocalProvider
+from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
+from hub.core.chunk_engine.write import write_array, write_dataset_meta
 from typing import Union, Dict
 import numpy as np
+import os
 
 
 class Dataset:
-    def __init__(self, path: str, mode: str = "a", ds_slice: slice = slice(None)):
+    def __init__(
+        self,
+        path: str,
+        mode: str = "a",
+        ds_slice: slice = slice(None),
+        provider: StorageProvider = None,
+    ):
         """Initialize a new or existing dataset.
 
         Args:
@@ -22,12 +34,30 @@ class Dataset:
             ds_slice (slice, optional): The slice object restricting the view
                 of this dataset's tensors. Defaults to slice(None, None, None).
                 Used internally for iteration.
+            provider (StorageProvider, optional): The storage provider used to access
+                the data stored by this dataset. Will not be used if given path is valid.
         """
         self.path = path
         self.mode = mode
         self.slice = ds_slice
-        # TODO: read metadata and initialize tensors
+
+        if path.startswith((".", "/", "~")):
+            if not os.path.exists(path) or os.path.isdir(path):
+                provider = LocalProvider(path)
+            else:
+                raise ValueError("Local path must be a directory")
+
+        if provider is None:
+            provider = MemoryProvider(path)
+        self.provider = provider
+
         self.tensors: Dict[str, Tensor] = {}
+        if "meta.json" in self.provider:
+            ds_meta = read_dataset_meta(self.provider)
+            for tensor_name in ds_meta["tensors"]:
+                self.tensors[tensor_name] = Tensor(tensor_name, self.provider)
+        else:
+            write_dataset_meta(self.provider, {"tensors": []})
 
     def __len__(self):
         """Return the greatest length of tensors"""
@@ -41,7 +71,7 @@ class Dataset:
             if item not in self.tensors:
                 raise TensorNotFoundError(item, self.path)
             else:
-                return self.tensors[item]
+                return self.tensors[item][self.slice]
         elif isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
             return Dataset(self.path, self.mode, new_slice)
@@ -51,8 +81,16 @@ class Dataset:
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
             if isinstance(value, np.ndarray):
-                # TODO: write data and create tensor
-                # self.tensors[item] = Tensor(...)
+                write_array(
+                    value,
+                    item,
+                    storage=self.provider,
+                    batched=True,
+                )
+                ds_meta = read_dataset_meta(self.provider)
+                ds_meta["tensors"].append(item)
+                write_dataset_meta(self.provider, ds_meta)
+                self.tensors[item] = Tensor(item, self.provider)
                 return self.tensors[item]
             else:
                 raise UnsupportedTensorTypeError(item)
