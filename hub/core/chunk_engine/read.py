@@ -3,7 +3,8 @@ import pickle
 import numpy as np
 
 from .chunker import join_chunks
-from .util import get_meta_key, get_index_map_key
+
+from hub.util.keys import get_meta_key, get_index_map_key
 
 from hub.core.typing import Provider
 from typing import Callable, List, Union

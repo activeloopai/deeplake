@@ -4,14 +4,12 @@ import numpy as np
 import pickle
 
 from hub.core.chunk_engine import write_array, read_array
-from hub.core.chunk_engine.util import (
-    normalize_and_batchify_shape,
-    get_meta_key,
-    get_index_map_key,
-    get_chunk_key,
-)
-from hub.util.check_s3_creds import s3_creds_exist
 from hub.core.storage import MappedProvider, S3Provider
+
+from hub.util.array import normalize_and_batchify_shape
+from hub.util.s3 import has_s3_credentials
+from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
+
 from hub.core.typing import Provider
 from hub.core.tests.common import current_test_name
 
@@ -110,7 +108,6 @@ def run_engine_test(
     arrays: List[np.ndarray], storage: Provider, batched: bool, chunk_size: int
 ):
     key = current_test_name(with_uuid=True)
-    clear_if_memory_provider(storage)
 
     for i, a_in in enumerate(arrays):
         write_array(
@@ -148,14 +145,10 @@ def run_engine_test(
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
-    clear_if_memory_provider(storage)
-
 
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-    clear_if_memory_provider(storage)
-
     for a_in in arrays:
         write_array(
             a_in,
@@ -165,16 +158,6 @@ def benchmark_write(
             batched=batched,
         )
 
-    if clear_memory_after_write:
-        clear_if_memory_provider(storage)
-
 
 def benchmark_read(key: str, storage: Provider):
     read_array(key, storage)
-
-
-def clear_if_memory_provider(storage: Provider):
-    """If `storage` is memory-based, clear it."""
-
-    if type(storage) == MappedProvider:
-        storage.clear()

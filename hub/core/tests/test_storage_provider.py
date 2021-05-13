@@ -2,8 +2,6 @@ import pytest
 
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 from hub.core.storage.mapped_provider import MappedProvider
-
-from hub.util.check_s3_creds import s3_creds_exist
 from hub.core.tests.common import parametrize_all_storage_providers
 
 
