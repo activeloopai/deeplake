@@ -9,6 +9,8 @@ from hub.core.chunk_engine.tests.common import (
     CHUNK_SIZES,
     DTYPES,
     get_random_array,
+    skip_if_no_required_creds,
+    random_key,
     STORAGE_PROVIDERS,
 )
 
@@ -66,6 +68,8 @@ def test_unbatched(
     Samples are provided WITHOUT a batch axis.
     """
 
+    skip_if_no_required_creds(storage)
+
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
     run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
 
@@ -82,6 +86,8 @@ def test_batched(
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
     """
+
+    skip_if_no_required_creds(storage)
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
     run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
@@ -108,13 +114,18 @@ def test_write(
     Samples are provided WITH a batch axis.
     """
 
+    skip_if_no_required_creds(storage)
+
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
     gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) // (1_000_000_000)
     print("\nBenchmarking array with size: %.2fGB." % gbs)
 
+    key = random_key("benchmark_")
+
     benchmark(
         benchmark_write,
+        key,
         arrays,
         chunk_size,
         storage,
@@ -144,6 +155,13 @@ def test_read(
     Samples are provided WITH a batch axis.
     """
 
+    skip_if_no_required_creds(storage)
+
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-    benchmark_write(arrays, chunk_size, storage, batched=True, clear_after_write=False)
-    benchmark(benchmark_read, storage)
+
+    key = random_key("benchmark_")
+
+    benchmark_write(
+        key, arrays, chunk_size, storage, batched=True, clear_after_write=False
+    )
+    benchmark(key, benchmark_read, storage)

@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 import pickle
 
@@ -9,17 +10,22 @@ from hub.core.chunk_engine.util import (
     get_chunk_key,
     get_random_array,
 )
-from hub.core.storage import MappedProvider
+from hub.util.check_s3_creds import s3_creds_exist
+from hub.core.storage import MappedProvider, S3Provider
 from hub.core.typing import Provider
 
 from typing import List, Tuple
 
+from uuid import uuid1
 
-TENSOR_KEY = "TEST_TENSOR"
+
+def random_key(prefix="test_"):
+    return prefix + str(uuid1())
 
 
 STORAGE_PROVIDERS = (
     MappedProvider(),
+    S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
 )  # TODO: replace MappedProvider with MemoryProvider
 
 
@@ -93,28 +99,30 @@ def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Prov
 def run_engine_test(
     arrays: List[np.ndarray], storage: Provider, batched: bool, chunk_size: int
 ):
-    storage.clear()
+    clear_if_memory_provider(storage)
+
+    key = random_key()
 
     for i, a_in in enumerate(arrays):
         write_array(
             a_in,
-            TENSOR_KEY,
+            key,
             chunk_size,
             storage,
             batched=batched,
         )
 
-        index_map_key = get_index_map_key(TENSOR_KEY)
+        index_map_key = get_index_map_key(key)
         index_map = pickle.loads(storage[index_map_key])
 
-        assert_chunk_sizes(TENSOR_KEY, index_map, chunk_size, storage)
+        assert_chunk_sizes(key, index_map, chunk_size, storage)
 
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        a_out = read_array(TENSOR_KEY, storage)
+        a_out = read_array(key, storage)
 
-        meta_key = get_meta_key(TENSOR_KEY)
+        meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
         meta = pickle.loads(storage[meta_key])
 
@@ -131,24 +139,35 @@ def run_engine_test(
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
-    storage.clear()
+    clear_if_memory_provider(storage)
 
 
-def benchmark_write(arrays, chunk_size, storage, batched, clear_after_write=True):
-    storage.clear()
-
+def benchmark_write(key, arrays, chunk_size, storage, batched):
     for a_in in arrays:
         write_array(
             a_in,
-            TENSOR_KEY,
+            key,
             chunk_size,
             storage,
             batched=batched,
         )
 
-    if clear_after_write:
+
+def benchmark_read(key, storage):
+    read_array(key, storage)
+    clear_if_memory_provider(storage)
+
+
+def skip_if_no_required_creds(storage: Provider):
+    """If `storage` is a provider that requires creds, & they are not found, skip the current test."""
+
+    if type(storage) == S3Provider:
+        if not s3_creds_exist():
+            pytest.skip()
+
+
+def clear_if_memory_provider(storage: Provider):
+    """If `storage` is memory-based, clear it."""
+
+    if type(storage) == MappedProvider:
         storage.clear()
-
-
-def benchmark_read(storage):
-    read_array(TENSOR_KEY, storage)
