@@ -5,7 +5,7 @@ class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
     def __init__(self, root):
-        self.mapper = {}
+        self.dict = {}
 
     def __getitem__(
         self,
@@ -26,7 +26,7 @@ class MemoryProvider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
         """
-        return self.mapper[path]
+        return self.dict[path]
 
     def __setitem__(
         self,
@@ -43,7 +43,7 @@ class MemoryProvider(StorageProvider):
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
         """
-        self.mapper[path] = value
+        self.dict[path] = value
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
@@ -56,7 +56,7 @@ class MemoryProvider(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self.mapper
+        yield from self.dict
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -71,7 +71,7 @@ class MemoryProvider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
         """
-        del self.mapper[path]
+        del self.dict[path]
 
     def __len__(self):
         """Returns the number of files present inside the root of the provider.
@@ -83,4 +83,4 @@ class MemoryProvider(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self.mapper)
+        return len(self.dict)

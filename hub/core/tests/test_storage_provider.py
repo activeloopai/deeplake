@@ -1,9 +1,10 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 from hub.util.check_s3_creds import s3_creds_exist
 from hub.util.cache_chain import get_cache_chain
-from hub.constants import MB
 import pytest
 
+NUM_FILES = 20
+MB = 1024 * 1024
 
 local_provider = LocalProvider("./test/benchmark")
 memory_provider = MemoryProvider("test/benchmark")
@@ -56,25 +57,25 @@ def test_s3_provider():
     check_storage_provider(s3_provider)
 
 
-def test_lru_mem_local(benchmark):
+def test_lru_mem_local():
     lru = get_cache_chain([memory_provider, local_provider], [32 * MB])
     check_storage_provider(lru)
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
-def test_lru_mem_s3(benchmark):
+def test_lru_mem_s3():
     lru = get_cache_chain([memory_provider, s3_provider], [32 * MB])
     check_storage_provider(lru)
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
-def test_lru_local_s3(benchmark):
+def test_lru_local_s3():
     lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
     check_storage_provider(lru)
 
 
 @pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
-def test_lru_mem_local_s3(benchmark):
+def test_lru_mem_local_s3():
     lru = get_cache_chain(
         [memory_provider, local_provider, s3_provider],
         [32 * MB, 160 * MB],
@@ -84,18 +85,18 @@ def test_lru_mem_local_s3(benchmark):
 
 def write_to_files(provider):
     chunk = b"0123456789123456" * MB
-    for i in range(20):
+    for i in range(NUM_FILES):
         provider[f"file_{i}"] = chunk
     provider.flush()
 
 
 def read_from_files(provider):
-    for i in range(20):
+    for i in range(NUM_FILES):
         provider[f"file_{i}"]
 
 
 def delete_files(provider):
-    for i in range(20):
+    for i in range(NUM_FILES):
         del provider[f"file_{i}"]
 
 

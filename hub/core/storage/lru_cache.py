@@ -12,17 +12,17 @@ class LRUCache(StorageProvider):
         next_storage: StorageProvider,
         cache_size: int,
     ):
-        """Initializes the LRUCache. This cache can be chained with
+        """Initializes the LRUCache. It can be chained with other LRUCache objects to create multilayer caches.
 
         Args:
-            cache_storage (StorageProvider): The storage being used as the caching layer of the cache the.
+            cache_storage (StorageProvider): The storage being used as the caching layer of the cache.
                 This should be a base provider such as MemoryProvider, LocalProvider or S3Provider but not another LRUCache.
             next_storage (StorageProvider): The next storage layer of the cache.
                 This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of chained cache).
                 While reading data, all misses from cache would be retrieved from here.
                 While writing data, the data will be written to the next_storage when cache_storage is full or flush is called.
             cache_size (int): The total space that can be used from the cache_storage in bytes.
-                This number may be less than the actual space available on the cache.
+                This number may be less than the actual space available on the cache_storage.
                 Setting it to a higher value than actually available space may lead to unexpected behaviors.
         """
         self.next_storage = next_storage
@@ -51,14 +51,17 @@ class LRUCache(StorageProvider):
         Args:
             path (str): the path relative to the root of the underlying storage.
 
+        Raises:
+            KeyError: if an object is not found at the path.
+
         Returns:
-            bytes: The bytes of the object present at the path
+            bytes: The bytes of the object present at the path.
         """
         if path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
         else:
-            result = self.next_storage[path]  # fetch from storage
+            result = self.next_storage[path]  # fetch from storage, may throw KeyError
             if len(result) <= self.cache_size:  # insert in cache if it fits
                 self._insert_in_cache(path, result)
             return result

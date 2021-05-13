@@ -1,2 +1,1 @@
 BYTE_PADDING = b"\0"
-MB = 1024 * 1024

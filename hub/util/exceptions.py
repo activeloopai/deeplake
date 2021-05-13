@@ -27,10 +27,10 @@ class DirectoryAtPathException(Exception):
         )
 
 
-class FileAtRootException(Exception):
-    def __init__(self):
+class FileAtPathException(Exception):
+    def __init__(self, path):
         super().__init__(
-            "Can't initialize LocalProvider as there is a file at the root. Provide a path to a directory as the root."
+            f"Expected a directory at path {path} but found a file instead."
         )
 
 

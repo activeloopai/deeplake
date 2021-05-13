@@ -21,8 +21,10 @@ class S3Provider(StorageProvider):
         client=None,
     ):
         """Initializes the S3Provider
+
         Example:
             s3_provider = S3Provider("snark-test/benchmarks")
+
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
             aws_access_key_id (optional, str): Specifies the AWS access key used as part of the credentials to authenticate the user.
@@ -128,6 +130,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
+        print("listing")
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)

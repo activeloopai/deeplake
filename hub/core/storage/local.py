@@ -1,4 +1,4 @@
-from hub.util.exceptions import FileAtRootException, DirectoryAtPathException
+from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
 
@@ -16,10 +16,10 @@ class LocalProvider(StorageProvider):
             root (str): The root of the provider. All read/write request keys will be appended to root."
 
         Raises:
-            FileAtRootException: If the root is a file instead of a directory.
+            FileAtPathException: If the root is a file instead of a directory.
         """
         if os.path.isfile(root):
-            raise FileAtRootException
+            raise FileAtPathException(root)
         self.root = root
 
     def __getitem__(self, path: str):
@@ -38,6 +38,7 @@ class LocalProvider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
         """
         try:
             full_path = self._check_is_file(path)
@@ -45,8 +46,10 @@ class LocalProvider(StorageProvider):
             return file.read()
         except DirectoryAtPathException:
             raise
-        except Exception:
+        except FileNotFoundError:
             raise KeyError
+        except Exception:
+            raise
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
@@ -61,9 +64,15 @@ class LocalProvider(StorageProvider):
 
         Raises:
             Exception: If unable to set item due to directory at path or permission or space issues.
+            FileAtPathException: If the directory to the path is a file instead of a directory.
         """
         try:
             full_path = self._check_is_file(path)
+            directory = os.path.dirname(full_path)
+            if os.path.isfile(directory):
+                raise FileAtPathException(directory)
+            if not os.path.exists(directory):
+                os.makedirs(directory, exist_ok=True)
             file = open(full_path, "wb")
             file.write(value)
         except Exception:
@@ -82,14 +91,17 @@ class LocalProvider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             DirectoryAtPathException: If a directory is found at the path.
+            Exception: Any other exception encountered while trying to fetch the object.
         """
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
         except DirectoryAtPathException:
             raise
-        except Exception:
+        except FileNotFoundError:
             raise KeyError
+        except Exception:
+            raise
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
@@ -123,14 +135,13 @@ class LocalProvider(StorageProvider):
             list: list of all the objects found at the root of the Provider.
         """
         ls = []
-        for r, d, f in os.walk(self.root):
-            for file in f:
-                ls.append(os.path.relpath(os.path.join(r, file), self.root))
+        for root, dirs, files in os.walk(self.root):
+            for file in files:
+                ls.append(os.path.relpath(os.path.join(root, file), self.root))
         return ls
 
     def _check_is_file(self, path: str):
-        """Helper function to check if the path is a file.
-        If the file doesn't exist, the path to it is created.
+        """Checks if the path is a file. Returns the full_path to file if True.
 
         Args:
             path (str): the path to the object relative to the root of the provider.
@@ -144,7 +155,4 @@ class LocalProvider(StorageProvider):
         full_path = os.path.join(self.root, path)
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
-        directory = os.path.dirname(full_path)
-        if not os.path.exists(directory):
-            os.makedirs(directory, exist_ok=True)
         return full_path
