@@ -185,7 +185,7 @@ def benchmark_read(key: str, storage: Provider):
 
 
 def skip_if_no_required_creds(storage: Provider):
-    """If `storage` is a provider that requires creds, & they are not found, skip the current test."""
+    """If `storage` is a provider that requires creds, and they are not found, skip the current test."""
 
     if type(storage) == S3Provider:
         if not s3_creds_exist():

@@ -24,19 +24,19 @@ def write_array(
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = array_to_bytes,
 ):
-    """Chunk & write an array to storage.
+    """Chunk and write an array to storage.
 
     For more on chunking, see the `generate_chunks` method.
 
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
             batch dimension, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_map, & meta will be located in `storage` relative to it's root.
+        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         chunk_size (int): Desired length of each chunk.
-        storage (Provider): Provider for storing the chunks, index_map, & meta.
+        storage (Provider): Provider for storing the chunks, index_map, and meta.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-        tobytes (Callable): Must accept an `np.ndarray` as it's argument & return `bytes`.
+        tobytes (Callable): Must accept an `np.ndarray` as it's argument and return `bytes`.
 
     Raises:
         NotImplementedError: Do not use this function for writing to a key that already exists.
@@ -76,16 +76,16 @@ def write_array(
 def write_bytes(
     b: bytes, key: str, chunk_size: int, storage: Provider, index_map: List[dict]
 ) -> dict:
-    """For internal use only. Chunk & write bytes to storage & return the index_map entry.
-    The provided bytes is treated as a single sample.
+    """For internal use only. Chunk and write bytes to storage and return the index_map entry.
+    The provided bytes are treated as a single sample.
 
     Args:
-        b (bytes): Bytes to be chunked/written. `b` is considered to be 1 sample & will be chunked according
-            to `chunk_size.
-        key (str): Key for where the index_map, & meta are located in `storage` relative to it's root. A subdirectory
+        b (bytes): Bytes to be chunked/written. `b` is considered to be 1 sample and will be chunked according
+            to `chunk_size`.
+        key (str): Key for where the index_map, and meta are located in `storage` relative to it's root. A subdirectory
             is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
         chunk_size (int): Desired length of each chunk.
-        storage (Provider): Provider for storing the chunks, index_map, & meta.
+        storage (Provider): Provider for storing the chunks, index_map, and meta.
         index_map (list): List of dictionaries that represent each sample. An entry for `index_map` is returned
             but not appended to `index_map`.
 
@@ -146,7 +146,7 @@ def write_bytes(
 def _get_last_chunk(
     key: str, index_map: List[dict], storage: Provider
 ) -> Tuple[str, bytes]:
-    """For internal use only. Retrieves the name & bytes for the last chunk.
+    """For internal use only. Retrieves the name and bytes for the last chunk.
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
