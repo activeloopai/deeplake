@@ -1,4 +1,4 @@
-def s3_creds_exist():
+def has_s3_creds():
     """Checks whether s3_creds exist in the environment"""
     import boto3
 
