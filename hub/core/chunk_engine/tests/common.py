@@ -142,8 +142,11 @@ def run_engine_test(
     clear_if_memory_provider(storage)
 
 
-def benchmark_write(key, arrays, chunk_size, storage, batched):
+def benchmark_write(
+    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
+):
     clear_if_memory_provider(storage)
+
     for a_in in arrays:
         write_array(
             a_in,
@@ -152,6 +155,9 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
             storage,
             batched=batched,
         )
+
+    if clear_memory_after_write:
+        clear_if_memory_provider(storage)
 
 
 def benchmark_read(key: str, storage: Provider):

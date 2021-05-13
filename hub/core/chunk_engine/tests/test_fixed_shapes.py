@@ -130,6 +130,7 @@ def test_write(
         chunk_size,
         storage,
         batched=True,
+        clear_memory_after_write=True,
     )
 
 
@@ -160,5 +161,7 @@ def test_read(
 
     key = random_key("benchmark_")
 
-    benchmark_write(key, arrays, chunk_size, storage, batched=True)
+    benchmark_write(
+        key, arrays, chunk_size, storage, batched=True, clear_memory_after_write=False
+    )
     benchmark(benchmark_read, key, storage)
