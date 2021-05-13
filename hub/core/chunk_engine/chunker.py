@@ -87,7 +87,7 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
         bytes: The chunks joined as one bytes object.
     """
 
-    joined_bytearray = bytearray()
+    indexed_chunks = []
     for i, chunk in enumerate(chunks):
         actual_start_byte, actual_end_byte = 0, len(chunk)
 
@@ -96,5 +96,5 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
         if i >= len(chunks) - 1:
             actual_end_byte = end_byte
 
-        joined_bytearray.extend(chunk[actual_start_byte:actual_end_byte])
-    return bytes(joined_bytearray)
+        indexed_chunks.append(chunk[actual_start_byte:actual_end_byte])
+    return b"".join(indexed_chunks)
