@@ -1,4 +1,6 @@
 from hub.core.storage.mapped_provider import MappedProvider
+import os
+import shutil
 import fsspec  # type: ignore
 
 
@@ -17,3 +19,8 @@ class LocalProvider(MappedProvider):
         self.mapper = fsspec.filesystem("file").get_mapper(
             root, check=False, create=False
         )
+
+    def clear(self):
+        # shutil is much faster than mapper.clear()
+        if os.path.exists(self.mapper.root):
+            shutil.rmtree(self.mapper.root)

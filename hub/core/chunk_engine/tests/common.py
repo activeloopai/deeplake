@@ -2,6 +2,7 @@ import os
 import pytest
 import numpy as np
 import pickle
+from uuid import uuid1
 
 from hub.core.chunk_engine import write_array, read_array
 from hub.core.storage import MappedProvider, S3Provider
@@ -146,17 +147,38 @@ def run_engine_test(
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
 
-def benchmark_write(
-    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
-):
+def clear_unless_s3(storage):
+    """Clears `storage` unless it is an S3Provider. Returns True if cleared, False otherwise."""
+
+    if type(storage) != S3Provider:
+        # don't clear S3Provider (this is very slow)
+        storage.clear()
+        return True
+    return False
+
+
+def benchmark_write(key, arrays, chunk_size, storage, batched):
+    """Benchmarks `write_array`. Clears storage (unless it is an S3Provider) before writing arrays.
+
+    Returns:
+        str: The key that `write_array` was called with. If `storage` is an `S3Provider`, this key will contain
+            a random uuid as it's subpath.
+    """
+
+    actual_key = key
+    if not clear_unless_s3(storage):
+        actual_key = os.path.join(key, str(uuid1()))
+
     for a_in in arrays:
         write_array(
             a_in,
-            key,
+            actual_key,
             chunk_size,
             storage,
             batched=batched,
         )
+
+    return key
 
 
 def benchmark_read(key: str, storage: Provider):

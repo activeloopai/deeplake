@@ -85,8 +85,7 @@ def clear_storages(memory_storage, local_storage):
 
     if local_storage:
         print("Clearing local storage provider")
-        # TODO: this is quicker than `local_storage.clear()`
-        shutil.rmtree(PYTEST_LOCAL_PROVIDER_BASE_ROOT)
+        local_storage.clear()
 
     print()
 
