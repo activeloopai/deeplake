@@ -7,7 +7,7 @@ from hub.constants import PYTEST_LOCAL_PROVIDER_BASE_ROOT, PYTEST_S3_PROVIDER_BA
 from hub.core.storage import S3Provider, MappedProvider, LocalProvider
 
 
-SESSION_UUID = "TEST"  # uuid1()
+SESSION_UUID = str(uuid1())
 
 
 def _skip_if_none(val):
