@@ -9,7 +9,7 @@ from hub.core.chunk_engine.util import (
     get_index_map_key,
     get_chunk_key,
 )
-from hub.util.check_s3_creds import s3_creds_exist
+from hub.util.s3 import has_s3_credentials
 from hub.core.storage import MappedProvider, S3Provider
 from hub.core.typing import Provider
 
@@ -188,7 +188,7 @@ def skip_if_no_required_creds(storage: Provider):
     """If `storage` is a provider that requires creds, and they are not found, skip the current test."""
 
     if type(storage) == S3Provider:
-        if not s3_creds_exist():
+        if not has_s3_credentials():
             pytest.skip()
 
 

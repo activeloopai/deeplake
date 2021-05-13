@@ -1,7 +1,7 @@
 from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 from hub.core.storage.mapped_provider import MappedProvider
 import pytest
-from hub.util.check_s3_creds import s3_creds_exist
+from hub.util.s3 import has_s3_credentials
 
 
 def test_provider(provider=MappedProvider()):
@@ -43,7 +43,7 @@ def test_local_provider():
     test_provider(LocalProvider("./hub_storage_local_test"))
 
 
-@pytest.mark.skipif(not s3_creds_exist(), reason="requires s3 credentials")
+@pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_s3_provider():
     test_provider(S3Provider("snark-test/hub_storage_s3_test"))
 
