@@ -3,13 +3,13 @@ import numpy as np
 import pickle
 
 from hub.core.chunk_engine import write_array, read_array
-from hub.core.storage import MappedProvider, S3Provider
+from hub.core.storage import MemoryProvider, S3Provider
 
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.s3 import has_s3_credentials
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 
-from hub.core.typing import Provider
+from hub.core.typing import StorageProvider
 
 from typing import List, Tuple
 
@@ -21,9 +21,9 @@ def random_key(prefix="test_"):
 
 
 STORAGE_PROVIDERS = (
-    MappedProvider(),
+    MemoryProvider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
     S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-)  # TODO: replace MappedProvider with MemoryProvider
+)
 
 
 CHUNK_SIZES = (
@@ -76,7 +76,9 @@ def assert_meta_is_valid(meta: dict, expected_meta: dict):
         assert v == meta[k]
 
 
-def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Provider):
+def assert_chunk_sizes(
+    key: str, index_map: List, chunk_size: int, storage: StorageProvider
+):
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
@@ -115,7 +117,7 @@ def assert_chunk_sizes(key: str, index_map: List, chunk_size: int, storage: Prov
 
 
 def run_engine_test(
-    arrays: List[np.ndarray], storage: Provider, batched: bool, chunk_size: int
+    arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
     clear_if_memory_provider(storage)
 
@@ -178,20 +180,20 @@ def benchmark_write(
         clear_if_memory_provider(storage)
 
 
-def benchmark_read(key: str, storage: Provider):
+def benchmark_read(key: str, storage: StorageProvider):
     read_array(key, storage)
 
 
-def skip_if_no_required_creds(storage: Provider):
-    """If `storage` is a provider that requires creds, and they are not found, skip the current test."""
+def skip_if_no_required_creds(storage: StorageProvider):
+    """If `storage` is a StorageProvider that requires creds, and they are not found, skip the current test."""
 
     if type(storage) == S3Provider:
         if not has_s3_credentials():
             pytest.skip()
 
 
-def clear_if_memory_provider(storage: Provider):
+def clear_if_memory_provider(storage: StorageProvider):
     """If `storage` is memory-based, clear it."""
 
-    if type(storage) == MappedProvider:
+    if type(storage) == MemoryProvider:
         storage.clear()

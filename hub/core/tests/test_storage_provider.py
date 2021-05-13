@@ -2,13 +2,21 @@ from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
 from hub.util.cache_chain import get_cache_chain
 import pytest
 from hub.util.s3 import has_s3_credentials
+from uuid import uuid1
 
 NUM_FILES = 20
 MB = 1024 * 1024
 
-local_provider = LocalProvider("./test/benchmark")
-memory_provider = MemoryProvider("test/benchmark")
-s3_provider = S3Provider("snark-test/hub2/benchmark")
+id = str(uuid1())
+local_provider = LocalProvider(
+    f"./test/hub2/core/storage/test/test_storage_provider_{id}"
+)
+memory_provider = MemoryProvider(
+    f"test/hub2/core/storage/tests/test_storage_provider_{id}"
+)
+s3_provider = S3Provider(
+    f"snark-test/hub2/core/storage/tests/test_storage_provider_{id}"
+)
 
 
 def check_storage_provider(provider):
