@@ -43,8 +43,14 @@ def pytest_addoption(parser):
     parser.addoption(
         "--cache-chains",
         action="store_true",
-        help="Tests using the `cache` fixture may run with combinations of all enabled providers \
+        help="Tests using the `storage` fixture may run with combinations of all enabled providers \
                 in cache chains. For example, if the option `--s3` is not provided, all cache chains that use `S3Provider` are skipped.",
+    )
+    parser.addoption(
+        "--cache-chains-only",
+        action="store_true",
+        help="Force enables `--cache-chains`. `storage` fixture only returns cache chains. For example, if `--s3` is provided, \
+            `storage` will never be just `S3Provider`.",
     )
 
 
@@ -75,8 +81,14 @@ def s3_storage(request):
 def storage(request, memory_storage, local_storage, s3_storage):
     requested_providers = request.param.split(",")
 
-    # if option --cache-chains is not provided, skip tests that attempt to use cache chains
-    if not _is_opt_true(request, "--cache-chains") and len(requested_providers) > 1:
+    # --cache-chains-only force enables --cache-chains
+    use_cache_chains_only = _is_opt_true(request, "--cache-chains-only")
+    use_cache_chains = _is_opt_true(request, "--cache-chains") or use_cache_chains_only
+
+    if use_cache_chains_only and len(requested_providers) <= 1:
+        pytest.skip()
+
+    if not use_cache_chains and len(requested_providers) > 1:
         pytest.skip()
 
     storage_providers = []
