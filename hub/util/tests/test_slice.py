@@ -1,5 +1,5 @@
 from hub.util.slice import merge_slices
-from pytest_cases import parametrize_with_cases
+from pytest_cases import parametrize_with_cases  # type: ignore
 
 
 class MergeSlicesCases:

@@ -2,34 +2,52 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 from typing import Optional
-from collections.abc import MutableMapping
+from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
 
 
-class S3Mapper(MutableMapping):
-    """An s3 mapper built using boto3. For internal use only (by class S3Provider)"""
+class S3Provider(StorageProvider):
+    """Provider class for using S3 storage."""
 
     def __init__(
         self,
-        url: str,
+        root: str,
         aws_access_key_id: Optional[str] = None,
         aws_secret_access_key: Optional[str] = None,
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
         max_pool_connections: Optional[int] = 10,
+        client=None,
     ):
+        """Initializes the S3Provider
+
+        Example:
+            s3_provider = S3Provider("snark-test/benchmarks")
+
+        Args:
+            root (str): The root of the provider. All read/write request keys will be appended to root.
+            aws_access_key_id (optional, str): Specifies the AWS access key used as part of the credentials to authenticate the user.
+            aws_secret_access_key (optional, str): Specifies the AWS secret key used as part of the credentials to authenticate the user.
+            aws_session_token (optional, str): Specifies an AWS session token used as part of the credentials to authenticate the user.
+            endpoint_url (optional, str): The complete URL to use for the constructed client.
+                This needs to be provided for cases in which you're interacting with MinIO, Wasabi, etc.
+            aws_region (optional, str): Specifies the AWS Region to send requests to.
+            max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
+                If this value is not set, the default value of 10 is used.
+            client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and this is used as the client while making requests.
+        """
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
 
-        self.bucket = url.split("/")[0]
-        self.path = "/".join(url.split("/")[1:])
+        self.bucket = root.split("/")[0]
+        self.path = "/".join(root.split("/")[1:])
 
         self.client_config = botocore.config.Config(
             max_pool_connections=max_pool_connections,
         )
 
-        self.client = boto3.client(
+        self.client = client or boto3.client(
             "s3",
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
@@ -43,7 +61,7 @@ class S3Mapper(MutableMapping):
         """Sets the object present at the path with the value
 
         Args:
-            path (str): the path relative to the root of the mapper.
+            path (str): the path relative to the root of the S3Provider.
             content (bytes): the value to be assigned at the path.
 
         Raises:
@@ -65,7 +83,7 @@ class S3Mapper(MutableMapping):
         """Gets the object present at the path.
 
         Args:
-            path (str): the path relative to the root of the mapper.
+            path (str): the path relative to the root of the S3Provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -92,7 +110,7 @@ class S3Mapper(MutableMapping):
         """Delete the object present at the path.
 
         Args:
-            path (str): the path to the object relative to the root of the mapper.
+            path (str): the path to the object relative to the root of the S3Provider.
 
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3 won't raise KeyError.
@@ -103,18 +121,21 @@ class S3Mapper(MutableMapping):
         except Exception as err:
             raise S3DeletionError(err)
 
-    def _list_objects(self):
-        """Helper function to list all the objects present at the root of the mapper.
+    def _list_keys(self):
+        """Helper function that lists all the objects present at the root of the S3Provider.
 
         Returns:
-            list: list of all the objects found at the root of the mapper.
+            list: list of all the objects found at the root of the S3Provider.
 
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
+        print("listing")
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
+            if items["KeyCount"] <= 0:
+                return []
             items = items["Contents"]
             names = [item["Key"] for item in items]
             # removing the prefix from the names
@@ -125,7 +146,7 @@ class S3Mapper(MutableMapping):
             raise S3ListError(err)
 
     def __len__(self):
-        """Returns the number of files present inside the root of the mapper. This is an expensive operation.
+        """Returns the number of files present at the root of the S3Provider. This is an expensive operation.
 
         Returns:
             int: the number of files present inside the root.
@@ -133,14 +154,12 @@ class S3Mapper(MutableMapping):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        names = self._list_objects()
-        return len(names)
+        return len(self._list_keys())
 
     def __iter__(self):
-        """Generator function that iterates over the keys of the mapper.
+        """Generator function that iterates over the keys of the S3Provider.
 
         Yields:
             str: the name of the object that it is iterating over.
         """
-        names = self._list_objects()
-        yield from names
+        yield from self._list_keys()
