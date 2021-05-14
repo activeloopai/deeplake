@@ -1,8 +1,12 @@
 import pytest
 
-from hub.core.storage import MemoryProvider, LocalProvider, S3Provider
-from hub.core.storage.mapped_provider import MappedProvider
 from hub.core.tests.common import parametrize_all_storage_providers
+from hub.util.cache_chain import get_cache_chain
+import pytest
+from hub.util.s3 import has_s3_credentials
+
+NUM_FILES = 20
+MB = 1024 * 1024
 
 
 @parametrize_all_storage_providers
@@ -35,6 +39,4 @@ def test_storage_provider(storage):
 
     with pytest.raises(KeyError):
         storage[FILE_1]
-
-
-# TODO add pytest benchmarks
+    storage.flush()
