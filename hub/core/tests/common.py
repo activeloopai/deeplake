@@ -12,8 +12,7 @@ parametrize_all_cache = pytest.mark.parametrize(
 )
 
 
-
-def current_test_name(with_uuid=False):
+def current_test_name(with_uuid: bool = False):
     full_name = os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]
     test_file = full_name.split("::")[0].split("/")[-1].split(".py")[0]
     if with_uuid:

@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from hub.core.tests.common import parametrize_all_storage_providers, current_test_name
+from hub.core.tests.common import parametrize_all_storage_providers, current_test_name  # type: ignore
 from hub.core.chunk_engine.tests.common import (
     run_engine_test,
     benchmark_write,

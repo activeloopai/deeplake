@@ -1,13 +1,13 @@
 from numpy import can_cast
 import pytest
 
-from hub.core.tests.common import (
+from hub.core.tests.common import (  # type: ignore
     parametrize_all_storage_providers,
     current_test_name,
     parametrize_all_cache,
 )
 import pytest
-from hub.constants import  MB
+from hub.constants import MB
 
 NUM_FILES = 20
 
