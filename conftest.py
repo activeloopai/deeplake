@@ -1,11 +1,15 @@
 import os
 import pytest
 from uuid import uuid1
-import shutil
 
-from hub.constants import PYTEST_LOCAL_PROVIDER_BASE_ROOT, PYTEST_S3_PROVIDER_BASE_ROOT
-from hub.core.storage import S3Provider, MappedProvider, LocalProvider
-
+from hub.constants import (
+    PYTEST_MEMORY_PROVIDER_BASE_ROOT,
+    PYTEST_LOCAL_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
+)
+from hub.core.storage import S3Provider, MemoryProvider, LocalProvider
+from hub.util.cache_chain import get_cache_chain
+from hub.constants import MB
 
 SESSION_UUID = str(uuid1())
 
@@ -40,7 +44,7 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def memory_storage(request):
     if not _is_opt_true(request, "--memory-skip"):
-        return MappedProvider()
+        return MemoryProvider(PYTEST_MEMORY_PROVIDER_BASE_ROOT)
 
 
 @pytest.fixture(scope="session")
@@ -92,3 +96,39 @@ def clear_storages(memory_storage, local_storage):
     yield
 
     # executed after the last test
+
+
+# caches corresponding to pytest paremetrize
+
+# memory_local_cache = get_cache_chain(
+#     [
+#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#     ],
+#     [32 * MB],
+# )
+
+# memory_local_s3_cache = get_cache_chain(
+#     [
+#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
+#     ],
+#     [32 * MB, 160 * MB],
+# )
+
+# memory_s3_cache = get_cache_chain(
+#     [
+#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
+#     ],
+#     [32 * MB],
+# )
+
+# local_s3_cache = get_cache_chain(
+#     [
+#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
+#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
+#     ],
+#     [32 * MB],
+# )

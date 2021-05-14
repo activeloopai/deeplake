@@ -159,6 +159,7 @@ class LocalProvider(StorageProvider):
         return full_path
 
     def clear(self):
+        """Clears the root of the StorageProvider"""
         # shutil is much faster than mapper.clear()
         if os.path.exists(self.root):
             shutil.rmtree(self.root)
