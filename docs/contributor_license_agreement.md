@@ -4,7 +4,7 @@ We are incredibly thankful for the thousands of contributions we receive from th
 
 Activeloop is committed to having a true Free and Open Source Software ("FOSS") license for our non-commercial software. A CLA enables Activeloop to safely commercialize our products while keeping a standard FOSS license with all the rights that license grants to users: the ability to use the project in their own projects or businesses, to republish modified source, or to completely fork the project.
 
-The next page gives a human-friendly summary of our CLA, details on why we require a CLA, how contributors can sign our CLA, and more. You may view the full legal CLA document here.
+The next section gives a human-friendly summary of our CLA, details on why we require a CLA, how contributors can sign our CLA, and more. You may view the full legal CLA document [here](https://github.com/activeloopai/Hub/blob/master/LICENSE).
 
 ---
 
@@ -29,7 +29,8 @@ Requiring a CLA is a common and well-accepted practice in open source. Major ope
 ---
 
 # Signing the CLA
-Visit [http://bit.ly/activeloop_cla](http://bit.ly/activeloop_cla) and to fill in a few additional details such as your name and email address. We will only use this information for CLA tracking; none of your submitted information will be used for marketing purposes.
+Upon submitting a pull request, you will be prompted to sign in the CLA we will ask you to provide your Name, Email-address and your Github profile to sign-in.
+We will only use this information for CLA tracking; none of your submitted information will be used for marketing purposes.
 
 You only have to sign the CLA once. Once you've signed the CLA, future contributions to any Activeloop project will not require you to sign again.
 
