@@ -196,18 +196,3 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
 
 def benchmark_read(key: str, storage: StorageProvider):
     read_array(key, storage)
-
-
-# TODO delete these maybe
-def skip_if_no_required_creds(storage: StorageProvider):
-    """If `storage` is a StorageProvider that requires creds, and they are not found, skip the current test."""
-
-    if type(storage) == S3Provider and not has_s3_credentials():
-        pytest.skip()
-
-
-def clear_if_memory_provider(storage: StorageProvider):
-    """If `storage` is memory-based, clear it."""
-
-    if type(storage) == MemoryProvider:
-        storage.clear()
