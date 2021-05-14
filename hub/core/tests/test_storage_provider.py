@@ -46,6 +46,8 @@ def check_storage_provider(storage, key):
 
 
 def check_cache(cache, key):
+    cache.cache_storage.clear()
+    cache.next_storage.clear()
     chunk = b"0123456789123456" * MB
     assert cache.dirty_keys == set()
     assert set(cache.lru_sizes.keys()) == set()
