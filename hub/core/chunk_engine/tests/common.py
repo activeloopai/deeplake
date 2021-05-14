@@ -121,6 +121,7 @@ def assert_chunk_sizes(
 def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
+    storage.clear()
     key = current_test_name(with_uuid=True)
 
     for i, a_in in enumerate(arrays):
@@ -160,16 +161,6 @@ def run_engine_test(
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
 
-def clear_unless_s3(storage):
-    """Clears `storage` unless it is an S3Provider. Returns True if cleared, False otherwise."""
-
-    if type(storage) != S3Provider:
-        # don't clear S3Provider (this is very slow)
-        storage.clear()
-        return True
-    return False
-
-
 def benchmark_write(key, arrays, chunk_size, storage, batched):
     """Benchmarks `write_array`. Clears storage (unless it is an S3Provider) before writing arrays.
 
@@ -178,9 +169,8 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
             a random uuid as it's subpath.
     """
 
+    storage.clear()
     actual_key = key
-    if not clear_unless_s3(storage):
-        actual_key = os.path.join(key, str(uuid1()))
 
     for a_in in arrays:
         write_array(

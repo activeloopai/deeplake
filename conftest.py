@@ -113,7 +113,7 @@ def storage(request, memory_storage, local_storage, s3_storage):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def clear_storages(memory_storage, local_storage):
+def clear_storages(memory_storage, local_storage, s3_storage):
     # executed before the first test
 
     print()
@@ -126,6 +126,10 @@ def clear_storages(memory_storage, local_storage):
     if local_storage:
         print("Clearing local storage provider")
         local_storage.clear()
+
+    if s3_storage:
+        print("Clearing s3 storage provider")
+        s3_storage.clear()
 
     print()
 

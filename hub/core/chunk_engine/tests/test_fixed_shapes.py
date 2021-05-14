@@ -132,6 +132,8 @@ def test_write(
         batched=True,
     )
 
+    storage.clear()
+
 
 @pytest.mark.benchmark(group="read_array")
 @pytest.mark.parametrize("shape", BENCHMARK_BATCHED_SHAPES)
