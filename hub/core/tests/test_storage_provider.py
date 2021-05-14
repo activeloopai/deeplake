@@ -7,15 +7,15 @@ from uuid import uuid1
 NUM_FILES = 20
 MB = 1024 * 1024
 
-id = str(uuid1())
+SESSION_ID = str(uuid1())
 local_provider = LocalProvider(
-    f"./test/hub2/core/storage/test/test_storage_provider_{id}"
+    f"./test/hub2/core/storage/test/test_storage_provider_{SESSION_ID}"
 )
 memory_provider = MemoryProvider(
-    f"test/hub2/core/storage/tests/test_storage_provider_{id}"
+    f"test/hub2/core/storage/tests/test_storage_provider_{SESSION_ID}"
 )
 s3_provider = S3Provider(
-    f"snark-test/hub2/core/storage/tests/test_storage_provider_{id}"
+    f"snark-test/hub2/core/storage/tests/test_storage_provider_{SESSION_ID}"
 )
 
 
@@ -166,8 +166,6 @@ def detailed_check_lru(lru):
 
     with pytest.raises(KeyError):
         lru["file_1"]
-    with pytest.raises(KeyError):
-        del lru["file_1"]
 
     lru["file_1"] = chunk
     assert lru.dirty_keys == {"file_1"}
@@ -217,7 +215,7 @@ def test_detailed_lru_mem_s3(benchmark):
 
 @pytest.mark.skipif(not has_s3_credentials(), reason="requires s3 credentials")
 def test_detailed_lru_local_s3(benchmark):
-    lru = get_cache_chain([local_provider, s3_provider], [160 * MB])
+    lru = get_cache_chain([local_provider, s3_provider], [32 * MB])
     detailed_check_lru(lru)
 
 
