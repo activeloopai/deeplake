@@ -11,7 +11,7 @@ from hub.util.array import normalize_and_batchify_shape
 from hub.util.s3 import has_s3_credentials
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 
-from hub.core.tests.common import current_test_name  # type: ignore
+from hub.core.tests.common import current_test_name
 from typing import List, Tuple
 from hub.core.typing import StorageProvider
 from hub.constants import KB, MB
