@@ -14,6 +14,7 @@ from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.core.tests.common import current_test_name  # type: ignore
 from typing import List, Tuple
 from hub.core.typing import StorageProvider
+from hub.constants import KB, MB
 
 from uuid import uuid1
 
@@ -29,9 +30,9 @@ STORAGE_PROVIDERS = (
 
 
 CHUNK_SIZES = (
-    128,
-    4096,
-    16000000,  # 16MB
+    KB,
+    MB,
+    16 * MB,
 )
 
 

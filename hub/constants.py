@@ -1,7 +1,9 @@
 BYTE_PADDING = b"\0"
 
 # helpful for specifying cache sizes, that are specified in MB. For eg to specify 32MB cache use 32 * MB
-MB = 1024 * 1024
+KB = 1024
+MB = 1024 * KB
+GB = 1024 * MB
 
 CHUNKS_FOLDER = "chunks"
 META_FILENAME = "meta.json"

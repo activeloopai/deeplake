@@ -14,6 +14,7 @@ from hub.core.chunk_engine.tests.common import (
 
 from typing import Tuple
 from hub.core.typing import StorageProvider
+from hub.constants import MB, GB
 
 
 np.random.seed(1)
@@ -46,7 +47,7 @@ BENCHMARK_DTYPES = (
     "int64",
     "float64",
 )
-BENCHMARK_CHUNK_SIZES = (16000000,)  # 16MB
+BENCHMARK_CHUNK_SIZES = (16 * MB,)
 BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
     (840, 224, 224, 3),
@@ -118,7 +119,7 @@ def test_write(
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
-    gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) // (1_000_000_000)
+    gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) / GB
     print("\nBenchmarking array with size: %.2fGB." % gbs)
 
     key = current_test_name(with_uuid=True)
