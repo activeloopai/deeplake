@@ -48,7 +48,7 @@ def check_storage_provider(storage, key):
 def check_cache(cache, key):
     chunk = b"0123456789123456" * MB
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == set()
+    assert set(cache.lru_sizes.keys()) == set()
     assert len(cache.cache_storage) == 0
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 0
@@ -60,7 +60,7 @@ def check_cache(cache, key):
 
     cache[FILE_1] = chunk
     assert cache.dirty_keys == {FILE_1}
-    assert set(cache.cache_sizes.keys()) == {FILE_1}
+    assert set(cache.lru_sizes.keys()) == {FILE_1}
     assert len(cache.cache_storage) == 1
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 16 * MB
@@ -68,7 +68,7 @@ def check_cache(cache, key):
 
     cache[FILE_2] = chunk
     assert cache.dirty_keys == {FILE_1, FILE_2}
-    assert set(cache.cache_sizes.keys()) == {FILE_1, FILE_2}
+    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 32 * MB
@@ -76,7 +76,7 @@ def check_cache(cache, key):
 
     cache[FILE_3] = chunk
     assert cache.dirty_keys == {FILE_3, FILE_2}
-    assert set(cache.cache_sizes.keys()) == {FILE_2, FILE_3}
+    assert set(cache.lru_sizes.keys()) == {FILE_2, FILE_3}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 1
     assert cache.cache_used == 32 * MB
@@ -84,7 +84,7 @@ def check_cache(cache, key):
 
     cache[FILE_1]
     assert cache.dirty_keys == {FILE_3}
-    assert set(cache.cache_sizes.keys()) == {FILE_1, FILE_3}
+    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_3}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 2
     assert cache.cache_used == 32 * MB
@@ -92,7 +92,7 @@ def check_cache(cache, key):
 
     cache[FILE_3]
     assert cache.dirty_keys == {FILE_3}
-    assert set(cache.cache_sizes.keys()) == {FILE_1, FILE_3}
+    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_3}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 2
     assert cache.cache_used == 32 * MB
@@ -100,7 +100,7 @@ def check_cache(cache, key):
 
     del cache[FILE_3]
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == {FILE_1}
+    assert set(cache.lru_sizes.keys()) == {FILE_1}
     assert len(cache.cache_storage) == 1
     assert len(cache.next_storage) == 2
     assert cache.cache_used == 16 * MB
@@ -108,7 +108,7 @@ def check_cache(cache, key):
 
     del cache[FILE_1]
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == set()
+    assert set(cache.lru_sizes.keys()) == set()
     assert len(cache.cache_storage) == 0
     assert len(cache.next_storage) == 1
     assert cache.cache_used == 0
@@ -116,7 +116,7 @@ def check_cache(cache, key):
 
     del cache[FILE_2]
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == set()
+    assert set(cache.lru_sizes.keys()) == set()
     assert len(cache.cache_storage) == 0
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 0
@@ -127,7 +127,7 @@ def check_cache(cache, key):
 
     cache[FILE_1] = chunk
     assert cache.dirty_keys == {FILE_1}
-    assert set(cache.cache_sizes.keys()) == {FILE_1}
+    assert set(cache.lru_sizes.keys()) == {FILE_1}
     assert len(cache.cache_storage) == 1
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 16 * MB
@@ -135,7 +135,7 @@ def check_cache(cache, key):
 
     cache[FILE_2] = chunk
     assert cache.dirty_keys == {FILE_1, FILE_2}
-    assert set(cache.cache_sizes.keys()) == {FILE_1, FILE_2}
+    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 32 * MB
@@ -143,7 +143,7 @@ def check_cache(cache, key):
 
     cache.flush()
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == {FILE_1, FILE_2}
+    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
     assert len(cache.cache_storage) == 2
     assert len(cache.next_storage) == 2
     assert cache.cache_used == 32 * MB
@@ -153,7 +153,7 @@ def check_cache(cache, key):
     del cache[FILE_2]
 
     assert cache.dirty_keys == set()
-    assert set(cache.cache_sizes.keys()) == set()
+    assert set(cache.lru_sizes.keys()) == set()
     assert len(cache.cache_storage) == 0
     assert len(cache.next_storage) == 0
     assert cache.cache_used == 0
