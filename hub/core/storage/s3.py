@@ -56,6 +56,17 @@ class S3Provider(StorageProvider):
             endpoint_url=self.endpoint_url,
             region_name=self.aws_region,
         )
+        self.resource = None
+        if client is None:
+            self.resource = boto3.resource(
+                "s3",
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
@@ -163,3 +174,11 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
+
+    def clear(self):
+        """Clears the root of the StorageProvider"""
+        if self.resource is not None:
+            bucket = self.resource.Bucket(self.bucket)
+            bucket.objects.filter(Prefix=self.path).delete()
+        else:
+            super().clear()
