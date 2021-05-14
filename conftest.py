@@ -27,32 +27,40 @@ def pytest_addoption(parser):
     parser.addoption(
         "--memory-skip",
         action="store_true",
-        help="if this option is provided, `MemoryProvider` tests will be skipped.",
+        help="Tests using the `memory_provider` fixture will be skipped. Tests using the `storage` fixture will be skipped if called with \
+                `MemoryProvider`.",
     )
     parser.addoption(
         "--local",
         action="store_true",
-        help="if this option is provided, `LocalProvider` tests will be used.",
+        help="Tests using the `storage`/`local_provider` fixtures will run with `LocalProvider`.",
     )
     parser.addoption(
         "--s3",
         action="store_true",
-        help="if this option is provided, `S3Provider` tests will be used. Credentials are required.",
+        help="Tests using the `storage`/`s3_provider` fixtures will run with `S3Provider`.",
+    )
+    parser.addoption(
+        "--cache-chains",
+        action="store_true",
+        help="Tests using the `cache` fixture may run with combinations of all enabled providers \
+                in cache chains. For example, if the option `--s3` is not provided, all cache chains that use `S3Provider` are skipped.",
     )
 
 
 @pytest.fixture(scope="session")
 def memory_storage(request):
     if not _is_opt_true(request, "--memory-skip"):
-        return MemoryProvider(PYTEST_MEMORY_PROVIDER_BASE_ROOT)
+        root = PYTEST_MEMORY_PROVIDER_BASE_ROOT
+        return MemoryProvider(root)
 
 
 @pytest.fixture(scope="session")
 def local_storage(request):
     if _is_opt_true(request, "--local"):
         # TODO: root as option
-        local = LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT)
-        return local
+        root = PYTEST_LOCAL_PROVIDER_BASE_ROOT
+        return LocalProvider(root)
 
 
 @pytest.fixture(scope="session")
@@ -65,15 +73,31 @@ def s3_storage(request):
 
 @pytest.fixture(scope="session")
 def storage(request, memory_storage, local_storage, s3_storage):
-    if request.param == "memory":
+    requested_providers = request.param.split(",")
+
+    # if option --cache-chains is not provided, skip tests that attempt to use cache chains
+    if not _is_opt_true(request, "--cache-chains") and len(requested_providers) > 1:
+        pytest.skip()
+
+    storage_providers = []
+    cache_sizes = []
+
+    if "memory" in requested_providers:
         _skip_if_none(memory_storage)
-        return memory_storage
-    if request.param == "local":
+        storage_providers.append(memory_storage)
+        cache_sizes.append(32 * MB)
+    if "local" in requested_providers:
         _skip_if_none(local_storage)
-        return local_storage
-    if request.param == "s3":
+        storage_providers.append(local_storage)
+        cache_sizes.append(160 * MB)
+    if "s3" in requested_providers:
         _skip_if_none(s3_storage)
-        return s3_storage
+        storage_providers.append(s3_storage)
+
+    if len(storage_providers) == len(cache_sizes):
+        cache_sizes.pop()
+
+    return get_cache_chain(storage_providers, cache_sizes)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -96,39 +120,3 @@ def clear_storages(memory_storage, local_storage):
     yield
 
     # executed after the last test
-
-
-# caches corresponding to pytest paremetrize
-
-# memory_local_cache = get_cache_chain(
-#     [
-#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#     ],
-#     [32 * MB],
-# )
-
-# memory_local_s3_cache = get_cache_chain(
-#     [
-#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
-#     ],
-#     [32 * MB, 160 * MB],
-# )
-
-# memory_s3_cache = get_cache_chain(
-#     [
-#         MemoryProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
-#     ],
-#     [32 * MB],
-# )
-
-# local_s3_cache = get_cache_chain(
-#     [
-#         LocalProvider(PYTEST_LOCAL_PROVIDER_BASE_ROOT),
-#         S3Provider(PYTEST_S3_PROVIDER_BASE_ROOT),
-#     ],
-#     [32 * MB],
-# )

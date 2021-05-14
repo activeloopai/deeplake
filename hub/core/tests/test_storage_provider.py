@@ -2,9 +2,9 @@ from numpy import can_cast
 import pytest
 
 from hub.core.tests.common import (  # type: ignore
-    parametrize_all_storage_providers,
+    parametrize_all_storages,
     current_test_name,
-    parametrize_all_cache,
+    parametrize_all_caches,
 )
 import pytest
 from hub.constants import MB
@@ -19,17 +19,17 @@ def check_storage_provider(storage, key):
 
     storage[FILE_1] = b"hello world"
     assert storage[FILE_1] == b"hello world"
-    assert storage.__getitem__(FILE_1, 2, 5) == b"llo"
+    assert storage.get_bytes(FILE_1, 2, 5) == b"llo"
 
-    storage.__setitem__(FILE_1, b"abcde", 6)
+    storage.set_bytes(FILE_1, b"abcde", 6)
     assert storage[FILE_1] == b"hello abcde"
 
-    storage.__setitem__(FILE_1, b"tuvwxyz", 6)
+    storage.set_bytes(FILE_1, b"tuvwxyz", 6)
     assert storage[FILE_1] == b"hello tuvwxyz"
 
-    storage.__setitem__(FILE_2, b"hello world", 3)
+    storage.set_bytes(FILE_2, b"hello world", 3)
     assert storage[FILE_2] == b"\x00\x00\x00hello world"
-    storage.__setitem__(FILE_2, b"new_text", overwrite=True)
+    storage.set_bytes(FILE_2, b"new_text", overwrite=True)
     assert storage[FILE_2] == b"new_text"
 
     assert len(storage) >= 1
@@ -177,34 +177,34 @@ def delete_files(storage, key):
         del storage[f"{key}_{i}"]
 
 
-@parametrize_all_storage_providers
+@parametrize_all_storages
 def test_storage_provider(storage):
     key = current_test_name(with_uuid=True)
     check_storage_provider(storage, key)
 
 
-@parametrize_all_cache
-def test_cache(cache):
+@parametrize_all_caches
+def test_cache(storage):
     key = current_test_name(with_uuid=True)
-    check_storage_provider(cache, key)
-    check_cache(cache, key)
+    check_storage_provider(storage, key)
+    check_cache(storage, key)
 
 
-@parametrize_all_storage_providers
+@parametrize_all_storages
 def test_storage_write_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     benchmark(write_to_files, storage, key)
     delete_files(storage, key)
 
 
-@parametrize_all_cache
-def test_cache_write_speeds(benchmark, cache):
+@parametrize_all_caches
+def test_cache_write_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
-    benchmark(write_to_files, cache, key)
-    delete_files(cache, key)
+    benchmark(write_to_files, storage, key)
+    delete_files(storage, key)
 
 
-@parametrize_all_storage_providers
+@parametrize_all_storages
 def test_storage_read_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     write_to_files(storage, key)
@@ -212,18 +212,18 @@ def test_storage_read_speeds(benchmark, storage):
     delete_files(storage, key)
 
 
-@parametrize_all_cache
-def test_cache_read_speeds(benchmark, cache):
+@parametrize_all_caches
+def test_cache_read_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
-    write_to_files(cache, key)
-    benchmark(read_from_files, cache, key)
-    delete_files(cache, key)
+    write_to_files(storage, key)
+    benchmark(read_from_files, storage, key)
+    delete_files(storage, key)
 
 
-@parametrize_all_cache
-def test_full_cache_read_speeds(benchmark, cache):
+@parametrize_all_caches
+def test_full_cache_read_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
-    write_to_files(cache, key)
-    read_from_files(cache, key)
-    benchmark(read_from_files, cache, key)
-    delete_files(cache, key)
+    write_to_files(storage, key)
+    read_from_files(storage, key)
+    benchmark(read_from_files, storage, key)
+    delete_files(storage, key)
