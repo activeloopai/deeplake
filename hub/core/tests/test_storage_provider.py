@@ -170,11 +170,6 @@ def read_from_files(storage, key):
         storage[f"{key}_{i}"]
 
 
-def delete_files(storage, key):
-    for i in range(NUM_FILES):
-        del storage[f"{key}_{i}"]
-
-
 @parametrize_all_storages
 def test_storage_provider(storage):
     key = current_test_name(with_uuid=True)
@@ -192,14 +187,14 @@ def test_cache(storage):
 def test_storage_write_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     benchmark(write_to_files, storage, key)
-    delete_files(storage, key)
+    storage.clear()
 
 
 @parametrize_all_caches
 def test_cache_write_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     benchmark(write_to_files, storage, key)
-    delete_files(storage, key)
+    storage.clear()
 
 
 @parametrize_all_storages
@@ -207,7 +202,7 @@ def test_storage_read_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     write_to_files(storage, key)
     benchmark(read_from_files, storage, key)
-    delete_files(storage, key)
+    storage.clear()
 
 
 @parametrize_all_caches
@@ -215,7 +210,7 @@ def test_cache_read_speeds(benchmark, storage):
     key = current_test_name(with_uuid=True)
     write_to_files(storage, key)
     benchmark(read_from_files, storage, key)
-    delete_files(storage, key)
+    storage.clear()
 
 
 @parametrize_all_caches
@@ -224,4 +219,4 @@ def test_full_cache_read_speeds(benchmark, storage):
     write_to_files(storage, key)
     read_from_files(storage, key)
     benchmark(read_from_files, storage, key)
-    delete_files(storage, key)
+    storage.clear()
