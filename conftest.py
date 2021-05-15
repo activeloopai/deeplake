@@ -10,8 +10,6 @@ from hub.constants import (MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE,
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.util.cache_chain import get_cache_chain
 
-SESSION_UUID = str(uuid1())
-
 
 def _skip_if_none(val):
     if val is None:
@@ -72,7 +70,7 @@ def local_storage(request):
 def s3_storage(request):
     if _is_opt_true(request, "--s3"):
         # TODO: root as option
-        root = os.path.join(PYTEST_S3_PROVIDER_BASE_ROOT, SESSION_UUID)
+        root = PYTEST_S3_PROVIDER_BASE_ROOT
         return S3Provider(root)
 
 
