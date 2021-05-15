@@ -1,7 +1,7 @@
-import pytest
 import os
 from uuid import uuid1
 
+import pytest
 
 ALL_PROVIDERS = ["memory", "local", "s3"]
 ALL_CACHES = ["memory,local", "memory,s3", "local,s3", "memory,local,s3"]

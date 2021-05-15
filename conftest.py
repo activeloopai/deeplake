@@ -1,15 +1,14 @@
 import os
-import pytest
 from uuid import uuid1
 
-from hub.constants import (
-    PYTEST_MEMORY_PROVIDER_BASE_ROOT,
-    PYTEST_LOCAL_PROVIDER_BASE_ROOT,
-    PYTEST_S3_PROVIDER_BASE_ROOT,
-)
-from hub.core.storage import S3Provider, MemoryProvider, LocalProvider
+import pytest
+
+from hub.constants import (MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE,
+                           PYTEST_LOCAL_PROVIDER_BASE_ROOT,
+                           PYTEST_MEMORY_PROVIDER_BASE_ROOT,
+                           PYTEST_S3_PROVIDER_BASE_ROOT)
+from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.util.cache_chain import get_cache_chain
-from hub.constants import MB
 
 SESSION_UUID = str(uuid1())
 
@@ -97,11 +96,11 @@ def storage(request, memory_storage, local_storage, s3_storage):
     if "memory" in requested_providers:
         _skip_if_none(memory_storage)
         storage_providers.append(memory_storage)
-        cache_sizes.append(32 * MB)
+        cache_sizes.append(MIN_MEMORY_CACHE_SIZE)
     if "local" in requested_providers:
         _skip_if_none(local_storage)
         storage_providers.append(local_storage)
-        cache_sizes.append(160 * MB)
+        cache_sizes.append(MIN_LOCAL_CACHE_SIZE)
     if "s3" in requested_providers:
         _skip_if_none(s3_storage)
         storage_providers.append(s3_storage)

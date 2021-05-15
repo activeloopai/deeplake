@@ -1,16 +1,10 @@
+import pytest
+from hub.constants import MB, MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE
+from hub.core.tests.common import (current_test_name, parametrize_all_caches,
+                                   parametrize_all_storages)
 from numpy import can_cast
-import pytest
-
-from hub.core.tests.common import (  # type: ignore
-    parametrize_all_storages,
-    current_test_name,
-    parametrize_all_caches,
-)
-import pytest
-from hub.constants import MB
 
 NUM_FILES = 20
-
 
 # helper functions for tests
 def check_storage_provider(storage, key):
@@ -46,6 +40,8 @@ def check_storage_provider(storage, key):
 
 
 def check_cache(cache, key):
+    # TODO: utilize MIN_MEMORY_CACHE_SIZE and MIN_LOCAL_CACHE_SIZE for caclulating these test measurements
+
     cache.cache_storage.clear()
     cache.next_storage.clear()
     chunk = b"0123456789123456" * MB
