@@ -1,21 +1,16 @@
-import pytest
+from typing import Tuple
 
 import numpy as np
-
-from hub.core.tests.common import parametrize_all_storages_and_caches, current_test_name
-from hub.core.chunk_engine.tests.common import (
-    run_engine_test,
-    benchmark_write,
-    benchmark_read,
-    CHUNK_SIZES,
-    DTYPES,
-    get_random_array,
-)
-
-from typing import Tuple
+import pytest
+from hub.constants import GB, MB
+from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
+                                                benchmark_read,
+                                                benchmark_write,
+                                                get_random_array,
+                                                run_engine_test)
+from hub.core.tests.common import (current_test_name,
+                                   parametrize_all_storages_and_caches)
 from hub.core.typing import StorageProvider
-from hub.constants import MB, GB
-
 
 np.random.seed(1)
 
@@ -161,5 +156,5 @@ def test_read(
 
     key = current_test_name(with_uuid=True)
 
-    actual_key = benchmark_write(key, arrays, chunk_size, storage, batched=True)
-    benchmark(benchmark_read, actual_key, storage)
+    benchmark_write(key, arrays, chunk_size, storage, batched=True)
+    benchmark(benchmark_read, key, storage)

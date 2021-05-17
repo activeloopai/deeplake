@@ -1,22 +1,18 @@
 import os
-import pytest
-import numpy as np
 import pickle
-from uuid import uuid1
-
-from hub.core.chunk_engine import write_array, read_array
-from hub.core.storage import MemoryProvider, S3Provider
-
-from hub.util.array import normalize_and_batchify_shape
-from hub.util.s3 import has_s3_credentials
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
-
-from hub.core.tests.common import current_test_name
 from typing import List, Tuple
-from hub.core.typing import StorageProvider
-from hub.constants import KB, MB
-
 from uuid import uuid1
+
+import numpy as np
+import pytest
+from hub.constants import KB, MB
+from hub.core.chunk_engine import read_array, write_array
+from hub.core.storage import MemoryProvider, S3Provider
+from hub.core.tests.common import current_test_name
+from hub.core.typing import StorageProvider
+from hub.util.array import normalize_and_batchify_shape
+from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+from hub.util.s3 import has_s3_credentials
 
 
 def random_key(prefix="test_"):
@@ -163,20 +159,12 @@ def run_engine_test(
 
 
 def benchmark_write(key, arrays, chunk_size, storage, batched):
-    """Benchmarks `write_array`. Clears storage (unless it is an S3Provider) before writing arrays.
-
-    Returns:
-        str: The key that `write_array` was called with. If `storage` is an `S3Provider`, this key will contain
-            a random uuid as it's subpath.
-    """
-
     storage.clear()
-    actual_key = key
 
     for a_in in arrays:
         write_array(
             a_in,
-            actual_key,
+            key,
             chunk_size,
             storage,
             batched=batched,
