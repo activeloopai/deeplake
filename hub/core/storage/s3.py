@@ -1,9 +1,11 @@
-import boto3
-import botocore  # type: ignore
 import posixpath
 from typing import Optional
+
+import boto3
+import botocore  # type: ignore
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
+from hub.util.exceptions import (S3DeletionError, S3GetError, S3ListError,
+                                 S3SetError)
 
 
 class S3Provider(StorageProvider):
@@ -39,6 +41,8 @@ class S3Provider(StorageProvider):
         """
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
+
+        root = root.replace("s3://", "")
 
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])

@@ -14,4 +14,4 @@ INDEX_MAP_FILENAME = "index_map.json"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "PYTEST_TMPDIR/memory_storage_provider/"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "PYTEST_TMPDIR/local_storage_provider/"
-PYTEST_S3_PROVIDER_BASE_ROOT = "hub-2.0-tests/"
+PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
