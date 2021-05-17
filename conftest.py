@@ -156,7 +156,11 @@ def clear_storages(request):
     yield
 
     # executed after the last test
-    print("\n\n")
-    print("----------------------------------------------------------")
-    print("Testing session ID: %s" % SESSION_ID)
-    print("----------------------------------------------------------")
+
+    if _is_opt_true(request, "--s3"):
+        # s3 is the only storage provider that uses the SESSION_ID prefix
+        # if it is enabled, print it out after all tests finish
+        print("\n\n")
+        print("----------------------------------------------------------")
+        print("Testing session ID: %s" % SESSION_ID)
+        print("----------------------------------------------------------")

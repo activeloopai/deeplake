@@ -1,9 +1,9 @@
 BYTE_PADDING = b"\0"
 
 # number of bytes per unit
-KB = 1024
-MB = 1024 * KB
-GB = 1024 * MB
+KB = 1000
+MB = 1000 * KB
+GB = 1000 * MB
 
 MIN_MEMORY_CACHE_SIZE = 32 * MB
 MIN_LOCAL_CACHE_SIZE = 160 * MB
