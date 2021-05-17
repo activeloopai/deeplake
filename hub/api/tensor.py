@@ -58,7 +58,7 @@ class Tensor:
         else:
             write_array(
                 value,
-                item,
+                self.key,
                 storage=self.provider,
                 batched=True,
             )
