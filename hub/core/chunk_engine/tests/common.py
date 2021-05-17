@@ -159,8 +159,6 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
             batched=batched,
         )
 
-    return key
-
 
 def benchmark_read(key: str, storage: StorageProvider):
     read_array(key, storage)
