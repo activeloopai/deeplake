@@ -14,17 +14,6 @@ from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
 
-
-def random_key(prefix="test_"):
-    return prefix + str(uuid1())
-
-
-STORAGE_PROVIDERS = (
-    MemoryProvider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-    S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-)
-
-
 CHUNK_SIZES = (
     KB,
     MB,
