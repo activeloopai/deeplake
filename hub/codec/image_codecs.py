@@ -267,6 +267,7 @@ class WebPCodec(BaseImgCodec):
             **kwargs: Optional; single_channel (bool): if True,
                 encoder will remove the last dimension of input if it is 1.
                 quality (int): The image quality, on a scale from 1 (worst) to 95 (best). Default: 95.
+                    For large images set quality <= 85.
 
         Raises:
             ValueError: If keyword arguments contain not supported arguments.

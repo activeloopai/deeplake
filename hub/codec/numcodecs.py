@@ -131,7 +131,7 @@ class Lz4(BaseNumCodec):
         """
         try:
             data = self._msgpack.decode(bytes_)[0]
-        except msgpack.exceptions.ExtraData:
+        except (msgpack.exceptions.ExtraData, ValueError):
             return self.compressor.decode(bytes_)
         decoded_buf = self.compressor.decode(data["item"])
         arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
