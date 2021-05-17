@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from hub.constants import GB, MB
 from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
-                                                benchmark_read,
+                                                TENSOR_KEY, benchmark_read,
                                                 benchmark_write,
                                                 get_random_array,
                                                 run_engine_test)
@@ -117,11 +117,9 @@ def test_write(
     gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) / GB
     print("\nBenchmarking array with size: %.2fGB." % gbs)
 
-    key = current_test_name(with_id=True)
-
     benchmark(
         benchmark_write,
-        key,
+        TENSOR_KEY,
         arrays,
         chunk_size,
         storage,
@@ -154,7 +152,5 @@ def test_read(
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
-    key = current_test_name(with_id=True)
-
-    benchmark_write(key, arrays, chunk_size, storage, batched=True)
-    benchmark(benchmark_read, key, storage)
+    benchmark_write(TENSOR_KEY, arrays, chunk_size, storage, batched=True)
+    benchmark(benchmark_read, TENSOR_KEY, storage)

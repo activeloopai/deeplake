@@ -13,6 +13,9 @@ from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
 
+TENSOR_KEY = "tensor"
+
+
 CHUNK_SIZES = (
     KB,
     MB,
@@ -106,8 +109,7 @@ def assert_chunk_sizes(
 def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
-    # storage.clear()
-    key = "tensor"
+    key = TENSOR_KEY
 
     for i, a_in in enumerate(arrays):
         write_array(
@@ -147,8 +149,6 @@ def run_engine_test(
 
 
 def benchmark_write(key, arrays, chunk_size, storage, batched):
-    # storage.clear()
-
     for a_in in arrays:
         write_array(
             a_in,
