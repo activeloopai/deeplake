@@ -1,15 +1,17 @@
 import pytest
 from hub.constants import MB, MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE
-from hub.core.tests.common import (current_test_name, parametrize_all_caches,
+from hub.core.tests.common import (parametrize_all_caches,
                                    parametrize_all_storages)
+from hub.tests.common import current_test_name
 from numpy import can_cast
 
 NUM_FILES = 20
+KEY = "file"
 
 # helper functions for tests
-def check_storage_provider(storage, key):
-    FILE_1 = f"{key}_1"
-    FILE_2 = f"{key}_2"
+def check_storage_provider(storage):
+    FILE_1 = f"{KEY}_1"
+    FILE_2 = f"{KEY}_2"
 
     storage[FILE_1] = b"hello world"
     assert storage[FILE_1] == b"hello world"
@@ -39,11 +41,9 @@ def check_storage_provider(storage, key):
     storage.flush()
 
 
-def check_cache(cache, key):
+def check_cache(cache):
     # TODO: utilize MIN_MEMORY_CACHE_SIZE and MIN_LOCAL_CACHE_SIZE for caclulating these test measurements
 
-    cache.cache_storage.clear()
-    cache.next_storage.clear()
     chunk = b"0123456789123456" * MB
     assert cache.dirty_keys == set()
     assert set(cache.lru_sizes.keys()) == set()
@@ -52,9 +52,9 @@ def check_cache(cache, key):
     assert cache.cache_used == 0
     assert len(cache) == 0
 
-    FILE_1 = f"{key}_1"
-    FILE_2 = f"{key}_2"
-    FILE_3 = f"{key}_3"
+    FILE_1 = f"{KEY}_1"
+    FILE_2 = f"{KEY}_2"
+    FILE_3 = f"{KEY}_3"
 
     cache[FILE_1] = chunk
     assert cache.dirty_keys == {FILE_1}
@@ -172,51 +172,39 @@ def read_from_files(storage, key):
 
 @parametrize_all_storages
 def test_storage_provider(storage):
-    key = current_test_name(with_uuid=True)
-    check_storage_provider(storage, key)
+    check_storage_provider(storage)
 
 
 @parametrize_all_caches
 def test_cache(storage):
-    key = current_test_name(with_uuid=True)
-    check_storage_provider(storage, key)
-    check_cache(storage, key)
+    check_storage_provider(storage)
+    check_cache(storage)
 
 
 @parametrize_all_storages
 def test_storage_write_speeds(benchmark, storage):
-    key = current_test_name(with_uuid=True)
-    benchmark(write_to_files, storage, key)
-    storage.clear()
+    benchmark(write_to_files, storage)
 
 
 @parametrize_all_caches
 def test_cache_write_speeds(benchmark, storage):
-    key = current_test_name(with_uuid=True)
-    benchmark(write_to_files, storage, key)
-    storage.clear()
+    benchmark(write_to_files, storage)
 
 
 @parametrize_all_storages
 def test_storage_read_speeds(benchmark, storage):
-    key = current_test_name(with_uuid=True)
-    write_to_files(storage, key)
-    benchmark(read_from_files, storage, key)
-    storage.clear()
+    write_to_files(storage)
+    benchmark(read_from_files, storage)
 
 
 @parametrize_all_caches
 def test_cache_read_speeds(benchmark, storage):
-    key = current_test_name(with_uuid=True)
-    write_to_files(storage, key)
-    benchmark(read_from_files, storage, key)
-    storage.clear()
+    write_to_files(storage)
+    benchmark(read_from_files, storage)
 
 
 @parametrize_all_caches
 def test_full_cache_read_speeds(benchmark, storage):
-    key = current_test_name(with_uuid=True)
-    write_to_files(storage, key)
-    read_from_files(storage, key)
-    benchmark(read_from_files, storage, key)
-    storage.clear()
+    write_to_files(storage)
+    read_from_files(storage)
+    benchmark(read_from_files, storage)

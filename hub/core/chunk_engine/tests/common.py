@@ -1,15 +1,14 @@
 import os
 import pickle
 from typing import List, Tuple
-from uuid import uuid1
 
 import numpy as np
 import pytest
 from hub.constants import KB, MB
 from hub.core.chunk_engine import read_array, write_array
 from hub.core.storage import MemoryProvider, S3Provider
-from hub.core.tests.common import current_test_name
 from hub.core.typing import StorageProvider
+from hub.tests.common import current_test_name
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
@@ -107,8 +106,8 @@ def assert_chunk_sizes(
 def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
-    storage.clear()
-    key = current_test_name(with_uuid=True)
+    # storage.clear()
+    key = "tensor"
 
     for i, a_in in enumerate(arrays):
         write_array(
@@ -148,7 +147,7 @@ def run_engine_test(
 
 
 def benchmark_write(key, arrays, chunk_size, storage, batched):
-    storage.clear()
+    # storage.clear()
 
     for a_in in arrays:
         write_array(

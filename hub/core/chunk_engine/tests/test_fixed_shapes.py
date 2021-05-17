@@ -8,9 +8,9 @@ from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
                                                 benchmark_write,
                                                 get_random_array,
                                                 run_engine_test)
-from hub.core.tests.common import (current_test_name,
-                                   parametrize_all_storages_and_caches)
+from hub.core.tests.common import parametrize_all_storages_and_caches
 from hub.core.typing import StorageProvider
+from hub.tests.common import current_test_name
 
 np.random.seed(1)
 
@@ -117,7 +117,7 @@ def test_write(
     gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) / GB
     print("\nBenchmarking array with size: %.2fGB." % gbs)
 
-    key = current_test_name(with_uuid=True)
+    key = current_test_name(with_id=True)
 
     benchmark(
         benchmark_write,
@@ -128,7 +128,7 @@ def test_write(
         batched=True,
     )
 
-    storage.clear()
+    # storage.clear()
 
 
 @pytest.mark.benchmark(group="read_array")
@@ -154,7 +154,7 @@ def test_read(
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
-    key = current_test_name(with_uuid=True)
+    key = current_test_name(with_id=True)
 
     benchmark_write(key, arrays, chunk_size, storage, batched=True)
     benchmark(benchmark_read, key, storage)
