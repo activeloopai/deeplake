@@ -10,7 +10,7 @@ from hub.core.storage.memory import MemoryProvider
 from hub.core.storage.local import LocalProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
 from hub.core.chunk_engine.write import write_array, write_dataset_meta
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 import numpy as np
 import os
 
@@ -21,21 +21,24 @@ class Dataset:
         path: str,
         mode: str = "a",
         ds_slice: slice = slice(None),
-        provider: StorageProvider = None,
+        provider: Optional[StorageProvider] = None,
     ):
         """Initialize a new or existing dataset.
 
         Args:
             path (str): The location of the dataset.
                 Can be a local path, or a url to a cloud storage provider.
-            mode (str, optional): Mode in which the dataset is opened.
+            mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            ds_slice (slice, optional): The slice object restricting the view
+            ds_slice (slice): The slice object restricting the view
                 of this dataset's tensors. Defaults to slice(None, None, None).
                 Used internally for iteration.
             provider (StorageProvider, optional): The storage provider used to access
                 the data stored by this dataset. Will not be used if given path is valid.
+
+        Raises:
+            ValueError: If an existing local path is given, it must be a directory.
         """
         self.path = path
         self.mode = mode

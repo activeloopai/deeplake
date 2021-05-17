@@ -24,7 +24,7 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             provider (StorageProvider): The storage provider for the parent dataset.
-            tensor_slice (slice, optional): The slice object restricting the view of this tensor.
+            tensor_slice (slice): The slice object restricting the view of this tensor.
         """
         self.key = key
         self.provider = provider
