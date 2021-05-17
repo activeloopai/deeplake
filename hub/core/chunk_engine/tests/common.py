@@ -127,8 +127,8 @@ def run_engine_test(
         write_array(
             a_in,
             key,
-            chunk_size,
             storage,
+            chunk_size,
             batched=batched,
         )
 
@@ -171,8 +171,8 @@ def benchmark_write(
         write_array(
             a_in,
             key,
-            chunk_size,
             storage,
+            chunk_size,
             batched=batched,
         )
 
