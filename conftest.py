@@ -3,10 +3,13 @@ from uuid import uuid1
 
 import pytest
 
-from hub.constants import (MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE,
-                           PYTEST_LOCAL_PROVIDER_BASE_ROOT,
-                           PYTEST_MEMORY_PROVIDER_BASE_ROOT,
-                           PYTEST_S3_PROVIDER_BASE_ROOT)
+from hub.constants import (
+    MIN_FIRST_CACHE_SIZE,
+    MIN_SECOND_CACHE_SIZE,
+    PYTEST_LOCAL_PROVIDER_BASE_ROOT,
+    PYTEST_MEMORY_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
+)
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.tests.common import SESSION_ID, current_test_name
