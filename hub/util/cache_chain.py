@@ -25,6 +25,8 @@ def get_cache_chain(provider_list: List[StorageProvider], size_list: List[int]):
     """
     if not provider_list:
         raise ProviderListEmptyError
+    if len(provider_list) <= 1:
+        return provider_list[0]
     if len(size_list) + 1 != len(provider_list):
         raise ProviderSizeListMismatch
     provider_list.reverse()
