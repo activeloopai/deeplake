@@ -18,7 +18,7 @@ class Tensor:
         """Initialize a new tensor.
 
         Note:
-            This operation does not create a new tensor in the backend,
+            This operation does not create a new tensor in the storage provider,
             and should normally only be performed by Hub internals.
 
         Args:
