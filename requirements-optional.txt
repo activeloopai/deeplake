@@ -5,3 +5,4 @@ transformers>=3.5.1
 dask[complete]>=2.30
 tensorflow_datasets
 ray==1.3.0
+supervisely==6.1.64

@@ -813,6 +813,18 @@ class Dataset:
         ds = _to_tensorflow(self, indexes, include_shapes, key_list)
         return ds
 
+    def to_supervisely(self, output):
+        """| Converts the dataset into a supervisely project
+        Parameters
+        ----------
+        output: str
+            Project name and output directory.
+        """
+        from .integrations import _to_supervisely
+
+        project = _to_supervisely(self, output)
+        return project
+
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
         tensor_dict = {}
@@ -1065,6 +1077,24 @@ class Dataset:
         from .integrations import _from_pytorch
 
         ds = _from_pytorch(dataset, scheduler, workers)
+        return ds
+
+    @staticmethod
+    def from_supervisely(project, scheduler: str = "single", workers: int = 1):
+        """| Converts a supervisely project into hub format
+
+        Parameters
+        ----------
+        dataset:
+            The path to the supervisely project that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        """
+        from .integrations import _from_supervisely
+
+        ds = _from_supervisely(project, scheduler, workers)
         return ds
 
     @staticmethod

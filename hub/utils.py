@@ -157,6 +157,14 @@ def pathos_loaded():
     return True
 
 
+def supervisely_loaded():
+    try:
+        import supervisely_lib
+    except ImportError:
+        return False
+    return True
+
+
 def compute_lcm(a):
     """
     Lowest Common Multiple of a list a

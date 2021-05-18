@@ -5,10 +5,15 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import sys
+import numpy as np
+import json
+from itertools import chain
 from collections import defaultdict
+import PIL.Image
+import PIL.ImageDraw
 from hub.exceptions import ModuleNotInstalledException, OutOfBoundsError
 from hub.schema.features import Primitive, Tensor, SchemaDict
-from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
+from hub.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video, Mask
 from .dataset import Dataset
 import hub.store.pickle_s3_storage
 import hub.schema.serialize
@@ -702,3 +707,211 @@ class TorchDataset:
         self._init_ds()
         for i in range(len(self)):
             yield self[i]
+
+
+def _from_supervisely(project, scheduler: str = "single", workers: int = 1):
+    try:
+        import supervisely_lib as sly
+        from supervisely_lib.project import project as sly_image_project
+        from supervisely_lib.project import video_project as sly_video_project
+        from skvideo.io import FFmpegReader, vread
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("supervisely")
+    if isinstance(project, str):
+        with open(project + "meta.json") as meta_file:
+            project_meta_dict = json.load(meta_file)
+        instantiated = False
+    else:
+        project_meta_dict = project.meta.to_json()
+        instantiated = True
+    project_type = project_meta_dict["projectType"]
+    mode = sly.OpenMode.READ
+
+    def infer_image(paths):
+        bboxes, masks = [], []
+        classes_bb, classes_mask = [], []
+        item_path, item_ann_path = paths
+
+        ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
+        ann_dict = ann.to_json()
+        sizes = (ann_dict["size"]["height"], ann_dict["size"]["width"])
+        for obj in ann_dict["objects"]:
+            if obj["geometryType"] == "rectangle":
+                bboxes.append(
+                    [item for sublist in obj["points"]["exterior"] for item in sublist]
+                )
+                classes_bb.append(obj["classTitle"])
+            elif obj["geometryType"] == "polygon":
+                img = PIL.Image.new("L", (sizes[1], sizes[0]), 0)
+                PIL.ImageDraw.Draw(img).polygon(
+                    [tuple(obj) for obj in obj["points"]["exterior"]],
+                    outline=1,
+                    fill=1,
+                )
+                masks.append(np.array(img))
+                classes_mask.append(obj["classTitle"])
+        return sizes, bboxes, masks, classes_bb, classes_mask
+
+    def infer_video(paths):
+        item_path, item_ann_path = paths
+        vreader = FFmpegReader(item_path)
+        return (vreader.getShape(),)
+
+    def infer_project(project, project_type, read_mode):
+        if project_type == "images":
+            if not instantiated:
+                project = sly_image_project.Project(project, mode)
+            max_shape = (0, 0)
+            return (
+                project,
+                Image,
+                infer_image,
+                max_shape,
+            )
+        elif project_type == "videos":
+            if not instantiated:
+                project = sly_video_project.VideoProject(project, mode)
+            max_shape = (0, 0, 0, 0)
+            return (
+                project,
+                Video,
+                infer_video,
+                max_shape,
+            )
+
+    project, main_blob, infer_ds, max_shape = infer_project(project, project_type, mode)
+
+    image_paths = []
+    label_names = []
+    max_num_bboxes = 0
+    max_num_polys = 0
+    masks = False
+    datasets = project.datasets.items()
+    uniform = True
+    for ds in datasets:
+        for i, item in enumerate(ds):
+            path = ds.get_item_paths(item)
+            image_paths.append(path)
+            inf = infer_ds(path)
+            if len(inf) > 1:
+                if inf[3]:
+                    label_names.extend(inf[3])
+                    if len(inf[3]) > max_num_bboxes:
+                        max_num_bboxes = len(inf[3])
+                if inf[4]:
+                    label_names.extend(inf[4])
+                    if len(inf[4]) > max_num_polys:
+                        max_num_polys = len(inf[4])
+                if inf[2]:
+                    masks = True
+            shape = inf[0]
+            max_shape = np.maximum(shape, max_shape)
+            if uniform and max_shape.any() and (shape != max_shape).any():
+                uniform = False
+    label_names = list(np.unique(label_names))
+    items = chain(*datasets)
+    idatasets = iter(datasets)
+    ds, i = next(idatasets), 0
+    key = "shape" if uniform else "max_shape"
+    if project_type == "images":
+        read = sly.imaging.image.read
+        blob_shape = {key: (*max_shape.tolist(), 3)}
+    elif project_type == "videos":
+        read = vread
+        blob_shape = {key: max_shape.tolist()}
+        if key == "max_shape":
+            blob_shape["shape"] = (None, None, None, 3)
+
+    schema = {
+        project_type: main_blob(**blob_shape),
+    }
+    if max_num_bboxes:
+        schema["bbox"] = BBox(shape=(None, 4), max_shape=(max_num_bboxes, 4))
+    if label_names:
+        schema["label"] = ClassLabel(
+            shape=(None,),
+            max_shape=(max(max_num_bboxes, max_num_polys),),
+            names=label_names,
+        )
+    if masks:
+        schema["mask"] = Mask(
+            shape=(None, None, None), max_shape=(*max_shape.tolist(), 1)
+        )
+
+    @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+    def transformation(item):
+        nonlocal i, ds
+        sample = {}
+        if i >= len(ds):
+            ds, i = next(idatasets), 0
+        item_path, item_ann_path = ds.get_item_paths(item)
+        i += 1
+        _, bboxes, masks, classes_bbox, classes_mask = infer_ds(
+            (item_path, item_ann_path)
+        )
+        sample[project_type] = read(item_path)
+        if bboxes:
+            sample["bbox"] = np.array(bboxes)
+            sample["label"] = [label_names.index(i) for i in classes_bbox]
+        if masks:
+            sample["mask"] = np.expand_dims(masks[0], -1)
+            sample["label"] = [label_names.index(i) for i in classes_mask]
+        return sample
+
+    return transformation(list(items))
+
+
+def _to_supervisely(dataset, output):
+    try:
+        import supervisely_lib as sly
+        from skvideo.io import vwrite
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException("supervisely")
+    schema_dict = dataset.schema.dict_
+    for key, schem in schema_dict.items():
+        if isinstance(schem, Image):
+            project_type = "images"
+            extension = "jpeg"
+            break
+        elif isinstance(schem, Video):
+            project_type = "videos"
+            extension = "mp4"
+            break
+    else:
+        raise Exception
+    mode = sly.OpenMode.CREATE
+    if project_type == "images":
+        _project = sly.Project
+    elif project_type == "videos":
+        _project = sly.VideoProject
+    else:
+        raise Exception
+    pr = _project(output, mode)
+    meta = pr.meta
+    meta._project_type = project_type
+    # probably here we can create multiple datasets
+    out_ds = pr.create_dataset(output)
+    try:
+        fn_key = "filename"
+        dataset[fn_key]
+    except KeyError:
+        fn_key = None
+        zeroes = len(str(len(dataset)))
+    for idx, view in enumerate(dataset):
+        obj = view[key].compute()
+        if fn_key:
+            fn = view[fn_key].compute()
+        else:
+            fn = f"{idx:0{zeroes}}"
+        fn = "{}.{}".format(fn, extension)
+        # strangely supervisely prevents from using this method on videos
+        try:
+            out_ds.add_item_np(fn, obj)
+        except RuntimeError:
+            # fix with in-memory file
+            path = "{}/{}".format(out_ds.item_dir, fn)
+            vwrite(path, obj)
+            out_ds._item_to_ann[fn] = fn + ".json"
+            out_ds.set_ann(fn, out_ds._get_empty_annotaion(path))
+    pr.set_meta(meta)
+    return pr
