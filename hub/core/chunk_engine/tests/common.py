@@ -15,6 +15,11 @@ from hub.util.s3 import has_s3_credentials
 
 TENSOR_KEY = "tensor"
 
+SHAPE_PARAM = "shape"
+NUM_BATCHES_PARAM = "num_batches"
+DTYPE_PARAM = "dtype"
+CHUNK_SIZE_PARAM = "chunk_size"
+
 
 CHUNK_SIZES = (
     1 * KB,
@@ -29,6 +34,10 @@ DTYPES = (
     "float64",
     "bool",
 )
+
+
+parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
+parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
 
 
 def get_min_shape(batch: np.ndarray) -> Tuple:
@@ -147,24 +156,3 @@ def run_engine_test(
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
-
-
-def benchmark_write(info, key, arrays, chunk_size, storage, batched):
-    actual_key = "%s_%i" % (key, info["iteration"])
-
-    for a_in in arrays:
-        write_array(
-            a_in,
-            actual_key,
-            chunk_size,
-            storage,
-            batched=batched,
-        )
-
-    info["iteration"] += 1
-
-    return actual_key
-
-
-def benchmark_read(key: str, storage: StorageProvider):
-    read_array(key, storage)
