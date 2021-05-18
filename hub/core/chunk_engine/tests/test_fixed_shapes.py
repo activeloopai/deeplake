@@ -3,15 +3,11 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB, MB
-from hub.core.chunk_engine.tests.common import (
-    CHUNK_SIZES,
-    DTYPES,
-    TENSOR_KEY,
-    benchmark_read,
-    benchmark_write,
-    get_random_array,
-    run_engine_test,
-)
+from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
+                                                TENSOR_KEY, benchmark_read,
+                                                benchmark_write,
+                                                get_random_array,
+                                                run_engine_test)
 from hub.core.tests.common import parametrize_all_storages_and_caches
 from hub.core.typing import StorageProvider
 from hub.tests.common import current_test_name
@@ -39,6 +35,14 @@ BATCHED_SHAPES = (
     (3, 3, 12, 12, 1),
 )
 
+SHAPE_PARAM = "shape"
+NUM_BATCHES_PARAM = "num_batches"
+DTYPE_PARAM = "dtype"
+CHUNK_SIZE_PARAM = "chunk_size"
+
+parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
+parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
+
 
 # for benchmarks
 BENCHMARK_NUM_BATCHES = (1,)
@@ -53,10 +57,10 @@ BENCHMARK_BATCHED_SHAPES = (
 )
 
 
-SHAPE_PARAM = "shape"
-NUM_BATCHES_PARAM = "num_batches"
-parametrize_chunk_sizes = pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
-parametrize_dtypes = pytest.mark.parametrize("dtype", DTYPES)
+parametrize_benchmark_chunk_sizes = pytest.mark.parametrize(
+    CHUNK_SIZE_PARAM, BENCHMARK_CHUNK_SIZES
+)
+parametrize_benchmark_dtypes = pytest.mark.parametrize(DTYPE_PARAM, BENCHMARK_DTYPES)
 
 
 @pytest.mark.parametrize(SHAPE_PARAM, UNBATCHED_SHAPES)
@@ -101,11 +105,11 @@ def test_batched(
     run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
 
 
-@pytest.mark.benchmark(group="write_array")
+@pytest.mark.benchmark(group="chunk_engine")
 @pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES)
 @pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
-@parametrize_chunk_sizes
-@parametrize_dtypes
+@parametrize_benchmark_chunk_sizes
+@parametrize_benchmark_dtypes
 @parametrize_all_storages_and_caches
 def test_write(
     benchmark,
@@ -137,11 +141,11 @@ def test_write(
     )
 
 
-@pytest.mark.benchmark(group="read_array")
+@pytest.mark.benchmark(group="chunk_engine")
 @pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES)
 @pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
-@parametrize_chunk_sizes
-@parametrize_dtypes
+@parametrize_benchmark_chunk_sizes
+@parametrize_benchmark_dtypes
 @parametrize_all_storages_and_caches
 def test_read(
     benchmark,
