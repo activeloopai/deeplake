@@ -1,16 +1,15 @@
 import pytest
-from hub.api.dataset_utils import _get_compressor
+from hub.api.dataset_utils import get_compressor
+from hub.util.exceptions import InvalidCompressor
 
-CODECS = ("lz4", "zstd", "numpy", "png", "jpeg")
 
-
-@pytest.mark.parametrize("codec_name", CODECS)
+@pytest.mark.parametrize("codec_name", (mod for mod in dir() if mod.isupper()))
 def test_get_compressor(codec_name: str) -> None:
-    compressor = _get_compressor(codec_name)
+    compressor = get_compressor(codec_name)
     assert compressor.__name__ == codec_name
 
 
 def test_unavailable_codec():
     codec_name = "zip"
-    with pytest.raises(ValueError):
-        _get_compressor(codec_name)
+    with pytest.raises(InvalidCompressor):
+        get_compressor(codec_name)

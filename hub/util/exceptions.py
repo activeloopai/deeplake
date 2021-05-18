@@ -82,3 +82,11 @@ class S3DeletionError(Exception):
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
+
+
+class InvalidCompressor(Exception):
+    def __init__(self):
+        super().__init__(
+            "Compressor is not supported. Supported compressions: "
+            f"{[mod.lower() for mod in dir() if mod.isupper()]}."
+        )
