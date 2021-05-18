@@ -47,6 +47,10 @@ def _get_storage_configs(request):
     }
 
 
+def _has_fixture(request, fixture):
+    return fixture in request.fixturenames
+
+
 def _skip_if_none(val):
     if val is None:
         pytest.skip()
@@ -121,6 +125,14 @@ def _get_local_provider(request):
 
 def _get_s3_provider(request):
     return _get_storage_provider(request, S3)
+
+
+@pytest.fixture
+def marks(request):
+    marks = [m.name for m in request.node.iter_markers()]
+    if request.node.parent:
+        marks += [m.name for m in request.node.parent.iter_markers()]
+    yield marks
 
 
 @pytest.fixture
@@ -206,3 +218,13 @@ def clear_storages(request):
 
     # executed after the last test
     print_session_id(request)
+
+
+@pytest.fixture(scope="function", autouse=True)
+def skip_if_full_benchmarks_disabled(request, marks):
+    if _is_opt_true(request, FULL_BENCHMARK_OPT):
+        # don't skip anything if `FULL_BENCHMARK_OPT` is provided
+        return
+
+    if FULL_BENCHMARK_MARK in marks:
+        pytest.skip()
