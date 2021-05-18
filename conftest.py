@@ -3,7 +3,7 @@ from uuid import uuid1
 
 import pytest
 
-from hub.constants import (MIN_SECOND_CACHE_SIZE, MIN_FIRST_CACHE_SIZE,
+from hub.constants import (MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE,
                            PYTEST_LOCAL_PROVIDER_BASE_ROOT,
                            PYTEST_MEMORY_PROVIDER_BASE_ROOT,
                            PYTEST_S3_PROVIDER_BASE_ROOT)
@@ -11,20 +11,31 @@ from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
 
+MEMORY = "memory"
+LOCAL = "local"
+S3 = "s3"
+
+MEMORY_OPT = "--memory-skip"
+LOCAL_OPT = "--local"
+S3_OPT = "--s3"
+CACHE_OPT = "--cache-chains"
+CACHE_ONLY_OPT = "--cache-chains-only"
+
+
 STORAGE_CONFIG_MAP = {
-    "memory": {
+    MEMORY: {
         "base_root": PYTEST_MEMORY_PROVIDER_BASE_ROOT,
         "class": MemoryProvider,
         "use_id": False,
         "is_id_prefix": False,  # if is_id_prefix (and use_id=True), the session id comes before test name, otherwise it is reversed
     },
-    "local": {
+    LOCAL: {
         "base_root": PYTEST_LOCAL_PROVIDER_BASE_ROOT,
         "class": LocalProvider,
         "use_id": False,
         "is_id_prefix": False,
     },
-    "s3": {
+    S3: {
         "base_root": PYTEST_S3_PROVIDER_BASE_ROOT,
         "class": S3Provider,
         "use_id": True,
@@ -44,32 +55,34 @@ def _is_opt_true(request, opt):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--memory-skip",
+        MEMORY_OPT,
         action="store_true",
         help="Tests using the `memory_provider` fixture will be skipped. Tests using the `storage` fixture will be skipped if called with \
                 `MemoryProvider`.",
     )
     parser.addoption(
-        "--local",
+        LOCAL_OPT,
         action="store_true",
         help="Tests using the `storage`/`local_provider` fixtures will run with `LocalProvider`.",
     )
     parser.addoption(
-        "--s3",
+        S3_OPT,
         action="store_true",
         help="Tests using the `storage`/`s3_provider` fixtures will run with `S3Provider`.",
     )
     parser.addoption(
-        "--cache-chains",
+        CACHE_OPT,
         action="store_true",
         help="Tests using the `storage` fixture may run with combinations of all enabled providers \
-                in cache chains. For example, if the option `--s3` is not provided, all cache chains that use `S3Provider` are skipped.",
+                in cache chains. For example, if the option `%s` is not provided, all cache chains that use `S3Provider` are skipped."
+        % (S3_OPT),
     )
     parser.addoption(
-        "--cache-chains-only",
+        CACHE_ONLY_OPT,
         action="store_true",
-        help="Force enables `--cache-chains`. `storage` fixture only returns cache chains. For example, if `--s3` is provided, \
-            `storage` will never be just `S3Provider`.",
+        help="Force enables `%s`. `storage` fixture only returns cache chains. For example, if `%s` is provided, \
+            `storage` will never be just `S3Provider`."
+        % (CACHE_OPT, S3_OPT),
     )
 
 
@@ -84,24 +97,34 @@ def _get_storage_provider(storage_name, with_current_test_name=True):
     return info["class"](root)
 
 
+def _get_memory_provider():
+    return _get_storage_provider(MEMORY)
+
+
+def _get_local_provider():
+    return _get_storage_provider(LOCAL)
+
+
+def _get_s3_provider():
+    return _get_storage_provider(S3)
+
+
 @pytest.fixture
 def memory_storage(request):
-    if not _is_opt_true(request, "--memory-skip"):
-        return _get_storage_provider("memory")
+    if not _is_opt_true(request, MEMORY_OPT):
+        return _get_memory_provider()
 
 
 @pytest.fixture
 def local_storage(request):
-    if _is_opt_true(request, "--local"):
-        # TODO: root as option
-        return _get_storage_provider("local")
+    if _is_opt_true(request, LOCAL_OPT):
+        return _get_local_provider()
 
 
 @pytest.fixture
 def s3_storage(request):
-    if _is_opt_true(request, "--s3"):
-        # TODO: root as option
-        return _get_storage_provider("s3")
+    if _is_opt_true(request, S3_OPT):
+        return _get_s3_provider()
 
 
 @pytest.fixture
@@ -109,8 +132,8 @@ def storage(request, memory_storage, local_storage, s3_storage):
     requested_providers = request.param.split(",")
 
     # --cache-chains-only force enables --cache-chains
-    use_cache_chains_only = _is_opt_true(request, "--cache-chains-only")
-    use_cache_chains = _is_opt_true(request, "--cache-chains") or use_cache_chains_only
+    use_cache_chains_only = _is_opt_true(request, CACHE_ONLY_OPT)
+    use_cache_chains = _is_opt_true(request, CACHE_OPT) or use_cache_chains_only
 
     if use_cache_chains_only and len(requested_providers) <= 1:
         pytest.skip()
@@ -121,16 +144,16 @@ def storage(request, memory_storage, local_storage, s3_storage):
     storage_providers = []
     cache_sizes = []
 
-    if "memory" in requested_providers:
+    if MEMORY in requested_providers:
         _skip_if_none(memory_storage)
         storage_providers.append(memory_storage)
         cache_sizes.append(MIN_FIRST_CACHE_SIZE)
-    if "local" in requested_providers:
+    if LOCAL in requested_providers:
         _skip_if_none(local_storage)
         storage_providers.append(local_storage)
         cache_size = MIN_FIRST_CACHE_SIZE if not cache_sizes else MIN_SECOND_CACHE_SIZE
         cache_sizes.append(cache_size)
-    if "s3" in requested_providers:
+    if S3 in requested_providers:
         _skip_if_none(s3_storage)
         storage_providers.append(s3_storage)
 
@@ -144,12 +167,12 @@ def storage(request, memory_storage, local_storage, s3_storage):
 def clear_storages(request):
     # executed before the first test
 
-    if not _is_opt_true(request, "--memory-skip"):
-        storage = _get_storage_provider("memory", with_current_test_name=False)
+    if not _is_opt_true(request, MEMORY_OPT):
+        storage = _get_storage_provider(MEMORY, with_current_test_name=False)
         storage.clear()
 
-    if _is_opt_true(request, "--local"):
-        storage = _get_storage_provider("local", with_current_test_name=False)
+    if _is_opt_true(request, LOCAL_OPT):
+        storage = _get_storage_provider(LOCAL, with_current_test_name=False)
         storage.clear()
 
     # don't clear S3 tests (these will be automatically cleared on occasion)
@@ -158,7 +181,7 @@ def clear_storages(request):
 
     # executed after the last test
 
-    if _is_opt_true(request, "--s3"):
+    if _is_opt_true(request, S3_OPT):
         # s3 is the only storage provider that uses the SESSION_ID prefix
         # if it is enabled, print it out after all tests finish
         print("\n\n")
