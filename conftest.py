@@ -20,7 +20,7 @@ CACHE_ONLY_OPT = "--cache-chains-only"
 S3_BUCKET_OPT = "--s3-bucket"
 
 
-def get_storage_configs(request):
+def _get_storage_configs(request):
     return {
         MEMORY: {
             "base_root": PYTEST_MEMORY_PROVIDER_BASE_ROOT,
@@ -92,7 +92,7 @@ def pytest_addoption(parser):
 
 
 def _get_storage_provider(request, storage_name, with_current_test_name=True):
-    info = get_storage_configs(request)[storage_name]
+    info = _get_storage_configs(request)[storage_name]
     root = info["base_root"]
     if with_current_test_name:
         path = current_test_name(
