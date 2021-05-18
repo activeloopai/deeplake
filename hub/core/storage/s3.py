@@ -4,8 +4,7 @@ from typing import Optional
 import boto3
 import botocore  # type: ignore
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import (S3DeletionError, S3GetError, S3ListError,
-                                 S3SetError)
+from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 
 
 class S3Provider(StorageProvider):

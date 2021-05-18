@@ -1,7 +1,6 @@
 import pytest
 from hub.constants import MB
-from hub.core.tests.common import (parametrize_all_caches,
-                                   parametrize_all_storages)
+from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.tests.common import current_test_name
 from numpy import can_cast
 
