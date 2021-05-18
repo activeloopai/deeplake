@@ -40,119 +40,69 @@ def check_storage_provider(storage):
     storage.flush()
 
 
+def check_cache_state(cache, expected_state):
+    assert cache.dirty_keys == expected_state[0]
+    assert set(cache.lru_sizes.keys()) == expected_state[1]
+    assert len(cache.cache_storage) == expected_state[2]
+    assert len(cache.next_storage) == expected_state[3]
+    assert cache.cache_used == expected_state[4]
+    assert len(cache) == expected_state[5]
+
+
 def check_cache(cache):
     chunk = b"0123456789123456" * MB
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == set()
-    assert len(cache.cache_storage) == 0
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 0
-    assert len(cache) == 0
-
-    FILE_1 = f"{KEY}_1"
-    FILE_2 = f"{KEY}_2"
-    FILE_3 = f"{KEY}_3"
+    FILE_1, FILE_2, FILE_3 = f"{KEY}_1", f"{KEY}_2", f"{KEY}_3"
+    check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
     cache[FILE_1] = chunk
-    assert cache.dirty_keys == {FILE_1}
-    assert set(cache.lru_sizes.keys()) == {FILE_1}
-    assert len(cache.cache_storage) == 1
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 16 * MB
-    assert len(cache) == 1
+    check_cache_state(cache, expected_state=[{FILE_1}, {FILE_1}, 1, 0, 16 * MB, 1])
 
     cache[FILE_2] = chunk
-    assert cache.dirty_keys == {FILE_1, FILE_2}
-    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 2
+    check_cache_state(
+        cache, expected_state=[{FILE_1, FILE_2}, {FILE_1, FILE_2}, 2, 0, 32 * MB, 2]
+    )
 
     cache[FILE_3] = chunk
-    assert cache.dirty_keys == {FILE_3, FILE_2}
-    assert set(cache.lru_sizes.keys()) == {FILE_2, FILE_3}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 1
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 3
+    check_cache_state(
+        cache, expected_state=[{FILE_3, FILE_2}, {FILE_3, FILE_2}, 2, 1, 32 * MB, 3]
+    )
 
     cache[FILE_1]
-    assert cache.dirty_keys == {FILE_3}
-    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_3}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 2
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 3
+    check_cache_state(
+        cache, expected_state=[{FILE_3}, {FILE_1, FILE_3}, 2, 2, 32 * MB, 3]
+    )
 
     cache[FILE_3]
-    assert cache.dirty_keys == {FILE_3}
-    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_3}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 2
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 3
+    check_cache_state(
+        cache, expected_state=[{FILE_3}, {FILE_1, FILE_3}, 2, 2, 32 * MB, 3]
+    )
 
     del cache[FILE_3]
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == {FILE_1}
-    assert len(cache.cache_storage) == 1
-    assert len(cache.next_storage) == 2
-    assert cache.cache_used == 16 * MB
-    assert len(cache) == 2
+    check_cache_state(cache, expected_state=[set(), {FILE_1}, 1, 2, 16 * MB, 2])
 
     del cache[FILE_1]
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == set()
-    assert len(cache.cache_storage) == 0
-    assert len(cache.next_storage) == 1
-    assert cache.cache_used == 0
-    assert len(cache) == 1
+    check_cache_state(cache, expected_state=[set(), set(), 0, 1, 0, 1])
 
     del cache[FILE_2]
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == set()
-    assert len(cache.cache_storage) == 0
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 0
-    assert len(cache) == 0
+    check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
     with pytest.raises(KeyError):
         cache[FILE_1]
 
     cache[FILE_1] = chunk
-    assert cache.dirty_keys == {FILE_1}
-    assert set(cache.lru_sizes.keys()) == {FILE_1}
-    assert len(cache.cache_storage) == 1
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 16 * MB
-    assert len(cache) == 1
+    check_cache_state(cache, expected_state=[{FILE_1}, {FILE_1}, 1, 0, 16 * MB, 1])
 
     cache[FILE_2] = chunk
-    assert cache.dirty_keys == {FILE_1, FILE_2}
-    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 2
+    check_cache_state(
+        cache, expected_state=[{FILE_1, FILE_2}, {FILE_1, FILE_2}, 2, 0, 32 * MB, 2]
+    )
 
     cache.flush()
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == {FILE_1, FILE_2}
-    assert len(cache.cache_storage) == 2
-    assert len(cache.next_storage) == 2
-    assert cache.cache_used == 32 * MB
-    assert len(cache) == 2
+    check_cache_state(cache, expected_state=[set(), {FILE_1, FILE_2}, 2, 2, 32 * MB, 2])
 
     del cache[FILE_1]
     del cache[FILE_2]
-
-    assert cache.dirty_keys == set()
-    assert set(cache.lru_sizes.keys()) == set()
-    assert len(cache.cache_storage) == 0
-    assert len(cache.next_storage) == 0
-    assert cache.cache_used == 0
-    assert len(cache) == 0
+    check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
 def write_to_files(storage, key):
