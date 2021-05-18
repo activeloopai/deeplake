@@ -17,8 +17,8 @@ TENSOR_KEY = "tensor"
 
 
 CHUNK_SIZES = (
-    KB,
-    MB,
+    1 * KB,
+    1 * MB,
     16 * MB,
 )
 
