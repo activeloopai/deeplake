@@ -30,9 +30,9 @@ class Tensor:
         self.provider = provider
         self.slice = tensor_slice
 
-        self._update_from_meta()
+        self.load_meta()
 
-    def _update_from_meta(self):
+    def load_meta(self):
         meta = read_tensor_meta(self.key, self.provider)
         self.num_samples = meta["length"]
         self.shape = meta["max_shape"]
@@ -62,7 +62,7 @@ class Tensor:
                 storage=self.provider,
                 batched=True,
             )
-            self._update_from_meta()
+            self.load_meta()
 
     def __iter__(self):
         for i in range(len(self)):
