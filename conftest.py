@@ -8,12 +8,9 @@ from hub.constants import (MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE,
                            PYTEST_MEMORY_PROVIDER_BASE_ROOT,
                            PYTEST_S3_PROVIDER_BASE_ROOT)
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
+from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
-
-MEMORY = "memory"
-LOCAL = "local"
-S3 = "s3"
 
 MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"
@@ -129,7 +126,9 @@ def s3_storage(request):
 
 @pytest.fixture
 def storage(request, memory_storage, local_storage, s3_storage):
-    requested_providers = request.param.split(",")
+    requested_providers = request.param
+    if isinstance(requested_providers, str):
+        requested_providers = (requested_providers,)
 
     # --cache-chains-only force enables --cache-chains
     use_cache_chains_only = _is_opt_true(request, CACHE_ONLY_OPT)

@@ -1,23 +1,29 @@
 import pytest
 
-ALL_PROVIDERS = ["memory", "local", "s3"]
-ALL_CACHES = ["memory,local", "memory,s3", "local,s3", "memory,local,s3"]
+STORAGE_FIXTURE_NAME = "storage"
+
+MEMORY = "memory"
+LOCAL = "local"
+S3 = "s3"
+
+ALL_PROVIDERS = [MEMORY, LOCAL, S3]
+ALL_CACHES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
 
 
 parametrize_all_storages = pytest.mark.parametrize(
-    "storage",
+    STORAGE_FIXTURE_NAME,
     ALL_PROVIDERS,
     indirect=True,
 )
 
 parametrize_all_caches = pytest.mark.parametrize(
-    "storage",  # caches are used the same as `storage`
+    STORAGE_FIXTURE_NAME,
     ALL_CACHES,
     indirect=True,
 )
 
 parametrize_all_storages_and_caches = pytest.mark.parametrize(
-    "storage",
+    STORAGE_FIXTURE_NAME,
     ALL_PROVIDERS + ALL_CACHES,
     indirect=True,
 )
