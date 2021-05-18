@@ -89,8 +89,7 @@ def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
 
 @pytest.mark.parametrize("single_channel", [False, True])
 def test_jpeg_codec_config(single_channel: bool) -> None:
-    jpeg_compressor = compression.__dict__["JPEG"]
-    codec = jpeg_compressor(single_channel=single_channel)
+    codec = JPEG(single_channel=single_channel)
     check_codec_config(codec)
 
 
