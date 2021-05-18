@@ -8,7 +8,8 @@ from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
                                                 benchmark_write,
                                                 get_random_array,
                                                 run_engine_test)
-from hub.core.tests.common import parametrize_all_storages_and_caches
+from hub.core.tests.common import (parametrize_all_caches,
+                                   parametrize_all_storages_and_caches)
 from hub.core.typing import StorageProvider
 from hub.tests.common import current_test_name
 
@@ -110,7 +111,7 @@ def test_batched(
 @pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_storages_and_caches
+@parametrize_all_caches
 def test_write(
     benchmark,
     shape: Tuple[int],
@@ -129,10 +130,13 @@ def test_write(
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
     gbs = (np.prod(shape) * num_batches * np.dtype(dtype).itemsize) / GB
-    print("\nBenchmarking array with size: %.2fGB." % gbs)
+    benchmark.extra_info["input_array_gigabytes"] = gbs
+
+    info = {"iteration": 0}
 
     benchmark(
         benchmark_write,
+        info,
         TENSOR_KEY,
         arrays,
         chunk_size,
@@ -146,7 +150,7 @@ def test_write(
 @pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_storages_and_caches
+@parametrize_all_caches
 def test_read(
     benchmark,
     shape: Tuple[int],
@@ -164,5 +168,9 @@ def test_read(
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
-    benchmark_write(TENSOR_KEY, arrays, chunk_size, storage, batched=True, clear=False)
-    benchmark(benchmark_read, TENSOR_KEY, storage)
+    info = {"iteration": 0}
+
+    actual_key = benchmark_write(
+        info, TENSOR_KEY, arrays, chunk_size, storage, batched=True
+    )
+    benchmark(benchmark_read, actual_key, storage)
