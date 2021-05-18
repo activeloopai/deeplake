@@ -3,7 +3,7 @@ from uuid import uuid1
 
 import pytest
 
-from hub.constants import (MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE,
+from hub.constants import (MIN_SECOND_CACHE_SIZE, MIN_FIRST_CACHE_SIZE,
                            PYTEST_LOCAL_PROVIDER_BASE_ROOT,
                            PYTEST_MEMORY_PROVIDER_BASE_ROOT,
                            PYTEST_S3_PROVIDER_BASE_ROOT)
@@ -124,11 +124,12 @@ def storage(request, memory_storage, local_storage, s3_storage):
     if "memory" in requested_providers:
         _skip_if_none(memory_storage)
         storage_providers.append(memory_storage)
-        cache_sizes.append(MIN_MEMORY_CACHE_SIZE)
+        cache_sizes.append(MIN_FIRST_CACHE_SIZE)
     if "local" in requested_providers:
         _skip_if_none(local_storage)
         storage_providers.append(local_storage)
-        cache_sizes.append(MIN_LOCAL_CACHE_SIZE)
+        cache_size = MIN_FIRST_CACHE_SIZE if not cache_sizes else MIN_SECOND_CACHE_SIZE
+        cache_sizes.append(cache_size)
     if "s3" in requested_providers:
         _skip_if_none(s3_storage)
         storage_providers.append(s3_storage)

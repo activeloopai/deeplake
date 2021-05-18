@@ -1,5 +1,5 @@
 import pytest
-from hub.constants import MB, MIN_LOCAL_CACHE_SIZE, MIN_MEMORY_CACHE_SIZE
+from hub.constants import MB
 from hub.core.tests.common import (parametrize_all_caches,
                                    parametrize_all_storages)
 from hub.tests.common import current_test_name
@@ -42,8 +42,6 @@ def check_storage_provider(storage):
 
 
 def check_cache(cache):
-    # TODO: utilize MIN_MEMORY_CACHE_SIZE and MIN_LOCAL_CACHE_SIZE for caclulating these test measurements
-
     chunk = b"0123456789123456" * MB
     assert cache.dirty_keys == set()
     assert set(cache.lru_sizes.keys()) == set()
