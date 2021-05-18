@@ -1,6 +1,8 @@
-from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
-from hub.core.storage.provider import StorageProvider
 import os
+import shutil
+
+from hub.core.storage.provider import StorageProvider
+from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
 
 
 class LocalProvider(StorageProvider):
@@ -156,3 +158,10 @@ class LocalProvider(StorageProvider):
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
         return full_path
+
+    def clear(self):
+        """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
+
+        # much faster than mapper.clear()
+        if os.path.exists(self.root):
+            shutil.rmtree(self.root)

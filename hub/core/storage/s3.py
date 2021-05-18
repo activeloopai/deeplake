@@ -1,9 +1,10 @@
-import boto3
-import botocore  # type: ignore
 import posixpath
 from typing import Optional
+
+import boto3
+import botocore  # type: ignore
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
+from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 
 
 class S3Provider(StorageProvider):
@@ -40,6 +41,8 @@ class S3Provider(StorageProvider):
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
 
+        root = root.replace("s3://", "")
+
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
 
@@ -56,6 +59,17 @@ class S3Provider(StorageProvider):
             endpoint_url=self.endpoint_url,
             region_name=self.aws_region,
         )
+        self.resource = None
+        if client is None:
+            self.resource = boto3.resource(
+                "s3",
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
@@ -130,7 +144,6 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        print("listing")
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
@@ -163,3 +176,13 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
+
+    def clear(self):
+        """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+
+        # much faster than mapper.clear()
+        if self.resource is not None:
+            bucket = self.resource.Bucket(self.bucket)
+            bucket.objects.filter(Prefix=self.path).delete()
+        else:
+            super().clear()
