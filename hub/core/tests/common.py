@@ -24,6 +24,6 @@ parametrize_all_caches = pytest.mark.parametrize(
 
 parametrize_all_storages_and_caches = pytest.mark.parametrize(
     STORAGE_FIXTURE_NAME,
-    ALL_PROVIDERS + ALL_CACHES,
+    ALL_PROVIDERS + ALL_CACHES,  # type: ignore
     indirect=True,
 )
