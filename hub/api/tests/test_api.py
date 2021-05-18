@@ -1,6 +1,7 @@
 import os, shutil
 import numpy as np
 from hub.api.dataset import Dataset
+from hub.core.storage import LocalProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
 import pytest
 
@@ -18,6 +19,7 @@ def test_create_empty_memory_dataset():
 
 def test_create_empty_local_dataset():
     ds = Dataset("/tmp/hub-test/empty")
+    assert type(ds.provider) == LocalProvider
     assert read_dataset_meta(ds.provider) == {"tensors": []}
 
 

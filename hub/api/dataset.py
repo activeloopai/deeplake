@@ -1,13 +1,13 @@
 from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
+from hub.util.path import local_provider_from_path
 from hub.util.exceptions import (
     TensorNotFoundError,
     InvalidKeyTypeError,
     UnsupportedTensorTypeError,
 )
-from hub.core.storage.provider import StorageProvider
-from hub.core.storage.memory import MemoryProvider
-from hub.core.storage.local import LocalProvider
+from hub.core.storage import StorageProvider
+from hub.core.storage import MemoryProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
 from hub.core.chunk_engine.write import write_array, write_dataset_meta
 from typing import Union, Dict, Optional
@@ -44,15 +44,11 @@ class Dataset:
         self.mode = mode
         self.slice = ds_slice
 
-        if path.startswith((".", "/", "~")):
-            if not os.path.exists(path) or os.path.isdir(path):
-                provider = LocalProvider(path)
-            else:
-                raise ValueError("Local path must be a directory")
-
-        if provider is None:
-            provider = MemoryProvider(path)
-        self.provider = provider
+        self.provider = local_provider_from_path(path)
+        if self.provider is None:
+            self.provider = provider
+        if self.provider is None:
+            self.provider = MemoryProvider(path)
 
         self.tensors: Dict[str, Tensor] = {}
         if "meta.json" in self.provider:
