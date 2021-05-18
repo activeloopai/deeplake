@@ -149,7 +149,7 @@ def run_engine_test(
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
 
-def benchmark_write(key, arrays, chunk_size, storage, batched):
+def benchmark_write(key, arrays, chunk_size, storage, batched, clear=True):
     for a_in in arrays:
         write_array(
             a_in,
@@ -158,6 +158,8 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
             storage,
             batched=batched,
         )
+    if clear:
+        storage.clear()
 
 
 def benchmark_read(key: str, storage: StorageProvider):

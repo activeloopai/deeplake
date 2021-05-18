@@ -156,5 +156,5 @@ def test_read(
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
 
-    benchmark_write(TENSOR_KEY, arrays, chunk_size, storage, batched=True)
+    benchmark_write(TENSOR_KEY, arrays, chunk_size, storage, batched=True, clear=False)
     benchmark(benchmark_read, TENSOR_KEY, storage)
