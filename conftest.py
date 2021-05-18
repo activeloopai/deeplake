@@ -3,13 +3,10 @@ from uuid import uuid1
 
 import pytest
 
-from hub.constants import (
-    MIN_SECOND_CACHE_SIZE,
-    MIN_FIRST_CACHE_SIZE,
-    PYTEST_LOCAL_PROVIDER_BASE_ROOT,
-    PYTEST_MEMORY_PROVIDER_BASE_ROOT,
-    PYTEST_S3_PROVIDER_BASE_ROOT,
-)
+from hub.constants import (MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE,
+                           PYTEST_LOCAL_PROVIDER_BASE_ROOT,
+                           PYTEST_MEMORY_PROVIDER_BASE_ROOT,
+                           PYTEST_S3_PROVIDER_BASE_ROOT)
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.tests.common import SESSION_ID, current_test_name
@@ -173,6 +170,16 @@ def storage(request, memory_storage, local_storage, s3_storage):
     return get_cache_chain(storage_providers, cache_sizes)
 
 
+def print_session_id(request):
+    if _is_opt_true(request, S3_OPT):
+        # s3 is the only storage provider that uses the SESSION_ID prefix
+        # if it is enabled, print it out after all tests finish
+        print("\n\n")
+        print("----------------------------------------------------------")
+        print("Testing session ID: %s" % SESSION_ID)
+        print("----------------------------------------------------------")
+
+
 @pytest.fixture(scope="session", autouse=True)
 def clear_storages(request):
     # executed before the first test
@@ -186,15 +193,9 @@ def clear_storages(request):
         storage.clear()
 
     # don't clear S3 tests (these will be automatically cleared on occasion)
+    print_session_id(request)
 
     yield
 
     # executed after the last test
-
-    if _is_opt_true(request, S3_OPT):
-        # s3 is the only storage provider that uses the SESSION_ID prefix
-        # if it is enabled, print it out after all tests finish
-        print("\n\n")
-        print("----------------------------------------------------------")
-        print("Testing session ID: %s" % SESSION_ID)
-        print("----------------------------------------------------------")
+    print_session_id(request)
