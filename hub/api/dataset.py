@@ -1,3 +1,4 @@
+from hub.constants import META_FILENAME
 from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
 from hub.util.path import local_provider_from_path
@@ -51,7 +52,7 @@ class Dataset:
             self.provider = MemoryProvider(path)
 
         self.tensors: Dict[str, Tensor] = {}
-        if "meta.json" in self.provider:
+        if META_FILENAME in self.provider:
             ds_meta = read_dataset_meta(self.provider)
             for tensor_name in ds_meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.provider)
