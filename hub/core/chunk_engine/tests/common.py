@@ -17,8 +17,8 @@ TENSOR_KEY = "tensor"
 
 
 CHUNK_SIZES = (
-    KB,
-    MB,
+    1 * KB,
+    1 * MB,
     16 * MB,
 )
 
@@ -132,6 +132,7 @@ def run_engine_test(
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
+        # TODO: use get_meta
         meta = pickle.loads(storage[meta_key])
 
         assert_meta_is_valid(
