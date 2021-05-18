@@ -27,6 +27,21 @@ FULL_BENCHMARK_OPT = "--full-benchmarks"
 FULL_BENCHMARK_MARK = "full_benchmark"
 
 
+def print_session_id():
+    # s3 is the only storage provider that uses the SESSION_ID prefix
+    # if it is enabled, print it out after all tests finish
+    print("\n\n")
+    print("----------------------------------------------------------")
+    print("Testing session ID: %s" % SESSION_ID)
+    print("----------------------------------------------------------")
+    print("\n\n")
+
+
+
+# before tests start print session ID
+print_session_id()
+
+
 def _get_storage_configs(request):
     return {
         MEMORY: {
@@ -48,6 +63,7 @@ def _get_storage_configs(request):
             "is_id_prefix": True,
         },
     }
+
 
 
 def _has_fixture(request, fixture):
@@ -197,15 +213,6 @@ def storage(request, memory_storage, local_storage, s3_storage):
     return get_cache_chain(storage_providers, cache_sizes)
 
 
-def print_session_id(request):
-    if _is_opt_true(request, S3_OPT):
-        # s3 is the only storage provider that uses the SESSION_ID prefix
-        # if it is enabled, print it out after all tests finish
-        print("\n\n")
-        print("----------------------------------------------------------")
-        print("Testing session ID: %s" % SESSION_ID)
-        print("----------------------------------------------------------")
-
 
 @pytest.fixture(scope="session", autouse=True)
 def clear_storages(request):
@@ -220,12 +227,11 @@ def clear_storages(request):
         storage.clear()
 
     # don't clear S3 tests (these will be automatically cleared on occasion)
-    print_session_id(request)
 
     yield
 
     # executed after the last test
-    print_session_id(request)
+    print_session_id()
 
 
 @pytest.fixture(scope="function", autouse=True)
