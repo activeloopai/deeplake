@@ -3,15 +3,11 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB, MB
-from hub.core.chunk_engine.tests.common import (
-    CHUNK_SIZES,
-    DTYPES,
-    TENSOR_KEY,
-    benchmark_read,
-    benchmark_write,
-    get_random_array,
-    run_engine_test,
-)
+from hub.core.chunk_engine.tests.common import (CHUNK_SIZES, DTYPES,
+                                                TENSOR_KEY, benchmark_read,
+                                                benchmark_write,
+                                                get_random_array,
+                                                run_engine_test)
 from hub.core.tests.common import parametrize_all_storages_and_caches
 from hub.core.typing import StorageProvider
 from hub.tests.common import current_test_name
@@ -53,10 +49,16 @@ BENCHMARK_BATCHED_SHAPES = (
 )
 
 
-@pytest.mark.parametrize("shape", UNBATCHED_SHAPES)
-@pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
-@pytest.mark.parametrize("num_batches", NUM_BATCHES)
-@pytest.mark.parametrize("dtype", DTYPES)
+SHAPE_PARAM = "shape"
+NUM_BATCHES_PARAM = "num_batches"
+parametrize_chunk_sizes = pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
+parametrize_dtypes = pytest.mark.parametrize("dtype", DTYPES)
+
+
+@pytest.mark.parametrize(SHAPE_PARAM, UNBATCHED_SHAPES)
+@pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
+@parametrize_chunk_sizes
+@parametrize_dtypes
 @parametrize_all_storages_and_caches
 def test_unbatched(
     shape: Tuple[int],
@@ -74,10 +76,10 @@ def test_unbatched(
     run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize("shape", BATCHED_SHAPES)
-@pytest.mark.parametrize("chunk_size", CHUNK_SIZES)
-@pytest.mark.parametrize("num_batches", NUM_BATCHES)
-@pytest.mark.parametrize("dtype", DTYPES)
+@pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
+@pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
+@parametrize_chunk_sizes
+@parametrize_dtypes
 @parametrize_all_storages_and_caches
 def test_batched(
     shape: Tuple[int],
@@ -96,10 +98,10 @@ def test_batched(
 
 
 @pytest.mark.benchmark(group="write_array")
-@pytest.mark.parametrize("shape", BENCHMARK_BATCHED_SHAPES)
-@pytest.mark.parametrize("chunk_size", BENCHMARK_CHUNK_SIZES)
-@pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
-@pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
+@pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES)
+@pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
+@parametrize_chunk_sizes
+@parametrize_dtypes
 @parametrize_all_storages_and_caches
 def test_write(
     benchmark,
@@ -132,10 +134,10 @@ def test_write(
 
 
 @pytest.mark.benchmark(group="read_array")
-@pytest.mark.parametrize("shape", BENCHMARK_BATCHED_SHAPES)
-@pytest.mark.parametrize("chunk_size", BENCHMARK_CHUNK_SIZES)
-@pytest.mark.parametrize("num_batches", BENCHMARK_NUM_BATCHES)
-@pytest.mark.parametrize("dtype", BENCHMARK_DTYPES)
+@pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES)
+@pytest.mark.parametrize(NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES)
+@parametrize_chunk_sizes
+@parametrize_dtypes
 @parametrize_all_storages_and_caches
 def test_read(
     benchmark,
