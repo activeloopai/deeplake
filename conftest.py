@@ -20,6 +20,7 @@ CACHE_ONLY_OPT = "--cache-chains-only"
 S3_BUCKET_OPT = "--s3-bucket"
 FULL_BENCHMARK_OPT = "--full-benchmarks"
 
+# @pytest.mark.`FULL_BENCHMARK_MARK` is how full benchmarks are notated
 FULL_BENCHMARK_MARK = "full_benchmark"
 
 
@@ -92,7 +93,7 @@ def pytest_addoption(parser):
         help="Url to s3 bucket with optional key. Example: s3://bucket_name/key/to/tests/",
         default=PYTEST_S3_PROVIDER_BASE_ROOT,
     )
-    parser.addoption(  # TODO: implement
+    parser.addoption(
         FULL_BENCHMARK_OPT,
         action="store_true",
         help="Some benchmarks take a long time to run and by default should be skipped. This flag enables them.",
@@ -142,9 +143,7 @@ def s3_storage(request):
 
 @pytest.fixture
 def storage(request, memory_storage, local_storage, s3_storage):
-    requested_providers = request.param
-    if isinstance(requested_providers, str):
-        requested_providers = (requested_providers,)
+    requested_providers = request.param.split(",")
 
     # --cache-chains-only force enables --cache-chains
     use_cache_chains_only = _is_opt_true(request, CACHE_ONLY_OPT)
