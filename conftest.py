@@ -100,7 +100,7 @@ def pytest_addoption(parser):
     parser.addoption(
         FULL_BENCHMARK_OPT,
         action="store_true",
-        help="Some benchmarks take a long time to run and by default should be skipped. This flag enables them.",
+        help="Some benchmarks take a long time to run and by default should be skipped. This option enables them.",
     )
 
 
@@ -129,6 +129,11 @@ def _get_s3_provider(request):
 
 @pytest.fixture
 def marks(request):
+    """Fixture that gets all `@pytest.mark`s. If a test is marked with
+    `@pytest.mark.some_mark` the list this fixture returns will contain
+    `some_mark` as a string.
+    """
+
     marks = [m.name for m in request.node.iter_markers()]
     if request.node.parent:
         marks += [m.name for m in request.node.parent.iter_markers()]
