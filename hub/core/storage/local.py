@@ -3,6 +3,10 @@ from multiprocessing.pool import ThreadPool
 from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
+import shutil
+
+from hub.core.storage.provider import StorageProvider
+from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
 
 
 class LocalProvider(StorageProvider):
@@ -178,10 +182,9 @@ class LocalProvider(StorageProvider):
             raise DirectoryAtPathException
         return full_path
 
+    def clear(self):
+        """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
 
-if __name__ == "__main__":
-    local_provider = LocalProvider(
-        "./test/hub2/core/storage/test/test_storage_provider_1"
-    )
-    local_provider[("fbdfbdfb", "dfbdfb")] = (b"dfbrberb", b"fbdfb")
-    print(local_provider["fbdfbdfb"])
+        # much faster than mapper.clear()
+        if os.path.exists(self.root):
+            shutil.rmtree(self.root)

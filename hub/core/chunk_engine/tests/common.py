@@ -1,35 +1,30 @@
-import pytest
-import numpy as np
+import os
 import pickle
-
-from hub.core.chunk_engine import write_array, read_array
-from hub.core.storage import MemoryProvider, S3Provider
-
-from hub.util.array import normalize_and_batchify_shape
-from hub.util.s3 import has_s3_credentials
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
-
-from hub.core.typing import StorageProvider
-
 from typing import List, Tuple
 
-from uuid import uuid1
+import numpy as np
+import pytest
+from hub.constants import KB, MB
+from hub.core.chunk_engine import read_array, write_array
+from hub.core.storage import MemoryProvider, S3Provider
+from hub.core.typing import StorageProvider
+from hub.tests.common import current_test_name
+from hub.util.array import normalize_and_batchify_shape
+from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+from hub.util.s3 import has_s3_credentials
 
+TENSOR_KEY = "tensor"
 
-def random_key(prefix="test_"):
-    return prefix + str(uuid1())
-
-
-STORAGE_PROVIDERS = (
-    MemoryProvider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-    S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-)
+SHAPE_PARAM = "shape"
+NUM_BATCHES_PARAM = "num_batches"
+DTYPE_PARAM = "dtype"
+CHUNK_SIZE_PARAM = "chunk_size"
 
 
 CHUNK_SIZES = (
-    128,
-    4096,
-    16000000,  # 16MB
+    1 * KB,
+    1 * MB,
+    16 * MB,
 )
 
 
@@ -39,6 +34,10 @@ DTYPES = (
     "float64",
     "bool",
 )
+
+
+parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
+parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
 
 
 def get_min_shape(batch: np.ndarray) -> Tuple:
@@ -119,9 +118,7 @@ def assert_chunk_sizes(
 def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
-    clear_if_memory_provider(storage)
-
-    key = random_key()
+    key = TENSOR_KEY
 
     for i, a_in in enumerate(arrays):
         write_array(
@@ -144,6 +141,7 @@ def run_engine_test(
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
+        # TODO: use get_meta
         meta = pickle.loads(storage[meta_key])
 
         assert_meta_is_valid(
@@ -158,42 +156,3 @@ def run_engine_test(
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
-
-    clear_if_memory_provider(storage)
-
-
-def benchmark_write(
-    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
-):
-    clear_if_memory_provider(storage)
-
-    for a_in in arrays:
-        write_array(
-            a_in,
-            key,
-            chunk_size,
-            storage,
-            batched=batched,
-        )
-
-    if clear_memory_after_write:
-        clear_if_memory_provider(storage)
-
-
-def benchmark_read(key: str, storage: StorageProvider):
-    read_array(key, storage)
-
-
-def skip_if_no_required_creds(storage: StorageProvider):
-    """If `storage` is a StorageProvider that requires creds, and they are not found, skip the current test."""
-
-    if type(storage) == S3Provider:
-        if not has_s3_credentials():
-            pytest.skip()
-
-
-def clear_if_memory_provider(storage: StorageProvider):
-    """If `storage` is memory-based, clear it."""
-
-    if type(storage) == MemoryProvider:
-        storage.clear()

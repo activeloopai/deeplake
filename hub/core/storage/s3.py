@@ -1,10 +1,11 @@
-import boto3
-import botocore  # type: ignore
 import posixpath
 from typing import Optional, Union, Iterable
 from multiprocessing.pool import ThreadPool
+
+import boto3
+import botocore  # type: ignore
 from hub.core.storage.provider import StorageProvider
-from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
+from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 
 
 class S3Provider(StorageProvider):
@@ -41,6 +42,8 @@ class S3Provider(StorageProvider):
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
 
+        root = root.replace("s3://", "")
+
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
 
@@ -57,6 +60,17 @@ class S3Provider(StorageProvider):
             endpoint_url=self.endpoint_url,
             region_name=self.aws_region,
         )
+        self.resource = None
+        if client is None:
+            self.resource = boto3.resource(
+                "s3",
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
 
     def __setitem__(
         self, paths: Union[str, Iterable[str]], content: Union[bytes, Iterable[bytes]]
@@ -148,7 +162,6 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
-        print("listing")
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
@@ -181,16 +194,3 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
-
-
-if __name__ == "__main__":
-    s3_provider = S3Provider(
-        "snark-test/hub2/core/storage/tests/test_storage_provider_3",
-        aws_access_key_id="ASIAQYP5ISLXSC37W2KE",
-        aws_secret_access_key="tvoNVtXRfhQ4qQaL74n5QU5fakCQKtGcf7L4g8Il",
-        aws_session_token="IQoJb3JpZ2luX2VjEN3//////////wEaCXVzLWVhc3QtMSJIMEYCIQCn7wVmyunn3kCKr9/Y9GF684ntIFhQYD3Zp6SqHOJZRQIhAOtZD7VcAn17Q3L1WA5TFelLw4aAnzAC6YMhFzuubwK3KpYDCHYQABoMMDUyNjA3NjE5ODIzIgz82fUD2pmYVe07fFQq8wLitvoaeZjHlDBS/ETlXKRgRaU2heU3Mb1fZX7mTGLXsIaoIYXX1SFLW39NuTZPk9/tIlTpRQN+BVvjTe3SNTSH9uaDS/0jle4MCrNEscHYObGY5vx2Dhog2u3ULzZ5Mt1+2FttosI8wxH51AswOUbQH3eHX4IgwAcOuZ5+g8pnlYsmBDJpEoA1viTVbkvIhwqb0Lvwx9u1/r8JdojMDu5q5ZFWcO7FYbh4B3dwBaHOJa6U/4BhQOZ5+dYt1/AgHdHfdoLSfDB94euJQcSaBhybxETVWp5nX0JO/QI3Tyoko6SpluzvQM8+7DlsJbFwAThIVnM2VEiP8zptM3AB6p9dzgr2MdleJz8bY0rCfT2/pM/BfhE3+BugFcLYgGW/t5VrB0Nr4khStDTEWieyixky41Qqxrc8AOybLpsKd4bt+C8+SyWkTtxzs7jnbokO02DdjC3TCdn6JjglELzI8XYEfGM4Kue4x9OvLfx+h7tDBJTQ/TDSlpSFBjqlAYBsvOqqki4Obafkt70KUhnvVAqchk9z6F4JVkPnvXDj5kC6WECyHBE9vyoyWLN2SaDkPecC2K7ha6mAFKfV/AvK7Eta0pqslEby/0eLpbKVOXJNuYgUoCzSY9NIOJ7kzYs5S0T5NVj976GzCS70rW06QQ81/1khF6esJCQ2HWop8NRBl2mqn9DPDQIz/zTIxblhA/GK7AN2p8sml5OIaNSOYqX9Tw==",
-    )
-    s3_provider[("fbdfbdfb", "dfbdfb")] = (b"dfbrberb", b"fbdfb")
-    print(s3_provider["fbdfbdfb"])
-    s3_provider["fgbfgb"] = b"gbfgngn"
-    print(s3_provider["fgbfgb"])
