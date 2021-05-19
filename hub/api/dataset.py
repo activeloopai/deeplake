@@ -74,7 +74,7 @@ class Dataset:
                 return self.tensors[item][self.slice]
         elif isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
-            return Dataset(self.path, self.mode, new_slice)
+            return Dataset(self.path, self.mode, new_slice, self.provider)
         else:
             raise InvalidKeyTypeError(item)
 

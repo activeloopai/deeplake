@@ -3,18 +3,9 @@ import numpy as np
 from hub.api.dataset import Dataset
 from hub.core.storage import LocalProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
+from hub.core.tests.common import parametrize_all_dataset_storages
+
 import pytest
-
-
-@pytest.fixture(autouse=True)
-def clear_test_files():
-    shutil.rmtree("/tmp/hub-test/", ignore_errors=True)
-
-
-def test_create_empty_memory_dataset():
-    ds = Dataset("username/data")
-    assert ds.slice == slice(None)
-    assert read_dataset_meta(ds.provider) == {"tensors": []}
 
 
 def test_create_empty_local_dataset():
@@ -23,39 +14,35 @@ def test_create_empty_local_dataset():
     assert read_dataset_meta(ds.provider) == {"tensors": []}
 
 
-def test_populate_local_dataset():
-    ds = Dataset("/tmp/hub-test/populate")
+def test_persist_local(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    ds = Dataset(local_storage.root)
+    ds["image"] = np.ones((4, 4096, 4096))
+
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+    assert ds_new["image"].shape == (4096, 4096)
+    np.testing.assert_array_equal(ds_new["image"].numpy(), np.ones((4, 4096, 4096)))
+
+
+@parametrize_all_dataset_storages
+def test_populate_dataset(ds):
     assert read_dataset_meta(ds.provider) == {"tensors": []}
     ds["image"] = np.ones((4, 28, 28))
     assert read_dataset_meta(ds.provider) == {"tensors": ["image"]}
     assert len(ds) == 4
 
 
-def test_persist_local_meta():
-    ds = Dataset("/tmp/hub-test/persist-meta")
-    ds["image"] = np.ones((4, 28, 28))
-
-    ds_new = Dataset("/tmp/hub-test/persist-meta")
-    assert len(ds_new) == 4
-    assert ds_new["image"].shape == (28, 28)
-
-
-def test_compute_local_tensor():
-    ds = Dataset("/tmp/hub-test/compute")
+@parametrize_all_dataset_storages
+def test_compute_tensor(ds):
     ds["image"] = np.ones((32, 28, 28))
     np.testing.assert_array_equal(ds["image"].numpy(), np.ones((32, 28, 28)))
 
 
-def test_persist_compute_local_tensor():
-    ds = Dataset("/tmp/hub-test/persist-compute")
-    ds["image"] = np.ones((4, 4096, 4096))
-
-    ds_new = Dataset("/tmp/hub-test/persist-compute")
-    np.testing.assert_array_equal(ds["image"].numpy(), np.ones((4, 4096, 4096)))
-
-
-def test_compute_tensor_slice():
-    ds = Dataset("/tmp/hub-test/compute-slice")
+@parametrize_all_dataset_storages
+def test_compute_tensor_slice(ds):
     ds["image"] = np.vstack((np.arange(16),) * 8)
 
     sliced_data = ds["image"][2:5].numpy()
@@ -63,9 +50,9 @@ def test_compute_tensor_slice():
     np.testing.assert_array_equal(sliced_data, expected_data)
 
 
-def test_iterate_dataset():
+@parametrize_all_dataset_storages
+def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
-    ds = Dataset("/tmp/hub-test/iterate")
     ds["image"] = np.ones((4, 28, 28))
     ds["label"] = np.asarray(labels).reshape((4, 1))
 

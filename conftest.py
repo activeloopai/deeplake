@@ -3,11 +3,15 @@ from uuid import uuid1
 
 import pytest
 
-from hub.constants import (MIN_FIRST_CACHE_SIZE, MIN_SECOND_CACHE_SIZE,
-                           PYTEST_LOCAL_PROVIDER_BASE_ROOT,
-                           PYTEST_MEMORY_PROVIDER_BASE_ROOT,
-                           PYTEST_S3_PROVIDER_BASE_ROOT)
-from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
+from hub.constants import (
+    MIN_FIRST_CACHE_SIZE,
+    MIN_SECOND_CACHE_SIZE,
+    PYTEST_LOCAL_PROVIDER_BASE_ROOT,
+    PYTEST_MEMORY_PROVIDER_BASE_ROOT,
+    PYTEST_S3_PROVIDER_BASE_ROOT,
+)
+from hub.api.dataset import Dataset
+from hub.core.storage import StorageProvider, LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
@@ -122,26 +126,11 @@ def _get_s3_provider(request):
     return _get_storage_provider(request, S3)
 
 
-@pytest.fixture
-def memory_storage(request):
-    if not _is_opt_true(request, MEMORY_OPT):
-        return _get_memory_provider(request)
+def _get_dataset(provider: StorageProvider):
+    return Dataset(path=str(uuid1()), provider=provider)
 
 
-@pytest.fixture
-def local_storage(request):
-    if _is_opt_true(request, LOCAL_OPT):
-        return _get_local_provider(request)
-
-
-@pytest.fixture
-def s3_storage(request):
-    if _is_opt_true(request, S3_OPT):
-        return _get_s3_provider(request)
-
-
-@pytest.fixture
-def storage(request, memory_storage, local_storage, s3_storage):
+def _storage_from_request(request, memory_storage, local_storage, s3_storage):
     requested_providers = request.param
     if isinstance(requested_providers, str):
         requested_providers = (requested_providers,)
@@ -176,6 +165,36 @@ def storage(request, memory_storage, local_storage, s3_storage):
         cache_sizes.pop()
 
     return get_cache_chain(storage_providers, cache_sizes)
+
+
+@pytest.fixture
+def memory_storage(request):
+    if not _is_opt_true(request, MEMORY_OPT):
+        return _get_memory_provider(request)
+
+
+@pytest.fixture
+def local_storage(request):
+    if _is_opt_true(request, LOCAL_OPT):
+        return _get_local_provider(request)
+
+
+@pytest.fixture
+def s3_storage(request):
+    if _is_opt_true(request, S3_OPT):
+        return _get_s3_provider(request)
+
+
+@pytest.fixture
+def storage(request, memory_storage, local_storage, s3_storage):
+    return _storage_from_request(request, memory_storage, local_storage, s3_storage)
+
+
+@pytest.fixture
+def ds(request, memory_storage, local_storage, s3_storage):
+    return _get_dataset(
+        _storage_from_request(request, memory_storage, local_storage, s3_storage)
+    )
 
 
 def print_session_id(request):
