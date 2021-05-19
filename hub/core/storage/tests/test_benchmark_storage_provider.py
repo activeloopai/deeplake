@@ -2,7 +2,7 @@ import pytest
 
 from hub.constants import MB
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
-from hub.core.tests.test_storage_provider import KEY
+from hub.core.storage.tests.test_storage_provider import KEY
 
 
 NUM_CHUNKS = 63
