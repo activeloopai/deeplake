@@ -37,7 +37,6 @@ def print_session_id():
     print("\n\n")
 
 
-
 # before tests start print session ID
 print_session_id()
 
@@ -63,7 +62,6 @@ def _get_storage_configs(request):
             "is_id_prefix": True,
         },
     }
-
 
 
 def _has_fixture(request, fixture):
@@ -211,7 +209,6 @@ def storage(request, memory_storage, local_storage, s3_storage):
         cache_sizes.pop()
 
     return get_cache_chain(storage_providers, cache_sizes)
-
 
 
 @pytest.fixture(scope="session", autouse=True)

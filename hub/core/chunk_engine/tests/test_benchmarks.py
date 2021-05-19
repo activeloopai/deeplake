@@ -4,48 +4,19 @@ import numpy as np
 import pytest
 from hub.constants import GB, MB
 from hub.core.chunk_engine import read_array, write_array
+from hub.tests.common_benchmark import (
+    parametrize_benchmark_shapes,
+    parametrize_benchmark_chunk_sizes,
+    parametrize_benchmark_dtypes,
+    parametrize_benchmark_num_batches,
+)
 from hub.core.chunk_engine.tests.common import (
-    CHUNK_SIZE_PARAM,
-    CHUNK_SIZES,
-    DTYPE_PARAM,
-    DTYPES,
-    NUM_BATCHES_PARAM,
-    SHAPE_PARAM,
-    TENSOR_KEY,
     get_random_array,
-    parametrize_chunk_sizes,
-    parametrize_dtypes,
     run_engine_test,
+    TENSOR_KEY,
 )
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.core.typing import StorageProvider
-
-BENCHMARK_NUM_BATCHES = (1,)
-BENCHMARK_DTYPES = (
-    "int64",
-    "float64",
-)
-BENCHMARK_CHUNK_SIZES = (16 * MB,)
-BENCHMARK_BATCHED_SHAPES = (
-    # with int64/float64 = ~1GB
-    (840, 224, 224, 3),
-)
-
-
-# parametrize decorators
-parametrize_benchmark_chunk_sizes = pytest.mark.parametrize(
-    CHUNK_SIZE_PARAM, BENCHMARK_CHUNK_SIZES
-)
-parametrize_benchmark_dtypes = pytest.mark.parametrize(DTYPE_PARAM, BENCHMARK_DTYPES)
-parametrize_benchmark_shapes = pytest.mark.parametrize(
-    SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES
-)
-parametrize_benchmark_num_batches = pytest.mark.parametrize(
-    NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES
-)
-
-
-# TODO: full benchmarks (non-cache write/read)
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
@@ -90,6 +61,8 @@ def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
         batched=True,
     )
 
+    storage.clear()
+
 
 def single_benchmark_read(key, storage):
     read_array(key, storage)
@@ -111,6 +84,7 @@ def benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage):
         info, TENSOR_KEY, arrays, chunk_size, storage, batched=True
     )
     benchmark(single_benchmark_read, actual_key, storage)
+    storage.clear()
 
 
 @pytest.mark.benchmark(group="chunk_engine_write_with_caches")

@@ -48,4 +48,3 @@ def current_test_name(with_id: bool, is_id_prefix: bool) -> str:
             return os.path.join(SESSION_ID, output)
         return os.path.join(output, SESSION_ID)
     return output
-

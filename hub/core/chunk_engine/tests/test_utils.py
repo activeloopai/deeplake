@@ -3,7 +3,8 @@ import pytest
 import numpy as np
 
 from hub.util.array import normalize_and_batchify_shape
-from hub.core.chunk_engine.tests.common import get_random_array, DTYPES
+from hub.core.chunk_engine.tests.common import get_random_array
+from hub.tests.common import parametrize_dtypes
 
 from typing import Tuple
 
@@ -39,7 +40,7 @@ def test_normalize_and_batchify_shape(
     np.testing.assert_array_equal(a.flatten(), normal_a.flatten())
 
 
-@pytest.mark.parametrize("dtype", DTYPES)
+@parametrize_dtypes
 @pytest.mark.parametrize(
     "shape",
     (
