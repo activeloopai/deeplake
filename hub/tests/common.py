@@ -2,7 +2,7 @@ import pytest
 import os
 from uuid import uuid1
 
-from hub.constants import KB, MB
+from hub.constants import B, KB, MB
 
 
 SESSION_ID = str(uuid1())
@@ -19,6 +19,8 @@ NUM_BATCHES = (1,)
 
 
 CHUNK_SIZES = (
+    1 * B,
+    8 * B,
     1 * KB,
     1 * MB,
     16 * MB,
