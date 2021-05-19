@@ -12,10 +12,7 @@ from hub.tests.common import (
 
 # benchmark parametrizations
 BENCHMARK_NUM_BATCHES = (1,)
-BENCHMARK_DTYPES = (
-    "int64",
-    "float64",
-)
+BENCHMARK_DTYPES = ("int64",)
 BENCHMARK_CHUNK_SIZES = (16 * MB,)
 BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
