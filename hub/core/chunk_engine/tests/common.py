@@ -55,6 +55,7 @@ def assert_chunk_sizes(
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
+    actual_chunk_lengths = []
     for i, entry in enumerate(index_map):
         for j, chunk_name in enumerate(entry["chunk_names"]):
             chunk_key = get_chunk_key(key, chunk_name)
@@ -70,6 +71,8 @@ def assert_chunk_sizes(
                 i,
                 j,
             )
+
+            actual_chunk_lengths.append(chunk_length)
 
             if chunk_length < chunk_size:
                 incomplete_chunk_names.add(chunk_name)
@@ -87,6 +90,14 @@ def assert_chunk_sizes(
         total_chunks,
         str(incomplete_chunk_names),
     )
+
+    # assert that all chunks are of expected size (`chunk_size`)
+    actual_chunk_lengths = np.array(actual_chunk_lengths)
+    if len(actual_chunk_lengths) > 1:
+        assert np.all(actual_chunk_lengths[:-1] == chunk_size), (
+            "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s"
+            % (chunk_size, str(actual_chunk_lengths[:-1]))
+        )
 
 
 def run_engine_test(
