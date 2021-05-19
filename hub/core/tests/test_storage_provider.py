@@ -106,8 +106,6 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-
-
 @parametrize_all_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
