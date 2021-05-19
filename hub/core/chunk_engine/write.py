@@ -3,8 +3,8 @@ import pickle
 from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
+from hub.constants import META_FILENAME, MB
 
-from hub import constants
 from hub.core.typing import StorageProvider
 from typing import Any, Callable, List, Tuple
 
@@ -20,14 +20,14 @@ def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[constants.META_FILENAME] = pickle.dumps(meta)
+    storage[META_FILENAME] = pickle.dumps(meta)
 
 
 def write_array(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
-    chunk_size: int = 16_000_000,
+    chunk_size: int = 16 * MB,
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):

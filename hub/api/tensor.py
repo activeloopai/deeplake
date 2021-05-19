@@ -1,7 +1,7 @@
 from hub.util.slice import merge_slices
 import numpy as np
 from typing import Union
-from hub.core.storage.provider import StorageProvider
+from hub.core.typing import StorageProvider
 from hub.core.storage.memory import MemoryProvider
 from hub.core.storage.local import LocalProvider
 from hub.core.chunk_engine.read import read_array, read_tensor_meta

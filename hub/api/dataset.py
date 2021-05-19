@@ -7,7 +7,7 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     UnsupportedTensorTypeError,
 )
-from hub.core.storage import StorageProvider
+from hub.core.typing import StorageProvider
 from hub.core.storage import MemoryProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
 from hub.core.chunk_engine.write import write_array, write_dataset_meta
