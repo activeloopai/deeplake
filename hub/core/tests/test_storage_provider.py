@@ -4,7 +4,7 @@ from hub.core.tests.common import parametrize_all_caches, parametrize_all_storag
 from hub.tests.common import current_test_name
 from numpy import can_cast
 
-NUM_FILES = 20
+
 KEY = "file"
 
 
