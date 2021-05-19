@@ -1,4 +1,7 @@
+from os import path
+from typing import Union, Iterable
 from hub.core.storage.provider import StorageProvider
+from multiprocessing.pool import ThreadPool
 
 
 class MemoryProvider(StorageProvider):
@@ -9,7 +12,7 @@ class MemoryProvider(StorageProvider):
 
     def __getitem__(
         self,
-        path: str,
+        paths: Union[str, Iterable[str]],
     ):
         """Gets the object present at the path within the given byte range.
 
@@ -26,12 +29,13 @@ class MemoryProvider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
         """
-        return self.dict[path]
+        if isinstance(paths, str):
+            return self.dict[paths]
+        with ThreadPool() as pool:
+            return pool.map(self.dict.__getitem__, (paths,))
 
     def __setitem__(
-        self,
-        path: str,
-        value: bytes,
+        self, paths: Union[str, Iterable[str]], values: Union[bytes, Iterable[bytes]]
     ):
         """Sets the object present at the path with the value
 
@@ -43,7 +47,16 @@ class MemoryProvider(StorageProvider):
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
         """
-        self.dict[path] = value
+
+        def set(path_value):
+            path, value = path_value
+            self.dict[path] = value
+
+        if isinstance(paths, str):
+            set((paths, values))
+        else:
+            with ThreadPool() as pool:
+                pool.map(set, list(zip(paths, values)))
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.

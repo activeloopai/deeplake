@@ -1,3 +1,5 @@
+from typing import Union, Iterable
+from multiprocessing.pool import ThreadPool
 from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
@@ -22,7 +24,7 @@ class LocalProvider(StorageProvider):
             raise FileAtPathException(root)
         self.root = root
 
-    def __getitem__(self, path: str):
+    def __getitem__(self, paths: Union[str, Iterable[str]]):
         """Gets the object present at the path within the given byte range.
 
         Example:
@@ -40,10 +42,18 @@ class LocalProvider(StorageProvider):
             DirectoryAtPathException: If a directory is found at the path.
             Exception: Any other exception encountered while trying to fetch the object.
         """
-        try:
+
+        def read_file(path):
             full_path = self._check_is_file(path)
             file = open(full_path, "rb")
             return file.read()
+
+        try:
+            if isinstance(paths, str):
+                return read_file(paths)
+            with ThreadPool() as pool:
+                return pool.map(read_file, (paths,))
+
         except DirectoryAtPathException:
             raise
         except FileNotFoundError:
@@ -51,7 +61,9 @@ class LocalProvider(StorageProvider):
         except Exception:
             raise
 
-    def __setitem__(self, path: str, value: bytes):
+    def __setitem__(
+        self, paths: Union[str, Iterable[str]], values: Union[bytes, Iterable[bytes]]
+    ):
         """Sets the object present at the path with the value
 
         Example:
@@ -66,7 +78,9 @@ class LocalProvider(StorageProvider):
             Exception: If unable to set item due to directory at path or permission or space issues.
             FileAtPathException: If the directory to the path is a file instead of a directory.
         """
-        try:
+
+        def write(path_value):
+            path, value = path_value
             full_path = self._check_is_file(path)
             directory = os.path.dirname(full_path)
             if os.path.isfile(directory):
@@ -75,6 +89,13 @@ class LocalProvider(StorageProvider):
                 os.makedirs(directory, exist_ok=True)
             file = open(full_path, "wb")
             file.write(value)
+
+        try:
+            if isinstance(paths, str):
+                write((paths, values))
+            else:
+                with ThreadPool() as pool:
+                    pool.map(write, list(zip(paths, values)))
         except Exception:
             raise
 
@@ -156,3 +177,11 @@ class LocalProvider(StorageProvider):
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
         return full_path
+
+
+if __name__ == "__main__":
+    local_provider = LocalProvider(
+        "./test/hub2/core/storage/test/test_storage_provider_1"
+    )
+    local_provider[("fbdfbdfb", "dfbdfb")] = (b"dfbrberb", b"fbdfb")
+    print(local_provider["fbdfbdfb"])

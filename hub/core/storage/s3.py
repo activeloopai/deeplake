@@ -1,7 +1,8 @@
 import boto3
 import botocore  # type: ignore
 import posixpath
-from typing import Optional
+from typing import Optional, Union, Iterable
+from multiprocessing.pool import ThreadPool
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3GetError, S3SetError, S3DeletionError, S3ListError
 
@@ -57,7 +58,9 @@ class S3Provider(StorageProvider):
             region_name=self.aws_region,
         )
 
-    def __setitem__(self, path, content):
+    def __setitem__(
+        self, paths: Union[str, Iterable[str]], content: Union[bytes, Iterable[bytes]]
+    ):
         """Sets the object present at the path with the value
 
         Args:
@@ -67,7 +70,9 @@ class S3Provider(StorageProvider):
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
         """
-        try:
+
+        def put(path_content):
+            path, content = path_content
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
             self.client.put_object(
@@ -76,10 +81,16 @@ class S3Provider(StorageProvider):
                 Key=path,
                 ContentType="application/octet-stream",  # signifies binary data
             )
+
+        try:
+            if isinstance(paths, str):
+                return put((paths, content))
+            with ThreadPool() as pool:
+                return pool.map(put, list(zip(paths, content)))
         except Exception as err:
             raise S3SetError(err)
 
-    def __getitem__(self, path):
+    def __getitem__(self, paths: Union[str, Iterable[str]]):
         """Gets the object present at the path.
 
         Args:
@@ -92,13 +103,20 @@ class S3Provider(StorageProvider):
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
         """
-        try:
+
+        def get(path):
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
                 Bucket=self.bucket,
                 Key=path,
             )
             return resp["Body"].read()
+
+        try:
+            if isinstance(paths, str):
+                return get(paths)
+            with ThreadPool() as pool:
+                return pool.map(get, (paths,))
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
@@ -163,3 +181,16 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
+
+
+if __name__ == "__main__":
+    s3_provider = S3Provider(
+        "snark-test/hub2/core/storage/tests/test_storage_provider_3",
+        aws_access_key_id="ASIAQYP5ISLXSC37W2KE",
+        aws_secret_access_key="tvoNVtXRfhQ4qQaL74n5QU5fakCQKtGcf7L4g8Il",
+        aws_session_token="IQoJb3JpZ2luX2VjEN3//////////wEaCXVzLWVhc3QtMSJIMEYCIQCn7wVmyunn3kCKr9/Y9GF684ntIFhQYD3Zp6SqHOJZRQIhAOtZD7VcAn17Q3L1WA5TFelLw4aAnzAC6YMhFzuubwK3KpYDCHYQABoMMDUyNjA3NjE5ODIzIgz82fUD2pmYVe07fFQq8wLitvoaeZjHlDBS/ETlXKRgRaU2heU3Mb1fZX7mTGLXsIaoIYXX1SFLW39NuTZPk9/tIlTpRQN+BVvjTe3SNTSH9uaDS/0jle4MCrNEscHYObGY5vx2Dhog2u3ULzZ5Mt1+2FttosI8wxH51AswOUbQH3eHX4IgwAcOuZ5+g8pnlYsmBDJpEoA1viTVbkvIhwqb0Lvwx9u1/r8JdojMDu5q5ZFWcO7FYbh4B3dwBaHOJa6U/4BhQOZ5+dYt1/AgHdHfdoLSfDB94euJQcSaBhybxETVWp5nX0JO/QI3Tyoko6SpluzvQM8+7DlsJbFwAThIVnM2VEiP8zptM3AB6p9dzgr2MdleJz8bY0rCfT2/pM/BfhE3+BugFcLYgGW/t5VrB0Nr4khStDTEWieyixky41Qqxrc8AOybLpsKd4bt+C8+SyWkTtxzs7jnbokO02DdjC3TCdn6JjglELzI8XYEfGM4Kue4x9OvLfx+h7tDBJTQ/TDSlpSFBjqlAYBsvOqqki4Obafkt70KUhnvVAqchk9z6F4JVkPnvXDj5kC6WECyHBE9vyoyWLN2SaDkPecC2K7ha6mAFKfV/AvK7Eta0pqslEby/0eLpbKVOXJNuYgUoCzSY9NIOJ7kzYs5S0T5NVj976GzCS70rW06QQ81/1khF6esJCQ2HWop8NRBl2mqn9DPDQIz/zTIxblhA/GK7AN2p8sml5OIaNSOYqX9Tw==",
+    )
+    s3_provider[("fbdfbdfb", "dfbdfb")] = (b"dfbrberb", b"fbdfb")
+    print(s3_provider["fbdfbdfb"])
+    s3_provider["fgbfgb"] = b"gbfgngn"
+    print(s3_provider["fgbfgb"])
