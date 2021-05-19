@@ -6,7 +6,7 @@ from hub.tests.common_benchmark import (
     BENCHMARK_CHUNK_SIZES,
 )
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
-from hub.core.storage.tests.test_storage_provider import KEY
+from hub.core.storage.tests.test_storage_provider import KEY # type: ignore
 
 
 SIMULATED_DATA_SIZES = [1 * GB]
