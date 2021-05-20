@@ -3,7 +3,7 @@ import pickle
 from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
-from hub.constants import META_FILENAME, MB
+from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
 
 from hub.core.typing import StorageProvider
 from typing import Any, Callable, List, Tuple
@@ -27,7 +27,7 @@ def write_array(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
-    chunk_size: int = 16 * MB,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
