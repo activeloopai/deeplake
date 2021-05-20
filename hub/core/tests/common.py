@@ -9,8 +9,8 @@ S3 = "s3"
 
 ALL_PROVIDERS = [MEMORY, LOCAL, S3]
 
-ALL_CACHES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
-ALL_CACHES = list(map(lambda i: ",".join(i), ALL_CACHES))
+_ALL_CACHES_TUPLES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
+ALL_CACHES = list(map(lambda i: ",".join(i), _ALL_CACHES_TUPLES))
 
 parametrize_all_storages = pytest.mark.parametrize(
     STORAGE_FIXTURE_NAME,
