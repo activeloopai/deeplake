@@ -29,8 +29,6 @@ FULL_BENCHMARK_MARK = "full_benchmark"
 
 
 def print_session_id():
-    # s3 is the only storage provider that uses the SESSION_ID prefix
-    # if it is enabled, print it out after all tests finish
     print("\n\n")
     print("----------------------------------------------------------")
     print("Testing session ID: %s" % SESSION_ID)
