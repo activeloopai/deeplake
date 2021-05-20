@@ -1,7 +1,8 @@
 BYTE_PADDING = b"\0"
 
 # number of bytes per unit
-KB = 1000
+B = 1
+KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
