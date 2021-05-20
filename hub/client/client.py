@@ -8,6 +8,7 @@ from hub.client.config import (
 )
 from hub.client.utils import get_auth_header, check_response_status
 from hub.util.exceptions import LoginException
+from typing import Optional
 
 
 class HubBackendClient:
@@ -18,15 +19,15 @@ class HubBackendClient:
 
     def request(
         self,
-        method,
-        relative_url,
-        endpoint=None,
-        params=None,
-        data=None,
-        files=None,
-        json=None,
-        headers=None,
-        timeout=DEFAULT_TIMEOUT,
+        method: str,
+        relative_url: str,
+        endpoint: Optional[str] = None,
+        params: Optional[dict] = None,
+        data: Optional[dict] = None,
+        files: Optional[dict] = None,
+        json: Optional[dict] = None,
+        headers: Optional[dict] = None,
+        timeout: Optional[int] = DEFAULT_TIMEOUT,
     ):
         params = params or {}
         data = data or {}
@@ -59,7 +60,7 @@ class HubBackendClient:
         check_response_status(response)
         return response
 
-    def request_access_token(self, username, password):
+    def request_access_token(self, username: str, password: str):
         json = {"username": username, "password": password}
         response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
 
@@ -70,10 +71,10 @@ class HubBackendClient:
             raise LoginException()
         return token
 
-    def send_register_request(self, username, email, password):
+    def send_register_request(self, username: str, email: str, password: str):
         json = {"username": username, "email": email, "password": password}
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
 
-    def get_dataset_credentials(self, org_id, ds_name, mode):
+    def get_dataset_credentials(self, org_id: str, ds_name: str, mode: str):
         # waiting for AL-942
         pass

@@ -6,9 +6,8 @@ import click
 @click.command()
 @click.option("--username", "-u", default=None, help="Your Activeloop username")
 @click.option("--password", "-p", default=None, help="Your Activeloop password")
-def login(username, password):
+def login(username: str, password: str):
     """Log in to Activeloop"""
-
     click.echo("Log in using Activeloop credentials.")
     click.echo(
         "If you don't have an account register by using 'hub register' command or by going to https://app.activeloop.ai/register"
@@ -25,7 +24,6 @@ def login(username, password):
 @click.command()
 def logout():
     """Log out of Activeloop"""
-
     remove_token()
     click.echo("Logged out of Hub.")
 
@@ -34,9 +32,8 @@ def logout():
 @click.option("--username", "-u", default=None, help="Your Activeloop username")
 @click.option("--email", "-e", default=None, help="Your email")
 @click.option("--password", "-p", default=None, help="Your Activeloop password")
-def register(username, email, password):
+def register(username: str, email: str, password: str):
     """Create a new Activeloop user account"""
-
     click.echo("Enter your details. Your password must be atleast 6 characters long.")
     username = username or click.prompt("Username", type=str)
     username = username.strip()

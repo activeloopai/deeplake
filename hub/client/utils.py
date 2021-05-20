@@ -1,5 +1,6 @@
 import os
 import sys
+import requests
 from pathlib import Path
 from hub.client.config import TOKEN_FILE_PATH, HUB_AUTH_TOKEN
 from hub.util.exceptions import (
@@ -16,7 +17,7 @@ from hub.util.exceptions import (
 )
 
 
-def write_token(token):
+def write_token(token: str):
     os.environ[HUB_AUTH_TOKEN] = token
     path = Path(TOKEN_FILE_PATH)
     os.makedirs(path.parent, exist_ok=True)
@@ -42,7 +43,7 @@ def remove_token():
         os.remove(TOKEN_FILE_PATH)
 
 
-def check_response_status(response):
+def check_response_status(response: requests.Response):
     """Check response status and throw corresponding exception on failure."""
     code = response.status_code
     if code >= 200 and code < 300:
