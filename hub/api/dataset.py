@@ -115,8 +115,12 @@ class Dataset:
         Returns:
             A Dataset instance whose path points to the hub formatted
             copy of the data.
+
+        Raises:
+            NotImplementedError: TODO.
         """
 
         raise NotImplementedError(
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
+        return None
