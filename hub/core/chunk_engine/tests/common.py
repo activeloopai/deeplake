@@ -55,8 +55,7 @@ def assert_chunk_sizes(
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
-    actual_chunk_lengths = []
-    actual_chunk_names = set()
+    actual_chunk_lengths_dict = {}
     for i, entry in enumerate(index_map):
         for j, chunk_name in enumerate(entry["chunk_names"]):
             chunk_key = get_chunk_key(key, chunk_name)
@@ -73,9 +72,10 @@ def assert_chunk_sizes(
                 j,
             )
 
-            if chunk_name not in actual_chunk_names:
-                actual_chunk_lengths.append(chunk_length)
-                actual_chunk_names.add(chunk_name)
+            if chunk_name in actual_chunk_lengths_dict:
+                assert chunk_length == actual_chunk_lengths_dict[chunk_name], "Chunk size changed from one read to another."
+            else:
+                actual_chunk_lengths_dict[chunk_name] = chunk_length
 
             if chunk_length < chunk_size:
                 incomplete_chunk_names.add(chunk_name)
@@ -95,11 +95,11 @@ def assert_chunk_sizes(
     )
 
     # assert that all chunks are of expected size (`chunk_size`)
-    actual_chunk_lengths = np.array(actual_chunk_lengths)
+    actual_chunk_lengths = np.array(list(actual_chunk_lengths_dict.values()))
     if len(actual_chunk_lengths) > 1:
         assert np.all(actual_chunk_lengths[:-1] == chunk_size), (
             "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s"
-            % (chunk_size, str(actual_chunk_lengths[:-1]), str(actual_chunk_names))
+            % (chunk_size, str(actual_chunk_lengths[:-1]), str(actual_chunk_lengths_dict.keys()))
         )
 
 
