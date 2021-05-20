@@ -3,10 +3,10 @@ import os
 
 
 def provider_from_path(path: str):
-    """Construct a StorageProvider given a path
+    """Construct a StorageProvider given a path.
 
     Arguments:
-        path (str): Path to the provider root, if any
+        path (str): Path to the provider root, if any.
 
     Returns:
         If given a valid local path, return the LocalProvider.
@@ -14,7 +14,7 @@ def provider_from_path(path: str):
         Otherwise, return the MemoryProvider.
 
     Raises:
-        ValueError: If the given path is a local path to a file
+        ValueError: If the given path is a local path to a file.
     """
     if path.startswith((".", "/", "~")):
         if not os.path.exists(path) or os.path.isdir(path):
