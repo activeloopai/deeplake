@@ -8,36 +8,10 @@ from hub.constants import KB, MB
 from hub.core.chunk_engine import read_array, write_array
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
-from hub.tests.common import current_test_name
+from hub.tests.common import current_test_name, TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
-
-TENSOR_KEY = "tensor"
-
-SHAPE_PARAM = "shape"
-NUM_BATCHES_PARAM = "num_batches"
-DTYPE_PARAM = "dtype"
-CHUNK_SIZE_PARAM = "chunk_size"
-
-
-CHUNK_SIZES = (
-    1 * KB,
-    1 * MB,
-    16 * MB,
-)
-
-
-DTYPES = (
-    "uint8",
-    "int64",
-    "float64",
-    "bool",
-)
-
-
-parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
-parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
 
 
 def get_min_shape(batch: np.ndarray) -> Tuple:

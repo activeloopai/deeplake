@@ -1,12 +1,12 @@
 import pytest
 from hub.constants import MB
-from hub.core.tests.common import (parametrize_all_caches,
-                                   parametrize_all_storages)
+from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.tests.common import current_test_name
 from numpy import can_cast
 
-NUM_FILES = 20
+
 KEY = "file"
+
 
 # helper functions for tests
 def check_storage_provider(storage):
@@ -106,18 +106,6 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-def write_to_files(storage):
-    chunk = b"0123456789123456" * MB
-    for i in range(NUM_FILES):
-        storage[f"{KEY}_{i}"] = chunk
-    storage.flush()
-
-
-def read_from_files(storage):
-    for i in range(NUM_FILES):
-        storage[f"{KEY}_{i}"]
-
-
 @parametrize_all_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
@@ -127,32 +115,3 @@ def test_storage_provider(storage):
 def test_cache(storage):
     check_storage_provider(storage)
     check_cache(storage)
-
-
-@parametrize_all_storages
-def test_storage_write_speeds(benchmark, storage):
-    benchmark(write_to_files, storage)
-
-
-@parametrize_all_caches
-def test_cache_write_speeds(benchmark, storage):
-    benchmark(write_to_files, storage)
-
-
-@parametrize_all_storages
-def test_storage_read_speeds(benchmark, storage):
-    write_to_files(storage)
-    benchmark(read_from_files, storage)
-
-
-@parametrize_all_caches
-def test_cache_read_speeds(benchmark, storage):
-    write_to_files(storage)
-    benchmark(read_from_files, storage)
-
-
-@parametrize_all_caches
-def test_full_cache_read_speeds(benchmark, storage):
-    write_to_files(storage)
-    read_from_files(storage)
-    benchmark(read_from_files, storage)
