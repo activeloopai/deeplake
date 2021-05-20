@@ -3,7 +3,8 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB, MB
-from hub.core.chunk_engine.tests.common import (
+from hub.core.chunk_engine.tests.common import get_random_array, run_engine_test
+from hub.tests.common import (
     CHUNK_SIZE_PARAM,
     CHUNK_SIZES,
     DTYPE_PARAM,
@@ -11,18 +12,9 @@ from hub.core.chunk_engine.tests.common import (
     NUM_BATCHES_PARAM,
     SHAPE_PARAM,
     TENSOR_KEY,
-    get_random_array,
-    parametrize_chunk_sizes,
-    parametrize_dtypes,
-    run_engine_test,
-    get_random_array,
-    run_engine_test,
-)
-from hub.tests.common import (
-    parametrize_dtypes,
     parametrize_chunk_sizes,
     parametrize_num_batches,
-    SHAPE_PARAM,
+    parametrize_dtypes,
 )
 from hub.core.tests.common import (
     parametrize_all_caches,
