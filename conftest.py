@@ -128,7 +128,7 @@ def _get_s3_provider(request):
 
 
 def _get_dataset(provider: StorageProvider):
-    return Dataset(path=str(uuid1()), provider=provider)
+    return Dataset(provider=provider)
 
 
 def _storage_from_request(request, memory_storage, local_storage, s3_storage):

@@ -13,6 +13,7 @@ from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
 from hub.core.chunk_engine.write import write_array, write_dataset_meta
 from typing import Union, Dict, Optional
 import numpy as np
+import warnings
 import os
 
 
@@ -35,14 +36,19 @@ class Dataset:
                 of this dataset's tensors. Defaults to slice(None, None, None).
                 Used internally for iteration.
             provider (StorageProvider, optional): The storage provider used to access
-                the data stored by this dataset. If given, the path is ignored.
+                the data stored by this dataset.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
+            UserWarning: Both a path and provider should not be given.
         """
         self.mode = mode
         self.slice = ds_slice
 
+        if provider is not None and path:
+            warnings.warn(
+                "Dataset should not be constructed with both provider and path."
+            )
         self.provider = provider or provider_from_path(path)
 
         self.tensors: Dict[str, Tensor] = {}
