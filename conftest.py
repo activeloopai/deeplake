@@ -30,18 +30,6 @@ KEEP_STORAGE_OPT = "--keep-storage"
 FULL_BENCHMARK_MARK = "full_benchmark"
 
 
-def print_session_id():
-    print("\n\n")
-    print("----------------------------------------------------------")
-    print("Testing session ID: %s" % SESSION_ID)
-    print("----------------------------------------------------------")
-    print("\n\n")
-
-
-# before tests start print session ID
-print_session_id()
-
-
 def _get_storage_configs(request):
     return {
         MEMORY: {
