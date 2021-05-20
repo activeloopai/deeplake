@@ -117,4 +117,6 @@ class Dataset:
             copy of the data.
         """
 
-        return None  # TODO: hub.auto
+        raise NotImplementedError(
+            "Automatic dataset ingestion is not yet supported."
+        )  # TODO: hub.auto
