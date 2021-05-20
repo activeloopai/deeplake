@@ -8,12 +8,6 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 import pytest
 
 
-def test_create_empty_local_dataset():
-    ds = Dataset("/tmp/hub-test/empty")
-    assert type(ds.provider) == LocalProvider
-    assert read_dataset_meta(ds.provider) == {"tensors": []}
-
-
 def test_persist_local(local_storage):
     if local_storage is None:
         pytest.skip()
