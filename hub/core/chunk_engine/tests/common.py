@@ -94,7 +94,7 @@ def assert_chunk_sizes(
         str(incomplete_chunk_names),
     )
 
-    # assert that all chunks are of expected size (`chunk_size`)
+    # assert that all chunks (except the last one) are of expected size (`chunk_size`)
     actual_chunk_lengths = np.array(list(actual_chunk_lengths_dict.values()))
     if len(actual_chunk_lengths) > 1:
         assert np.all(actual_chunk_lengths[:-1] == chunk_size), (
