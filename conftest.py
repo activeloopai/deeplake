@@ -22,6 +22,7 @@ CACHE_OPT = "--cache-chains"
 CACHE_ONLY_OPT = "--cache-chains-only"
 S3_BUCKET_OPT = "--s3-bucket"
 FULL_BENCHMARK_OPT = "--full-benchmarks"
+KEEP_STORAGE_OPT = "--keep-storage"
 
 # @pytest.mark.`FULL_BENCHMARK_MARK` is how full benchmarks are notated
 FULL_BENCHMARK_MARK = "full_benchmark"
@@ -119,6 +120,12 @@ def pytest_addoption(parser):
         action="store_true",
         help="Some benchmarks take a long time to run and by default should be skipped. This option enables them.",
     )
+    parser.addoption(
+        KEEP_STORAGE_OPT,
+        action="store_true",
+        help="All storage providers/datasets will have their pytest data wiped. \
+                Use this option to keep the data after the test run.",
+    )
 
 
 def _get_storage_provider(request, storage_name, with_current_test_name=True):
@@ -211,10 +218,7 @@ def storage(request, memory_storage, local_storage, s3_storage):
     return get_cache_chain(storage_providers, cache_sizes)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def clear_storages(request):
-    # executed before the first test
-
+def _clear_storages(request):
     if not _is_opt_true(request, MEMORY_OPT):
         storage = _get_storage_provider(request, MEMORY, with_current_test_name=False)
         storage.clear()
@@ -225,10 +229,27 @@ def clear_storages(request):
 
     # don't clear S3 tests (these will be automatically cleared on occasion)
 
+
+@pytest.fixture(scope="session", autouse=True)
+def clear_storages_session(request):
+    # executed before the first test
+    _clear_storages(request)
+
     yield
 
     # executed after the last test
     print_session_id()
+
+
+@pytest.fixture(scope="function", autouse=True)
+def clear_storages_function(request):
+    # executed before the current test
+
+    yield
+
+    # executed after the current test
+    if not _is_opt_true(request, KEEP_STORAGE_OPT):
+        _clear_storages(request)
 
 
 @pytest.fixture(scope="function", autouse=True)
