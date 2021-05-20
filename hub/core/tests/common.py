@@ -7,18 +7,10 @@ LOCAL = "local"
 S3 = "s3"
 
 
-def c(*args):
-    """Separate args with commas. This is helpful because pytest args will be
-    printed as `memory,local` (or whichever storage providers are being used)
-    for caches instead of `storage0`.
-    """
-
-    return ",".join(args)
-
-
 ALL_PROVIDERS = [MEMORY, LOCAL, S3]
-ALL_CACHES = [c(MEMORY, LOCAL), c(MEMORY, S3), c(LOCAL, S3), c(MEMORY, LOCAL, S3)]
 
+ALL_CACHES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
+ALL_CACHES = list(map(lambda i: ",".join(i), ALL_CACHES))
 
 parametrize_all_storages = pytest.mark.parametrize(
     STORAGE_FIXTURE_NAME,
