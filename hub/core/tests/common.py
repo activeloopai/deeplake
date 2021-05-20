@@ -1,6 +1,7 @@
 import pytest
 
 STORAGE_FIXTURE_NAME = "storage"
+DATASET_FIXTURE_NAME = "ds"
 
 MEMORY = "memory"
 LOCAL = "local"
@@ -27,5 +28,15 @@ parametrize_all_caches = pytest.mark.parametrize(
 parametrize_all_storages_and_caches = pytest.mark.parametrize(
     STORAGE_FIXTURE_NAME,
     ALL_PROVIDERS + ALL_CACHES,
+    indirect=True,
+)
+
+parametrize_all_dataset_storages = pytest.mark.parametrize(
+    DATASET_FIXTURE_NAME, ALL_PROVIDERS, indirect=True
+)
+
+parametrize_all_dataset_storages_and_caches = pytest.mark.parametrize(
+    STORAGE_FIXTURE_NAME,
+    ALL_PROVIDERS + ALL_CACHES,  # type: ignore
     indirect=True,
 )

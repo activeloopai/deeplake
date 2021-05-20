@@ -3,6 +3,7 @@ from uuid import uuid1
 
 import pytest
 
+from hub.core.typing import StorageProvider
 from hub.constants import (
     MIN_FIRST_CACHE_SIZE,
     MIN_SECOND_CACHE_SIZE,
@@ -10,6 +11,7 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     PYTEST_S3_PROVIDER_BASE_ROOT,
 )
+from hub.api.dataset import Dataset
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.tests.common import SESSION_ID, current_test_name
@@ -26,18 +28,6 @@ KEEP_STORAGE_OPT = "--keep-storage"
 
 # @pytest.mark.`FULL_BENCHMARK_MARK` is how full benchmarks are notated
 FULL_BENCHMARK_MARK = "full_benchmark"
-
-
-def print_session_id():
-    print("\n\n")
-    print("----------------------------------------------------------")
-    print("Testing session ID: %s" % SESSION_ID)
-    print("----------------------------------------------------------")
-    print("\n\n")
-
-
-# before tests start print session ID
-print_session_id()
 
 
 def _get_storage_configs(request):
@@ -149,6 +139,10 @@ def _get_s3_provider(request):
     return _get_storage_provider(request, S3)
 
 
+def _get_dataset(provider: StorageProvider):
+    return Dataset(provider=provider)
+
+
 @pytest.fixture
 def marks(request):
     """Fixture that gets all `@pytest.mark`s. If a test is marked with
@@ -162,26 +156,7 @@ def marks(request):
     yield marks
 
 
-@pytest.fixture
-def memory_storage(request):
-    if not _is_opt_true(request, MEMORY_OPT):
-        return _get_memory_provider(request)
-
-
-@pytest.fixture
-def local_storage(request):
-    if _is_opt_true(request, LOCAL_OPT):
-        return _get_local_provider(request)
-
-
-@pytest.fixture
-def s3_storage(request):
-    if _is_opt_true(request, S3_OPT):
-        return _get_s3_provider(request)
-
-
-@pytest.fixture
-def storage(request, memory_storage, local_storage, s3_storage):
+def _storage_from_request(request, memory_storage, local_storage, s3_storage):
     requested_providers = request.param.split(",")
 
     # --cache-chains-only force enables --cache-chains
@@ -216,6 +191,46 @@ def storage(request, memory_storage, local_storage, s3_storage):
     return get_cache_chain(storage_providers, cache_sizes)
 
 
+@pytest.fixture
+def memory_storage(request):
+    if not _is_opt_true(request, MEMORY_OPT):
+        return _get_memory_provider(request)
+
+
+@pytest.fixture
+def local_storage(request):
+    if _is_opt_true(request, LOCAL_OPT):
+        return _get_local_provider(request)
+
+
+@pytest.fixture
+def s3_storage(request):
+    if _is_opt_true(request, S3_OPT):
+        return _get_s3_provider(request)
+
+
+@pytest.fixture
+def storage(request, memory_storage, local_storage, s3_storage):
+    return _storage_from_request(request, memory_storage, local_storage, s3_storage)
+
+
+@pytest.fixture
+def ds(request, memory_storage, local_storage, s3_storage):
+    return _get_dataset(
+        _storage_from_request(request, memory_storage, local_storage, s3_storage)
+    )
+
+
+def print_session_id(request):
+    if _is_opt_true(request, S3_OPT):
+        # s3 is the only storage provider that uses the SESSION_ID prefix
+        # if it is enabled, print it out after all tests finish
+        print("\n\n")
+        print("----------------------------------------------------------")
+        print("Testing session ID: %s" % SESSION_ID)
+        print("----------------------------------------------------------")
+
+
 def _clear_storages(request):
     if not _is_opt_true(request, MEMORY_OPT):
         storage = _get_storage_provider(request, MEMORY, with_current_test_name=False)
@@ -236,7 +251,7 @@ def clear_storages_session(request):
     yield
 
     # executed after the last test
-    print_session_id()
+    print_session_id(request)
 
 
 @pytest.fixture(scope="function", autouse=True)

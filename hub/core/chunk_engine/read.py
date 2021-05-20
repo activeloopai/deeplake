@@ -4,10 +4,19 @@ import numpy as np
 
 from .chunker import join_chunks
 
+from hub import constants
 from hub.util.keys import get_meta_key, get_index_map_key
 
 from hub.core.typing import StorageProvider
 from typing import Callable, List, Union
+
+
+def read_tensor_meta(key: str, storage: StorageProvider):
+    return pickle.loads(storage[get_meta_key(key)])
+
+
+def read_dataset_meta(storage: StorageProvider):
+    return pickle.loads(storage[constants.META_FILENAME])
 
 
 def read_array(
@@ -27,7 +36,7 @@ def read_array(
     """
 
     # TODO: don't use pickle
-    meta = pickle.loads(storage[get_meta_key(key)])
+    meta = read_tensor_meta(key, storage)
     index_map = pickle.loads(storage[get_index_map_key(key)])
 
     # TODO: read samples in parallel

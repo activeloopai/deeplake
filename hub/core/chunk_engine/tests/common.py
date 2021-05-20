@@ -117,8 +117,8 @@ def run_engine_test(
         write_array(
             a_in,
             key,
-            chunk_size,
             storage,
+            chunk_size,
             batched=batched,
         )
 
@@ -149,3 +149,42 @@ def run_engine_test(
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+
+    clear_if_memory_provider(storage)
+
+
+def benchmark_write(
+    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
+):
+    clear_if_memory_provider(storage)
+
+    for a_in in arrays:
+        write_array(
+            a_in,
+            key,
+            storage,
+            chunk_size,
+            batched=batched,
+        )
+
+    if clear_memory_after_write:
+        clear_if_memory_provider(storage)
+
+
+def benchmark_read(key: str, storage: StorageProvider):
+    read_array(key, storage)
+
+
+def skip_if_no_required_creds(storage: StorageProvider):
+    """If `storage` is a StorageProvider that requires creds, and they are not found, skip the current test."""
+
+    if type(storage) == S3Provider:
+        if not has_s3_credentials():
+            pytest.skip()
+
+
+def clear_if_memory_provider(storage: StorageProvider):
+    """If `storage` is memory-based, clear it."""
+
+    if type(storage) == MemoryProvider:
+        storage.clear()
