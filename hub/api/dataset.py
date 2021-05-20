@@ -1,7 +1,7 @@
 from hub.constants import META_FILENAME
 from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
-from hub.util.path import local_provider_from_path
+from hub.util.path import provider_from_path
 from hub.util.exceptions import (
     TensorNotFoundError,
     InvalidKeyTypeError,
@@ -19,7 +19,7 @@ import os
 class Dataset:
     def __init__(
         self,
-        path: str,
+        path: str = "",
         mode: str = "a",
         ds_slice: slice = slice(None),
         provider: Optional[StorageProvider] = None,
@@ -27,8 +27,7 @@ class Dataset:
         """Initialize a new or existing dataset.
 
         Args:
-            path (str): The location of the dataset.
-                Can be a local path, or a url to a cloud storage provider.
+            path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
@@ -36,20 +35,15 @@ class Dataset:
                 of this dataset's tensors. Defaults to slice(None, None, None).
                 Used internally for iteration.
             provider (StorageProvider, optional): The storage provider used to access
-                the data stored by this dataset. Will not be used if given path is valid.
+                the data stored by this dataset. If given, the path is ignored.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
         """
-        self.path = path
         self.mode = mode
         self.slice = ds_slice
 
-        self.provider = local_provider_from_path(path)
-        if self.provider is None:
-            self.provider = provider
-        if self.provider is None:
-            self.provider = MemoryProvider(path)
+        self.provider = provider or provider_from_path(path)
 
         self.tensors: Dict[str, Tensor] = {}
         if META_FILENAME in self.provider:
@@ -69,12 +63,12 @@ class Dataset:
 
         if isinstance(item, str):
             if item not in self.tensors:
-                raise TensorNotFoundError(item, self.path)
+                raise TensorNotFoundError(item)
             else:
                 return self.tensors[item][self.slice]
         elif isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
-            return Dataset(self.path, self.mode, new_slice, self.provider)
+            return Dataset(mode=self.mode, ds_slice=new_slice, provider=self.provider)
         else:
             raise InvalidKeyTypeError(item)
 

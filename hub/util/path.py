@@ -1,24 +1,27 @@
-from hub.core.storage import LocalProvider
+from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 import os
 
 
-def local_provider_from_path(path: str):
-    """Construct a LocalProvider if given a valid local path, or return None
+def provider_from_path(path: str):
+    """Construct a StorageProvider given a path
 
     Arguments:
-        path (str): Path that may or may not indicate a local directory
+        path (str): Path to the provider root, if any
 
     Returns:
-        If the given path could point to a directory, return the LocalProvider.
-        If the given path does not look like a local path, return None.
+        If given a valid local path, return the LocalProvider.
+        If given a valid S3 path, return the S3Provider.
+        Otherwise, return the MemoryProvider.
 
     Raises:
         ValueError: If the given path is a local path to a file
     """
     if path.startswith((".", "/", "~")):
         if not os.path.exists(path) or os.path.isdir(path):
-            p = LocalProvider(path)
             return LocalProvider(path)
         else:
-            raise ValueError("Local path must be a directory")
-    return None
+            raise ValueError(f"Local path {path} must be a directory")
+    elif path.startswith("s3://"):
+        return S3Provider(path)
+    else:
+        return MemoryProvider(path)
