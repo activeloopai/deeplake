@@ -1,7 +1,9 @@
 from os import path
-from typing import Union, Iterable
+from typing import Iterable, Union, Tuple
+
+# from concurrent.futures import ThreadPoolExecutor
+from pathos.pools import ThreadPool
 from hub.core.storage.provider import StorageProvider
-from multiprocessing.pool import ThreadPool
 
 
 class MemoryProvider(StorageProvider):
@@ -12,7 +14,7 @@ class MemoryProvider(StorageProvider):
 
     def __getitem__(
         self,
-        paths: Union[str, Iterable[str]],
+        paths: Union[str, Tuple[str]],
     ):
         """Gets the object present at the path within the given byte range.
 
@@ -21,7 +23,7 @@ class MemoryProvider(StorageProvider):
             my_data = memory_provider["abc.txt"]
 
         Args:
-            path (str): The path relative to the root of the provider.
+            paths (str/Tuple[str]): The path relative to the root of the provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -30,12 +32,12 @@ class MemoryProvider(StorageProvider):
             KeyError: If an object is not found at the path.
         """
         if isinstance(paths, str):
-            return self.dict[paths]
+            return bytes(self.dict[paths])
         with ThreadPool() as pool:
-            return pool.map(self.dict.__getitem__, (paths,))
+            return pool.map(self.dict.__getitem__, paths)
 
     def __setitem__(
-        self, paths: Union[str, Iterable[str]], values: Union[bytes, Iterable[bytes]]
+        self, paths: Union[str, Tuple[str]], values: Union[bytes, Iterable[bytes]]
     ):
         """Sets the object present at the path with the value
 
@@ -44,8 +46,8 @@ class MemoryProvider(StorageProvider):
             memory_provider["abc.txt"] = b"abcd"
 
         Args:
-            path (str): the path relative to the root of the provider.
-            value (bytes): the value to be assigned at the path.
+            paths (str/Tuple[str]): the path relative to the root of the provider.
+            value (bytes/Iterable[bytes]): the value to be assigned at the path.
         """
 
         def set(path_value):

@@ -1,5 +1,5 @@
-from typing import Union, Iterable
-from multiprocessing.pool import ThreadPool
+from typing import Union, Iterable, Tuple
+from pathos.pools import ThreadPool
 from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
@@ -28,7 +28,7 @@ class LocalProvider(StorageProvider):
             raise FileAtPathException(root)
         self.root = root
 
-    def __getitem__(self, paths: Union[str, Iterable[str]]):
+    def __getitem__(self, paths: Union[str, Tuple[str]]):
         """Gets the object present at the path within the given byte range.
 
         Example:
@@ -36,7 +36,7 @@ class LocalProvider(StorageProvider):
             my_data = local_provider["abc.txt"]
 
         Args:
-            path (str): The path relative to the root of the provider.
+            path (str/Tuple[str]]): The path relative to the root of the provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -56,7 +56,7 @@ class LocalProvider(StorageProvider):
             if isinstance(paths, str):
                 return read_file(paths)
             with ThreadPool() as pool:
-                return pool.map(read_file, (paths,))
+                return pool.map(read_file, paths)
 
         except DirectoryAtPathException:
             raise
@@ -66,7 +66,7 @@ class LocalProvider(StorageProvider):
             raise
 
     def __setitem__(
-        self, paths: Union[str, Iterable[str]], values: Union[bytes, Iterable[bytes]]
+        self, paths: Union[str, Tuple[str]], values: Union[bytes, Iterable[bytes]]
     ):
         """Sets the object present at the path with the value
 
@@ -75,8 +75,8 @@ class LocalProvider(StorageProvider):
             local_provider["abc.txt"] = b"abcd"
 
         Args:
-            path (str): the path relative to the root of the provider.
-            value (bytes): the value to be assigned at the path.
+            path (str/Tuple[str]]): the path relative to the root of the provider.
+            value (bytes/Iterable[bytes]): the value to be assigned at the path.
 
         Raises:
             Exception: If unable to set item due to directory at path or permission or space issues.
