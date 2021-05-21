@@ -3,7 +3,8 @@ import pytest
 import numpy as np
 
 from hub.util.array import normalize_and_batchify_shape
-from hub.core.chunk_engine.tests.common import get_random_array, DTYPES
+from hub.core.chunk_engine.tests.common import get_random_array
+from hub.tests.common import parametrize_dtypes
 
 from typing import Tuple
 
@@ -13,6 +14,7 @@ from typing import Tuple
     (
         # batched
         [(1, 100), (1, 100), True],
+        [(100, 1), (100, 1), True],
         [(100, 100), (100, 100), True],
         [(10, 224, 224, 3), (10, 224, 224, 3), True],
         [(10, 3, 224, 224), (10, 3, 224, 224), True],
@@ -23,6 +25,8 @@ from typing import Tuple
         # not batched
         [(1,), (1, 1), False],
         [(100,), (1, 100), False],
+        [(1, 100), (1, 100), False],
+        [(100, 1), (1, 100), False],
         [(100, 100), (1, 100, 100), False],
         [(3, 224, 224, 1, 1, 1, 1), (1, 3, 224, 224), False],
         [(10, 3, 224, 224, 1, 1, 1, 1), (1, 10, 3, 224, 224), False],
@@ -39,7 +43,7 @@ def test_normalize_and_batchify_shape(
     np.testing.assert_array_equal(a.flatten(), normal_a.flatten())
 
 
-@pytest.mark.parametrize("dtype", DTYPES)
+@parametrize_dtypes
 @pytest.mark.parametrize(
     "shape",
     (

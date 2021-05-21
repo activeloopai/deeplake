@@ -28,11 +28,15 @@ def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray
             `out_array.shape[0]` may be >= 1.
     """
 
-    # if the first axis is of length 1, but batched is true, it is only a single sample & squeeze will remove it
-    actually_batched = batched and array.shape[0] != 1
-    array = array.squeeze()
-    if not actually_batched:
+    if batched:
+        # Don't squeeze the primary axis, even if it's 1
+        squeeze_axes = tuple(i + 1 for i, s in enumerate(array.shape[1:]) if s == 1)
+        array = array.squeeze(squeeze_axes)
+    else:
+        array = array.squeeze()
         array = np.expand_dims(array, axis=0)
+
+    # If we squeezed everything except the primary axis, append one dimension of length 1
     if len(array.shape) == 1:
-        array = np.expand_dims(array, axis=0)
+        array = np.expand_dims(array, axis=1)
     return array
