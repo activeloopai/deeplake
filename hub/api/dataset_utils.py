@@ -6,7 +6,7 @@ from hub.util.exceptions import InvalidCompressor
 def get_compressor(
     compressor_name: str, **kwargs
 ) -> Union[compression.BaseImgCodec, compression.BaseNumCodec]:
-    """Get compressor object
+    f"""Get compressor object
 
     Example:
         compressor = get_compressor('lz4', acceleration=2)
@@ -26,10 +26,14 @@ def get_compressor(
         Codec object providing compression
 
     Raises:
-        InvalidCompressor: if the name of compressor isn't in ['lz4', 'zstd', 'numpy', 'png', 'jpeg', 'webp']
+        InvalidCompressor: if the name of compressor isn't in {compression.AVAILABLE_COMPRESSORS}
     """
     try:
         compressor = compression.__dict__[compressor_name.upper()]
         return compressor(**kwargs)
     except KeyError:
         raise InvalidCompressor()
+
+
+if __name__ == "__main__":
+    get_compressor("zip")
