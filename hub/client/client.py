@@ -37,10 +37,15 @@ class HubBackendClient:
             relative_url (str): The suffix to be appended to the end of the endpoint url.
             endpoint(str, optional): The endpoint to send the request to.
             params (dict, optional): Dictionary to send in the query string for the request.
-            data: (dict, optional): Dictionary to send in the body of the request.
-            json: (dict, optional): A JSON serializable Python object to send in the body of the request.
-            headers: (dict, optional): Dictionary of HTTP Headers to send with the request.
-            :param timeout: (float,optional) How many seconds to wait for the server to send data before giving up.
+            data (dict, optional): Dictionary to send in the body of the request.
+            files (dict, optional): Dictionary of 'name': file-like-objects (or {'name': file-tuple}) for multipart encoding upload.
+                file-tuple can be a 2-tuple (filename, fileobj), 3-tuple (filename, fileobj, content_type)
+                or a 4-tuple (filename, fileobj, content_type, custom_headers), where 'content-type' is a string
+                defining the content type of the given file and 'custom_headers' a dict-like object containing 
+                additional headers to add for the file.
+            json (dict, optional): A JSON serializable Python object to send in the body of the request.
+            headers (dict, optional): Dictionary of HTTP Headers to send with the request.
+            timeout (float,optional): How many seconds to wait for the server to send data before giving up.
 
         Returns:
             requests.Response: The response received from the server.
