@@ -1,6 +1,6 @@
 import posixpath
 from typing import Optional, Union, Iterable, Tuple
-from pathos.pools import ThreadPool
+from pathos.pools import ThreadPool  # type: ignore
 
 import boto3
 import botocore  # type: ignore
@@ -78,7 +78,7 @@ class S3Provider(StorageProvider):
         """Sets the object present at the path with the value
 
         Args:
-            path (str/Tuple[str]): the path relative to the root of the S3Provider.
+            paths (str/Tuple[str]): the path relative to the root of the S3Provider.
             content (bytes/Iterable[bytes]): the value to be assigned at the path.
 
         Raises:
@@ -108,7 +108,7 @@ class S3Provider(StorageProvider):
         """Gets the object present at the path.
 
         Args:
-            path (str/Tuple[str]): the path relative to the root of the S3Provider.
+            paths (str/Tuple[str]): the path relative to the root of the S3Provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -194,18 +194,3 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
-
-
-if __name__ == "__main__":
-    from hub.constants import MB
-
-    s3_provider = S3Provider(
-        "s3://snark-test/hub2/core/storage/tests/test_storage_provider_3/"
-    )
-    chunk = b"0123456789123456" * MB
-    import pdb
-
-    pdb.set_trace()
-    keys = tuple([f"file_{int(i)}" for i in range(20)])
-    s3_provider[keys] = (chunk,) * 20
-    print(s3_provider["file_0"])

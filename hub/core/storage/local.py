@@ -1,5 +1,5 @@
 from typing import Union, Iterable, Tuple
-from pathos.pools import ThreadPool
+from pathos.pools import ThreadPool  # type: ignore
 from hub.util.exceptions import FileAtPathException, DirectoryAtPathException
 from hub.core.storage.provider import StorageProvider
 import os
@@ -36,7 +36,7 @@ class LocalProvider(StorageProvider):
             my_data = local_provider["abc.txt"]
 
         Args:
-            path (str/Tuple[str]]): The path relative to the root of the provider.
+            paths (str/Tuple[str]]): The path relative to the root of the provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -75,8 +75,8 @@ class LocalProvider(StorageProvider):
             local_provider["abc.txt"] = b"abcd"
 
         Args:
-            path (str/Tuple[str]]): the path relative to the root of the provider.
-            value (bytes/Iterable[bytes]): the value to be assigned at the path.
+            paths (str/Tuple[str]]): the path relative to the root of the provider.
+            values (bytes/Iterable[bytes]): the value to be assigned at the path.
 
         Raises:
             Exception: If unable to set item due to directory at path or permission or space issues.

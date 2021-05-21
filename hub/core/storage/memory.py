@@ -1,8 +1,6 @@
 from os import path
 from typing import Iterable, Union, Tuple
-
-# from concurrent.futures import ThreadPoolExecutor
-from pathos.pools import ThreadPool
+from pathos.pools import ThreadPool  # type: ignore
 from hub.core.storage.provider import StorageProvider
 
 
@@ -47,7 +45,7 @@ class MemoryProvider(StorageProvider):
 
         Args:
             paths (str/Tuple[str]): the path relative to the root of the provider.
-            value (bytes/Iterable[bytes]): the value to be assigned at the path.
+            values (bytes/Iterable[bytes]): the value to be assigned at the path.
         """
 
         def set(path_value):
