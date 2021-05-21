@@ -104,3 +104,6 @@ def test_dataset(ds):
 
 ## Benchmarks
 We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usage.html) for our benchmark code which is a plugin for [pytest](https://docs.pytest.org/en/6.2.x/).
+
+
+TODO: benchmarking is subject to change. will update this section once it is better defined.
