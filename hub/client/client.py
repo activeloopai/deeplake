@@ -4,11 +4,12 @@ from hub.client.config import (
     HUB_REST_ENDPOINT,
     GET_TOKEN_SUFFIX,
     REGISTER_USER_SUFFIX,
-    DEFAULT_TIMEOUT,
+    DEFAULT_REQUEST_TIMEOUT,
 )
 from hub.client.utils import get_auth_header, check_response_status
 from hub.util.exceptions import LoginException
 from typing import Optional
+from hub import __version__
 
 
 class HubBackendClient:
@@ -27,8 +28,23 @@ class HubBackendClient:
         files: Optional[dict] = None,
         json: Optional[dict] = None,
         headers: Optional[dict] = None,
-        timeout: Optional[int] = DEFAULT_TIMEOUT,
+        timeout: Optional[int] = DEFAULT_REQUEST_TIMEOUT,
     ):
+        """Sends a request to the backend.
+
+        Args:
+            method (str): The method for sending the request. Should be one of 'GET', 'OPTIONS', 'HEAD', 'POST', 'PUT', 'PATCH', or 'DELETE'.
+            relative_url (str): The suffix to be appended to the end of the endpoint url.
+            endpoint(str, optional): The endpoint to send the request to.
+            params (dict, optional): Dictionary to send in the query string for the request.
+            data: (dict, optional): Dictionary to send in the body of the request.
+            json: (dict, optional): A JSON serializable Python object to send in the body of the request.
+            headers: (dict, optional): Dictionary of HTTP Headers to send with the request.
+            :param timeout: (float,optional) How many seconds to wait for the server to send data before giving up.
+
+        Returns:
+            requests.Response: The response received from the server.
+        """
         params = params or {}
         data = data or {}
         files = files or {}
@@ -38,8 +54,9 @@ class HubBackendClient:
         relative_url = relative_url.strip("/")
         request_url = f"{endpoint}/{relative_url}"
         headers = headers or {}
-        headers["hub-cli-version"] = "2.0"
-        headers["Authorization"] = self.auth_header or get_auth_header()
+        headers["hub-cli-version"] = __version__
+        self.auth_header = self.auth_header or get_auth_header()
+        headers["Authorization"] = self.auth_header
         try:
             response = requests.request(
                 method,
@@ -60,7 +77,19 @@ class HubBackendClient:
         check_response_status(response)
         return response
 
-    def request_access_token(self, username: str, password: str):
+    def request_auth_token(self, username: str, password: str):
+        """Sends a request to backend to retrieve auth token.
+
+        Args:
+            username (str): The Activeloop username to request token for.
+            password (str): The password of the account.
+
+        Returns:
+            string: The auth token corresponding to the accound.
+
+        Raises:
+            LoginException: If there is an issue retrieving the auth token.
+        """
         json = {"username": username, "password": password}
         response = self.request("GET", GET_TOKEN_SUFFIX, json=json)
 
@@ -72,6 +101,14 @@ class HubBackendClient:
         return token
 
     def send_register_request(self, username: str, email: str, password: str):
+        """Sends a request to backend to register a new
+
+        Args:
+            username (str): The Activeloop username to create account for.
+            email (str): The email id to link with the Activeloop account.
+            password (str): The new password of the account. Should be atleast 6 characters long.
+        """
+
         json = {"username": username, "email": email, "password": password}
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
 

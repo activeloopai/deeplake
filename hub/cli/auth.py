@@ -1,5 +1,6 @@
 from hub.client.utils import write_token, remove_token
 from hub.client.client import HubBackendClient
+from hub.util.exceptions import AuthenticationException
 import click
 
 
@@ -10,15 +11,20 @@ def login(username: str, password: str):
     """Log in to Activeloop"""
     click.echo("Log in using Activeloop credentials.")
     click.echo(
-        "If you don't have an account register by using 'hub register' command or by going to https://app.activeloop.ai/register"
+        "If you don't have an account register by using 'hub register' command or by going to https://app.activeloop.ai/register."
     )
     username = username or click.prompt("Username", type=str)
     username = username.strip()
     password = password or click.prompt("Password", type=str, hide_input=True)
     password = password.strip()
-    token = HubBackendClient().request_access_token(username, password)
-    write_token(token)
-    click.echo("Successfully logged in to Hub.")
+    try:
+        token = HubBackendClient().request_auth_token(username, password)
+        write_token(token)
+        click.echo("\nSuccessfully logged in to Hub.")
+    except AuthenticationException:
+        raise SystemExit("\nLogin failed. Check username and password.")
+    except Exception as e:
+        raise SystemExit(f"\nUnable to login: {e}")
 
 
 @click.command()
@@ -41,6 +47,10 @@ def register(username: str, email: str, password: str):
     email = email.strip()
     password = password or click.prompt("Password", type=str, hide_input=True)
     password = password.strip()
-    HubBackendClient().send_register_request(username, email, password)
-    token = HubBackendClient().request_access_token(username, password)
-    write_token(token)
+    try:
+        HubBackendClient().send_register_request(username, email, password)
+        token = HubBackendClient().request_auth_token(username, password)
+        write_token(token)
+        click.echo(f"\nSuccessfully registered and logged in as {username}")
+    except Exception as e:
+        raise SystemExit(f"\nUnable to register new user: {e}")

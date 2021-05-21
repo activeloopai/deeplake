@@ -18,7 +18,7 @@ from hub.util.exceptions import (
 
 
 def write_token(token: str):
-    os.environ[HUB_AUTH_TOKEN] = token
+    """Writes the auth token to the token file."""
     path = Path(TOKEN_FILE_PATH)
     os.makedirs(path.parent, exist_ok=True)
     with open(TOKEN_FILE_PATH, "w") as f:
@@ -26,19 +26,17 @@ def write_token(token: str):
 
 
 def get_auth_header():
-    token = os.environ.get(HUB_AUTH_TOKEN)
-    if token is not None:
-        return token
-    if not os.path.exists(TOKEN_FILE_PATH):
-        return None
-    with open(TOKEN_FILE_PATH) as f:
-        token = f.read()
-    return f"Bearer {token}"
+    """Returns the auth header. Searches for the token first in token file and then in enviroment variables."""
+    if os.path.exists(TOKEN_FILE_PATH):
+        with open(TOKEN_FILE_PATH) as f:
+            token = f.read()
+    else:
+        token = os.environ.get(HUB_AUTH_TOKEN)
+    return f"Bearer {token}" if token else None
 
 
 def remove_token():
-    if os.environ.get(HUB_AUTH_TOKEN) is not None:
-        del os.environ[HUB_AUTH_TOKEN]
+    """Deletes the token file"""
     if os.path.isfile(TOKEN_FILE_PATH):
         os.remove(TOKEN_FILE_PATH)
 

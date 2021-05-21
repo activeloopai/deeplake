@@ -70,14 +70,14 @@ class ProviderSizeListMismatch(Exception):
 class LoginException:
     def __init__(
         self,
-        message="Error while logging in, invalid auth token. Try logging in again.",
+        message="Error while logging in, invalid auth token. Please try logging in again.",
     ):
         super().__init__(message)
 
 
 # Exceptions encountered while interection with the Hub backend
 class AuthenticationException(Exception):
-    def __init__(self, message="Authentication failed. Please login again."):
+    def __init__(self, message="Authentication failed. Please try logging in again."):
         super().__init__(message)
 
 
