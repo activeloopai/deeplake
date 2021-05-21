@@ -21,6 +21,7 @@ We use [pytest](https://docs.pytest.org/en/6.2.x/) for our tests. In order to ma
 
 ### Options
 An option is provided as such: `pytest . --some-option`.
+
 **Note: When running `pytest .`, none of these options are provided. The only options provided by default are `-s` and `--benchmark-skip`.**
 
 - `--memory-skip`: Skip all tests that use `MemoryProvider`. Either as a parametrization (in the `storage` fixture) or standalone as the `memory_storage` fixture.
