@@ -1,44 +1,17 @@
-import pytest
-import numpy as np
+import os
 import pickle
+from typing import List, Tuple, Dict
 
-from hub.core.chunk_engine import write_array, read_array
+import numpy as np
+import pytest
+from hub.constants import KB, MB
+from hub.core.chunk_engine import read_array, write_array
 from hub.core.storage import MemoryProvider, S3Provider
-
-from hub.util.array import normalize_and_batchify_shape
-from hub.util.s3 import has_s3_credentials
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
-
 from hub.core.typing import StorageProvider
-
-from typing import List, Tuple
-
-from uuid import uuid1
-
-
-def random_key(prefix="test_"):
-    return prefix + str(uuid1())
-
-
-STORAGE_PROVIDERS = (
-    MemoryProvider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-    S3Provider("snark-test/hub-2.0/core/common/%s" % random_key("session_")),
-)
-
-
-CHUNK_SIZES = (
-    128,
-    4096,
-    16000000,  # 16MB
-)
-
-
-DTYPES = (
-    "uint8",
-    "int64",
-    "float64",
-    "bool",
-)
+from hub.tests.common import current_test_name, TENSOR_KEY
+from hub.util.array import normalize_and_batchify_shape
+from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+from hub.util.s3 import has_s3_credentials
 
 
 def get_min_shape(batch: np.ndarray) -> Tuple:
@@ -82,6 +55,7 @@ def assert_chunk_sizes(
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
+    actual_chunk_lengths_dict: Dict[str, int] = {}
     for i, entry in enumerate(index_map):
         for j, chunk_name in enumerate(entry["chunk_names"]):
             chunk_key = get_chunk_key(key, chunk_name)
@@ -97,6 +71,13 @@ def assert_chunk_sizes(
                 i,
                 j,
             )
+
+            if chunk_name in actual_chunk_lengths_dict:
+                assert (
+                    chunk_length == actual_chunk_lengths_dict[chunk_name]
+                ), "Chunk size changed from one read to another."
+            else:
+                actual_chunk_lengths_dict[chunk_name] = chunk_length
 
             if chunk_length < chunk_size:
                 incomplete_chunk_names.add(chunk_name)
@@ -115,20 +96,29 @@ def assert_chunk_sizes(
         str(incomplete_chunk_names),
     )
 
+    # assert that all chunks (except the last one) are of expected size (`chunk_size`)
+    actual_chunk_lengths = np.array(list(actual_chunk_lengths_dict.values()))
+    if len(actual_chunk_lengths) > 1:
+        assert np.all(
+            actual_chunk_lengths[:-1] == chunk_size
+        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
+            chunk_size,
+            str(actual_chunk_lengths[:-1]),
+            str(actual_chunk_lengths_dict.keys()),
+        )
+
 
 def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
-    clear_if_memory_provider(storage)
-
-    key = random_key()
+    key = TENSOR_KEY
 
     for i, a_in in enumerate(arrays):
         write_array(
             a_in,
             key,
-            chunk_size,
             storage,
+            chunk_size,
             batched=batched,
         )
 
@@ -144,6 +134,7 @@ def run_engine_test(
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
+        # TODO: use get_meta
         meta = pickle.loads(storage[meta_key])
 
         assert_meta_is_valid(
@@ -171,8 +162,8 @@ def benchmark_write(
         write_array(
             a_in,
             key,
-            chunk_size,
             storage,
+            chunk_size,
             batched=batched,
         )
 
