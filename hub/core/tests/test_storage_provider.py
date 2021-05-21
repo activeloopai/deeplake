@@ -1,7 +1,10 @@
 import pytest
 from hub.constants import MB
-from hub.core.tests.common import (parametrize_all_caches,
-                                   parametrize_all_storages)
+from hub.core.tests.common import (
+    ALL_PROVIDERS,
+    parametrize_all_caches,
+    parametrize_all_storages,
+)
 from hub.tests.common import current_test_name
 from numpy import can_cast
 
@@ -12,8 +15,13 @@ KEY = "file"
 def check_storage_provider(storage):
     FILE_1 = f"{KEY}_1"
     FILE_2 = f"{KEY}_2"
+    FILE_3 = f"{KEY}_3"
 
     storage[FILE_1] = b"hello world"
+    storage[(FILE_1, FILE_3)] = [b"hello world", b"hello_world_3"]
+    assert storage[FILE_3] == b"hello_world_3"
+    assert storage[(FILE_1, FILE_3)] == [b"hello world", b"hello_world_3"]
+
     assert storage[FILE_1] == b"hello world"
     assert storage.get_bytes(FILE_1, 2, 5) == b"llo"
 
@@ -118,6 +126,18 @@ def read_from_files(storage):
         storage[f"{KEY}_{i}"]
 
 
+def write_multiple_files(storage):
+    chunk = b"0123456789123456" * MB
+    keys = tuple([f"{KEY}_{int(i)}" for i in range(NUM_FILES)])
+    storage[keys] = [chunk] * NUM_FILES
+    storage.flush()
+
+
+def read_multiple_files(storage):
+    keys = tuple([f"{KEY}_{int(i)}" for i in range(NUM_FILES)])
+    storage[keys]
+
+
 @parametrize_all_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
@@ -134,6 +154,11 @@ def test_storage_write_speeds(benchmark, storage):
     benchmark(write_to_files, storage)
 
 
+@parametrize_all_storages
+def test_storage_write_multiple_speeds(benchmark, storage):
+    benchmark(write_multiple_files, storage)
+
+
 @parametrize_all_caches
 def test_cache_write_speeds(benchmark, storage):
     benchmark(write_to_files, storage)
@@ -143,6 +168,12 @@ def test_cache_write_speeds(benchmark, storage):
 def test_storage_read_speeds(benchmark, storage):
     write_to_files(storage)
     benchmark(read_from_files, storage)
+
+
+@parametrize_all_storages
+def test_storage_read_multiple_speeds(benchmark, storage):
+    write_multiple_files(storage)
+    benchmark(read_multiple_files, storage)
 
 
 @parametrize_all_caches
