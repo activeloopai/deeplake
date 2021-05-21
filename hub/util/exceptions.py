@@ -10,10 +10,8 @@ class ChunkSizeTooSmallError(Exception):
 
 
 class TensorNotFoundError(KeyError):
-    def __init__(self, tensor_name: str, dataset_path: str):
-        super().__init__(
-            "Tensor {} not found in dataset {}".format(tensor_name, dataset_path)
-        )
+    def __init__(self, tensor_name: str):
+        super().__init__("Tensor {} not found in dataset.".format(tensor_name))
 
 
 class InvalidKeyTypeError(TypeError):

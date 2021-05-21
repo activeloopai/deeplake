@@ -3,6 +3,7 @@ import pickle
 from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
+from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
 
 from hub.core.typing import StorageProvider
 from typing import Any, Callable, List, Tuple
@@ -14,11 +15,19 @@ from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
 
 
+def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
+    storage[get_meta_key(key)] = pickle.dumps(meta)
+
+
+def write_dataset_meta(storage: StorageProvider, meta: dict):
+    storage[META_FILENAME] = pickle.dumps(meta)
+
+
 def write_array(
     array: np.ndarray,
     key: str,
-    chunk_size: int,
     storage: StorageProvider,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
     tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
@@ -30,8 +39,8 @@ def write_array(
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
             batch dimension, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        chunk_size (int): Desired length of each chunk.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
         tobytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
@@ -68,7 +77,7 @@ def write_array(
         index_map.append(index_map_entry)
 
     # TODO: don't use pickle
-    storage[meta_key] = pickle.dumps(meta)
+    write_tensor_meta(key, storage, meta)
     storage[index_map_key] = pickle.dumps(index_map)
 
 

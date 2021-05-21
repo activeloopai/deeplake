@@ -3,7 +3,8 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB, MB
-from hub.core.chunk_engine.tests.common import (
+from hub.core.chunk_engine.tests.common import get_random_array, run_engine_test
+from hub.tests.common import (
     CHUNK_SIZE_PARAM,
     CHUNK_SIZES,
     DTYPE_PARAM,
@@ -11,10 +12,9 @@ from hub.core.chunk_engine.tests.common import (
     NUM_BATCHES_PARAM,
     SHAPE_PARAM,
     TENSOR_KEY,
-    get_random_array,
     parametrize_chunk_sizes,
+    parametrize_num_batches,
     parametrize_dtypes,
-    run_engine_test,
 )
 from hub.core.tests.common import (
     parametrize_all_caches,
@@ -24,10 +24,6 @@ from hub.core.typing import StorageProvider
 from hub.tests.common import current_test_name
 
 np.random.seed(1)
-
-
-# number of batches (unbatched implicitly = 1 sample per batch) per test
-NUM_BATCHES = (1,)
 
 
 UNBATCHED_SHAPES = (
@@ -48,7 +44,7 @@ BATCHED_SHAPES = (
 
 
 @pytest.mark.parametrize(SHAPE_PARAM, UNBATCHED_SHAPES)
-@pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
+@parametrize_num_batches
 @parametrize_chunk_sizes
 @parametrize_dtypes
 @parametrize_all_storages_and_caches
@@ -69,7 +65,7 @@ def test_unbatched(
 
 
 @pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
-@pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
+@parametrize_num_batches
 @parametrize_chunk_sizes
 @parametrize_dtypes
 @parametrize_all_storages_and_caches

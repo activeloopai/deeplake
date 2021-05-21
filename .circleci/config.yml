@@ -157,12 +157,6 @@ commands:
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
                   python3 -m pytest --cov-report=xml --cov=./ --benchmark-skip --local --s3 --cache-chains
-            - run:
-                name: "Running benchmarks - Windows"
-                command: |
-                  $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
-                  setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-only --benchmark-autosave --local --s3 --cache-chains
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -171,11 +165,6 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --benchmark-skip --local --s3 --cache-chains
-            - run:
-                name: "Running benchmarks - Unix"
-                command: |
-                  export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --benchmark-only --benchmark-autosave --local --s3 --cache-chains
   codecov-upload:
     steps:
       - codecov/upload:
