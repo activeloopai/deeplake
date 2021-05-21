@@ -70,18 +70,18 @@ def pytest_addoption(parser):
     parser.addoption(
         MEMORY_OPT,
         action="store_true",
-        help="Tests using the `memory_provider` fixture will be skipped. Tests using the `storage` fixture will be skipped if called with \
+        help="Tests using the `memory_storage` fixture will be skipped. Tests using the `storage` fixture will be skipped if called with \
                 `MemoryProvider`.",
     )
     parser.addoption(
         LOCAL_OPT,
         action="store_true",
-        help="Tests using the `storage`/`local_provider` fixtures will run with `LocalProvider`.",
+        help="Tests using the `storage`/`local_storage` fixtures will run with `LocalProvider`.",
     )
     parser.addoption(
         S3_OPT,
         action="store_true",
-        help="Tests using the `storage`/`s3_provider` fixtures will run with `S3Provider`.",
+        help="Tests using the `storage`/`s3_storage` fixtures will run with `S3Provider`.",
     )
     parser.addoption(
         CACHE_OPT,
