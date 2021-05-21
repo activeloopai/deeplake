@@ -101,7 +101,7 @@ class S3Provider(StorageProvider):
                 put((paths, content))
             else:
                 with ThreadPool() as pool:
-                    return pool.map(put, list(zip(paths, content)))
+                    pool.map(put, list(zip(paths, content)))
         except Exception as err:
             raise S3SetError(err)
 
