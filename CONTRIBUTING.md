@@ -41,6 +41,7 @@ You can find more information on pytest fixtures [here](https://docs.pytest.org/
 - `local_storage`: If `--local` is **not** provided, tests with this fixture will be skipped. Otherwise, the test will run with only a `LocalProvider`.
 - `s3_storage`: If `--s3` is **not** provided, tests with this fixture will be skipped. Otherwise, the test will run with only an `S3Provider`.
 - `storage`: All tests that use the `storage` fixture will be parametrized with the enabled `StorageProvider`s (enabled via options defined below). If `--cache-chains` is provided, `storage` may also be a cache chain. Cache chains have the same interface as `StorageProvider`, but instead of just a single provider, it is multiple chained in a sequence, where the last provider in the chain is considered the actual storage.
+- `ds`: The same as the `storage` fixture, but the storages that are parametrized are wrapped with a `Dataset`.
 
 Each `StorageProvider`/`Dataset` that is created for a test via a fixture will automatically have a root created before and destroyed after the test. If you want to keep this data after the test run, you can use the `--keep-storage` option. 
 
