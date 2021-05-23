@@ -116,14 +116,25 @@ def pytest_addoption(parser):
     )
 
 
-def _get_storage_provider(request, storage_name, with_current_test_name=True):
+def _get_storage_provider(
+    request, storage_name, with_current_test_name=True, info_override={}
+):
     info = _get_storage_configs(request)[storage_name]
+    info.update(info_override)
+
     root = info["base_root"]
+
+    path = ""
     if with_current_test_name:
-        path = current_test_name(
-            with_id=info["use_id"], is_id_prefix=info["is_id_prefix"]
-        )
-        root = os.path.join(root, path)
+        path = current_test_name()
+
+    if info["use_id"]:
+        if info["is_id_prefix"]:
+            path = os.path.join(SESSION_ID, path)
+        else:
+            path = os.path.join(path, SESSION_ID)
+
+    root = os.path.join(root, path)
     return info["class"](root)
 
 
@@ -221,26 +232,30 @@ def ds(request, memory_storage, local_storage, s3_storage):
     )
 
 
-def print_session_id(request):
-    if _is_opt_true(request, S3_OPT):
-        # s3 is the only storage provider that uses the SESSION_ID prefix
-        # if it is enabled, print it out after all tests finish
-        print("\n\n")
-        print("----------------------------------------------------------")
-        print("Testing session ID: %s" % SESSION_ID)
-        print("----------------------------------------------------------")
+def print_session_id():
+    print("----------------------------------------------------------")
+    print("Testing session ID: %s" % SESSION_ID)
+    print("----------------------------------------------------------")
+
+
+print_session_id()
 
 
 def _clear_storages(request):
+    # clear memory
     if not _is_opt_true(request, MEMORY_OPT):
         storage = _get_storage_provider(request, MEMORY, with_current_test_name=False)
         storage.clear()
 
+    # clear local
     if _is_opt_true(request, LOCAL_OPT):
         storage = _get_storage_provider(request, LOCAL, with_current_test_name=False)
         storage.clear()
 
-    # don't clear S3 tests (these will be automatically cleared on occasion)
+    # clear s3
+    if _is_opt_true(request, S3_OPT):
+        storage = _get_storage_provider(request, S3, with_current_test_name=False)
+        storage.clear()
 
 
 @pytest.fixture(scope="session", autouse=True)
