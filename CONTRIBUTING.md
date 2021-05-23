@@ -30,7 +30,7 @@ An option is provided as such: `pytest . --some-option`.
 - `--cache-chains`: Run all tests that use a chain of `StorageProvider`s. Only enabled (via the options above) `StorageProvider`s will be used for composing these cache chains. Cache chains will always be provided as a parametrization of the `storage` fixture.
 - `--cache-chains-only`: Force enables `--cache-chains`, but all parametrizations/fixtures that contain non-cache chain `StorageProvider`s will be skipped.
 - `--s3-path`: Url to s3 bucket with optional key to be used for the `S3Provider`. Example: s3://bucket_name/key/to/tests/. The default value can be found in [hub.constants](hub/constants.py).
-- `--keep-storage`: By default, all `StorageProvider`s created via fixtures/parametrizations will have their data wiped (unless it is an `S3Provider`). This option will keep the storage data.
+- `--keep-storage`: By default, all `StorageProvider`s created via fixtures/parametrizations will have their data wiped. This option will keep the storage data.
 - `--full-benchmarks`: Covered in the benchmarks section.
 
 
