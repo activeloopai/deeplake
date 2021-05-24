@@ -10,10 +10,10 @@ from hub.util.slice import merge_slices
 
 class Tensor:
     def __init__(
-            self,
-            key: str,
-            provider: StorageProvider,
-            tensor_slice: slice = slice(None),
+        self,
+        key: str,
+        provider: StorageProvider,
+        tensor_slice: slice = slice(None),
     ):
         """Initialize a new tensor.
 
