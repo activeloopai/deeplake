@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 
 from .chunker import join_chunks
 
@@ -39,9 +40,7 @@ def read_array(
     meta = read_tensor_meta(key, storage)
     index_map = pickle.loads(storage[get_index_map_key(key)])
 
-    # TODO: read samples in parallel
-    samples = []
-    for index_entry in index_map[array_slice]:
+    def read_samples(index_entry):
         chunks = []
         for chunk_name in index_entry["chunk_names"]:
             chunk_key = os.path.join(key, "chunks", chunk_name)
@@ -56,6 +55,8 @@ def read_array(
         )
 
         out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
+        return out_array.reshape(index_entry["shape"])
 
+    with ThreadPoolExecutor() as pool:
+        samples = list(pool.map(read_samples, index_map[array_slice]))
     return np.array(samples)
