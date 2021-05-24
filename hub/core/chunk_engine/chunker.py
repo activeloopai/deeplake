@@ -88,12 +88,13 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
     """
 
     indexed_chunks = []
+    len_chunks = len(chunks)
     for i, chunk in enumerate(chunks):
         actual_start_byte, actual_end_byte = 0, len(chunk)
 
         if i <= 0:
             actual_start_byte = start_byte
-        if i >= len(chunks) - 1:
+        if i >= len_chunks - 1:
             actual_end_byte = end_byte
 
         indexed_chunks.append(chunk[actual_start_byte:actual_end_byte])

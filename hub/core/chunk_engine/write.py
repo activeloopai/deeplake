@@ -49,7 +49,7 @@ def write_array(
         NotImplementedError: Do not use this function for writing to a key that already exists.
     """
 
-    array = normalize_and_batchify_shape(array, batched=batched)
+    array = normalize_and_batchify_shape(array=array, batched=batched)
 
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)

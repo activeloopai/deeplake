@@ -74,4 +74,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_array(self.key, self.provider, self.slice)
+        return read_array(key=self.key, storage=self.provider, array_slice=self.slice)
