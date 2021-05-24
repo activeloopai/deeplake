@@ -15,6 +15,7 @@ from typing import Union, Dict, Optional
 import numpy as np
 import warnings
 import os
+from hub.api.pt import _to_pytorch
 
 
 class Dataset:
@@ -100,6 +101,9 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def to_pytorch(self, transform=None):
+        return _to_pytorch(self, transform)
 
     @staticmethod
     def from_path(path: str):
