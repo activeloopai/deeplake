@@ -2,21 +2,21 @@ from typing import Tuple
 
 import numpy as np
 import pytest
-from hub.constants import GB, MB
+
+from hub.constants import GB
 from hub.core.chunk_engine import read_array, write_array
+from hub.core.chunk_engine.tests.common import (
+    get_random_array,
+    TENSOR_KEY,
+)
+from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
+from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
     parametrize_benchmark_shapes,
     parametrize_benchmark_chunk_sizes,
     parametrize_benchmark_dtypes,
     parametrize_benchmark_num_batches,
 )
-from hub.core.chunk_engine.tests.common import (
-    get_random_array,
-    run_engine_test,
-    TENSOR_KEY,
-)
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
-from hub.core.typing import StorageProvider
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
@@ -24,10 +24,10 @@ def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
 
     for a_in in arrays:
         write_array(
-            a_in,
-            actual_key,
-            chunk_size,
-            storage,
+            array=a_in,
+            key=actual_key,
+            storage=storage,
+            chunk_size=chunk_size,
             batched=batched,
         )
 
@@ -101,7 +101,14 @@ def test_write_with_caches(
     dtype: str,
     storage: StorageProvider,
 ):
-    benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage)
+    benchmark_write(
+        benchmark=benchmark,
+        shape=shape,
+        dtype=dtype,
+        chunk_size=chunk_size,
+        num_batches=num_batches,
+        storage=storage,
+    )
 
 
 @pytest.mark.full_benchmark
@@ -119,7 +126,14 @@ def test_write_without_caches(
     dtype: str,
     storage: StorageProvider,
 ):
-    benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage)
+    benchmark_write(
+        benchmark=benchmark,
+        shape=shape,
+        dtype=dtype,
+        chunk_size=chunk_size,
+        num_batches=num_batches,
+        storage=storage,
+    )
 
 
 @pytest.mark.benchmark(group="chunk_engine_read_with_caches")
