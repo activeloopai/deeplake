@@ -1,14 +1,13 @@
-import os
 import pickle
 from typing import List, Tuple, Dict
 
 import numpy as np
 import pytest
-from hub.constants import KB, MB
+
 from hub.core.chunk_engine import read_array, write_array
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
-from hub.tests.common import current_test_name, TENSOR_KEY
+from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
@@ -50,7 +49,7 @@ def assert_meta_is_valid(meta: dict, expected_meta: dict):
 
 
 def assert_chunk_sizes(
-    key: str, index_map: List, chunk_size: int, storage: StorageProvider
+        key: str, index_map: List, chunk_size: int, storage: StorageProvider
 ):
     incomplete_chunk_names = set()
     complete_chunk_count = 0
@@ -63,7 +62,7 @@ def assert_chunk_sizes(
 
             # exceeding chunk_size is never acceptable
             assert (
-                chunk_length <= chunk_size
+                    chunk_length <= chunk_size
             ), 'Chunk "%s" exceeded chunk_size=%i (got %i) @ [%i, %i].' % (
                 chunk_name,
                 chunk_size,
@@ -74,7 +73,7 @@ def assert_chunk_sizes(
 
             if chunk_name in actual_chunk_lengths_dict:
                 assert (
-                    chunk_length == actual_chunk_lengths_dict[chunk_name]
+                        chunk_length == actual_chunk_lengths_dict[chunk_name]
                 ), "Chunk size changed from one read to another."
             else:
                 actual_chunk_lengths_dict[chunk_name] = chunk_length
@@ -88,7 +87,7 @@ def assert_chunk_sizes(
 
     incomplete_chunk_count = len(incomplete_chunk_names)
     assert (
-        incomplete_chunk_count <= 1
+            incomplete_chunk_count <= 1
     ), "Incomplete chunk count should never exceed 1. Incomplete count: %i. Complete count: %i. Total: %i.\nIncomplete chunk names: %s" % (
         incomplete_chunk_count,
         complete_chunk_count,
@@ -109,7 +108,7 @@ def assert_chunk_sizes(
 
 
 def run_engine_test(
-    arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
+        arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
     key = TENSOR_KEY
 
@@ -130,7 +129,7 @@ def run_engine_test(
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        a_out = read_array(key, storage)
+        a_out = read_array(key=key, storage=storage)
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
@@ -154,7 +153,7 @@ def run_engine_test(
 
 
 def benchmark_write(
-    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
+        key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
     clear_if_memory_provider(storage)
 

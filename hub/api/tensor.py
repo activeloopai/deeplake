@@ -1,19 +1,19 @@
-from hub.util.slice import merge_slices
-import numpy as np
 from typing import Union
-from hub.core.typing import StorageProvider
-from hub.core.storage.memory import MemoryProvider
-from hub.core.storage.local import LocalProvider
+
+import numpy as np
+
 from hub.core.chunk_engine.read import read_array, read_tensor_meta
-from hub.core.chunk_engine.write import write_array, write_tensor_meta
+from hub.core.chunk_engine.write import write_array
+from hub.core.typing import StorageProvider
+from hub.util.slice import merge_slices
 
 
 class Tensor:
     def __init__(
-        self,
-        key: str,
-        provider: StorageProvider,
-        tensor_slice: slice = slice(None),
+            self,
+            key: str,
+            provider: StorageProvider,
+            tensor_slice: slice = slice(None),
     ):
         """Initialize a new tensor.
 
@@ -57,8 +57,8 @@ class Tensor:
             )
         else:
             write_array(
-                value,
-                self.key,
+                array=value,
+                key=self.key,
                 storage=self.provider,
                 batched=True,
             )
