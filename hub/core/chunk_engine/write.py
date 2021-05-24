@@ -1,18 +1,15 @@
-import numpy as np
 import pickle
+from typing import Callable, List, Tuple
 from uuid import uuid1
 
-from hub.core.chunk_engine import generate_chunks
+import numpy as np
+
 from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
-
+from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import StorageProvider
-from typing import Any, Callable, List, Tuple
-
-from .flatten import row_wise_to_bytes
-
-
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
+from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
+from .flatten import row_wise_to_bytes
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -29,7 +26,7 @@ def write_array(
     storage: StorageProvider,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
-    tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
+    to_bytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
     """Chunk and write an array to storage.
 
@@ -43,7 +40,7 @@ def write_array(
         chunk_size (int): Desired length of each chunk.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-        tobytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
+        to_bytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
 
     Raises:
         NotImplementedError: Do not use this function for writing to a key that already exists.
@@ -68,20 +65,23 @@ def write_array(
 
     for i in range(array.shape[0]):
         sample = array[i]
-        b = tobytes(sample)
-
-        index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
-
-        # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
-        index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
+        # TODO Add parallel writes
+        _write_sample(sample, key, chunk_size, storage, index_map, to_bytes)
 
     # TODO: don't use pickle
     write_tensor_meta(key, storage, meta)
     storage[index_map_key] = pickle.dumps(index_map)
 
 
-def write_bytes(
+def _write_sample(sample, key, chunk_size, storage, index_map, to_bytes):
+    b = to_bytes(sample)
+    index_map_entry = _write_bytes(b, key, chunk_size, storage, index_map)
+    # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
+    index_map_entry["shape"] = sample.shape
+    index_map.append(index_map_entry)
+
+
+def _write_bytes(
     b: bytes, key: str, chunk_size: int, storage: StorageProvider, index_map: List[dict]
 ) -> dict:
     """For internal use only. Chunk and write bytes to storage and return the index_map entry.
