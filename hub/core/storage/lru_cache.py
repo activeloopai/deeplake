@@ -124,7 +124,7 @@ class LRUCache(StorageProvider):
         yield from self._list_keys()
 
     def _free_up_space(self, extra_size: int):
-        """Helper function that frees up space the requred space in cache.
+        """Helper function that frees up space the required space in cache.
             No action is taken if there is sufficient space in the cache.
 
         Args:

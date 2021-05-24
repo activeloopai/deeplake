@@ -13,6 +13,7 @@ SHAPE_PARAM = "shape"
 NUM_BATCHES_PARAM = "num_batches"
 DTYPE_PARAM = "dtype"
 CHUNK_SIZE_PARAM = "chunk_size"
+MULTI_THREADED = "multi_threaded"
 
 
 NUM_BATCHES = (1,)

@@ -1,9 +1,8 @@
 import os
-from uuid import uuid1
 
 import pytest
 
-from hub.core.typing import StorageProvider
+from hub.api.dataset import Dataset
 from hub.constants import (
     MIN_FIRST_CACHE_SIZE,
     MIN_SECOND_CACHE_SIZE,
@@ -11,9 +10,9 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     PYTEST_S3_PROVIDER_BASE_ROOT,
 )
-from hub.api.dataset import Dataset
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
+from hub.core.typing import StorageProvider
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
 

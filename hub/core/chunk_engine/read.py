@@ -23,6 +23,7 @@ def read_array(
     key: str,
     storage: StorageProvider,
     array_slice: slice = slice(None),
+    multi_threaded: Optional[bool] = True,
     threads: Optional[int] = None,
 ) -> np.ndarray:
     """Read and join chunks into an array from storage.
@@ -42,6 +43,30 @@ def read_array(
     index_map = pickle.loads(storage[get_index_map_key(key)])
 
     samples = []
+    if multi_threaded:
+        multi_threaded_get_samples(
+            index_map, array_slice, key, storage, meta, samples, threads
+        )
+    else:
+        single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples)
+    return np.array(samples)
+
+
+def single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples):
+    for index, index_entry in enumerate(index_map[array_slice]):
+        _get_sample(
+            index=index,
+            key=key,
+            index_entry=index_entry,
+            storage=storage,
+            meta=meta,
+            samples=samples,
+        )
+
+
+def multi_threaded_get_samples(
+    index_map, array_slice, key, storage, meta, samples, threads
+):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
         for index, index_entry in enumerate(index_map[array_slice]):
@@ -56,7 +81,6 @@ def read_array(
                     samples=samples,
                 )
             )
-    return np.array(samples)
 
 
 def _get_sample(index, key, index_entry, storage, meta, samples):
