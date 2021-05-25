@@ -67,6 +67,7 @@ def write_array(
         "length": array.shape[0],
         "min_shape": array.shape[1:],
         "max_shape": array.shape[1:],
+        # TODO: tobytes function and handle mismatch versions for this
     }
 
     for i in range(array.shape[0]):
@@ -88,9 +89,7 @@ def append_array(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
-    tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
     if not _key_exists(key, storage):
         # TODO: exceptions.py & change `write_array` NotImplementedError
@@ -99,7 +98,37 @@ def append_array(
             % (key, str(storage))
         )
 
-    pass
+    array = normalize_and_batchify_shape(array, batched=batched)
+
+    """
+    index_map: List[dict] = []
+    meta = {
+        "chunk_size": chunk_size,
+        "dtype": array.dtype.name,
+        "length": array.shape[0],
+        "min_shape": array.shape[1:],
+        "max_shape": array.shape[1:],
+    }
+    """
+
+    # TODO: validate that the provided array matches
+    # TODO: get the tobytes function from meta
+
+    """
+    for i in range(array.shape[0]):
+        sample = array[i]
+        b = tobytes(sample)
+
+        index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
+
+        # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
+        index_map_entry["shape"] = sample.shape
+        index_map.append(index_map_entry)
+
+    # TODO: don't use pickle
+    write_tensor_meta(key, storage, meta)
+    write_index_map(key, storage, index_map)
+    """
 
 
 def write_bytes(

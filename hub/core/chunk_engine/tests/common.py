@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict
 import numpy as np
 import pytest
 
-from hub.core.chunk_engine import read_array, write_array
+from hub.core.chunk_engine import read_array, write_array, append_array
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
@@ -111,15 +111,19 @@ def run_engine_test(
     arrays: List[np.ndarray], storage: StorageProvider, batched: bool, chunk_size: int
 ):
     key = TENSOR_KEY
+    sample_count = 0
 
     for i, a_in in enumerate(arrays):
-        write_array(
-            a_in,
-            key,
-            storage,
-            chunk_size,
-            batched=batched,
-        )
+        if i <= 0:
+            write_array(
+                a_in,
+                key,
+                storage,
+                chunk_size,
+                batched=batched,
+            )
+        else:
+            append_array(a_in, key, storage, batched=batched)
 
         index_map_key = get_index_map_key(key)
         index_map = pickle.loads(storage[index_map_key])
@@ -129,7 +133,9 @@ def run_engine_test(
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        a_out = read_array(key=key, storage=storage)
+        num_samples = a_in.shape[0]
+        array_slice = slice(sample_count, num_samples)
+        a_out = read_array(key=key, storage=storage, array_slice=array_slice)
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
@@ -148,6 +154,8 @@ def run_engine_test(
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+
+        sample_count += num_samples
 
     clear_if_memory_provider(storage)
 

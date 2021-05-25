@@ -9,7 +9,6 @@ from hub.tests.common import (
     CHUNK_SIZES,
     DTYPE_PARAM,
     DTYPES,
-    NUM_BATCHES_PARAM,
     SHAPE_PARAM,
     TENSOR_KEY,
     parametrize_chunk_sizes,
