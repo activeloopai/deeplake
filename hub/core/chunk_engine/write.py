@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 from uuid import uuid1
+from concurrent.futures import ThreadPoolExecutor
 
 from hub.core.chunk_engine import generate_chunks
 from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
@@ -66,16 +67,18 @@ def write_array(
         "max_shape": array.shape[1:],
     }
 
-    for i in range(array.shape[0]):
-        sample = array[i]
+    def write_array_bytes(array_slice):
+        sample = array[array_slice]
         b = tobytes(sample)
 
         index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
 
         # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
+        return index_map_entry
 
+    with ThreadPoolExecutor() as pool:
+        index_map = pool.map(write_array_bytes, range(array.shape[0]))
     # TODO: don't use pickle
     write_tensor_meta(key, storage, meta)
     storage[index_map_key] = pickle.dumps(index_map)
