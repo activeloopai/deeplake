@@ -1,14 +1,12 @@
 import os
 import pickle
+
 import numpy as np
 
-from .chunker import join_chunks
-
 from hub import constants
-from hub.util.keys import get_meta_key, get_index_map_key
-
 from hub.core.typing import StorageProvider
-from typing import Callable, List, Union
+from hub.util.keys import get_meta_key, get_index_map_key
+from .chunker import join_chunks
 
 
 def read_tensor_meta(key: str, storage: StorageProvider):
@@ -41,21 +39,35 @@ def read_array(
 
     # TODO: read samples in parallel
     samples = []
-    for index_entry in index_map[array_slice]:
-        chunks = []
-        for chunk_name in index_entry["chunk_names"]:
-            chunk_key = os.path.join(key, "chunks", chunk_name)
-            chunk = storage[chunk_key]
-
-            chunks.append(chunk)
-
-        combined_bytes = join_chunks(
-            chunks,
-            index_entry["start_byte"],
-            index_entry["end_byte"],
+    for index, index_entry in enumerate(index_map[array_slice]):
+        _get_sample(
+            index=index,
+            key=key,
+            index_entry=index_entry,
+            storage=storage,
+            meta=meta,
+            samples=samples,
         )
 
-        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
-
     return np.array(samples)
+
+
+def _get_sample(index, key, index_entry, storage, meta, samples):
+    chunks = []
+    for i, chunk_name in enumerate(index_entry["chunk_names"]):
+        _get_chunks(key, chunk_name, storage, chunks, index)
+
+    combined_bytes = join_chunks(
+        chunks,
+        index_entry["start_byte"],
+        index_entry["end_byte"],
+    )
+
+    out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
+    samples.insert(index, out_array.reshape(index_entry["shape"]))
+
+
+def _get_chunks(key, chunk_name, storage, chunks, index):
+    chunk_key = os.path.join(key, "chunks", chunk_name)
+    chunk = storage[chunk_key]
+    chunks.insert(index, chunk)

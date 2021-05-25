@@ -16,7 +16,7 @@ BENCHMARK_DTYPES = ("int64",)
 BENCHMARK_CHUNK_SIZES = (16 * MB,)
 BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
-    (840, 224, 224, 3),
+    (1, 224, 224, 3),
 )
 
 # benchmark parametrize decorators
