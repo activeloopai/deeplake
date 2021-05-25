@@ -1,5 +1,6 @@
-from hub.core.storage.lru_cache import LRUCache
 from typing import List
+
+from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
 
@@ -9,14 +10,15 @@ def get_cache_chain(provider_list: List[StorageProvider], size_list: List[int]):
 
     Args:
         provider_list (List[StorageProvider]): The list of storage providers needed in a cache.
-            Should have atleast one provider in the list.
+            Should have at least one provider in the list.
             If only one provider, LRU cache isn't created and the provider is returned.
         size_list (List[int]): The list of sizes of the caches.
             Should have size 1 less than provider_list and specifies size of cache for all providers except the last one.
             The last one is the primary storage and is assumed to have infinite space.
 
     Returns:
-        StorageProvider: Returns a cache containing all the storage providers in cache_list if cache_list has 2 or more elements.
+        StorageProvider: Returns a cache containing all the storage providers in cache_list if cache_list has 2 or more
+        elements.
             Returns the provider if the provider_list has only one provider.
 
     Raises:

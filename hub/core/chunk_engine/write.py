@@ -1,18 +1,15 @@
-import numpy as np
 import pickle
+from typing import Callable, List, Tuple
 from uuid import uuid1
 
-from hub.core.chunk_engine import generate_chunks
+import numpy as np
+
 from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
-
+from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import StorageProvider
-from typing import Any, Callable, List, Tuple
-
-from .flatten import row_wise_to_bytes
-
-
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
+from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
+from .flatten import row_wise_to_bytes
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):

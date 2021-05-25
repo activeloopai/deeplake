@@ -88,7 +88,7 @@ def assert_chunk_sizes(
     incomplete_chunk_count = len(incomplete_chunk_names)
     assert (
         incomplete_chunk_count <= 1
-    ), "Incomplete chunk count should never exceed 1. Incomplete count: %i. Complete count: %i. Total: %i.\nIncomplete chunk names: %s" % (
+    ), "Incomplete chunk count should never exceed 1. Incomplete count: %i. Complete count: %i. " "Total: %i.\nIncomplete chunk names: %s" % (
         incomplete_chunk_count,
         complete_chunk_count,
         total_chunks,
@@ -100,7 +100,7 @@ def assert_chunk_sizes(
     if len(actual_chunk_lengths) > 1:
         assert np.all(
             actual_chunk_lengths[:-1] == chunk_size
-        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
+        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes:" " %s\n\nactual chunk names: %s" % (
             chunk_size,
             str(actual_chunk_lengths[:-1]),
             str(actual_chunk_lengths_dict.keys()),

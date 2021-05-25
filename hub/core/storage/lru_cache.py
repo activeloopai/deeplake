@@ -1,6 +1,8 @@
 from collections import OrderedDict
-from hub.core.storage.provider import StorageProvider
 from typing import Set
+
+from hub.core.storage.provider import StorageProvider
+
 
 # TODO use lock for multiprocessing
 class LRUCache(StorageProvider):
@@ -16,11 +18,14 @@ class LRUCache(StorageProvider):
 
         Args:
             cache_storage (StorageProvider): The storage being used as the caching layer of the cache.
-                This should be a base provider such as MemoryProvider, LocalProvider or S3Provider but not another LRUCache.
+                This should be a base provider such as MemoryProvider, LocalProvider or S3Provider but not another
+                LRUCache.
             next_storage (StorageProvider): The next storage layer of the cache.
-                This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of chained cache).
+                This can either be a base provider (i.e. it is the final storage) or another LRUCache (i.e. in case of
+                chained cache).
                 While reading data, all misses from cache would be retrieved from here.
-                While writing data, the data will be written to the next_storage when cache_storage is full or flush is called.
+                While writing data, the data will be written to the next_storage when cache_storage is full or flush is
+                called.
             cache_size (int): The total space that can be used from the cache_storage in bytes.
                 This number may be less than the actual space available on the cache_storage.
                 Setting it to a higher value than actually available space may lead to unexpected behaviors.
@@ -135,12 +140,12 @@ class LRUCache(StorageProvider):
 
     def _pop_from_cache(self):
         """Helper function that pops the least recently used key, value pair from the cache"""
-        key, itemsize = self.lru_sizes.popitem(last=False)
+        key, item_size = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
             self.next_storage[key] = self.cache_storage[key]
             self.dirty_keys.discard(key)
         del self.cache_storage[key]
-        self.cache_used -= itemsize
+        self.cache_used -= item_size
 
     def _insert_in_cache(self, path: str, value: bytes):
         """Helper function that adds a key value pair to the cache.

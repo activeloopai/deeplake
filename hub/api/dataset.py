@@ -1,20 +1,20 @@
-from hub.constants import META_FILENAME
+import warnings
+from typing import Union, Dict, Optional
+
+import numpy as np
+
 from hub.api.tensor import Tensor
-from hub.util.slice import merge_slices
-from hub.util.path import provider_from_path
+from hub.constants import META_FILENAME
+from hub.core.chunk_engine.read import read_dataset_meta
+from hub.core.chunk_engine.write import write_array, write_dataset_meta
+from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     TensorNotFoundError,
     InvalidKeyTypeError,
     UnsupportedTensorTypeError,
 )
-from hub.core.typing import StorageProvider
-from hub.core.storage import MemoryProvider
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.chunk_engine.write import write_array, write_dataset_meta
-from typing import Union, Dict, Optional
-import numpy as np
-import warnings
-import os
+from hub.util.path import provider_from_path
+from hub.util.slice import merge_slices
 
 
 class Dataset:
@@ -123,4 +123,3 @@ class Dataset:
         raise NotImplementedError(
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
-        return None

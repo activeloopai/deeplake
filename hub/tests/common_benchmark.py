@@ -1,7 +1,6 @@
 import pytest
 
 from hub.constants import MB
-
 from hub.tests.common import (
     CHUNK_SIZE_PARAM,
     SHAPE_PARAM,
@@ -9,8 +8,7 @@ from hub.tests.common import (
     DTYPE_PARAM,
 )
 
-
-# benchmark parametrizations
+# benchmark parametrization
 BENCHMARK_NUM_BATCHES = (1,)
 BENCHMARK_DTYPES = ("int64",)
 BENCHMARK_CHUNK_SIZES = (16 * MB,)

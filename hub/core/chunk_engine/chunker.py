@@ -1,5 +1,4 @@
-import numpy as np
-from typing import Generator, Optional, List
+from typing import Generator, List
 
 from hub.util.exceptions import ChunkSizeTooSmallError
 
@@ -11,7 +10,8 @@ def generate_chunks(
 ) -> Generator[bytes, None, None]:
     """Generator function that chunks bytes.
 
-    Chunking is the process of taking the input `content_bytes` and breaking it up into a sequence of smaller bytes called "chunks".
+    Chunking is the process of taking the input `content_bytes` and breaking it up into a sequence of smaller bytes
+        called "chunks".
     The sizes of each chunk are <= `chunk_size`.
 
     Example:
@@ -76,11 +76,14 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
 
     Args:
         chunks (list[bytes]): Sequential list of bytes objects that represent chunks.
-        start_byte (int): The first chunk in the sequence will ignore the bytes before `start_byte`. If 0, all bytes are included.
-        end_byte (int): The last chunk in the sequence will ignore the bytes at and after `end_byte-1`. If None, all bytes are included.
+        start_byte (int): The first chunk in the sequence will ignore the bytes before `start_byte`. If 0, all bytes are
+            included.
+        end_byte (int): The last chunk in the sequence will ignore the bytes at and after `end_byte-1`.
+            If None, all bytes are included.
 
     Notes:
-        Bytes are indexed using: chunk[start_byte:end_byte]. That is why `chunk[end_byte]` will not be included in `chunk[start_byte:end_byte]`.
+        Bytes are indexed using: chunk[start_byte:end_byte]. That is why `chunk[end_byte]` will not be included in
+            `chunk[start_byte:end_byte]`.
         If `len(chunks) == 1`, `start_byte`:`end_byte` will be applied to the same chunk (the first and last one).
 
     Returns:

@@ -1,12 +1,11 @@
-import pytest
+from typing import Tuple
 
 import numpy as np
+import pytest
 
-from hub.util.array import normalize_and_batchify_shape
 from hub.core.chunk_engine.tests.common import get_random_array
 from hub.tests.common import parametrize_dtypes
-
-from typing import Tuple
+from hub.util.array import normalize_and_batchify_shape
 
 
 @pytest.mark.parametrize(

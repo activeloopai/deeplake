@@ -1,9 +1,8 @@
+from typing import List, Tuple
+
 import pytest
 
 from hub.core.chunk_engine import generate_chunks, join_chunks
-
-from typing import List, Optional, Tuple
-
 
 # chunk_size,bytes_batch,expected_chunks
 PERFECT_FIT: Tuple = (
