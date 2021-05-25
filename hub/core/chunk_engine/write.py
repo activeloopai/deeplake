@@ -19,6 +19,11 @@ def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
     storage[get_meta_key(key)] = pickle.dumps(meta)
 
 
+def write_index_map(key: str, storage: StorageProvider, index_map: list):
+    index_map_key = get_index_map_key(key)
+    storage[index_map_key] = pickle.dumps(index_map)
+
+
 def write_dataset_meta(storage: StorageProvider, meta: dict):
     storage[META_FILENAME] = pickle.dumps(meta)
 
@@ -49,13 +54,11 @@ def write_array(
         NotImplementedError: Do not use this function for writing to a key that already exists.
     """
 
-    array = normalize_and_batchify_shape(array, batched=batched)
-
-    meta_key = get_meta_key(key)
-    index_map_key = get_index_map_key(key)
-    if meta_key in storage or index_map_key in storage:
+    if _key_exists(key, storage):
         # TODO: when appending is done change this error
         raise NotImplementedError("Appending is not supported yet.")
+
+    array = normalize_and_batchify_shape(array, batched=batched)
 
     index_map: List[dict] = []
     meta = {
@@ -78,7 +81,25 @@ def write_array(
 
     # TODO: don't use pickle
     write_tensor_meta(key, storage, meta)
-    storage[index_map_key] = pickle.dumps(index_map)
+    write_index_map(key, storage, index_map)
+
+
+def append_array(
+    array: np.ndarray,
+    key: str,
+    storage: StorageProvider,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    batched: bool = False,
+    tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
+):
+    if not _key_exists(key, storage):
+        # TODO: exceptions.py & change `write_array` NotImplementedError
+        raise Exception(
+            'Key "%s" does not exist in storage "%s". Use `write_array`.'
+            % (key, str(storage))
+        )
+
+    pass
 
 
 def write_bytes(
@@ -178,3 +199,9 @@ def _get_last_chunk(
 
 def _random_chunk_name() -> str:
     return str(uuid1())
+
+
+def _key_exists(key: str, storage: StorageProvider):
+    meta_key = get_meta_key(key)
+    index_map_key = get_index_map_key(key)
+    return meta_key in storage or index_map_key in storage
