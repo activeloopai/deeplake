@@ -20,11 +20,11 @@ def read_dataset_meta(storage: StorageProvider):
 
 
 def read_array(
-    key: str,
-    storage: StorageProvider,
-    array_slice: slice = slice(None),
-    multi_threaded: Optional[bool] = True,
-    threads: Optional[int] = None,
+        key: str,
+        storage: StorageProvider,
+        array_slice: slice = slice(None),
+        multi_threaded: Optional[bool] = True,
+        threads: Optional[int] = None,
 ) -> np.ndarray:
     """Read and join chunks into an array from storage.
 
@@ -43,16 +43,16 @@ def read_array(
     index_map = pickle.loads(storage[get_index_map_key(key)])
 
     samples = []
-    if multi_threaded:
+    if False:
         multi_threaded_get_samples(
-            index_map, array_slice, key, storage, meta, samples, threads
+            index_map, array_slice, key, storage, meta, samples, threads, multi_threaded
         )
     else:
-        single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples)
+        single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples, multi_threaded)
     return np.array(samples)
 
 
-def single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples):
+def single_threaded_get_samples(index_map, array_slice, key, storage, meta, samples, multi_threaded):
     for index, index_entry in enumerate(index_map[array_slice]):
         _get_sample(
             index=index,
@@ -61,11 +61,12 @@ def single_threaded_get_samples(index_map, array_slice, key, storage, meta, samp
             storage=storage,
             meta=meta,
             samples=samples,
+            multi_threaded=multi_threaded
         )
 
 
 def multi_threaded_get_samples(
-    index_map, array_slice, key, storage, meta, samples, threads
+        index_map, array_slice, key, storage, meta, samples, threads, multi_threaded
 ):
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
@@ -79,16 +80,37 @@ def multi_threaded_get_samples(
                     storage=storage,
                     meta=meta,
                     samples=samples,
+                    multi_threaded=multi_threaded
                 )
             )
 
 
-def _get_sample(index, key, index_entry, storage, meta, samples):
+def _get_chunks(key, chunk_name, storage, chunks, index):
+    chunk_key = os.path.join(key, "chunks", chunk_name)
+    chunk = storage[chunk_key]
+    chunks.insert(index, chunk)
+
+
+def _get_sample(index, key, index_entry, storage, meta, samples, multi_threaded):
     chunks = []
-    for chunk_name in index_entry["chunk_names"]:
-        chunk_key = os.path.join(key, "chunks", chunk_name)
-        chunk = storage[chunk_key]
-        chunks.append(chunk)
+    if True:
+        futures = []
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            for i, chunk_name in enumerate(index_entry["chunk_names"]):
+                futures.append(
+                    executor.submit(
+                        _get_chunks,
+                        key=key,
+                        chunk_name=chunk_name,
+                        storage=storage,
+                        chunks=chunks,
+                        index=index,
+                        multi_threaded=multi_threaded
+                    )
+                )
+    else:
+        for i, chunk_name in enumerate(index_entry["chunk_names"]):
+            _get_chunks(key, chunk_name, storage, chunks, index, multi_threaded)
 
     combined_bytes = join_chunks(
         chunks,
