@@ -102,8 +102,8 @@ class Dataset:
         for i in range(len(self)):
             yield self[i]
 
-    def to_pytorch(self, transform=None):
-        return _to_pytorch(self, transform)
+    def to_pytorch(self, transform=None, workers=1):
+        return _to_pytorch(self, transform, workers=workers)
 
     @staticmethod
     def from_path(path: str):
