@@ -1,24 +1,22 @@
-import pickle
 from typing import List, Tuple, Dict
 
 import numpy as np
 import pytest
 
-from hub.core.chunk_engine import read_array, write_array, append_array
+from hub.core.chunk_engine import (
+    read_array,
+    write_array,
+    append_array,
+    key_exists,
+    read_tensor_meta,
+    read_index_map,
+)
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
-
-
-def get_min_shape(batch: np.ndarray) -> Tuple:
-    return tuple(np.minimum.reduce([sample.shape for sample in batch]))
-
-
-def get_max_shape(batch: np.ndarray) -> Tuple:
-    return tuple(np.maximum.reduce([sample.shape for sample in batch]))
 
 
 def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
@@ -44,8 +42,14 @@ def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
 
 def assert_meta_is_valid(meta: dict, expected_meta: dict):
     for k, v in expected_meta.items():
-        assert k in meta
-        assert v == meta[k]
+        assert k in meta, 'Key "%s" not found in meta: %s' % (k, str(meta))
+        assert (
+            v == meta[k]
+        ), 'Value for key "%s" mismatch.\n(actual): %s\n!=\n(expected):%s' % (
+            k,
+            meta[k],
+            v,
+        )
 
 
 def assert_chunk_sizes(
@@ -98,11 +102,12 @@ def assert_chunk_sizes(
     # assert that all chunks (except the last one) are of expected size (`chunk_size`)
     actual_chunk_lengths = np.array(list(actual_chunk_lengths_dict.values()))
     if len(actual_chunk_lengths) > 1:
+        candidate_chunk_lengths = actual_chunk_lengths[:-1]
         assert np.all(
-            actual_chunk_lengths[:-1] == chunk_size
+            candidate_chunk_lengths == chunk_size
         ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
             chunk_size,
-            str(actual_chunk_lengths[:-1]),
+            str(candidate_chunk_lengths),
             str(actual_chunk_lengths_dict.keys()),
         )
 
@@ -125,22 +130,15 @@ def run_engine_test(
         else:
             append_array(a_in, key, storage, batched=batched)
 
-        index_map_key = get_index_map_key(key)
-        index_map = pickle.loads(storage[index_map_key])
-
-        assert_chunk_sizes(key, index_map, chunk_size, storage)
-
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
         num_samples = a_in.shape[0]
-        array_slice = slice(sample_count, num_samples)
+        array_slice = slice(sample_count, sample_count + num_samples)
         a_out = read_array(key=key, storage=storage, array_slice=array_slice)
 
-        meta_key = get_meta_key(key)
-        assert meta_key in storage, "Meta was not found."
-        # TODO: use get_meta
-        meta = pickle.loads(storage[meta_key])
+        assert key_exists(key, storage), "Key was not found."
+        meta = read_tensor_meta(key, storage)
 
         assert_meta_is_valid(
             meta,
@@ -148,8 +146,8 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": a_in.shape[0],
                 "dtype": a_in.dtype.name,
-                "min_shape": get_min_shape(a_in),
-                "max_shape": get_max_shape(a_in),
+                "min_shape": tuple(a_in.shape[1:]),
+                "max_shape": tuple(a_in.shape[1:]),
             },
         )
 
@@ -157,14 +155,14 @@ def run_engine_test(
 
         sample_count += num_samples
 
-    clear_if_memory_provider(storage)
+    index_map_key = get_index_map_key(key)
+    index_map = read_index_map(key, storage)
+    assert_chunk_sizes(key, index_map, chunk_size, storage)
 
 
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-    clear_if_memory_provider(storage)
-
     for a_in in arrays:
         write_array(
             a_in,
@@ -173,9 +171,6 @@ def benchmark_write(
             chunk_size,
             batched=batched,
         )
-
-    if clear_memory_after_write:
-        clear_if_memory_provider(storage)
 
 
 def benchmark_read(key: str, storage: StorageProvider):
@@ -188,10 +183,3 @@ def skip_if_no_required_creds(storage: StorageProvider):
     if type(storage) == S3Provider:
         if not has_s3_credentials():
             pytest.skip()
-
-
-def clear_if_memory_provider(storage: StorageProvider):
-    """If `storage` is memory-based, clear it."""
-
-    if type(storage) == MemoryProvider:
-        storage.clear()

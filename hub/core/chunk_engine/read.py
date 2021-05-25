@@ -1,6 +1,6 @@
 import os
-import pickle
 import numpy as np
+import pickle  # TODO: NEVER USE PICKLE
 
 from .chunker import join_chunks
 
@@ -15,8 +15,18 @@ def read_tensor_meta(key: str, storage: StorageProvider):
     return pickle.loads(storage[get_meta_key(key)])
 
 
+def read_index_map(key: str, storage: StorageProvider):
+    return pickle.loads(storage[get_index_map_key(key)])
+
+
 def read_dataset_meta(storage: StorageProvider):
     return pickle.loads(storage[constants.META_FILENAME])
+
+
+def key_exists(key: str, storage: StorageProvider):
+    meta_key = get_meta_key(key)
+    index_map_key = get_index_map_key(key)
+    return meta_key in storage or index_map_key in storage
 
 
 def read_array(
@@ -35,9 +45,8 @@ def read_array(
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
     """
 
-    # TODO: don't use pickle
     meta = read_tensor_meta(key, storage)
-    index_map = pickle.loads(storage[get_index_map_key(key)])
+    index_map = read_index_map(key, storage)
 
     # TODO: read samples in parallel
     samples = []

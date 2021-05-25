@@ -1,5 +1,5 @@
 import numpy as np
-import pickle
+import pickle  # TODO: NEVER USE PICKLE
 from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
@@ -8,6 +8,7 @@ from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
 from hub.core.typing import StorageProvider
 from typing import Any, Callable, List, Tuple
 
+from .read import read_index_map, read_tensor_meta, key_exists
 from .flatten import row_wise_to_bytes
 
 
@@ -34,7 +35,6 @@ def write_array(
     storage: StorageProvider,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
-    tobytes: Callable[[np.ndarray], bytes] = row_wise_to_bytes,
 ):
     """Chunk and write an array to storage.
 
@@ -48,15 +48,17 @@ def write_array(
         chunk_size (int): Desired length of each chunk.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-        tobytes (Callable): Callable that flattens an array into bytes. Must accept an `np.ndarray` as it's argument and return `bytes`.
 
     Raises:
-        NotImplementedError: Do not use this function for writing to a key that already exists.
+        Exception: If trying to write to a tensor that already exists in `storage` under `key`.
     """
 
-    if _key_exists(key, storage):
-        # TODO: when appending is done change this error
-        raise NotImplementedError("Appending is not supported yet.")
+    if key_exists(key, storage):
+        # TODO: exceptions.py & change `write_array` NotImplementedError
+        raise Exception(
+            'Key "%s" already exists in storage "%s". Use `append_array`.'
+            % (key, str(storage))
+        )
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
@@ -65,22 +67,13 @@ def write_array(
         "chunk_size": chunk_size,
         "dtype": array.dtype.name,
         "length": array.shape[0],
-        "min_shape": array.shape[1:],
-        "max_shape": array.shape[1:],
+        "min_shape": tuple(array.shape[1:]),
+        "max_shape": tuple(array.shape[1:]),
         # TODO: tobytes function and handle mismatch versions for this
     }
 
-    for i in range(array.shape[0]):
-        sample = array[i]
-        b = tobytes(sample)
+    write_samples(array, key, storage, meta, index_map)
 
-        index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
-
-        # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
-        index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
-
-    # TODO: don't use pickle
     write_tensor_meta(key, storage, meta)
     write_index_map(key, storage, index_map)
 
@@ -91,7 +84,13 @@ def append_array(
     storage: StorageProvider,
     batched: bool = False,
 ):
-    if not _key_exists(key, storage):
+    # TODO: docstring
+    """
+    Raises:
+        Exception: If trying to append to a tensor that does not exist in `storage` under `key`.
+    """
+
+    if not key_exists(key, storage):
         # TODO: exceptions.py & change `write_array` NotImplementedError
         raise Exception(
             'Key "%s" does not exist in storage "%s". Use `write_array`.'
@@ -100,21 +99,38 @@ def append_array(
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    """
-    index_map: List[dict] = []
-    meta = {
-        "chunk_size": chunk_size,
-        "dtype": array.dtype.name,
-        "length": array.shape[0],
-        "min_shape": array.shape[1:],
-        "max_shape": array.shape[1:],
-    }
-    """
+    index_map = read_index_map(key, storage)
+    meta = read_tensor_meta(key, storage)
 
-    # TODO: validate that the provided array matches
+    # TODO: add tests that have incompatible arrays
+    _check_if_meta_is_compatible_with_array(meta, array)
+
+    write_samples(array, key, storage, meta, index_map)
+
+    # TODO: write tests to check if min/max shape is properly set
+    # TODO: move this into function (especially tuple wrapping)
+    sample_shape = array.shape[1:]
+    min_shape = np.minimum(meta["min_shape"], sample_shape)
+    max_shape = np.maximum(meta["max_shape"], sample_shape)
+    meta["min_shape"] = tuple(min_shape)
+    meta["max_shape"] = tuple(max_shape)
+
+    write_tensor_meta(key, storage, meta)
+    write_index_map(key, storage, index_map)
+
+
+def write_samples(
+    array: np.ndarray,
+    key: str,
+    storage: StorageProvider,
+    meta: dict,
+    index_map: List[dict],
+):
+    chunk_size = meta["chunk_size"]
+
     # TODO: get the tobytes function from meta
+    tobytes = row_wise_to_bytes
 
-    """
     for i in range(array.shape[0]):
         sample = array[i]
         b = tobytes(sample)
@@ -124,11 +140,6 @@ def append_array(
         # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
         index_map.append(index_map_entry)
-
-    # TODO: don't use pickle
-    write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, index_map)
-    """
 
 
 def write_bytes(
@@ -230,7 +241,18 @@ def _random_chunk_name() -> str:
     return str(uuid1())
 
 
-def _key_exists(key: str, storage: StorageProvider):
-    meta_key = get_meta_key(key)
-    index_map_key = get_index_map_key(key)
-    return meta_key in storage or index_map_key in storage
+def _check_if_meta_is_compatible_with_array(meta: dict, array: np.array):
+    if meta["dtype"] != array.dtype.name:
+        raise Exception  # TODO: exceptions.py (MetaMismatchError or something)
+
+    sample_shape = array.shape[1:]
+    if len(meta["min_shape"]) != len(sample_shape):
+        raise Exception  # TODO: exceptions.py
+    if len(meta["max_shape"]) != len(sample_shape):
+        raise Exception  # TODO: exceptions.py
+
+    # TODO: remove these once dynamic shapes are supported
+    if not np.array_equal(meta["max_shape"], sample_shape):
+        raise NotImplementedError
+    if not np.array_equal(meta["min_shape"], sample_shape):
+        raise NotImplementedError

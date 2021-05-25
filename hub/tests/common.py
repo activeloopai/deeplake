@@ -15,7 +15,7 @@ DTYPE_PARAM = "dtype"
 CHUNK_SIZE_PARAM = "chunk_size"
 
 
-NUM_BATCHES = (1,)
+NUM_BATCHES = (1, 5)
 
 
 CHUNK_SIZES = (
