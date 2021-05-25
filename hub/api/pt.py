@@ -3,12 +3,16 @@ import os
 import pickle
 from hub.util.keys import get_index_map_key
 from hub.core.chunk_engine.chunker import join_chunks
-
-from pathos.pools import ProcessPool
+from hub.core.storage import S3Provider
+from pathos.pools import ProcessPool, ThreadPool
 import numpy as np
 
 from hub.core.chunk_engine.read import read_tensor_meta
 from itertools import repeat
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+
 
 
 def _transform_data(args):
@@ -17,9 +21,12 @@ def _transform_data(args):
 
 
 def _read_chunks(args):
-    key, chunk_name, storage = args
-    chunk_key = os.path.join(key, "chunks", chunk_name)
-    return chunk_name, storage[chunk_key]
+    chunk_key, storage = args
+    start = time.time()
+    out = storage[chunk_key]
+    end = time.time()
+    # print("took thread", end - start)
+    return chunk_name, out
 
 
 def _to_pytorch(dataset, transform=None, workers=1):
@@ -43,11 +50,13 @@ class TorchDataset:
         self._load_index_maps()
         self._load_meta()
         self.key_chunks = {}
-        self.pool = ProcessPool(nodes=workers)
+        self.thread_pool = ThreadPool(nodes=workers)
+        self.process_pool = ProcessPool(nodes=workers) if self.transform else None
         self.all_index_value_maps = defaultdict(dict)
         self.last_index_map = {}
         self.first_sample_processed = -1
         self.last_sample_processed = -1
+
 
     def _load_index_maps(self):
         self.all_index_maps = {}
@@ -60,18 +69,17 @@ class TorchDataset:
         self.all_meta = {}
         for key in self.ds.tensors:
             meta = read_tensor_meta(key, self.storage)
+            if meta["dtype"] == "uint16":
+                meta["dtype"] = "int32"
+            elif meta["dtype"] in ["uint32", "uint64"]:
+                meta["dtype"] = "int64"
             self.all_meta[key] = meta
 
     def __len__(self):
         return len(self.ds)
 
     def _get_value_from_chunks(self, start_ind, key, chunk_map):
-        meta = self.all_meta[key]
-        dtype = meta["dtype"]
-        if dtype == "uint16":
-            dtype = "int32"
-        elif dtype in ["uint32", "uint64"]:
-            dtype = "int64"
+        dtype = self.all_meta[key]["dtype"]
         index_value_map = {}
         index = start_ind
         while index < len(self.ds):
@@ -128,7 +136,7 @@ class TorchDataset:
     def __getitem__(self, index):
         for key in self.ds.tensors:
             if index in self.all_index_value_maps[key]:
-                print("cache hit!", key, index)
+                # print("cache hit!", key, index)
                 continue
 
             chunk_set = set()
@@ -144,12 +152,24 @@ class TorchDataset:
 
                 if len(chunk_set) > self.workers:
                     chunk_set -= set(chunk_names)
-
-            chunks = self.pool.map(
-                _read_chunks, zip(repeat(key), chunk_set, repeat(self.storage))
+            # print("fetching", len(chunk_set))
+            start = time.time()
+            # chunks = []
+            # with ThreadPoolExecutor(max_workers=self.workers) as executor:
+            #     # Using a dict for preserving the downloaded file for each future, to store it as a failure if we need that
+            #     futures = [
+            #         executor.submit(_read_chunks, key, chunk, self.storage) for chunk in chunk_set
+            #     ]
+            # for future in as_completed(futures):
+            #     chunks.append(future.result())
+            chunk_keys = [os.path.join(key, "chunks", chunk_name) for chunk_name in chunk_set]
+            chunks = self.thread_pool.map(
+                _read_chunks, zip(chunk_keys, repeat(self.storage))
             )
+            end = time.time()
+            print("time was", end-start)
             chunk_map = dict(chunks)
-            del chunks
+            # del chunks
             (
                 self.all_index_value_maps[key],
                 self.last_index_map[key],
@@ -163,7 +183,7 @@ class TorchDataset:
                 d = {key: self.all_index_value_maps[key][i] for key in self.ds.tensors}
                 raw_samples.append(d)
             if self.transform:
-                self.processed_samples = self.pool.map(
+                self.processed_samples = self.process_pool.map(
                     _transform_data, zip(repeat(self.transform), raw_samples)
                 )
             else:
