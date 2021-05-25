@@ -74,6 +74,8 @@ def test_auto_multiple_dataset_parser():
         "hub/auto/tests/dummy_data/image_classification/class_sample_multiple_folder"
     )
 
-    assert tuple(
+    keys = tuple(
         multiple_image_parse(path_to_data, scheduler="single", workers=1).keys()
-    ) == ("train", "val")
+    )
+
+    assert keys == ("train", "val") or keys == ("val", "train")
