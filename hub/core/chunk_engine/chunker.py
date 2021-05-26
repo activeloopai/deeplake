@@ -5,11 +5,11 @@ from hub.util.exceptions import ChunkSizeTooSmallError
 
 
 def generate_chunks(
-    content_bytes: bytes,
+    content_bytes: memoryview,
     chunk_size: int,
     bytes_left_in_last_chunk: int = 0,
-) -> Generator[bytes, None, None]:
-    """Generator function that chunks bytes.
+) -> Generator[memoryview, None, None]:
+    """Generator function that chunks bytes (as memoryview).
 
     Chunking is the process of taking the input `content_bytes` and breaking it up into a sequence of smaller bytes called "chunks".
     The sizes of each chunk are <= `chunk_size`.

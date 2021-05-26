@@ -139,7 +139,7 @@ def write_samples(
 
     for i in range(array.shape[0]):
         sample = array[i]
-        b = tobytes(sample)
+        b = memoryview(tobytes(sample))
 
         index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
 
@@ -149,13 +149,17 @@ def write_samples(
 
 
 def write_bytes(
-    b: bytes, key: str, chunk_size: int, storage: StorageProvider, index_map: List[dict]
+    b: memoryview,
+    key: str,
+    chunk_size: int,
+    storage: StorageProvider,
+    index_map: List[dict],
 ) -> dict:
     """For internal use only. Chunk and write bytes to storage and return the index_map entry.
     The provided bytes are treated as a single sample.
 
     Args:
-        b (bytes): Bytes to be chunked/written. `b` is considered to be 1 sample and will be chunked according
+        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be chunked according
             to `chunk_size`.
         key (str): Key for where the index_map, and meta are located in `storage` relative to it's root. A subdirectory
             is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
@@ -178,6 +182,8 @@ def write_bytes(
     extend_last_chunk = False
     if len(index_map) > 0 and len(last_chunk) < chunk_size:
         bllc = chunk_size - len(last_chunk)
+        # use bytearray for concatenation (fastest method)
+        last_chunk = bytearray(last_chunk)  # type: ignore
         extend_last_chunk = True
 
     chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
@@ -187,9 +193,10 @@ def write_bytes(
     for chunk in chunk_generator:
         if extend_last_chunk:
             chunk_name = last_chunk_name
-            last_chunk_bytearray = bytearray(last_chunk)
-            last_chunk_bytearray.extend(chunk)
-            chunk = bytes(last_chunk_bytearray)
+
+            last_chunk += chunk  # type: ignore
+            chunk = memoryview(last_chunk)
+
             start_byte = index_map[-1]["end_byte"]
 
             if len(chunk) >= chunk_size:
@@ -220,8 +227,8 @@ def write_bytes(
 
 def _get_last_chunk(
     key: str, index_map: List[dict], storage: StorageProvider
-) -> Tuple[str, bytes]:
-    """For internal use only. Retrieves the name and bytes for the last chunk.
+) -> Tuple[str, memoryview]:
+    """For internal use only. Retrieves the name and memoryview of bytes for the last chunk.
 
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
@@ -230,17 +237,16 @@ def _get_last_chunk(
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
-        bytes: Content of the last chunk. If the last chunk doesn't exist, returns empty bytes.
+        memoryview: Content of the last chunk. If the last chunk doesn't exist, returns empty memoryview of bytes.
     """
 
-    last_chunk_name = ""
-    last_chunk = bytes()
     if len(index_map) > 0:
         last_index_map_entry = index_map[-1]
         last_chunk_name = last_index_map_entry["chunk_names"][-1]
         last_chunk_key = get_chunk_key(key, last_chunk_name)
-        last_chunk = storage[last_chunk_key]
-    return last_chunk_name, last_chunk
+        last_chunk = memoryview(storage[last_chunk_key])
+        return last_chunk_name, last_chunk
+    return "", memoryview(bytes())
 
 
 def _random_chunk_name() -> str:

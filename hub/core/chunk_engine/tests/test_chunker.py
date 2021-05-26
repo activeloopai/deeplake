@@ -59,7 +59,7 @@ def run_generate_chunks_test(
     bytes_left_in_last_chunk: int = 0
     for bytes_object in bytes_batch:
         for chunk_bytes in generate_chunks(
-            bytes_object,
+            memoryview(bytes_object),
             chunk_size,
             bytes_left_in_last_chunk=bytes_left_in_last_chunk,
         ):
