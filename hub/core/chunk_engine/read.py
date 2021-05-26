@@ -55,16 +55,21 @@ def read_array(
         for chunk_name in index_entry["chunk_names"]:
             chunk_key = os.path.join(key, "chunks", chunk_name)
             chunk = storage[chunk_key]
-
             chunks.append(chunk)
 
-        combined_bytes = join_chunks(
-            chunks,
-            index_entry["start_byte"],
-            index_entry["end_byte"],
-        )
-
-        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
+        array = array_from_chunks(chunks, meta["dtype"], index_entry)
+        samples.append(array)
 
     return np.array(samples)
+
+
+def array_from_chunks(chunks: List[bytes], dtype: str, index_entry: dict = {}):
+    combined_bytes = join_chunks(
+        chunks,
+        index_entry.get("start_byte", 0),
+        index_entry.get("end_byte", None),
+    )
+    array = np.frombuffer(combined_bytes, dtype=dtype)
+    if "shape" in index_entry:
+        array = array.reshape(index_entry["shape"])
+    return array
