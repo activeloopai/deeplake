@@ -14,7 +14,11 @@ from .flatten import row_wise_to_bytes
 
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import KeyAlreadyExistsError, KeyDoesNotExistError
+from hub.util.exceptions import (
+    KeyAlreadyExistsError,
+    KeyDoesNotExistError,
+    MetaMismatchError,
+)
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -43,7 +47,7 @@ def write_array(
 
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
-            batch dimension, you should pass the argument `batched=True`.
+            batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
         chunk_size (int): Desired length of each chunk.
@@ -82,8 +86,18 @@ def append_array(
     storage: StorageProvider,
     batched: bool = False,
 ):
-    # TODO: docstring
-    """
+    """Chunk and write the given array to an already existing tensor in storage. For writing an array to a tensor that does not exist, use `write_array`.
+
+    For more on chunking, see the `generate_chunks` method.
+
+    Args:
+        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
+            batch axis, you should pass the argument `batched=True`.
+        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider where the chunks, index_map, and meta are stored.
+        batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
+            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+
     Raises:
         KeyDoesNotExistError: If trying to append to a tensor that does not exist in `storage` under `key`.
     """
@@ -237,17 +251,19 @@ def _random_chunk_name() -> str:
 
 
 def _check_if_meta_is_compatible_with_array(meta: dict, array: np.array):
+    # TODO: tests that mismatch metas
+
     if meta["dtype"] != array.dtype.name:
-        raise Exception  # TODO: exceptions.py (MetaMismatchError or something)
+        raise MetaMismatchError("dtype", meta["dtype"], array.dtype.name)
 
     sample_shape = array.shape[1:]
     if len(meta["min_shape"]) != len(sample_shape):
-        raise Exception  # TODO: exceptions.py
+        raise MetaMismatchError("min_shape", meta["min_shape"], len(sample_shape))
     if len(meta["max_shape"]) != len(sample_shape):
-        raise Exception  # TODO: exceptions.py
+        raise MetaMismatchError("max_shape", meta["max_shape"], len(sample_shape))
 
     # TODO: remove these once dynamic shapes are supported
     if not np.array_equal(meta["max_shape"], sample_shape):
-        raise NotImplementedError
+        raise NotImplementedError("Dynamic shapes are not supported yet.")
     if not np.array_equal(meta["min_shape"], sample_shape):
-        raise NotImplementedError
+        raise NotImplementedError("Dynamic shapes are not supported yet.")
