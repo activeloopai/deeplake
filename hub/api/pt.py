@@ -133,7 +133,7 @@ class TorchDataset:
                 index_entry["end_byte"],
             ))
 
-            index_value_map[index] = np.frombuffer(cb[0], dtype=dtype).reshape(
+            index_value_map[index] = np.frombuffer(cb[0].tobytes(), dtype=dtype).reshape(
                 index_entry["shape"]
             )
             cb[0].release()

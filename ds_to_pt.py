@@ -15,12 +15,14 @@ import torch
 ds = Dataset("s3://snark-test/abc-large-3")
 
 
-ptds = ds.to_pytorch(workers=36)
+ptds = ds.to_pytorch(workers=108)
 dl = torch.utils.data.DataLoader(
-        ds,
-        batch_size=8,
+        ptds,
+        batch_size=1,
         num_workers=0,
     )
-for item in tqdm(ptds):
-    pass
+for item in tqdm(dl):
+    item["image"][0][0]
+    # 640 Mbps
+    # item
     # print(item["image"][0][0])
