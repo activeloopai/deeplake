@@ -10,7 +10,6 @@ from hub.tests.common import (
     DTYPE_PARAM,
     DTYPES,
     SHAPE_PARAM,
-    TENSOR_KEY,
     parametrize_chunk_sizes,
     parametrize_num_batches,
     parametrize_dtypes,

@@ -19,7 +19,7 @@ class KeyAlreadyExistsError(KeyError):
 class KeyDoesNotExistError(KeyError):
     def __init__(self, key: str, extra_message: str = ""):
         super().__init__(
-            "Key %s does not exist in storage. {}".format(key, extra_message)
+            "Key {} does not exist in storage. {}".format(key, extra_message)
         )
 
 

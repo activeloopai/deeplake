@@ -103,7 +103,6 @@ def append_array(
     """
 
     if not key_exists(key, storage):
-        # TODO: tests that raise this exception
         raise KeyDoesNotExistError(key, "Use `write_array`.")
 
     array = normalize_and_batchify_shape(array, batched=batched)
@@ -250,7 +249,7 @@ def _random_chunk_name() -> str:
     return str(uuid1())
 
 
-def _check_if_meta_is_compatible_with_array(meta: dict, array: np.array):
+def _check_if_meta_is_compatible_with_array(meta: dict, array: np.ndarray):
     # TODO: tests that mismatch metas
 
     if meta["dtype"] != array.dtype.name:
