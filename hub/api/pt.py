@@ -11,22 +11,35 @@ from hub.core.chunk_engine.read import read_tensor_meta
 from itertools import repeat
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from functools import lru_cache
+import mmap
+import shutil
 
 
-
+@lru_cache()
+def s3_client():
+    return S3Provider("s3://snark-test/abc-large-3/")
 
 def _transform_data(args):
     transform, data = args
     return transform(data) if transform else data
 
 
-def _read_chunks(args):
-    chunk_key, storage = args
+def _read_chunks(chunk_key):
+    # chunk_key, storage = args
+    storage = s3_client()
     start = time.time()
     out = storage[chunk_key]
     end = time.time()
+    FILENAME = f"temp/{chunk_key.split('/')[-1]}"
+    f = open(FILENAME, "wb")
+    f.write(len(out)*b'\0')
+    f.close()
+    with open(FILENAME, mode="r+", encoding="utf8") as file_obj:
+        with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_WRITE) as mmap_obj:
+            mmap_obj.write(out)
     # print("took thread", end - start)
-    return chunk_name, out
+    return
 
 
 def _to_pytorch(dataset, transform=None, workers=1):
@@ -51,7 +64,7 @@ class TorchDataset:
         self._load_meta()
         self.key_chunks = {}
         self.thread_pool = ThreadPool(nodes=workers)
-        self.process_pool = ProcessPool(nodes=workers) if self.transform else None
+        self.process_pool = ProcessPool(nodes=workers)
         self.all_index_value_maps = defaultdict(dict)
         self.last_index_map = {}
         self.first_sample_processed = -1
@@ -78,10 +91,18 @@ class TorchDataset:
     def __len__(self):
         return len(self.ds)
 
-    def _get_value_from_chunks(self, start_ind, key, chunk_map):
+    def _get_value_from_chunks(self, start_ind, key):
         dtype = self.all_meta[key]["dtype"]
         index_value_map = {}
         index = start_ind
+        chunk_map = {}
+        start = time.time()
+        for chunk_name in os.listdir("temp"):
+            with open(f"temp/{chunk_name}", mode="r", encoding="utf8") as file_obj:
+                with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_READ) as mmap_obj:
+                    chunk_map[chunk_name] = mmap_obj.read()
+        end = time.time()
+        print("file read was", end-start)
         while index < len(self.ds):
             # cur_chunks = self.all_index_maps[key][index]["chunk_names"]
             chunks = []
@@ -153,7 +174,6 @@ class TorchDataset:
                 if len(chunk_set) > self.workers:
                     chunk_set -= set(chunk_names)
             # print("fetching", len(chunk_set))
-            start = time.time()
             # chunks = []
             # with ThreadPoolExecutor(max_workers=self.workers) as executor:
             #     # Using a dict for preserving the downloaded file for each future, to store it as a failure if we need that
@@ -163,17 +183,21 @@ class TorchDataset:
             # for future in as_completed(futures):
             #     chunks.append(future.result())
             chunk_keys = [os.path.join(key, "chunks", chunk_name) for chunk_name in chunk_set]
-            chunks = self.thread_pool.map(
-                _read_chunks, zip(chunk_keys, repeat(self.storage))
+            self.process_pool.map(
+                _read_chunks, chunk_keys
             )
-            end = time.time()
-            print("time was", end-start)
-            chunk_map = dict(chunks)
+            # print("time was", end-start)
+            # chunk_map = dict(chunks)
             # del chunks
+            start = time.time()
             (
                 self.all_index_value_maps[key],
                 self.last_index_map[key],
-            ) = self._get_value_from_chunks(index, key, chunk_map)
+            ) = self._get_value_from_chunks(index, key)
+            end = time.time()
+            print("time was", end-start)
+            shutil.rmtree("temp")
+            os.mkdir("temp")
 
         if index > self.last_sample_processed:
             start_index = self.last_sample_processed + 1
