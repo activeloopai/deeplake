@@ -237,7 +237,7 @@ def ds(request, memory_storage, local_storage, s3_storage):
 
 
 def print_session_id():
-    print("----------------------------------------------------------")
+    print("\n\n----------------------------------------------------------")
     print("Testing session ID: %s" % SESSION_ID)
     print("----------------------------------------------------------")
 
