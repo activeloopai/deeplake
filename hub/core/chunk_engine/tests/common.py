@@ -1,14 +1,13 @@
-import os
 import pickle
 from typing import List, Tuple, Dict
 
 import numpy as np
 import pytest
-from hub.constants import KB, MB
+
 from hub.core.chunk_engine import read_array, write_array
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
-from hub.tests.common import current_test_name, TENSOR_KEY
+from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
 from hub.util.s3 import has_s3_credentials
@@ -130,7 +129,7 @@ def run_engine_test(
         # `write_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
-        a_out = read_array(key, storage)
+        a_out = read_array(key=key, storage=storage)
 
         meta_key = get_meta_key(key)
         assert meta_key in storage, "Meta was not found."
