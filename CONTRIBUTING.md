@@ -13,6 +13,13 @@ We also use static typing for our function arguments/variables for better code r
 We use [pytest](https://docs.pytest.org/en/6.2.x/) for our tests. In order to make it easier, we also have a set of custom options defined in [conftest.py](conftest.py).
 
 
+### Running Tests
+- To run memory only tests, use: `python -m pytest .`.
+- To run local only tests, use: `python -m pytest . --memory-skip --local`.
+- To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
+- To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
+
+
 ### Prerequisites
 - Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
 - Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
@@ -92,6 +99,13 @@ def test_dataset(ds):
 
 ## Benchmarks
 We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usage.html) for our benchmark code which is a plugin for [pytest](https://docs.pytest.org/en/6.2.x/).
+
+### Running Benchmarks
+- To run benchmarks for memory only, use: `python -m pytest . --benchmark-only`.
+- To run ALL **fast** benchmarks, use: `python -m pytest . --local --s3 --cache-chains --benchmark-only`. Note: this only runs the subset of benchmarks that finish quickly.
+- To run ALL **fast AND slow** benchmarks, use: `python -m pytest . --local --s3 --full-benchmarks --benchmark-only`. Note: this will take a while... (also cache chains are implicitly enabled from `--full-benchmarks`.)
+- You can opt out of `--local` and `--s3` for all commands, or add `--memory-skip`.
+- Optionally, you can remove the `--benchmark-only` flag in any of these commands to run normal tests alongside the benchmarks.
 
 
 TODO: benchmarking is subject to change. will update this section once it is better defined.
