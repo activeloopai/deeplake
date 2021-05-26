@@ -12,8 +12,8 @@ from itertools import repeat
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
-import mmap
-import shutil
+from multiprocessing import shared_memory, resource_tracker
+
 
 
 @lru_cache()
@@ -26,21 +26,35 @@ def _transform_data(args):
 
 
 def _read_chunks(chunk_key):
-    # chunk_key, storage = args
+    remove_shm_from_resource_tracker()
     storage = s3_client()
-    start = time.time()
     out = storage[chunk_key]
-    end = time.time()
-    FILENAME = f"temp/{chunk_key.split('/')[-1]}"
-    f = open(FILENAME, "wb")
-    f.write(len(out)*b'\0')
-    f.close()
-    with open(FILENAME, mode="r+", encoding="utf8") as file_obj:
-        with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_WRITE) as mmap_obj:
-            mmap_obj.write(out)
+    shm = shared_memory.SharedMemory(create=True, size=len(out), name=chunk_key.split("/")[-1])
+    shm.buf[:] = out
+    shm.close()
     # print("took thread", end - start)
     return
 
+def remove_shm_from_resource_tracker():
+    """Monkey-patch multiprocessing.resource_tracker so SharedMemory won't be tracked
+
+    More details at: https://bugs.python.org/issue38119
+    """
+
+    def fix_register(name, rtype):
+        if rtype == "shared_memory":
+            return
+        return resource_tracker._resource_tracker.register(self, name, rtype)
+    resource_tracker.register = fix_register
+
+    def fix_unregister(name, rtype):
+        if rtype == "shared_memory":
+            return
+        return resource_tracker._resource_tracker.unregister(self, name, rtype)
+    resource_tracker.unregister = fix_unregister
+
+    if "shared_memory" in resource_tracker._CLEANUP_FUNCS:
+        del resource_tracker._CLEANUP_FUNCS["shared_memory"]
 
 def _to_pytorch(dataset, transform=None, workers=1):
     try:
@@ -48,7 +62,6 @@ def _to_pytorch(dataset, transform=None, workers=1):
     except ModuleNotFoundError:
         raise Exception
         # raise ModuleNotInstalledException("torch")
-
     global torch
     return TorchDataset(dataset, transform, workers)
 
@@ -70,11 +83,9 @@ class TorchDataset:
         self.first_sample_processed = -1
         self.last_sample_processed = -1
 
-
     def _load_index_maps(self):
         self.all_index_maps = {}
         for key in self.ds.tensors:
-            # meta = read_tensor_meta(key, self.storage)
             index_map = pickle.loads(self.storage[get_index_map_key(key)])
             self.all_index_maps[key] = index_map
 
@@ -91,75 +102,55 @@ class TorchDataset:
     def __len__(self):
         return len(self.ds)
 
-    def _get_value_from_chunks(self, start_ind, key):
+    def _get_value_from_chunks(self, start_ind, key, chunk_keys):
         dtype = self.all_meta[key]["dtype"]
         index_value_map = {}
         index = start_ind
         chunk_map = {}
-        start = time.time()
-        for chunk_name in os.listdir("temp"):
-            with open(f"temp/{chunk_name}", mode="rb") as file_obj:
-                with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_READ) as mmap_obj:
-                    chunk_map[chunk_name] = mmap_obj.read()
-        end = time.time()
-        print("file read was", end-start)
+        shms = []
+        for chunk_path in chunk_keys:
+            chunk_name = chunk_path.split("/")[-1]
+            shms.append(shared_memory.SharedMemory(name=chunk_name))
+            chunk_map[chunk_name] = shms[-1].buf[:]
+        cb = []
         while index < len(self.ds):
             # cur_chunks = self.all_index_maps[key][index]["chunk_names"]
             chunks = []
             index_entry = self.all_index_maps[key][index]
             for chunk_name in index_entry["chunk_names"]:
                 if chunk_name not in chunk_map:
+                    # while chunk_map:
+                    #     chunk_map.popitem()
+                    # while chunks:
+                    #     chunks.pop()
+                    # while shms:
+                    #     shms.pop()
                     return index_value_map, index - 1
-                chunk = chunk_map[chunk_name]
-                chunks.append(chunk)
-
-            combined_bytes = join_chunks(
+                chunks.append(chunk_map[chunk_name])
+            cb.append(join_chunks(
                 chunks,
                 index_entry["start_byte"],
                 index_entry["end_byte"],
-            )
-            index_value_map[index] = np.frombuffer(combined_bytes, dtype=dtype).reshape(
+            ))
+
+            index_value_map[index] = np.frombuffer(cb[0], dtype=dtype).reshape(
                 index_entry["shape"]
             )
+            cb[0].release()
+            cb.pop()
             index += 1
+        # all_keys = list(chunk_map.keys())
+        # for k in chunk_map:
+        #     chunk_map[k] = None
+
+        # while chunk_map:
+        #     chunk_map.popitem()
+        while chunks:
+            chunks.pop()
+        # while shms:
+        #     shms.pop()
         return index_value_map, index - 1
 
-    # def parallel_get_value(self, indexes, key):
-    #     chunk_set = set()
-    #     for index in inde
-    #     chunk_names = self.all_index_maps[key][ind]["chunk_names"]
-    #     chunk_set.update(chunk_names)
-
-
-    # def _get_transform_chunk(self, key, chunk_names, start_ind):
-    #     chunk_map = {}
-    #     for chunk_name in chunk_names:
-    #         chunk_key = os.path.join(key, "chunks", chunk_name)
-    #         chunk_map[key] = self.storage[chunk_key]
-    #     index = start_ind
-    #     index_map = self.all_index_maps[key]
-    #     while index_map[index]["chunk_names"][0] not in chunk_names and index<len(self.ds):
-    #         index += 1
-
-    #     index_value_map = {}
-    #     meta = self.all_meta[key]
-    #     while index<len(self.ds):
-    #         index_entry = index_map[index]
-    #         chunks = []
-    #         for chunk_name in index_entry["chunk_names"]:
-    #             if chunk_name not in chunk_map:
-    #                 return index_value_map
-    #             chunk = chunk_map[chunk_name]
-    #             chunks.append(chunk)
-
-    #         combined_bytes = join_chunks(
-    #             chunks,
-    #             index_entry["start_byte"],
-    #             index_entry["end_byte"],
-    #         )
-    #         index_value_map[index] = np.frombuffer(combined_bytes, dtype=meta["dtype"]).reshape(index_entry["shape"])
-    #         index += 1
-    #     index_value_map
 
     def __getitem__(self, index):
         for key in self.ds.tensors:
@@ -169,10 +160,6 @@ class TorchDataset:
 
             chunk_set = set()
             ind = index
-            # while len(chunk_set) < self.workers and ind < len(self):
-            #     chunk_names = self.all_index_maps[key][ind]["chunk_names"]
-            #     chunk_set.add(tuple(chunk_names))
-            #     ind += 1
             while len(chunk_set) < self.workers and ind < len(self):
                 chunk_names = self.all_index_maps[key][ind]["chunk_names"]
                 chunk_set.update(chunk_names)
@@ -180,30 +167,36 @@ class TorchDataset:
 
                 if len(chunk_set) > self.workers:
                     chunk_set -= set(chunk_names)
-            # print("fetching", len(chunk_set))
-            # chunks = []
-            # with ThreadPoolExecutor(max_workers=self.workers) as executor:
-            #     # Using a dict for preserving the downloaded file for each future, to store it as a failure if we need that
-            #     futures = [
-            #         executor.submit(_read_chunks, key, chunk, self.storage) for chunk in chunk_set
-            #     ]
-            # for future in as_completed(futures):
-            #     chunks.append(future.result())
             chunk_keys = [os.path.join(key, "chunks", chunk_name) for chunk_name in chunk_set]
+            
+            for chunk_path in chunk_keys:
+                try:
+                    chunk_name = chunk_path.split("/")[-1]
+                    shm = shared_memory.SharedMemory(name=chunk_name)
+                    shm.close()
+                    shm.unlink()
+                except:
+                    pass
+
             self.process_pool.map(
                 _read_chunks, chunk_keys
             )
-            # print("time was", end-start)
-            # chunk_map = dict(chunks)
-            # del chunks
+
             start = time.time()
             (
                 self.all_index_value_maps[key],
                 self.last_index_map[key],
-            ) = self._get_value_from_chunks(index, key)
+            ) = self._get_value_from_chunks(index, key, chunk_keys)
+
+            for chunk_path in chunk_keys:
+                try:
+                    chunk_name = chunk_path.split("/")[-1]
+                    shm = shared_memory.SharedMemory(name=chunk_name)
+                    shm.close()
+                    shm.unlink()
+                except:
+                    pass
             end = time.time()
-            shutil.rmtree("temp")
-            os.mkdir("temp")
 
         if index > self.last_sample_processed:
             start_index = self.last_sample_processed + 1
