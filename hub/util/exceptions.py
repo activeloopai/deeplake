@@ -9,6 +9,20 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
+class KeyAlreadyExistsError(KeyError):
+    def __init__(self, key: str, extra_message: str = ""):
+        super().__init__(
+            'Key "{}" already exists in storage. {}'.format(key, extra_message)
+        )
+
+
+class KeyDoesNotExistError(KeyError):
+    def __init__(self, key: str, extra_message: str = ""):
+        super().__init__(
+            'Key "%s" does not exist in storage. {}'.format(key, extra_message)
+        )
+
+
 class TensorNotFoundError(KeyError):
     def __init__(self, tensor_name: str):
         super().__init__("Tensor {} not found in dataset.".format(tensor_name))

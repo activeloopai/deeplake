@@ -14,6 +14,7 @@ from .flatten import row_wise_to_bytes
 
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
+from hub.util.exceptions import KeyAlreadyExistsError, KeyDoesNotExistError
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -36,7 +37,7 @@ def write_array(
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
 ):
-    """Chunk and write an array to storage.
+    """Create a new tensor, then chunk and write the given array to storage. For writing an array to an already existing tensor, use `append_array`.
 
     For more on chunking, see the `generate_chunks` method.
 
@@ -50,15 +51,12 @@ def write_array(
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
 
     Raises:
-        Exception: If trying to write to a tensor that already exists in `storage` under `key`.
+        KeyAlreadyExistsError: If trying to write to a tensor that already exists in `storage` under `key`.
     """
 
     if key_exists(key, storage):
-        # TODO: exceptions.py & change `write_array` NotImplementedError
-        raise Exception(
-            'Key "%s" already exists in storage "%s". Use `append_array`.'
-            % (key, str(storage))
-        )
+        # TODO: tests that raise this exception
+        raise KeyAlreadyExistsError(key, "Use `append_array`.")
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
@@ -69,7 +67,7 @@ def write_array(
         "length": array.shape[0],
         "min_shape": tuple(array.shape[1:]),
         "max_shape": tuple(array.shape[1:]),
-        # TODO: tobytes function and handle mismatch versions for this
+        # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
     }
 
     write_samples(array, key, storage, meta, index_map)
@@ -87,15 +85,12 @@ def append_array(
     # TODO: docstring
     """
     Raises:
-        Exception: If trying to append to a tensor that does not exist in `storage` under `key`.
+        KeyDoesNotExistError: If trying to append to a tensor that does not exist in `storage` under `key`.
     """
 
     if not key_exists(key, storage):
-        # TODO: exceptions.py & change `write_array` NotImplementedError
-        raise Exception(
-            'Key "%s" does not exist in storage "%s". Use `write_array`.'
-            % (key, str(storage))
-        )
+        # TODO: tests that raise this exception
+        raise KeyDoesNotExistError(key, "Use `write_array`.")
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
