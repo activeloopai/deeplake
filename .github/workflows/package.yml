@@ -3,10 +3,10 @@ name: package
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   test:
@@ -16,10 +16,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - 3.6
           - 3.7
           - 3.8
-#          - 3.9
+        #          - 3.9
         os:
           - ubuntu-latest
           - macOS-latest
@@ -51,7 +50,6 @@ jobs:
       - name: Codecov
         uses: codecov/codecov-action@v1
 
-
   test_with_optional:
     name: Python ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }} (with optional dependencies)
     runs-on: ${{ matrix.os }}
@@ -60,10 +58,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - 3.6
           - 3.7
           - 3.8
-#          - 3.9
+        #          - 3.9
         os:
           - ubuntu-latest
           - macOS-latest
