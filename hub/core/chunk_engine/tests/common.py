@@ -137,7 +137,7 @@ def run_engine_test(
         array_slice = slice(sample_count, sample_count + num_samples)
         a_out = read_array(key=key, storage=storage, array_slice=array_slice)
 
-        assert key_exists(key, storage), "Key was not found."
+        assert key_exists(key, storage), "Key {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
         assert_meta_is_valid(
@@ -175,11 +175,3 @@ def benchmark_write(
 
 def benchmark_read(key: str, storage: StorageProvider):
     read_array(key, storage)
-
-
-def skip_if_no_required_creds(storage: StorageProvider):
-    """If `storage` is a StorageProvider that requires creds, and they are not found, skip the current test."""
-
-    if type(storage) == S3Provider:
-        if not has_s3_credentials():
-            pytest.skip()
