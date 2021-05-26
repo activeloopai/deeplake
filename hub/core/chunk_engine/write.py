@@ -59,7 +59,6 @@ def write_array(
     """
 
     if key_exists(key, storage):
-        # TODO: tests that raise this exception
         raise KeyAlreadyExistsError(key, "Use `append_array`.")
 
     array = normalize_and_batchify_shape(array, batched=batched)
@@ -110,12 +109,11 @@ def append_array(
     index_map = read_index_map(key, storage)
     meta = read_tensor_meta(key, storage)
 
-    # TODO: add tests that have incompatible arrays
     _check_if_meta_is_compatible_with_array(meta, array)
 
     write_samples(array, key, storage, meta, index_map)
 
-    # TODO: write tests to check if min/max shape is properly set
+    # TODO: write tests to check if min/max shape is properly set (after we add dynamic shapes)
     # TODO: move this into function (especially tuple wrapping)
     sample_shape = array.shape[1:]
     min_shape = np.minimum(meta["min_shape"], sample_shape)
@@ -250,8 +248,6 @@ def _random_chunk_name() -> str:
 
 
 def _check_if_meta_is_compatible_with_array(meta: dict, array: np.ndarray):
-    # TODO: tests that mismatch metas
-
     if meta["dtype"] != array.dtype.name:
         raise MetaMismatchError("dtype", meta["dtype"], array.dtype.name)
 
