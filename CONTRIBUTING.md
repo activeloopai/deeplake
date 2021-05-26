@@ -17,6 +17,7 @@ We use [pytest](https://docs.pytest.org/en/6.2.x/) for our tests. In order to ma
 - To run memory only tests, use: `python -m pytest .`.
 - To run local only tests, use: `python -m pytest . --memory-skip --local`.
 - To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
+- To run cache chain only tests, use: `python -m pytest . --local --s3 --cache-chains-only`. Note: you can opt out of `--local` or `--s3`, the cache chains produced will only contain enabled storage providers.
 - To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
 
 
@@ -104,7 +105,7 @@ We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usag
 - To run benchmarks for memory only, use: `python -m pytest . --benchmark-only`.
 - To run ALL **fast** benchmarks, use: `python -m pytest . --local --s3 --cache-chains --benchmark-only`. Note: this only runs the subset of benchmarks that finish quickly.
 - To run ALL **fast AND slow** benchmarks, use: `python -m pytest . --local --s3 --full-benchmarks --benchmark-only`. Note: this will take a while... (also cache chains are implicitly enabled from `--full-benchmarks`.)
-- You can opt out of `--local` and `--s3` for all commands, or add `--memory-skip`.
+- You can opt out of `--local` and `--s3` for all commands, or add `--memory-skip`. Also `--cache-chains-only` works.
 - Optionally, you can remove the `--benchmark-only` flag in any of these commands to run normal tests alongside the benchmarks.
 
 
