@@ -60,6 +60,7 @@ class Dataset:
         else:
             write_dataset_meta(self.provider, {"tensors": []})
 
+    # TODO len should consider slice
     def __len__(self):
         """Return the greatest length of tensors"""
         return max(map(len, self.tensors.values()), default=0)

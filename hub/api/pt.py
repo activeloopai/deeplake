@@ -98,7 +98,7 @@ class TorchDataset:
         chunk_map = {}
         start = time.time()
         for chunk_name in os.listdir("temp"):
-            with open(f"temp/{chunk_name}", mode="r", encoding="utf8") as file_obj:
+            with open(f"temp/{chunk_name}", mode="rb") as file_obj:
                 with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_READ) as mmap_obj:
                     chunk_map[chunk_name] = mmap_obj.read()
         end = time.time()
@@ -123,6 +123,13 @@ class TorchDataset:
             )
             index += 1
         return index_value_map, index - 1
+
+    # def parallel_get_value(self, indexes, key):
+    #     chunk_set = set()
+    #     for index in inde
+    #     chunk_names = self.all_index_maps[key][ind]["chunk_names"]
+    #     chunk_set.update(chunk_names)
+
 
     # def _get_transform_chunk(self, key, chunk_names, start_ind):
     #     chunk_map = {}
@@ -195,7 +202,6 @@ class TorchDataset:
                 self.last_index_map[key],
             ) = self._get_value_from_chunks(index, key)
             end = time.time()
-            print("time was", end-start)
             shutil.rmtree("temp")
             os.mkdir("temp")
 

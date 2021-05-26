@@ -86,7 +86,10 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
     Returns:
         bytes: The chunks joined as one bytes object.
     """
+    if len(chunks)==1:
+        return memoryview(chunks[0])[start_byte:end_byte]
 
+    # TODO make below case efficient using memoryview
     indexed_chunks = []
     for i, chunk in enumerate(chunks):
         actual_start_byte, actual_end_byte = 0, len(chunk)
