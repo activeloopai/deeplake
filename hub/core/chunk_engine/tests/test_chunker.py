@@ -1,6 +1,6 @@
 import pytest
 
-from hub.core.chunk_engine import generate_chunks, join_chunks
+from hub.core.chunk_engine import generate_chunks
 
 from typing import List, Optional, Tuple
 
@@ -28,21 +28,6 @@ PARTIAL_FIT: Tuple = (
     (8, [b"1", b"2", b"3", b"4", b"5", b"6", b"7"], [b"1234567"]),
 )
 
-# chunks,start_byte,end_byte,expected_bytes
-JOIN_CHUNKS: Tuple = (
-    ([], 0, None, b""),
-    ([b"123"], 0, None, b"123"),
-    ([b"123"], 0, 2, b"12"),
-    ([b"123"], 0, 1, b"1"),
-    ([b"1", b"2", b"3"], 0, None, b"123"),
-    # end_byte=2 which is larger than the length of the last chunk (=1)
-    ([b"1", b"2", b"3"], 0, 2, b"123"),
-    ([b"1", b"2", b"3456789"], 0, 2, b"1234"),
-    ([b"1", b"23", b"4567890"], 0, 2, b"12345"),
-    ([b"1234567890"], 0, 5, b"12345"),
-    ([b"12345678", b"12345678", b"12345678"], 2, 5, b"3456781234567812345"),
-)
-
 
 @pytest.mark.parametrize("chunk_size,bytes_batch,expected_chunks", PERFECT_FIT)
 def test_generate_perfect_fit(
@@ -58,14 +43,6 @@ def test_generate_partial_fit(
 ):
     """Output chunks may differ in length to `chunk_size`."""
     run_generate_chunks_test(chunk_size, bytes_batch, expected_chunks)
-
-
-@pytest.mark.parametrize("chunks,start_byte,end_byte,expected_bytes", JOIN_CHUNKS)
-def test_join_chunks(
-    chunks: List[bytes], start_byte: int, end_byte: int, expected_bytes: bytes
-):
-    actual_bytes = join_chunks(chunks, start_byte, end_byte)
-    assert actual_bytes == expected_bytes
 
 
 def run_generate_chunks_test(

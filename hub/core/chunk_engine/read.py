@@ -2,13 +2,11 @@ import os
 import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
 
-from .chunker import join_chunks
-
 from hub import constants
 from hub.util.keys import get_meta_key, get_index_map_key
 
 from hub.core.typing import StorageProvider
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Optional
 
 
 def read_tensor_meta(key: str, storage: StorageProvider):
@@ -51,25 +49,42 @@ def read_array(
     # TODO: read samples in parallel
     samples = []
     for index_entry in index_map[array_slice]:
-        chunks = []
-        for chunk_name in index_entry["chunk_names"]:
-            chunk_key = os.path.join(key, "chunks", chunk_name)
-            chunk = storage[chunk_key]
-            chunks.append(chunk)
-
-        array = array_from_chunks(chunks, meta["dtype"], index_entry)
+        array = array_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
 
     return np.array(samples)
 
 
-def array_from_chunks(chunks: List[bytes], dtype: str, index_entry: dict = {}):
-    combined_bytes = join_chunks(
-        chunks,
-        index_entry.get("start_byte", 0),
-        index_entry.get("end_byte", None),
+def array_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict, dtype: str
+):
+    b = bytearray()
+    for chunk_name in index_entry["chunk_names"]:
+        chunk_key = os.path.join(key, "chunks", chunk_name)
+        last_b_len = len(b)
+        b.extend(storage[chunk_key])
+
+    start_byte = index_entry["start_byte"]
+    end_byte = last_b_len + index_entry["end_byte"]
+
+    return array_from_buffer(
+        b,
+        dtype,
+        index_entry["shape"],
+        start_byte,
+        end_byte,
     )
-    array = np.frombuffer(combined_bytes, dtype=dtype)
-    if "shape" in index_entry:
-        array = array.reshape(index_entry["shape"])
+
+
+def array_from_buffer(
+    b: bytearray,
+    dtype: str,
+    shape: tuple = None,
+    start_byte: int = 0,
+    end_byte: Optional[int] = None,
+):
+    partial_b = memoryview(b)[start_byte:end_byte]
+    array = np.frombuffer(partial_b, dtype=dtype)
+    if shape is not None:
+        array = array.reshape(shape)
     return array
