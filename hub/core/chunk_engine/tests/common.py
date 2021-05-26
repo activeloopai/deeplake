@@ -130,7 +130,7 @@ def run_engine_test(
         else:
             append_array(a_in, key, storage, batched=batched)
 
-        # `write_array` implicitly normalizes/batchifies shape
+        # `write_array`/`append_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
         num_samples = a_in.shape[0]
