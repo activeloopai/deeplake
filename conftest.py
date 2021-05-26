@@ -270,7 +270,7 @@ def clear_storages_session(request):
     yield
 
     # executed after the last test
-    print_session_id(request)
+    print_session_id()
 
 
 @pytest.fixture(scope="function", autouse=True)
