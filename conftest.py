@@ -106,7 +106,7 @@ def pytest_addoption(parser):
     parser.addoption(
         FULL_BENCHMARK_OPT,
         action="store_true",
-        help="Some benchmarks take a long time to run and by default should be skipped. This option enables them.",
+        help="Some benchmarks take a long time to run and by default should be skipped. This option enables them. It also force enables `--cache-chains`.",
     )
     parser.addoption(
         KEEP_STORAGE_OPT,
@@ -161,7 +161,11 @@ def _storage_from_request(request, memory_storage, local_storage, s3_storage):
 
     # --cache-chains-only force enables --cache-chains
     use_cache_chains_only = _is_opt_true(request, CACHE_ONLY_OPT)
-    use_cache_chains = _is_opt_true(request, CACHE_OPT) or use_cache_chains_only
+    use_cache_chains = (
+        _is_opt_true(request, CACHE_OPT)
+        or use_cache_chains_only
+        or _is_opt_true(request, FULL_BENCHMARK_OPT)
+    )
 
     if use_cache_chains_only and len(requested_providers) <= 1:
         pytest.skip()

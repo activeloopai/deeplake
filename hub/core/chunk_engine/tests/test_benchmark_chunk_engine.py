@@ -87,19 +87,18 @@ def benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage):
     storage.clear()
 
 
-@pytest.mark.benchmark(group="chunk_engine_write_with_caches")
+@pytest.mark.benchmark(group="chunk_engine_write_memory")
 @parametrize_benchmark_shapes
 @parametrize_benchmark_num_batches
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_caches
-def test_write_with_caches(
+def test_write_memory(
     benchmark,
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: StorageProvider,
 ):
     benchmark_write(
         benchmark=benchmark,
@@ -107,65 +106,21 @@ def test_write_with_caches(
         dtype=dtype,
         chunk_size=chunk_size,
         num_batches=num_batches,
-        storage=storage,
+        storage=memory_storage,
     )
 
 
-@pytest.mark.full_benchmark
-@pytest.mark.benchmark(group="chunk_engine_write_without_caches")
+@pytest.mark.benchmark(group="chunk_engine_read_memory")
 @parametrize_benchmark_shapes
 @parametrize_benchmark_num_batches
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_storages
-def test_write_without_caches(
+def test_read_memory(
     benchmark,
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: StorageProvider,
 ):
-    benchmark_write(
-        benchmark=benchmark,
-        shape=shape,
-        dtype=dtype,
-        chunk_size=chunk_size,
-        num_batches=num_batches,
-        storage=storage,
-    )
-
-
-@pytest.mark.benchmark(group="chunk_engine_read_with_caches")
-@parametrize_benchmark_shapes
-@parametrize_benchmark_num_batches
-@parametrize_benchmark_chunk_sizes
-@parametrize_benchmark_dtypes
-@parametrize_all_caches
-def test_read_with_caches(
-    benchmark,
-    shape: Tuple[int],
-    chunk_size: int,
-    num_batches: int,
-    dtype: str,
-    storage: StorageProvider,
-):
-    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage)
-
-
-@pytest.mark.full_benchmark
-@pytest.mark.benchmark(group="chunk_engine_read_without_caches")
-@parametrize_benchmark_shapes
-@parametrize_benchmark_num_batches
-@parametrize_benchmark_chunk_sizes
-@parametrize_benchmark_dtypes
-@parametrize_all_storages
-def test_read_without_caches(
-    benchmark,
-    shape: Tuple[int],
-    chunk_size: int,
-    num_batches: int,
-    dtype: str,
-    storage: StorageProvider,
-):
-    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage)
+    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, memory_storage)
