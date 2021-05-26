@@ -211,7 +211,7 @@ def write_bytes(
 
         chunk_names.append(chunk_name)
 
-        last_chunk = chunk
+        last_chunk = memoryview(chunk)
         last_chunk_name = chunk_name
 
     # TODO: encode index_map_entry as array instead of dictionary
