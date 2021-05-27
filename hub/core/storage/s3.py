@@ -77,8 +77,8 @@ class S3Provider(StorageProvider):
         """Sets the object present at the path with the value
 
         Args:
-            path (str): the path relative to the root of the S3Provider.
-            content (bytes): the value to be assigned at the path.
+            paths (str/Iterable[str]): the path relative to the root of the S3Provider.
+            content (bytes/Iterable[bytes]): the value to be assigned at the path.
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
@@ -107,7 +107,7 @@ class S3Provider(StorageProvider):
         """Gets the object present at the path.
 
         Args:
-            path (str): the path relative to the root of the S3Provider.
+            paths (str/Iterable[str]): the path relative to the root of the S3Provider.
 
         Returns:
             bytes: The bytes of the object present at the path.

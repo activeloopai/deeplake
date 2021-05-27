@@ -82,8 +82,8 @@ class LRUCache(StorageProvider):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
-            path (str): the path relative to the root of the underlying storage.
-            value (bytes): the value to be assigned at the path.
+            paths (str/Iterable[str]): the path relative to the root of the underlying storage.
+            content (bytes/Iterable[bytes]): the value to be assigned at the path.
         """
 
         def put(path_content):
