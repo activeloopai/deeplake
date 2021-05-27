@@ -5,10 +5,12 @@ from functools import lru_cache
 import mmap
 import shutil
 import os
+
 # from multiprocessing import value, array
 @lru_cache()
 def s3_client():
     return S3Provider("s3://snark-test/abc-large-3/image/chunks")
+
 
 workers = 72
 
@@ -24,10 +26,12 @@ def read(file):
     a = s3[file]
     FILENAME = f"download/{file}"
     f = open(FILENAME, "wb")
-    f.write(len(a)*b'\0')
+    f.write(len(a) * b"\0")
     f.close()
     with open(FILENAME, mode="r+", encoding="utf8") as file_obj:
-        with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_WRITE) as mmap_obj:
+        with mmap.mmap(
+            file_obj.fileno(), length=0, access=mmap.ACCESS_WRITE
+        ) as mmap_obj:
             mmap_obj.write(a)
     # end = time()
     # print("read took", end-start)
@@ -36,17 +40,19 @@ def read(file):
 
 istart = time()
 # workers = 128
-for i in range(len(files_to_download)//workers + 1):
+for i in range(len(files_to_download) // workers + 1):
     # results =[array('i', 16*1000*1000)]*workers
-    arr = files_to_download[i*workers: (i+1)*workers]
+    arr = files_to_download[i * workers : (i + 1) * workers]
     start = time()
     results = process_pool.map(read, arr, chunksize=1)
     end = time()
-    print(i, "read took", end-start)
+    print(i, "read took", end - start)
 
     for a in arr:
         with open(f"download/{a}", mode="r", encoding="utf8") as file_obj:
-            with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_READ) as mmap_obj:
+            with mmap.mmap(
+                file_obj.fileno(), length=0, access=mmap.ACCESS_READ
+            ) as mmap_obj:
                 text = mmap_obj.read()
                 # print(len(text), text[0:10])
 
@@ -58,7 +64,7 @@ for i in range(len(files_to_download)//workers + 1):
 #     with mmap.mmap(file_obj.fileno(), length=0, access=mmap.ACCESS_READ) as mmap_obj:
 #         text = mmap_obj.read()
 #         print(len(text))
-        # print(text)
+# print(text)
 end = time()
 
-print(workers, end-istart)
+print(workers, end - istart)

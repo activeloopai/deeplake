@@ -10,6 +10,7 @@ import tqdm
 AWS_BUCKET = "snark-test"
 OUTPUT_DIR = "downloads"
 
+
 def download_one_file(bucket: str, output: str, client: boto3.client, s3_file: str):
     """
     Download a single file from S3
@@ -21,7 +22,9 @@ def download_one_file(bucket: str, output: str, client: boto3.client, s3_file: s
     """
 
     client.download_file(
-        Bucket=bucket, Key=s3_file, Filename=os.path.join(output, s3_file.split("/")[-1])
+        Bucket=bucket,
+        Key=s3_file,
+        Filename=os.path.join(output, s3_file.split("/")[-1]),
     )
     # s3://snark-test/abc-small/image/chunks/02a0d588-bd4f-11eb-aeda-166ff600252b
     # self.client.get_object(
@@ -46,7 +49,8 @@ with tqdm.tqdm(desc="Downloading images from S3", total=len(files_to_download)) 
     with ThreadPoolExecutor(max_workers=16) as executor:
         # Using a dict for preserving the downloaded file for each future, to store it as a failure if we need that
         futures = {
-            executor.submit(func, file_to_download): file_to_download for file_to_download in files_to_download
+            executor.submit(func, file_to_download): file_to_download
+            for file_to_download in files_to_download
         }
         for future in as_completed(futures):
             if future.exception():
