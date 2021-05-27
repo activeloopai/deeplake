@@ -97,14 +97,14 @@ class ResourceNotFoundException(Exception):
 
 class BadRequestException(Exception):
     def __init__(self, message):
-        message = f"One or more request parameters is incorrect\n{message}"
+        message = f"Invalid Request. One or more request parameters is incorrect.\n{message}"
         super().__init__(message)
 
 
 class OverLimitException(Exception):
     def __init__(
         self,
-        message="You are over the allowed limits for this operation. Consider upgrading your account.",
+        message="You are over the allowed limits for this operation.",
     ):
         super().__init__(message)
 
@@ -137,6 +137,13 @@ class LockedException(Exception):
 class UnexpectedStatusCodeException(Exception):
     def __init__(self, message):
         super().__init__(message)
+
+
+class InvalidTokenException(Exception):
+    def __init__(self, message="The authentication token is empty."):
+        super().__init__(message)
+    
+
 
 
 # TODO Better S3 Exception handling

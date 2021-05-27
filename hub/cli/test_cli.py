@@ -2,7 +2,7 @@ import os
 import pytest
 from hub.cli.auth import login, logout
 from click.testing import CliRunner
-from hub.util.hub_creds import has_hub_testing_creds
+from hub.client.utils import has_hub_testing_creds
 
 
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")

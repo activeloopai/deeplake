@@ -14,11 +14,14 @@ from hub.util.exceptions import (
     ResourceNotFoundException,
     ServerException,
     UnexpectedStatusCodeException,
+    InvalidTokenException,
 )
 
 
 def write_token(token: str):
     """Writes the auth token to the token file."""
+    if not token:
+        raise InvalidTokenException
     path = Path(TOKEN_FILE_PATH)
     os.makedirs(path.parent, exist_ok=True)
     with open(TOKEN_FILE_PATH, "w") as f:
@@ -39,6 +42,12 @@ def remove_token():
     """Deletes the token file"""
     if os.path.isfile(TOKEN_FILE_PATH):
         os.remove(TOKEN_FILE_PATH)
+
+
+def has_hub_testing_creds():
+    """Checks if credentials exists"""
+    env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    return env is not None
 
 
 def check_response_status(response: requests.Response):

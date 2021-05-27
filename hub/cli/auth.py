@@ -48,8 +48,9 @@ def register(username: str, email: str, password: str):
     password = password or click.prompt("Password", type=str, hide_input=True)
     password = password.strip()
     try:
-        HubBackendClient().send_register_request(username, email, password)
-        token = HubBackendClient().request_auth_token(username, password)
+        client = HubBackendClient()
+        client.send_register_request(username, email, password)
+        token = client.request_auth_token(username, password)
         write_token(token)
         click.echo(f"\nSuccessfully registered and logged in as {username}")
     except Exception as e:
