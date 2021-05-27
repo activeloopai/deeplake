@@ -132,6 +132,17 @@ def write_samples(
     meta: dict,
     index_map: List[dict],
 ):
+    """For internal use only. Given a batched and shape-normalized numpy array (see `normalize_and_batchify_shape`), chunk and write
+    the array and create `index_map` entries for each sample.
+
+    Args:
+        array (np.ndarray): Array to be chunked/written. Must be batched and shape-normalized (see `normalize_and_batchify_shape`).
+        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider where the chunks, index_map, and meta are stored.
+        meta (dict): Meta dictionary for the tensor being written to.
+        index_map (list): List of dictionaries that contains information about each sample.
+    """
+
     chunk_size = meta["chunk_size"]
 
     # TODO: get the tobytes function from meta
