@@ -97,9 +97,9 @@ class S3Provider(StorageProvider):
 
         try:
             if isinstance(paths, str):
-                return put((paths, content))
+                put((paths, content))
             with ThreadPool() as pool:
-                return pool.map(put, list(zip(paths, content)))
+                pool.map(put, list(zip(paths, content)))
         except Exception as err:
             raise S3SetError(err)
 
