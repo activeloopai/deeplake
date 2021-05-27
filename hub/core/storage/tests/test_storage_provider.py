@@ -40,6 +40,7 @@ def check_storage_provider(storage):
 
     del storage[FILE_1]
     del storage[FILE_2]
+    del storage[FILE_3]
 
     with pytest.raises(KeyError):
         storage[FILE_1]
@@ -72,7 +73,6 @@ def check_cache(cache):
     check_cache_state(
         cache, expected_state=[{FILE_3, FILE_2}, {FILE_3, FILE_2}, 2, 1, 32 * MB, 3]
     )
-
     cache[FILE_1]
     check_cache_state(
         cache, expected_state=[{FILE_3}, {FILE_1, FILE_3}, 2, 2, 32 * MB, 3]

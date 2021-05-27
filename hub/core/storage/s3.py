@@ -129,7 +129,7 @@ class S3Provider(StorageProvider):
             if isinstance(paths, str):
                 return get(paths)
             with ThreadPool() as pool:
-                return pool.map(get, (paths,))
+                return pool.map(get, paths)
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
