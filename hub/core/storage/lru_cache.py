@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from hub.core.storage.provider import StorageProvider
-from typing import Set
+from typing import Set, Union, Tuple, Iterable
+from pathos.pools import ThreadPool  # type: ignore
 
 # TODO use lock for multiprocessing
 class LRUCache(StorageProvider):
@@ -44,7 +45,7 @@ class LRUCache(StorageProvider):
 
         self.next_storage.flush()
 
-    def __getitem__(self, path: str):
+    def __getitem__(self, paths: Union[str, Tuple[str]]):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
 
@@ -57,32 +58,55 @@ class LRUCache(StorageProvider):
         Returns:
             bytes: The bytes of the object present at the path.
         """
-        if path in self.lru_sizes:
-            self.lru_sizes.move_to_end(path)  # refresh position for LRU
-            return self.cache_storage[path]
-        else:
-            result = self.next_storage[path]  # fetch from storage, may throw KeyError
-            if len(result) <= self.cache_size:  # insert in cache if it fits
-                self._insert_in_cache(path, result)
-            return result
 
-    def __setitem__(self, path: str, value: bytes):
+        def get_from_path(path):
+            if path in self.lru_sizes:
+                self.lru_sizes.move_to_end(path)  # refresh position for LRU
+                return self.cache_storage[path]
+            else:
+                result = self.next_storage[
+                    path
+                ]  # fetch from storage, may throw KeyError
+                if len(result) <= self.cache_size:  # insert in cache if it fits
+                    self._insert_in_cache(path, result)
+                return result
+
+        if isinstance(paths, str):
+            return get_from_path(paths)
+        with ThreadPool() as pool:
+            return pool.map(get_from_path, paths)
+
+    def __setitem__(
+        self, paths: Union[str, Tuple[str]], content: Union[bytes, Iterable[bytes]]
+    ):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
             path (str): the path relative to the root of the underlying storage.
             value (bytes): the value to be assigned at the path.
         """
-        if path in self.lru_sizes:
-            size = self.lru_sizes.pop(path)
-            self.cache_used -= size
 
-        if len(value) <= self.cache_size:
-            self._insert_in_cache(path, value)
-            self.dirty_keys.add(path)
-        else:  # larger than cache, directly send to next layer
-            self.dirty_keys.discard(path)
-            self.next_storage[path] = value
+        def put(path_content):
+            path, content = path_content
+            if path in self.lru_sizes:
+                size = self.lru_sizes.pop(path)
+                self.cache_used -= size
+            if not len(content):
+                import pdb
+
+                pdb.set_trace()
+            if len(content) <= self.cache_size:
+                self._insert_in_cache(path, content)
+                self.dirty_keys.add(path)
+            else:  # larger than cache, directly send to next layer
+                self.dirty_keys.discard(path)
+                self.next_storage[path] = content
+
+        if isinstance(paths, str):
+            put((paths, content))
+        else:
+            with ThreadPool() as pool:
+                pool.map(put, list(zip(paths, content)))
 
     def __delitem__(self, path: str):
         """Deletes the object present at the path from the cache and the underlying storage.

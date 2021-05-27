@@ -1,9 +1,8 @@
 import posixpath
-from typing import Optional, Union, Iterable, Tuple
-from pathos.pools import ThreadPool  # type: ignore
-
 import boto3
 import botocore  # type: ignore
+from typing import Optional, Union, Iterable
+from multiprocessing.pool import ThreadPool
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 
@@ -73,13 +72,13 @@ class S3Provider(StorageProvider):
             )
 
     def __setitem__(
-        self, paths: Union[str, Tuple[str]], content: Union[bytes, Iterable[bytes]]
+        self, paths: Union[str, Iterable[str]], content: Union[bytes, Iterable[bytes]]
     ):
         """Sets the object present at the path with the value
 
         Args:
-            paths (str/Tuple[str]): the path relative to the root of the S3Provider.
-            content (bytes/Iterable[bytes]): the value to be assigned at the path.
+            path (str): the path relative to the root of the S3Provider.
+            content (bytes): the value to be assigned at the path.
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
@@ -98,18 +97,17 @@ class S3Provider(StorageProvider):
 
         try:
             if isinstance(paths, str):
-                put((paths, content))
-            else:
-                with ThreadPool() as pool:
-                    pool.map(put, list(zip(paths, content)))
+                return put((paths, content))
+            with ThreadPool() as pool:
+                return pool.map(put, list(zip(paths, content)))
         except Exception as err:
             raise S3SetError(err)
 
-    def __getitem__(self, paths: Union[str, Tuple[str]]):
+    def __getitem__(self, paths: Union[str, Iterable[str]]):
         """Gets the object present at the path.
 
         Args:
-            paths (str/Tuple[str]): the path relative to the root of the S3Provider.
+            path (str): the path relative to the root of the S3Provider.
 
         Returns:
             bytes: The bytes of the object present at the path.
@@ -131,7 +129,7 @@ class S3Provider(StorageProvider):
             if isinstance(paths, str):
                 return get(paths)
             with ThreadPool() as pool:
-                return pool.map(get, paths)
+                return pool.map(get, (paths,))
         except botocore.exceptions.ClientError as err:
             if err.response["Error"]["Code"] == "NoSuchKey":
                 raise KeyError(err)
@@ -195,3 +193,13 @@ class S3Provider(StorageProvider):
             str: the name of the object that it is iterating over.
         """
         yield from self._list_keys()
+
+    def clear(self):
+        """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+
+        # much faster than mapper.clear()
+        if self.resource is not None:
+            bucket = self.resource.Bucket(self.bucket)
+            bucket.objects.filter(Prefix=self.path).delete()
+        else:
+            super().clear()

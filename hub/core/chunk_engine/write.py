@@ -1,7 +1,6 @@
 import numpy as np
 import pickle
 from uuid import uuid1
-from concurrent.futures import ThreadPoolExecutor
 
 from hub.core.chunk_engine import generate_chunks
 from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
