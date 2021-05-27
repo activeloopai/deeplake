@@ -21,7 +21,9 @@ dl = torch.utils.data.DataLoader(
         batch_size=1,
         num_workers=0,
     )
-for item in tqdm(dl):
+for item in tqdm(ptds):
+    print(item["image"][0][0])
+    continue
     item["image"][0][0]
     # 640 Mbps
     # item

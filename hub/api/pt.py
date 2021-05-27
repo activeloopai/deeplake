@@ -9,12 +9,8 @@ import numpy as np
 
 from hub.core.chunk_engine.read import read_tensor_meta
 from itertools import repeat
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from multiprocessing import shared_memory, resource_tracker
-
-
 
 @lru_cache()
 def s3_client():
@@ -32,7 +28,6 @@ def _read_chunks(chunk_key):
     shm = shared_memory.SharedMemory(create=True, size=len(out), name=chunk_key.split("/")[-1])
     shm.buf[:] = out
     shm.close()
-    # print("took thread", end - start)
     return
 
 def remove_shm_from_resource_tracker():
@@ -82,6 +77,8 @@ class TorchDataset:
         self.last_index_map = {}
         self.first_sample_processed = -1
         self.last_sample_processed = -1
+        self.all_chunk_keys = {}
+        self.shms = []
 
     def _load_index_maps(self):
         self.all_index_maps = {}
@@ -107,11 +104,10 @@ class TorchDataset:
         index_value_map = {}
         index = start_ind
         chunk_map = {}
-        shms = []
         for chunk_path in chunk_keys:
             chunk_name = chunk_path.split("/")[-1]
-            shms.append(shared_memory.SharedMemory(name=chunk_name))
-            chunk_map[chunk_name] = shms[-1].buf[:]
+            self.shms.append(shared_memory.SharedMemory(name=chunk_name))
+            chunk_map[chunk_name] = self.shms[-1].buf[:]
         cb = []
         while index < len(self.ds):
             # cur_chunks = self.all_index_maps[key][index]["chunk_names"]
@@ -133,10 +129,10 @@ class TorchDataset:
                 index_entry["end_byte"],
             ))
 
-            index_value_map[index] = np.frombuffer(cb[0].tobytes(), dtype=dtype).reshape(
+            index_value_map[index] = np.frombuffer(cb[0], dtype=dtype).reshape(
                 index_entry["shape"]
             )
-            cb[0].release()
+            # cb[0].release()
             cb.pop()
             index += 1
         # all_keys = list(chunk_map.keys())
@@ -154,8 +150,21 @@ class TorchDataset:
 
     def __getitem__(self, index):
         for key in self.ds.tensors:
+            if index != 0 and index == self.last_index_map[key]+1:
+                while self.all_index_value_maps[key]:
+                    self.all_index_value_maps[key].popitem()
+                chunk_keys = self.all_chunk_keys[key]
+                for chunk_path in chunk_keys:
+                    try:
+                        chunk_name = chunk_path.split("/")[-1]
+                        shm = shared_memory.SharedMemory(name=chunk_name)
+                        shm.close()
+                        shm.unlink()
+                    except:
+                        pass
+
+
             if index in self.all_index_value_maps[key]:
-                # print("cache hit!", key, index)
                 continue
 
             chunk_set = set()
@@ -169,6 +178,7 @@ class TorchDataset:
                     chunk_set -= set(chunk_names)
             chunk_keys = [os.path.join(key, "chunks", chunk_name) for chunk_name in chunk_set]
             
+            
             for chunk_path in chunk_keys:
                 try:
                     chunk_name = chunk_path.split("/")[-1]
@@ -177,26 +187,27 @@ class TorchDataset:
                     shm.unlink()
                 except:
                     pass
+            
 
             self.process_pool.map(
                 _read_chunks, chunk_keys
             )
 
-            start = time.time()
+            
             (
                 self.all_index_value_maps[key],
                 self.last_index_map[key],
             ) = self._get_value_from_chunks(index, key, chunk_keys)
 
-            for chunk_path in chunk_keys:
-                try:
-                    chunk_name = chunk_path.split("/")[-1]
-                    shm = shared_memory.SharedMemory(name=chunk_name)
-                    shm.close()
-                    shm.unlink()
-                except:
-                    pass
-            end = time.time()
+            # for chunk_path in chunk_keys:
+            #     try:
+            #         chunk_name = chunk_path.split("/")[-1]
+            #         shm = shared_memory.SharedMemory(name=chunk_name)
+            #         shm.close()
+            #         shm.unlink()
+            #     except:
+            #         pass
+            self.all_chunk_keys[key] = chunk_keys
 
         if index > self.last_sample_processed:
             start_index = self.last_sample_processed + 1
