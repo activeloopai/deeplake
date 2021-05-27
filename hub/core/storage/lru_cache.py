@@ -50,7 +50,7 @@ class LRUCache(StorageProvider):
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
 
         Args:
-            path (str): the path relative to the root of the underlying storage.
+            paths (str/Tuple[str]): the path relative to the root of the underlying storage.
 
         Raises:
             KeyError: if an object is not found at the path.

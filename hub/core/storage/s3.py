@@ -82,6 +82,9 @@ class S3Provider(StorageProvider):
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
+
+        Returns:
+            None
         """
 
         def put(path_content):
@@ -97,9 +100,9 @@ class S3Provider(StorageProvider):
 
         try:
             if isinstance(paths, str):
-                put((paths, content))
+                return put((paths, content))
             with ThreadPool() as pool:
-                pool.map(put, list(zip(paths, content)))
+                return pool.map(put, list(zip(paths, content)))
         except Exception as err:
             raise S3SetError(err)
 
