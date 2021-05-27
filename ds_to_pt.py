@@ -23,7 +23,7 @@ dl = torch.utils.data.DataLoader(
     num_workers=0,
 )
 for item in tqdm(ptds):
-    print(item)
+    # print(item)
     # print(item["image"][0][0])
     continue
     # item["image"][0][0]
