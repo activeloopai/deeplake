@@ -1,4 +1,5 @@
 from typing import Any
+from hub.core.compression import AVAILABLE_COMPRESSORS
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -80,3 +81,10 @@ class S3DeletionError(Exception):
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
+
+
+class InvalidCompressor(Exception):
+    def __init__(self):
+        super().__init__(
+            f"Compressor is not supported. Supported compressions: {AVAILABLE_COMPRESSORS}"
+        )

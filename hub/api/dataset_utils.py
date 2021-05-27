@@ -1,24 +1,15 @@
 from typing import Union
-from hub.codec import PngCodec, Lz4, NumPy, Zstd, JpegCodec, WebPCodec
-from hub.codec import BaseImgCodec, BaseNumCodec
-
-compression_map = {
-    PngCodec().__name__: PngCodec,
-    JpegCodec().__name__: JpegCodec,
-    WebPCodec().__name__: WebPCodec,
-    Lz4().__name__: Lz4,
-    Zstd().__name__: Zstd,
-    NumPy().__name__: NumPy,
-}
+from hub.core import compression
+from hub.util.exceptions import InvalidCompressor
 
 
-def _get_compressor(
+def get_compressor(
     compressor_name: str, **kwargs
-) -> Union[BaseImgCodec, BaseNumCodec]:
-    """Get compressor object
+) -> Union[compression.BaseImgCodec, compression.BaseNumCodec]:
+    f"""Get compressor object
 
     Example:
-        compressor = _get_compressor('lz4', acceleration=2)
+        compressor = get_compressor('lz4', acceleration=2)
 
     Args:
         compressor_name (str): lowercase name of the required compressor
@@ -35,13 +26,14 @@ def _get_compressor(
         Codec object providing compression
 
     Raises:
-        ValueError: if the name of compressor isn't in ['lz4', 'zstd', 'numpy', 'png', 'jpeg']
+        InvalidCompressor: if the name of compressor isn't in {compression.AVAILABLE_COMPRESSORS}
     """
-    compressor = compression_map.get(compressor_name, None)
-    if compressor:
+    try:
+        compressor = compression.__dict__[compressor_name.upper()]
         return compressor(**kwargs)
-    else:
-        raise ValueError(
-            f"Wrong compressor: {compressor}"
-            " only 'lz4', 'png', 'jpeg', 'numpy', 'zstd' and 'webp' are supported."
-        )
+    except KeyError:
+        raise InvalidCompressor()
+
+
+if __name__ == "__main__":
+    get_compressor("zip")
