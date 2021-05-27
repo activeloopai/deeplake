@@ -24,23 +24,13 @@ pip3 install -r requirements/plugins.txt
 pip3 install -r requirements/tests.txt
 ```
 
-## To run all benchmarks:
-
-pytest --s3 --local --cache-chains --full-benchmarks
-
-## To run the benchmarks in an IDE (like PyCharm):
-
-Add these to "additional parameters" when running pytest
-
-```--s3 --local --cache-chains --full-benchmarks```
-
 ### Running Tests
+
 - To run memory only tests, use: `python -m pytest .`.
 - To run local only tests, use: `python -m pytest . --memory-skip --local`.
 - To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
 - To run cache chain only tests, use: `python -m pytest . --local --s3 --cache-chains-only`. Note: you can opt out of `--local` or `--s3`, the cache chains produced will only contain enabled storage providers.
 - To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
-
 
 ### Prerequisites
 - Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
@@ -117,7 +107,6 @@ def test_dataset(ds):
     # `ds` will be parametrized with 1 `Dataset` object per enabled `StorageProvider` and all cache chains containing enabled `StorageProvider`s
     pass
 ```
-
 
 ## Benchmarks
 We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usage.html) for our benchmark code which is a plugin for [pytest](https://docs.pytest.org/en/6.2.x/).
