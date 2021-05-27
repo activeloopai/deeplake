@@ -24,7 +24,7 @@ def generate_chunks(
             b"3"
 
     Args:
-        content_bytes (bytes): Bytes object with the data to be chunked.
+        content_bytes (memoryview): Memoryview of bytes to be chunked.
         chunk_size (int): Each individual chunk will be assigned this many bytes maximum.
         bytes_left_in_last_chunk (int): If chunks were created already, `bytes_left_in_last_chunk`
             should be set to the `chunk_size - len(last_chunk)`. This is so the generator's
