@@ -21,17 +21,19 @@ def read_dataset_meta(storage: StorageProvider) -> dict:
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
+    """A tensor exists if at the specified `key` and `storage` there is both a meta file and index map."""
+
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
     return meta_key in storage and index_map_key in storage
 
 
-def read_array(
+def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
     array_slice: slice = slice(None),
 ) -> np.ndarray:
-    """Read and join chunks into an array from storage.
+    """Read (and unchunk) samples from a tensor as an np.ndarray.
 
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
@@ -48,15 +50,17 @@ def read_array(
     # TODO: read samples in parallel
     samples = []
     for index_entry in index_map[array_slice]:
-        array = array_from_index_entry(key, storage, index_entry, meta["dtype"])
+        array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
 
     return np.array(samples)
 
 
-def array_from_index_entry(
+def sample_from_index_entry(
     key: str, storage: StorageProvider, index_entry: dict, dtype: str
-):
+) -> np.ndarray:
+    """Get the unchunked sample from a single `index_map` entry."""
+
     b = bytearray()
     for chunk_name in index_entry["chunk_names"]:
         chunk_key = os.path.join(key, "chunks", chunk_name)
@@ -81,7 +85,9 @@ def array_from_buffer(
     shape: tuple = None,
     start_byte: int = 0,
     end_byte: Optional[int] = None,
-):
+) -> np.ndarray:
+    """Reconstruct a sample from bytes (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all bytes are used."""
+
     partial_b = b[start_byte:end_byte]
     array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:

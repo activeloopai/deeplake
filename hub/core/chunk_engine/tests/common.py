@@ -1,15 +1,10 @@
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import numpy as np
 import pytest
-
-from hub.core.chunk_engine import (
-    read_array,
-    add_samples_to_tensor,
-    tensor_exists,
-    read_tensor_meta,
-    read_index_map,
-)
+from hub.core.chunk_engine import (add_samples_to_tensor, read_index_map,
+                                   read_samples_from_tensor, read_tensor_meta,
+                                   tensor_exists)
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
@@ -130,7 +125,9 @@ def run_engine_test(
 
         num_samples = a_in.shape[0]
         array_slice = slice(sample_count, sample_count + num_samples)
-        a_out = read_array(key=key, storage=storage, array_slice=array_slice)
+        a_out = read_samples_from_tensor(
+            key=key, storage=storage, array_slice=array_slice
+        )
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
@@ -150,7 +147,6 @@ def run_engine_test(
 
         sample_count += num_samples
 
-    index_map_key = get_index_map_key(key)
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
 
@@ -159,7 +155,7 @@ def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
     for a_in in arrays:
-        write_array(
+        add_samples_to_tensor(
             a_in,
             key,
             storage,
@@ -169,4 +165,4 @@ def benchmark_write(
 
 
 def benchmark_read(key: str, storage: StorageProvider):
-    read_array(key, storage)
+    read_samples_from_tensor(key, storage)
