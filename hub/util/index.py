@@ -1,3 +1,6 @@
+from typing import Union
+
+
 def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
     """Compose two slice objects
 
@@ -35,3 +38,28 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
             stop = min(stop, stop1)
 
     return slice(start, stop, step)
+
+
+class Index:
+    def __init__(self, item: Union[int, slice, "Index"] = slice(None)):
+        if isinstance(item, Index):
+            item = item.item
+
+        self.item: Union[int, slice] = item
+
+    def __getitem__(self, item: Union[int, slice, "Index"]):
+        if isinstance(item, Index):
+            item = item.item
+
+        if isinstance(self.item, int):
+            raise TypeError("Subscripting after 'int' is not allowed.")
+        elif isinstance(item, int):
+            return Index((self.item.start or 0) + item * (self.item.step or 1))
+        elif isinstance(item, slice):
+            return Index(merge_slices(self.item, item))
+
+    def to_slice(self):
+        if isinstance(self.item, int):
+            return slice(self.item, self.item + 1)
+        else:
+            return self.item
