@@ -9,20 +9,6 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class KeyAlreadyExistsError(KeyError):
-    def __init__(self, key: str, extra_message: str = ""):
-        super().__init__(
-            "Key {} already exists in storage. {}".format(key, extra_message)
-        )
-
-
-class KeyDoesNotExistError(KeyError):
-    def __init__(self, key: str, extra_message: str = ""):
-        super().__init__(
-            "Key {} does not exist in storage. {}".format(key, extra_message)
-        )
-
-
 class MetaMismatchError(Exception):
     def __init__(self, meta_key: str, expected: Any, actual: Any):
         super().__init__(

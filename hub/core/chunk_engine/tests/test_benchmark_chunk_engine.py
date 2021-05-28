@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from hub.constants import GB
-from hub.core.chunk_engine import read_array, write_array
+from hub.core.chunk_engine import read_array, add_samples_to_tensor
 from hub.core.chunk_engine.tests.common import (
     get_random_array,
     TENSOR_KEY,
@@ -23,7 +23,7 @@ def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
     for a_in in arrays:
-        write_array(
+        add_samples_to_tensor(
             array=a_in,
             key=actual_key,
             storage=storage,
@@ -38,7 +38,7 @@ def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
 
 def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
     """
-    Benchmark `write_array`.
+    Benchmark `add_samples_to_tensor`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.

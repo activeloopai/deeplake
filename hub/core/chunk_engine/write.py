@@ -15,8 +15,6 @@ from .flatten import row_wise_to_bytes
 from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import (
-    KeyAlreadyExistsError,
-    KeyDoesNotExistError,
     MetaMismatchError,
 )
 

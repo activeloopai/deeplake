@@ -24,7 +24,7 @@ def read_dataset_meta(storage: StorageProvider):
 def tensor_exists(key: str, storage: StorageProvider):
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
-    return meta_key in storage or index_map_key in storage
+    return meta_key in storage and index_map_key in storage
 
 
 def read_array(
@@ -68,7 +68,7 @@ def array_from_index_entry(
     end_byte = last_b_len + index_entry["end_byte"]
 
     return array_from_buffer(
-        b,
+        memoryview(b),
         dtype,
         index_entry["shape"],
         start_byte,
@@ -77,7 +77,7 @@ def array_from_index_entry(
 
 
 def array_from_buffer(
-    b: bytearray,
+    b: memoryview,
     dtype: str,
     shape: tuple = None,
     start_byte: int = 0,
