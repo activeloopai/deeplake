@@ -5,11 +5,11 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 from hub import constants
 from hub.core.typing import StorageProvider
-from hub.util.keys import get_index_map_key, get_meta_key
+from hub.util.keys import get_index_map_key, get_tensor_meta_key
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_meta_key(key)])
+    return pickle.loads(storage[get_tensor_meta_key(key)])
 
 
 def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
@@ -23,7 +23,7 @@ def read_dataset_meta(storage: StorageProvider) -> dict:
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
     """A tensor exists if at the specified `key` and `storage` there is both a meta file and index map."""
 
-    meta_key = get_meta_key(key)
+    meta_key = get_tensor_meta_key(key)
     index_map_key = get_index_map_key(key)
     return meta_key in storage and index_map_key in storage
 

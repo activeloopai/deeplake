@@ -8,14 +8,14 @@ from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import MetaMismatchError
-from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+from hub.util.keys import get_chunk_key, get_index_map_key, get_tensor_meta_key
 
 from .flatten import row_wise_to_bytes
 from .read import read_index_map, read_tensor_meta, tensor_exists
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_meta_key(key)] = pickle.dumps(meta)
+    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
 
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
@@ -36,7 +36,6 @@ def add_samples_to_tensor(
 ):
 
     """Create a new tensor (if one doesn't already exist), then chunk and write the given array to storage.
-    For writing an array to an already existing tensor, use `append_array`.
 
     For more on chunking, see the `generate_chunks` method.
 
@@ -73,6 +72,9 @@ def add_samples_to_tensor(
 
     for i in range(array.shape[0]):
         sample = array[i]
+
+        # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
+        # choose to optimize for.
         b = memoryview(tobytes(sample))
 
         index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
@@ -92,16 +94,15 @@ def write_bytes(
     storage: StorageProvider,
     index_map: List[dict],
 ) -> dict:
-    """For internal use only. Chunk and write bytes to storage and return the index_map entry.
-    The provided bytes are treated as a single sample.
+    """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single sample.
 
     Args:
         b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be chunked according
             to `chunk_size`.
-        key (str): Key for where the index_map, and meta are located in `storage` relative to it's root. A subdirectory
+        key (str): Key for where the index_map, and tensor_meta are located in `storage` relative to it's root. A subdirectory
             is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
         chunk_size (int): Desired length of each chunk.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and tensor_meta.
         index_map (list): List of dictionaries that represent each sample. An entry for `index_map` is returned
             but not appended to `index_map`.
 
@@ -165,7 +166,8 @@ def write_bytes(
 def _get_last_chunk(
     key: str, index_map: List[dict], storage: StorageProvider
 ) -> Tuple[str, memoryview]:
-    """For internal use only. Retrieves the name and memoryview of bytes for the last chunk.
+    """Retrieves the name and memoryview of bytes for the last chunk that was written to. This is helpful for
+    filling previous chunks before creating new ones.
 
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
@@ -191,22 +193,32 @@ def _random_chunk_name() -> str:
 
 
 def _check_array_and_tensor_are_compatible(
-    meta: dict, array: np.ndarray, chunk_size: int
+    tensor_meta: dict, array: np.ndarray, chunk_size: int
 ):
-    if meta["dtype"] != array.dtype.name:
-        raise MetaMismatchError("dtype", meta["dtype"], array.dtype.name)
+    """An array is considered incompatible to a tensor if the `tensor_meta`
+
+    Raises:
+
+    """
+
+    if tensor_meta["dtype"] != array.dtype.name:
+        raise MetaMismatchError("dtype", tensor_meta["dtype"], array.dtype.name)
 
     sample_shape = array.shape[1:]
-    if len(meta["min_shape"]) != len(sample_shape):
-        raise MetaMismatchError("min_shape", meta["min_shape"], len(sample_shape))
-    if len(meta["max_shape"]) != len(sample_shape):
-        raise MetaMismatchError("max_shape", meta["max_shape"], len(sample_shape))
+    if len(tensor_meta["min_shape"]) != len(sample_shape):
+        raise MetaMismatchError(
+            "min_shape", tensor_meta["min_shape"], len(sample_shape)
+        )
+    if len(tensor_meta["max_shape"]) != len(sample_shape):
+        raise MetaMismatchError(
+            "max_shape", tensor_meta["max_shape"], len(sample_shape)
+        )
 
-    if chunk_size is not None and chunk_size != meta["chunk_size"]:
-        raise MetaMismatchError("chunk_size", meta["chunk_size"], chunk_size)
+    if chunk_size is not None and chunk_size != tensor_meta["chunk_size"]:
+        raise MetaMismatchError("chunk_size", tensor_meta["chunk_size"], chunk_size)
 
     # TODO: remove these once dynamic shapes are supported
-    if not np.array_equal(meta["max_shape"], sample_shape):
+    if not np.array_equal(tensor_meta["max_shape"], sample_shape):
         raise NotImplementedError("Dynamic shapes are not supported yet.")
-    if not np.array_equal(meta["min_shape"], sample_shape):
+    if not np.array_equal(tensor_meta["min_shape"], sample_shape):
         raise NotImplementedError("Dynamic shapes are not supported yet.")

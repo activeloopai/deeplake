@@ -2,18 +2,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pytest
-from hub.core.chunk_engine import (
-    add_samples_to_tensor,
-    read_index_map,
-    read_samples_from_tensor,
-    read_tensor_meta,
-    tensor_exists,
-)
+from hub.core.chunk_engine import (add_samples_to_tensor, read_index_map,
+                                   read_samples_from_tensor, read_tensor_meta,
+                                   tensor_exists)
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+from hub.util.keys import get_chunk_key, get_index_map_key
 from hub.util.s3 import has_s3_credentials
 
 
