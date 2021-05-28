@@ -24,7 +24,7 @@ def read_dataset_meta(storage: StorageProvider):
 def tensor_exists(key: str, storage: StorageProvider):
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
-    return meta_key in storage or index_map_key in storage
+    return meta_key in storage and index_map_key in storage
 
 
 def read_array(
