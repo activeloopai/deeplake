@@ -42,12 +42,32 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
 
 class Index:
     def __init__(self, item: Union[int, slice, "Index"] = slice(None)):
+        """Create a new Index from an int, slice, or another Index."""
         if isinstance(item, Index):
             item = item.item
 
         self.item: Union[int, slice] = item
 
     def __getitem__(self, item: Union[int, slice, "Index"]):
+        """Return a new Index by composing a given Index with the current Index
+
+        Examples:
+            >>> Index()[0:100]
+            Index(slice(0, 100, None))
+
+            >>> Index()[100:200][5]
+            Index(105)
+
+        Args:
+            item: The desired sub-index to be composed with this Index.
+                Can be an int, slice, or another Index
+
+        Returns:
+            The new Index object.
+
+        Raises:
+            TypeError: An integer Index should not be indexed further
+        """
         if isinstance(item, Index):
             item = item.item
 
@@ -59,6 +79,7 @@ class Index:
             return Index(merge_slices(self.item, item))
 
     def to_slice(self):
+        """Convert this Index into a slice"""
         if isinstance(self.item, int):
             return slice(self.item, self.item + 1)
         else:
