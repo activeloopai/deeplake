@@ -10,7 +10,7 @@ from hub.util.exceptions import (
 from hub.core.typing import StorageProvider
 from hub.core.storage import MemoryProvider
 from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.chunk_engine.write import write_array, write_dataset_meta
+from hub.core.chunk_engine.write import add_samples_to_tensor, write_dataset_meta
 from typing import Union, Dict, Optional
 import numpy as np
 import warnings
@@ -81,7 +81,7 @@ class Dataset:
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
             if isinstance(value, np.ndarray):
-                write_array(
+                add_samples_to_tensor(
                     value,
                     item,
                     storage=self.provider,

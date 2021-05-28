@@ -5,9 +5,8 @@ import pytest
 
 from hub.core.chunk_engine import (
     read_array,
-    write_array,
-    append_array,
-    key_exists,
+    add_samples_to_tensor,
+    tensor_exists,
     read_tensor_meta,
     read_index_map,
 )
@@ -119,25 +118,21 @@ def run_engine_test(
     sample_count = 0
 
     for i, a_in in enumerate(arrays):
-        if i <= 0:
-            write_array(
-                a_in,
-                key,
-                storage,
-                chunk_size,
-                batched=batched,
-            )
-        else:
-            append_array(a_in, key, storage, batched=batched)
+        add_samples_to_tensor(
+            a_in,
+            key,
+            storage,
+            chunk_size,
+            batched=batched,
+        )
 
-        # `write_array`/`append_array` implicitly normalizes/batchifies shape
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
         num_samples = a_in.shape[0]
         array_slice = slice(sample_count, sample_count + num_samples)
         a_out = read_array(key=key, storage=storage, array_slice=array_slice)
 
-        assert key_exists(key, storage), "Key {} was not found.".format(key)
+        assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
         assert_meta_is_valid(
