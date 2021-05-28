@@ -41,6 +41,22 @@ def add_samples_to_tensor(
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
 ):
+
+    """Create a new tensor (if one doesn't already exist), then chunk and write the given array to storage.
+    For writing an array to an already existing tensor, use `append_array`.
+
+    For more on chunking, see the `generate_chunks` method.
+
+    Args:
+        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
+            batch axis, you should pass the argument `batched=True`.
+        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        chunk_size (int): Desired length of each chunk.
+        batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
+            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+    """
+
     array = normalize_and_batchify_shape(array, batched=batched)
 
     if tensor_exists(key, storage):
