@@ -82,7 +82,7 @@ def array_from_buffer(
     start_byte: int = 0,
     end_byte: Optional[int] = None,
 ):
-    partial_b = memoryview(b)[start_byte:end_byte]
+    partial_b = b[start_byte:end_byte]
     array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:
         array = array.reshape(shape)
