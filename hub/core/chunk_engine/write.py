@@ -1,5 +1,6 @@
 import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
+import json
 from uuid import uuid1
 
 from hub.core.chunk_engine import generate_chunks
@@ -21,8 +22,15 @@ from hub.util.exceptions import (
 )
 
 
+def _listify(shape: Tuple):
+    shape = np.asarray(shape)
+    return shape.tolist()
+
+
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_meta_key(key)] = pickle.dumps(meta)
+    meta["min_shape"] = _listify(meta["min_shape"])
+    meta["max_shape"] = _listify(meta["max_shape"])
+    storage[get_meta_key(key)] = json.dumps(meta)
 
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
@@ -31,7 +39,7 @@ def write_index_map(key: str, storage: StorageProvider, index_map: list):
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[META_FILENAME] = pickle.dumps(meta)
+    storage[META_FILENAME] = json.dumps(meta)
 
 
 def write_array(
