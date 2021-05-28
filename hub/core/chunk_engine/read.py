@@ -1,40 +1,39 @@
 import os
-import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
+from typing import Callable, List, Optional, Union
 
-from .chunker import join_chunks
-
+import numpy as np
 from hub import constants
-from hub.util.keys import get_meta_key, get_index_map_key
-
 from hub.core.typing import StorageProvider
-from typing import Callable, List, Union
+from hub.util.keys import get_index_map_key, get_meta_key
 
 
-def read_tensor_meta(key: str, storage: StorageProvider):
+def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
     return pickle.loads(storage[get_meta_key(key)])
 
 
-def read_index_map(key: str, storage: StorageProvider):
+def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
     return pickle.loads(storage[get_index_map_key(key)])
 
 
-def read_dataset_meta(storage: StorageProvider):
+def read_dataset_meta(storage: StorageProvider) -> dict:
     return pickle.loads(storage[constants.META_FILENAME])
 
 
-def key_exists(key: str, storage: StorageProvider):
+def tensor_exists(key: str, storage: StorageProvider) -> bool:
+    """A tensor exists if at the specified `key` and `storage` there is both a meta file and index map."""
+
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
-    return meta_key in storage or index_map_key in storage
+    return meta_key in storage and index_map_key in storage
 
 
-def read_array(
+def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
     array_slice: slice = slice(None),
 ) -> np.ndarray:
-    """Read and join chunks into an array from storage.
+    """Read (and unchunk) samples from a tensor as an np.ndarray.
 
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
@@ -51,20 +50,46 @@ def read_array(
     # TODO: read samples in parallel
     samples = []
     for index_entry in index_map[array_slice]:
-        chunks = []
-        for chunk_name in index_entry["chunk_names"]:
-            chunk_key = os.path.join(key, "chunks", chunk_name)
-            chunk = storage[chunk_key]
-
-            chunks.append(chunk)
-
-        combined_bytes = join_chunks(
-            chunks,
-            index_entry["start_byte"],
-            index_entry["end_byte"],
-        )
-
-        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
+        array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
+        samples.append(array)
 
     return np.array(samples)
+
+
+def sample_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict, dtype: str
+) -> np.ndarray:
+    """Get the unchunked sample from a single `index_map` entry."""
+
+    b = bytearray()
+    for chunk_name in index_entry["chunk_names"]:
+        chunk_key = os.path.join(key, "chunks", chunk_name)
+        last_b_len = len(b)
+        b.extend(storage[chunk_key])
+
+    start_byte = index_entry["start_byte"]
+    end_byte = last_b_len + index_entry["end_byte"]
+
+    return array_from_buffer(
+        memoryview(b),
+        dtype,
+        index_entry["shape"],
+        start_byte,
+        end_byte,
+    )
+
+
+def array_from_buffer(
+    b: memoryview,
+    dtype: str,
+    shape: tuple = None,
+    start_byte: int = 0,
+    end_byte: Optional[int] = None,
+) -> np.ndarray:
+    """Reconstruct a sample from bytes (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all bytes are used."""
+
+    partial_b = b[start_byte:end_byte]
+    array = np.frombuffer(partial_b, dtype=dtype)
+    if shape is not None:
+        array = array.reshape(shape)
+    return array

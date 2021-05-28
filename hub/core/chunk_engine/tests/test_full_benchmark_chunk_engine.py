@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from hub.constants import GB
-from hub.core.chunk_engine import read_array, write_array
 from hub.core.chunk_engine.tests.common import (
     get_random_array,
     TENSOR_KEY,

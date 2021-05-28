@@ -1,24 +1,17 @@
-import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
+from typing import Any, Callable, List, Tuple
 from uuid import uuid1
 
+import numpy as np
+from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
 from hub.core.chunk_engine import generate_chunks
-from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
-
 from hub.core.typing import StorageProvider
-from typing import Any, Callable, List, Tuple
-
-from .read import read_index_map, read_tensor_meta, key_exists
-from .flatten import row_wise_to_bytes
-
-
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import (
-    KeyAlreadyExistsError,
-    KeyDoesNotExistError,
-    MetaMismatchError,
-)
+from hub.util.exceptions import MetaMismatchError
+from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+
+from .flatten import row_wise_to_bytes
+from .read import read_index_map, read_tensor_meta, tensor_exists
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -34,14 +27,16 @@ def write_dataset_meta(storage: StorageProvider, meta: dict):
     storage[META_FILENAME] = pickle.dumps(meta)
 
 
-def write_array(
+def add_samples_to_tensor(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
 ):
-    """Create a new tensor, then chunk and write the given array to storage. For writing an array to an already existing tensor, use `append_array`.
+
+    """Create a new tensor (if one doesn't already exist), then chunk and write the given array to storage.
+    For writing an array to an already existing tensor, use `append_array`.
 
     For more on chunking, see the `generate_chunks` method.
 
@@ -53,93 +48,32 @@ def write_array(
         chunk_size (int): Desired length of each chunk.
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-
-    Raises:
-        KeyAlreadyExistsError: If trying to write to a tensor that already exists in `storage` under `key`.
     """
-
-    if key_exists(key, storage):
-        raise KeyAlreadyExistsError(key, "Use `append_array`.")
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    index_map: List[dict] = []
-    meta = {
-        "chunk_size": chunk_size,
-        "dtype": array.dtype.name,
-        "length": array.shape[0],
-        "min_shape": tuple(array.shape[1:]),
-        "max_shape": tuple(array.shape[1:]),
-        # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
-    }
+    if tensor_exists(key, storage):
+        index_map = read_index_map(key, storage)
+        tensor_meta = read_tensor_meta(key, storage)
+        _check_array_and_tensor_are_compatible(tensor_meta, array, chunk_size)
 
-    write_samples(array, key, storage, meta, index_map)
-
-    write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, index_map)
-
-
-def append_array(
-    array: np.ndarray,
-    key: str,
-    storage: StorageProvider,
-    batched: bool = False,
-):
-    """Chunk and write the given array to an already existing tensor in storage. For writing an array to a tensor that does not exist, use `write_array`.
-
-    For more on chunking, see the `generate_chunks` method.
-
-    Args:
-        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
-            batch axis, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider where the chunks, index_map, and meta are stored.
-        batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-
-    Raises:
-        KeyDoesNotExistError: If trying to append to a tensor that does not exist in `storage` under `key`.
-    """
-
-    if not key_exists(key, storage):
-        raise KeyDoesNotExistError(key, "Use `write_array`.")
-
-    array = normalize_and_batchify_shape(array, batched=batched)
-
-    index_map = read_index_map(key, storage)
-    meta = read_tensor_meta(key, storage)
-
-    _check_if_meta_is_compatible_with_array(meta, array)
-
-    write_samples(array, key, storage, meta, index_map)
-
-    # TODO: write tests to check if min/max shape is properly set (after we add dynamic shapes)
-    # TODO: move this into function (especially tuple wrapping)
-    sample_shape = array.shape[1:]
-    min_shape = np.minimum(meta["min_shape"], sample_shape)
-    max_shape = np.maximum(meta["max_shape"], sample_shape)
-    meta["min_shape"] = tuple(min_shape)
-    meta["max_shape"] = tuple(max_shape)
-
-    write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, index_map)
-
-
-def write_samples(
-    array: np.ndarray,
-    key: str,
-    storage: StorageProvider,
-    meta: dict,
-    index_map: List[dict],
-):
-    chunk_size = meta["chunk_size"]
+    else:
+        index_map: List[dict] = []  # type: ignore
+        tensor_meta = {
+            "chunk_size": chunk_size,
+            "dtype": array.dtype.name,
+            "length": array.shape[0],
+            "min_shape": tuple(array.shape[1:]),
+            "max_shape": tuple(array.shape[1:]),
+            # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
+        }
 
     # TODO: get the tobytes function from meta
     tobytes = row_wise_to_bytes
 
     for i in range(array.shape[0]):
         sample = array[i]
-        b = tobytes(sample)
+        b = memoryview(tobytes(sample))
 
         index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
 
@@ -147,15 +81,22 @@ def write_samples(
         index_map_entry["shape"] = sample.shape
         index_map.append(index_map_entry)
 
+    write_tensor_meta(key, storage, tensor_meta)
+    write_index_map(key, storage, index_map)
+
 
 def write_bytes(
-    b: bytes, key: str, chunk_size: int, storage: StorageProvider, index_map: List[dict]
+    b: memoryview,
+    key: str,
+    chunk_size: int,
+    storage: StorageProvider,
+    index_map: List[dict],
 ) -> dict:
     """For internal use only. Chunk and write bytes to storage and return the index_map entry.
     The provided bytes are treated as a single sample.
 
     Args:
-        b (bytes): Bytes to be chunked/written. `b` is considered to be 1 sample and will be chunked according
+        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be chunked according
             to `chunk_size`.
         key (str): Key for where the index_map, and meta are located in `storage` relative to it's root. A subdirectory
             is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
@@ -178,6 +119,8 @@ def write_bytes(
     extend_last_chunk = False
     if len(index_map) > 0 and len(last_chunk) < chunk_size:
         bllc = chunk_size - len(last_chunk)
+        # use bytearray for concatenation (fastest method)
+        last_chunk = bytearray(last_chunk)  # type: ignore
         extend_last_chunk = True
 
     chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
@@ -187,9 +130,10 @@ def write_bytes(
     for chunk in chunk_generator:
         if extend_last_chunk:
             chunk_name = last_chunk_name
-            last_chunk_bytearray = bytearray(last_chunk)
-            last_chunk_bytearray.extend(chunk)
-            chunk = bytes(last_chunk_bytearray)
+
+            last_chunk += chunk  # type: ignore
+            chunk = memoryview(last_chunk)
+
             start_byte = index_map[-1]["end_byte"]
 
             if len(chunk) >= chunk_size:
@@ -204,7 +148,7 @@ def write_bytes(
 
         chunk_names.append(chunk_name)
 
-        last_chunk = chunk
+        last_chunk = memoryview(chunk)
         last_chunk_name = chunk_name
 
     # TODO: encode index_map_entry as array instead of dictionary
@@ -220,8 +164,8 @@ def write_bytes(
 
 def _get_last_chunk(
     key: str, index_map: List[dict], storage: StorageProvider
-) -> Tuple[str, bytes]:
-    """For internal use only. Retrieves the name and bytes for the last chunk.
+) -> Tuple[str, memoryview]:
+    """For internal use only. Retrieves the name and memoryview of bytes for the last chunk.
 
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
@@ -230,24 +174,25 @@ def _get_last_chunk(
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
-        bytes: Content of the last chunk. If the last chunk doesn't exist, returns empty bytes.
+        memoryview: Content of the last chunk. If the last chunk doesn't exist, returns empty memoryview of bytes.
     """
 
-    last_chunk_name = ""
-    last_chunk = bytes()
     if len(index_map) > 0:
         last_index_map_entry = index_map[-1]
         last_chunk_name = last_index_map_entry["chunk_names"][-1]
         last_chunk_key = get_chunk_key(key, last_chunk_name)
-        last_chunk = storage[last_chunk_key]
-    return last_chunk_name, last_chunk
+        last_chunk = memoryview(storage[last_chunk_key])
+        return last_chunk_name, last_chunk
+    return "", memoryview(bytes())
 
 
 def _random_chunk_name() -> str:
     return str(uuid1())
 
 
-def _check_if_meta_is_compatible_with_array(meta: dict, array: np.ndarray):
+def _check_array_and_tensor_are_compatible(
+    meta: dict, array: np.ndarray, chunk_size: int
+):
     if meta["dtype"] != array.dtype.name:
         raise MetaMismatchError("dtype", meta["dtype"], array.dtype.name)
 
@@ -256,6 +201,9 @@ def _check_if_meta_is_compatible_with_array(meta: dict, array: np.ndarray):
         raise MetaMismatchError("min_shape", meta["min_shape"], len(sample_shape))
     if len(meta["max_shape"]) != len(sample_shape):
         raise MetaMismatchError("max_shape", meta["max_shape"], len(sample_shape))
+
+    if chunk_size is not None and chunk_size != meta["chunk_size"]:
+        raise MetaMismatchError("chunk_size", meta["chunk_size"], chunk_size)
 
     # TODO: remove these once dynamic shapes are supported
     if not np.array_equal(meta["max_shape"], sample_shape):

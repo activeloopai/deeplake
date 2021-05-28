@@ -1,9 +1,9 @@
 from typing import Union
 
 import numpy as np
-
-from hub.core.chunk_engine.read import read_array, read_tensor_meta
-from hub.core.chunk_engine.write import write_array
+from hub.core.chunk_engine.read import (read_samples_from_tensor,
+                                        read_tensor_meta)
+from hub.core.chunk_engine.write import add_samples_to_tensor
 from hub.core.typing import StorageProvider
 from hub.util.slice import merge_slices
 
@@ -56,7 +56,7 @@ class Tensor:
                 "Assignment to Tensor slices not currently supported!"
             )
         else:
-            write_array(
+            add_samples_to_tensor(
                 array=value,
                 key=self.key,
                 storage=self.provider,
@@ -74,4 +74,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_array(self.key, self.provider, self.slice)
+        return read_samples_from_tensor(self.key, self.provider, self.slice)

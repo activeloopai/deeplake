@@ -1,3 +1,4 @@
-from .chunker import generate_chunks, join_chunks
-from .write import write_array, append_array, write_tensor_meta, write_index_map
-from .read import read_array, key_exists, read_tensor_meta, read_index_map
+from .chunker import generate_chunks
+from .read import (read_index_map, read_samples_from_tensor, read_tensor_meta,
+                   tensor_exists)
+from .write import add_samples_to_tensor, write_index_map, write_tensor_meta
