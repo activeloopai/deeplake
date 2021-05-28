@@ -1,27 +1,26 @@
 import os
-import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
+from typing import Callable, List, Optional, Union
 
+import numpy as np
 from hub import constants
-from hub.util.keys import get_meta_key, get_index_map_key
-
 from hub.core.typing import StorageProvider
-from typing import Callable, List, Union, Optional
+from hub.util.keys import get_index_map_key, get_meta_key
 
 
-def read_tensor_meta(key: str, storage: StorageProvider):
+def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
     return pickle.loads(storage[get_meta_key(key)])
 
 
-def read_index_map(key: str, storage: StorageProvider):
+def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
     return pickle.loads(storage[get_index_map_key(key)])
 
 
-def read_dataset_meta(storage: StorageProvider):
+def read_dataset_meta(storage: StorageProvider) -> dict:
     return pickle.loads(storage[constants.META_FILENAME])
 
 
-def tensor_exists(key: str, storage: StorageProvider):
+def tensor_exists(key: str, storage: StorageProvider) -> bool:
     meta_key = get_meta_key(key)
     index_map_key = get_index_map_key(key)
     return meta_key in storage and index_map_key in storage

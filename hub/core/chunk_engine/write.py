@@ -1,22 +1,17 @@
-import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
+from typing import Any, Callable, List, Tuple
 from uuid import uuid1
 
+import numpy as np
+from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
 from hub.core.chunk_engine import generate_chunks
-from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
-
 from hub.core.typing import StorageProvider
-from typing import Any, Callable, List, Tuple
-
-from .read import read_index_map, read_tensor_meta, tensor_exists
-from .flatten import row_wise_to_bytes
-
-
-from hub.util.keys import get_meta_key, get_index_map_key, get_chunk_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import (
-    MetaMismatchError,
-)
+from hub.util.exceptions import MetaMismatchError
+from hub.util.keys import get_chunk_key, get_index_map_key, get_meta_key
+
+from .flatten import row_wise_to_bytes
+from .read import read_index_map, read_tensor_meta, tensor_exists
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -63,7 +58,7 @@ def add_samples_to_tensor(
         _check_array_and_tensor_are_compatible(tensor_meta, array, chunk_size)
 
     else:
-        index_map: List[dict] = []
+        index_map: List[dict] = []  # type: ignore
         tensor_meta = {
             "chunk_size": chunk_size,
             "dtype": array.dtype.name,
