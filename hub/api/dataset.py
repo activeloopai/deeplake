@@ -23,7 +23,7 @@ class Dataset:
         path: str = "",
         mode: str = "a",
         provider: Optional[StorageProvider] = None,
-        index: Union[int, slice, Index] = Index(),
+        index: Union[int, slice, Index] = None,
     ):
         """Initialize a new or existing dataset.
 

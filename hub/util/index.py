@@ -41,15 +41,18 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
 
 
 class Index:
-    def __init__(self, item: Union[int, slice, "Index"] = slice(None)):
+    def __init__(self, item: Union[int, slice, "Index"] = None):
         """Create a new Index from an int, slice, or another Index."""
+        if item is None:
+            item = slice(None)
+
         if isinstance(item, Index):
             item = item.item
 
         self.item: Union[int, slice] = item
 
     def __getitem__(self, item: Union[int, slice, "Index"]):
-        """Return a new Index by composing a given Index with the current Index
+        """Combine the given `item` and this Index.
 
         Examples:
             >>> Index()[0:100]

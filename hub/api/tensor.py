@@ -13,7 +13,7 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
-        index: Union[int, slice, Index] = Index(),
+        index: Union[int, slice, Index] = None,
     ):
         """Initialize a new tensor.
 
