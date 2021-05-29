@@ -23,14 +23,14 @@ from hub.util.exceptions import (
 
 
 def _listify(shape: Tuple):
-    shape = np.asarray(shape)
-    return shape.tolist()
+    shapeArray = np.asarray(shape)
+    return shapeArray.tolist()
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
     meta["min_shape"] = _listify(meta["min_shape"])
     meta["max_shape"] = _listify(meta["max_shape"])
-    storage[get_meta_key(key)] = json.dumps(meta)
+    storage[get_meta_key(key)] = bytes(json.dumps(meta), "utf-8")
 
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
@@ -39,7 +39,7 @@ def write_index_map(key: str, storage: StorageProvider, index_map: list):
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[META_FILENAME] = json.dumps(meta)
+    storage[META_FILENAME] = bytes(json.dumps(meta), "utf-8")
 
 
 def write_array(
