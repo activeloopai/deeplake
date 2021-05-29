@@ -197,6 +197,11 @@ def _check_array_and_tensor_are_compatible(
 ):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
 
+    Args:
+        tensor_meta (dict): Tensor meta containing the expected properties of `array`.
+        array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
+        chunk_size (int): Chunk size that `array` will be chunked according to. This must match `tensor_meta["chunk_size"]`.
+
     Raises:
         TensorMetaMismatchError: When dtype/chunk_size don't match `tensor_meta` exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
         NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported. (TODO)
