@@ -1,9 +1,9 @@
-from typing import Union
+from typing import Union, Dict
 from abc import ABC, abstractmethod  # type: ignore
-import numcodecs  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
 import numpy as np
+from .constants import WEBP_COMPRESSOR_NAME, IMAGE_SHAPE_ERROR_MESSAGE, MSGPACK
 
 
 class BaseNumCodec(ABC):
@@ -28,7 +28,6 @@ class BaseImgCodec(ABC, Codec):
 
     def __init__(self, single_channel: bool = True) -> None:
         self.single_channel = single_channel
-        self._msgpack = numcodecs.MsgPack()
 
     @property
     def __name__(self):
@@ -40,7 +39,7 @@ class BaseImgCodec(ABC, Codec):
 
         Example:
             img = np.ones((4, 100, 100, 1))
-            encoding = codec.encode(img)
+            encoded_img = codec.encode(img)
 
         Args:
             arr (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
@@ -64,12 +63,9 @@ class BaseImgCodec(ABC, Codec):
         else:
             shape_dims = 3
         if len(arr.shape) < shape_dims:
-            raise ValueError(
-                f"The shape length {len(arr.shape)} of the given array should "
-                f"be greater than the number of expected dimensions {shape_dims}"
-            )
+            raise ValueError(IMAGE_SHAPE_ERROR_MESSAGE + f"{shape_dims}")
         if len(arr.shape) == shape_dims:
-            return self._msgpack.encode(
+            return MSGPACK.encode(
                 [
                     {
                         "items": self.encode_single_image(arr),
@@ -84,7 +80,7 @@ class BaseImgCodec(ABC, Codec):
             items = []
             for i in np.ndindex(items_shape):
                 items.append(self.encode_single_image(arr[i]))
-            return self._msgpack.encode(
+            return MSGPACK.encode(
                 [
                     {
                         "items": items,
@@ -95,6 +91,46 @@ class BaseImgCodec(ABC, Codec):
                     }
                 ]
             )
+
+    def decode_data_single_image(self, data: Dict, pass_shape: bool):
+        """
+        Decode data that contains only one image
+
+        Args:
+            data (Dict): Dictionary of encoded image
+            pass_shape (bool): Use encoded image shape for decoding.
+                Applied only for WebP compression.
+        Returns:
+            np.ndarray of decoded image
+        """
+        if pass_shape:
+            images = self.decode_single_image(data["items"], data["image_shape"])
+        else:
+            images = self.decode_single_image(data["items"])
+        return images
+
+    def decode_multiple_images(self, data: Dict, pass_shape: bool):
+        """
+        Decode data that contains multiple images
+
+        Args:
+            data (Dict): Dictionary of encoded images
+            pass_shape (bool): Use encoded shapes for decoding.
+                Applied only for WebP compression.
+        Returns:
+            np.ndarray of decoded images
+        """
+        items = data["items"]
+        images = np.zeros(
+            data["items_shape"] + data["image_shape"], dtype=data["dtype"]
+        )
+
+        for i, index in enumerate(np.ndindex(tuple(data["items_shape"]))):
+            if pass_shape:
+                images[index] = self.decode_single_image(items[i], data["image_shape"])
+            else:
+                images[index] = self.decode_single_image(items[i])
+        return images
 
     def decode(self, buf: bytes) -> np.ndarray:
         """
@@ -109,26 +145,12 @@ class BaseImgCodec(ABC, Codec):
         Returns:
             Decoded image or array with multiple images.
         """
-        data = self._msgpack.decode(buf)[0]
-        pass_shape = True if self.__name__ == "webp" else False
+        data = MSGPACK.decode(buf)[0]
+        pass_shape = True if self.__name__ == WEBP_COMPRESSOR_NAME else False
         if "items_shape" not in data:
-            if pass_shape:
-                images = self.decode_single_image(data["items"], data["image_shape"])
-            else:
-                images = self.decode_single_image(data["items"])
+            images = self.decode_data_single_image(data, pass_shape)
         else:
-            items = data["items"]
-            images = np.zeros(
-                data["items_shape"] + data["image_shape"], dtype=data["dtype"]
-            )
-
-            for i, index in enumerate(np.ndindex(tuple(data["items_shape"]))):
-                if pass_shape:
-                    images[index] = self.decode_single_image(
-                        items[i], data["image_shape"]
-                    )
-                else:
-                    images[index] = self.decode_single_image(items[i])
+            images = self.decode_multiple_images(data, pass_shape)
 
         if data.get("append_one"):
             images = np.reshape(images, images.shape + (1,))

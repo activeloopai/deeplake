@@ -4,6 +4,7 @@ import msgpack  # type: ignore
 import numpy as np
 
 from hub.core.compression import BaseNumCodec
+from hub.core.compression.constants import MSGPACK
 
 
 class LZ4(BaseNumCodec):
@@ -23,7 +24,6 @@ class LZ4(BaseNumCodec):
             raise ValueError("Invalid args:", kwargs.keys())
         acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         self.compressor = numcodecs.lz4.LZ4(acceleration)
-        self._msgpack = numcodecs.MsgPack()
 
     @property
     def __name__(self):
@@ -45,7 +45,7 @@ class LZ4(BaseNumCodec):
         """
         if isinstance(input, bytes):
             return self.compressor.encode(input)
-        return self._msgpack.encode(
+        return MSGPACK.encode(
             [
                 {
                     "item": self.compressor.encode(input),
@@ -69,7 +69,7 @@ class LZ4(BaseNumCodec):
             Decoded data.
         """
         try:
-            data = self._msgpack.decode(bytes_)[0]
+            data = MSGPACK.decode(bytes_)[0]
         except (msgpack.exceptions.ExtraData, ValueError):
             return self.compressor.decode(bytes_)
         decoded_buf = self.compressor.decode(data["item"])

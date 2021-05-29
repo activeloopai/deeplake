@@ -4,6 +4,7 @@ import msgpack  # type: ignore
 
 import numpy as np
 from hub.core.compression import BaseNumCodec
+from hub.core.compression.constants import MSGPACK
 
 
 class ZSTD(BaseNumCodec):
@@ -21,7 +22,6 @@ class ZSTD(BaseNumCodec):
             raise ValueError("Invalid args:", kwargs.keys())
         level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         self.compressor = numcodecs.zstd.Zstd(level)
-        self._msgpack = numcodecs.MsgPack()
 
     @property
     def __name__(self):
@@ -43,7 +43,7 @@ class ZSTD(BaseNumCodec):
         """
         if isinstance(input, bytes):
             return self.compressor.encode(input)
-        return self._msgpack.encode(
+        return MSGPACK.encode(
             [
                 {
                     "item": self.compressor.encode(input),
@@ -67,7 +67,7 @@ class ZSTD(BaseNumCodec):
             Decoded data.
         """
         try:
-            data = self._msgpack.decode(bytes_)[0]
+            data = MSGPACK.decode(bytes_)[0]
         except msgpack.exceptions.ExtraData:
             return self.compressor.decode(bytes_)
         decoded_buf = self.compressor.decode(data["item"])
