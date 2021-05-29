@@ -142,8 +142,8 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": a_in.shape[0],
                 "dtype": a_in.dtype.name,
-                "min_shape": tuple(a_in.shape[1:]),
-                "max_shape": tuple(a_in.shape[1:]),
+                "min_shape": list(a_in.shape[1:]),
+                "max_shape": list(a_in.shape[1:]),
             },
         )
 

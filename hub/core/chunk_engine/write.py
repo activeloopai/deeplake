@@ -1,6 +1,7 @@
 import pickle  # TODO: NEVER USE PICKLE
 from typing import Any, Callable, List, Tuple
 from uuid import uuid1
+import json
 
 import numpy as np
 from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
@@ -14,17 +15,24 @@ from .flatten import row_wise_to_bytes
 from .read import read_index_map, read_tensor_meta, tensor_exists
 
 
+def _listify(shape: Tuple):
+    shapeArray = np.asarray(shape)
+    return shapeArray.tolist()
+
+
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
+    meta["min_shape"] = _listify(meta["min_shape"])
+    meta["max_shape"] = _listify(meta["max_shape"])
+    storage[get_tensor_meta_key(key)] = bytes(json.dumps(meta), "utf-8")
 
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
     index_map_key = get_index_map_key(key)
-    storage[index_map_key] = pickle.dumps(index_map)
+    storage[index_map_key] = json.dumps(index_map)
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[META_FILENAME] = pickle.dumps(meta)
+    storage[META_FILENAME] = json.dumps(meta)
 
 
 def add_samples_to_tensor(

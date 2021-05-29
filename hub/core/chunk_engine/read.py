@@ -1,6 +1,7 @@
 import os
 import pickle  # TODO: NEVER USE PICKLE
 from typing import Callable, List, Optional, Union
+import json
 
 import numpy as np
 from hub import constants
@@ -9,15 +10,15 @@ from hub.util.keys import get_index_map_key, get_tensor_meta_key
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+    return json.loads(storage[get_tensor_meta_key(key)])
 
 
 def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
-    return pickle.loads(storage[get_index_map_key(key)])
+    return json.loads(storage[get_index_map_key(key)])
 
 
 def read_dataset_meta(storage: StorageProvider) -> dict:
-    return pickle.loads(storage[constants.META_FILENAME])
+    return json.loads(storage[constants.META_FILENAME])
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
