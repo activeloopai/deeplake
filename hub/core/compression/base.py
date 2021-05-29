@@ -100,6 +100,7 @@ class BaseImgCodec(ABC, Codec):
             data (Dict): Dictionary of encoded image
             pass_shape (bool): Use encoded image shape for decoding.
                 Applied only for WebP compression.
+
         Returns:
             np.ndarray of decoded image
         """
@@ -117,6 +118,7 @@ class BaseImgCodec(ABC, Codec):
             data (Dict): Dictionary of encoded images
             pass_shape (bool): Use encoded shapes for decoding.
                 Applied only for WebP compression.
+
         Returns:
             np.ndarray of decoded images
         """
