@@ -9,7 +9,7 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class MetaMismatchError(Exception):
+class TensorMetaMismatchError(Exception):
     def __init__(self, meta_key: str, expected: Any, actual: Any):
         super().__init__(
             "Meta value for {} expected {} but got {}.".format(

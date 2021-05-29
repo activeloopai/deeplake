@@ -7,7 +7,7 @@ from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
 from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import MetaMismatchError
+from hub.util.exceptions import TensorMetaMismatchError
 from hub.util.keys import get_chunk_key, get_index_map_key, get_tensor_meta_key
 
 from .flatten import row_wise_to_bytes
@@ -195,27 +195,30 @@ def _random_chunk_name() -> str:
 def _check_array_and_tensor_are_compatible(
     tensor_meta: dict, array: np.ndarray, chunk_size: int
 ):
-    """An array is considered incompatible to a tensor if the `tensor_meta`
+    """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
 
     Raises:
-
+        TensorMetaMismatchError: When dtype/chunk_size don't match `tensor_meta` exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
+        NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported. (TODO)
     """
 
     if tensor_meta["dtype"] != array.dtype.name:
-        raise MetaMismatchError("dtype", tensor_meta["dtype"], array.dtype.name)
+        raise TensorMetaMismatchError("dtype", tensor_meta["dtype"], array.dtype.name)
 
     sample_shape = array.shape[1:]
     if len(tensor_meta["min_shape"]) != len(sample_shape):
-        raise MetaMismatchError(
+        raise TensorMetaMismatchError(
             "min_shape", tensor_meta["min_shape"], len(sample_shape)
         )
     if len(tensor_meta["max_shape"]) != len(sample_shape):
-        raise MetaMismatchError(
+        raise TensorMetaMismatchError(
             "max_shape", tensor_meta["max_shape"], len(sample_shape)
         )
 
     if chunk_size is not None and chunk_size != tensor_meta["chunk_size"]:
-        raise MetaMismatchError("chunk_size", tensor_meta["chunk_size"], chunk_size)
+        raise TensorMetaMismatchError(
+            "chunk_size", tensor_meta["chunk_size"], chunk_size
+        )
 
     # TODO: remove these once dynamic shapes are supported
     if not np.array_equal(tensor_meta["max_shape"], sample_shape):
