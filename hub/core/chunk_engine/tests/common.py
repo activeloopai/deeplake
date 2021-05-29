@@ -59,8 +59,10 @@ def assert_chunk_sizes(
     complete_chunk_count = 0
     total_chunks = 0
     actual_chunk_lengths_dict: Dict[str, int] = {}
+
     for i, entry in enumerate(index_map):
-        for j, chunk_name in enumerate(entry["chunk_names"]):
+
+        for j, chunk_name in enumerate(entry[1]):
             chunk_key = get_chunk_key(key, chunk_name)
             chunk_length = len(storage[chunk_key])
 
@@ -110,6 +112,66 @@ def assert_chunk_sizes(
             str(candidate_chunk_lengths),
             str(actual_chunk_lengths_dict.keys()),
         )
+
+
+# def assert_chunk_sizes(
+#     key: str, index_map: List, chunk_size: int, storage: StorageProvider
+# ):
+#     incomplete_chunk_names = set()
+#     complete_chunk_count = 0
+#     total_chunks = 0
+#     actual_chunk_lengths_dict: Dict[str, int] = {}
+#     for i, entry in enumerate(index_map):
+#         for j, chunk_name in enumerate(entry["chunk_names"]):
+#             chunk_key = get_chunk_key(key, chunk_name)
+#             chunk_length = len(storage[chunk_key])
+
+#             # exceeding chunk_size is never acceptable
+#             assert (
+#                 chunk_length <= chunk_size
+#             ), 'Chunk "%s" exceeded chunk_size=%i (got %i) @ [%i, %i].' % (
+#                 chunk_name,
+#                 chunk_size,
+#                 chunk_length,
+#                 i,
+#                 j,
+#             )
+
+#             if chunk_name in actual_chunk_lengths_dict:
+#                 assert (
+#                     chunk_length == actual_chunk_lengths_dict[chunk_name]
+#                 ), "Chunk size changed from one read to another."
+#             else:
+#                 actual_chunk_lengths_dict[chunk_name] = chunk_length
+
+#             if chunk_length < chunk_size:
+#                 incomplete_chunk_names.add(chunk_name)
+#             if chunk_length == chunk_size:
+#                 complete_chunk_count += 1
+
+#             total_chunks += 1
+
+#     incomplete_chunk_count = len(incomplete_chunk_names)
+#     assert (
+#         incomplete_chunk_count <= 1
+#     ), "Incomplete chunk count should never exceed 1. Incomplete count: %i. Complete count: %i. Total: %i.\nIncomplete chunk names: %s" % (
+#         incomplete_chunk_count,
+#         complete_chunk_count,
+#         total_chunks,
+#         str(incomplete_chunk_names),
+#     )
+
+#     # assert that all chunks (except the last one) are of expected size (`chunk_size`)
+#     actual_chunk_lengths = np.array(list(actual_chunk_lengths_dict.values()))
+#     if len(actual_chunk_lengths) > 1:
+#         candidate_chunk_lengths = actual_chunk_lengths[:-1]
+#         assert np.all(
+#             candidate_chunk_lengths == chunk_size
+#         ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
+#             chunk_size,
+#             str(candidate_chunk_lengths),
+#             str(actual_chunk_lengths_dict.keys()),
+#         )
 
 
 def run_engine_test(

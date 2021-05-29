@@ -1,6 +1,7 @@
 import numpy as np
 import json
 from uuid import uuid1
+import pickle
 
 from hub.core.chunk_engine import generate_chunks
 from hub.constants import META_FILENAME, DEFAULT_CHUNK_SIZE
@@ -34,7 +35,10 @@ def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
     index_map_key = get_index_map_key(key)
+    k = json.dumps(index_map)
+    print(k)
     storage[index_map_key] = bytes(json.dumps(index_map), "utf-8")
+    # storage[index_map_key] = pickle.dumps(index_map)
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
@@ -152,7 +156,22 @@ def write_samples(
 
         # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
+
+        flat_list = [item for sublist in listify(index_map_entry) for item in sublist]
+        index_map.append(flat_list)
+        # index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
+
+        # # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
+        # index_map_entry["shape"] = sample.shape
+        # index_map.append(index_map_entry)
+
+
+def listify(dictionary: dict):
+    dictlist = []
+    for key, value in dictionary.items():
+        temp = [key, value]
+        dictlist.append(temp)
+    return dictlist
 
 
 def write_bytes(

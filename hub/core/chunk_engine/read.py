@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import json
+import pickle
 
 from .chunker import join_chunks
 
@@ -50,21 +51,78 @@ def read_array(
 
     # TODO: read samples in parallel
     samples = []
+    print("map")
+    print(index_map)
     for index_entry in index_map[array_slice]:
         chunks = []
-        for chunk_name in index_entry["chunk_names"]:
-            chunk_key = os.path.join(key, "chunks", chunk_name)
-            chunk = storage[chunk_key]
+        print("array")
+        print(index_entry)
+        for i in range(len(index_entry)):
+            # print(index_entry)
+            if index_entry[i] == "chunk_names":
+                for j in range(len(index_entry[i + 1])):
+                    chunk_name = index_entry[i + 1][j]
+                    chunk_key = os.path.join(key, "chunks", chunk_name)
+                    # print("hello")
+                    # print(chunk_name)
+                    chunk = storage[chunk_key]
 
-            chunks.append(chunk)
+                    # print("there")
+                    # for chunk_name in index_entry["chunk_names"]:
+                    #     chunk_key = os.path.join(key, "chunks", chunk_name)
+                    #     chunk = storage[chunk_key]
 
-        combined_bytes = join_chunks(
-            chunks,
-            index_entry["start_byte"],
-            index_entry["end_byte"],
-        )
+                    chunks.append(chunk)
+                    # print("----")
 
-        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
+                    # print("----")
+                    combined_bytes = join_chunks(
+                        chunks,
+                        index_entry[i + 3],
+                        index_entry[i + 5],
+                    )
+                    # print(combined_bytes)
+                    # print(type(index_entry[i + 3]))
+                    # print(index_entry[i + 5])
+                    out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
+                    # print("OT ARRAY")
+                    # print(type(out_array))
+                    # print(type(index_entry[i + 7]))
+                    samples.append(out_array.reshape(tuple(index_entry[i + 7])))
+                    # print(tuple(index_entry[i + 7]))
+    # print("eh")
 
+    # print(samples)
+    # print("eeh")
     return np.array(samples)
+
+    # # TODO: read samples in parallel
+    # samples = []
+    # for index_entry in index_map[array_slice]:
+    #     chunks = []
+    #     for chunk_name in index_entry["chunk_names"]:
+    #         chunk_key = os.path.join(key, "chunks", chunk_name)
+    #         print("hello")
+    #         print(chunk_name)
+    #         chunk = storage[chunk_key]
+    #         print("there")
+
+    #         chunks.append(chunk)
+
+    #     combined_bytes = join_chunks(
+    #         chunks,
+    #         index_entry["start_byte"],
+    #         index_entry["end_byte"],
+    #     )
+    #     print(index_entry)
+    #     print(index_entry["start_byte"])
+    #     print(index_entry["end_byte"])
+    #     out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
+    #     print("OT ARRAY")
+    #     print(type(out_array))
+    #     samples.append(out_array.reshape(index_entry["shape"]))
+    #     print(index_entry["shape"])
+    # print("eh")
+    # print(samples)
+    # print("eeh")
+    # return np.array(samples)
