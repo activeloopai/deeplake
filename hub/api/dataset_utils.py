@@ -12,7 +12,7 @@ def get_compressor(
         compressor = get_compressor('lz4', acceleration=2)
 
     Args:
-        compressor_name (str): lowercase name of the required compressor
+        compressor_name (str): name of the required compressor
         **kwargs: Optional;
             acceleration (int): Lz4 codec argument. The larger the acceleration value,
             the faster the algorithm, but also the lesser the compression.
@@ -29,11 +29,7 @@ def get_compressor(
         InvalidCompressor: if the name of compressor isn't in {compression.AVAILABLE_COMPRESSORS}
     """
     try:
-        compressor = compression.__dict__[compressor_name.upper()]
+        compressor = compression.__dict__[compressor_name]
         return compressor(**kwargs)
     except KeyError:
         raise InvalidCompressor()
-
-
-if __name__ == "__main__":
-    get_compressor("zip")
