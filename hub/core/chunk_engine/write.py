@@ -1,5 +1,4 @@
 import numpy as np
-import pickle  # TODO: NEVER USE PICKLE
 import json
 from uuid import uuid1
 
@@ -35,7 +34,7 @@ def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
     index_map_key = get_index_map_key(key)
-    storage[index_map_key] = pickle.dumps(index_map)
+    storage[index_map_key] = bytes(json.dumps(index_map), "utf-8")
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):

@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import pickle  # TODO: NEVER USE PICKLE
 import json
 
 from .chunker import join_chunks
@@ -17,7 +16,7 @@ def read_tensor_meta(key: str, storage: StorageProvider):
 
 
 def read_index_map(key: str, storage: StorageProvider):
-    return pickle.loads(storage[get_index_map_key(key)])
+    return json.loads(storage[get_index_map_key(key)])
 
 
 def read_dataset_meta(storage: StorageProvider):
