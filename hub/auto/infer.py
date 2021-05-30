@@ -46,8 +46,6 @@ def infer_dataset(path, scheduler, workers, **kwargs):
     # overwrite, a keyword argument, can be specified if
     # the existing Hub dataset auto inferred has to be deleted on re-run of the command
     overwrite = kwargs["overwrite"] if "overwrite" in kwargs else False
-    if not os.path.isdir(path):
-        raise Exception("The input path must be a directory.")
 
     hub_path = os.path.join("./", path, "hub")
 
