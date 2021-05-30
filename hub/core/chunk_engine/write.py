@@ -111,7 +111,7 @@ def write_bytes(
     key: str,
     chunk_size: int,
     storage: StorageProvider,
-    index_map: List,
+    index_map: list,
 ) -> dict:
     """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single sample.
 
@@ -182,7 +182,7 @@ def write_bytes(
 
 
 def _get_last_chunk(
-    key: str, index_map: List, storage: StorageProvider
+    key: str, index_map: list, storage: StorageProvider
 ) -> Tuple[str, memoryview]:
     """Retrieves the name and memoryview of bytes for the last chunk that was written to. This is helpful for
     filling previous chunks before creating new ones.
