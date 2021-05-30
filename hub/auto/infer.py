@@ -3,6 +3,7 @@ from glob import glob
 
 import hub
 from hub.auto import util
+import shutil
 
 state = util.DirectoryParserState()
 
@@ -42,15 +43,21 @@ def _find_root(path):
 
 def infer_dataset(path, scheduler, workers, **kwargs):
     # TODO: handle s3 path
-
+    # overwrite, a keyword argument, can be specified if
+    # the existing Hub dataset auto inferred has to be deleted on re-run of the command
+    overwrite = kwargs["overwrite"] if "overwrite" in kwargs else False
     if not os.path.isdir(path):
-        raise Exception("input path must be either a directory")
+        raise Exception("The input path must be a directory.")
 
     hub_path = os.path.join("./", path, "hub")
 
     if os.path.isdir(hub_path):
-        print('inferred dataset found in "%s", using that' % hub_path)
-        return hub.Dataset(hub_path, mode="r")
+        if overwrite is True:
+            print(f"Inferred dataset found at {hub_path}, but deleting.")
+            shutil.rmtree(hub_path)
+        if overwrite is False:
+            print(f"Inferred dataset found at {hub_path}, using that")
+            return hub.Dataset(hub_path, mode="r")
 
     root = _find_root(path)
     ds = None
