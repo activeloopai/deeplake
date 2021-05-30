@@ -16,6 +16,9 @@ import numpy as np
 import warnings
 import os
 
+# Used to distinguish between attributes and items (tensors)
+DATASET_ATTRIBUTES = ["path", "mode", "slice", "provider", "tensors"]
+
 
 class Dataset:
     def __init__(
@@ -96,6 +99,15 @@ class Dataset:
                 raise UnsupportedTensorTypeError(item)
         else:
             raise InvalidKeyTypeError(item)
+
+    __getattr__ = __getitem__
+
+    def __setattr__(self, key: str, value):
+        print(key, value)
+        if key in DATASET_ATTRIBUTES:
+            return super().__setattr__(key, value)
+        else:
+            return self.__setitem__(key, value)
 
     def __iter__(self):
         for i in range(len(self)):
