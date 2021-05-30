@@ -9,11 +9,11 @@ from tqdm import tqdm
 
 
 @state.directory_parser(priority=1)
-def data_from_csv(path, scheduler, workers):
+def data_from_csv(path, scheduler, workers, sep):
     try:
         import pandas as pd
     except ModuleNotFoundError:
-        raise ModuleNotInstalledException("pandas")
+        raise ModuleNotInstalledException("Please install Pandas for CSV parsing.")
 
     # check if path's contents are all csv files
     if not util.files_are_of_extension(path, util.CSV_EXTS):
@@ -23,7 +23,12 @@ def data_from_csv(path, scheduler, workers):
     files = util.get_children(path)
 
     for i in files:
-        df_csv = pd.read_csv(i)
+        try:
+            df_csv = pd.read_csv(i, sep)
+        except pd.errors.ParserError:
+            raise pd.errors.ParserError(
+                f"Another seperator needs to be used to parse this CSV. The current seperator is {sep}"
+            )
         df_csv["Filename"] = os.path.basename(i)
         df = pd.concat([df, df_csv])
 

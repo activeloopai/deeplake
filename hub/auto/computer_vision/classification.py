@@ -12,7 +12,7 @@ USE_TQDM = True
 
 
 @state.directory_parser(priority=0)
-def image_classification(path, scheduler, workers):
+def image_classification(path, scheduler, workers, sep):
     children = util.get_children(path, only_dirs=True)
 
     # check if there is >= 2 children (means there are at least 2 folders)
@@ -101,6 +101,8 @@ def multiple_image_parse(path, scheduler=None, workers=None):
     store_ds = []
     for files in list_folder:
         tag = str(files)
-        ds = image_classification(os.path.join(path, files), scheduler, workers)
+        ds = image_classification(
+            os.path.join(path, files), scheduler, workers, sep=","
+        )
         directory_dict[tag] = ds
     return directory_dict
