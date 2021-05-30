@@ -13,8 +13,9 @@ USE_TQDM = True
 
 @state.directory_parser(priority=0)
 def image_classification(path, scheduler, workers, **kwargs):
+    # Returning None if the input path is not a directory
     if not os.path.isdir(path):
-        raise Exception("The input path must be a directory.")
+        return None
 
     children = util.get_children(path, only_dirs=True)
 
@@ -101,8 +102,9 @@ def multiple_image_parse(path, scheduler=None, workers=None, **kwargs):
     ```
 
     """
+    # Returning None if the input path is not a directory
     if not os.path.isdir(path):
-        raise Exception("The input path must be a directory.")
+        return None
 
     list_folder = os.listdir(path)
     directory_dict = dict()
