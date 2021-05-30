@@ -17,10 +17,6 @@ def data_from_csv(path, scheduler, workers, **kwargs):
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("Please install Pandas for CSV parsing.")
 
-    # check if path's contents are all csv files
-    if not util.files_are_of_extension(path, util.CSV_EXTS):
-        return None
-
     # check if the given path is a directory.
     # If path is a file, direct reading of CSV is attempted.
     if not os.path.isdir(path):
@@ -33,6 +29,9 @@ def data_from_csv(path, scheduler, workers, **kwargs):
 
     else:
         files = util.get_children(path)
+        # check if path's contents are all csv files
+        if not util.files_are_of_extension(path, util.CSV_EXTS):
+            return None
         df = pd.DataFrame()
         for i in files:
             try:
