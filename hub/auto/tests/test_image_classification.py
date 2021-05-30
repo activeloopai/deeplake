@@ -70,7 +70,9 @@ def test_class_sample_different_shapes():
 
 
 def test_auto_multiple_dataset_parser():
-    path_to_data = "dummy_data/image_classification/class_sample_multiple_folder"
+    path_to_data = (
+        "hub/auto/tests/dummy_data/image_classification/class_sample_multiple_folder"
+    )
     keys = tuple(
         multiple_image_parse(path_to_data, scheduler="single", workers=1).keys()
     )
