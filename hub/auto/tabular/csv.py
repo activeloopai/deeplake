@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 @state.directory_parser(priority=1)
 def data_from_csv(path, scheduler, workers, **kwargs):
+    # sep, an optional argument if the delimiter for a CSV file has to be specified.
     sep = kwargs["sep"] if "sep" in kwargs else ","
     try:
         import pandas as pd
@@ -20,18 +21,28 @@ def data_from_csv(path, scheduler, workers, **kwargs):
     if not util.files_are_of_extension(path, util.CSV_EXTS):
         return None
 
-    df = pd.DataFrame()
-    files = util.get_children(path)
-
-    for i in files:
+    # check if the given path is a directory.
+    # If path is a file, direct reading of CSV is attempted.
+    if not os.path.isdir(path):
         try:
-            df_csv = pd.read_csv(i, sep)
+            df = pd.read_csv(path, sep=sep)
         except pd.errors.ParserError:
             raise pd.errors.ParserError(
-                f"Another seperator needs to be used to parse this CSV. The current seperator is {sep}"
+                "You have either given the wrong path to the CSV file, or entered a wrong seperator. Please check both and try again."
             )
-        df_csv["Filename"] = os.path.basename(i)
-        df = pd.concat([df, df_csv])
+
+    else:
+        files = util.get_children(path)
+        df = pd.DataFrame()
+        for i in files:
+            try:
+                df_csv = pd.read_csv(i, sep)
+            except pd.errors.ParserError:
+                raise pd.errors.ParserError(
+                    f"Another seperator needs to be used to parse this CSV. The current seperator is {sep}"
+                )
+            df_csv["Filename"] = os.path.basename(i)
+            df = pd.concat([df, df_csv])
 
     schema = {str(i): df[i].dtype for i in df.columns}
     for keys in schema.keys():
