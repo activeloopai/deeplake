@@ -40,7 +40,7 @@ def _find_root(path):
     return path
 
 
-def infer_dataset(path, scheduler, workers, sep):
+def infer_dataset(path, scheduler, workers, **kwargs):
     # TODO: handle s3 path
 
     if not os.path.isdir(path):
@@ -62,7 +62,7 @@ def infer_dataset(path, scheduler, workers, sep):
     # go through all functions created using the `directory_parser` decorator in
     # `hub.schema.auto.directory_parsers`
     for parser in directory_parsers:
-        ds = parser(root, scheduler, workers, sep)
+        ds = parser(root, scheduler, workers, **kwargs)
         if ds is not None:
             break
 

@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 
 @state.directory_parser(priority=1)
-def data_from_csv(path, scheduler, workers, sep):
+def data_from_csv(path, scheduler, workers, **kwargs):
+    sep = kwargs["sep"] if "sep" in kwargs else ","
     try:
         import pandas as pd
     except ModuleNotFoundError:
