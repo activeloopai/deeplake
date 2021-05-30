@@ -72,7 +72,7 @@ def add_samples_to_tensor(
         _check_array_and_tensor_are_compatible(tensor_meta, array, chunk_size)
 
     else:
-        index_map: List[dict] = []  # type: ignore
+        index_map: List = []  # type: ignore
         tensor_meta = {
             "chunk_size": chunk_size,
             "dtype": array.dtype.name,
@@ -100,7 +100,7 @@ def add_samples_to_tensor(
             item for sublist in dict_to_list(index_map_entry) for item in sublist
         ]
 
-        index_map.append(index_list)
+        index_map.append(np.asarray(index_list).tolist())
 
     write_tensor_meta(key, storage, tensor_meta)
     write_index_map(key, storage, index_map)
@@ -111,7 +111,7 @@ def write_bytes(
     key: str,
     chunk_size: int,
     storage: StorageProvider,
-    index_map: List[dict],
+    index_map: List,
 ) -> dict:
     """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single sample.
 
@@ -182,7 +182,7 @@ def write_bytes(
 
 
 def _get_last_chunk(
-    key: str, index_map: List[dict], storage: StorageProvider
+    key: str, index_map: List, storage: StorageProvider
 ) -> Tuple[str, memoryview]:
     """Retrieves the name and memoryview of bytes for the last chunk that was written to. This is helpful for
     filling previous chunks before creating new ones.
