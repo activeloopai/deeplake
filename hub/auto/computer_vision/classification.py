@@ -17,13 +17,15 @@ def image_classification(path, scheduler, workers, **kwargs):
 
     # check if there is >= 2 children (means there are at least 2 folders)
     if len(children) < 2:
-        print("test1")
+        print("Image Classification Parser: Less than 2 folders present.")
         return None
 
     # check if children's contents has image files
     for child in children:
         if not util.files_are_of_extension(child, util.IMAGE_EXTS):
-            print("test2")
+            print(
+                "Image Classification Parser: The files are not of any accepted extension type."
+            )
             return None
 
     # parse dataset
@@ -34,7 +36,7 @@ def image_classification(path, scheduler, workers, **kwargs):
     image_shape = None  # if shape is all the same, use that instead of max_shape
     for child in tqdm(
         children,
-        desc="parsing image classification dataset",
+        desc="Parsing Image Classification Dataset",
         total=len(children),
         disable=not USE_TQDM,
     ):

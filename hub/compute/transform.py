@@ -138,7 +138,7 @@ class Transform:
 
     @classmethod
     def _flatten_dict(self, d: Dict, parent_key="", schema=None):
-        """| Helper function to flatten dictionary of a recursive tensor
+        """| Helper function to flatten dictionary of a recursive tensor.
 
         Parameters
         ----------
@@ -160,7 +160,7 @@ class Transform:
     @classmethod
     def dtype_from_path(cls, path, schema):
         """
-        Helper function to get the dtype from the path
+        Helper function to get the dtype from the path.
         """
         path = path.split("/")
         cur_type = schema
@@ -172,7 +172,7 @@ class Transform:
     @classmethod
     def _unwrap(cls, results):
         """
-        If there is any list then unwrap it into its elements
+        If there is any list then unwrap it into its elements.
         """
         items = []
         for r in results:
@@ -183,7 +183,7 @@ class Transform:
         return items
 
     def _split_list_to_dicts(self, xs):
-        """| Helper function that transform list of dicts into dicts of lists
+        """| Helper function that transform list of dicts into dicts of lists.
 
         Parameters
         ----------
@@ -208,7 +208,7 @@ class Transform:
 
     def _pbar(self, show: bool = True):
         """
-        Returns a progress bar, if empty then it function does nothing
+        Returns a progress bar, if empty then this function does nothing.
         """
 
         def _empty_pbar(xs, **kwargs):
@@ -220,7 +220,7 @@ class Transform:
     def create_dataset(
         self, url: str, length: int = None, token: dict = None, public: bool = True
     ):
-        """Helper function to create a dataset"""
+        """Helper function to create a dataset."""
         shape = (length,)
         ds = Dataset(
             url,
@@ -235,7 +235,8 @@ class Transform:
         return ds
 
     def upload(self, results, ds: Dataset, token: dict, progressbar: bool = True):
-        """Batchified upload of results.
+        """
+        Batchified upload of results.
         For each tensor batchify based on its chunk and upload.
         If tensor is dynamic then still upload element by element.
         For dynamic tensors, it disable dynamicness and then enables it back.
@@ -301,7 +302,7 @@ class Transform:
         return ds
 
     def call_func(self, fn_index, item, as_list=False):
-        """Calls all the functions one after the other
+        """Calls all the functions one after the other.
 
         Parameters
         ----------
@@ -329,7 +330,7 @@ class Transform:
 
     def store_shard(self, ds_in: Iterable, ds_out: Dataset, offset: int, token=None):
         """
-        Takes a shard of iteratable ds_in, compute and stores in DatasetView
+        Takes a shard of iteratable ds_in, compute and stores in DatasetView.
         """
 
         def _func_argd(item):
