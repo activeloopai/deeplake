@@ -1,5 +1,4 @@
 import os
-import pickle  # TODO: NEVER USE PICKLE
 from typing import Callable, List, Optional, Union
 import json
 
@@ -63,18 +62,18 @@ def sample_from_index_entry(
     """Get the unchunked sample from a single `index_map` entry."""
 
     b = bytearray()
-    for chunk_name in index_entry["chunk_names"]:
+    for chunk_name in index_entry[1]:
         chunk_key = os.path.join(key, "chunks", chunk_name)
         last_b_len = len(b)
         b.extend(storage[chunk_key])
 
-    start_byte = index_entry["start_byte"]
-    end_byte = last_b_len + index_entry["end_byte"]
+    start_byte = index_entry[3]
+    end_byte = last_b_len + index_entry[5]
 
     return array_from_buffer(
         memoryview(b),
         dtype,
-        index_entry["shape"],
+        index_entry[7],
         start_byte,
         end_byte,
     )

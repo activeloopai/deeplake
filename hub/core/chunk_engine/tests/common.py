@@ -58,7 +58,7 @@ def assert_chunk_sizes(
     total_chunks = 0
     actual_chunk_lengths_dict: Dict[str, int] = {}
     for i, entry in enumerate(index_map):
-        for j, chunk_name in enumerate(entry["chunk_names"]):
+        for j, chunk_name in enumerate(entry[1]):
             chunk_key = get_chunk_key(key, chunk_name)
             chunk_length = len(storage[chunk_key])
 

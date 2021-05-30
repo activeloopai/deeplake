@@ -1,7 +1,6 @@
-import pickle  # TODO: NEVER USE PICKLE
+import json
 from typing import Any, Callable, List, Tuple
 from uuid import uuid1
-import json
 
 import numpy as np
 from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
@@ -15,24 +14,32 @@ from .flatten import row_wise_to_bytes
 from .read import read_index_map, read_tensor_meta, tensor_exists
 
 
-def _listify(shape: Tuple):
+def tuple_to_list(shape: Tuple):
     shapeArray = np.asarray(shape)
     return shapeArray.tolist()
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    meta["min_shape"] = _listify(meta["min_shape"])
-    meta["max_shape"] = _listify(meta["max_shape"])
+    meta["min_shape"] = tuple_to_list(meta["min_shape"])
+    meta["max_shape"] = tuple_to_list(meta["max_shape"])
     storage[get_tensor_meta_key(key)] = bytes(json.dumps(meta), "utf-8")
 
 
 def write_index_map(key: str, storage: StorageProvider, index_map: list):
     index_map_key = get_index_map_key(key)
-    storage[index_map_key] = json.dumps(index_map)
+    storage[index_map_key] = bytes(json.dumps(index_map), "utf-8")
 
 
 def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[META_FILENAME] = json.dumps(meta)
+    storage[META_FILENAME] = bytes(json.dumps(meta), "utf-8")
+
+
+def dict_to_list(dictionary: dict):
+    dictlist = []
+    for key, value in dictionary.items():
+        temp = [key, value]
+        dictlist.append(temp)
+    return dictlist
 
 
 def add_samples_to_tensor(
@@ -89,7 +96,11 @@ def add_samples_to_tensor(
 
         # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
+        index_list = [
+            item for sublist in dict_to_list(index_map_entry) for item in sublist
+        ]
+
+        index_map.append(index_list)
 
     write_tensor_meta(key, storage, tensor_meta)
     write_index_map(key, storage, index_map)
@@ -142,8 +153,7 @@ def write_bytes(
 
             last_chunk += chunk  # type: ignore
             chunk = memoryview(last_chunk)
-
-            start_byte = index_map[-1]["end_byte"]
+            start_byte = index_map[-1][5]
 
             if len(chunk) >= chunk_size:
                 extend_last_chunk = False
@@ -189,7 +199,7 @@ def _get_last_chunk(
 
     if len(index_map) > 0:
         last_index_map_entry = index_map[-1]
-        last_chunk_name = last_index_map_entry["chunk_names"][-1]
+        last_chunk_name = last_index_map_entry[1][-1]
         last_chunk_key = get_chunk_key(key, last_chunk_name)
         last_chunk = memoryview(storage[last_chunk_key])
         return last_chunk_name, last_chunk
