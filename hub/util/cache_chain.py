@@ -43,8 +43,19 @@ def generate_chain(
     base_storage: StorageProvider,
     memory_cache_size: int,
     local_cache_size: int,
-    path,
+    path: str,
 ):
+    """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and local caches.
+
+    Args:
+        base_storage (StorageProvider): The underlying actual storage of the Dataset.
+        memory_cache_size (int): The size of the memory cache to be used in MB.
+        local_cache_size (int): The size of the local filesystem cache to be used in MB.
+        path (str): The location of the dataset.
+
+    Returns:
+        StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive size has been specified for them.
+    """
     dataset_id = str(uuid1())
     if path:
         dataset_name = path.split("/")[-1]
