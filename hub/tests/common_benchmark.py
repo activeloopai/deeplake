@@ -14,10 +14,13 @@ from hub.tests.common import (
 BENCHMARK_NUM_BATCHES = (1,)
 BENCHMARK_DTYPES = ("int64",)
 BENCHMARK_CHUNK_SIZES = (16 * MB,)
-BENCHMARK_BATCHED_SHAPES = (
+
+FULL_BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
     (840, 224, 224, 3),
 )
+
+BENCHMARK_BATCHED_SHAPES = ((5, 224, 224, 3),)
 
 # benchmark parametrize decorators
 parametrize_benchmark_chunk_sizes = pytest.mark.parametrize(
@@ -26,6 +29,9 @@ parametrize_benchmark_chunk_sizes = pytest.mark.parametrize(
 parametrize_benchmark_dtypes = pytest.mark.parametrize(DTYPE_PARAM, BENCHMARK_DTYPES)
 parametrize_benchmark_shapes = pytest.mark.parametrize(
     SHAPE_PARAM, BENCHMARK_BATCHED_SHAPES
+)
+parametrize_full_benchmark_shapes = pytest.mark.parametrize(
+    SHAPE_PARAM, FULL_BENCHMARK_BATCHED_SHAPES
 )
 parametrize_benchmark_num_batches = pytest.mark.parametrize(
     NUM_BATCHES_PARAM, BENCHMARK_NUM_BATCHES
