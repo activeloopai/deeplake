@@ -33,7 +33,7 @@ def read_samples_from_tensor(
     storage: StorageProvider,
     array_slice: slice = slice(None),
 ) -> np.ndarray:
-    """Read (and unchunk) samples from a tensor as an np.ndarray.
+    """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
