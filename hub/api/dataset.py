@@ -32,7 +32,7 @@ class Dataset:
 
         Note:
             Entries of `DATASET_ATTRIBUTES` cannot be used as tensor names.
-            This is to distinguish between `ds.mode` and `ds.some_tensor`.
+            This is to distinguish between attributes (like `ds.mode`) and tensors.
 
             Be sure to keep `DATASET_ATTRIBUTES` up-to-date when changing this class.
 
