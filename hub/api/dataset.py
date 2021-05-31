@@ -1,20 +1,21 @@
-from hub.constants import META_FILENAME
-from hub.api.tensor import Tensor
-from hub.util.slice import merge_slices
-from hub.util.path import provider_from_path
-from hub.util.exceptions import (
-    TensorNotFoundError,
-    InvalidKeyTypeError,
-    UnsupportedTensorTypeError,
-)
-from hub.core.typing import StorageProvider
-from hub.core.storage import MemoryProvider
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.chunk_engine.write import add_samples_to_tensor, write_dataset_meta
-from typing import Union, Dict, Optional
-import numpy as np
-import warnings
 import os
+import warnings
+from typing import Dict, Optional, Union
+
+import numpy as np
+from hub.api.tensor import Tensor
+from hub.constants import META_FILENAME
+from hub.core.chunk_engine.read import (read_dataset_meta, read_tensor_meta,
+                                        tensor_exists)
+from hub.core.chunk_engine.write import (add_samples_to_tensor,
+                                         write_dataset_meta)
+from hub.core.storage import MemoryProvider
+from hub.core.typing import StorageProvider
+from hub.util.exceptions import (InvalidKeyTypeError, TensorAlreadyExistsError,
+                                 TensorNotFoundError,
+                                 UnsupportedTensorTypeError)
+from hub.util.path import provider_from_path
+from hub.util.slice import merge_slices
 
 
 class Dataset:
@@ -80,18 +81,23 @@ class Dataset:
 
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
+            tensor_key = item
+
+            if tensor_exists(tensor_key, self.provider):
+                raise TensorAlreadyExistsError(tensor_key)
+
             if isinstance(value, np.ndarray):
                 add_samples_to_tensor(
                     value,
-                    item,
+                    tensor_key,
                     storage=self.provider,
                     batched=True,
                 )
                 ds_meta = read_dataset_meta(self.provider)
-                ds_meta["tensors"].append(item)
+                ds_meta["tensors"].append(tensor_key)
                 write_dataset_meta(self.provider, ds_meta)
-                self.tensors[item] = Tensor(item, self.provider)
-                return self.tensors[item]
+                self.tensors[tensor_key] = Tensor(tensor_key, self.provider)
+                return self.tensors[tensor_key]
             else:
                 raise UnsupportedTensorTypeError(item)
         else:
