@@ -1,7 +1,8 @@
+import click
+from typing import Optional
 from hub.client.utils import write_token, remove_token
 from hub.client.client import HubBackendClient
 from hub.util.exceptions import AuthenticationException
-import click
 
 
 @click.command()
@@ -13,9 +14,9 @@ def login(username: str, password: str):
     click.echo(
         "If you don't have an account register by using 'hub register' command or by going to https://app.activeloop.ai/register."
     )
-    username = username or click.prompt("Username", type=str)
+    username = username or click.prompt("Username")
     username = username.strip()
-    password = password or click.prompt("Password", type=str, hide_input=True)
+    password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
         token = HubBackendClient().request_auth_token(username, password)
@@ -41,11 +42,11 @@ def logout():
 def register(username: str, email: str, password: str):
     """Create a new Activeloop user account"""
     click.echo("Enter your details. Your password must be atleast 6 characters long.")
-    username = username or click.prompt("Username", type=str)
+    username = username or click.prompt("Username")
     username = username.strip()
-    email = email or click.prompt("Email", type=str)
+    email = email or click.prompt("Email")
     email = email.strip()
-    password = password or click.prompt("Password", type=str, hide_input=True)
+    password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
         client = HubBackendClient()

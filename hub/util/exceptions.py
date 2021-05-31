@@ -65,7 +65,7 @@ class ProviderSizeListMismatch(Exception):
         super().__init__("Ensure that len(size_list) + 1 == len(provider_list)")
 
 
-class LoginException:
+class LoginException(Exception):
     def __init__(
         self,
         message="Error while logging in, invalid auth token. Please try logging in again.",
@@ -97,7 +97,9 @@ class ResourceNotFoundException(Exception):
 
 class BadRequestException(Exception):
     def __init__(self, message):
-        message = f"Invalid Request. One or more request parameters is incorrect.\n{message}"
+        message = (
+            f"Invalid Request. One or more request parameters is incorrect.\n{message}"
+        )
         super().__init__(message)
 
 
@@ -142,8 +144,6 @@ class UnexpectedStatusCodeException(Exception):
 class InvalidTokenException(Exception):
     def __init__(self, message="The authentication token is empty."):
         super().__init__(message)
-    
-
 
 
 # TODO Better S3 Exception handling
