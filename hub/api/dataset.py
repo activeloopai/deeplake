@@ -37,7 +37,7 @@ class Dataset:
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            ds_slice (slice): The slice object restricting the view of this dataset's tensors. 
+            ds_slice (slice): The slice object restricting the view of this dataset's tensors.
                 Defaults to slice(None, None, None). Used internally for iteration.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
