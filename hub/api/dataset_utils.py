@@ -6,7 +6,7 @@ from hub.util.exceptions import InvalidCompressor
 def get_compressor(
     compressor_name: str, **kwargs
 ) -> Union[compression.BaseImgCodec, compression.BaseNumCodec]:
-    f"""Get compressor object
+    """Get compressor object
 
     Example:
         compressor = get_compressor('lz4', acceleration=2)
@@ -23,10 +23,10 @@ def get_compressor(
             quality (int): JpegCodec argument. The image quality on a scale from 1 (worst) to 95 (best).
 
     Returns:
-        Codec object providing compression
+        Compressor object.
 
     Raises:
-        InvalidCompressor: if the name of compressor isn't in {compression.AVAILABLE_COMPRESSORS}
+        InvalidCompressor: if the compressor_name is not in supported compressors.
     """
     try:
         compressor = compression.__dict__[compressor_name]
