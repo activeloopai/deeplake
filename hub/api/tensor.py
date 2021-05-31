@@ -1,9 +1,11 @@
 from typing import Union
 
 import numpy as np
-from hub.core.chunk_engine.read import read_samples_from_tensor, read_tensor_meta
+from hub.core.chunk_engine.read import (read_samples_from_tensor,
+                                        read_tensor_meta, tensor_exists)
 from hub.core.chunk_engine.write import add_samples_to_tensor
 from hub.core.typing import StorageProvider
+from hub.util.exceptions import TensorAlreadyExistsError
 from hub.util.slice import merge_slices
 
 
@@ -55,6 +57,9 @@ class Tensor:
                 "Assignment to Tensor slices not currently supported!"
             )
         else:
+            if tensor_exists(self.key, self.provider):
+                raise TensorAlreadyExistsError(self.key)
+
             add_samples_to_tensor(
                 array=value,
                 key=self.key,

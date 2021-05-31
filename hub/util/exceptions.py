@@ -89,3 +89,8 @@ class S3DeletionError(Exception):
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
+
+
+class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__("A tensor with key {} already exists.".format(key))

@@ -1,11 +1,12 @@
-import os, shutil
-import numpy as np
-from hub.api.dataset import Dataset
-from hub.core.storage import LocalProvider
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.tests.common import parametrize_all_dataset_storages
+import os
+import shutil
 
+import numpy as np
 import pytest
+from hub.api.dataset import Dataset
+from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
+from hub.core.storage import LocalProvider
+from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 def test_persist_local(local_storage):
