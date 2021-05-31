@@ -5,15 +5,20 @@ from typing import Dict, Optional, Union
 import numpy as np
 from hub.api.tensor import Tensor
 from hub.constants import META_FILENAME
-from hub.core.chunk_engine.read import (read_dataset_meta, read_tensor_meta,
-                                        tensor_exists)
-from hub.core.chunk_engine.write import (add_samples_to_tensor,
-                                         write_dataset_meta)
+from hub.core.chunk_engine.read import (
+    read_dataset_meta,
+    read_tensor_meta,
+    tensor_exists,
+)
+from hub.core.chunk_engine.write import add_samples_to_tensor, write_dataset_meta
 from hub.core.storage import MemoryProvider
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import (InvalidKeyTypeError, TensorAlreadyExistsError,
-                                 TensorNotFoundError,
-                                 UnsupportedTensorTypeError)
+from hub.util.exceptions import (
+    InvalidKeyTypeError,
+    TensorAlreadyExistsError,
+    TensorNotFoundError,
+    UnsupportedTensorTypeError,
+)
 from hub.util.path import provider_from_path
 from hub.util.slice import merge_slices
 
