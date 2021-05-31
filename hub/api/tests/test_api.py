@@ -23,9 +23,9 @@ def test_persist_local(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert read_dataset_meta(ds.provider) == {"tensors": []}
+    assert read_dataset_meta(ds.storage) == {"tensors": []}
     ds["image"] = np.ones((4, 28, 28))
-    assert read_dataset_meta(ds.provider) == {"tensors": ["image"]}
+    assert read_dataset_meta(ds.storage) == {"tensors": ["image"]}
     assert len(ds) == 4
 
 
