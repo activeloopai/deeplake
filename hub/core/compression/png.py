@@ -16,7 +16,7 @@ class PNG(BaseImgCodec):
                 encoder will remove the last dimension of input if it is 1.
 
         Raises:
-            ValueError: If ketword arguments contain not supported arguments.
+            ValueError: If keyword arguments contain not supported arguments.
         """
         super().__init__()
         self.codec_id = "png"
