@@ -49,8 +49,8 @@ def generate_chain(
     if path:
         dataset_name = path.split("/")[-1]
         dataset_id = f"{dataset_name}_{dataset_id}"
-    storage_list = []
-    size_list = []
+    storage_list: List[StorageProvider] = []
+    size_list: List[int] = []
     if memory_cache_size > 0:
         storage_list.append(MemoryProvider(f"cache/{dataset_id}"))
         size_list.append(memory_cache_size * MB)

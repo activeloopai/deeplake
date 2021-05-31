@@ -10,6 +10,10 @@ DEFAULT_CHUNK_SIZE = 16 * MB
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 
+# without MB multiplication, meant for the Dataset API that takes cache size in MBs
+DEFAULT_MEMORY_CACHE_SIZE = 256
+DEFAULT_LOCAL_CACHE_SIZE = 0
+
 CHUNKS_FOLDER = "chunks"
 META_FILENAME = "meta.json"
 INDEX_MAP_FILENAME = "index_map.json"

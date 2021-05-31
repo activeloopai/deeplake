@@ -1,5 +1,9 @@
 from hub.util.cache_chain import generate_chain
-from hub.constants import META_FILENAME
+from hub.constants import (
+    META_FILENAME,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+)
 from hub.api.tensor import Tensor
 from hub.util.slice import merge_slices
 from hub.util.path import storage_provider_from_path
@@ -22,8 +26,8 @@ class Dataset:
         path: str = "",
         mode: str = "a",
         ds_slice: slice = slice(None),
-        memory_cache_size: int = 256,
-        local_cache_size: int = 1024,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
     ):
         """Initialize a new or existing dataset.
@@ -33,11 +37,10 @@ class Dataset:
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            ds_slice (slice): The slice object restricting the view
-                of this dataset's tensors. Defaults to slice(None, None, None).
-                Used internally for iteration.
-            memory_cache_size (int, optional): The size of the memory cache to be used in MB.
-            local_cache_size (int, optional): The size of the local filesystem cache to be used in MB.
+            ds_slice (slice): The slice object restricting the view of this dataset's tensors. 
+                Defaults to slice(None, None, None). Used internally for iteration.
+            memory_cache_size (int): The size of the memory cache to be used in MB.
+            local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
             the data stored by this dataset. If this is specified, the path given is ignored.
 
