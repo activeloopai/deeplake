@@ -110,7 +110,7 @@ class Dataset:
 
     def __setattr__(self, name: str, value):
         """Set the named attribute on the dataset"""
-        if key in DATASET_ATTRIBUTES:
+        if name in DATASET_ATTRIBUTES:
             return super().__setattr__(name, value)
         else:
             return self.__setitem__(name, value)
