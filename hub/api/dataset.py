@@ -30,6 +30,9 @@ class Dataset:
     ):
         """Initialize a new or existing dataset.
 
+        Note:
+            Be sure to keep `DATASET_ATTRIBUTES` up-to-date when changing this class.
+
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
@@ -102,12 +105,12 @@ class Dataset:
 
     __getattr__ = __getitem__
 
-    def __setattr__(self, key: str, value):
-        print(key, value)
+    def __setattr__(self, name: str, value):
+        """Set the named attribute on the dataset"""
         if key in DATASET_ATTRIBUTES:
-            return super().__setattr__(key, value)
+            return super().__setattr__(name, value)
         else:
-            return self.__setitem__(key, value)
+            return self.__setitem__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
