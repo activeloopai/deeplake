@@ -31,6 +31,9 @@ class Dataset:
         """Initialize a new or existing dataset.
 
         Note:
+            Entries of `DATASET_ATTRIBUTES` cannot be used as tensor names.
+            This is to distinguish between `ds.mode` and `ds.some_tensor`.
+
             Be sure to keep `DATASET_ATTRIBUTES` up-to-date when changing this class.
 
         Args:
