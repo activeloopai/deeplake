@@ -12,7 +12,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        provider: StorageProvider,
+        storage: StorageProvider,
         tensor_slice: slice = slice(None),
     ):
         """Initialize a new tensor.
@@ -23,17 +23,17 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            provider (StorageProvider): The storage provider for the parent dataset.
+            storage (StorageProvider): The storage provider for the parent dataset.
             tensor_slice (slice): The slice object restricting the view of this tensor.
         """
         self.key = key
-        self.provider = provider
+        self.storage = storage
         self.slice = tensor_slice
 
         self.load_meta()
 
     def load_meta(self):
-        meta = read_tensor_meta(self.key, self.provider)
+        meta = read_tensor_meta(self.key, self.storage)
         self.num_samples = meta["length"]
         self.shape = meta["max_shape"]
 
@@ -47,7 +47,7 @@ class Tensor:
 
         if isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
-            return Tensor(self.key, self.provider, new_slice)
+            return Tensor(self.key, self.storage, new_slice)
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         sliced_self = self[item]
@@ -59,7 +59,7 @@ class Tensor:
             write_array(
                 array=value,
                 key=self.key,
-                storage=self.provider,
+                storage=self.storage,
                 batched=True,
             )
             self.load_meta()
@@ -74,4 +74,7 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_array(self.key, self.provider, self.slice)
+        return read_array(self.key, self.storage, self.slice)
+
+    def flush(self):
+        self.storage.flush()

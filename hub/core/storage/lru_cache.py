@@ -107,6 +107,17 @@ class LRUCache(StorageProvider):
             if not deleted_from_cache:
                 raise
 
+    def clear_cache(self):
+        """Delete the contents of all layers of the cache but not from the final storage."""
+        self.cache_storage.clear()
+        if self.next_storage.hasattr("clear_cache"):
+            self.next_storage.clear_cache()
+
+    def clear(self):
+        """Deletes all the data from all the layers of the cache and the final storage."""
+        self.actual_storage.clear()
+        self.next_storage.clear()
+
     def __len__(self):
         """Returns the number of files present in the cache and the underlying storage.
 
