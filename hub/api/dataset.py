@@ -122,7 +122,7 @@ class Dataset:
         """
         self.flush()
         if self.storage.hasattr("clear_cache"):
-            self.clear_cache()
+            self.storage.clear_cache()
 
     @staticmethod
     def from_path(path: str):
