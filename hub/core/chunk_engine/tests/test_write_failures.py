@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from hub.core.chunk_engine import add_samples_to_tensor
+from hub.core.chunk_engine.write import add_samples_to_tensor
 from hub.tests.common import TENSOR_KEY
 from hub.util.exceptions import TensorMetaMismatchError
 

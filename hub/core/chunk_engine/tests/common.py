@@ -2,13 +2,10 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import pytest
-from hub.core.chunk_engine import (
-    add_samples_to_tensor,
-    read_index_map,
-    read_samples_from_tensor,
-    read_tensor_meta,
-    tensor_exists,
-)
+from hub.core.chunk_engine.read import (read_index_map,
+                                        read_samples_from_tensor,
+                                        read_tensor_meta, tensor_exists)
+from hub.core.chunk_engine.write import add_samples_to_tensor
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY

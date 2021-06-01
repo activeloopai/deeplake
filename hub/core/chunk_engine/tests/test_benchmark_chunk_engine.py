@@ -3,16 +3,16 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB
-from hub.core.chunk_engine import add_samples_to_tensor, read_samples_from_tensor
+from hub.core.chunk_engine.read import read_samples_from_tensor
 from hub.core.chunk_engine.tests.common import TENSOR_KEY, get_random_array
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
+from hub.core.chunk_engine.write import add_samples_to_tensor
+from hub.core.tests.common import (parametrize_all_caches,
+                                   parametrize_all_storages)
 from hub.core.typing import StorageProvider
-from hub.tests.common_benchmark import (
-    parametrize_benchmark_chunk_sizes,
-    parametrize_benchmark_dtypes,
-    parametrize_benchmark_num_batches,
-    parametrize_benchmark_shapes,
-)
+from hub.tests.common_benchmark import (parametrize_benchmark_chunk_sizes,
+                                        parametrize_benchmark_dtypes,
+                                        parametrize_benchmark_num_batches,
+                                        parametrize_benchmark_shapes)
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):

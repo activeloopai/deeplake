@@ -4,12 +4,12 @@ from uuid import uuid1
 
 import numpy as np
 from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
-from hub.core.chunk_engine import generate_chunks
 from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import TensorMetaMismatchError
 from hub.util.keys import get_chunk_key, get_index_map_key, get_tensor_meta_key
 
+from .chunker import generate_chunks
 from .flatten import row_wise_to_bytes
 from .read import read_index_map, read_tensor_meta, tensor_exists
 
