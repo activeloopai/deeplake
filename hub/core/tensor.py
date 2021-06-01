@@ -2,11 +2,19 @@ import numpy as np
 
 from hub.core.typing import StorageProvider
 
-from hub.core.meta.tensor_meta import read_tensor_meta, write_tensor_meta, validate_tensor_meta
+from hub.core.meta.tensor_meta import (
+    read_tensor_meta,
+    write_tensor_meta,
+    validate_tensor_meta,
+)
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import TensorAlreadyExistsError, TensorMetaMismatchError, TensorDoesNotExistError
+from hub.util.exceptions import (
+    TensorAlreadyExistsError,
+    TensorMetaMismatchError,
+    TensorDoesNotExistError,
+)
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
@@ -32,16 +40,14 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
             chunk_size (int): Desired length of chunks.
             dtype (str): Datatype for each sample.
 
-    Raises: 
+    Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
     """
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    meta.update({
-        "length": 0
-    })
+    meta.update({"length": 0})
 
     validate_tensor_meta(meta)
 
@@ -67,7 +73,7 @@ def add_samples_to_tensor(
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
 
-    raises: 
+    raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 

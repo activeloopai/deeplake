@@ -17,14 +17,19 @@ class TensorMetaMismatchError(Exception):
             )
         )
 
+
 class TensorMetaMissingKey(Exception):
     def __init__(self, key: str, meta: dict):
         super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
 
 
 class TensorMetaInvalidValue(Exception):
-    def __init__(self, key: str, value: Any, explanation: str=""):
-        super().__init__("Invalid value {} for tensor meta key {}. {}".format(str(value), key, explanation))
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
 
 
 class TensorDoesNotExistError(KeyError):
