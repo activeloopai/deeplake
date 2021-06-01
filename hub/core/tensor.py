@@ -2,11 +2,11 @@ import numpy as np
 
 from hub.core.typing import StorageProvider
 
-from hub.core.meta.tensor_meta import read_tensor_meta, write_tensor_meta
+from hub.core.meta.tensor_meta import read_tensor_meta, write_tensor_meta, validate_tensor_meta
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import TensorMetaMismatchError
+from hub.util.exceptions import TensorAlreadyExistsError, TensorMetaMismatchError, TensorNotFoundError
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
@@ -27,20 +27,23 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
 
     Args:
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
-        meta (dict): Meta for the tensor. Properties:
+        storage (StorageProvider): StorageProvider that all tensor data is written to.
+        meta (dict): Meta for the tensor. Required Properties:
             # TODO: fill in properties
             chunk_size (int): Desired length of chunks.
             dtype (str): Datatype for each sample.
+
+    Raises: 
+        TensorAlreadyExistsError: If a tensor defined with `key` already exists.
     """
 
     if tensor_exists(key, storage):
-        raise Exception()  # TODO: exceptions.py / in docstring
+        raise TensorAlreadyExistsError(key)
 
-    # TODO: docstring
+    validate_tensor_meta(meta)
 
-    write_index_map(key, storage, [])
     write_tensor_meta(key, storage, meta)
+    write_index_map(key, storage, [])
 
 
 def add_samples_to_tensor(
