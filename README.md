@@ -31,23 +31,6 @@ Hub is best suited for unstructured datasets such as images, videos, point cloud
 
 Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 
-## Benchmarks
-Training deep learning models by streaming Hub datasets from the cloud is just as fast as storing them locally on training machines. In addition, streaming directly from the cloud does not slow down the training process and results in 100% GPU utilization throughout the training process, irrespective of dataset size and compute configuration.
-
-<table align="center" bordercolor="#ff00ff" width="100%" margin="auto">
-  <tr>
-      <td width="50%" vertical-align: "top"> <p align="center">
-            <img src="https://github.com/activeloopai/new-hub/blob/istranic/readme/docs/benchmarks/Resnet50%20Training%20Time%20for%20Popular%20Datasets%20on%20Local%20GPU.png"            width="100%"/>
-          </p>
-          <p align="center">PLACEHOLDER TEXT AND PLOT. Comparison of training time for popular datasets stored on Hub + AWS S3 vs traditional file structure on local storage.</p>
-       </td>
-      <td width="50%" vertical-align: "top">  <p align="center">
-          <img src="https://github.com/activeloopai/new-hub/blob/istranic/readme/docs/benchmarks/GPU%20Utilization%20for%20Resnet50%20Training%20on%20AWS%20p3.2xLarge.png" width="100%"/>
-      </p>
-      <p align="center">PLACEHOLDER TEXT AND PLOT. Comparison of GPU utilization during training for different dataset storage and streaming methods: Hub + AWS S3, traditional file structure + AWS S3, traditional file structure + Attached Storage (AWS EBS).</p></td>
-  </tr>
-</table>
-
 ## Features 
 ### Current Release
 
