@@ -15,9 +15,9 @@
     <img alt="GitHub issues" src="https://img.shields.io/github/issues/activeloopai/Hub"> </a>
     <a href="https://codecov.io/gh/activeloopai/Hub/branch/master"><img src="https://codecov.io/gh/activeloopai/Hub/branch/master/graph/badge.svg" alt="codecov" height="18"></a>
   <h3 align="center">
-   <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button"><b>Documentation</b></a> &bull;
-   <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button"><b>Getting Started</b></a> &bull;
-   <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button"><b>Tutorials</b></a> &bull;
+   <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
+   <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
+   <a href="https://activeloop.gitbook.io/hub-2-0/tutorials"><b>Tutorials</b></a> &bull;
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
@@ -62,7 +62,7 @@ Training deep learning models by streaming Hub datasets from the cloud is just a
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
     </br>
-NEED TO UPDATE: Visualization of a dataset uploaded to Hub via <a href = "https://app.activeloop.ai/datasets/popular?utm_source=github&utm_medium=readme&utm_campaign=desc">app.activeloop.ai</a> (free tool).
+Visualization of a dataset uploaded to Hub via <a href = "https://app.activeloop.ai/datasets/popular?utm_source=github&utm_medium=readme&utm_campaign=desc">app.activeloop.ai</a>.
 </p>
 
 ### Coming Soon
