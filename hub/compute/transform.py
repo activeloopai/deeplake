@@ -200,10 +200,7 @@ class Transform:
                 )
 
             for key, value in x.items():
-                if key in xs_new:
-                    xs_new[key].append(value)
-                else:
-                    xs_new[key] = [value]
+                xs_new.default_dict(key, []).append(value)
         return xs_new
 
     def _pbar(self, show: bool = True):
