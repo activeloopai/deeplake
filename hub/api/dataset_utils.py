@@ -5,17 +5,24 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 """
 
 import os
+import time
+from typing import Union, Iterable, List
 from hub.store.store import get_fs_and_path
 import numpy as np
 import sys
-from hub.exceptions import ModuleNotInstalledException, DirectoryNotEmptyException
+from hub.exceptions import (
+    ModuleNotInstalledException,
+    DirectoryNotEmptyException,
+    ClassLabelValueError,
+)
 import hashlib
 import time
 import numcodecs
 import numcodecs.lz4
 import numcodecs.zstd
-from hub.schema.features import Primitive, SchemaDict
+from hub.schema.features import Primitive, SchemaDict, Tensor
 from hub.numcodecs import PngCodec
+from hub.schema import ClassLabel
 
 
 def slice_split(slice_):
@@ -39,15 +46,21 @@ def same_schema(schema1, schema2):
     if schema1.dict_.keys() != schema2.dict_.keys():
         return False
     for k, v in schema1.dict_.items():
-        if isinstance(v, SchemaDict) and not same_schema(v, schema2.dict_[k]):
-            return False
-        elif (
-            v.shape != schema2.dict_[k].shape
-            or v.max_shape != schema2.dict_[k].max_shape
-            or v.chunks != schema2.dict_[k].chunks
-            or v.dtype != schema2.dict_[k].dtype
-            or v.compressor != schema2.dict_[k].compressor
+        if isinstance(v, SchemaDict) and isinstance(schema2.dict_[k], SchemaDict):
+            if not same_schema(v, schema2.dict_[k]):
+                return False
+        elif (isinstance(v, Tensor) and isinstance(schema2.dict_[k], Tensor)) or (
+            isinstance(v, Primitive) and isinstance(schema2.dict_[k], Primitive)
         ):
+            if (
+                v.shape != schema2.dict_[k].shape
+                or v.max_shape != schema2.dict_[k].max_shape
+                or v.chunks != schema2.dict_[k].chunks
+                or v.dtype != schema2.dict_[k].dtype
+                or v.compressor != schema2.dict_[k].compressor
+            ):
+                return False
+        else:
             return False
     return True
 
@@ -266,3 +279,50 @@ def _get_compressor(compressor: str):
         raise ValueError(
             f"Wrong compressor: {compressor}, only LZ4, PNG and ZSTD are supported"
         )
+
+
+def convert_str_arr_to_int(array: Union[List, np.ndarray], label: ClassLabel):
+    for i, elem in enumerate(array):
+        if isinstance(elem, str):
+            try:
+                array[i] = label.str2int(elem)
+            except KeyError:
+                raise ClassLabelValueError(label.names, elem)
+    if isinstance(array, np.ndarray) and array.dtype.type is np.str_:
+        array = np.asarray(array, dtype="int8")
+    return array
+
+
+def check_class_label(value: Union[np.ndarray, list], label: ClassLabel):
+    """Check if value can be assigned to predefined ClassLabel"""
+    if not isinstance(value, Iterable) or isinstance(value, str):
+        assign_class_labels = [value]
+    else:
+        assign_class_labels = value
+    assign_class_labels = convert_str_arr_to_int(assign_class_labels, label)
+    for i, val in enumerate(assign_class_labels):
+        if isinstance(val, np.ndarray) and val.dtype.type is np.str_:
+            assign_class_labels[i] = convert_str_arr_to_int(val, label)
+    if any((isinstance(val, np.ndarray) for val in assign_class_labels)):
+        assign_class_labels_flat = np.hstack(assign_class_labels)
+    elif any((isinstance(val, List) for val in assign_class_labels)):
+        assign_class_labels_flat = [
+            item for sublist in assign_class_labels for item in sublist
+        ]
+        for i, val in enumerate(assign_class_labels):
+            if isinstance(val, List):
+                assign_class_labels[i] = np.array(val)
+    else:
+        assign_class_labels_flat = assign_class_labels
+    if (
+        min(assign_class_labels_flat) < 0
+        or max(assign_class_labels_flat) > label.num_classes - 1
+    ):
+        raise ClassLabelValueError(
+            range(label.num_classes - 1), assign_class_labels_flat
+        )
+    if len(assign_class_labels) == 1:
+        if isinstance(assign_class_labels, List):
+            return [np.array(assign_class_labels[0])]
+        return assign_class_labels[0]
+    return assign_class_labels

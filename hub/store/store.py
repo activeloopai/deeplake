@@ -90,16 +90,23 @@ def get_fs_and_path(
         return fsspec.filesystem("file"), url
     else:
         # TOOD check if url is username/dataset:version
-        url, creds = _connect(url, public=public)
-        fs = S3FileSystemReplacement(
-            key=creds["access_key"],
-            secret=creds["secret_key"],
-            token=creds["session_token"],
-            client_kwargs={
-                "endpoint_url": creds["endpoint"],
-                "region_name": creds["region"],
-            },
-        )
+        if url.split("/")[0] == "google":
+            org_id, ds_name = url.split("/")
+            token, url = HubControlClient().get_dataset_credentials(org_id, ds_name)
+            fs = gcsfs.GCSFileSystem(token=token)
+            url = url[6:]
+        else:
+            url, creds = _connect(url, public=public)
+            fs = S3FileSystemReplacement(
+                expiration=creds["expiration"],
+                key=creds["access_key"],
+                secret=creds["secret_key"],
+                token=creds["session_token"],
+                client_kwargs={
+                    "endpoint_url": creds["endpoint"],
+                    "region_name": creds["region"],
+                },
+            )
         return (fs, url)
 
 

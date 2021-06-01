@@ -7,9 +7,16 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 import hub.api.tests.test_converters
 from hub.schema.features import Tensor
 import numpy as np
-from hub.utils import tfds_loaded, tensorflow_loaded, pytorch_loaded
+import shutil
+import os.path
+from hub.utils import (
+    tfds_loaded,
+    tensorflow_loaded,
+    pytorch_loaded,
+    supervisely_loaded,
+    Timer,
+)
 import pytest
-from hub.utils import Timer
 
 
 @pytest.mark.skipif(not tfds_loaded(), reason="requires tfds to be loaded")
@@ -462,6 +469,135 @@ def test_to_pytorch_bug():
 def test_to_tensorflow_bug():
     ds = hub.Dataset("activeloop/coco_train")
     data = ds.to_tensorflow()
+
+
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_to_supervisely():
+    data_path = "./data/test_supervisely/to_from"
+    dataset_name = "rock_paper_scissors_test"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    original_dataset = hub.Dataset(f"activeloop/{dataset_name}", mode="r")
+    project = original_dataset.to_supervisely(os.path.join(data_path, dataset_name))
+    trans = hub.Dataset.from_supervisely(project)
+    new_dataset = trans.store(os.path.join(data_path, "new_rpst"))
+
+
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_from_supervisely():
+    import supervisely_lib as sly
+
+    data_path = "./data/test_supervisely/from_to"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    project_name = "pixel_project"
+    project_path = os.path.join(data_path, project_name)
+    project = sly.Project(project_path, sly.OpenMode.CREATE)
+    init_meta = project.meta
+    project.meta._project_type = "images"
+    project_ds = project.create_dataset(project_name)
+    img = np.ones((30, 30, 3))
+    project_ds.add_item_np("pixel.jpeg", img)
+    item_path, item_ann_path = project_ds.get_item_paths("pixel.jpeg")
+    ann = sly.Annotation.load_json_file(item_ann_path, project.meta)
+    bbox_class = sly.ObjClass(name="_bbox", geometry_type=sly.Rectangle)
+    meta_with_bboxes = project.meta.add_obj_classes([bbox_class])
+    bbox_label = sly.Label(
+        geometry=sly.Rectangle(0, 0, 10, 10),
+        obj_class=meta_with_bboxes.obj_classes.get("_bbox"),
+    )
+    ann_with_bboxes = ann.add_labels([bbox_label])
+    project_ds.set_ann("pixel.jpeg", ann_with_bboxes)
+    project.set_meta(meta_with_bboxes)
+
+    trans = hub.Dataset.from_supervisely(project)
+    dataset = trans.store(os.path.join(data_path, "pixel_dataset_bbox"))
+    project_back = dataset.to_supervisely(
+        os.path.join(data_path, "pixel_project_bbox_back")
+    )
+    project.set_meta(init_meta)
+    poly_class = sly.ObjClass(name="_poly", geometry_type=sly.Polygon)
+    meta_with_poly = project.meta.add_obj_classes([poly_class])
+    points = [[0, 0], [0, 10], [10, 0], [10, 10]]
+    point_loc_points = [
+        sly.geometry.point_location.PointLocation(*point) for point in points
+    ]
+    poly_label = sly.Label(
+        geometry=sly.Polygon(exterior=point_loc_points, interior=[]),
+        obj_class=meta_with_poly.obj_classes.get("_poly"),
+    )
+    ann_with_polys = ann.add_labels([poly_label])
+    project_ds.set_ann("pixel.jpeg", ann_with_polys)
+    project.set_meta(meta_with_poly)
+    trans = hub.Dataset.from_supervisely(project)
+    dataset = trans.store(os.path.join(data_path, "pixel_dataset_poly"))
+    project_back = dataset.to_supervisely(
+        os.path.join(data_path, "pixel_project_poly_back")
+    )
+
+
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_to_supervisely_video():
+    data_path = "./data/test_supervisely/video_to"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    schema = {
+        "vid": hub.schema.Video(shape=(1, 1, 2, 3)),
+        "filename": hub.schema.Text(max_shape=5),
+    }
+    ds = hub.Dataset(
+        os.path.join(data_path, "hub_video_dataset"), schema=schema, shape=3
+    )
+    filenames = ["one", "two", "three"]
+    ds["filename"][:] = filenames
+    project = ds.to_supervisely(os.path.join(data_path, "sly_video_dataset"))
+
+
+@pytest.mark.skipif(
+    not supervisely_loaded(), reason="requires supervisely to be loaded"
+)
+def test_from_supervisely_video():
+    import supervisely_lib as sly
+    from skvideo.io import vwrite
+
+    data_path = "./data/test_supervisely/video_from"
+    if os.path.exists(data_path):
+        shutil.rmtree(data_path)
+    project_name = "minuscule_videos/"
+    project_path = os.path.join(data_path, project_name)
+    project = sly.VideoProject(project_path, sly.OpenMode.CREATE)
+    project.meta._project_type = "videos"
+    item_name = "item.mp4"
+    np.random.seed(0)
+    for name in ["foofoo", "bar"]:
+        ds = project.create_dataset(name)
+        item_path = os.path.join(ds.item_dir, item_name)
+        vwrite(item_path, (np.random.rand(len(name), 2, 2, 3) * 255).astype("uint8"))
+        ds._item_to_ann[item_name] = item_name + ".json"
+        ds.set_ann(item_name, ds._get_empty_annotaion(item_path))
+    project.set_meta(project.meta)
+    trans = hub.Dataset.from_supervisely(os.path.join(data_path, project_name))
+
+
+@pytest.mark.skipif(not pytorch_loaded(), reason="requires pytorch to be loaded")
+def test_to_pytorch_shuffle():
+    schema = {
+        "image": hub.schema.Image((1000, 1000, 3)),
+        "cl": hub.schema.Primitive("uint16", chunks=16),
+    }
+
+    ds = hub.Dataset("./data/test_shuffle", schema=schema, shape=(1024), mode="w")
+    for i in range(len(ds)):
+        ds["cl", i] = i
+    pds = ds.to_pytorch(shuffle=True)
+    for i, item in enumerate(pds):
+        assert item["cl"].numpy() % 16 == i % 16
 
 
 if __name__ == "__main__":

@@ -3,8 +3,7 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
-from hub.utils import _tuple_product
+from typing import Iterable
 from hub.api.tensorview import TensorView
 import collections.abc as abc
 from hub.api.dataset_utils import (
@@ -13,10 +12,11 @@ from hub.api.dataset_utils import (
     slice_split,
     str_to_int,
     _store_helper,
+    check_class_label,
 )
 from hub.exceptions import NoneValueException
 from hub.api.objectview import ObjectView
-from hub.schema import Sequence
+from hub.schema import Sequence, ClassLabel, Text, SchemaDict
 import numpy as np
 
 
@@ -134,16 +134,30 @@ class DatasetView:
         >>> ds_view["image", 3, 0:1920, 0:1080, 0:3] = np.zeros((1920, 1080, 3), "uint8") # sets the 8th image
         """
         self.dataset._auto_checkout()
-        assign_value = get_value(value)
-        assign_value = str_to_int(
-            assign_value, self.dataset.tokenizer
-        )  # handling strings and bytes
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
         slice_ = list(slice_)
         subpath, slice_list = slice_split(slice_)
         slice_list = [0] + slice_list if isinstance(self.indexes, int) else slice_list
+
+        assign_value = get_value(value)
+        schema_dict = self.dataset.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.dataset.tokenizer)
 
         if not subpath:
             raise ValueError("Can't assign to dataset sliced without key")
@@ -308,7 +322,14 @@ class DatasetView:
             indexes=self.indexes, include_shapes=include_shapes, key_list=key_list
         )
 
-    def to_pytorch(self, transform=None, inplace=True, output_type=dict, key_list=None):
+    def to_pytorch(
+        self,
+        transform=None,
+        inplace=True,
+        output_type=dict,
+        key_list=None,
+        shuffle=False,
+    ):
         """| Converts the dataset into a pytorch compatible format.
         ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
         Avoid having schema with these dtypes if you want to avoid this implicit conversion.
@@ -322,6 +343,8 @@ class DatasetView:
             type you need for Transforms). Default is True.
         output_type: one of list, tuple, dict, optional
             Defines the output type. Default is dict - same as in original Hub Dataset.
+        shuffle: bool, optional
+            whether to shuffle the data chunkwise or not. Default is False.
         """
         return self.dataset.to_pytorch(
             transform=transform,
@@ -329,6 +352,7 @@ class DatasetView:
             inplace=inplace,
             output_type=output_type,
             key_list=key_list,
+            shuffle=shuffle,
         )
 
     def resize_shape(self, size: int) -> None:

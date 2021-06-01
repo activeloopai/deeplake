@@ -90,11 +90,17 @@ commands:
   get-python:
     steps:
       - run:
-          name: "Install Python"
+          name: "Install Python & ffmpeg"
           command: |
             brew update
             brew install python@3.7
             brew link --overwrite python@3.7
+            brew install ffmpeg
+  get-linux-ffmpeg:
+    steps:
+      - run:
+          name: "Install ffmpeg"
+          command: sudo apt-get update && sudo apt-get install ffmpeg
   info:
     steps:
       - run:
@@ -168,6 +174,7 @@ commands:
                   pytest --cov-report=xml --cov=./
       - when:
           condition: << parameters.unix-like >>
+          resource_class: medium+
           steps:
             - run:
                 name: "Running tests - Unix"
@@ -244,6 +251,7 @@ jobs:
         type: boolean
         default: false
     executor: << parameters.e >>
+    resource_class: medium+
     steps:
       - checkout
       - unless:
@@ -254,6 +262,14 @@ jobs:
           condition: << parameters.mac-like >>
           steps:
             - get-python
+      - when:
+          condition:
+            and:
+              - not: << parameters.mac-like >>
+              - << parameters.unix-like >>
+              - << parameters.optional >>
+          steps:
+            - get-linux-ffmpeg
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
@@ -272,6 +288,7 @@ jobs:
     executor: linux
     environment:
       IMAGE_NAME: snarkai/hub
+    resource_class: medium+
     steps:
       - setup_remote_docker
       - checkout

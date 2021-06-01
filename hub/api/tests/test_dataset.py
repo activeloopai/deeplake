@@ -3,21 +3,34 @@ License:
 This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
 """
-
 import os
 import pickle
 import shutil
 
-import cloudpickle
 import hub.api.dataset as dataset
+from hub.cli.auth import login_fn
+from hub.exceptions import DirectoryNotEmptyException, ClassLabelValueError
 import numpy as np
 import pytest
+import hub
 from hub import load, transform
-from hub.api.dataset_utils import slice_extract_info, slice_split
+from hub.api.dataset_utils import slice_extract_info, slice_split, check_class_label
 from hub.cli.auth import login_fn
-from hub.exceptions import DirectoryNotEmptyException, SchemaMismatchException
-from hub.schema import BBox, ClassLabel, Image, SchemaDict, Sequence, Tensor, Text
-from hub.schema.class_label import ClassLabel
+from hub.exceptions import (
+    DirectoryNotEmptyException,
+    SchemaMismatchException,
+    ReadModeException,
+)
+from hub.schema import (
+    BBox,
+    ClassLabel,
+    Image,
+    SchemaDict,
+    Sequence,
+    Tensor,
+    Text,
+    Primitive,
+)
 from hub.utils import (
     azure_creds_exist,
     gcp_creds_exist,
@@ -176,7 +189,7 @@ def test_pickleability(url="./data/test/test_dataset_dynamic_shaped"):
 
     ds["first"][0] = np.ones((10, 10))
 
-    pickled_ds = cloudpickle.dumps(ds)
+    pickled_ds = pickle.dumps(ds)
     new_ds = pickle.loads(pickled_ds)
     assert np.all(new_ds["first"][0].compute() == ds["first"][0].compute())
 
@@ -1215,6 +1228,50 @@ def test_check_label_name():
     assert ds[1:3].compute().tolist() == [{"label": 2}, {"label": 0}]
 
 
+def test_class_label_value():
+    ds = Dataset(
+        "./data/tests/test_check_label",
+        mode="w",
+        shape=(5,),
+        schema={
+            "label": ClassLabel(names=["name1", "name2", "name3"]),
+            "label/b": ClassLabel(num_classes=5),
+            "label_mult": ClassLabel(
+                shape=(None,), max_shape=(3,), names=["name1", "name2", "name3"]
+            ),
+        },
+    )
+    ds["label", 0:2] = np.array([0, 1])
+    ds["label", 0:3] = ["name1", "name2", "name3"]
+    ds[0:3]["label"] = [0, "name2", 2]
+    ds[0]["label_mult"] = np.array(["name1", "name3"])
+    ds["label_mult", 1] = "name2"
+    ds["label_mult", 2:4] = [np.array(["name2", "name3"]), np.array(["name1"])]
+    ds["label_mult", 3] = np.array([1, 0, 2])
+    ds["label_mult", 4] = [1]
+    ds["label_mult", 3:5] = [[2, 2], [0]]
+    try:
+        ds["label", 0:7] = 2
+    except Exception as ex:
+        assert isinstance(ex, hub.exceptions.ValueShapeError)
+    try:
+        ds["label/b", 0] = 6
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0:4]["label/b"] = np.array([0, 1, 2, 3, 7])
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds["label", 4] = "name4"
+    except Exception as ex:
+        assert isinstance(ex, ClassLabelValueError)
+    try:
+        ds[0]["label/b"] = ["name"]
+    except Exception as ex:
+        assert isinstance(ex, ValueError)
+
+
 @pytest.mark.skipif(not minio_creds_exist(), reason="requires minio credentials")
 def test_minio_endpoint():
     token = {
@@ -1260,8 +1317,64 @@ def test_dataset_store():
         assert ds3["abc", i].compute() == 5 * i
 
 
+def test_dataset_schema_bug():
+    schema = {"abc": Primitive("int32"), "def": "int64"}
+    ds = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug", schema=schema, shape=(100,))
+
+    schema = {
+        "abc": "uint8",
+        "def": {
+            "ghi": Tensor((100, 100)),
+            "rst": Tensor((100, 100, 100)),
+        },
+    }
+    ds = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
+    ds.flush()
+    ds2 = Dataset("./data/schema_bug_2", schema=schema, shape=(100,))
+
+
+def test_dataset_google():
+    ds = Dataset("google/bike")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/bottle")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/book")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cereal_box")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/chair")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/cup")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/camera")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/laptop")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+    ds = Dataset("google/shoe")
+    assert ds["image_channels", 0].compute() == 3
+    with pytest.raises(ReadModeException):
+        ds["image_channels", 0] = 3
+
+
 if __name__ == "__main__":
-    test_dataset_dynamic_shaped_slicing()
     test_dataset_assign_value()
     test_dataset_setting_shape()
     test_datasetview_repr()
@@ -1271,8 +1384,8 @@ if __name__ == "__main__":
     test_dataset()
     test_dataset_batch_write_2()
     test_append_dataset()
-    test_append_resize()
     test_dataset_2()
+
     test_text_dataset()
     test_text_dataset_tokenizer()
     test_dataset_compute()
@@ -1290,4 +1403,5 @@ if __name__ == "__main__":
     test_datasetview_2()
     test_dataset_3()
     test_dataset_utils()
-    test_check_label_name()
+    # test_check_label_name()
+    test_class_label_value()

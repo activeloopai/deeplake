@@ -7,6 +7,7 @@ from pathlib import PosixPath
 import hub
 import numpy as np
 from hub.auto.tests.util import get_dataset_store
+from hub.auto.computer_vision.classification import multiple_image_parse
 
 
 def assert_conversion(
@@ -66,3 +67,15 @@ def test_class_sample_different_shapes():
     assert_conversion(
         tag, num_samples=10, num_classes=3, max_image_shape=(768, 1024, 4)
     )
+
+
+def test_auto_multiple_dataset_parser():
+    path_to_data = (
+        "hub/auto/tests/dummy_data/image_classification/class_sample_multiple_folder"
+    )
+
+    keys = tuple(
+        multiple_image_parse(path_to_data, scheduler="single", workers=1).keys()
+    )
+
+    assert keys == ("train", "val") or keys == ("val", "train")

@@ -39,6 +39,12 @@ class ShapeDetector:
         self._chunks = chunks = self._get_chunks(
             shape, max_shape, chunks, dtype, chunksize
         )
+        self._chunks = chunks = self.closest_power_of_2(chunks)
+
+    def closest_power_of_2(self, chunks):
+        head_chunk = chunks[0]
+        head_chunk = 2 ** math.floor(math.log2(head_chunk))
+        return (head_chunk,) + chunks[1:]
 
     def _get_chunksize(self, chunksize, compressor):
         if isinstance(compressor, PngCodec):

@@ -10,6 +10,7 @@ import posixpath
 import collections.abc as abc
 import json
 import sys
+from typing import Iterable
 import traceback
 from collections import defaultdict
 import numpy as np
@@ -43,14 +44,15 @@ from hub.api.dataset_utils import (
     _get_compressor,
     _get_dynamic_tensor_dtype,
     _store_helper,
+    check_class_label,
     same_schema,
 )
 
 import hub.schema.serialize
 import hub.schema.deserialize
 from hub.schema.features import flatten
-from hub.schema import ClassLabel
 from hub import auto
+
 from hub.store.dynamic_tensor import DynamicTensor
 from hub.store.store import get_fs_and_path, get_storage_map
 from hub.exceptions import (
@@ -595,9 +597,6 @@ class Dataset:
         if "r" in self._mode:
             raise ReadModeException("__setitem__")
         self._auto_checkout()
-        assign_value = get_value(value)
-        # handling strings and bytes
-        assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not isinstance(slice_, abc.Iterable) or isinstance(slice_, str):
             slice_ = [slice_]
@@ -608,6 +607,24 @@ class Dataset:
             raise ValueError("Can't assign to dataset sliced without subpath")
         elif subpath not in self.keys:
             raise KeyError(f"Key {subpath} not found in the dataset")
+
+        assign_value = get_value(value)
+        schema_dict = self.schema
+        if subpath[1:] in schema_dict.dict_.keys():
+            schema_key = schema_dict.dict_.get(subpath[1:], None)
+        else:
+            for schema_key in subpath[1:].split("/"):
+                schema_dict = schema_dict.dict_.get(schema_key, None)
+                if not isinstance(schema_dict, SchemaDict):
+                    schema_key = schema_dict
+        if isinstance(schema_key, ClassLabel):
+            assign_value = check_class_label(assign_value, schema_key)
+        if isinstance(schema_key, (Text, bytes)) or (
+            isinstance(assign_value, Iterable)
+            and any(isinstance(val, str) for val in assign_value)
+        ):
+            # handling strings and bytes
+            assign_value = str_to_int(assign_value, self.tokenizer)
 
         if not slice_list:
             self._tensors[subpath][:] = assign_value
@@ -734,7 +751,7 @@ class Dataset:
         exist_meta = fs.exists(posixpath.join(path, defaults.META_FILE))
         if exist_meta:
             fs.rm(path, recursive=True)
-            if self.username is not None:
+            if self.username:
                 HubControlClient().delete_dataset_entry(
                     self.username, self.dataset_name
                 )
@@ -748,6 +765,7 @@ class Dataset:
         output_type=dict,
         indexes=None,
         key_list=None,
+        shuffle=False,
     ):
         """| Converts the dataset into a pytorch compatible format.
         ** Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
@@ -767,10 +785,14 @@ class Dataset:
         key_list: list, optional
             The list of keys that are needed in Pytorch format. For nested schemas such as {"a":{"b":{"c": Tensor()}}}
             use ["a/b/c"] as key_list
+        shuffle: bool, optional
+            whether to shuffle the data chunkwise or not. Default is False.
         """
         from .integrations import _to_pytorch
 
-        ds = _to_pytorch(self, transform, inplace, output_type, indexes, key_list)
+        ds = _to_pytorch(
+            self, transform, inplace, output_type, indexes, key_list, shuffle
+        )
         return ds
 
     def to_tensorflow(self, indexes=None, include_shapes=False, key_list=None):
@@ -790,6 +812,18 @@ class Dataset:
 
         ds = _to_tensorflow(self, indexes, include_shapes, key_list)
         return ds
+
+    def to_supervisely(self, output):
+        """| Converts the dataset into a supervisely project
+        Parameters
+        ----------
+        output: str
+            Project name and output directory.
+        """
+        from .integrations import _to_supervisely
+
+        project = _to_supervisely(self, output)
+        return project
 
     def _get_dictionary(self, subpath, slice_=None):
         """Gets dictionary from dataset given incomplete subpath"""
@@ -863,7 +897,7 @@ class Dataset:
         self._update_dataset_state()
 
     def _update_dataset_state(self):
-        if self.username is not None:
+        if self.username:
             HubControlClient().update_dataset_state(
                 self.username, self.dataset_name, "UPLOADED"
             )
@@ -1043,6 +1077,24 @@ class Dataset:
         from .integrations import _from_pytorch
 
         ds = _from_pytorch(dataset, scheduler, workers)
+        return ds
+
+    @staticmethod
+    def from_supervisely(project, scheduler: str = "single", workers: int = 1):
+        """| Converts a supervisely project into hub format
+
+        Parameters
+        ----------
+        dataset:
+            The path to the supervisely project that needs to be converted into hub format
+        scheduler: str
+            choice between "single", "threaded", "processed"
+        workers: int
+            how many threads or processes to use
+        """
+        from .integrations import _from_supervisely
+
+        ds = _from_supervisely(project, scheduler, workers)
         return ds
 
     @staticmethod
