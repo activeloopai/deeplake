@@ -1,4 +1,4 @@
-import pickle
+import pickle  # TODO: NEVER USE PICKLE
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_dataset_meta_key

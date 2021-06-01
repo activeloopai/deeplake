@@ -1,5 +1,5 @@
 import numpy as np
-import pickle
+import pickle # TODO: NEVER USE PICKLE
 
 from hub.core.typing import StorageProvider
 from hub.constants import DEFAULT_CHUNK_SIZE

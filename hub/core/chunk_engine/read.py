@@ -1,12 +1,8 @@
 import os
-import pickle  # TODO: NEVER USE PICKLE
-from typing import Callable, List, Optional, Union
+from typing import List, Optional
 
 import numpy as np
-from hub import constants
 from hub.core.typing import StorageProvider
-from hub.util.array import normalize_and_batchify_shape
-from hub.util.keys import get_index_map_key, get_tensor_meta_key
 
 
 def sample_from_index_entry(
