@@ -17,7 +17,7 @@ def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
 
 def tensor_meta_from_array(
     array: np.ndarray, batched: bool, chunk_size: int = DEFAULT_CHUNK_SIZE
-):
+) -> dict:
     array = normalize_and_batchify_shape(array, batched=batched)
 
     tensor_meta = {
@@ -46,7 +46,7 @@ def validate_tensor_meta(meta: dict):
 
 def _raise_if_no_key(key: str, meta: dict):
     if key not in meta:
-        raise TensorMetaMissingKey(key)
+        raise TensorMetaMissingKey(key, meta)
 
     
 def _raise_if_condition(key: str, meta: dict, condition: Callable[[Any], bool], explanation: str=""):
@@ -55,7 +55,7 @@ def _raise_if_condition(key: str, meta: dict, condition: Callable[[Any], bool], 
         raise TensorMetaInvalidValue(key, v, explanation)
 
 
-def _is_dtype_supported_by_numpy(dtype: str):
+def _is_dtype_supported_by_numpy(dtype: str) -> bool:
     try:
         np.dtype(dtype)
         return True

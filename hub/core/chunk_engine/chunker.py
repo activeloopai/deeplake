@@ -1,5 +1,4 @@
-import numpy as np
-from typing import Generator, Optional, List
+from typing import Generator
 
 from hub.util.exceptions import ChunkSizeTooSmallError
 
