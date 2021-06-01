@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 from hub.core.chunk_engine.read import (read_index_map,
                                         read_samples_from_tensor,
-                                        read_tensor_meta, tensor_exists)
-from hub.core.chunk_engine.write import add_samples_to_tensor
+                                        read_tensor_meta, tensor_exists,
+                                        tensor_meta_from_array)
+from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
 from hub.core.storage import MemoryProvider, S3Provider
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
@@ -113,12 +114,14 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
+    # TODO: write test that tries to add_samples_to_tensor without create_tensor (should fail)
+    create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
+
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
             a_in,
             key,
             storage,
-            chunk_size,
             batched=batched,
         )
 
@@ -133,11 +136,13 @@ def run_engine_test(
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
+        sample_count += num_samples
+
         assert_meta_is_valid(
             meta,
             {
                 "chunk_size": chunk_size,
-                "length": a_in.shape[0],
+                "length": sample_count,
                 "dtype": a_in.dtype.name,
                 "min_shape": tuple(a_in.shape[1:]),
                 "max_shape": tuple(a_in.shape[1:]),
@@ -146,8 +151,6 @@ def run_engine_test(
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
-        sample_count += num_samples
-
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
 
@@ -155,12 +158,13 @@ def run_engine_test(
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
+    create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
+
     for a_in in arrays:
         add_samples_to_tensor(
             a_in,
             key,
             storage,
-            chunk_size,
             batched=batched,
         )
 

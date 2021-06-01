@@ -3,9 +3,10 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.constants import GB
-from hub.core.chunk_engine.read import read_samples_from_tensor
+from hub.core.chunk_engine.read import (read_samples_from_tensor,
+                                        tensor_meta_from_array)
 from hub.core.chunk_engine.tests.common import TENSOR_KEY, get_random_array
-from hub.core.chunk_engine.write import add_samples_to_tensor
+from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
 from hub.core.tests.common import (parametrize_all_caches,
                                    parametrize_all_storages)
 from hub.core.typing import StorageProvider
@@ -18,12 +19,15 @@ from hub.tests.common_benchmark import (parametrize_benchmark_chunk_sizes,
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
+    create_tensor(
+        actual_key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size)
+    )
+
     for a_in in arrays:
         add_samples_to_tensor(
             array=a_in,
             key=actual_key,
             storage=storage,
-            chunk_size=chunk_size,
             batched=batched,
         )
 

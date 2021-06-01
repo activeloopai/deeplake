@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 from hub.core.chunk_engine.read import (read_samples_from_tensor,
                                         read_tensor_meta, tensor_exists)
-from hub.core.chunk_engine.write import add_samples_to_tensor
+from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorAlreadyExistsError
 from hub.util.slice import merge_slices
@@ -14,6 +14,7 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
+        tensor_meta: dict,
         tensor_slice: slice = slice(None),
     ):
         """Initialize a new tensor.
@@ -31,9 +32,19 @@ class Tensor:
         self.provider = provider
         self.slice = tensor_slice
 
+        create_tensor(self.key, self.provider, tensor_meta)
+
     @property
     def meta(self):
         return read_tensor_meta(self.key, self.provider)
+
+    def append(self, array: np.ndarray, batched: bool):
+        add_samples_to_tensor(
+            array,
+            self.key,
+            storage=self.provider,
+            batched=batched,
+        )
 
     def __len__(self):
         """Return the length of the primary axis"""

@@ -5,6 +5,7 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 from hub import constants
 from hub.core.typing import StorageProvider
+from hub.util.array import normalize_and_batchify_shape
 from hub.util.keys import get_index_map_key, get_tensor_meta_key
 
 
@@ -18,6 +19,23 @@ def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
 
 def read_dataset_meta(storage: StorageProvider) -> dict:
     return pickle.loads(storage[constants.META_FILENAME])
+
+
+def tensor_meta_from_array(
+    array: np.ndarray, batched: bool, chunk_size: int = constants.DEFAULT_CHUNK_SIZE
+):
+    array = normalize_and_batchify_shape(array, batched=batched)
+
+    tensor_meta = {
+        "chunk_size": chunk_size,
+        "dtype": array.dtype.name,
+        "length": 0,
+        "min_shape": tuple(array.shape[1:]),
+        "max_shape": tuple(array.shape[1:]),
+        # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
+    }
+
+    return tensor_meta
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:

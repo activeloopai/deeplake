@@ -3,7 +3,7 @@ from typing import Any, Callable, List, Tuple
 from uuid import uuid1
 
 import numpy as np
-from hub.constants import DEFAULT_CHUNK_SIZE, META_FILENAME
+from hub.constants import META_FILENAME
 from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import TensorMetaMismatchError
@@ -27,11 +27,23 @@ def write_dataset_meta(storage: StorageProvider, meta: dict):
     storage[META_FILENAME] = pickle.dumps(meta)
 
 
+def create_tensor(key: str, storage: StorageProvider, meta: dict):
+    """
+    Args:
+        chunk_size (int): Desired length of each chunk.
+    """
+
+    # TODO: docstring
+    # TODO: validate meta
+
+    write_index_map(key, storage, [])
+    write_tensor_meta(key, storage, meta)
+
+
 def add_samples_to_tensor(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
     batched: bool = False,
 ):
 
@@ -44,44 +56,40 @@ def add_samples_to_tensor(
             batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
-        chunk_size (int): Desired length of each chunk.
+
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
     """
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
-    if tensor_exists(key, storage):
-        index_map = read_index_map(key, storage)
-        tensor_meta = read_tensor_meta(key, storage)
-        _check_array_and_tensor_are_compatible(tensor_meta, array, chunk_size)
+    if not tensor_exists(key, storage):
+        raise Exception()  # TODO: exceptions.py
 
-    else:
-        index_map: List[dict] = []  # type: ignore
-        tensor_meta = {
-            "chunk_size": chunk_size,
-            "dtype": array.dtype.name,
-            "length": array.shape[0],
-            "min_shape": tuple(array.shape[1:]),
-            "max_shape": tuple(array.shape[1:]),
-            # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
-        }
+    index_map = read_index_map(key, storage)
+    tensor_meta = read_tensor_meta(key, storage)
+    _check_array_and_tensor_are_compatible(tensor_meta, array)
 
     # TODO: get the tobytes function from meta
     tobytes = row_wise_to_bytes
 
-    for i in range(array.shape[0]):
+    array_length = array.shape[0]
+    for i in range(array_length):
         sample = array[i]
 
         # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
         # choose to optimize for.
         b = memoryview(tobytes(sample))
 
-        index_map_entry = write_bytes(b, key, chunk_size, storage, index_map)
+        index_map_entry = write_bytes(
+            b, key, tensor_meta["chunk_size"], storage, index_map
+        )
 
         # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
         index_map.append(index_map_entry)
+
+    tensor_meta["length"] += array_length
 
     write_tensor_meta(key, storage, tensor_meta)
     write_index_map(key, storage, index_map)
@@ -192,18 +200,15 @@ def _random_chunk_name() -> str:
     return str(uuid1())
 
 
-def _check_array_and_tensor_are_compatible(
-    tensor_meta: dict, array: np.ndarray, chunk_size: int
-):
+def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
 
     Args:
         tensor_meta (dict): Tensor meta containing the expected properties of `array`.
         array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
-        chunk_size (int): Chunk size that `array` will be chunked according to. This must match `tensor_meta["chunk_size"]`.
 
     Raises:
-        TensorMetaMismatchError: When dtype/chunk_size don't match `tensor_meta` exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
+        TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
         NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported. (TODO)
     """
 
@@ -218,11 +223,6 @@ def _check_array_and_tensor_are_compatible(
     if len(tensor_meta["max_shape"]) != len(sample_shape):
         raise TensorMetaMismatchError(
             "max_shape", tensor_meta["max_shape"], len(sample_shape)
-        )
-
-    if chunk_size is not None and chunk_size != tensor_meta["chunk_size"]:
-        raise TensorMetaMismatchError(
-            "chunk_size", tensor_meta["chunk_size"], chunk_size
         )
 
     # TODO: remove these once dynamic shapes are supported
