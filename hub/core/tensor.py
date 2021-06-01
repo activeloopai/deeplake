@@ -6,7 +6,7 @@ from hub.core.meta.tensor_meta import read_tensor_meta, write_tensor_meta, valid
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.exceptions import TensorAlreadyExistsError, TensorMetaMismatchError, TensorNotFoundError
+from hub.util.exceptions import TensorAlreadyExistsError, TensorMetaMismatchError, TensorDoesNotExistError
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
@@ -29,7 +29,6 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         meta (dict): Meta for the tensor. Required Properties:
-            # TODO: fill in properties
             chunk_size (int): Desired length of chunks.
             dtype (str): Datatype for each sample.
 
@@ -39,6 +38,10 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
+
+    meta.update({
+        "length": 0
+    })
 
     validate_tensor_meta(meta)
 
@@ -61,15 +64,17 @@ def add_samples_to_tensor(
             batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
-
         batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
             If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+
+    raises: 
+        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 
     array = normalize_and_batchify_shape(array, batched=batched)
 
     if not tensor_exists(key, storage):
-        raise Exception()  # TODO: exceptions.py
+        raise TensorDoesNotExistError(key)
 
     index_map = read_index_map(key, storage)
     tensor_meta = read_tensor_meta(key, storage)
@@ -90,7 +95,6 @@ def add_samples_to_tensor(
             b, key, tensor_meta["chunk_size"], storage, index_map
         )
 
-        # shape per sample for dynamic tensors (TODO: if strictly fixed-size, store this in meta)
         index_map_entry["shape"] = sample.shape
         index_map.append(index_map_entry)
 
@@ -137,7 +141,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
     Raises:
         TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
-        NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported. (TODO)
+        NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported.
     """
 
     if tensor_meta["dtype"] != array.dtype.name:
@@ -153,7 +157,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
             "max_shape", tensor_meta["max_shape"], len(sample_shape)
         )
 
-    # TODO: remove these once dynamic shapes are supported
+    # TODO: remove these once dynamic shapes are supported and update docstring
     if not np.array_equal(tensor_meta["max_shape"], sample_shape):
         raise NotImplementedError("Dynamic shapes are not supported yet.")
     if not np.array_equal(tensor_meta["min_shape"], sample_shape):

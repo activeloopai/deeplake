@@ -23,7 +23,6 @@ def tensor_meta_from_array(
     tensor_meta = {
         "chunk_size": chunk_size,
         "dtype": array.dtype.name,
-        "length": 0,
         "min_shape": tuple(array.shape[1:]),
         "max_shape": tuple(array.shape[1:]),
         # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this

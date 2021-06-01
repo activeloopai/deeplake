@@ -5,7 +5,7 @@ import numpy as np
 from hub.core.tensor import create_tensor, add_samples_to_tensor, read_samples_from_tensor, read_tensor_meta, tensor_exists
 from hub.core.typing import StorageProvider
 
-from hub.util.exceptions import TensorAlreadyExistsError, TensorNotFoundError
+from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
 from hub.util.slice import merge_slices
 
 
@@ -30,7 +30,7 @@ class Tensor:
             tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
 
         Raises:
-            TensorNotFoundError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+            TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
         self.provider = provider
@@ -38,7 +38,7 @@ class Tensor:
 
         if not tensor_exists(self.key, self.provider):
             if tensor_meta is None:
-                raise TensorNotFoundError(self.key)
+                raise TensorDoesNotExistError(self.key)
 
             create_tensor(self.key, self.provider, tensor_meta)
 

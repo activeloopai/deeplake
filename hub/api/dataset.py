@@ -14,7 +14,7 @@ from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    TensorNotFoundError,
+    TensorDoesNotExistError,
     UnsupportedTensorTypeError,
 )
 from hub.util.path import provider_from_path
@@ -74,7 +74,7 @@ class Dataset:
 
         if isinstance(item, str):
             if item not in self.tensors:
-                raise TensorNotFoundError(item)
+                raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.slice]
         elif isinstance(item, slice):

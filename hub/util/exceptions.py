@@ -27,9 +27,14 @@ class TensorMetaInvalidValue(Exception):
         super().__init__("Invalid value {} for tensor meta key {}. {}".format(str(value), key, explanation))
 
 
-class TensorNotFoundError(KeyError):
+class TensorDoesNotExistError(KeyError):
     def __init__(self, tensor_name: str):
-        super().__init__("Tensor {} not found in dataset.".format(tensor_name))
+        super().__init__("Tensor {} does not exist.".format(tensor_name))
+
+
+class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__("Tensor {} already exists.".format(key))
 
 
 class InvalidKeyTypeError(TypeError):
@@ -98,8 +103,3 @@ class S3DeletionError(Exception):
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
-
-
-class TensorAlreadyExistsError(Exception):
-    def __init__(self, key: str):
-        super().__init__("A tensor with key {} already exists.".format(key))

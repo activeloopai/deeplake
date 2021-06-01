@@ -74,7 +74,6 @@ def write_bytes(
         last_chunk_name = chunk_name
 
     # TODO: encode index_map_entry as array instead of dictionary
-    # TODO: encode shape into the sample's bytes instead of index_map
     index_map_entry = {
         "chunk_names": chunk_names,
         "start_byte": start_byte,
