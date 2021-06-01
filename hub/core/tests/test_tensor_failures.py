@@ -5,9 +5,12 @@ from hub.core.meta.tensor_meta import tensor_meta_from_array
 from hub.core.tensor import add_samples_to_tensor, create_tensor
 
 from hub.tests.common import TENSOR_KEY
-from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError, TensorMetaInvalidValue, TensorMetaMismatchError
-
-
+from hub.util.exceptions import (
+    TensorAlreadyExistsError,
+    TensorDoesNotExistError,
+    TensorMetaInvalidValue,
+    TensorMetaMismatchError,
+)
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
@@ -44,7 +47,9 @@ def test_tensor_already_exists(memory_storage):
 @pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
 @pytest.mark.parametrize("chunk_size", [0, -1, -100])
 def test_invalid_chunk_sizes(memory_storage, chunk_size):
-    create_tensor(TENSOR_KEY, memory_storage, {"dtype": "int", "chunk_size": chunk_size})
+    create_tensor(
+        TENSOR_KEY, memory_storage, {"dtype": "int", "chunk_size": chunk_size}
+    )
 
 
 @pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
