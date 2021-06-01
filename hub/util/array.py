@@ -1,6 +1,4 @@
-import os
 import numpy as np
-
 
 from typing import Tuple
 
@@ -40,3 +38,24 @@ def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray
     if len(array.shape) == 1:
         array = np.expand_dims(array, axis=1)
     return array
+
+
+def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
+    dtype = dtype.lower()
+
+    if "int" in dtype:
+        low = np.iinfo(dtype).min
+        high = np.iinfo(dtype).max
+        return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
+
+    if "float" in dtype:
+        # get float16 because np.random.uniform doesn't support the `dtype` argument.
+        low = np.finfo("float16").min
+        high = np.finfo("float16").max
+        return np.random.uniform(low=low, high=high, size=shape).astype(dtype)
+
+    if "bool" in dtype:
+        a = np.random.uniform(size=shape)
+        return a > 0.5
+
+    raise ValueError("Dtype %s not supported." % dtype)

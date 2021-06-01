@@ -23,7 +23,7 @@ from .flatten import row_wise_to_bytes
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
-    """A tensor exists if at the specified `key` and `storage` there is both a meta file and index map."""
+    """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
 
     meta_key = get_tensor_meta_key(key)
     index_map_key = get_index_map_key(key)

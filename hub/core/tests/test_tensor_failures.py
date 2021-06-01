@@ -27,3 +27,5 @@ def test_shape_length_mismatch(memory_storage):
 
 
 # TODO: failure case where `create_tensor` is not used
+# TODO: failure case where `create_tensor` is used twice for same key
+# TODO: failure case where `chunk_size <= 0`
