@@ -14,7 +14,6 @@ from hub.core.chunk_engine.write import write_array, write_dataset_meta
 from typing import Union, Dict, Optional
 import numpy as np
 import warnings
-import os
 from hub.api.pt import _to_pytorch
 
 

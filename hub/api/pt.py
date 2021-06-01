@@ -1,28 +1,22 @@
-from collections import defaultdict
 import os
 import pickle
+import numpy as np
+from itertools import repeat
+from collections import defaultdict
 from hub.util.keys import get_index_map_key
 from hub.core.chunk_engine.chunker import join_chunks
-from hub.core.storage import S3Provider
-from pathos.pools import ProcessPool
-import numpy as np
 from hub.core.chunk_engine.read import read_tensor_meta
-from itertools import repeat
-from functools import lru_cache
 from multiprocessing import shared_memory, resource_tracker
+from pathos.pools import ProcessPool
 
 
-@lru_cache()
-def s3_client():
-    return S3Provider("s3://snark-test/abc-large-3/")
-
-# TODO make this use shared memory to make on the fly transforms faster
-def transform_data(args):
-    transform, data = args
+# TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
+def transform_data(transform, data):
     return transform(data) if transform else data
 
 
 def shared_memory_clear(chunk_set):
+    """Checks if an existing SharedMemory exists with for any chunk in chunk_set and clears it"""
     for chunk_name in chunk_set:
         try:
             shm = shared_memory.SharedMemory(name=chunk_name)
@@ -32,10 +26,9 @@ def shared_memory_clear(chunk_set):
             pass
 
 
-def _read_chunks(chunk_path):
-    remove_shm_from_resource_tracker()
-    storage = s3_client()
-    out = storage[chunk_path]
+def read_chunks(chunk_path):
+    remove_shared_memory_from_resource_tracker()
+    out = _hub_storage_provider[chunk_path]
     shm = shared_memory.SharedMemory(
         create=True, size=len(out), name=chunk_path.split("/")[-1]
     )
@@ -44,9 +37,8 @@ def _read_chunks(chunk_path):
     return
 
 
-def remove_shm_from_resource_tracker():
+def remove_shared_memory_from_resource_tracker():
     """Monkey-patch multiprocessing.resource_tracker so SharedMemory won't be tracked
-
     More details at: https://bugs.python.org/issue38119
     """
 
@@ -55,15 +47,13 @@ def remove_shm_from_resource_tracker():
             return
         return resource_tracker._resource_tracker.register(self, name, rtype)
 
-    resource_tracker.register = fix_register
-
     def fix_unregister(name, rtype):
         if rtype == "shared_memory":
             return
         return resource_tracker._resource_tracker.unregister(self, name, rtype)
 
+    resource_tracker.register = fix_register
     resource_tracker.unregister = fix_unregister
-
     if "shared_memory" in resource_tracker._CLEANUP_FUNCS:
         del resource_tracker._CLEANUP_FUNCS["shared_memory"]
 
@@ -76,16 +66,22 @@ def _to_pytorch(dataset, transform=None, workers=1):
         raise Exception  # TODO proper exception
         # raise ModuleNotInstalledException("torch")
     global torch
+    global _hub_storage_provider # global to pass to processes, can't serialize it and send as argument
+
+    # TODO, apparently boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
+    # could it be working here as we're only reading data?
+    _hub_storage_provider = dataset.provider
     return TorchDataset(dataset, transform, workers)
 
 
 class TorchDataset:
-    def __init__(self, ds, transform=None, workers=1):
-        self.ds = ds  # TODO disable the memory cache
+    def __init__(self, dataset, transform=None, workers=1):
+        self.dataset = dataset  # TODO disable the memory cache
         self.transform = transform
         self.workers = workers
-        self.storage = self.ds.provider
-        self.map = ProcessPool(nodes=workers).map
+        self.storage = self.dataset.provider
+        self.pool = ProcessPool(nodes=workers)
+        self.map = self.pool.map
         self._load_index_maps()
         self._load_meta()
         self.all_index_value_maps = defaultdict(dict)
@@ -94,18 +90,20 @@ class TorchDataset:
         self.last_sample_processed = -1
         self.all_chunk_sets = {}
         self.shms = []
+        self.combined_bytes=[]
+
 
     def _load_index_maps(self):
         # TODO there should be an easier way in API to do this
         self.all_index_maps = {}
-        for key in self.ds.tensors:
+        for key in self.dataset.tensors:
             index_map = pickle.loads(self.storage[get_index_map_key(key)])
             self.all_index_maps[key] = index_map
 
     def _load_meta(self):
         # TODO there should be an easier way in API to do this
         self.all_meta = {}
-        for key in self.ds.tensors:
+        for key in self.dataset.tensors:
             meta = read_tensor_meta(key, self.storage)
             if meta["dtype"] == "uint16":
                 meta["dtype"] = "int32"
@@ -114,7 +112,7 @@ class TorchDataset:
             self.all_meta[key] = meta
 
     def __len__(self):
-        return len(self.ds)
+        return len(self.dataset)
 
     def _get_data_from_chunks(self, start_ind, key, chunk_set):
         dtype = self.all_meta[key]["dtype"]
@@ -123,7 +121,7 @@ class TorchDataset:
         for chunk_name in chunk_set:
             self.shms.append(shared_memory.SharedMemory(name=chunk_name))
             chunk_map[chunk_name] = self.shms[-1].buf[:]
-        for index in range(start_ind, len(self.ds)):
+        for index in range(start_ind, len(self.dataset)):
             chunks = []
             index_entry = self.all_index_maps[key][index]
             for chunk_name in index_entry["chunk_names"]:
@@ -135,30 +133,31 @@ class TorchDataset:
 
             # TODO replace with function that takes in 'chunks', index_entry and dtype and return np.frombuffer value
             # TODO once we have dynamic shaps probably need to read shape from index_entry
-
             combined_bytes = join_chunks(
                 chunks,
                 index_entry["start_byte"],
                 index_entry["end_byte"],
             )
+            self.combined_bytes.append(combined_bytes)
             index_value_map[index] = np.frombuffer(combined_bytes, dtype=dtype).reshape(
                 index_entry["shape"]
             )
+            combined_bytes.release()
         self.all_index_value_maps[key] = index_value_map
-        self.last_index_map[key] = len(self.ds) - 1
+        self.last_index_map[key] = len(self.dataset) - 1
 
     def _process_samples(self):
         first_index = self.last_sample_processed + 1
-        last_index = min(self.last_index_map[key] for key in self.ds.tensors)
+        last_index = min(self.last_index_map[key] for key in self.dataset.tensors)
         samples = []
         for i in range(first_index, last_index + 1):
             sample = {
-                key: self.all_index_value_maps[key][i] for key in self.ds.tensors
+                key: self.all_index_value_maps[key][i] for key in self.dataset.tensors
             }
             samples.append(sample)
         if self.transform:
             self.processed_samples = self.map(
-                transform_data, zip(repeat(self.transform), samples)
+                transform_data, repeat(self.transform), samples
             )
         else:
             self.processed_samples = samples
@@ -166,7 +165,7 @@ class TorchDataset:
         self.last_sample_processed = last_index
 
     def __getitem__(self, index):
-        for key in self.ds.tensors:
+        for key in self.dataset.tensors:
             if index != 0 and index == self.last_index_map[key] + 1:
                 del self.all_index_value_maps[key]
                 chunk_set = self.all_chunk_sets[key]
@@ -189,7 +188,7 @@ class TorchDataset:
             ]
 
             shared_memory_clear(chunk_set)
-            self.map(_read_chunks, chunk_paths)
+            self.map(read_chunks, chunk_paths)
             self._get_data_from_chunks(index, key, chunk_set)
             self.all_chunk_sets[key] = chunk_set
 
@@ -197,6 +196,15 @@ class TorchDataset:
             self._process_samples()
         return self.processed_samples[index - self.first_sample_processed]
 
+    def clean_up(self):
+        for key in self.dataset.tensors:
+            chunk_set = self.all_chunk_sets[key]
+            shared_memory_clear(chunk_set)
+        
+
+
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
+        self.clean_up()
+
