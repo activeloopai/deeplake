@@ -16,7 +16,7 @@ from multiprocessing import shared_memory, resource_tracker
 def s3_client():
     return S3Provider("s3://snark-test/abc-large-3/")
 
-
+# TODO make this use shared memory to make on the fly transforms faster
 def transform_data(args):
     transform, data = args
     return transform(data) if transform else data
