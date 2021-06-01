@@ -1,11 +1,8 @@
 from typing import Union
 
 import numpy as np
-from hub.core.chunk_engine.read import (
-    read_samples_from_tensor,
-    read_tensor_meta,
-    tensor_exists,
-)
+from hub.core.chunk_engine.read import (read_samples_from_tensor,
+                                        read_tensor_meta, tensor_exists)
 from hub.core.chunk_engine.write import add_samples_to_tensor
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorAlreadyExistsError
@@ -34,16 +31,13 @@ class Tensor:
         self.provider = provider
         self.slice = tensor_slice
 
-        self.load_meta()
-
-    def load_meta(self):
-        meta = read_tensor_meta(self.key, self.provider)
-        self.num_samples = meta["length"]
-        self.shape = meta["max_shape"]
+    @property
+    def meta(self):
+        return read_tensor_meta(self.key, self.provider)
 
     def __len__(self):
         """Return the length of the primary axis"""
-        return self.num_samples
+        return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice]):
         if isinstance(item, int):
@@ -69,7 +63,6 @@ class Tensor:
                 storage=self.provider,
                 batched=True,
             )
-            self.load_meta()
 
     def __iter__(self):
         for i in range(len(self)):
