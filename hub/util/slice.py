@@ -1,3 +1,14 @@
+def len_slice(s):
+    if s.start is None:
+        return None
+    if s.stop is None:
+        return None
+    step = 1
+    if s.step is not None:
+        step = s.step
+    return max((s.stop - s.start) // step, 1)
+
+
 def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
     """Compose two slice objects
 

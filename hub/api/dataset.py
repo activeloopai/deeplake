@@ -5,15 +5,21 @@ from typing import Dict, Optional, Union
 import numpy as np
 from hub.api.tensor import Tensor
 from hub.constants import META_FILENAME
-from hub.core.chunk_engine.read import (read_dataset_meta, read_tensor_meta,
-                                        tensor_exists, tensor_meta_from_array)
-from hub.core.chunk_engine.write import (add_samples_to_tensor,
-                                         write_dataset_meta)
+from hub.core.chunk_engine.read import (
+    read_dataset_meta,
+    read_tensor_meta,
+    tensor_exists,
+    tensor_meta_from_array,
+)
+from hub.core.chunk_engine.write import add_samples_to_tensor, write_dataset_meta
 from hub.core.storage import MemoryProvider
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import (InvalidKeyTypeError, TensorAlreadyExistsError,
-                                 TensorNotFoundError,
-                                 UnsupportedTensorTypeError)
+from hub.util.exceptions import (
+    InvalidKeyTypeError,
+    TensorAlreadyExistsError,
+    TensorNotFoundError,
+    UnsupportedTensorTypeError,
+)
 from hub.util.path import provider_from_path
 from hub.util.slice import merge_slices
 
@@ -87,15 +93,17 @@ class Dataset:
                 raise TensorAlreadyExistsError(tensor_key)
 
             if isinstance(value, np.ndarray):
-                tensor_meta = tensor_meta_from_array(value)
+                batched = True
+
+                tensor_meta = tensor_meta_from_array(value, batched)
 
                 ds_meta = read_dataset_meta(self.provider)
                 ds_meta["tensors"].append(tensor_key)
                 write_dataset_meta(self.provider, ds_meta)
 
-                tensor = Tensor(tensor_key, self.provider, tensor_meta)
+                tensor = Tensor(tensor_key, self.provider, tensor_meta=tensor_meta)
                 self.tensors[tensor_key] = tensor
-                tensor.append(value, batched=True)
+                tensor.append(value, batched=batched)
 
                 return tensor
             else:

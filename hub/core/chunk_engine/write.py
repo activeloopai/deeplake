@@ -46,7 +46,6 @@ def add_samples_to_tensor(
     storage: StorageProvider,
     batched: bool = False,
 ):
-
     """Create a new tensor (if one doesn't already exist), then chunk and write the given array to storage.
 
     For more on chunking, see the `generate_chunks` method.

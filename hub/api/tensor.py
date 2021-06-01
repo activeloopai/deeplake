@@ -1,11 +1,14 @@
 from typing import Union
 
 import numpy as np
-from hub.core.chunk_engine.read import (read_samples_from_tensor,
-                                        read_tensor_meta, tensor_exists)
+from hub.core.chunk_engine.read import (
+    read_samples_from_tensor,
+    read_tensor_meta,
+    tensor_exists,
+)
 from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorAlreadyExistsError
+from hub.util.exceptions import TensorAlreadyExistsError, TensorNotFoundError
 from hub.util.slice import merge_slices
 
 
@@ -14,7 +17,7 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
-        tensor_meta: dict,
+        tensor_meta: dict = None,
         tensor_slice: slice = slice(None),
     ):
         """Initialize a new tensor.
@@ -32,7 +35,12 @@ class Tensor:
         self.provider = provider
         self.slice = tensor_slice
 
-        create_tensor(self.key, self.provider, tensor_meta)
+        if not tensor_exists(self.key, self.provider):
+            if tensor_meta is None:
+                # TODO: docstring
+                raise TensorNotFoundError(self.key)
+
+            create_tensor(self.key, self.provider, tensor_meta)
 
     @property
     def meta(self):
@@ -56,7 +64,7 @@ class Tensor:
 
         if isinstance(item, slice):
             new_slice = merge_slices(self.slice, item)
-            return Tensor(self.key, self.provider, new_slice)
+            return Tensor(self.key, self.provider, tensor_slice=new_slice)
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         sliced_self = self[item]
