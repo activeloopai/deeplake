@@ -1,11 +1,9 @@
-import os
-import shutil
-
 import numpy as np
 import pytest
 from hub.api.dataset import Dataset
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.storage import LocalProvider
+
+from hub.core.meta.dataset_meta import read_dataset_meta
+
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 

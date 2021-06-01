@@ -4,15 +4,12 @@ from typing import Dict, Optional, Union
 
 import numpy as np
 from hub.api.tensor import Tensor
-from hub.constants import META_FILENAME
-from hub.core.chunk_engine.read import (
-    read_dataset_meta,
-    read_tensor_meta,
-    tensor_exists,
-    tensor_meta_from_array,
-)
-from hub.core.chunk_engine.write import add_samples_to_tensor, write_dataset_meta
-from hub.core.storage import MemoryProvider
+
+from hub.core.tensor import tensor_exists
+from hub.core.dataset import dataset_exists
+from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.tensor_meta import tensor_meta_from_array
+
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -59,7 +56,8 @@ class Dataset:
         self.provider = provider or provider_from_path(path)
 
         self.tensors: Dict[str, Tensor] = {}
-        if META_FILENAME in self.provider:
+
+        if dataset_exists(self.provider):
             ds_meta = read_dataset_meta(self.provider)
             for tensor_name in ds_meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.provider)

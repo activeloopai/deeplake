@@ -1,18 +1,15 @@
 from typing import Dict, List, Tuple
 
 import numpy as np
-import pytest
-from hub.core.chunk_engine.read import (read_index_map,
-                                        read_samples_from_tensor,
-                                        read_tensor_meta, tensor_exists,
-                                        tensor_meta_from_array)
-from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
-from hub.core.storage import MemoryProvider, S3Provider
+
+from hub.core.tensor import add_samples_to_tensor, create_tensor, tensor_exists, read_samples_from_tensor
+from hub.core.meta.tensor_meta import read_tensor_meta, tensor_meta_from_array
+from hub.core.meta.index_map import read_index_map
+
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
-from hub.util.keys import get_chunk_key, get_index_map_key
-from hub.util.s3 import has_s3_credentials
+from hub.util.keys import get_chunk_key
 
 
 def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:

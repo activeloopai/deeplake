@@ -11,7 +11,8 @@ MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 
 CHUNKS_FOLDER = "chunks"
-META_FILENAME = "meta.json"
+DATASET_META_FILENAME = "dataset_meta.json"
+TENSOR_META_FILENAME = "tensor_meta.json"
 INDEX_MAP_FILENAME = "index_map.json"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"

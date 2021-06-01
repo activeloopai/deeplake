@@ -1,13 +1,10 @@
 from typing import Union
 
 import numpy as np
-from hub.core.chunk_engine.read import (
-    read_samples_from_tensor,
-    read_tensor_meta,
-    tensor_exists,
-)
-from hub.core.chunk_engine.write import add_samples_to_tensor, create_tensor
+
+from hub.core.tensor import create_tensor, add_samples_to_tensor, read_samples_from_tensor, read_tensor_meta, tensor_exists
 from hub.core.typing import StorageProvider
+
 from hub.util.exceptions import TensorAlreadyExistsError, TensorNotFoundError
 from hub.util.slice import merge_slices
 
@@ -17,8 +14,8 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
-        tensor_meta: dict = None,
         tensor_slice: slice = slice(None),
+        tensor_meta: dict = None,
     ):
         """Initialize a new tensor.
 
@@ -30,6 +27,10 @@ class Tensor:
             key (str): The internal identifier for this tensor.
             provider (StorageProvider): The storage provider for the parent dataset.
             tensor_slice (slice): The slice object restricting the view of this tensor.
+            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
+
+        Raises:
+            TensorNotFoundError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
         self.provider = provider
@@ -37,7 +38,6 @@ class Tensor:
 
         if not tensor_exists(self.key, self.provider):
             if tensor_meta is None:
-                # TODO: docstring
                 raise TensorNotFoundError(self.key)
 
             create_tensor(self.key, self.provider, tensor_meta)
@@ -55,7 +55,7 @@ class Tensor:
         )
 
     def __len__(self):
-        """Return the length of the primary axis"""
+        """Return the length of the primary axis."""
         return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice]):
