@@ -200,7 +200,7 @@ class Transform:
                 )
 
             for key, value in x.items():
-                xs_new.default_dict(key, []).append(value)
+                xs_new.setdefault(key, []).append(value)
         return xs_new
 
     def _pbar(self, show: bool = True):
@@ -276,8 +276,8 @@ class Transform:
                 cur_offset = 0
                 for it in range(i):
                     cur_offset += len_batches[it]
-                slice_ = slice(cur_offset, cur_offset + length)
-                ds[key, slice_] = batch
+                    slice_ = slice(cur_offset, cur_offset + length)
+                    ds[key, slice_] = batch
 
             index_batched_values = list(
                 zip(list(range(len(batched_values))), batched_values)
