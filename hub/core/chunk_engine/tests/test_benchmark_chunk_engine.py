@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from hub.constants import GB
 
-from hub.util.array import get_random_array
+from hub.tests.common import get_random_array
 from hub.core.tensor import (
     read_samples_from_tensor,
     add_samples_to_tensor,

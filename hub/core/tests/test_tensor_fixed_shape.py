@@ -3,12 +3,12 @@ from typing import Tuple
 import numpy as np
 import pytest
 from hub.core.tests.common import run_engine_test
-from hub.util.array import get_random_array
 from hub.tests.common import (
     SHAPE_PARAM,
     parametrize_chunk_sizes,
     parametrize_num_batches,
     parametrize_dtypes,
+    get_random_array
 )
 from hub.core.tests.common import (
     parametrize_all_storages_and_caches,

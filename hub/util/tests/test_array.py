@@ -2,8 +2,7 @@ import pytest
 
 import numpy as np
 
-from hub.util.array import normalize_and_batchify_shape, get_random_array
-from hub.tests.common import parametrize_dtypes
+from hub.util.array import normalize_and_batchify_shape
 
 from typing import Tuple
 
@@ -40,18 +39,3 @@ def test_normalize_and_batchify_shape(
     normal_a = normalize_and_batchify_shape(a, batched)
     assert normal_a.shape == expected_shape
     np.testing.assert_array_equal(a.flatten(), normal_a.flatten())
-
-
-@parametrize_dtypes
-@pytest.mark.parametrize(
-    "shape",
-    (
-        (100, 100),
-        (1,),
-        (1, 1, 1, 1, 1),
-    ),
-)
-def test_get_random_array(shape: Tuple[int], dtype: str):
-    array = get_random_array(shape, dtype)
-    assert array.shape == shape
-    assert array.dtype == dtype
