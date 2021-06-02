@@ -78,7 +78,7 @@ class JPEG(BaseImgCodec):
         Create JPEG compressor from configuration dict.
 
         Args:
-            config Dict: Dictionary with compressor parameters.
+            config (Dict): Dictionary with compressor parameters.
 
         Returns:
             Compressor object with given parameters.
