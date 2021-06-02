@@ -98,7 +98,7 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              brew install zlib libjpeg            	
+              brew install zlib libjpeg webp       	
               sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
   info:
     steps:
