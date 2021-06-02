@@ -65,6 +65,87 @@ class ProviderSizeListMismatch(Exception):
         super().__init__("Ensure that len(size_list) + 1 == len(provider_list)")
 
 
+class LoginException(Exception):
+    def __init__(
+        self,
+        message="Error while logging in, invalid auth token. Please try logging in again.",
+    ):
+        super().__init__(message)
+
+
+# Exceptions encountered while interection with the Hub backend
+class AuthenticationException(Exception):
+    def __init__(self, message="Authentication failed. Please try logging in again."):
+        super().__init__(message)
+
+
+class AuthorizationException(Exception):
+    def __init__(
+        self,
+        message="You are not authorized to access this resource on Activeloop Server.",
+    ):
+        super().__init__(message)
+
+
+class ResourceNotFoundException(Exception):
+    def __init__(
+        self,
+        message="The resource you are looking for was not found. Check if the name or id is correct.",
+    ):
+        super().__init__(message)
+
+
+class BadRequestException(Exception):
+    def __init__(self, message):
+        message = (
+            f"Invalid Request. One or more request parameters is incorrect.\n{message}"
+        )
+        super().__init__(message)
+
+
+class OverLimitException(Exception):
+    def __init__(
+        self,
+        message="You are over the allowed limits for this operation.",
+    ):
+        super().__init__(message)
+
+
+class ServerException(Exception):
+    def __init__(self, message="Internal Activeloop server error."):
+        super().__init__(message)
+
+
+class BadGatewayException(Exception):
+    def __init__(self, message="Invalid response from Activeloop server."):
+        super().__init__(message)
+
+
+class GatewayTimeoutException(Exception):
+    def __init__(self, message="Activeloop server took too long to respond."):
+        super().__init__(message)
+
+
+class WaitTimeoutException(Exception):
+    def __init__(self, message="Timeout waiting for server state update."):
+        super().__init__(message)
+
+
+class LockedException(Exception):
+    def __init__(self, message="The resource is currently locked."):
+        super().__init__(message)
+
+
+class UnexpectedStatusCodeException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class InvalidTokenException(Exception):
+    def __init__(self, message="The authentication token is empty."):
+        super().__init__(message)
+
+
 # TODO Better S3 Exception handling
 class S3GetError(Exception):
     """Catchall for all errors encountered while working getting an object from S3"""
