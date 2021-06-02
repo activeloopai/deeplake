@@ -98,9 +98,7 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              brew install zlib
-              export LDFLAGS="-L/usr/local/opt/zlib/lib"
-              export CPPFLAGS="-I/usr/local/opt/zlib/include"              	
+              brew install zlib libjpeg            	
               sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
   info:
     steps:
