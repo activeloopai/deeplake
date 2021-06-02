@@ -14,7 +14,7 @@ def test_persist_local(local_storage):
 
     ds = Dataset(local_storage.root)
     ds["image"] = np.ones((4, 4096, 4096))
-
+    ds.flush()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
     assert ds_new["image"].shape == (4096, 4096)

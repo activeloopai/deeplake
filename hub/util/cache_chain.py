@@ -32,7 +32,7 @@ def get_cache_chain(storage_list: List[StorageProvider], size_list: List[int]):
     if len(size_list) + 1 != len(storage_list):
         raise ProviderSizeListMismatch
     store = storage_list[-1]
-    for size, cache in reversed(zip(size_list, storage_list[:-1])):
+    for size, cache in zip(reversed(size_list), reversed(storage_list[:-1])):
         store = LRUCache(cache, store, size)
     return store
 
