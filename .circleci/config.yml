@@ -95,7 +95,7 @@ commands:
             brew update
             brew install python@3.8
             brew link --overwrite python@3.8
-      -run:
+      - run:
           name: "Install dependencies"
           command: |
               xcode-select --install
