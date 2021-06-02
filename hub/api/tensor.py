@@ -48,10 +48,6 @@ class Tensor:
 
             create_tensor(self.key, self.provider, tensor_meta)
 
-    @property
-    def meta(self):
-        return read_tensor_meta(self.key, self.provider)
-
     def append(self, array: np.ndarray, batched: bool):
         add_samples_to_tensor(
             array,
@@ -59,6 +55,14 @@ class Tensor:
             storage=self.provider,
             batched=batched,
         )
+
+    @property
+    def meta(self):
+        return read_tensor_meta(self.key, self.provider)
+
+    @property
+    def shape(self):
+        return self.meta["shape"]
 
     def __len__(self):
         """Return the length of the primary axis."""
