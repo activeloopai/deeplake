@@ -100,6 +100,7 @@ commands:
           command: |
               brew install libtiff libjpeg webp little-cms2
               brew install freetype harfbuzz fribidi
+              xcode-select --install
   info:
     steps:
       - run:
