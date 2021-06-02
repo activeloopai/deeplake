@@ -90,12 +90,16 @@ commands:
   get-python:
     steps:
       - run:
-          name: "Install Python and dependencies"
+          name: "Install Python"
           command: |
             brew update
             brew install python@3.8
             brew link --overwrite python@3.8
-            brew install zlib
+      - run:
+          name: "Set env variables"
+          command: |
+            export LDFLAGS="-L/usr/local/opt/zlib/lib"
+            export CPPFLAGS="-I/usr/local/opt/zlib/include"
   info:
     steps:
       - run:
