@@ -45,7 +45,7 @@ class BaseImgCodec(ABC, Codec):
             arr (np.ndarray): Image data to be encoded. Can contain image/s with shapes:
                 (N, M) if image has one channel and single_channel is False,
                 (N, M, 1) if image has one channel and single_channel is True,
-                (N, M, 3) if image has multiple channels. 
+                (N, M, 3) if image has multiple channels.
                 In case of multiple images they should be stacked across the first axis.
 
         Raises:
