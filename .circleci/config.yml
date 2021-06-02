@@ -100,7 +100,7 @@ commands:
           command: |
               brew install libtiff libjpeg webp little-cms2
               brew install freetype harfbuzz fribidi
-              brew install zlib1g-dev
+              brew link zlib --force
   info:
     steps:
       - run:
