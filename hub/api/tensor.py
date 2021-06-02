@@ -5,7 +5,7 @@ import numpy as np
 from hub.core.chunk_engine.read import read_array, read_tensor_meta
 from hub.core.chunk_engine.write import write_array
 from hub.core.typing import StorageProvider
-from hub.util.slice import merge_slices
+from hub.util.index import Index
 
 
 class Tensor:
@@ -13,7 +13,7 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
-        tensor_slice: slice = slice(None),
+        index: Union[int, slice, Index] = None,
     ):
         """Initialize a new tensor.
 
@@ -24,11 +24,12 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             provider (StorageProvider): The storage provider for the parent dataset.
-            tensor_slice (slice): The slice object restricting the view of this tensor.
+            index: The Index object restricting the view of this tensor.
+                Can be an int, slice, or (used internally) an Index object.
         """
         self.key = key
         self.provider = provider
-        self.slice = tensor_slice
+        self.index = Index(index)
 
         self.load_meta()
 
@@ -41,19 +42,14 @@ class Tensor:
         """Return the length of the primary axis"""
         return self.num_samples
 
-    def __getitem__(self, item: Union[int, slice]):
-        if isinstance(item, int):
-            item = slice(item, item + 1)
-
-        if isinstance(item, slice):
-            new_slice = merge_slices(self.slice, item)
-            return Tensor(self.key, self.provider, new_slice)
+    def __getitem__(self, item: Union[int, slice, Index]):
+        return Tensor(self.key, self.provider, self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         sliced_self = self[item]
-        if sliced_self.slice != slice(None):
+        if sliced_self.index.item != slice(None):
             raise NotImplementedError(
-                "Assignment to Tensor slices not currently supported!"
+                "Assignment to Tensor subsections not currently supported!"
             )
         else:
             write_array(
@@ -74,4 +70,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_array(self.key, self.provider, self.slice)
+        return read_array(self.key, self.provider, self.index)
