@@ -1,2 +1,3 @@
 torch
 tensorflow
+pathos
