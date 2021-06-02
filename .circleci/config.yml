@@ -170,6 +170,8 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --cache-chains
+                  
+          parallelism: 10
   codecov-upload:
     steps:
       - codecov/upload:
@@ -253,8 +255,7 @@ jobs:
       - when:
           condition: << parameters.mac-like >>
           steps:
-            - get-python          
-          parallelism: 10
+            - get-python  
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
