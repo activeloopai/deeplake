@@ -18,9 +18,28 @@ class TensorMetaMismatchError(Exception):
         )
 
 
-class TensorNotFoundError(KeyError):
+class TensorMetaMissingKey(Exception):
+    def __init__(self, key: str, meta: dict):
+        super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
+
+
+class TensorMetaInvalidValue(Exception):
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
+
+
+class TensorDoesNotExistError(KeyError):
     def __init__(self, tensor_name: str):
-        super().__init__("Tensor {} not found in dataset.".format(tensor_name))
+        super().__init__("Tensor {} does not exist.".format(tensor_name))
+
+
+class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__("Tensor {} already exists.".format(key))
 
 
 class InvalidKeyTypeError(TypeError):

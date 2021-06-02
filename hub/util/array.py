@@ -1,8 +1,5 @@
-import os
 import numpy as np
 
-
-from typing import Tuple
 
 
 def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray:
