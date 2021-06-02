@@ -75,6 +75,3 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
         return read_array(self.key, self.storage, self.slice)
-
-    def flush(self):
-        self.storage.flush()

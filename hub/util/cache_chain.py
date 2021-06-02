@@ -13,7 +13,7 @@ def get_cache_chain(storage_list: List[StorageProvider], size_list: List[int]):
         storage_list (List[StorageProvider]): The list of storage providers needed in a cache.
             Should have atleast one provider in the list.
             If only one provider, LRU cache isn't created and the provider is returned.
-        size_list (List[int]): The list of sizes of the caches.
+        size_list (List[int]): The list of sizes of the caches in bytes.
             Should have size 1 less than provider_list and specifies size of cache for all providers except the last one.
             The last one is the primary storage and is assumed to have infinite space.
 
@@ -31,10 +31,8 @@ def get_cache_chain(storage_list: List[StorageProvider], size_list: List[int]):
         return storage_list[0]
     if len(size_list) + 1 != len(storage_list):
         raise ProviderSizeListMismatch
-    storage_list.reverse()
-    size_list.reverse()
-    store = storage_list[0]
-    for size, cache in zip(size_list, storage_list[1:]):
+    store = storage_list[-1]
+    for size, cache in reversed(zip(size_list, storage_list[:-1])):
         store = LRUCache(cache, store, size)
     return store
 
@@ -49,9 +47,9 @@ def generate_chain(
 
     Args:
         base_storage (StorageProvider): The underlying actual storage of the Dataset.
-        memory_cache_size (int): The size of the memory cache to be used in MB.
-        local_cache_size (int): The size of the local filesystem cache to be used in MB.
-        path (str): The location of the dataset.
+        memory_cache_size (int): The size of the memory cache to be used in bytes.
+        local_cache_size (int): The size of the local filesystem cache to be used in bytes.
+        path (str): The location of the dataset. If not None, it is used to figure out the folder name where the local cache is stored.
 
     Returns:
         StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive size has been specified for them.
@@ -64,9 +62,9 @@ def generate_chain(
     size_list: List[int] = []
     if memory_cache_size > 0:
         storage_list.append(MemoryProvider(f"cache/{dataset_id}"))
-        size_list.append(memory_cache_size * MB)
+        size_list.append(memory_cache_size)
     if local_cache_size > 0:
         storage_list.append(LocalProvider(f"~/.activeloop/cache/{dataset_id}"))
-        size_list.append(local_cache_size * MB)
+        size_list.append(local_cache_size)
     storage_list.append(base_storage)
     return get_cache_chain(storage_list, size_list)

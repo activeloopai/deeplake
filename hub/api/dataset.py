@@ -1,5 +1,6 @@
 from hub.util.cache_chain import generate_chain
 from hub.constants import (
+    MB,
     META_FILENAME,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
@@ -57,8 +58,10 @@ class Dataset:
                 "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
             )
         base_storage = storage or storage_provider_from_path(path)
+        memory_cache_size_bytes = memory_cache_size * MB
+        local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
-            base_storage, memory_cache_size, local_cache_size, path
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
         self.tensors: Dict[str, Tensor] = {}
         if META_FILENAME in self.storage:
@@ -111,18 +114,26 @@ class Dataset:
             yield self[i]
 
     def flush(self):
-        """Necessary operation after writes if a cache is being used. Clears the cache and sends the data to underlying storage"""
+        """Necessary operation after writes if caches are being used. 
+        Writes all the dirty data from the cache layers (if any) to the underlying storage.
+        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the underlying storage.
+        """
         self.storage.flush()
 
     def clear_cache(self):
-        """Flushes the contents of the cache and deletes contents of all the layers of it.
-        This doesn't clear data from the actual storage.
-        This is useful if you have multiple dataset with memory caches open, taking up too much RAM.
-        Also useful when storage cache is no longer needed for certain datasets and is taking up storage space.
+        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents of all the layers of it.
+        This doesn't delete data from the actual storage.
+        This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
+        Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
         """
-        self.flush()
         if self.storage.hasattr("clear_cache"):
             self.storage.clear_cache()
+
+    def delete(self):
+        """Deletes the entire dataset from the cache layers (if any) and the underlying storage. 
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        """
+        self.storage.clear()
 
     @staticmethod
     def from_path(path: str):

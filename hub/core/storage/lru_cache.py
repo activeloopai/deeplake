@@ -42,8 +42,6 @@ class LRUCache(StorageProvider):
             self.next_storage[key] = self.cache_storage[key]
         self.dirty_keys.clear()
 
-        self.next_storage.flush()
-
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
@@ -108,14 +106,26 @@ class LRUCache(StorageProvider):
                 raise
 
     def clear_cache(self):
-        """Delete the contents of all layers of the cache but not from the final storage."""
+        """Flushes the content of the cache and and then deletes contents of all the layers of it.
+        This doesn't delete data from the actual storage.
+        """
+        self.flush()
+        self.cache_used = 0
+        self.lru_sizes.clear()
+        self.dirty_keys.clear()
         self.cache_storage.clear()
+
         if self.next_storage.hasattr("clear_cache"):
             self.next_storage.clear_cache()
 
     def clear(self):
-        """Deletes all the data from all the layers of the cache and the final storage."""
-        self.actual_storage.clear()
+        """Deletes ALL the data from all the layers of the cache and the actual storage. 
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        """
+        self.cache_used = 0
+        self.lru_sizes.clear()
+        self.dirty_keys.clear()
+        self.cache_storage.clear()
         self.next_storage.clear()
 
     def __len__(self):
