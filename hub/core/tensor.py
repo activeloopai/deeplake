@@ -36,7 +36,7 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     Args:
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
-        meta (dict): Meta for the tensor. Required Properties:
+        meta (dict): Meta for the tensor. Required properties:
             chunk_size (int): Desired length of chunks.
             dtype (str): Datatype for each sample.
 
@@ -61,8 +61,7 @@ def add_samples_to_tensor(
     storage: StorageProvider,
     batched: bool = False,
 ):
-    """Create a new tensor (if one doesn't already exist), then chunk and write the given array to storage.
-
+    """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
 
     Args:

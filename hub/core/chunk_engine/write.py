@@ -35,6 +35,7 @@ def write_bytes(
             end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
     """
 
+    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, index_map, storage)
 
     bllc = 0
