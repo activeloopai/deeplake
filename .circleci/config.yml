@@ -98,7 +98,6 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              xcode-select --install
               brew install libtiff libjpeg webp little-cms2
               brew install freetype harfbuzz fribidi
   info:
