@@ -90,7 +90,6 @@ class TorchDataset:
         self.last_sample_processed = -1
         self.all_chunk_sets = {}
         self.shms = []
-        self.combined_bytes=[]
 
 
     def _load_index_maps(self):
@@ -138,7 +137,6 @@ class TorchDataset:
                 index_entry["start_byte"],
                 index_entry["end_byte"],
             )
-            self.combined_bytes.append(combined_bytes)
             index_value_map[index] = np.frombuffer(combined_bytes, dtype=dtype).reshape(
                 index_entry["shape"]
             )
