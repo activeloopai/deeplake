@@ -124,14 +124,7 @@ class TorchDataset:
                 chunk_set = self.all_chunk_sets[key]
                 shared_memory_clear(chunk_set)
 
-            chunk_set = set()
-            i = index
-            # gets self.workers chunk names to read in parallel
-            while len(chunk_set) < self.workers and i < len(self):
-                chunk_names = self.all_index_maps[key][i]["chunk_names"]
-                chunk_set.update(chunk_names)
-                i += 1
-
+            chunk_set = self.get_chunk_names(index, key)
             shared_memory_clear(chunk_set)
             self.map(read_chunk, chunk_set, repeat(key))
             self.get_data_from_chunks(index, key, chunk_set)
@@ -170,6 +163,16 @@ class TorchDataset:
                 meta["dtype"] = "int64"
             all_meta[key] = meta
         return all_meta
+
+    def get_chunk_names(self, index, key):
+        """Gets chunk names to read in parallel"""
+        chunk_set = set()
+        index_map = self.all_index_maps[key]
+        while len(chunk_set) < self.workers and index < len(self):
+            chunk_names = index_map[index]["chunk_names"]
+            chunk_set.update(chunk_names)
+            index += 1
+        return chunk_set
 
     def np_from_chunk_list(self, index, key, chunks):
         """Takes a list of chunks and returns a numpy array from it"""

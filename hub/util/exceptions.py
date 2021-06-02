@@ -65,6 +65,13 @@ class ProviderSizeListMismatch(Exception):
         super().__init__("Ensure that len(size_list) + 1 == len(provider_list)")
 
 
+class ModuleNotInstalledException(Exception):
+    def __init__(self, module_name):
+        super().__init__(
+            f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
+        )
+
+
 # TODO Better S3 Exception handling
 class S3GetError(Exception):
     """Catchall for all errors encountered while working getting an object from S3"""
