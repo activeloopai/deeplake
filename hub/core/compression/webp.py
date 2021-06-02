@@ -78,6 +78,15 @@ class WEBP(BaseImgCodec):
 
     @classmethod
     def from_config(cls, config):
+        """
+        Create WEBP compressor from configuration dict.
+
+        Args:
+            config Dict: Dictionary with compressor parameters.
+
+        Returns:
+            Compressor object with given parameters.
+        """
         return WEBP(single_channel=config["single_channel"])
 
 

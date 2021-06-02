@@ -74,6 +74,15 @@ class JPEG(BaseImgCodec):
 
     @classmethod
     def from_config(cls, config):
+        """
+        Create JPEG compressor from configuration dict.
+
+        Args:
+            config Dict: Dictionary with compressor parameters.
+
+        Returns:
+            Compressor object with given parameters.
+        """
         return JPEG(single_channel=config["single_channel"])
 
 

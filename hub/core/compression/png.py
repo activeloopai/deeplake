@@ -66,6 +66,15 @@ class PNG(BaseImgCodec):
 
     @classmethod
     def from_config(cls, config):
+        """
+        Create PNG compressor from configuration dict.
+
+        Args:
+            config Dict: Dictionary with compressor parameters.
+
+        Returns:
+            Compressor object with given parameters.
+        """
         return PNG(single_channel=config["single_channel"])
 
 

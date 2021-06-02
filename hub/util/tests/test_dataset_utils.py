@@ -1,5 +1,5 @@
 import pytest
-from hub.api.dataset_utils import get_compressor
+from hub.util.dataset_utils import get_compressor
 from hub.util.exceptions import InvalidCompressor
 
 
