@@ -62,7 +62,8 @@ class Tensor:
 
     @property
     def shape(self):
-        return self.meta["shape"]
+        # TODO: when dynamic arrays are supported, handle `min_shape != max_shape` (right now they're always equal)
+        return self.meta["max_shape"]
 
     def __len__(self):
         """Return the length of the primary axis."""
