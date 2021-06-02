@@ -100,7 +100,8 @@ commands:
           command: |
               brew install zlib
               export LDFLAGS="-L/usr/local/opt/zlib/lib"
-              export CPPFLAGS="-I/usr/local/opt/zlib/include"
+              export CPPFLAGS="-I/usr/local/opt/zlib/include"              	
+              sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
   info:
     steps:
       - run:
