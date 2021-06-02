@@ -179,7 +179,6 @@ def get_compr_input(compressor, shape):
     return compressor, comp_input
 
 
-@pytest.mark.full_benchmark
 @pytest.mark.parametrize("shape", BENCHMARK_SHAPES)
 @pytest.mark.parametrize("compressor", IMG_CODECS + NUM_CODECS)
 def test_encode_speed(benchmark, compressor, shape):
@@ -187,7 +186,6 @@ def test_encode_speed(benchmark, compressor, shape):
     benchmark(compressor.encode, comp_input)
 
 
-@pytest.mark.full_benchmark
 @pytest.mark.parametrize("shape", BENCHMARK_SHAPES)
 @pytest.mark.parametrize("compressor", IMG_CODECS + NUM_CODECS)
 def test_decode_speed(benchmark, compressor, shape):
