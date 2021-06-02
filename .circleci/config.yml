@@ -98,8 +98,8 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              export LDFLAGS="-L/usr/local/opt/zlib/lib"
-              export CPPFLAGS="-I/usr/local/opt/zlib/include"
+              brew install zlib libjpeg webp       	
+              sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
   info:
     steps:
       - run:
@@ -170,6 +170,8 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --cache-chains
+                  
+          parallelism: 10
   codecov-upload:
     steps:
       - codecov/upload:
@@ -253,7 +255,7 @@ jobs:
       - when:
           condition: << parameters.mac-like >>
           steps:
-            - get-python
+            - get-python  
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
