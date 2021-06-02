@@ -98,9 +98,8 @@ commands:
       - run:
           name: "Install dependencies"
           command: |
-              brew install libtiff libjpeg webp little-cms2
-              brew install freetype harfbuzz fribidi
-              brew link zlib --force
+              export LDFLAGS="-L/usr/local/opt/zlib/lib"
+              export CPPFLAGS="-I/usr/local/opt/zlib/include"
   info:
     steps:
       - run:
