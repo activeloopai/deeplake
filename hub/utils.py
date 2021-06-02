@@ -184,7 +184,7 @@ def batchify(iterable, n=1, initial=None):
     ls = len(iterable)
     batches = []
     initial = initial or n
-    batches = [iterable[0 : initial]]
+    batches = [iterable[0:initial]]
     batches += [iterable[ndx : ndx + n] for ndx in range(initial, ls, n)]
     return batches
 
