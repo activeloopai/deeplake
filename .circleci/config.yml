@@ -95,11 +95,12 @@ commands:
             brew update
             brew install python@3.8
             brew link --overwrite python@3.8
-      - run:
-          name: "Set env variables"
+      -run:
+          name: "Install dependencies"
           command: |
-            export LDFLAGS="-L/usr/local/opt/zlib/lib"
-            export CPPFLAGS="-I/usr/local/opt/zlib/include"
+              xcode-select --install
+              brew install libtiff libjpeg webp little-cms2
+              brew install freetype harfbuzz fribidi
   info:
     steps:
       - run:
