@@ -253,7 +253,8 @@ jobs:
       - when:
           condition: << parameters.mac-like >>
           steps:
-            - get-python
+            - get-python          
+          parallelism: 10
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
