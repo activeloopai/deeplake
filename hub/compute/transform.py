@@ -421,12 +421,13 @@ class Transform:
         ds_out = self.create_dataset(url, length=length, token=token, public=public)
 
         def batchify_generator(iterator: Iterable, size: int):
-            i = 0
-            n = len(iterator)
-            while i < n:
-                batch = iterator[i : i + size]
-                i += size
-                yield batch
+            batch = []
+            for el in iterator:
+                batch.append(el)
+                if len(batch) >= size:
+                    yield batch
+                    batch = []
+            yield batch
 
         start = 0
         total = 0
