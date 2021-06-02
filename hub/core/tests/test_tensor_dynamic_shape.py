@@ -1,15 +1,18 @@
-from typing import List, Tuple
+from typing import Tuple, List
 
 import numpy as np
 import pytest
-from hub.constants import GB, MB
-from hub.core.chunk_engine.tests.common import (get_random_array,
-                                                run_engine_test)
-from hub.core.tests.common import (parametrize_all_caches,
-                                   parametrize_all_storages_and_caches)
+from hub.core.tests.common import run_engine_test
+from hub.tests.common import (
+    SHAPE_PARAM,
+    parametrize_chunk_sizes,
+    parametrize_dtypes,
+    get_random_array
+)
+from hub.core.tests.common import (
+    parametrize_all_storages_and_caches,
+)
 from hub.core.typing import StorageProvider
-from hub.tests.common import (NUM_BATCHES, current_test_name,
-                              parametrize_chunk_sizes, parametrize_dtypes)
 
 np.random.seed(1)
 
@@ -61,7 +64,6 @@ def test_unbatched(
 def test_batched(
     shapes: List[Tuple[int]],
     chunk_size: int,
-    num_batches: int,
     dtype: str,
     storage: StorageProvider,
 ):

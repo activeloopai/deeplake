@@ -14,7 +14,6 @@ from hub.core.tests.common import (
     parametrize_all_storages_and_caches,
 )
 from hub.core.typing import StorageProvider
-from hub.tests.common import current_test_name
 
 np.random.seed(1)
 
