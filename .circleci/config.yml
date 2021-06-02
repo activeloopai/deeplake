@@ -95,6 +95,10 @@ commands:
             brew update
             brew install python@3.8
             brew link --overwrite python@3.8
+      - run:
+          name: "Install Dependencies"
+          command: |
+            brew install zlib
   info:
     steps:
       - run:
