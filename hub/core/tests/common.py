@@ -1,3 +1,4 @@
+from hub.util.index import Index
 import pytest
 
 from typing import Dict, List
@@ -151,9 +152,9 @@ def run_engine_test(
         a_in = normalize_and_batchify_shape(a_in, batched=batched)
 
         num_samples = a_in.shape[0]
-        array_slice = slice(sample_count, sample_count + num_samples)
+        index = Index(slice(sample_count, sample_count + num_samples))
         a_out = read_samples_from_tensor(
-            key=key, storage=storage, array_slice=array_slice
+            key=key, storage=storage, index=index
         )
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
