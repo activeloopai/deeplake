@@ -49,7 +49,7 @@ class BaseImgCodec(ABC, Codec):
                 In case of multiple images they should be stacked across the first axis.
 
         Raises:
-            ValueError: If the shape length of input array is
+            InvalidImageDimensions: If the shape length of input array is
                 less than the number of expected dimensions.
 
         Returns:
