@@ -24,8 +24,8 @@ def test_dtype_mismatch(memory_storage):
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
 def test_shape_length_mismatch(memory_storage):
-    a1 = np.arange(100).reshape(3, 15)
-    a2 = np.arange(200).reshape(5, 20, 2)
+    a1 = np.arange(3 * 15).reshape(3, 15)
+    a2 = np.arange(5 * 20 * 2).reshape(5, 20, 2)
     create_tensor(TENSOR_KEY, memory_storage, tensor_meta_from_array(a1, batched=False))
     add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
     add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
