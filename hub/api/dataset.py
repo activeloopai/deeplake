@@ -17,7 +17,7 @@ import warnings
 import os
 
 # Used to distinguish between attributes and items (tensors)
-DATASET_ATTRIBUTES = ["path", "mode", "index", "provider", "tensors"]
+DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "provider", "tensors"]
 
 
 class Dataset:
@@ -31,10 +31,10 @@ class Dataset:
         """Initialize a new or existing dataset.
 
         Note:
-            Entries of `DATASET_ATTRIBUTES` cannot be used as tensor names.
+            Entries of `DATASET_RESERVED_ATTRIBUTES` cannot be used as tensor names.
             This is to distinguish between attributes (like `ds.mode`) and tensors.
 
-            Be sure to keep `DATASET_ATTRIBUTES` up-to-date when changing this class.
+            Be sure to keep `DATASET_RESERVED_ATTRIBUTES` up-to-date when changing this class.
 
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
@@ -106,7 +106,7 @@ class Dataset:
 
     def __setattr__(self, name: str, value):
         """Set the named attribute on the dataset"""
-        if name in DATASET_ATTRIBUTES:
+        if name in DATASET_RESERVED_ATTRIBUTES:
             return super().__setattr__(name, value)
         else:
             return self.__setitem__(name, value)
