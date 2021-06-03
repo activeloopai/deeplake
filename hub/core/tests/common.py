@@ -153,9 +153,7 @@ def run_engine_test(
 
         num_samples = a_in.shape[0]
         index = Index(slice(sample_count, sample_count + num_samples))
-        a_out = read_samples_from_tensor(
-            key=key, storage=storage, index=index
-        )
+        a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)

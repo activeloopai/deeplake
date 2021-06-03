@@ -1,7 +1,6 @@
 import numpy as np
 
 
-
 def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray:
     """Remove all `array.shape` axes with a value of 1 & add a batch dimension if needed.
 

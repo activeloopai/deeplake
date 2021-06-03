@@ -46,7 +46,11 @@ class Tensor:
 
         if tensor_exists(self.key, self.provider):
             if tensor_meta is not None:
-                warnings.warn("Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(self.key))
+                warnings.warn(
+                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
+                        self.key
+                    )
+                )
 
         else:
             if tensor_meta is None:
