@@ -1,20 +1,25 @@
-from hub.constants import META_FILENAME
+import os
+import warnings
+from typing import Dict, Optional, Union
+
+import numpy as np
 from hub.api.tensor import Tensor
+
+from hub.core.tensor import tensor_exists
+from hub.core.dataset import dataset_exists
+from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.tensor_meta import tensor_meta_from_array
+
+from hub.core.typing import StorageProvider
 from hub.util.index import Index
 from hub.util.path import provider_from_path
 from hub.util.exceptions import (
-    TensorNotFoundError,
     InvalidKeyTypeError,
+    TensorAlreadyExistsError,
+    TensorDoesNotExistError,
     UnsupportedTensorTypeError,
 )
-from hub.core.typing import StorageProvider
-from hub.core.storage import MemoryProvider
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.chunk_engine.write import write_array, write_dataset_meta
-from typing import Union, Dict, Optional
-import numpy as np
-import warnings
-import os
+from hub.util.path import provider_from_path
 
 # Used to distinguish between attributes and items (tensors)
 DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "provider", "tensors"]
@@ -60,7 +65,8 @@ class Dataset:
         self.provider = provider or provider_from_path(path)
 
         self.tensors: Dict[str, Tensor] = {}
-        if META_FILENAME in self.provider:
+
+        if dataset_exists(self.provider):
             ds_meta = read_dataset_meta(self.provider)
             for tensor_name in ds_meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.provider)
@@ -74,7 +80,7 @@ class Dataset:
     def __getitem__(self, item: Union[str, int, slice, Index]):
         if isinstance(item, str):
             if item not in self.tensors:
-                raise TensorNotFoundError(item)
+                raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, Index)):
@@ -85,18 +91,23 @@ class Dataset:
 
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
+            tensor_key = item
+
+            if tensor_exists(tensor_key, self.provider):
+                raise TensorAlreadyExistsError(tensor_key)
+
             if isinstance(value, np.ndarray):
-                write_array(
-                    value,
-                    item,
-                    storage=self.provider,
-                    batched=True,
-                )
+                tensor_meta = tensor_meta_from_array(value, batched=True)
+
                 ds_meta = read_dataset_meta(self.provider)
-                ds_meta["tensors"].append(item)
+                ds_meta["tensors"].append(tensor_key)
                 write_dataset_meta(self.provider, ds_meta)
-                self.tensors[item] = Tensor(item, self.provider)
-                return self.tensors[item]
+
+                tensor = Tensor(tensor_key, self.provider, tensor_meta=tensor_meta)
+                self.tensors[tensor_key] = tensor
+                tensor.append(value, batched=True)
+
+                return tensor
             else:
                 raise UnsupportedTensorTypeError(item)
         else:
