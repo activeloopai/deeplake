@@ -1,3 +1,5 @@
+from hub.core.meta.tensor_meta import read_tensor_meta
+from hub.core.tensor import add_samples_to_tensor, create_tensor
 from typing import Tuple, List
 
 import numpy as np
@@ -5,6 +7,7 @@ import pytest
 from hub.core.tests.common import run_engine_test
 from hub.tests.common import (
     SHAPE_PARAM,
+    TENSOR_KEY,
     parametrize_chunk_sizes,
     parametrize_dtypes,
     get_random_array
@@ -27,6 +30,7 @@ UNBATCHED_SHAPES = (
     [(1, 1, 3), (1,), (5,), (3,)],
     [(20, 90), (25, 2), (2, 2), (10, 10, 1)],
     [(3, 28, 24, 1), (2, 22, 25, 1)],
+    [(2, 4,), (3, 4,), (0, 4)],  # simulate bounding boxes where 1 sample has no bbox
 )
 
 # len(BATCHED_SHAPES)[i] must be > 1
@@ -54,23 +58,40 @@ def test_unbatched(
     """
 
     arrays = [get_random_array(shape, dtype) for shape in shapes]
-    run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
+
+    create_tensor(TENSOR_KEY, storage, {"dtype": dtype, "chunk_size": chunk_size})
+
+    for array in arrays:
+        add_samples_to_tensor(array, TENSOR_KEY, storage, batched=False)
+    
+    expected_min_shape = min(shapes)
+    expected_max_shape = max(shapes)
+
+    actual_meta = read_tensor_meta(TENSOR_KEY, storage)
+
+    print(expected_min_shape, expected_max_shape, shapes)
+    print(actual_meta)
+    assert actual_meta["min_shape"] == expected_min_shape
+    assert actual_meta["max_shape"] == expected_max_shape
 
 
-@pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
-@parametrize_chunk_sizes
-@parametrize_dtypes
-@parametrize_all_storages_and_caches
-def test_batched(
-    shapes: List[Tuple[int]],
-    chunk_size: int,
-    dtype: str,
-    storage: StorageProvider,
-):
-    """
-    Samples have DYNAMIC shapes (can have different shapes).
-    Samples are provided WITH a batch axis.
-    """
-
-    arrays = [get_random_array(shape, dtype) for shape in shapes]
-    run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
+# @pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
+# @parametrize_chunk_sizes
+# @parametrize_dtypes
+# @parametrize_all_storages_and_caches
+# def test_batched(
+#     shapes: List[Tuple[int]],
+#     chunk_size: int,
+#     dtype: str,
+#     storage: StorageProvider,
+# ):
+#     """
+#     Samples have DYNAMIC shapes (can have different shapes).
+#     Samples are provided WITH a batch axis.
+#     """
+# 
+#     arrays = [get_random_array(shape, dtype) for shape in shapes]
+#     run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
+# 
+# 
+# # TODO: failure case where adding arrays with different `len(array.shape)`

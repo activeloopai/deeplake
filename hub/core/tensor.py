@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 
 from hub.core.typing import StorageProvider
@@ -83,6 +84,12 @@ def add_samples_to_tensor(
 
     index_map = read_index_map(key, storage)
     tensor_meta = read_tensor_meta(key, storage)
+
+    if "min_shape" not in tensor_meta:
+        tensor_meta["min_shape"] = array.shape[1:]
+    if "max_shape" not in tensor_meta:
+        tensor_meta["max_shape"] = array.shape[1:]
+
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
     # TODO: get the tobytes function from meta
@@ -101,6 +108,7 @@ def add_samples_to_tensor(
         )
 
         index_map_entry["shape"] = sample.shape
+        _update_tensor_meta_shapes(sample.shape, tensor_meta)
         index_map.append(index_map_entry)
 
     tensor_meta["length"] += array_length
@@ -163,7 +171,11 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
         )
 
     # TODO: remove these once dynamic shapes are supported and update docstring
-    if not np.array_equal(tensor_meta["max_shape"], sample_shape):
-        raise NotImplementedError("Dynamic shapes are not supported yet.")
-    if not np.array_equal(tensor_meta["min_shape"], sample_shape):
-        raise NotImplementedError("Dynamic shapes are not supported yet.")
+    # if not np.array_equal(tensor_meta["max_shape"], sample_shape):
+    #     raise NotImplementedError("Dynamic shapes are not supported yet.")
+    # if not np.array_equal(tensor_meta["min_shape"], sample_shape):
+    #     raise NotImplementedError("Dynamic shapes are not supported yet.")
+
+def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
+    tensor_meta["min_shape"] = min(tensor_meta["min_shape"], shape)
+    tensor_meta["max_shape"] = max(tensor_meta["max_shape"], shape)
