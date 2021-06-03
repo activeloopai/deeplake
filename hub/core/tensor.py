@@ -76,6 +76,8 @@ def add_samples_to_tensor(
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 
+    # TODO: split into `append` and `extend`
+
     array = normalize_and_batchify_shape(array, batched=batched)
 
     if not tensor_exists(key, storage):

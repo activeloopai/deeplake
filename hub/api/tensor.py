@@ -49,6 +49,7 @@ class Tensor:
             create_tensor(self.key, self.provider, tensor_meta)
 
     def append(self, array: np.ndarray, batched: bool):
+        # TODO: split into `append`/`extend`
         add_samples_to_tensor(
             array,
             self.key,

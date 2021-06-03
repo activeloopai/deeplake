@@ -91,9 +91,7 @@ class Dataset:
                 raise TensorAlreadyExistsError(tensor_key)
 
             if isinstance(value, np.ndarray):
-                batched = True
-
-                tensor_meta = tensor_meta_from_array(value, batched)
+                tensor_meta = tensor_meta_from_array(value, batched=True)
 
                 ds_meta = read_dataset_meta(self.provider)
                 ds_meta["tensors"].append(tensor_key)
@@ -101,7 +99,7 @@ class Dataset:
 
                 tensor = Tensor(tensor_key, self.provider, tensor_meta=tensor_meta)
                 self.tensors[tensor_key] = tensor
-                tensor.append(value, batched=batched)
+                tensor.append(value, batched=True)
 
                 return tensor
             else:
