@@ -9,6 +9,10 @@ def _filter_ones(shape: Tuple[int]):
     return out
 
 
+def is_shape_empty(shape: Tuple[int]):
+    return np.prod(shape) == 0
+
+
 def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]:
     """Remove all 1s from `shape`. If `batched`, shape[0] is preserved, otherwise a batch axis is prepended.
 

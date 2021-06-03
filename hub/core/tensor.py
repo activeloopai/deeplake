@@ -11,7 +11,7 @@ from hub.core.meta.tensor_meta import (
 )
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
-from hub.util.array import normalize_and_batchify_array_shape
+from hub.util.array import is_shape_empty, normalize_and_batchify_array_shape
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorMetaMismatchError,
@@ -102,7 +102,7 @@ def add_samples_to_tensor(
     for i in range(array_length):
         sample = array[i]
 
-        if _is_array_empty(sample):
+        if is_shape_empty(sample.shape):
             # if sample has a 0 in the shape, no data will be written
             index_map_entry = {"chunk_names": []}
 
@@ -144,10 +144,18 @@ def read_samples_from_tensor(
     meta = read_tensor_meta(key, storage)
     index_map = read_index_map(key, storage)
 
+    dtype = meta["dtype"]
+
     # TODO: read samples in parallel
     samples = []
     for index_entry in index_map[index.to_slice()]:
-        array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
+        shape = index_entry["shape"]
+
+        if is_shape_empty(shape):
+            samples.append(np.zeros(shape, dtype=dtype))
+            break # no need to actually load data (no chunks exist)
+
+        array = sample_from_index_entry(key, storage, index_entry, dtype)
         samples.append(array)
 
     if isinstance(index.item, int):
@@ -190,7 +198,3 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
     tensor_meta["min_shape"] = min(tensor_meta["min_shape"], shape)
     tensor_meta["max_shape"] = max(tensor_meta["max_shape"], shape)
-
-
-def _is_array_empty(array: np.ndarray):
-    return np.prod(array.shape) == 0

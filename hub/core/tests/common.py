@@ -16,7 +16,7 @@ from hub.core.meta.index_map import read_index_map
 
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import normalize_and_batchify_array_shape
+from hub.util.array import normalize_and_batchify_array_shape, normalize_and_batchify_shape
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -151,14 +151,14 @@ def run_engine_test(
 
         a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
 
-        num_samples = a_in.shape[0]
-        index = Index(slice(sample_count, sample_count + num_samples))
+        current_batch_num_samples = a_in.shape[0]
+        index = Index(slice(sample_count, sample_count + current_batch_num_samples))
         a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
-        sample_count += num_samples
+        sample_count += current_batch_num_samples
 
         assert_meta_is_valid(
             meta,
@@ -166,12 +166,18 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": sample_count,
                 "dtype": a_in.dtype.name,
-                "min_shape": tuple(a_in.shape[1:]),
-                "max_shape": tuple(a_in.shape[1:]),
             },
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+
+    norm_shapes = [normalize_and_batchify_shape(array.shape, batched=batched)[1:] for array in arrays]
+    expected_min_shape = min(norm_shapes)
+    expected_max_shape = max(norm_shapes)
+    assert_meta_is_valid(meta, {
+        "min_shape": expected_min_shape,
+        "max_shape": expected_max_shape,
+    })
 
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
