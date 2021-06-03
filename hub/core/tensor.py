@@ -102,13 +102,18 @@ def add_samples_to_tensor(
     for i in range(array_length):
         sample = array[i]
 
-        # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
-        # choose to optimize for.
-        b = memoryview(tobytes(sample))
+        if _is_array_empty(sample):
+            # if sample has a 0 in the shape, no data will be written
+            index_map_entry = {"chunk_names": []}
 
-        index_map_entry = write_bytes(
-            b, key, tensor_meta["chunk_size"], storage, index_map
-        )
+        else:
+            # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
+            # choose to optimize for.
+            b = memoryview(tobytes(sample))
+
+            index_map_entry = write_bytes(
+                b, key, tensor_meta["chunk_size"], storage, index_map
+            )
 
         index_map_entry["shape"] = sample.shape
         _update_tensor_meta_shapes(sample.shape, tensor_meta)
@@ -185,3 +190,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
     tensor_meta["min_shape"] = min(tensor_meta["min_shape"], shape)
     tensor_meta["max_shape"] = max(tensor_meta["max_shape"], shape)
+
+
+def _is_array_empty(array: np.ndarray):
+    return np.prod(array.shape) == 0
