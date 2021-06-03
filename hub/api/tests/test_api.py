@@ -53,6 +53,6 @@ def test_iterate_dataset(ds):
     for idx, sub_ds in enumerate(ds):
         img = sub_ds.image.numpy()
         label = sub_ds.label.numpy()
-        np.testing.assert_array_equal(img, np.ones((1, 28, 28)))
-        assert label.shape == (1, 1)
-        assert label[0] == labels[idx]
+        np.testing.assert_array_equal(img, np.ones((28, 28)))
+        assert label.shape == (1,)
+        assert label == labels[idx]
