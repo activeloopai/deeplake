@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 from hub.core.tests.common import run_engine_test
 from hub.tests.common import (
-    SHAPE_PARAM,
     TENSOR_KEY,
     parametrize_chunk_sizes,
     parametrize_dtypes,
@@ -22,7 +21,7 @@ from hub.core.typing import StorageProvider
 np.random.seed(1)
 
 
-SHAPE_PARAM = "shapes"
+SHAPES_PARAM = "shapes"  # different than `SHAPE_PARAM` (plural)
 
 
 # len(UNBATCHED_SHAPES)[i] must be > 1
@@ -32,7 +31,8 @@ UNBATCHED_SHAPES = (
     [(1, 1, 3), (1,), (5,), (3,)],
     [(20, 90), (25, 2), (2, 2), (10, 10, 1)],
     [(3, 28, 24, 1), (2, 22, 25, 1)],
-    [(2, 4,), (3, 4,), (0, 4)],  # simulate bounding boxes where 1 sample has no bbox
+    # simulate bounding boxes where 1 sample has no bbox
+    [(2, 4,), (3, 4,), (0, 4)],
 )
 
 # len(BATCHED_SHAPES)[i] must be > 1
@@ -44,7 +44,7 @@ BATCHED_SHAPES = (
 )
 
 
-@pytest.mark.parametrize(SHAPE_PARAM, UNBATCHED_SHAPES)
+@pytest.mark.parametrize(SHAPES_PARAM, UNBATCHED_SHAPES)
 @parametrize_chunk_sizes
 @parametrize_dtypes
 @parametrize_all_storages_and_caches
@@ -63,7 +63,7 @@ def test_unbatched(
     run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
 
 
-@pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
+@pytest.mark.parametrize(SHAPES_PARAM, BATCHED_SHAPES)
 @parametrize_chunk_sizes
 @parametrize_dtypes
 @parametrize_all_storages_and_caches

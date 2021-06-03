@@ -153,7 +153,7 @@ def read_samples_from_tensor(
 
         if is_shape_empty(shape):
             samples.append(np.zeros(shape, dtype=dtype))
-            break # no need to actually load data (no chunks exist)
+            break  # no need to actually load data (no chunks exist)
 
         array = sample_from_index_entry(key, storage, index_entry, dtype)
         samples.append(array)
@@ -194,6 +194,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
     #     raise NotImplementedError("Dynamic shapes are not supported yet.")
     # if not np.array_equal(tensor_meta["min_shape"], sample_shape):
     #     raise NotImplementedError("Dynamic shapes are not supported yet.")
+
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
     tensor_meta["min_shape"] = min(tensor_meta["min_shape"], shape)

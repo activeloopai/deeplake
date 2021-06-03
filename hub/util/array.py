@@ -41,7 +41,9 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
 
     if batched:
         if len(shape) < 2:
-            raise ValueError("A shape with length < 2 cannot be batched. Shape: {}".format(shape))
+            raise ValueError(
+                "A shape with length < 2 cannot be considered batched. Shape: {}".format(shape)
+            )
         if len(shape) == 2:
             return shape
 
@@ -53,7 +55,7 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
             norm_sample_shape = shape
         else:
             norm_sample_shape = _filter_ones(shape)
-        
+
         norm_sample_shape = (1,) + norm_sample_shape
 
     return norm_sample_shape

@@ -16,7 +16,10 @@ from hub.core.meta.index_map import read_index_map
 
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import normalize_and_batchify_array_shape, normalize_and_batchify_shape
+from hub.util.array import (
+    normalize_and_batchify_array_shape,
+    normalize_and_batchify_shape,
+)
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -171,13 +174,19 @@ def run_engine_test(
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
-    norm_shapes = [normalize_and_batchify_shape(array.shape, batched=batched)[1:] for array in arrays]
+    norm_shapes = [
+        normalize_and_batchify_shape(array.shape, batched=batched)[1:]
+        for array in arrays
+    ]
     expected_min_shape = min(norm_shapes)
     expected_max_shape = max(norm_shapes)
-    assert_meta_is_valid(meta, {
-        "min_shape": expected_min_shape,
-        "max_shape": expected_max_shape,
-    })
+    assert_meta_is_valid(
+        meta,
+        {
+            "min_shape": expected_min_shape,
+            "max_shape": expected_max_shape,
+        },
+    )
 
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
