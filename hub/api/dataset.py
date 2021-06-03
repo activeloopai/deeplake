@@ -48,7 +48,7 @@ class Dataset:
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
-            UserWarning: Both a path and storage should not be given.
+            UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
         self.slice = ds_slice
