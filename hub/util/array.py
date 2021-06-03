@@ -2,7 +2,9 @@ from typing import Tuple
 import numpy as np
 
 
-def _filter_ones(shape: Tuple[int]):
+def _filter_ones(shape: Tuple):
+    """Removes all 1s from `shape`. If ALL values in `shape` are 1s, `(1,)` is returned as the shape."""
+
     out = tuple([x for x in shape if x != 1])
     if len(out) <= 0:
         return (1,)
@@ -10,6 +12,8 @@ def _filter_ones(shape: Tuple[int]):
 
 
 def is_shape_empty(shape: Tuple[int]):
+    """Returns True if `shape` contains a 0, otherwise False."""
+
     return np.prod(shape) == 0
 
 
@@ -27,13 +31,15 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
         shape = (1, 100, 3)  # batch axis is preserved
 
     Args:
-        array (np.ndarray): Array that will have it's shape normalized/batchified.
-        batched (bool): If True, `array.shape[0]` is assumed to be the batch axis. If False,
-            an axis will be added such that `array.shape[0] == 1`.
+        shape (tuple): Shape that will be normalized/batchified.
+        batched (bool): If True, `shape[0]` is assumed to be the batch axis. If False,
+            an axis will be added such that `shape[0] == 1`.
+
+    Raises:
+        ValueError: If an invalid `shape` is provided.
 
     Returns:
-        np.ndarray: Array with a guarenteed batch dimension. `out_array.shape[1:]` will always be > 1.
-            `out_array.shape[0]` may be >= 1.
+        tuple: All entries in `shape[1:]` will be > 1. Shape will have a guarenteed batch axis (`shape[0] >= 1`).
     """
 
     if len(shape) < 1:
@@ -42,7 +48,9 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
     if batched:
         if len(shape) < 2:
             raise ValueError(
-                "A shape with length < 2 cannot be considered batched. Shape: {}".format(shape)
+                "A shape with length < 2 cannot be considered batched. Shape: {}".format(
+                    shape
+                )
             )
         if len(shape) == 2:
             return shape

@@ -104,7 +104,7 @@ def add_samples_to_tensor(
 
         if is_shape_empty(sample.shape):
             # if sample has a 0 in the shape, no data will be written
-            index_map_entry = {"chunk_names": []}
+            index_map_entry = {"chunk_names": []}  # type: ignore
 
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
@@ -173,7 +173,6 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
     Raises:
         TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
-        NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported.
     """
 
     if tensor_meta["dtype"] != array.dtype.name:
@@ -188,12 +187,6 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
         raise TensorMetaMismatchError(
             "max_shape", tensor_meta["max_shape"], len(sample_shape)
         )
-
-    # TODO: remove these once dynamic shapes are supported and update docstring
-    # if not np.array_equal(tensor_meta["max_shape"], sample_shape):
-    #     raise NotImplementedError("Dynamic shapes are not supported yet.")
-    # if not np.array_equal(tensor_meta["min_shape"], sample_shape):
-    #     raise NotImplementedError("Dynamic shapes are not supported yet.")
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
