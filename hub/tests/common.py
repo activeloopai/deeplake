@@ -57,7 +57,7 @@ def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
         return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
 
     if "float" in dtype:
-        # get float16 because np.random.uniform doesn't support the `dtype` argument.
+        # `low`/`high` have to be `float16` instead of `dtype` because `np.random.uniform` only supports `float16`
         low = np.finfo("float16").min
         high = np.finfo("float16").max
         return np.random.uniform(low=low, high=high, size=shape).astype(dtype)

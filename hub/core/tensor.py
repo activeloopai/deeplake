@@ -1,4 +1,5 @@
 from typing import Tuple
+from hub.util.index import Index
 import numpy as np
 
 from hub.core.typing import StorageProvider
@@ -77,6 +78,8 @@ def add_samples_to_tensor(
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 
+    # TODO: split into `append` and `extend`
+
     array = normalize_and_batchify_shape(array, batched=batched)
 
     if not tensor_exists(key, storage):
@@ -120,14 +123,14 @@ def add_samples_to_tensor(
 def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
-    array_slice: slice = slice(None),
+    index: Index = Index(),
 ) -> np.ndarray:
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
-        array_slice (slice): Slice that represents which samples to read. Default = slice representing all samples.
         storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
+        index (Index): Index that represents which samples to read.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
@@ -138,9 +141,12 @@ def read_samples_from_tensor(
 
     # TODO: read samples in parallel
     samples = []
-    for index_entry in index_map[array_slice]:
+    for index_entry in index_map[index.to_slice()]:
         array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
+
+    if isinstance(index.item, int):
+        samples = samples[0]
 
     return np.array(samples)
 

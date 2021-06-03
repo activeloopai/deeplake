@@ -8,7 +8,7 @@ from hub.tests.common import (
     parametrize_chunk_sizes,
     parametrize_num_batches,
     parametrize_dtypes,
-    get_random_array
+    get_random_array,
 )
 from hub.core.tests.common import (
     parametrize_all_storages_and_caches,

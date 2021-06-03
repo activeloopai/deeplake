@@ -3,7 +3,6 @@ import re
 
 from setuptools import find_packages, setup
 
-# define the main folder (in our case, this is "hub/")
 project_name = "hub"
 
 
@@ -29,7 +28,6 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 
 with open(os.path.join(this_directory, "requirements/common.txt")) as f:
     requirements = f.readlines()
-
 setup(
     name=project_name,
     version=get_property("__version__", project_name),
@@ -38,4 +36,9 @@ setup(
     author_email="shashank@activeloop.ai",
     packages=find_packages(),
     install_requires=requirements,
+    entry_points={
+        "console_scripts": [
+            "hub = hub.cli.commands:cli",
+        ]
+    },
 )

@@ -1,4 +1,5 @@
 from typing import Union
+import warnings
 
 import numpy as np
 
@@ -12,7 +13,7 @@ from hub.core.tensor import (
 from hub.core.typing import StorageProvider
 
 from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
-from hub.util.slice import merge_slices
+from hub.util.index import Index
 
 
 class Tensor:
@@ -20,8 +21,8 @@ class Tensor:
         self,
         key: str,
         provider: StorageProvider,
-        tensor_slice: slice = slice(None),
         tensor_meta: dict = None,
+        index: Union[int, slice, Index] = None,
     ):
         """Initialize a new tensor.
 
@@ -32,23 +33,33 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             provider (StorageProvider): The storage provider for the parent dataset.
-            tensor_slice (slice): The slice object restricting the view of this tensor.
             tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
+            index: The Index object restricting the view of this tensor.
+                Can be an int, slice, or (used internally) an Index object.
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
         self.provider = provider
-        self.slice = tensor_slice
+        self.index = Index(index)
 
-        if not tensor_exists(self.key, self.provider):
+        if tensor_exists(self.key, self.provider):
+            if tensor_meta is not None:
+                warnings.warn(
+                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
+                        self.key
+                    )
+                )
+
+        else:
             if tensor_meta is None:
                 raise TensorDoesNotExistError(self.key)
 
             create_tensor(self.key, self.provider, tensor_meta)
 
     def append(self, array: np.ndarray, batched: bool):
+        # TODO: split into `append`/`extend`
         add_samples_to_tensor(
             array,
             self.key,
@@ -69,19 +80,14 @@ class Tensor:
         """Return the length of the primary axis."""
         return self.meta["length"]
 
-    def __getitem__(self, item: Union[int, slice]):
-        if isinstance(item, int):
-            item = slice(item, item + 1)
-
-        if isinstance(item, slice):
-            new_slice = merge_slices(self.slice, item)
-            return Tensor(self.key, self.provider, tensor_slice=new_slice)
+    def __getitem__(self, item: Union[int, slice, Index]):
+        return Tensor(self.key, self.provider, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         sliced_self = self[item]
-        if sliced_self.slice != slice(None):
+        if sliced_self.index.item != slice(None):
             raise NotImplementedError(
-                "Assignment to Tensor slices not currently supported!"
+                "Assignment to Tensor subsections not currently supported!"
             )
         else:
             if tensor_exists(self.key, self.provider):
@@ -104,4 +110,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.provider, self.slice)
+        return read_samples_from_tensor(self.key, self.provider, self.index)
