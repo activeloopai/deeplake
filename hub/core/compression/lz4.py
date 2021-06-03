@@ -25,10 +25,6 @@ class LZ4(BaseNumCodec):
         acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         self.compressor = numcodecs.lz4.LZ4(acceleration)
 
-    @property
-    def __name__(self):
-        return "lz4"
-
     def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array

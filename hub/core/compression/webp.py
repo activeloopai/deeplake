@@ -31,10 +31,6 @@ class WEBP(BaseImgCodec):
         self.single_channel = kwargs.get("single_channel", webp_args["single_channel"])
         self.quality = kwargs.get("quality", webp_args["quality"])
 
-    @property
-    def __name__(self):
-        return "webp"
-
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
         Encode single image.

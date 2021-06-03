@@ -8,10 +8,6 @@ class NUMPY(BaseNumCodec):
     def __init__(self):
         super().__init__()
 
-    @property
-    def __name__(self):
-        return "numpy"
-
     def encode(self, array: np.ndarray) -> bytes:
         """
         Encode given array

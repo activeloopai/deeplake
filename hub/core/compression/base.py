@@ -3,7 +3,8 @@ from abc import ABC, abstractmethod  # type: ignore
 from numcodecs.abc import Codec  # type: ignore
 
 import numpy as np
-from .constants import WEBP_COMPRESSOR_NAME, IMAGE_SHAPE_ERROR_MESSAGE, MSGPACK
+from .constants import WEBP_COMPRESSOR_NAME, MSGPACK
+from hub.util.exceptions import InvalidImageDimensions
 
 
 class BaseNumCodec(ABC):
@@ -11,16 +12,15 @@ class BaseNumCodec(ABC):
 
     @abstractmethod
     def encode(self, input: np.ndarray) -> bytes:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def decode(self, bytes: bytes) -> Union[np.ndarray, bytes]:
-        pass
+        raise NotImplementedError()
 
     @property
-    @abstractmethod
     def __name__(self):
-        pass
+        return self.__class__.__name__.lower()
 
 
 class BaseImgCodec(ABC, Codec):
@@ -31,7 +31,7 @@ class BaseImgCodec(ABC, Codec):
 
     @property
     def __name__(self):
-        raise NotImplementedError()
+        return self.__class__.__name__.lower()
 
     def encode(self, arr: np.ndarray) -> bytes:
         """
@@ -64,7 +64,7 @@ class BaseImgCodec(ABC, Codec):
         else:
             shape_dims = 3
         if len(arr.shape) < shape_dims:
-            raise ValueError(IMAGE_SHAPE_ERROR_MESSAGE + f"{shape_dims}")
+            raise InvalidImageDimensions(len(arr.shape), shape_dims)
         if len(arr.shape) == shape_dims:
             return MSGPACK.encode(
                 [

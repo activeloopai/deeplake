@@ -25,10 +25,6 @@ class PNG(BaseImgCodec):
 
         self.single_channel = kwargs.get("single_channel", True)
 
-    @property
-    def __name__(self):
-        return "png"
-
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
         Encode single image.

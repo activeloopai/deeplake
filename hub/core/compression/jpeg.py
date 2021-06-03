@@ -31,10 +31,6 @@ class JPEG(BaseImgCodec):
         self.single_channel = kwargs.get("single_channel", jpeg_args["single_channel"])
         self.quality = kwargs.get("quality", jpeg_args["quality"])
 
-    @property
-    def __name__(self):
-        return self.codec_id
-
     def encode_single_image(self, image: np.ndarray) -> bytes:
         """
         Encode single image.

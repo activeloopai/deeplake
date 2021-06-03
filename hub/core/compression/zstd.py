@@ -23,10 +23,6 @@ class ZSTD(BaseNumCodec):
         level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         self.compressor = numcodecs.zstd.Zstd(level)
 
-    @property
-    def __name__(self):
-        return "zstd"
-
     def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array

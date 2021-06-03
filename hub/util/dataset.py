@@ -9,7 +9,7 @@ def get_compressor(
     """Get compressor object
 
     Example:
-        compressor = get_compressor('lz4', acceleration=2)
+        compressor = get_compressor('LZ4', acceleration=2)
 
     Args:
         compressor_name (str): name of the required compressor
@@ -32,4 +32,4 @@ def get_compressor(
         compressor = compression.__dict__[compressor_name]
         return compressor(**kwargs)
     except KeyError:
-        raise InvalidCompressor()
+        raise InvalidCompressor(compression.AVAILABLE_COMPRESSORS)

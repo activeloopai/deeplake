@@ -1,5 +1,4 @@
 from typing import Any
-from hub.core.compression import AVAILABLE_COMPRESSORS
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -165,7 +164,15 @@ class S3ListError(Exception):
 
 
 class InvalidCompressor(Exception):
-    def __init__(self):
+    def __init__(self, available_compressors):
         super().__init__(
-            f"Compressor is not supported. Supported compressions: {AVAILABLE_COMPRESSORS}"
+            f"Compressor is not supported. Supported compressions: {available_compressors}"
+        )
+
+
+class InvalidImageDimensions(Exception):
+    def __init__(self, actual_dims, expected_dims):
+        super().__init__(
+            f"The shape length {actual_dims} of the given array should "
+            f"be greater than the number of expected dimensions {expected_dims}"
         )

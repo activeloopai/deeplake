@@ -26,6 +26,30 @@ LZ4_ACCELERATIONS = (1, 50, 100)
 ZSTD_LEVELS = (1, 11, 22)
 IMG_CODECS = (PNG, JPEG, WEBP)
 NUM_CODECS = (LZ4, ZSTD, NUMPY)
+SHAPE_PARAM = "shape"
+FROM_CONFIG_PARAM = "from_config"
+COMPRESSOR_PARAM = "compressor"
+SINGLE_CHANNEL_PARAM = "single_channel"
+DTYPE_PARAM = "dtype"
+ACCELERATION_PARAM = "acceleration"
+LEVEL_PARAM = "level"
+parametrize_image_shape = pytest.mark.parametrize(SHAPE_PARAM, IMG_ARRAY_SHAPES)
+parametrize_generic_array_shape = pytest.mark.parametrize(
+    SHAPE_PARAM, GENERIC_ARRAY_SHAPES
+)
+parametrize_benchmark_shape = pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_SHAPES)
+paramentrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, ARRAY_DTYPES)
+parametrize_lz4_accelerations = pytest.mark.parametrize(
+    ACCELERATION_PARAM, LZ4_ACCELERATIONS
+)
+parametrize_zstd_levels = pytest.mark.parametrize(LEVEL_PARAM, ZSTD_LEVELS)
+parametrize_compressor = pytest.mark.parametrize(
+    COMPRESSOR_PARAM, IMG_CODECS + NUM_CODECS
+)
+parametrize_single_channel = pytest.mark.parametrize(
+    SINGLE_CHANNEL_PARAM, (False, True)
+)
+parametrize_from_config = pytest.mark.parametrize(FROM_CONFIG_PARAM, (False, True))
 
 
 def check_equals_decoded(
@@ -53,8 +77,8 @@ def check_codec_single_channel(codec: Union[BaseImgCodec]) -> None:
     check_equals_decoded(arr, codec)
 
 
-@pytest.mark.parametrize("from_config", [False, True])
-@pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
+@parametrize_image_shape
+@parametrize_from_config
 def test_png_codec(from_config: bool, shape: tuple) -> None:
     codec = PNG()
     if from_config:
@@ -64,20 +88,20 @@ def test_png_codec(from_config: bool, shape: tuple) -> None:
     check_equals_decoded(arr, codec)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_png_codec_config(single_channel: bool) -> None:
     codec = PNG(single_channel=single_channel)
     check_codec_config(codec)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_png_codec_single_channel(single_channel: bool) -> None:
     codec = PNG(single_channel=single_channel)
     check_codec_single_channel(codec)
 
 
-@pytest.mark.parametrize("from_config", [False, True])
-@pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
+@parametrize_from_config
+@parametrize_image_shape
 def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
     compr = JPEG()
     if from_config:
@@ -87,20 +111,20 @@ def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
     check_equals_decoded(arr, compr)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_jpeg_codec_config(single_channel: bool) -> None:
     codec = JPEG(single_channel=single_channel)
     check_codec_config(codec)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_jpeg_codec_single_channel(single_channel: bool) -> None:
     codec = JPEG(single_channel=single_channel)
     check_codec_single_channel(codec)
 
 
-@pytest.mark.parametrize("from_config", [False, True])
-@pytest.mark.parametrize("shape", IMG_ARRAY_SHAPES)
+@parametrize_from_config
+@parametrize_image_shape
 def test_webp_codec(from_config: bool, shape: tuple) -> None:
     codec = WEBP()
     if from_config:
@@ -110,35 +134,35 @@ def test_webp_codec(from_config: bool, shape: tuple) -> None:
     check_equals_decoded(arr, codec)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_webp_codec_config(single_channel: bool) -> None:
     codec = WEBP(single_channel=single_channel)
     check_codec_config(codec)
 
 
-@pytest.mark.parametrize("single_channel", [False, True])
+@parametrize_single_channel
 def test_webp_codec_single_channel(single_channel: bool) -> None:
     codec = WEBP(single_channel=single_channel)
     check_codec_single_channel(codec)
 
 
-@pytest.mark.parametrize("acceleration", LZ4_ACCELERATIONS)
-@pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
+@parametrize_lz4_accelerations
+@parametrize_generic_array_shape
 def test_lz4(acceleration: int, shape: tuple) -> None:
     codec = LZ4(acceleration=acceleration)
     arr = np.random.rand(*shape)
     check_equals_decoded(arr, codec)
 
 
-@pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
+@parametrize_generic_array_shape
 def test_numpy(shape: tuple) -> None:
     codec = NUMPY()
     arr = np.random.rand(*shape)
     check_equals_decoded(arr, codec)
 
 
-@pytest.mark.parametrize("level", ZSTD_LEVELS)
-@pytest.mark.parametrize("shape", GENERIC_ARRAY_SHAPES)
+@parametrize_zstd_levels
+@parametrize_generic_array_shape
 def test_zstd(level: int, shape: tuple) -> None:
     codec = ZSTD(level=level)
     arr = np.random.rand(*shape)
@@ -151,8 +175,7 @@ def test_base_name():
             super().__init__()
 
     new_compressor = RandomCompressor()
-    with pytest.raises(NotImplementedError):
-        new_compressor.__name__
+    assert new_compressor.__name__ == "randomcompressor"
 
 
 def test_kwargs():
@@ -181,8 +204,8 @@ def get_compr_input(compressor, shape):
 
 @pytest.mark.full_benchmark
 @pytest.mark.benchmark(group="compressor_encode")
-@pytest.mark.parametrize("shape", BENCHMARK_SHAPES)
-@pytest.mark.parametrize("compressor", IMG_CODECS + NUM_CODECS)
+@parametrize_benchmark_shape
+@parametrize_compressor
 def test_encode_speed(benchmark, compressor, shape):
     compressor, comp_input = get_compr_input(compressor, shape)
     benchmark(compressor.encode, comp_input)
@@ -190,8 +213,8 @@ def test_encode_speed(benchmark, compressor, shape):
 
 @pytest.mark.full_benchmark
 @pytest.mark.benchmark(group="compressor_decode")
-@pytest.mark.parametrize("shape", BENCHMARK_SHAPES)
-@pytest.mark.parametrize("compressor", IMG_CODECS + NUM_CODECS)
+@parametrize_benchmark_shape
+@parametrize_compressor
 def test_decode_speed(benchmark, compressor, shape):
     compressor, comp_input = get_compr_input(compressor, shape)
     bytes = compressor.encode(comp_input)
