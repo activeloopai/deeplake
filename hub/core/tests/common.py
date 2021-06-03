@@ -16,7 +16,7 @@ from hub.core.meta.index_map import read_index_map
 
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import normalize_and_batchify_array_shape
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -149,7 +149,7 @@ def run_engine_test(
             batched=batched,
         )
 
-        a_in = normalize_and_batchify_shape(a_in, batched=batched)
+        a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
 
         num_samples = a_in.shape[0]
         index = Index(slice(sample_count, sample_count + num_samples))

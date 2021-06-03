@@ -6,7 +6,7 @@ from typing import Any, Callable
 from hub.core.typing import StorageProvider
 from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.util.keys import get_tensor_meta_key
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
@@ -20,7 +20,7 @@ def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
 def tensor_meta_from_array(
     array: np.ndarray, batched: bool, chunk_size: int = DEFAULT_CHUNK_SIZE
 ) -> dict:
-    array = normalize_and_batchify_shape(array, batched=batched)
+    array = normalize_and_batchify_array_shape(array, batched=batched)
 
     tensor_meta = {
         "chunk_size": chunk_size,

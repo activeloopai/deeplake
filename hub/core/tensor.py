@@ -11,7 +11,7 @@ from hub.core.meta.tensor_meta import (
 )
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import normalize_and_batchify_array_shape
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorMetaMismatchError,
@@ -80,7 +80,7 @@ def add_samples_to_tensor(
 
     # TODO: split into `append` and `extend`
 
-    array = normalize_and_batchify_shape(array, batched=batched)
+    array = normalize_and_batchify_array_shape(array, batched=batched)
 
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
