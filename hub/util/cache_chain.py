@@ -54,17 +54,21 @@ def generate_chain(
     Returns:
         StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive size has been specified for them.
     """
-    dataset_id = str(uuid1())
+    
     if path:
-        dataset_name = path.split("/")[-1]
-        dataset_id = f"{dataset_name}_{dataset_id}"
+        cached_dataset_name = path.replace("://", "_")
+        cached_dataset_name = cached_dataset_name.replace("/", "_")
+        cached_dataset_name = cached_dataset_name.replace("\\", "_")
+    else:
+        cached_dataset_name = str(uuid1())
+
     storage_list: List[StorageProvider] = []
     size_list: List[int] = []
     if memory_cache_size > 0:
-        storage_list.append(MemoryProvider(f"cache/{dataset_id}"))
+        storage_list.append(MemoryProvider(f"cache/{cached_dataset_name}"))
         size_list.append(memory_cache_size)
     if local_cache_size > 0:
-        storage_list.append(LocalProvider(f"~/.activeloop/cache/{dataset_id}"))
+        storage_list.append(LocalProvider(f"~/.activeloop/cache/{cached_dataset_name}"))
         size_list.append(local_cache_size)
     storage_list.append(base_storage)
     return get_cache_chain(storage_list, size_list)
