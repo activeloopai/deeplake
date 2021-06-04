@@ -1,24 +1,28 @@
-from hub.util.cache_chain import generate_chain
-from hub.constants import (
-    MB,
-    META_FILENAME,
-    DEFAULT_MEMORY_CACHE_SIZE,
-    DEFAULT_LOCAL_CACHE_SIZE,
-)
+import os
+import warnings
+from typing import Dict, Optional, Union
+
+import numpy as np
 from hub.api.tensor import Tensor
-from hub.util.slice import merge_slices
-from hub.util.path import storage_provider_from_path
+
+from hub.core.tensor import tensor_exists
+from hub.core.dataset import dataset_exists
+from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.tensor_meta import tensor_meta_from_array
+
+from hub.core.typing import StorageProvider
+from hub.util.index import Index
 from hub.util.exceptions import (
-    TensorNotFoundError,
     InvalidKeyTypeError,
+    TensorAlreadyExistsError,
+    TensorDoesNotExistError,
     UnsupportedTensorTypeError,
 )
-from hub.core.typing import StorageProvider
-from hub.core.chunk_engine.read import read_dataset_meta, read_tensor_meta
-from hub.core.chunk_engine.write import write_array, write_dataset_meta
-from typing import Union, Dict, Optional
-import numpy as np
-import warnings
+from hub.util.cache_chain import generate_chain
+from hub.util.path import storage_provider_from_path
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+# Used to distinguish between attributes and items (tensors)
+DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "storage", "tensors"]
 
 
 class Dataset:
@@ -26,32 +30,37 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        ds_slice: slice = slice(None),
+        index: Union[int, slice, Index] = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
     ):
         """Initialize a new or existing dataset.
 
+        Note:
+            Entries of `DATASET_RESERVED_ATTRIBUTES` cannot be used as tensor names.
+            This is to distinguish between attributes (like `ds.mode`) and tensors.
+
+            Be sure to keep `DATASET_RESERVED_ATTRIBUTES` up-to-date when changing this class.
+
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            ds_slice (slice): The slice object restricting the view of this dataset's tensors.
-                Defaults to slice(None, None, None). Used internally for iteration.
+            index: The Index object restricting the view of this dataset's tensors.
+                Can be an int, slice, or (used internally) an Index object.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
             the data stored by this dataset. If this is specified, the path given is ignored.
-
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.slice = ds_slice
+        self.index = Index(index)
 
         if storage is not None and path:
             warnings.warn(
@@ -64,7 +73,8 @@ class Dataset:
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
         self.tensors: Dict[str, Tensor] = {}
-        if META_FILENAME in self.storage:
+
+        if dataset_exists(self.storage):
             ds_meta = read_dataset_meta(self.storage)
             for tensor_name in ds_meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
@@ -75,39 +85,47 @@ class Dataset:
         """Return the greatest length of tensors"""
         return max(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[slice, str, int]):
-        if isinstance(item, int):
-            item = slice(item, item + 1)
-
+    def __getitem__(self, item: Union[str, int, slice, Index]):
         if isinstance(item, str):
             if item not in self.tensors:
-                raise TensorNotFoundError(item)
+                raise TensorDoesNotExistError(item)
             else:
-                return self.tensors[item][self.slice]
-        elif isinstance(item, slice):
-            new_slice = merge_slices(self.slice, item)
-            return Dataset(mode=self.mode, ds_slice=new_slice, storage=self.storage)
+                return self.tensors[item][self.index]
+        elif isinstance(item, (int, slice, Index)):
+            new_index = self.index[Index(item)]
+            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
         else:
             raise InvalidKeyTypeError(item)
 
     def __setitem__(self, item: Union[slice, str], value):
         if isinstance(item, str):
+            tensor_key = item
+
+            if tensor_exists(tensor_key, self.storage):
+                raise TensorAlreadyExistsError(tensor_key)
+
             if isinstance(value, np.ndarray):
-                write_array(
-                    value,
-                    item,
-                    storage=self.storage,
-                    batched=True,
-                )
+                tensor_meta = tensor_meta_from_array(value, batched=True)
                 ds_meta = read_dataset_meta(self.storage)
-                ds_meta["tensors"].append(item)
+                ds_meta["tensors"].append(tensor_key)
                 write_dataset_meta(self.storage, ds_meta)
-                self.tensors[item] = Tensor(item, self.storage)
-                return self.tensors[item]
+                tensor = Tensor(tensor_key, self.storage, tensor_meta=tensor_meta)
+                self.tensors[tensor_key] = tensor
+                tensor.append(value, batched=True)
+                return tensor
             else:
                 raise UnsupportedTensorTypeError(item)
         else:
             raise InvalidKeyTypeError(item)
+
+    __getattr__ = __getitem__
+
+    def __setattr__(self, name: str, value):
+        """Set the named attribute on the dataset"""
+        if name in DATASET_RESERVED_ATTRIBUTES:
+            return super().__setattr__(name, value)
+        else:
+            return self.__setitem__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
