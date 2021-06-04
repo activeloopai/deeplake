@@ -8,6 +8,7 @@ from hub.core.tensor import (
     add_samples_to_tensor,
     read_samples_from_tensor,
     read_tensor_meta,
+    write_tensor_meta,
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
@@ -58,18 +59,44 @@ class Tensor:
 
             create_tensor(self.key, self.provider, tensor_meta)
 
-    def append(self, array: np.ndarray, batched: bool):
-        # TODO: split into `append`/`extend`
-        add_samples_to_tensor(
-            array,
-            self.key,
-            storage=self.provider,
-            batched=batched,
-        )
+    def extend(self, array: np.ndarray):
+        """Extend tensor by appending elements from a batched numpy array.
+
+        Example:
+            >>> len(image)
+            0
+            >>> image.extend(np.zeros((100, 28, 28, 1)))
+            >>> len(image)
+            100
+
+        Args:
+            array (np.ndarray): The data to add to the tensor.
+                The primary axis should be the number of samples to add.
+        """
+        add_samples_to_tensor(array, self.key, storage=self.provider, batched=True)
+
+    def append(self, array: np.ndarray):
+        """Append a sample to the end of the tensor.
+
+        Example:
+            >>> len(image)
+            0
+            >>> image.append(np.zeros((28, 28, 1)))
+            >>> len(image)
+            1
+
+        Args:
+            array (np.ndarray): The data to add to the tensor.
+        """
+        add_samples_to_tensor(array, self.key, storage=self.provider, batched=False)
 
     @property
     def meta(self):
         return read_tensor_meta(self.key, self.provider)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_tensor_meta(self.key, self.provider, new_meta)
 
     @property
     def shape(self):
@@ -84,21 +111,7 @@ class Tensor:
         return Tensor(self.key, self.provider, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
-        sliced_self = self[item]
-        if sliced_self.index.item != slice(None):
-            raise NotImplementedError(
-                "Assignment to Tensor subsections not currently supported!"
-            )
-        else:
-            if tensor_exists(self.key, self.provider):
-                raise TensorAlreadyExistsError(self.key)
-
-            add_samples_to_tensor(
-                array=value,
-                key=self.key,
-                storage=self.provider,
-                batched=True,
-            )
+        raise NotImplementedError("Tensor update not currently supported!")
 
     def __iter__(self):
         for i in range(len(self)):

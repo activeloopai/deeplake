@@ -10,7 +10,7 @@ from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,
 )
-from hub.core.meta.tensor_meta import tensor_meta_from_array
+from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tests.common import TENSOR_KEY
 from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
@@ -24,9 +24,7 @@ from hub.tests.common_benchmark import (
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
-    create_tensor(
-        actual_key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size)
-    )
+    create_tensor(actual_key, storage, default_tensor_meta(chunk_size))
 
     for a_in in arrays:
         add_samples_to_tensor(

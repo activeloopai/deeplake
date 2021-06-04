@@ -11,7 +11,7 @@ from hub.core.tensor import (
     tensor_exists,
     read_samples_from_tensor,
 )
-from hub.core.meta.tensor_meta import read_tensor_meta, tensor_meta_from_array
+from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
 from hub.core.meta.index_map import read_index_map
 
 from hub.core.typing import StorageProvider
@@ -139,7 +139,7 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
-    create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
+    create_tensor(key, storage, default_tensor_meta(chunk_size))
 
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
@@ -180,7 +180,8 @@ def run_engine_test(
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-    create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
+
+    create_tensor(key, storage, default_tensor_meta(chunk_size))
 
     for a_in in arrays:
         add_samples_to_tensor(

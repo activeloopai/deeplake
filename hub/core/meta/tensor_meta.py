@@ -17,18 +17,19 @@ def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
     return pickle.loads(storage[get_tensor_meta_key(key)])
 
 
-def tensor_meta_from_array(
-    array: np.ndarray, batched: bool, chunk_size: int = DEFAULT_CHUNK_SIZE
-) -> dict:
-    array = normalize_and_batchify_shape(array, batched=batched)
+def default_tensor_meta(chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"):
+    return {"chunk_size": chunk_size, "dtype": dtype, "length": 0}
 
-    tensor_meta = {
-        "chunk_size": chunk_size,
-        "dtype": array.dtype.name,
-        "min_shape": tuple(array.shape[1:]),
-        "max_shape": tuple(array.shape[1:]),
-        # TODO: add entry in meta for which tobytes function is used and handle mismatch versions for this
-    }
+
+def update_tensor_meta_with_array(
+    tensor_meta: dict, array: np.ndarray, batched=False
+) -> dict:
+    shape = array.shape
+    if batched:
+        shape = shape[1:]
+    tensor_meta["dtype"] = str(array.dtype)
+    tensor_meta["min_shape"] = shape
+    tensor_meta["max_shape"] = shape
 
     return tensor_meta
 

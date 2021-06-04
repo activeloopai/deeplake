@@ -8,10 +8,12 @@ from hub.api.tensor import Tensor
 from hub.core.tensor import tensor_exists
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
-from hub.core.meta.tensor_meta import tensor_meta_from_array
+from hub.core.meta.tensor_meta import default_tensor_meta
 
 from hub.core.typing import StorageProvider
 from hub.util.index import Index
+
+from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.util.path import provider_from_path
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -20,9 +22,6 @@ from hub.util.exceptions import (
     UnsupportedTensorTypeError,
 )
 from hub.util.path import provider_from_path
-
-# Used to distinguish between attributes and items (tensors)
-DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "provider", "tensors"]
 
 
 class Dataset:
@@ -34,12 +33,6 @@ class Dataset:
         index: Union[int, slice, Index] = None,
     ):
         """Initialize a new or existing dataset.
-
-        Note:
-            Entries of `DATASET_RESERVED_ATTRIBUTES` cannot be used as tensor names.
-            This is to distinguish between attributes (like `ds.mode`) and tensors.
-
-            Be sure to keep `DATASET_RESERVED_ATTRIBUTES` up-to-date when changing this class.
 
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
@@ -67,11 +60,10 @@ class Dataset:
         self.tensors: Dict[str, Tensor] = {}
 
         if dataset_exists(self.provider):
-            ds_meta = read_dataset_meta(self.provider)
-            for tensor_name in ds_meta["tensors"]:
+            for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.provider)
         else:
-            write_dataset_meta(self.provider, {"tensors": []})
+            self.meta = {"tensors": []}
 
     def __len__(self):
         """Return the greatest length of tensors"""
@@ -89,42 +81,35 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
-    def __setitem__(self, item: Union[slice, str], value):
-        if isinstance(item, str):
-            tensor_key = item
+    def create_tensor(
+        self, name, chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"
+    ):
+        if tensor_exists(name, self.provider):
+            raise TensorAlreadyExistsError(name)
 
-            if tensor_exists(tensor_key, self.provider):
-                raise TensorAlreadyExistsError(tensor_key)
+        ds_meta = self.meta
+        ds_meta["tensors"].append(name)
+        self.meta = ds_meta
 
-            if isinstance(value, np.ndarray):
-                tensor_meta = tensor_meta_from_array(value, batched=True)
+        tensor_meta = default_tensor_meta(chunk_size, dtype)
+        tensor = Tensor(name, self.provider, tensor_meta=tensor_meta)
+        self.tensors[name] = tensor
 
-                ds_meta = read_dataset_meta(self.provider)
-                ds_meta["tensors"].append(tensor_key)
-                write_dataset_meta(self.provider, ds_meta)
-
-                tensor = Tensor(tensor_key, self.provider, tensor_meta=tensor_meta)
-                self.tensors[tensor_key] = tensor
-                tensor.append(value, batched=True)
-
-                return tensor
-            else:
-                raise UnsupportedTensorTypeError(item)
-        else:
-            raise InvalidKeyTypeError(item)
+        return tensor
 
     __getattr__ = __getitem__
-
-    def __setattr__(self, name: str, value):
-        """Set the named attribute on the dataset"""
-        if name in DATASET_RESERVED_ATTRIBUTES:
-            return super().__setattr__(name, value)
-        else:
-            return self.__setitem__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    @property
+    def meta(self):
+        return read_dataset_meta(self.provider)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_dataset_meta(self.provider, new_meta)
 
     @staticmethod
     def from_path(path: str):
