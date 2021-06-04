@@ -8,17 +8,32 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 import pytest
 
 
-def test_persist_local(local_storage):
+def test_persist_local_flush(local_storage):
     if local_storage is None:
         pytest.skip()
 
-    ds = Dataset(local_storage.root)
+    ds = Dataset(local_storage.root, local_cache_size=512)
     ds["image"] = np.ones((4, 4096, 4096))
     ds.flush()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
     assert ds_new["image"].shape == (4096, 4096)
     np.testing.assert_array_equal(ds_new["image"].numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
+
+
+def test_persist_local_clear_cache(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    ds = Dataset(local_storage.root, local_cache_size=512)
+    ds["image"] = np.ones((4, 4096, 4096))
+    ds.cache_clear()
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+    assert ds_new["image"].shape == (4096, 4096)
+    np.testing.assert_array_equal(ds_new["image"].numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
 
 
 @parametrize_all_dataset_storages

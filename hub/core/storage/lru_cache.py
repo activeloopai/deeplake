@@ -119,7 +119,7 @@ class LRUCache(StorageProvider):
             self.next_storage.clear_cache()
 
     def clear(self):
-        """Deletes ALL the data from all the layers of the cache and the actual storage. 
+        """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.cache_used = 0

@@ -101,8 +101,15 @@ def check_cache(cache):
     cache.flush()
     check_cache_state(cache, expected_state=[set(), {FILE_1, FILE_2}, 2, 2, 32 * MB, 2])
 
-    del cache[FILE_1]
-    del cache[FILE_2]
+    cache.clear()
+    check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
+
+    cache[FILE_1] = chunk
+    cache[FILE_2] = chunk
+    cache.clear_cache()
+    check_cache_state(cache, expected_state=[set(), set(), 0, 32, 0, 2])
+
+    cache.clear()
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
