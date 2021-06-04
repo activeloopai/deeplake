@@ -144,6 +144,10 @@ def run_engine_test(
 
     create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
 
+    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[1:]
+    expected_min_shape = first_sample_shape
+    expected_max_shape = first_sample_shape
+
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
             a_in,
@@ -163,30 +167,21 @@ def run_engine_test(
 
         sample_count += current_batch_num_samples
 
+        expected_min_shape = np.minimum(expected_min_shape, a_in.shape[1:])
+        expected_max_shape = np.maximum(expected_max_shape, a_in.shape[1:])
+
         assert_meta_is_valid(
             meta,
             {
                 "chunk_size": chunk_size,
                 "length": sample_count,
                 "dtype": a_in.dtype.name,
+                "min_shape": tuple(expected_min_shape),
+                "max_shape": tuple(expected_max_shape),
             },
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
-
-    norm_shapes = [
-        normalize_and_batchify_shape(array.shape, batched=batched)[1:]
-        for array in arrays
-    ]
-    expected_min_shape = min(norm_shapes)
-    expected_max_shape = max(norm_shapes)
-    assert_meta_is_valid(
-        meta,
-        {
-            "min_shape": expected_min_shape,
-            "max_shape": expected_max_shape,
-        },
-    )
 
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)

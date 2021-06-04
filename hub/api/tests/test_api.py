@@ -82,3 +82,19 @@ def test_iterate_dataset(ds):
         np.testing.assert_array_equal(img, np.ones((28, 28)))
         assert label.shape == (1,)
         assert label == labels[idx]
+
+
+def test_shape_property(memory_ds):
+    memory_ds.image1 = np.ones((32, 28, 28))
+    memory_ds.image1.append(np.ones((16, 33, 9)), batched=True)
+
+    shape1 = memory_ds.image1.shape
+    assert shape1.lower == (28, 9)
+    assert shape1.upper == (33, 28)
+
+    memory_ds.image2 = np.ones((32, 28, 28))
+    memory_ds.image2.append(np.ones((28, 28)), batched=False)
+
+    shape2 = memory_ds.image2.shape
+    assert shape2.lower == (28, 28)
+    assert shape2.upper == (28, 28)

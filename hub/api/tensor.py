@@ -1,3 +1,4 @@
+from hub.util.shape import Shape
 from typing import List, Union
 import warnings
 
@@ -71,8 +72,13 @@ class Tensor:
 
     @property
     def shape(self):
-        # TODO: when dynamic arrays are supported, handle `min_shape != max_shape` (right now they're always equal)
-        return self.meta["max_shape"]
+        ds_meta = self.meta
+        
+        min_shape = ds_meta["min_shape"]
+        max_shape = ds_meta["max_shape"]
+
+        return Shape(min_shape, max_shape)
+
 
     def __len__(self):
         """Return the length of the primary axis."""
@@ -114,5 +120,5 @@ class Tensor:
         """
 
         return read_samples_from_tensor(
-            self.key, self.provider, self.index, aslist=aslist
+            self.key, self.storage, self.index, aslist=aslist
         )

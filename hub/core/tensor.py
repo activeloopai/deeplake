@@ -90,9 +90,9 @@ def add_samples_to_tensor(
     tensor_meta = read_tensor_meta(key, storage)
 
     if "min_shape" not in tensor_meta:
-        tensor_meta["min_shape"] = array.shape[1:]
+        tensor_meta["min_shape"] = tuple(array.shape[1:])
     if "max_shape" not in tensor_meta:
-        tensor_meta["max_shape"] = array.shape[1:]
+        tensor_meta["max_shape"] = tuple(array.shape[1:])
 
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
@@ -210,5 +210,5 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
-    tensor_meta["min_shape"] = min(tensor_meta["min_shape"], shape)
-    tensor_meta["max_shape"] = max(tensor_meta["max_shape"], shape)
+    tensor_meta["min_shape"] = tuple(np.minimum(tensor_meta["min_shape"], shape))
+    tensor_meta["max_shape"] = tuple(np.maximum(tensor_meta["max_shape"], shape))

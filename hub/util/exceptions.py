@@ -1,5 +1,5 @@
 from hub.util.index import Index
-from typing import Any
+from typing import Any, Iterable
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -51,6 +51,19 @@ class DynamicTensorNumpyError(Exception):
                 key, str(index)
             )
         )
+
+
+class InvalidShapeIntervalError(Exception):
+    def __init__(self, message: str, lower: Iterable[int]=None, upper: Iterable[int]=None):
+        s = message
+
+        if lower is not None:
+            s += " lower={}".format(str(lower))
+
+        if upper is not None:
+            s += " upper={}".format(str(upper))
+
+        super().__init__(s)
 
 
 class InvalidKeyTypeError(TypeError):
