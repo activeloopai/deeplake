@@ -32,7 +32,7 @@ class Dataset:
         provider: Optional[StorageProvider] = None,
         index: Union[int, slice, Index] = None,
     ):
-        """Initialize a new or existing dataset.
+        """Initializes a new or existing dataset.
 
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
@@ -84,7 +84,7 @@ class Dataset:
     def create_tensor(
         self, name: str, chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"
     ):
-        """Create a new tensor in this dataset.
+        """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
@@ -127,7 +127,7 @@ class Dataset:
 
     @staticmethod
     def from_path(path: str):
-        """Create a hub dataset from unstructured data.
+        """Creates a hub dataset from unstructured data.
 
         Note:
             This copies the data into hub format.

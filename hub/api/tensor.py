@@ -25,7 +25,7 @@ class Tensor:
         tensor_meta: dict = None,
         index: Union[int, slice, Index] = None,
     ):
-        """Initialize a new tensor.
+        """Initializes a new tensor.
 
         Note:
             This operation does not create a new tensor in the storage provider,
@@ -60,7 +60,7 @@ class Tensor:
             create_tensor(self.key, self.provider, tensor_meta)
 
     def extend(self, array: np.ndarray):
-        """Extend tensor by appending elements from a batched numpy array.
+        """Extends a tensor by appending elements from a batched numpy array.
 
         Example:
             >>> len(image)
@@ -76,7 +76,7 @@ class Tensor:
         add_samples_to_tensor(array, self.key, storage=self.provider, batched=True)
 
     def append(self, array: np.ndarray):
-        """Append a sample to the end of the tensor.
+        """Appends a sample to the end of a tensor.
 
         Example:
             >>> len(image)
@@ -104,7 +104,7 @@ class Tensor:
         return self.meta["max_shape"]
 
     def __len__(self):
-        """Return the length of the primary axis."""
+        """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice, Index]):
@@ -118,7 +118,7 @@ class Tensor:
             yield self[i]
 
     def numpy(self):
-        """Compute the contents of this tensor in numpy format.
+        """Computes the contents of a tensor in numpy format.
 
         Returns:
             A numpy array containing the data represented by this tensor.
