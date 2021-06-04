@@ -75,7 +75,7 @@ def test_compute_fixed_tensor(ds):
 @parametrize_all_dataset_storages
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
-    
+
     a1 = np.ones((32, 28, 28))
     a2 = np.ones((10, 36, 11))
 

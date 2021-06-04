@@ -137,6 +137,7 @@ def read_samples_from_tensor(
 
     Raises:
         DynamicTensorNumpyError: If reading a dynamically-shaped array without `aslist=True`.
+        NotImplementedError: Empty samples (shape contains 0) not implemented.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
@@ -160,7 +161,7 @@ def read_samples_from_tensor(
             is_fixed_shape = False
 
         if is_shape_empty(shape):
-            # TODO: implement support for 0s in shape
+            # TODO: implement support for 0s in shape and update docstring
             raise NotImplementedError("0s in shapes are not supported yet.")
 
         array = sample_from_index_entry(key, storage, index_entry, dtype)
@@ -187,6 +188,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
     Raises:
         TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
+        TensorInvalidSampleShapeError: All samples must have the same dimensionality (`len(sample.shape)`).
     """
 
     if tensor_meta["dtype"] != array.dtype.name:
@@ -197,8 +199,12 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
     expected_shape_len = len(tensor_meta["min_shape"])
     actual_shape_len = len(sample_shape)
     if expected_shape_len != actual_shape_len:
-        raise TensorInvalidSampleShapeError("Sample shape length is expected to be {}, actual length is {}."
-            .format(expected_shape_len, actual_shape_len), sample_shape)
+        raise TensorInvalidSampleShapeError(
+            "Sample shape length is expected to be {}, actual length is {}.".format(
+                expected_shape_len, actual_shape_len
+            ),
+            sample_shape,
+        )
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):

@@ -21,7 +21,7 @@ class TensorMetaMismatchError(Exception):
 
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__("{} Incoming sample shape: {}".format(message, str(shape))) 
+        super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
 
 
 class TensorMetaMissingKey(Exception):

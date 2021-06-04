@@ -3,7 +3,11 @@ import numpy as np
 import pytest
 
 from hub.core.meta.tensor_meta import default_tensor_meta
-from hub.core.tensor import add_samples_to_tensor, create_tensor, read_samples_from_tensor
+from hub.core.tensor import (
+    add_samples_to_tensor,
+    create_tensor,
+    read_samples_from_tensor,
+)
 
 from hub.tests.common import TENSOR_KEY
 from hub.util.exceptions import (
@@ -49,7 +53,9 @@ def test_tensor_already_exists(memory_storage):
 @pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
 @pytest.mark.parametrize("chunk_size", [0, -1, -100])
 def test_invalid_chunk_sizes(memory_storage, chunk_size):
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta(chunk_size=chunk_size))
+    create_tensor(
+        TENSOR_KEY, memory_storage, default_tensor_meta(chunk_size=chunk_size)
+    )
 
 
 @pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
