@@ -1,6 +1,6 @@
 import pytest
 
-from hub.constants import GB
+from hub.constants import MB
 from hub.tests.common_benchmark import (
     parametrize_benchmark_chunk_sizes,
     BENCHMARK_CHUNK_SIZES,
@@ -9,7 +9,7 @@ from hub.core.tests.common import parametrize_all_caches, parametrize_all_storag
 from hub.core.storage.tests.test_storage_provider import KEY  # type: ignore
 
 
-SIMULATED_DATA_SIZES = [1 * GB]
+SIMULATED_DATA_SIZES = [128 * MB]
 
 # caclulate the number of chunks needed for each entry in `SIMULATED_DATA_SIZES`
 NUM_CHUNKS = []

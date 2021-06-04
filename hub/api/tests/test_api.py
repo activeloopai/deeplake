@@ -7,24 +7,39 @@ from hub.core.meta.dataset_meta import read_dataset_meta
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-def test_persist_local(local_storage):
+def test_persist_local_flush(local_storage):
     if local_storage is None:
         pytest.skip()
 
-    ds = Dataset(local_storage.root)
+    ds = Dataset(local_storage.root, local_cache_size=512)
     ds.image = np.ones((4, 4096, 4096))
-
+    ds.flush()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
     assert ds_new.image.shape == (4096, 4096)
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
+
+
+def test_persist_local_clear_cache(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    ds = Dataset(local_storage.root, local_cache_size=512)
+    ds.image = np.ones((4, 4096, 4096))
+    ds.clear_cache()
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+    assert ds_new.image.shape == (4096, 4096)
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
 
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert read_dataset_meta(ds.provider) == {"tensors": []}
+    assert read_dataset_meta(ds.storage) == {"tensors": []}
     ds.image = np.ones((4, 28, 28))
-    assert read_dataset_meta(ds.provider) == {"tensors": ["image"]}
+    assert read_dataset_meta(ds.storage) == {"tensors": ["image"]}
     assert len(ds) == 4
 
 

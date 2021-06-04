@@ -155,13 +155,12 @@ class LocalProvider(StorageProvider):
             DirectoryAtPathException: If a directory is found at the path.
         """
         full_path = os.path.join(self.root, path)
+        full_path = os.path.expanduser(full_path)
         if os.path.isdir(full_path):
             raise DirectoryAtPathException
         return full_path
 
     def clear(self):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
-
-        # much faster than mapper.clear()
         if os.path.exists(self.root):
             shutil.rmtree(self.root)

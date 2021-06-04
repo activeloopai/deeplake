@@ -20,7 +20,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        provider: StorageProvider,
+        storage: StorageProvider,
         tensor_meta: dict = None,
         index: Union[int, slice, Index] = None,
     ):
@@ -32,7 +32,7 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            provider (StorageProvider): The storage provider for the parent dataset.
+            storage (StorageProvider): The storage provider for the parent dataset.
             tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
@@ -41,35 +41,33 @@ class Tensor:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
-        self.provider = provider
+        self.storage = storage
         self.index = Index(index)
 
-        if tensor_exists(self.key, self.provider):
+        if tensor_exists(self.key, self.storage):
             if tensor_meta is not None:
                 warnings.warn(
                     "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
                         self.key
                     )
                 )
-
         else:
             if tensor_meta is None:
                 raise TensorDoesNotExistError(self.key)
-
-            create_tensor(self.key, self.provider, tensor_meta)
+            create_tensor(self.key, self.storage, tensor_meta)
 
     def append(self, array: np.ndarray, batched: bool):
         # TODO: split into `append`/`extend`
         add_samples_to_tensor(
             array,
             self.key,
-            storage=self.provider,
+            storage=self.storage,
             batched=batched,
         )
 
     @property
     def meta(self):
-        return read_tensor_meta(self.key, self.provider)
+        return read_tensor_meta(self.key, self.storage)
 
     @property
     def shape(self):
@@ -81,7 +79,7 @@ class Tensor:
         return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice, Index]):
-        return Tensor(self.key, self.provider, index=self.index[item])
+        return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         sliced_self = self[item]
@@ -90,13 +88,13 @@ class Tensor:
                 "Assignment to Tensor subsections not currently supported!"
             )
         else:
-            if tensor_exists(self.key, self.provider):
+            if tensor_exists(self.key, self.storage):
                 raise TensorAlreadyExistsError(self.key)
 
             add_samples_to_tensor(
                 array=value,
                 key=self.key,
-                storage=self.provider,
+                storage=self.storage,
                 batched=True,
             )
 
@@ -110,4 +108,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.provider, self.index)
+        return read_samples_from_tensor(self.key, self.storage, self.index)
