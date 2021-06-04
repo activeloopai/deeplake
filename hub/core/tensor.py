@@ -6,6 +6,7 @@ from hub.core.typing import StorageProvider
 from hub.core.meta.tensor_meta import (
     read_tensor_meta,
     write_tensor_meta,
+    update_tensor_meta_with_array,
     validate_tensor_meta,
 )
 from hub.core.meta.index_map import read_index_map, write_index_map
@@ -37,9 +38,7 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     Args:
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
-        meta (dict): Meta for the tensor. Required properties:
-            chunk_size (int): Desired length of chunks.
-            dtype (str): Datatype for each sample.
+        meta (dict): Meta for the tensor. For required properties, see `default_tensor_meta`.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
@@ -47,8 +46,6 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
-
-    meta.update({"length": 0})
 
     validate_tensor_meta(meta)
 
@@ -77,15 +74,17 @@ def add_samples_to_tensor(
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 
-    # TODO: split into `append` and `extend`
-
-    array = normalize_and_batchify_shape(array, batched=batched)
-
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
     index_map = read_index_map(key, storage)
     tensor_meta = read_tensor_meta(key, storage)
+
+    array = normalize_and_batchify_shape(array, batched=batched)
+
+    if "min_shape" not in tensor_meta:
+        tensor_meta = update_tensor_meta_with_array(tensor_meta, array, batched=True)
+
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
     # TODO: get the tobytes function from meta
@@ -137,10 +136,12 @@ def read_samples_from_tensor(
         array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
 
-    if isinstance(index.item, int):
-        samples = samples[0]
+    array = np.array(samples)
 
-    return np.array(samples)
+    if isinstance(index.item, int):
+        array = array.squeeze(axis=0)
+
+    return array
 
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
