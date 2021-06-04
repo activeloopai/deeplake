@@ -144,7 +144,7 @@ class Dataset:
         This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
         Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
         """
-        if self.storage.hasattr("clear_cache"):
+        if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
     def delete(self):

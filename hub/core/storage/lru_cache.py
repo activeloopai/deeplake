@@ -115,7 +115,7 @@ class LRUCache(StorageProvider):
         self.dirty_keys.clear()
         self.cache_storage.clear()
 
-        if self.next_storage.hasattr("clear_cache"):
+        if hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
     def clear(self):
