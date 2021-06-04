@@ -21,6 +21,7 @@ from hub.util.exceptions import (
 from hub.util.cache_chain import generate_chain
 from hub.util.path import storage_provider_from_path
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+
 # Used to distinguish between attributes and items (tensors)
 DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "storage", "tensors"]
 
@@ -53,7 +54,7 @@ class Dataset:
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
-            the data stored by this dataset. If this is specified, the path given is ignored.
+                the data stored by this dataset. If this is specified, the path given is ignored.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -132,7 +133,7 @@ class Dataset:
             yield self[i]
 
     def flush(self):
-        """Necessary operation after writes if caches are being used. 
+        """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the underlying storage.
         """
@@ -148,7 +149,7 @@ class Dataset:
             self.storage.clear_cache()
 
     def delete(self):
-        """Deletes the entire dataset from the cache layers (if any) and the underlying storage. 
+        """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.storage.clear()
