@@ -32,11 +32,12 @@ def test_populate_dataset(ds):
     assert len(ds) == 4
     assert len(ds.image) == 4
 
-    ds.image.append(np.ones((28, 28)))
-    assert len(ds.image) == 5
+    for _ in range(10):
+        ds.image.append(np.ones((28, 28)))
+    assert len(ds.image) == 14
 
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
-    assert len(ds.image) == 7
+    assert len(ds.image) == 16
 
     assert ds.meta == {"tensors": ["image"]}
 

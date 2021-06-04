@@ -82,15 +82,23 @@ class Dataset:
             raise InvalidKeyTypeError(item)
 
     def create_tensor(
-        self, name: str, chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"
+        self,
+        name: str,
+        htype: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        dtype: Optional[str] = None,
+        extra_meta: Optional[dict] = None,
     ):
         """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
-            chunk_size (int): The target size for chunks in this tensor.
-            dtype (str): The dtype to use for this tensor.
+            htype (str, optional): The type of the data for the tensor.
+                May also modify the defaults for other parameters.
+            chunk_size (int, optional): The target size for chunks in this tensor.
+            dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
+            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -105,7 +113,7 @@ class Dataset:
         ds_meta["tensors"].append(name)
         self.meta = ds_meta
 
-        tensor_meta = default_tensor_meta(chunk_size, dtype)
+        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
         tensor = Tensor(name, self.provider, tensor_meta=tensor_meta)
         self.tensors[name] = tensor
 

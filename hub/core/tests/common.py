@@ -139,7 +139,7 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
-    create_tensor(key, storage, default_tensor_meta(chunk_size))
+    create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
@@ -181,7 +181,7 @@ def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
 
-    create_tensor(key, storage, default_tensor_meta(chunk_size))
+    create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
     for a_in in arrays:
         add_samples_to_tensor(
