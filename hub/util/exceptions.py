@@ -45,8 +45,12 @@ class TensorAlreadyExistsError(Exception):
 
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index: Index):
-        super().__init__("Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
-            Try setting the parameter `aslist=True`".format(key, str(index)))
+        super().__init__(
+            "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            Try setting the parameter `aslist=True`".format(
+                key, str(index)
+            )
+        )
 
 
 class InvalidKeyTypeError(TypeError):

@@ -138,7 +138,7 @@ def read_samples_from_tensor(
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
         index (Index): Index that represents which samples to read.
-        aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors. 
+        aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
                 If False, a numpy array will be returned (unless shape is dynamic).
 
     Raises:
@@ -161,7 +161,7 @@ def read_samples_from_tensor(
         shape = index_entry["shape"]
 
         # check if all samples are the same shape
-        last_shape = index_entries[i-1]["shape"]
+        last_shape = index_entries[i - 1]["shape"]
         if is_fixed_shape and i > 0 and shape != last_shape:
             is_fixed_shape = False
 
