@@ -4,7 +4,7 @@ from hub.core.storage.provider import StorageProvider
 class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
-    def __init__(self, root):
+    def __init__(self, root=""):
         self.dict = {}
 
     def __getitem__(

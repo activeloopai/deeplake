@@ -2,7 +2,7 @@ from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 import os
 
 
-def provider_from_path(path: str):
+def storage_provider_from_path(path: str):
     """Construct a StorageProvider given a path.
 
     Arguments:

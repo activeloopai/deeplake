@@ -41,7 +41,6 @@ class LRUCache(StorageProvider):
         for key in self.dirty_keys:
             self.next_storage[key] = self.cache_storage[key]
         self.dirty_keys.clear()
-
         self.next_storage.flush()
 
     def __getitem__(self, path: str):
@@ -106,6 +105,29 @@ class LRUCache(StorageProvider):
         except KeyError:
             if not deleted_from_cache:
                 raise
+
+    def clear_cache(self):
+        """Flushes the content of the cache and and then deletes contents of all the layers of it.
+        This doesn't delete data from the actual storage.
+        """
+        self.flush()
+        self.cache_used = 0
+        self.lru_sizes.clear()
+        self.dirty_keys.clear()
+        self.cache_storage.clear()
+
+        if hasattr(self.next_storage, "clear_cache"):
+            self.next_storage.clear_cache()
+
+    def clear(self):
+        """Deletes ALL the data from all the layers of the cache and the actual storage.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        """
+        self.cache_used = 0
+        self.lru_sizes.clear()
+        self.dirty_keys.clear()
+        self.cache_storage.clear()
+        self.next_storage.clear()
 
     def __len__(self):
         """Returns the number of files present in the cache and the underlying storage.

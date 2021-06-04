@@ -21,7 +21,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        provider: StorageProvider,
+        storage: StorageProvider,
         tensor_meta: dict = None,
         index: Union[int, slice, Index] = None,
     ):
@@ -33,7 +33,7 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            provider (StorageProvider): The storage provider for the parent dataset.
+            storage (StorageProvider): The storage provider for the parent dataset.
             tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
@@ -42,22 +42,20 @@ class Tensor:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
-        self.provider = provider
+        self.storage = storage
         self.index = Index(index)
 
-        if tensor_exists(self.key, self.provider):
+        if tensor_exists(self.key, self.storage):
             if tensor_meta is not None:
                 warnings.warn(
                     "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
                         self.key
                     )
                 )
-
         else:
             if tensor_meta is None:
                 raise TensorDoesNotExistError(self.key)
-
-            create_tensor(self.key, self.provider, tensor_meta)
+            create_tensor(self.key, self.storage, tensor_meta)
 
     def extend(self, array: Union[np.ndarray, Iterable[np.ndarray]]):
         """Extends a tensor by appending multiple elements from an iterable.
@@ -75,7 +73,7 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         if isinstance(array, np.ndarray):
-            add_samples_to_tensor(array, self.key, storage=self.provider, batched=True)
+            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
         else:
             for sample in array:
                 self.append(sample)
@@ -93,15 +91,15 @@ class Tensor:
         Args:
             array (np.ndarray): The data to add to the tensor.
         """
-        add_samples_to_tensor(array, self.key, storage=self.provider, batched=False)
+        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
 
     @property
     def meta(self):
-        return read_tensor_meta(self.key, self.provider)
+        return read_tensor_meta(self.key, self.storage)
 
     @meta.setter
     def meta(self, new_meta: dict):
-        write_tensor_meta(self.key, self.provider, new_meta)
+        write_tensor_meta(self.key, self.storage, new_meta)
 
     @property
     def shape(self):
@@ -113,7 +111,7 @@ class Tensor:
         return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice, Index]):
-        return Tensor(self.key, self.provider, index=self.index[item])
+        return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         raise NotImplementedError("Tensor update not currently supported!")
@@ -128,4 +126,4 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.provider, self.index)
+        return read_samples_from_tensor(self.key, self.storage, self.index)

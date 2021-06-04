@@ -150,8 +150,8 @@ def _get_s3_provider(request):
     return _get_storage_provider(request, S3)
 
 
-def _get_dataset(provider: StorageProvider):
-    return Dataset(provider=provider)
+def _get_dataset(storage: StorageProvider):
+    return Dataset(storage=storage)
 
 
 @pytest.fixture
