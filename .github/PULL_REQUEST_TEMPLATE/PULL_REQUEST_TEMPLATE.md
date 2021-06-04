@@ -13,7 +13,7 @@ assignees: ""
 
 - [ ] Have you followed the guidelines in our Contributing document?
 - [ ] Have you checked to ensure there aren't other open [Pull Requests](https://github.com/activeloopai/Hub/pulls) for the same update/change?
-- [ ] Is your [Pull Requests](../../../pulls) linked to an [Issue](../../issues)
+- [ ] Is your [Pull Requests](https://github.com/activeloopai/Hub/pulls) linked to an [Issue](https://github.com/activeloopai/Hub/issues)
 
 
 
