@@ -27,7 +27,7 @@ def test_persist_local_clear_cache(local_storage):
 
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.image = np.ones((4, 4096, 4096))
-    ds.cache_clear()
+    ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
     assert ds_new.image.shape == (4096, 4096)

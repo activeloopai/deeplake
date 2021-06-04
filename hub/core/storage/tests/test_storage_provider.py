@@ -107,7 +107,7 @@ def check_cache(cache):
     cache[FILE_1] = chunk
     cache[FILE_2] = chunk
     cache.clear_cache()
-    check_cache_state(cache, expected_state=[set(), set(), 0, 32, 0, 2])
+    check_cache_state(cache, expected_state=[set(), set(), 0, 2, 0, 2])
 
     cache.clear()
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])

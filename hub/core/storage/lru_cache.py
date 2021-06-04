@@ -41,6 +41,7 @@ class LRUCache(StorageProvider):
         for key in self.dirty_keys:
             self.next_storage[key] = self.cache_storage[key]
         self.dirty_keys.clear()
+        self.next_storage.flush()
 
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
