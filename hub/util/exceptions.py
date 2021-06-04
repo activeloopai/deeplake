@@ -72,7 +72,9 @@ class ModuleNotInstalledException(Exception):
 
 class RequiresHigherPythonVersion(Exception):
     def __init__(self, operation, version):
-        super().__init__(f"Python version >= {version} is required to use '{operation}''.")
+        super().__init__(
+            f"Python version >= {version} is required to use '{operation}''."
+        )
 
 
 # TODO Better S3 Exception handling

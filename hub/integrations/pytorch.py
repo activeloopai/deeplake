@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Callable, List, Set, Dict
+from typing import Any, Callable, List, Optional, Set, Dict
 from hub.util.keys import get_index_map_key
 from hub.core.chunk_engine.chunker import join_chunks
 from hub.core.chunk_engine.read import read_tensor_meta
@@ -68,55 +68,43 @@ class TorchDataset:
 
         self.dataset = dataset  # TODO disable the memory cache
         self._set_globals()
-        self.transform = transform
-        self.workers = workers
+        self.transform: Optional[Callable] = transform
+        self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
 
         # contains meta for each Tensor
-        self.all_meta = self._load_meta()
+        self.all_meta: Dict[str, Dict] = self._load_meta()
 
         # contains index_map for each Tensor
-        self.all_index_maps = self._load_index_maps()
+        self.all_index_maps: Dict[str, List] = self._load_index_maps()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
-        self.all_index_value_maps = defaultdict(dict)
+        self.all_index_value_maps: Dict[str, Dict[int, Any]] = defaultdict(dict)
 
         # tracks last index that was prefetched in the prefetch cache for each Tensor
-        self.last_index_map = {}
+        self.last_index_map: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples = None
+        self.processed_samples: List[Dict] = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all chunks across tensors whose data is currently prefetched
-        self.all_chunk_sets = {}
+        self.all_chunk_sets: Dict[str, Set[str]] = defaultdict(set)
 
         # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
-        self.all_shared_memory = defaultdict(list)
+        self.all_shared_memory: Dict = defaultdict(list)
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index: int):
         for key in self.dataset.tensors:
-            # prefetch cache hit
-            if index in self.all_index_value_maps[key]:
-                continue
+            # prefetch cache miss, fetch data
+            if index not in self.all_index_value_maps[key]:
+                self._prefetch_data(key, index)
 
-            # index exceeded prefetch cache, clear it (and fetch more later)
-            if index != 0 and index == self.last_index_map[key] + 1:
-                del self.all_index_value_maps[key]
-                chunk_names = self.all_chunk_sets[key]
-                _shared_memory_clear(chunk_names)
-
-            chunk_names = self._get_chunk_names(index, key)
-            _shared_memory_clear(chunk_names)
-            self.map(_read_and_store_chunk, chunk_names, repeat(key))
-            self._get_data_from_chunks(index, key, chunk_names)
-            self.all_chunk_sets[key] = chunk_names
-
-        # if processed cache miss, process more samples
+        # processed cache miss, process more samples
         if index > self.processed_range.stop:
             self._process_samples()
         if index == len(self) - 1:  # clean up at the end
@@ -143,7 +131,7 @@ class TorchDataset:
             )
 
         try:
-            from pathos.pools import ProcessPool
+            from pathos.pools import ProcessPool  # type: ignore
         except ModuleNotFoundError:
             raise ModuleNotInstalledException(
                 "'pathos' should be installed to convert the Dataset into pytorch format"
@@ -170,6 +158,19 @@ class TorchDataset:
             all_index_maps[key] = index_map
         return all_index_maps
 
+    def _prefetch_data(self, key: str, index: int):
+        """Prefetches data for the given key, starting from the given index"""
+        # clear data from previous prefetching, before fetching data
+        del self.all_index_value_maps[key]
+        old_chunk_names = self.all_chunk_sets[key]
+        _shared_memory_clear(old_chunk_names)
+
+        chunk_names = self._get_chunk_names(index, key)
+        _shared_memory_clear(chunk_names)
+        self.map(_read_and_store_chunk, chunk_names, repeat(key))
+        self._get_data_from_chunks(index, key, chunk_names)
+        self.all_chunk_sets[key] = chunk_names
+
     def _load_meta(self):
         """Loads meta for all Tensors into memory"""
         # TODO there should be an easier way in API to do this
@@ -186,7 +187,7 @@ class TorchDataset:
 
     def _get_chunk_names(self, index: int, key: str):
         """Gets chunk names for elements starting from index to read in parallel"""
-        chunk_names = set()
+        chunk_names: Set[str] = set()
         index_map = self.all_index_maps[key]
         while len(chunk_names) < self.workers and index < len(self):
             chunks = index_map[index]["chunk_names"]
