@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Callable, List, Set
+from typing import Callable, List, Set, Dict
 from pathos.pools import ProcessPool
 from multiprocessing import resource_tracker
 from multiprocessing.shared_memory import SharedMemory
@@ -13,8 +13,8 @@ from hub.core.chunk_engine.read import read_tensor_meta
 from hub.util.exceptions import ModuleNotInstalledException
 
 # TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
-def _apply_transform(transform: Callable, sample):
-    """Used to apply transforms to a single samples"""
+def _apply_transform(transform: Callable, sample: Dict):
+    """Used to apply transforms to a single sample"""
     return transform(sample) if transform else sample
 
 
@@ -63,25 +63,16 @@ def remove_shared_memory_from_resource_tracker():
 
 
 def _to_pytorch(dataset, transform: Callable = None, workers: int = 1):
-    try:
-        import torch
-    except ModuleNotFoundError:
-        raise ModuleNotInstalledException("torch")
-    global torch
-    global _hub_storage_provider  # global to pass to processes, not possible to serialize and send as argument
-
-    # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
-    # could it be working here as we're only reading data?
-    _hub_storage_provider = dataset.provider
     return TorchDataset(dataset, transform, workers)
 
 
 class TorchDataset:
     def __init__(self, dataset, transform: Callable = None, workers: int = 1):
+
         self.dataset = dataset  # TODO disable the memory cache
+        self._set_globals()
         self.transform = transform
         self.workers = workers
-        self.storage = self.dataset.provider
         self.map = ProcessPool(nodes=workers).map
 
         # contains meta for each Tensor
@@ -131,21 +122,35 @@ class TorchDataset:
         # if processed cache miss, process more samples
         if index > self.processed_range.stop:
             self._process_samples()
+        if index == len(self) - 1:  # clean up at the end
+            self._shared_memory_clean_up()
         return self.processed_samples[index - self.processed_range.start]
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
-        if len(self) > 0:
-            self._shared_memory_clean_up()
 
     # helper functions
+
+    def _set_globals(self):
+        """Sets the global values for torch and storage provider"""
+        global torch
+        try:
+            import torch
+        except ModuleNotFoundError:
+            raise ModuleNotInstalledException("torch")
+        global _hub_storage_provider  # global to pass to processes, not possible to serialize and send
+
+        # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
+        # could it be working here as we're only reading data?
+        _hub_storage_provider = self.dataset.provider
+
     def _load_index_maps(self):
         """Loads index maps for all Tensors into memory"""
         # TODO there should be an easier way in API to do this
         all_index_maps = {}
         for key in self.dataset.tensors:
-            index_map = pickle.loads(self.storage[get_index_map_key(key)])
+            index_map = pickle.loads(_hub_storage_provider[get_index_map_key(key)])
             all_index_maps[key] = index_map
         return all_index_maps
 
@@ -155,7 +160,7 @@ class TorchDataset:
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.dataset.tensors:
-            meta = read_tensor_meta(key, self.storage)
+            meta = read_tensor_meta(key, _hub_storage_provider)
             if meta["dtype"] == "uint16":
                 meta["dtype"] = "int32"
             elif meta["dtype"] in ["uint32", "uint64"]:
