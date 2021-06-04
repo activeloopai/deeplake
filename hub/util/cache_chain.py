@@ -54,7 +54,7 @@ def generate_chain(
     Returns:
         StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive size has been specified for them.
     """
-    
+
     if path:
         cached_dataset_name = path.replace("://", "_")
         cached_dataset_name = cached_dataset_name.replace("/", "_")
