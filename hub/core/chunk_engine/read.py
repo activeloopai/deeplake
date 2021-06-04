@@ -1,61 +1,48 @@
 import os
-import pickle
+from typing import List, Optional
 import numpy as np
 
-from .chunker import join_chunks
+from hub.util.keys import get_index_map_key
+from hub.util.index import Index
 
-from hub import constants
-from hub.util.keys import get_meta_key, get_index_map_key
-
+import numpy as np
 from hub.core.typing import StorageProvider
-from typing import Callable, List, Union
 
 
-def read_tensor_meta(key: str, storage: StorageProvider):
-    return pickle.loads(storage[get_meta_key(key)])
-
-
-def read_dataset_meta(storage: StorageProvider):
-    return pickle.loads(storage[constants.META_FILENAME])
-
-
-def read_array(
-    key: str,
-    storage: StorageProvider,
-    array_slice: slice = slice(None),
+def sample_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict, dtype: str
 ) -> np.ndarray:
-    """Read and join chunks into an array from storage.
+    """Get the unchunked sample from a single `index_map` entry."""
 
-    Args:
-        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
-        array_slice (slice): Slice that represents which samples to read. Default = slice representing all samples.
-        storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
+    b = bytearray()
+    for chunk_name in index_entry["chunk_names"]:
+        chunk_key = os.path.join(key, "chunks", chunk_name)
+        last_b_len = len(b)
+        b.extend(storage[chunk_key])
 
-    Returns:
-        np.ndarray: Array containing the sample(s) in the `array_slice` slice.
-    """
+    start_byte = index_entry["start_byte"]
+    end_byte = last_b_len + index_entry["end_byte"]
 
-    # TODO: don't use pickle
-    meta = read_tensor_meta(key, storage)
-    index_map = pickle.loads(storage[get_index_map_key(key)])
+    return array_from_buffer(
+        memoryview(b),
+        dtype,
+        index_entry["shape"],
+        start_byte,
+        end_byte,
+    )
 
-    # TODO: read samples in parallel
-    samples = []
-    for index_entry in index_map[array_slice]:
-        chunks = []
-        for chunk_name in index_entry["chunk_names"]:
-            chunk_key = os.path.join(key, "chunks", chunk_name)
-            chunk = storage[chunk_key]
 
-            chunks.append(chunk)
+def array_from_buffer(
+    b: memoryview,
+    dtype: str,
+    shape: tuple = None,
+    start_byte: int = 0,
+    end_byte: Optional[int] = None,
+) -> np.ndarray:
+    """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all bytes are used."""
 
-        combined_bytes = join_chunks(
-            chunks,
-            index_entry["start_byte"],
-            index_entry["end_byte"],
-        )
-
-        out_array = np.frombuffer(combined_bytes, dtype=meta["dtype"])
-        samples.append(out_array.reshape(index_entry["shape"]))
-
-    return np.array(samples)
+    partial_b = b[start_byte:end_byte]
+    array = np.frombuffer(partial_b, dtype=dtype)
+    if shape is not None:
+        array = array.reshape(shape)
+    return array

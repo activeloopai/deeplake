@@ -2,32 +2,37 @@ from typing import Tuple
 
 import numpy as np
 import pytest
-from hub.constants import GB, MB
-from hub.core.chunk_engine import read_array, write_array
+from hub.constants import GB
+
+from hub.tests.common import get_random_array
+from hub.core.tensor import (
+    read_samples_from_tensor,
+    add_samples_to_tensor,
+    create_tensor,
+)
+from hub.core.meta.tensor_meta import tensor_meta_from_array
+from hub.core.tests.common import TENSOR_KEY
+from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
-    parametrize_benchmark_shapes,
     parametrize_benchmark_chunk_sizes,
     parametrize_benchmark_dtypes,
     parametrize_benchmark_num_batches,
+    parametrize_benchmark_shapes,
 )
-from hub.core.chunk_engine.tests.common import (
-    get_random_array,
-    run_engine_test,
-    TENSOR_KEY,
-)
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
-from hub.core.typing import StorageProvider
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
+    create_tensor(
+        actual_key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size)
+    )
+
     for a_in in arrays:
-        write_array(
-            a_in,
-            actual_key,
-            chunk_size,
-            storage,
+        add_samples_to_tensor(
+            array=a_in,
+            key=actual_key,
+            storage=storage,
             batched=batched,
         )
 
@@ -38,7 +43,7 @@ def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
 
 def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
     """
-    Benchmark `write_array`.
+    Benchmark `add_samples_to_tensor`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
@@ -65,12 +70,12 @@ def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
 
 
 def single_benchmark_read(key, storage):
-    read_array(key, storage)
+    read_samples_from_tensor(key, storage)
 
 
 def benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage):
     """
-    Benchmark `read_array`.
+    Benchmark `read_samples_from_tensor`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
@@ -87,71 +92,40 @@ def benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage):
     storage.clear()
 
 
-@pytest.mark.benchmark(group="chunk_engine_write_with_caches")
+@pytest.mark.benchmark(group="chunk_engine_write_memory")
 @parametrize_benchmark_shapes
 @parametrize_benchmark_num_batches
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_caches
-def test_write_with_caches(
+def test_write_memory(
     benchmark,
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: StorageProvider,
 ):
-    benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage)
+    benchmark_write(
+        benchmark=benchmark,
+        shape=shape,
+        dtype=dtype,
+        chunk_size=chunk_size,
+        num_batches=num_batches,
+        storage=memory_storage,
+    )
 
 
-@pytest.mark.full_benchmark
-@pytest.mark.benchmark(group="chunk_engine_write_without_caches")
+@pytest.mark.benchmark(group="chunk_engine_read_memory")
 @parametrize_benchmark_shapes
 @parametrize_benchmark_num_batches
 @parametrize_benchmark_chunk_sizes
 @parametrize_benchmark_dtypes
-@parametrize_all_storages
-def test_write_without_caches(
+def test_read_memory(
     benchmark,
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: StorageProvider,
 ):
-    benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage)
-
-
-@pytest.mark.benchmark(group="chunk_engine_read_with_caches")
-@parametrize_benchmark_shapes
-@parametrize_benchmark_num_batches
-@parametrize_benchmark_chunk_sizes
-@parametrize_benchmark_dtypes
-@parametrize_all_caches
-def test_read_with_caches(
-    benchmark,
-    shape: Tuple[int],
-    chunk_size: int,
-    num_batches: int,
-    dtype: str,
-    storage: StorageProvider,
-):
-    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage)
-
-
-@pytest.mark.full_benchmark
-@pytest.mark.benchmark(group="chunk_engine_read_without_caches")
-@parametrize_benchmark_shapes
-@parametrize_benchmark_num_batches
-@parametrize_benchmark_chunk_sizes
-@parametrize_benchmark_dtypes
-@parametrize_all_storages
-def test_read_without_caches(
-    benchmark,
-    shape: Tuple[int],
-    chunk_size: int,
-    num_batches: int,
-    dtype: str,
-    storage: StorageProvider,
-):
-    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage)
+    benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, memory_storage)

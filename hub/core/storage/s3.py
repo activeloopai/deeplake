@@ -179,8 +179,6 @@ class S3Provider(StorageProvider):
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
-
-        # much faster than mapper.clear()
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
             bucket.objects.filter(Prefix=self.path).delete()
