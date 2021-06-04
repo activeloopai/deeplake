@@ -100,24 +100,23 @@ class Dataset:
     ):
         """Creates a new tensor in a dataset.
 
-                Args:
-                    name (str): The name of the tensor to be created.
-                    htype (str, optional): The class of data for the tensor. 
-                        The defaults for other parameters are determined in terms of this value. 
-                        For example, `htype="image"` would have `dtype` default to `uint8`.
-                        These defaults can be overridden by explicitly passing any of the other parameters to this function.
-                        May also modify the defaults for other parameters.
-                    chunk_size (int, optional): The target size for chunks in this tensor.
-                    dtype (str, optional): The data type to use for this tensor.
-                        Will be overwritten when the first sample is added.
-                    extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+        Args:
+            name (str): The name of the tensor to be created.
+            htype (str, optional): The class of data for the tensor.
+                The defaults for other parameters are determined in terms of this value.
+                For example, `htype="image"` would have `dtype` default to `uint8`.
+                These defaults can be overridden by explicitly passing any of the other parameters to this function.
+                May also modify the defaults for other parameters.
+            chunk_size (int, optional): The target size for chunks in this tensor.
+            dtype (str, optional): The data type to use for this tensor.
+                Will be overwritten when the first sample is added.
+            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
 
-        <<<<<<< HEAD
-                Returns:
-                    The new tensor, which can also be accessed by `self[name]`.
+        Returns:
+            The new tensor, which can also be accessed by `self[name]`.
 
-                Raises:
-                    TensorAlreadyExistsError: Duplicate tensors are not allowed.
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
