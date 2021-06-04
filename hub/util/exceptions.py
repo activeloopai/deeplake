@@ -1,3 +1,4 @@
+from hub.util.index import Index
 from typing import Any
 
 
@@ -40,6 +41,12 @@ class TensorDoesNotExistError(KeyError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__("Tensor {} already exists.".format(key))
+
+
+class DynamicTensorNumpyError(Exception):
+    def __init__(self, key: str, index: Index):
+        super().__init__("Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            Try setting the parameter `aslist=True`".format(key, str(index)))
 
 
 class InvalidKeyTypeError(TypeError):

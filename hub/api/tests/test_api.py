@@ -29,9 +29,21 @@ def test_populate_dataset(ds):
 
 
 @parametrize_all_dataset_storages
-def test_compute_tensor(ds):
+def test_compute_fixed_tensor(ds):
     ds.image = np.ones((32, 28, 28))
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
+
+
+@parametrize_all_dataset_storages
+def test_compute_dynamic_tensor(ds):
+    ds.image = np.ones((32, 28, 28))
+    ds.image.append(np.ones((10, 36, 11)), batched=True)
+
+    expected_list = [*np.ones((32, 28, 28)), *np.ones((10, 36, 11))]
+    actual_list = ds.image.numpy(aslist=True)
+
+    for a1, a2 in zip(expected_list, actual_list):
+        assert (a1 == a2).all()
 
 
 @parametrize_all_dataset_storages

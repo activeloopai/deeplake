@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import List, Tuple, Union
 from hub.util.index import Index
 import numpy as np
 
@@ -13,6 +13,7 @@ from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from hub.util.array import is_shape_empty, normalize_and_batchify_array_shape
 from hub.util.exceptions import (
+    DynamicTensorNumpyError,
     TensorAlreadyExistsError,
     TensorMetaMismatchError,
     TensorDoesNotExistError,
@@ -129,13 +130,19 @@ def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
     index: Index = Index(),
-) -> np.ndarray:
+    aslist: bool = False,
+) -> Union[np.ndarray, List[np.ndarray]]:
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
         key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
         index (Index): Index that represents which samples to read.
+        aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors. 
+                If False, a numpy array will be returned (unless shape is dynamic).
+
+    Raises:
+        DynamicTensorNumpyError: If reading a dynamically-shaped array without `aslist=True`.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
@@ -143,13 +150,20 @@ def read_samples_from_tensor(
 
     meta = read_tensor_meta(key, storage)
     index_map = read_index_map(key, storage)
+    index_entries = index_map[index.to_slice()]
 
     dtype = meta["dtype"]
 
     # TODO: read samples in parallel
     samples = []
-    for index_entry in index_map[index.to_slice()]:
+    is_fixed_shape = True
+    for i, index_entry in enumerate(index_entries):
         shape = index_entry["shape"]
+
+        # check if all samples are the same shape
+        last_shape = index_entries[i-1]["shape"]
+        if is_fixed_shape and i > 0 and shape != last_shape:
+            is_fixed_shape = False
 
         if is_shape_empty(shape):
             samples.append(np.zeros(shape, dtype=dtype))
@@ -161,7 +175,13 @@ def read_samples_from_tensor(
     if isinstance(index.item, int):
         samples = samples[0]
 
-    return np.array(samples)
+    if aslist:
+        return samples
+
+    if not is_fixed_shape:
+        raise DynamicTensorNumpyError(key, index)
+
+    return np.array(samples, dtype=dtype)
 
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import List, Union
 import warnings
 
 import numpy as np
@@ -104,10 +104,15 @@ class Tensor:
         for i in range(len(self)):
             yield self[i]
 
-    def numpy(self):
+    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Compute the contents of this tensor in numpy format.
+
+        Args:
+            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors. 
+                If False, a numpy array will be returned (unless shape is dynamic).
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.provider, self.index)
+
+        return read_samples_from_tensor(self.key, self.provider, self.index, aslist=aslist)
