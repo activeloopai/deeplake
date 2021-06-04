@@ -4,13 +4,10 @@ import numpy as np
 from itertools import repeat
 from collections import defaultdict
 from typing import Callable, List, Set, Dict
-from pathos.pools import ProcessPool
-from multiprocessing import resource_tracker
-from multiprocessing.shared_memory import SharedMemory
 from hub.util.keys import get_index_map_key
 from hub.core.chunk_engine.chunker import join_chunks
 from hub.core.chunk_engine.read import read_tensor_meta
-from hub.util.exceptions import ModuleNotInstalledException
+from hub.util.exceptions import ModuleNotInstalledException, RequiresHigherPythonVersion
 
 # TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
 def _apply_transform(transform: Callable, sample: Dict):
@@ -133,12 +130,28 @@ class TorchDataset:
     # helper functions
 
     def _set_globals(self):
-        """Sets the global values for torch and storage provider"""
+        """Sets the global values for storage provider and a few plugins"""
         global torch
+        global ProcessPool
+        global resource_tracker
+        global SharedMemory
+
         try:
             import torch
         except ModuleNotFoundError:
-            raise ModuleNotInstalledException("torch")
+            raise ModuleNotInstalledException("'torch' should be installed to convert the Dataset into pytorch format")
+
+        try:
+            from pathos.pools import ProcessPool
+        except ModuleNotFoundError:
+            raise ModuleNotInstalledException("'pathos' should be installed to convert the Dataset into pytorch format")
+
+        try:
+            from multiprocessing import resource_tracker
+            from multiprocessing.shared_memory import SharedMemory
+        except ImportError:
+            raise RequiresHigherPythonVersion("to_pytorch", "3.8")
+
         global _hub_storage_provider  # global to pass to processes, not possible to serialize and send
 
         # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files

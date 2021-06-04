@@ -66,10 +66,13 @@ class ProviderSizeListMismatch(Exception):
 
 
 class ModuleNotInstalledException(Exception):
-    def __init__(self, module_name):
-        super().__init__(
-            f"Module '{module_name}' should be installed to convert the Dataset to the {module_name} format"
-        )
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class RequiresHigherPythonVersion(Exception):
+    def __init__(self, operation, version):
+        super().__init__(f"Python version >= {version} is required to use '{operation}''.")
 
 
 # TODO Better S3 Exception handling
