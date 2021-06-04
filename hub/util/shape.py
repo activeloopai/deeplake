@@ -45,4 +45,4 @@ class Shape:
             else:
                 intervals.append("{}:{}".format(l, u))
 
-        return "[{}]".format(", ".join(intervals))
+        return "({})".format(", ".join(intervals))
