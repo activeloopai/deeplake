@@ -31,7 +31,7 @@ np.random.seed(1)
 SHAPES_PARAM = "shapes"  # different than `SHAPE_PARAM` (plural)
 
 
-# len(UNBATCHED_SHAPES)[i] must be > 1
+# len(UNBATCHED_SHAPES[i]) must be > 1
 UNBATCHED_SHAPES = (
     [(1,), (5,)],
     [(100,), (1,)],
@@ -42,7 +42,7 @@ UNBATCHED_SHAPES = (
     [(2, 4), (3, 4), (0, 4)],
 )
 
-# len(BATCHED_SHAPES)[i] must be > 1
+# len(BATCHED_SHAPES[i]) must be > 1
 BATCHED_SHAPES = (
     [(1, 1), (3, 5)],
     [(10, 1), (10, 2)],
