@@ -16,7 +16,10 @@ def test_persist_local_flush(local_storage):
     ds.flush()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
-    assert ds_new.image.shape == (4096, 4096)
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
 
@@ -30,7 +33,10 @@ def test_persist_local_clear_cache(local_storage):
     ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
-    assert ds_new.image.shape == (4096, 4096)
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
 
