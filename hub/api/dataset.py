@@ -127,10 +127,10 @@ class Dataset:
 
     @staticmethod
     def from_path(path: str):
-        """Create a local hub dataset from unstructured data.
+        """Create a hub dataset from unstructured data.
 
         Note:
-            This copies the data locally in hub format.
+            This copies the data into hub format.
             Be careful when using this with large datasets.
 
         Args:
