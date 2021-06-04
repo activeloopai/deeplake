@@ -35,6 +35,9 @@ def test_populate_dataset(ds):
     ds.image.append(np.ones((28, 28)))
     assert len(ds.image) == 5
 
+    ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(ds.image) == 7
+
     assert ds.meta == {"tensors": ["image"]}
 
 

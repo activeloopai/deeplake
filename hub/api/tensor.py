@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Iterable
 import warnings
 
 import numpy as np
@@ -59,8 +59,9 @@ class Tensor:
 
             create_tensor(self.key, self.provider, tensor_meta)
 
-    def extend(self, array: np.ndarray):
-        """Extends a tensor by appending elements from a batched numpy array.
+    def extend(self, array: Union[np.ndarray, Iterable[np.ndarray]]):
+        """Extends a tensor by appending multiple elements from an iterable.
+        Accepts an iterable of numpy arrays or a single batched numpy array.
 
         Example:
             >>> len(image)
@@ -70,10 +71,14 @@ class Tensor:
             100
 
         Args:
-            array (np.ndarray): The data to add to the tensor.
-                The primary axis should be the number of samples to add.
+            array: The data to add to the tensor.
+                The length should be equal to the number of samples to add.
         """
-        add_samples_to_tensor(array, self.key, storage=self.provider, batched=True)
+        if isinstance(array, np.ndarray):
+            add_samples_to_tensor(array, self.key, storage=self.provider, batched=True)
+        else:
+            for sample in array:
+                self.append(sample)
 
     def append(self, array: np.ndarray):
         """Appends a sample to the end of a tensor.
