@@ -14,7 +14,7 @@ from hub.core.chunk_engine.write import write_array, write_dataset_meta
 from typing import Union, Dict, Optional
 import numpy as np
 import warnings
-from hub.api.pytorch import _to_pytorch
+from hub.integrations.pytorch import dataset_to_pytorch
 
 
 class Dataset:
@@ -103,7 +103,7 @@ class Dataset:
             yield self[i]
 
     def to_pytorch(self, transform=None, workers=1):
-        return _to_pytorch(self, transform, workers=workers)
+        return dataset_to_pytorch(self, transform, workers=workers)
 
     @staticmethod
     def from_path(path: str):

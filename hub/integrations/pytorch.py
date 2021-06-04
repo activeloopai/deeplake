@@ -59,7 +59,7 @@ def remove_shared_memory_from_resource_tracker():
         del resource_tracker._CLEANUP_FUNCS["shared_memory"]
 
 
-def _to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
     return TorchDataset(dataset, transform, workers)
 
 
@@ -128,7 +128,6 @@ class TorchDataset:
             yield self[index]
 
     # helper functions
-
     def _set_globals(self):
         """Sets the global values for storage provider and a few plugins"""
         global torch
@@ -139,12 +138,16 @@ class TorchDataset:
         try:
             import torch
         except ModuleNotFoundError:
-            raise ModuleNotInstalledException("'torch' should be installed to convert the Dataset into pytorch format")
+            raise ModuleNotInstalledException(
+                "'torch' should be installed to convert the Dataset into pytorch format"
+            )
 
         try:
             from pathos.pools import ProcessPool
         except ModuleNotFoundError:
-            raise ModuleNotInstalledException("'pathos' should be installed to convert the Dataset into pytorch format")
+            raise ModuleNotInstalledException(
+                "'pathos' should be installed to convert the Dataset into pytorch format"
+            )
 
         try:
             from multiprocessing import resource_tracker
