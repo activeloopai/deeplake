@@ -1,0 +1,43 @@
+
+#pytest
+
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: pytest
+        entry: venv/bin/pytest
+        language: python
+        pass_filenames: false
+        always_run: true
+        
+#black
+
+    -   id: black
+        name: black
+        description: "Black: The uncompromising Python code formatter"
+        entry: black
+        language: python
+        language_version: python3
+        #minimum_pre_commit_version: 2.9.2
+        require_serial: true
+        types_or: [python, pyi]
+
+#mypy
+ 
+    -   id: mypy
+        name: mypy
+        entry: mypy
+        language: python
+        types: [python]
+        args: ["--ignore-missing-imports", "--scripts-are-modules"]
+        require_serial: true
+
+#darglint
+
+   -    id: darglint
+        name: darglint
+        description: '`darglint` is a tool for linting python docstrings.'
+        entry: darglint
+        language: python
+        types: [python]
+        require_serial: true
