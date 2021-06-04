@@ -82,8 +82,22 @@ class Dataset:
             raise InvalidKeyTypeError(item)
 
     def create_tensor(
-        self, name, chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"
+        self, name: str, chunk_size: int = DEFAULT_CHUNK_SIZE, dtype: str = "float64"
     ):
+        """Create a new tensor in this dataset.
+
+        Args:
+            name (str): The name of the tensor to be created.
+            chunk_size (int): The target size for chunks in this tensor.
+            dtype (str): The dtype to use for this tensor.
+                Will be overwritten when the first sample is added.
+
+        Returns:
+            The new tensor, which can also be accessed by `self[name]`.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+        """
         if tensor_exists(name, self.provider):
             raise TensorAlreadyExistsError(name)
 
