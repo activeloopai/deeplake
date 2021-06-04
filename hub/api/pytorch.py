@@ -3,48 +3,46 @@ import pickle
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from hub.util.keys import get_index_map_key
-from hub.core.chunk_engine.chunker import join_chunks
-from hub.core.chunk_engine.read import read_tensor_meta
+from typing import Callable, List, Set
 from pathos.pools import ProcessPool
 from multiprocessing import resource_tracker
 from multiprocessing.shared_memory import SharedMemory
+from hub.util.keys import get_index_map_key
+from hub.core.chunk_engine.chunker import join_chunks
+from hub.core.chunk_engine.read import read_tensor_meta
 from hub.util.exceptions import ModuleNotInstalledException
 
-
 # TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
-def apply_transform(transform, sample):
+def _apply_transform(transform: Callable, sample):
     """Used to apply transforms to a single samples"""
     return transform(sample) if transform else sample
 
 
-def shared_memory_clear(chunk_set):
-    """Helper function that checks if an existing SharedMemory exists for any chunk in chunk_set and clears it"""
-    for chunk_name in chunk_set:
+def _shared_memory_clear(chunk_names: Set[str]):
+    """Checks if an existing SharedMemory exists for any chunk in chunk_names and clears it"""
+    for chunk_name in chunk_names:
         try:
             shm = SharedMemory(name=chunk_name)
             shm.close()
             shm.unlink()
-        except:
+        except FileNotFoundError:
             pass
 
 
-def read_chunk(chunk, key):
+def _read_and_store_chunk(chunk_name: str, key: str):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory"""
     remove_shared_memory_from_resource_tracker()
-    chunk_path = os.path.join(key, "chunks", chunk)
+    chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = _hub_storage_provider[chunk_path]
-    chunk = chunk_path.split("/")[-1]
-    shm = SharedMemory(create=True, size=len(chunk_bytes), name=chunk)
+    chunk_size = len(chunk_bytes)
+    shm = SharedMemory(create=True, size=chunk_size, name=chunk_name)
     shm.buf[:] = chunk_bytes
     shm.close()
     return
 
 
 def remove_shared_memory_from_resource_tracker():
-    """Helper function to fix bug in Python SharedMemory
-
-    Monkey-patch multiprocessing.resource_tracker so SharedMemory won't be tracked
+    """Monkey-patch that fixes bug in Python SharedMemory
     More details at: https://bugs.python.org/issue38119
     """
 
@@ -64,84 +62,85 @@ def remove_shared_memory_from_resource_tracker():
         del resource_tracker._CLEANUP_FUNCS["shared_memory"]
 
 
-def _to_pytorch(dataset, transform=None, workers=1):
+def _to_pytorch(dataset, transform: Callable = None, workers: int = 1):
     try:
         import torch
     except ModuleNotFoundError:
         raise ModuleNotInstalledException("torch")
     global torch
-    global _hub_storage_provider  # global to pass to processes, as not possible to serialize it and send as argument
+    global _hub_storage_provider  # global to pass to processes, not possible to serialize and send as argument
 
-    # TODO, apparently boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
+    # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
     # could it be working here as we're only reading data?
     _hub_storage_provider = dataset.provider
     return TorchDataset(dataset, transform, workers)
 
 
 class TorchDataset:
-    def __init__(self, dataset, transform=None, workers=1):
+    def __init__(self, dataset, transform: Callable = None, workers: int = 1):
         self.dataset = dataset  # TODO disable the memory cache
         self.transform = transform
         self.workers = workers
         self.storage = self.dataset.provider
         self.map = ProcessPool(nodes=workers).map
 
-        # contains index_map for each Tensor
-        self.all_index_maps = self.load_index_maps()
-
         # contains meta for each Tensor
-        self.all_meta = self.load_meta()
+        self.all_meta = self._load_meta()
 
-        # corresponding to each Tensor, stores index-value map. here value is the actual array at the index for the key
-        # this essentially acts as our in memory prefetch cache
+        # contains index_map for each Tensor
+        self.all_index_maps = self._load_index_maps()
+
+        # stores index-value map for each Tensor where value is the actual array at the index
+        # acts as in memory prefetch cache
         self.all_index_value_maps = defaultdict(dict)
 
-        # for each Tensor, stores the last index that was prefetched in the prefetch cache
+        # tracks last index that was prefetched in the prefetch cache for each Tensor
         self.last_index_map = {}
 
-        # list of all the final samples generated after prefetching and transforming, currently present in memory
+        # in memory processed cache containing all samples generated after prefetching and transforming
         self.processed_samples = None
-        self.processed_range = slice(-1, -1)  # start and end range of processed_samples
+        self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all chunks across tensors whose data is currently prefetched
         self.all_chunk_sets = {}
 
-        # keeps a pointer to all shared memory objects so that they don't get dereferenced between calls to getitem
-        self.all_shared_memory = []
+        # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
+        self.all_shared_memory = defaultdict(list)
 
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int):
         for key in self.dataset.tensors:
-            # if cache hit
+            # prefetch cache hit
             if index in self.all_index_value_maps[key]:
                 continue
 
-            # index is outside prefetch cache, clear it (and fetch more later)
+            # index exceeded prefetch cache, clear it (and fetch more later)
             if index != 0 and index == self.last_index_map[key] + 1:
                 del self.all_index_value_maps[key]
-                chunk_set = self.all_chunk_sets[key]
-                shared_memory_clear(chunk_set)
+                chunk_names = self.all_chunk_sets[key]
+                _shared_memory_clear(chunk_names)
 
-            chunk_set = self.get_chunk_names(index, key)
-            shared_memory_clear(chunk_set)
-            self.map(read_chunk, chunk_set, repeat(key))
-            self.get_data_from_chunks(index, key, chunk_set)
-            self.all_chunk_sets[key] = chunk_set
+            chunk_names = self._get_chunk_names(index, key)
+            _shared_memory_clear(chunk_names)
+            self.map(_read_and_store_chunk, chunk_names, repeat(key))
+            self._get_data_from_chunks(index, key, chunk_names)
+            self.all_chunk_sets[key] = chunk_names
 
         # if processed cache miss, process more samples
         if index > self.processed_range.stop:
-            self.process_samples()
+            self._process_samples()
         return self.processed_samples[index - self.processed_range.start]
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
-        self.clean_up()
+        if len(self) > 0:
+            self._shared_memory_clean_up()
 
     # helper functions
-    def load_index_maps(self):
+    def _load_index_maps(self):
         """Loads index maps for all Tensors into memory"""
         # TODO there should be an easier way in API to do this
         all_index_maps = {}
@@ -150,7 +149,7 @@ class TorchDataset:
             all_index_maps[key] = index_map
         return all_index_maps
 
-    def load_meta(self):
+    def _load_meta(self):
         """Loads meta for all Tensors into memory"""
         # TODO there should be an easier way in API to do this
         all_meta = {}
@@ -164,17 +163,17 @@ class TorchDataset:
             all_meta[key] = meta
         return all_meta
 
-    def get_chunk_names(self, index, key):
-        """Gets chunk names to read in parallel"""
-        chunk_set = set()
+    def _get_chunk_names(self, index: int, key: str):
+        """Gets chunk names for elements starting from index to read in parallel"""
+        chunk_names = set()
         index_map = self.all_index_maps[key]
-        while len(chunk_set) < self.workers and index < len(self):
-            chunk_names = index_map[index]["chunk_names"]
-            chunk_set.update(chunk_names)
+        while len(chunk_names) < self.workers and index < len(self):
+            chunks = index_map[index]["chunk_names"]
+            chunk_names.update(chunks)
             index += 1
-        return chunk_set
+        return chunk_names
 
-    def np_from_chunk_list(self, index, key, chunks):
+    def _np_from_chunk_list(self, index: int, key: str, chunks: List[str]):
         """Takes a list of chunks and returns a numpy array from it"""
         index_entry = self.all_index_maps[key][index]
 
@@ -188,15 +187,14 @@ class TorchDataset:
         combined_bytes.release()
         return arr
 
-    def get_data_from_chunks(self, index, key, chunk_set):
+    def _get_data_from_chunks(self, index: int, key: str, chunk_names: Set[str]):
         """Extracts data from all the chunks in chunk_set and stores it index wise in a dictionary"""
         self.all_index_value_maps[key] = {}
-
         chunk_map = {}
-        # stores value of chunks previously saved in SharedMemory into memory
-        for chunk_name in chunk_set:
-            self.all_shared_memory.append(SharedMemory(name=chunk_name))
-            chunk_map[chunk_name] = self.all_shared_memory[-1].buf[:]
+        # loads value of chunks saved in SharedMemory into memory
+        for chunk_name in chunk_names:
+            self.all_shared_memory[key].append(SharedMemory(name=chunk_name))
+            chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:]
 
         # saves np array for each index in memory
         for i in range(index, len(self.dataset)):
@@ -207,16 +205,16 @@ class TorchDataset:
                     self.last_index_map[key] = i - 1
                     return
                 chunks.append(chunk_map[chunk_name])
-            self.all_index_value_maps[key][i] = self.np_from_chunk_list(i, key, chunks)
+            self.all_index_value_maps[key][i] = self._np_from_chunk_list(i, key, chunks)
 
         self.last_index_map[key] = len(self.dataset) - 1
 
-    def process_samples(self):
+    def _process_samples(self):
         """Processes the prefetched values from across tensors into dictionaries.
         These samples may be further processed if a transform is specified.
         """
         first_index = self.processed_range.stop + 1
-        # different number of samples are fetched for each tensor, we take the min and process
+        # different no. of samples are fetched for each tensor, take the min and process
         last_index = min(self.last_index_map[key] for key in self.dataset.tensors)
         samples = []
         for i in range(first_index, last_index + 1):
@@ -227,15 +225,14 @@ class TorchDataset:
 
         if self.transform:
             self.processed_samples = self.map(
-                apply_transform, repeat(self.transform), samples
+                _apply_transform, repeat(self.transform), samples
             )
         else:
             self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
-    def clean_up(self):
-        """cleans up possibly leaked memory at the end of iteration"""
+    def _shared_memory_clean_up(self):
+        """Cleans up possibly leaked memory at the end of iteration"""
         for key in self.dataset.tensors:
-            chunk_set = self.all_chunk_sets[key]
-            shared_memory_clear(chunk_set)
-        self.all_shared_memory.clear()
+            chunk_names = self.all_chunk_sets[key]
+            _shared_memory_clear(chunk_names)
