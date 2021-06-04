@@ -167,8 +167,8 @@ def read_samples_from_tensor(
             is_fixed_shape = False
 
         if is_shape_empty(shape):
-            samples.append(np.zeros(shape, dtype=dtype))
-            break  # no need to actually load data (no chunks exist)
+            # TODO: implement support for 0s in shape
+            raise NotImplementedError("0s in shapes are not supported yet.")
 
         array = sample_from_index_entry(key, storage, index_entry, dtype)
         samples.append(array)

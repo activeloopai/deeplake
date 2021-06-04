@@ -39,8 +39,6 @@ UNBATCHED_SHAPES = (
     [(1, 1, 3), (1,), (5,), (3,)],
     [(20, 90), (25, 2), (2, 2), (10, 10, 1)],
     [(3, 28, 24, 1), (2, 22, 25, 1)],
-    # simulate bounding boxes where 1 sample has no bbox
-    [(2, 4), (3, 4), (0, 4)],
 )
 
 # len(BATCHED_SHAPES[i]) must be > 1
