@@ -102,7 +102,10 @@ class Dataset:
 
                 Args:
                     name (str): The name of the tensor to be created.
-                    htype (str, optional): The type of the data for the tensor.
+                    htype (str, optional): The class of data for the tensor. 
+                        The defaults for other parameters are determined in terms of this value. 
+                        For example, `htype="image"` would have `dtype` default to `uint8`.
+                        These defaults can be overridden by explicitly passing any of the other parameters to this function.
                         May also modify the defaults for other parameters.
                     chunk_size (int, optional): The target size for chunks in this tensor.
                     dtype (str, optional): The data type to use for this tensor.
