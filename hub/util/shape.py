@@ -1,15 +1,15 @@
 import numpy as np
 
 from hub.util.exceptions import InvalidShapeIntervalError
-from typing import Iterable
+from typing import Sequence
 
 
-def _contains_negatives(shape: Iterable[int]):
+def _contains_negatives(shape: Sequence[int]):
     return any([x < 0 for x in shape])
 
 
 class Shape:
-    def __init__(self, lower: Iterable[int], upper: Iterable[int]=None):
+    def __init__(self, lower: Sequence[int], upper: Sequence[int]=None):
         if upper is None:
             upper = lower
         
