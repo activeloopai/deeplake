@@ -139,7 +139,8 @@ def read_samples_from_tensor(
         storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
         index (Index): Index that represents which samples to read.
         aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
-                If False, a numpy array will be returned (unless shape is dynamic).
+            If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
+            an error is raised.
 
     Raises:
         DynamicTensorNumpyError: If reading a dynamically-shaped array without `aslist=True`.
