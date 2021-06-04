@@ -1,3 +1,4 @@
+from hub.core.storage.memory import MemoryProvider
 from hub.util.index import Index
 from hub.util.array import (
     normalize_and_batchify_array_shape,
@@ -37,7 +38,7 @@ UNBATCHED_SHAPES = (
     [(100,), (1,)],
     [(1, 1, 3), (1,), (5,), (3,)],
     [(20, 90), (25, 2), (2, 2), (10, 10, 1)],
-    [(3, 28, 24, 1), (2, 22, 25, 1)]
+    [(3, 28, 24, 1), (2, 22, 25, 1)],
     # simulate bounding boxes where 1 sample has no bbox
     [(2, 4), (3, 4), (0, 4)],
 )
@@ -54,12 +55,11 @@ BATCHED_SHAPES = (
 @pytest.mark.parametrize(SHAPES_PARAM, UNBATCHED_SHAPES)
 @parametrize_chunk_sizes
 @parametrize_dtypes
-@parametrize_all_storages_and_caches
 def test_unbatched(
     shapes: List[Tuple[int]],
     chunk_size: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: MemoryProvider,
 ):
     """
     Samples have DYNAMIC shapes (can have different shapes).
@@ -67,18 +67,17 @@ def test_unbatched(
     """
 
     arrays = [get_random_array(shape, dtype) for shape in shapes]
-    run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
+    run_engine_test(arrays, memory_storage, batched=False, chunk_size=chunk_size)
 
 
 @pytest.mark.parametrize(SHAPES_PARAM, BATCHED_SHAPES)
 @parametrize_chunk_sizes
 @parametrize_dtypes
-@parametrize_all_storages_and_caches
 def test_batched(
     shapes: List[Tuple[int]],
     chunk_size: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: MemoryProvider,
 ):
     """
     Samples have DYNAMIC shapes (can have different shapes).
@@ -86,4 +85,4 @@ def test_batched(
     """
 
     arrays = [get_random_array(shape, dtype) for shape in shapes]
-    run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
+    run_engine_test(arrays, memory_storage, batched=True, chunk_size=chunk_size)
