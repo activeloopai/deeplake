@@ -144,7 +144,9 @@ def run_engine_test(
 
     create_tensor(key, storage, tensor_meta_from_array(arrays[0], batched, chunk_size))
 
-    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[1:]
+    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
+        1:
+    ]
     expected_min_shape = first_sample_shape
     expected_max_shape = first_sample_shape
 

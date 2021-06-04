@@ -73,12 +73,11 @@ class Tensor:
     @property
     def shape(self):
         ds_meta = self.meta
-        
+
         min_shape = ds_meta["min_shape"]
         max_shape = ds_meta["max_shape"]
 
         return Shape(min_shape, max_shape)
-
 
     def __len__(self):
         """Return the length of the primary axis."""

@@ -9,21 +9,27 @@ def _contains_negatives(shape: Sequence[int]):
 
 
 class Shape:
-    def __init__(self, lower: Sequence[int], upper: Sequence[int]=None):
+    def __init__(self, lower: Sequence[int], upper: Sequence[int] = None):
         if upper is None:
             upper = lower
-        
+
         if len(lower) != len(upper):
             raise InvalidShapeIntervalError("Lengths must match.", lower, upper)
 
         if _contains_negatives(lower):
-            raise InvalidShapeIntervalError("Lower cannot contain negative components.", lower=lower)
+            raise InvalidShapeIntervalError(
+                "Lower cannot contain negative components.", lower=lower
+            )
 
         if _contains_negatives(upper):
-            raise InvalidShapeIntervalError("Upper cannot contain negative components.", upper=upper)
+            raise InvalidShapeIntervalError(
+                "Upper cannot contain negative components.", upper=upper
+            )
 
         if not (np.asarray(lower) <= np.asarray(upper)).all():
-            raise InvalidShapeIntervalError("lower[i] must always be <= upper[i].", lower=lower, upper=upper)
+            raise InvalidShapeIntervalError(
+                "lower[i] must always be <= upper[i].", lower=lower, upper=upper
+            )
 
         self._lower = tuple(lower)
         self._upper = tuple(upper)
@@ -38,7 +44,7 @@ class Shape:
 
     def __str__(self):
         intervals = []
-        
+
         for l, u in zip(self.lower, self.upper):
             if l == u:
                 intervals.append(str(l))

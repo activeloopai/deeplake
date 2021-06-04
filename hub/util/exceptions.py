@@ -54,7 +54,9 @@ class DynamicTensorNumpyError(Exception):
 
 
 class InvalidShapeIntervalError(Exception):
-    def __init__(self, message: str, lower: Sequence[int]=None, upper: Sequence[int]=None):
+    def __init__(
+        self, message: str, lower: Sequence[int] = None, upper: Sequence[int] = None
+    ):
         s = message
 
         if lower is not None:
