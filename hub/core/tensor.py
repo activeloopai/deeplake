@@ -7,6 +7,7 @@ from hub.core.typing import StorageProvider
 from hub.core.meta.tensor_meta import (
     read_tensor_meta,
     write_tensor_meta,
+    update_tensor_meta_with_array,
     validate_tensor_meta,
 )
 from hub.core.meta.index_map import read_index_map, write_index_map
@@ -15,6 +16,7 @@ from hub.util.array import is_shape_empty, normalize_and_batchify_array_shape
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     TensorAlreadyExistsError,
+    TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
@@ -39,9 +41,7 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     Args:
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
-        meta (dict): Meta for the tensor. Required properties:
-            chunk_size (int): Desired length of chunks.
-            dtype (str): Datatype for each sample.
+        meta (dict): Meta for the tensor. For required properties, see `default_tensor_meta`.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
@@ -49,8 +49,6 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
-
-    meta.update({"length": 0})
 
     validate_tensor_meta(meta)
 
@@ -79,20 +77,15 @@ def add_samples_to_tensor(
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
     """
 
-    # TODO: split into `append` and `extend`
-
-    array = normalize_and_batchify_array_shape(array, batched=batched)
-
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
     index_map = read_index_map(key, storage)
     tensor_meta = read_tensor_meta(key, storage)
 
+    array = normalize_and_batchify_array_shape(array, batched=batched)
     if "min_shape" not in tensor_meta:
-        tensor_meta["min_shape"] = tuple(array.shape[1:])
-    if "max_shape" not in tensor_meta:
-        tensor_meta["max_shape"] = tuple(array.shape[1:])
+        tensor_meta = update_tensor_meta_with_array(tensor_meta, array, batched=True)
 
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
@@ -174,7 +167,7 @@ def read_samples_from_tensor(
         samples.append(array)
 
     if isinstance(index.item, int):
-        samples = samples[0]
+        return samples[0]
 
     if aslist:
         return samples
@@ -200,14 +193,12 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
         raise TensorMetaMismatchError("dtype", tensor_meta["dtype"], array.dtype.name)
 
     sample_shape = array.shape[1:]
-    if len(tensor_meta["min_shape"]) != len(sample_shape):
-        raise TensorMetaMismatchError(
-            "min_shape", tensor_meta["min_shape"], len(sample_shape)
-        )
-    if len(tensor_meta["max_shape"]) != len(sample_shape):
-        raise TensorMetaMismatchError(
-            "max_shape", tensor_meta["max_shape"], len(sample_shape)
-        )
+
+    expected_shape_len = len(tensor_meta["min_shape"])
+    actual_shape_len = len(sample_shape)
+    if expected_shape_len != actual_shape_len:
+        raise TensorInvalidSampleShapeError("Sample shape length is expected to be {}, actual length is {}."
+            .format(expected_shape_len, actual_shape_len), sample_shape)
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):

@@ -12,8 +12,10 @@ def test_persist_local_flush(local_storage):
         pytest.skip()
 
     ds = Dataset(local_storage.root, local_cache_size=512)
-    ds.image = np.ones((4, 4096, 4096))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
     ds.flush()
+
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
@@ -29,7 +31,8 @@ def test_persist_local_clear_cache(local_storage):
         pytest.skip()
 
     ds = Dataset(local_storage.root, local_cache_size=512)
-    ds.image = np.ones((4, 4096, 4096))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
     ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
@@ -43,24 +46,43 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert read_dataset_meta(ds.storage) == {"tensors": []}
-    ds.image = np.ones((4, 28, 28))
-    assert read_dataset_meta(ds.storage) == {"tensors": ["image"]}
+    assert ds.meta == {"tensors": []}
+    ds.create_tensor("image")
+    assert len(ds) == 0
+    assert len(ds.image) == 0
+
+    ds.image.extend(np.ones((4, 28, 28)))
     assert len(ds) == 4
+    assert len(ds.image) == 4
+
+    for _ in range(10):
+        ds.image.append(np.ones((28, 28)))
+    assert len(ds.image) == 14
+
+    ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(ds.image) == 16
+
+    assert ds.meta == {"tensors": ["image"]}
 
 
 @parametrize_all_dataset_storages
 def test_compute_fixed_tensor(ds):
-    ds.image = np.ones((32, 28, 28))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((32, 28, 28)))
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
 @parametrize_all_dataset_storages
 def test_compute_dynamic_tensor(ds):
-    ds.image = np.ones((32, 28, 28))
-    ds.image.append(np.ones((10, 36, 11)), batched=True)
+    ds.create_tensor("image")
+    
+    a1 = np.ones((32, 28, 28))
+    a2 = np.ones((10, 36, 11))
 
-    expected_list = [*np.ones((32, 28, 28)), *np.ones((10, 36, 11))]
+    ds.image.extend(a1)
+    ds.image.extend(a2)
+
+    expected_list = [*a1, *a2]
     actual_list = ds.image.numpy(aslist=True)
 
     for a1, a2 in zip(expected_list, actual_list):
@@ -69,7 +91,8 @@ def test_compute_dynamic_tensor(ds):
 
 @parametrize_all_dataset_storages
 def test_compute_tensor_slice(ds):
-    ds.image = np.vstack((np.arange(16),) * 8)
+    ds.create_tensor("image")
+    ds.image.extend(np.vstack((np.arange(16),) * 8))
 
     sliced_data = ds.image[2:5].numpy()
     expected_data = np.vstack((np.arange(16),) * 3)
@@ -79,8 +102,11 @@ def test_compute_tensor_slice(ds):
 @parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
-    ds.image = np.ones((4, 28, 28))
-    ds.label = np.asarray(labels).reshape((4, 1))
+    ds.create_tensor("image")
+    ds.create_tensor("label")
+
+    ds.image.extend(np.ones((4, 28, 28)))
+    ds.label.extend(np.asarray(labels).reshape((4, 1)))
 
     for idx, sub_ds in enumerate(ds):
         img = sub_ds.image.numpy()
@@ -91,16 +117,17 @@ def test_iterate_dataset(ds):
 
 
 def test_shape_property(memory_ds):
-    memory_ds.image1 = np.ones((32, 28, 28))
-    memory_ds.image1.append(np.ones((16, 33, 9)), batched=True)
+    fixed = memory_ds.create_tensor("fixed_tensor")
+    dynamic = memory_ds.create_tensor("dynamic_tensor")
 
-    shape1 = memory_ds.image1.shape
-    assert shape1.lower == (28, 9)
-    assert shape1.upper == (33, 28)
+    # dynamic shape property
+    dynamic.extend(np.ones((32, 28, 28)))
+    dynamic.extend(np.ones((16, 33, 9)))
+    assert dynamic.shape.lower == (28, 9)
+    assert dynamic.shape.upper == (33, 28)
 
-    memory_ds.image2 = np.ones((32, 28, 28))
-    memory_ds.image2.append(np.ones((28, 28)), batched=False)
-
-    shape2 = memory_ds.image2.shape
-    assert shape2.lower == (28, 28)
-    assert shape2.upper == (28, 28)
+    # fixed shape property
+    fixed.extend(np.ones((9, 28, 28)))
+    fixed.extend(np.ones((13, 28, 28)))
+    assert fixed.shape.lower == (28, 28)
+    assert fixed.shape.upper == (28, 28)

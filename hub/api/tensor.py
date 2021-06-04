@@ -1,5 +1,5 @@
 from hub.util.shape import Shape
-from typing import List, Union
+from typing import List, Sequence, Union
 import warnings
 
 import numpy as np
@@ -9,6 +9,7 @@ from hub.core.tensor import (
     add_samples_to_tensor,
     read_samples_from_tensor,
     read_tensor_meta,
+    write_tensor_meta,
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
@@ -25,7 +26,7 @@ class Tensor:
         tensor_meta: dict = None,
         index: Union[int, slice, Index] = None,
     ):
-        """Initialize a new tensor.
+        """Initializes a new tensor.
 
         Note:
             This operation does not create a new tensor in the storage provider,
@@ -57,18 +58,49 @@ class Tensor:
                 raise TensorDoesNotExistError(self.key)
             create_tensor(self.key, self.storage, tensor_meta)
 
-    def append(self, array: np.ndarray, batched: bool):
-        # TODO: split into `append`/`extend`
-        add_samples_to_tensor(
-            array,
-            self.key,
-            storage=self.storage,
-            batched=batched,
-        )
+    def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
+        """Extends a tensor by appending multiple elements from a sequence.
+        Accepts a sequence of numpy arrays or a single batched numpy array.
+
+        Example:
+            >>> len(image)
+            0
+            >>> image.extend(np.zeros((100, 28, 28, 1)))
+            >>> len(image)
+            100
+
+        Args:
+            array: The data to add to the tensor.
+                The length should be equal to the number of samples to add.
+        """
+        if isinstance(array, np.ndarray):
+            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
+        else:
+            for sample in array:
+                self.append(sample)
+
+    def append(self, array: np.ndarray):
+        """Appends a sample to the end of a tensor.
+
+        Example:
+            >>> len(image)
+            0
+            >>> image.append(np.zeros((28, 28, 1)))
+            >>> len(image)
+            1
+
+        Args:
+            array (np.ndarray): The data to add to the tensor.
+        """
+        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
 
     @property
     def meta(self):
         return read_tensor_meta(self.key, self.storage)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_tensor_meta(self.key, self.storage, new_meta)
 
     @property
     def shape(self):
@@ -80,35 +112,21 @@ class Tensor:
         return Shape(min_shape, max_shape)
 
     def __len__(self):
-        """Return the length of the primary axis."""
+        """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
     def __getitem__(self, item: Union[int, slice, Index]):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
-        sliced_self = self[item]
-        if sliced_self.index.item != slice(None):
-            raise NotImplementedError(
-                "Assignment to Tensor subsections not currently supported!"
-            )
-        else:
-            if tensor_exists(self.key, self.storage):
-                raise TensorAlreadyExistsError(self.key)
-
-            add_samples_to_tensor(
-                array=value,
-                key=self.key,
-                storage=self.storage,
-                batched=True,
-            )
+        raise NotImplementedError("Tensor update not currently supported!")
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
-        """Compute the contents of this tensor in numpy format.
+        """Computes the contents of a tensor in numpy format.
 
         Args:
             aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.

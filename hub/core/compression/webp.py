@@ -46,9 +46,9 @@ class WEBP(BaseImgCodec):
             Encoded data.
         """
         with BytesIO() as buffer:
-            image = Image.fromarray(image)
-            image = image.convert("RGB")
-            image.save(buffer, format=self.codec_id, quality=self.quality)
+            img = Image.fromarray(image)
+            img = img.convert("RGB")
+            img.save(buffer, format=self.codec_id, quality=self.quality)
             return buffer.getvalue()
 
     def decode_single_image(self, buf: bytes, image_shape: tuple) -> np.ndarray:
