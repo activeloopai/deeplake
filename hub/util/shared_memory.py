@@ -2,7 +2,7 @@ from typing import List
 
 try:
     from multiprocessing.shared_memory import SharedMemory
-    from multiprocessing import resource_tracker
+    from multiprocessing import resource_tracker  # type: ignore
 except ImportError:
     pass
 

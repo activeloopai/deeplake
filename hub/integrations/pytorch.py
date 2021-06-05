@@ -12,12 +12,15 @@ from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
 )
-from pathos.pools import ProcessPool
+from pathos.pools import ProcessPool  # type: ignore
+from hub.core.storage import MemoryProvider
 
 try:
     from multiprocessing.shared_memory import SharedMemory
 except ModuleNotFoundError:
     pass
+
+_hub_storage_provider = MemoryProvider()
 
 # TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
 def _apply_transform(transform: Callable, sample: Dict):
@@ -71,7 +74,7 @@ class TorchDataset:
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them
-        self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(set)
+        self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(list)
 
         # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
         self.all_shared_memory: Dict = defaultdict(list)
@@ -171,7 +174,7 @@ class TorchDataset:
             index += 1
         return chunk_names
 
-    def _np_from_chunk_list(self, index: int, key: str, chunks: List[str]):
+    def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
         index_entry = self.all_index_maps[key][index]
 

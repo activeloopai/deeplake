@@ -147,7 +147,7 @@ class Dataset:
     def meta(self, new_meta: dict):
         write_dataset_meta(self.storage, new_meta)
 
-    def pytorch(self, transform: Callable = None, workers: int = 1):
+    def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
 
         Note:
@@ -157,6 +157,9 @@ class Dataset:
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample
             workers (int): The number of workers to use for fetching data in parallel.
+
+        Returns:
+            A dataset object that can be passed to torch.utils.data.DataLoader
         """
         return dataset_to_pytorch(self, transform, workers=workers)
 
