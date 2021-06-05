@@ -2,8 +2,11 @@ from hub.api.dataset import Dataset
 import torch
 import numpy as np
 from hub.integrations.pytorch_old import dataset_to_pytorch
+import pytest
+from hub.util.check_installation import pytorch_installed
 
 
+@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_small():
     root = "./test/pytorch"
     ds = Dataset(root)
@@ -23,6 +26,7 @@ def test_pytorch_small():
     ds.delete()
 
 
+@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_large():
     root = "./test/pytorch"
     ds = Dataset(root)
@@ -49,6 +53,7 @@ def test_pytorch_large():
     ds.delete()
 
 
+@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_small_old():
     root = "./test/pytorch_old"
     ds = Dataset(root)
@@ -67,6 +72,7 @@ def test_pytorch_small_old():
     ds.delete()
 
 
+@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_large_old():
     root = "./test/pytorch_old"
     ds = Dataset(root)
