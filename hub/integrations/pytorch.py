@@ -164,8 +164,11 @@ class TorchDataset:
         shape = index_entry["shape"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-        arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
-        combined_bytes.release()
+        if isinstance(combined_bytes, memoryview):
+            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+            combined_bytes.release()
+        else:
+            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         return arr
 
     def _get_data_from_chunks(self, index: int, key: str, chunk_names: Set[str]):

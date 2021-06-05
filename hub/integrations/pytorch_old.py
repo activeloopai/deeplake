@@ -26,7 +26,7 @@ class TorchDataset:
             )
 
         warnings.warn(
-            "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
+            "Python version<3.8 detected. The 'workers' argument will be ignored and Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
         )
         self.dataset = dataset
         self.transform = transform

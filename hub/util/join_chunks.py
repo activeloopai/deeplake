@@ -12,4 +12,4 @@ def join_chunks(chunks: List[bytes], start_byte: int, end_byte: int) -> bytes:
         if i >= len(chunks) - 1:
             actual_end_byte = end_byte
         b += chunk[actual_start_byte:actual_end_byte]
-    return memoryview(b)
+    return b
