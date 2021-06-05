@@ -86,8 +86,8 @@ class Dataset:
 
     # TODO len should consider slice
     def __len__(self):
-        """Return the greatest length of tensors"""
-        return max(map(len, self.tensors.values()), default=0)
+        """Return the smallest length of tensors"""
+        return min(map(len, self.tensors.values()), default=0)
 
     def __getitem__(self, item: Union[str, int, slice, Index]):
         if isinstance(item, str):
