@@ -105,12 +105,12 @@ def test_png_codec_single_channel(single_channel: bool) -> None:
 @parametrize_from_config
 @parametrize_image_shape
 def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
-    compr = JPEG()
+    codec = JPEG()
     if from_config:
-        config = compr.get_config()
-        compr = JPEG.from_config(config)
+        config = codec.get_config()
+        codec = JPEG.from_config(config)
     arr = np.ones(shape, dtype="uint8")
-    check_equals_decoded(arr, compr)
+    check_equals_decoded(arr, codec)
 
 
 @parametrize_single_channel
