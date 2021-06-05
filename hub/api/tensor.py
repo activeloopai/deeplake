@@ -25,19 +25,16 @@ class Tensor:
         index: Union[int, slice, Index] = None,
     ):
         """Initializes a new tensor.
-
         Note:
             This operation does not create a new tensor in the storage provider,
             and should normally only be performed by Hub internals.
-
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
             tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
-            with this meta.
+                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
-
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
