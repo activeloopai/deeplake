@@ -8,10 +8,12 @@ from hub.api.tensor import Tensor
 from hub.core.tensor import tensor_exists
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
-from hub.core.meta.tensor_meta import tensor_meta_from_array
+from hub.core.meta.tensor_meta import default_tensor_meta
 
 from hub.core.typing import StorageProvider
 from hub.util.index import Index
+
+from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
@@ -24,10 +26,6 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 from hub.integrations import dataset_to_pytorch
 
 
-# Used to distinguish between attributes and items (tensors)
-DATASET_RESERVED_ATTRIBUTES = ["path", "mode", "index", "storage", "tensors"]
-
-
 class Dataset:
     def __init__(
         self,
@@ -38,13 +36,7 @@ class Dataset:
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
     ):
-        """Initialize a new or existing dataset.
-
-        Note:
-            Entries of `DATASET_RESERVED_ATTRIBUTES` cannot be used as tensor names.
-            This is to distinguish between attributes (like `ds.mode`) and tensors.
-
-            Be sure to keep `DATASET_RESERVED_ATTRIBUTES` up-to-date when changing this class.
+        """Initializes a new or existing dataset.
 
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
@@ -78,11 +70,10 @@ class Dataset:
         self.tensors: Dict[str, Tensor] = {}
 
         if dataset_exists(self.storage):
-            ds_meta = read_dataset_meta(self.storage)
-            for tensor_name in ds_meta["tensors"]:
+            for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         else:
-            write_dataset_meta(self.storage, {"tensors": []})
+            self.meta = {"tensors": []}
 
     # TODO len should consider slice
     def __len__(self):
@@ -101,39 +92,60 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
-    def __setitem__(self, item: Union[slice, str], value):
-        if isinstance(item, str):
-            tensor_key = item
+    def create_tensor(
+        self,
+        name: str,
+        htype: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        dtype: Optional[str] = None,
+        extra_meta: Optional[dict] = None,
+    ):
+        """Creates a new tensor in a dataset.
 
-            if tensor_exists(tensor_key, self.storage):
-                raise TensorAlreadyExistsError(tensor_key)
+        Args:
+            name (str): The name of the tensor to be created.
+            htype (str, optional): The class of data for the tensor.
+                The defaults for other parameters are determined in terms of this value.
+                For example, `htype="image"` would have `dtype` default to `uint8`.
+                These defaults can be overridden by explicitly passing any of the other parameters to this function.
+                May also modify the defaults for other parameters.
+            chunk_size (int, optional): The target size for chunks in this tensor.
+            dtype (str, optional): The data type to use for this tensor.
+                Will be overwritten when the first sample is added.
+            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
 
-            if isinstance(value, np.ndarray):
-                tensor_meta = tensor_meta_from_array(value, batched=True)
-                ds_meta = read_dataset_meta(self.storage)
-                ds_meta["tensors"].append(tensor_key)
-                write_dataset_meta(self.storage, ds_meta)
-                tensor = Tensor(tensor_key, self.storage, tensor_meta=tensor_meta)
-                self.tensors[tensor_key] = tensor
-                tensor.append(value, batched=True)
-                return tensor
-            else:
-                raise UnsupportedTensorTypeError(item)
-        else:
-            raise InvalidKeyTypeError(item)
+        Returns:
+            The new tensor, which can also be accessed by `self[name]`.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+        """
+        if tensor_exists(name, self.storage):
+            raise TensorAlreadyExistsError(name)
+
+        ds_meta = self.meta
+        ds_meta["tensors"].append(name)
+        self.meta = ds_meta
+
+        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
+        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        self.tensors[name] = tensor
+
+        return tensor
 
     __getattr__ = __getitem__
-
-    def __setattr__(self, name: str, value):
-        """Set the named attribute on the dataset"""
-        if name in DATASET_RESERVED_ATTRIBUTES:
-            return super().__setattr__(name, value)
-        else:
-            return self.__setitem__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    @property
+    def meta(self):
+        return read_dataset_meta(self.storage)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_dataset_meta(self.storage, new_meta)
 
     def pytorch(self, transform: Callable = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
@@ -172,10 +184,10 @@ class Dataset:
 
     @staticmethod
     def from_path(path: str):
-        """Create a local hub dataset from unstructured data.
+        """Creates a hub dataset from unstructured data.
 
         Note:
-            This copies the data locally in hub format.
+            This copies the data into hub format.
             Be careful when using this with large datasets.
 
         Args:

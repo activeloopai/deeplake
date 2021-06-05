@@ -11,8 +11,10 @@ def test_pytorch_small():
 
     root = "./test/pytorch"
     ds = Dataset(root)
-    ds["image"] = np.array([i * np.ones((300, 300)) for i in range(256)])
-    ds["image2"] = np.array([i * np.ones((100, 100)) for i in range(256)])
+    ds.create_tensor("image")
+    ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+    ds.create_tensor("image2")
+    ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
     ds.flush()
 
     ptds = ds.pytorch(workers=2)
@@ -35,7 +37,8 @@ def test_pytorch_large():
 
     root = "./test/pytorch"
     ds = Dataset(root)
-    ds["image"] = np.array(
+    ds.create_tensor("image")
+    arr = np.array(
         [
             np.ones((4096, 4096)),
             2 * np.ones((4096, 4096)),
@@ -43,7 +46,9 @@ def test_pytorch_large():
             4 * np.ones((4096, 4096)),
         ]
     )
-    ds["classlabel"] = np.array([i for i in range(10)])
+    ds.image.extend(arr)
+    ds.create_tensor("classlabel")
+    ds.classlabel.extend(np.array([i for i in range(10)]))
     ds.flush()
 
     ptds = ds.pytorch(workers=2)
@@ -66,8 +71,10 @@ def test_pytorch_small_old():
 
     root = "./test/pytorch_old"
     ds = Dataset(root)
-    ds["image"] = np.array([i * np.ones((300, 300)) for i in range(256)])
-    ds["image2"] = np.array([i * np.ones((100, 100)) for i in range(256)])
+    ds.create_tensor("image")
+    ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+    ds.create_tensor("image2")
+    ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
     ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
@@ -89,7 +96,8 @@ def test_pytorch_large_old():
 
     root = "./test/pytorch_old"
     ds = Dataset(root)
-    ds["image"] = np.array(
+    ds.create_tensor("image")
+    arr = np.array(
         [
             np.ones((4096, 4096)),
             2 * np.ones((4096, 4096)),
@@ -97,7 +105,9 @@ def test_pytorch_large_old():
             4 * np.ones((4096, 4096)),
         ]
     )
-    ds["classlabel"] = np.array([i for i in range(10)])
+    ds.image.extend(arr)
+    ds.create_tensor("classlabel")
+    ds.classlabel.extend(np.array([i for i in range(10)]))
     ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8

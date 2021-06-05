@@ -12,8 +12,10 @@ def test_persist_local_flush(local_storage):
         pytest.skip()
 
     ds = Dataset(local_storage.root, local_cache_size=512)
-    ds.image = np.ones((4, 4096, 4096))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
     ds.flush()
+
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
     assert ds_new.image.shape == (4096, 4096)
@@ -26,7 +28,8 @@ def test_persist_local_clear_cache(local_storage):
         pytest.skip()
 
     ds = Dataset(local_storage.root, local_cache_size=512)
-    ds.image = np.ones((4, 4096, 4096))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
     ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
@@ -37,21 +40,36 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert read_dataset_meta(ds.storage) == {"tensors": []}
-    ds.image = np.ones((4, 28, 28))
-    assert read_dataset_meta(ds.storage) == {"tensors": ["image"]}
+    assert ds.meta == {"tensors": []}
+    ds.create_tensor("image")
+    assert len(ds) == 0
+    assert len(ds.image) == 0
+
+    ds.image.extend(np.ones((4, 28, 28)))
     assert len(ds) == 4
+    assert len(ds.image) == 4
+
+    for _ in range(10):
+        ds.image.append(np.ones((28, 28)))
+    assert len(ds.image) == 14
+
+    ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
+    assert len(ds.image) == 16
+
+    assert ds.meta == {"tensors": ["image"]}
 
 
 @parametrize_all_dataset_storages
 def test_compute_tensor(ds):
-    ds.image = np.ones((32, 28, 28))
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((32, 28, 28)))
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
 @parametrize_all_dataset_storages
 def test_compute_tensor_slice(ds):
-    ds.image = np.vstack((np.arange(16),) * 8)
+    ds.create_tensor("image")
+    ds.image.extend(np.vstack((np.arange(16),) * 8))
 
     sliced_data = ds.image[2:5].numpy()
     expected_data = np.vstack((np.arange(16),) * 3)
@@ -61,8 +79,11 @@ def test_compute_tensor_slice(ds):
 @parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
-    ds.image = np.ones((4, 28, 28))
-    ds.label = np.asarray(labels).reshape((4, 1))
+    ds.create_tensor("image")
+    ds.create_tensor("label")
+
+    ds.image.extend(np.ones((4, 28, 28)))
+    ds.label.extend(np.asarray(labels).reshape((4, 1)))
 
     for idx, sub_ds in enumerate(ds):
         img = sub_ds.image.numpy()
