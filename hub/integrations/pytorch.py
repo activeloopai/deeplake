@@ -26,15 +26,17 @@ def _apply_transform(transform: Callable, sample: Dict):
 
 
 def _read_and_store_chunk(chunk_name: str, shared_memory_name: str, key: str):
-    """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory"""
+    """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
     remove_shared_memory_from_resource_tracker()
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = _hub_storage_provider[chunk_path]
     chunk_size = len(chunk_bytes)
     shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
-    shm.buf[:] = chunk_bytes
+
+    # needs to be done as some OS allocate extra space
+    shm.buf[0:chunk_size] = chunk_bytes
     shm.close()
-    return
+    return chunk_size
 
 
 def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
@@ -107,7 +109,8 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-        global _hub_storage_provider  # global to pass to processes, not possible to serialize and send
+        # global to pass to processes, not possible to serialize and send
+        global _hub_storage_provider
 
         # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
         # could it be working here as we're only reading data?
@@ -142,8 +145,12 @@ class TorchDataset:
         chunk_names = list(self._get_chunk_names(index, key))
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
         clear_shared_memory(shared_memory_names)
-        self.map(_read_and_store_chunk, chunk_names, shared_memory_names, repeat(key))
-        self._get_data_from_chunks(index, key, chunk_names, shared_memory_names)
+        chunk_sizes: List[int] = self.map(
+            _read_and_store_chunk, chunk_names, shared_memory_names, repeat(key)
+        )
+        self._get_data_from_chunks(
+            index, key, chunk_names, shared_memory_names, chunk_sizes
+        )
         self.all_shared_memory_names[key] = shared_memory_names
 
     def _generate_shared_memory_names(self, chunk_names: List[str]):
@@ -187,14 +194,17 @@ class TorchDataset:
         key: str,
         chunk_names: List[str],
         shared_memory_names: List[str],
+        chunk_sizes: List[int],
     ):
         """Extracts data from all the chunks in chunk_names and stores it index wise in a dictionary"""
         self.all_index_value_maps[key] = {}
         chunk_map = {}
         # loads value of chunks saved in SharedMemory into memory
-        for chunk_name, shared_memory_name in zip(chunk_names, shared_memory_names):
+        for chunk_name, shared_memory_name, chunk_size in zip(
+            chunk_names, shared_memory_names, chunk_sizes
+        ):
             self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:]
+            chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:chunk_size]
 
         # saves np array for each index in memory
         for i in range(index, len(self)):
