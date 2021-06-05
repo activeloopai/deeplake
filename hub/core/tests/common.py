@@ -123,8 +123,7 @@ def assert_chunk_sizes(
         candidate_chunk_lengths = actual_chunk_lengths[:-1]
         assert np.all(
             candidate_chunk_lengths == chunk_size
-        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: " \
-           "%s\n\nactual chunk names: %s" % (
+        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: " "%s\n\nactual chunk names: %s" % (
             chunk_size,
             str(candidate_chunk_lengths),
             str(actual_chunk_lengths_dict.keys()),

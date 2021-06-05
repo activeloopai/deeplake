@@ -73,14 +73,20 @@ Accessing datasets in Hub requires a single line of code. Run this snippet to ge
 from hub import Dataset
 
 mnist = Dataset("activeloop/mnist")
-mnist_np = mnist["image"][0:1000].compute()
+mnist_np = mnist["image"][0:1000].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
-my_dataset = Dataset("http://s3.amazonaws.com/[my_bucket_name]/")
-my_dataset_pytorch = my_dataset.to_pytorch(lambda x: (x["image"], x["label"]))
+import torch
+from hub import Dataset
+
+my_dataset = Dataset("s3://bucket_name/dataset_folder")
+my_dataset_pytorch = my_dataset.torch(workers=2)
 
 train_loader = torch.utils.data.DataLoader(my_dataset_pytorch, batch_size=1, num_workers=0)
+
+for batch in train_loader:
+    print(batch["image"])
 
 ## Training Loop Here ##
 ```
