@@ -25,13 +25,13 @@ def _apply_transform(transform: Callable, sample: Dict):
     return transform(sample) if transform else sample
 
 
-def _read_and_store_chunk(chunk_name: str, key: str):
+def _read_and_store_chunk(chunk_name: str, shared_memory_name: str, key: str):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory"""
     remove_shared_memory_from_resource_tracker()
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = _hub_storage_provider[chunk_path]
     chunk_size = len(chunk_bytes)
-    shm = SharedMemory(create=True, size=chunk_size, name=chunk_name)
+    shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
     shm.buf[:] = chunk_bytes
     shm.close()
     return
@@ -68,11 +68,13 @@ class TorchDataset:
         self.processed_samples: List[Dict] = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
-        # keeps track of names of all chunks across tensors whose data is currently prefetched
-        self.all_chunk_sets: Dict[str, Set[str]] = defaultdict(set)
+        # keeps track of names of all shared_memory that have data in them
+        self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(set)
 
         # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
         self.all_shared_memory: Dict = defaultdict(list)
+
+        self.last_chunk_num_generated = -1
 
     def __len__(self):
         return self.len
@@ -135,14 +137,22 @@ class TorchDataset:
         """Prefetches data for the given key, starting from the given index"""
         # clear data from previous prefetching, before fetching data
         del self.all_index_value_maps[key]
-        old_chunk_names = self.all_chunk_sets[key]
-        clear_shared_memory(old_chunk_names)
+        old_shared_memory_names = self.all_shared_memory_names[key]
+        clear_shared_memory(old_shared_memory_names)
+        chunk_names = list(self._get_chunk_names(index, key))
+        shared_memory_names = self._generate_shared_memory_names(chunk_names)
+        clear_shared_memory(shared_memory_names)
+        self.map(_read_and_store_chunk, chunk_names, shared_memory_names, repeat(key))
+        self._get_data_from_chunks(index, key, chunk_names, shared_memory_names)
+        self.all_shared_memory_names[key] = shared_memory_names
 
-        chunk_names = self._get_chunk_names(index, key)
-        clear_shared_memory(chunk_names)
-        self.map(_read_and_store_chunk, chunk_names, repeat(key))
-        self._get_data_from_chunks(index, key, chunk_names)
-        self.all_chunk_sets[key] = chunk_names
+    def _generate_shared_memory_names(self, chunk_names: List[str]):
+        """Generates a name for every chunk_name as chunknames very large and fail on MacOS"""
+        ls = []
+        for _ in chunk_names:
+            self.last_chunk_num_generated += 1
+            ls.append(f"al_{self.last_chunk_num_generated}")
+        return ls
 
     def _get_chunk_names(self, index: int, key: str):
         """Gets chunk names for elements starting from index to read in parallel"""
@@ -171,13 +181,19 @@ class TorchDataset:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         return arr
 
-    def _get_data_from_chunks(self, index: int, key: str, chunk_names: Set[str]):
-        """Extracts data from all the chunks in chunk_set and stores it index wise in a dictionary"""
+    def _get_data_from_chunks(
+        self,
+        index: int,
+        key: str,
+        chunk_names: List[str],
+        shared_memory_names: List[str],
+    ):
+        """Extracts data from all the chunks in chunk_names and stores it index wise in a dictionary"""
         self.all_index_value_maps[key] = {}
         chunk_map = {}
         # loads value of chunks saved in SharedMemory into memory
-        for chunk_name in chunk_names:
-            self.all_shared_memory[key].append(SharedMemory(name=chunk_name))
+        for chunk_name, shared_memory_name in zip(chunk_names, shared_memory_names):
+            self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
             chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:]
 
         # saves np array for each index in memory
@@ -216,5 +232,5 @@ class TorchDataset:
     def _all_shared_memory_clean_up(self):
         """Cleans up possibly leaked memory at the end of iteration across Tensors"""
         for key in self.keys:
-            chunk_names = self.all_chunk_sets[key]
-            clear_shared_memory(chunk_names)
+            shared_memory_names = self.all_shared_memory_names[key]
+            clear_shared_memory(shared_memory_names)

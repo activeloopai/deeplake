@@ -1,4 +1,4 @@
-from typing import Set
+from typing import List
 
 try:
     from multiprocessing.shared_memory import SharedMemory
@@ -28,9 +28,9 @@ def remove_shared_memory_from_resource_tracker():
         del resource_tracker._CLEANUP_FUNCS["shared_memory"]
 
 
-def clear_shared_memory(chunk_names: Set[str]):
+def clear_shared_memory(shared_memory_names: List[str]):
     """Checks if an existing SharedMemory exists for any chunk in chunk_names and clears it"""
-    for chunk_name in chunk_names:
+    for chunk_name in shared_memory_names:
         try:
             shm = SharedMemory(name=chunk_name)
             shm.close()
