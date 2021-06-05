@@ -98,11 +98,6 @@ class ModuleNotInstalledException(Exception):
         super().__init__(message)
 
 
-class RequiresHigherPythonVersion(Exception):
-    def __init__(self, operation, version):
-        super().__init__(
-            f"Python version >= {version} is required to use '{operation}''."
-        )
 class LoginException(Exception):
     def __init__(
         self,

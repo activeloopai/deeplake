@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union
 
 import numpy as np
 from hub.api.tensor import Tensor
@@ -21,7 +21,7 @@ from hub.util.exceptions import (
 from hub.util.cache_chain import generate_chain
 from hub.util.path import storage_provider_from_path
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.integrations.pytorch import dataset_to_pytorch
+from hub.integrations import dataset_to_pytorch
 
 
 # Used to distinguish between attributes and items (tensors)
@@ -135,7 +135,17 @@ class Dataset:
         for i in range(len(self)):
             yield self[i]
 
-    def to_pytorch(self, transform=None, workers=1):
+    def pytorch(self, transform: Callable = None, workers: int = 1):
+        """Converts the dataset into a pytorch compatible format.
+
+        Note:
+            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+            This spins up it's own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.
+
+        Args:
+            transform (Callable, optional) : Transformation function to be applied to each sample
+            workers (int): The number of workers to use for fetching data in parallel.
+        """
         return dataset_to_pytorch(self, transform, workers=workers)
 
     def flush(self):
