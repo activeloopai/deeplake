@@ -8,8 +8,8 @@ from hub.core.meta.tensor_meta import (
     write_tensor_meta,
     validate_tensor_meta,
 )
-from hub.core.meta.index_map import read_index_map, write_index_map
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
+from hub.core.meta.index_map import IndexMap
+from hub.util.keys import get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
@@ -27,8 +27,7 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
     """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
 
     meta_key = get_tensor_meta_key(key)
-    index_map_key = get_index_map_key(key)
-    return meta_key in storage and index_map_key in storage
+    return meta_key in storage
 
 
 def create_tensor(key: str, storage: StorageProvider, meta: dict):
@@ -51,9 +50,7 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     meta.update({"length": 0})
 
     validate_tensor_meta(meta)
-
     write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, [])
 
 
 def add_samples_to_tensor(
@@ -84,7 +81,7 @@ def add_samples_to_tensor(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    index_map = read_index_map(key, storage)
+    index_map = IndexMap(key, storage)
     tensor_meta = read_tensor_meta(key, storage)
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
@@ -98,18 +95,12 @@ def add_samples_to_tensor(
         # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
         # choose to optimize for.
         b = memoryview(tobytes(sample))
-
-        index_map_entry = write_bytes(
-            b, key, tensor_meta["chunk_size"], storage, index_map
-        )
-
-        index_map_entry["shape"] = sample.shape
-        index_map.append(index_map_entry)
+        extra_meta = {"shape": sample.shape}
+        write_bytes(b, key, tensor_meta["chunk_size"], storage, index_map, extra_meta)
 
     tensor_meta["length"] += array_length
 
     write_tensor_meta(key, storage, tensor_meta)
-    write_index_map(key, storage, index_map)
 
 
 def read_samples_from_tensor(
@@ -129,7 +120,7 @@ def read_samples_from_tensor(
     """
 
     meta = read_tensor_meta(key, storage)
-    index_map = read_index_map(key, storage)
+    index_map = IndexMap(key, storage)
 
     # TODO: read samples in parallel
     samples = []

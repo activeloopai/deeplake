@@ -42,6 +42,13 @@ class TensorAlreadyExistsError(Exception):
         super().__init__("Tensor {} already exists.".format(key))
 
 
+class InvalidIndexMapEntry(Exception):
+    def __init__(self, item: Any, holder: str):
+        super().__init__(
+            "Invalid data entry {} for {} in Index Map".format(item, holder)
+        )
+
+
 class InvalidKeyTypeError(TypeError):
     def __init__(self, item: Any):
         super().__init__(

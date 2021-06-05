@@ -12,7 +12,7 @@ from hub.core.tensor import (
     read_samples_from_tensor,
 )
 from hub.core.meta.tensor_meta import read_tensor_meta, tensor_meta_from_array
-from hub.core.meta.index_map import read_index_map
+from hub.core.meta.index_map import IndexMap, IndexMapEntry
 
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
@@ -81,7 +81,7 @@ def assert_chunk_sizes(
     total_chunks = 0
     actual_chunk_lengths_dict: Dict[str, int] = {}
     for i, entry in enumerate(index_map):
-        for j, chunk_name in enumerate(entry["chunk_names"]):
+        for j, chunk_name in enumerate(entry.chunk_names):
             chunk_key = get_chunk_key(key, chunk_name)
             chunk_length = len(storage[chunk_key])
 
@@ -166,14 +166,14 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": sample_count,
                 "dtype": a_in.dtype.name,
-                "min_shape": tuple(a_in.shape[1:]),
-                "max_shape": tuple(a_in.shape[1:]),
+                "min_shape": list(a_in.shape[1:]),
+                "max_shape": list(a_in.shape[1:]),
             },
         )
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
 
-    index_map = read_index_map(key, storage)
+    index_map = IndexMap(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
 
 

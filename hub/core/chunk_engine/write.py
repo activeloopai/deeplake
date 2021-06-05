@@ -1,11 +1,16 @@
+from hub.util.index import Index
 from typing import List, Tuple
 from uuid import uuid1
 
 import numpy as np
 from hub.core.typing import StorageProvider
+from hub.core.meta.index_map import IndexMap
 from hub.util.keys import get_chunk_key
 
 from .chunker import generate_chunks
+
+# def
+#     index_map = IndexMap(get_chunk_key(), StorageProvider)
 
 
 def write_bytes(
@@ -13,8 +18,9 @@ def write_bytes(
     key: str,
     chunk_size: int,
     storage: StorageProvider,
-    index_map: List[dict],
-) -> dict:
+    index_map: IndexMap,
+    extra_meta: dict = {},
+):
     """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single sample.
 
     Args:
@@ -57,7 +63,7 @@ def write_bytes(
             last_chunk += chunk  # type: ignore
             chunk = memoryview(last_chunk)
 
-            start_byte = index_map[-1]["end_byte"]
+            start_byte = index_map[-1].end_byte
 
             if len(chunk) >= chunk_size:
                 extend_last_chunk = False
@@ -74,18 +80,15 @@ def write_bytes(
         last_chunk = memoryview(chunk)
         last_chunk_name = chunk_name
 
-    # TODO: encode index_map_entry as array instead of dictionary
-    index_map_entry = {
-        "chunk_names": chunk_names,
-        "start_byte": start_byte,
-        "end_byte": end_byte,
-    }
-
-    return index_map_entry
+    index_map.create_entry(
+        chunk_names=chunk_names, start_byte=start_byte, end_byte=end_byte, **extra_meta
+    )
 
 
 def _get_last_chunk(
-    key: str, index_map: List[dict], storage: StorageProvider
+    key: str,
+    index_map: IndexMap,
+    storage: StorageProvider,
 ) -> Tuple[str, memoryview]:
     """Retrieves the name and memoryview of bytes for the last chunk that was written to. This is helpful for
     filling previous chunks before creating new ones.
@@ -102,7 +105,7 @@ def _get_last_chunk(
 
     if len(index_map) > 0:
         last_index_map_entry = index_map[-1]
-        last_chunk_name = last_index_map_entry["chunk_names"][-1]
+        last_chunk_name = last_index_map_entry.chunk_names[-1]
         last_chunk_key = get_chunk_key(key, last_chunk_name)
         last_chunk = memoryview(storage[last_chunk_key])
         return last_chunk_name, last_chunk

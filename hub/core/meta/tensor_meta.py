@@ -1,6 +1,7 @@
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 import numpy as np
-import pickle  # TODO: NEVER USE PICKLE
+import json
+import pickle
 from typing import Any, Callable
 
 from hub.core.typing import StorageProvider
@@ -10,11 +11,15 @@ from hub.util.array import normalize_and_batchify_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
+    meta["min_shape"] = list(meta["min_shape"])
+    meta["max_shape"] = list(meta["max_shape"])
+    storage[get_tensor_meta_key(key)] = bytes(json.dumps(meta), "utf-8")
+    # storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+    return json.loads(storage[get_tensor_meta_key(key)])
+    # return pickle.loads(storage[get_tensor_meta_key(key)])
 
 
 def tensor_meta_from_array(
