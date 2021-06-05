@@ -1,9 +1,7 @@
 from typing import Tuple
 
-import numpy as np
 import pytest
 
-from hub.constants import GB
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
@@ -12,7 +10,6 @@ from hub.tests.common_benchmark import (
     parametrize_benchmark_dtypes,
     parametrize_benchmark_num_batches,
 )
-
 from .test_benchmark_chunk_engine import (
     benchmark_write,
     benchmark_read,

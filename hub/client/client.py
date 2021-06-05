@@ -1,5 +1,9 @@
-import requests
 import sys
+from typing import Optional
+
+import requests
+
+from hub import __version__
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     GET_TOKEN_SUFFIX,
@@ -8,8 +12,6 @@ from hub.client.config import (
 )
 from hub.client.utils import get_auth_header, check_response_status
 from hub.util.exceptions import LoginException
-from typing import Optional
-from hub import __version__
 
 
 class HubBackendClient:
@@ -33,12 +35,14 @@ class HubBackendClient:
         """Sends a request to the backend.
 
         Args:
-            method (str): The method for sending the request. Should be one of 'GET', 'OPTIONS', 'HEAD', 'POST', 'PUT', 'PATCH', or 'DELETE'.
+            method (str): The method for sending the request. Should be one of 'GET', 'OPTIONS', 'HEAD', 'POST', 'PUT',
+             'PATCH', or 'DELETE'.
             relative_url (str): The suffix to be appended to the end of the endpoint url.
             endpoint(str, optional): The endpoint to send the request to.
             params (dict, optional): Dictionary to send in the query string for the request.
             data (dict, optional): Dictionary to send in the body of the request.
-            files (dict, optional): Dictionary of 'name': file-like-objects (or {'name': file-tuple}) for multipart encoding upload.
+            files (dict, optional): Dictionary of 'name': file-like-objects (or {'name': file-tuple}) for multipart
+            encoding upload.
                 file-tuple can be a 2-tuple (filename, fileobj), 3-tuple (filename, fileobj, content_type)
                 or a 4-tuple (filename, fileobj, content_type, custom_headers), where 'content-type' is a string
                 defining the content type of the given file and 'custom_headers' a dict-like object containing

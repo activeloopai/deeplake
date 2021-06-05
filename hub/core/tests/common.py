@@ -1,22 +1,20 @@
-from hub.util.index import Index
-import pytest
-
 from typing import Dict, List
 
 import numpy as np
+import pytest
 
+from hub.core.meta.index_map import read_index_map
+from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,
     tensor_exists,
     read_samples_from_tensor,
 )
-from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
-from hub.core.meta.index_map import read_index_map
-
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
 from hub.util.array import normalize_and_batchify_shape
+from hub.util.index import Index
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -25,7 +23,6 @@ DATASET_FIXTURE_NAME = "ds"
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
-
 
 ALL_PROVIDERS = [MEMORY, LOCAL, S3]
 
@@ -126,7 +123,8 @@ def assert_chunk_sizes(
         candidate_chunk_lengths = actual_chunk_lengths[:-1]
         assert np.all(
             candidate_chunk_lengths == chunk_size
-        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
+        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: " \
+           "%s\n\nactual chunk names: %s" % (
             chunk_size,
             str(candidate_chunk_lengths),
             str(actual_chunk_lengths_dict.keys()),
@@ -180,7 +178,6 @@ def run_engine_test(
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-
     create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
     for a_in in arrays:

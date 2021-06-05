@@ -1,13 +1,15 @@
 from typing import Union
-import pytest
+
 import numpy as np
-from hub.core.compression.numpy import NUMPY
-from hub.core.compression.zstd import ZSTD
-from hub.core.compression.lz4 import LZ4
-from hub.core.compression.webp import WEBP
-from hub.core.compression.jpeg import JPEG
-from hub.core.compression.png import PNG
+import pytest
+
 from hub.core.compression import BaseNumCodec, BaseImgCodec
+from hub.core.compression.jpeg import JPEG
+from hub.core.compression.lz4 import LZ4
+from hub.core.compression.numpy import NUMPY
+from hub.core.compression.png import PNG
+from hub.core.compression.webp import WEBP
+from hub.core.compression.zstd import ZSTD
 
 IMG_ARRAY_SHAPES = (
     (30, 30, 3),

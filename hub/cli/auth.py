@@ -1,7 +1,7 @@
 import click
-from typing import Optional
-from hub.client.utils import write_token, remove_token
+
 from hub.client.client import HubBackendClient
+from hub.client.utils import write_token, remove_token
 from hub.util.exceptions import AuthenticationException
 
 
@@ -12,7 +12,8 @@ def login(username: str, password: str):
     """Log in to Activeloop"""
     click.echo("Log in using Activeloop credentials.")
     click.echo(
-        "If you don't have an account register by using 'hub register' command or by going to https://app.activeloop.ai/register."
+        "If you don't have an account register by using 'hub register' command or by going to "
+        "https://app.activeloop.ai/register."
     )
     username = username or click.prompt("Username")
     username = username.strip()

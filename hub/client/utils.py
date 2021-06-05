@@ -1,7 +1,9 @@
 import os
 import sys
-import requests
 from pathlib import Path
+
+import requests
+
 from hub.client.config import TOKEN_FILE_PATH, HUB_AUTH_TOKEN
 from hub.util.exceptions import (
     AuthenticationException,

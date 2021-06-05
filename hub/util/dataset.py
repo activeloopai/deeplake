@@ -1,4 +1,5 @@
 from typing import Union
+
 from hub.core import compression
 from hub.util.exceptions import InvalidCompressor
 

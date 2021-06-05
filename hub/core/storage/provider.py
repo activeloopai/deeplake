@@ -1,8 +1,9 @@
+from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from typing import Optional
-from abc import ABC, abstractmethod
-from hub.util.assert_byte_indexes import assert_byte_indexes
+
 from hub.constants import BYTE_PADDING
+from hub.util.assert_byte_indexes import assert_byte_indexes
 
 
 class StorageProvider(ABC, MutableMapping):
