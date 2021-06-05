@@ -1,5 +1,4 @@
 from hub.api.dataset import Dataset
-import torch
 import numpy as np
 from hub.integrations.pytorch_old import dataset_to_pytorch
 import pytest
@@ -8,6 +7,8 @@ from hub.util.check_installation import pytorch_installed
 
 @pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_small():
+    import torch
+
     root = "./test/pytorch"
     ds = Dataset(root)
     ds["image"] = np.array([i * np.ones((300, 300)) for i in range(256)])
@@ -30,6 +31,8 @@ def test_pytorch_small():
 
 @pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_large():
+    import torch
+
     root = "./test/pytorch"
     ds = Dataset(root)
     ds["image"] = np.array(
@@ -59,6 +62,8 @@ def test_pytorch_large():
 
 @pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_small_old():
+    import torch
+
     root = "./test/pytorch_old"
     ds = Dataset(root)
     ds["image"] = np.array([i * np.ones((300, 300)) for i in range(256)])
@@ -80,6 +85,8 @@ def test_pytorch_small_old():
 
 @pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
 def test_pytorch_large_old():
+    import torch
+
     root = "./test/pytorch_old"
     ds = Dataset(root)
     ds["image"] = np.array(
