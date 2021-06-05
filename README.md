@@ -17,7 +17,7 @@
   <h3 align="center">
    <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
    <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
-   <a href="https://activeloop.gitbook.io/hub-2-0/tutorials"><b>Tutorials</b></a> &bull;
+   <a href="http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
