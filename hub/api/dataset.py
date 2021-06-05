@@ -8,6 +8,7 @@ from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
+from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -16,7 +17,6 @@ from hub.util.exceptions import (
 )
 from hub.util.index import Index
 from hub.util.path import storage_provider_from_path
-from hub.integrations import dataset_to_pytorch
 
 
 class Dataset:
@@ -25,8 +25,7 @@ class Dataset:
         path: str = "",
         mode: str = "a",
         index: Union[int, slice, Index] = None,
-        memory_cache_size: int = 
-      ,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
     ):
