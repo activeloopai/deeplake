@@ -9,9 +9,37 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class TensorNotFoundError(KeyError):
+class TensorMetaMismatchError(Exception):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            "Meta value for {} expected {} but got {}.".format(
+                meta_key, str(expected), str(actual)
+            )
+        )
+
+
+class TensorMetaMissingKey(Exception):
+    def __init__(self, key: str, meta: dict):
+        super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
+
+
+class TensorMetaInvalidValue(Exception):
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
+
+
+class TensorDoesNotExistError(KeyError):
     def __init__(self, tensor_name: str):
-        super().__init__("Tensor {} not found in dataset.".format(tensor_name))
+        super().__init__("Tensor {} does not exist.".format(tensor_name))
+
+
+class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__("Tensor {} already exists.".format(key))
 
 
 class InvalidKeyTypeError(TypeError):
@@ -161,3 +189,18 @@ class S3DeletionError(Exception):
 
 class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
+
+
+class InvalidCompressor(Exception):
+    def __init__(self, available_compressors):
+        super().__init__(
+            f"Compressor is not supported. Supported compressions: {available_compressors}"
+        )
+
+
+class InvalidImageDimensions(Exception):
+    def __init__(self, actual_dims, expected_dims):
+        super().__init__(
+            f"The shape length {actual_dims} of the given array should "
+            f"be greater than the number of expected dimensions {expected_dims}"
+        )

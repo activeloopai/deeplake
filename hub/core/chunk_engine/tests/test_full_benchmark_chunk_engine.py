@@ -4,11 +4,6 @@ import numpy as np
 import pytest
 
 from hub.constants import GB
-from hub.core.chunk_engine import read_array, write_array
-from hub.core.chunk_engine.tests.common import (
-    get_random_array,
-    TENSOR_KEY,
-)
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
@@ -19,9 +14,7 @@ from hub.tests.common_benchmark import (
 )
 
 from .test_benchmark_chunk_engine import (
-    single_benchmark_write,
     benchmark_write,
-    single_benchmark_read,
     benchmark_read,
 )
 

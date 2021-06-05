@@ -2,32 +2,35 @@ from typing import Tuple
 
 import numpy as np
 import pytest
-
 from hub.constants import GB
-from hub.core.chunk_engine import read_array, write_array
-from hub.core.chunk_engine.tests.common import (
-    get_random_array,
-    TENSOR_KEY,
+
+from hub.tests.common import get_random_array
+from hub.core.tensor import (
+    read_samples_from_tensor,
+    add_samples_to_tensor,
+    create_tensor,
 )
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
+from hub.core.meta.tensor_meta import default_tensor_meta
+from hub.core.tests.common import TENSOR_KEY
 from hub.core.typing import StorageProvider
 from hub.tests.common_benchmark import (
-    parametrize_benchmark_shapes,
     parametrize_benchmark_chunk_sizes,
     parametrize_benchmark_dtypes,
     parametrize_benchmark_num_batches,
+    parametrize_benchmark_shapes,
 )
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
+    create_tensor(actual_key, storage, default_tensor_meta(chunk_size=chunk_size))
+
     for a_in in arrays:
-        write_array(
+        add_samples_to_tensor(
             array=a_in,
             key=actual_key,
             storage=storage,
-            chunk_size=chunk_size,
             batched=batched,
         )
 
@@ -38,7 +41,7 @@ def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
 
 def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
     """
-    Benchmark `write_array`.
+    Benchmark `add_samples_to_tensor`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
@@ -65,12 +68,12 @@ def benchmark_write(benchmark, shape, dtype, chunk_size, num_batches, storage):
 
 
 def single_benchmark_read(key, storage):
-    read_array(key, storage)
+    read_samples_from_tensor(key, storage)
 
 
 def benchmark_read(benchmark, shape, dtype, chunk_size, num_batches, storage):
     """
-    Benchmark `read_array`.
+    Benchmark `read_samples_from_tensor`.
 
     Samples have FIXED shapes (must have the same shapes).
     Samples are provided WITH a batch axis.
