@@ -6,7 +6,7 @@ RUN mkdir /app && cd /app
 
 RUN git clone https://github.com/activeloopai/Hub.git && \
     cd Hub && \
-    git checkout clean_for_release
+    git checkout clean_2
 
 RUN pip install -r requirements/requirments.txt && \
     pip install -r requirements/common.txt && \
