@@ -124,6 +124,11 @@ class ProviderSizeListMismatch(Exception):
         super().__init__("Ensure that len(size_list) + 1 == len(provider_list)")
 
 
+class ModuleNotInstalledException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
 class LoginException(Exception):
     def __init__(
         self,
