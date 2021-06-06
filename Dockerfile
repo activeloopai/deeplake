@@ -15,6 +15,4 @@ RUN pip install -r requirements/requirments.txt && \
     pip install -r requirements/tests.txt && \
     pip install -r requirements/plugins.txt
 
-RUN pytest .
-
 ENV PYTHONPATH="/app/Hub:$PYTHONPATH"
