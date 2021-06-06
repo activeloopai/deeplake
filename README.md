@@ -81,7 +81,7 @@ import torch
 from hub import Dataset
 
 my_dataset = Dataset("s3://bucket_name/dataset_folder")
-my_dataset_pytorch = my_dataset.torch(workers=2)
+my_dataset_pytorch = my_dataset.pytorch(workers=2)
 
 train_loader = torch.utils.data.DataLoader(my_dataset_pytorch, batch_size=1, num_workers=0)
 
