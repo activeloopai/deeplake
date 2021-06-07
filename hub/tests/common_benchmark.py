@@ -15,7 +15,7 @@ BENCHMARK_CHUNK_SIZES = (16 * MB,)
 
 FULL_BENCHMARK_BATCHED_SHAPES = (
     # with int64/float64 = ~1GB
-    (10, 224, 224, 3),
+    (840, 224, 224, 3),
 )
 
 BENCHMARK_BATCHED_SHAPES = ((5, 224, 224, 3),)
