@@ -11,7 +11,7 @@ from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
 
 from hub.core.typing import StorageProvider
-from hub.util.index import Index
+from hub.core.index import Index
 
 from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.util.exceptions import (
@@ -31,7 +31,7 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        index: Union[int, slice, Index] = None,
+        index: Optional[Index] = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
@@ -44,7 +44,6 @@ class Dataset:
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
             index: The Index object restricting the view of this dataset's tensors.
-                Can be an int, slice, or (used internally) an Index object.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
@@ -55,7 +54,7 @@ class Dataset:
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.index = Index(index)
+        self.index = index or Index()
 
         if storage is not None and path:
             warnings.warn(

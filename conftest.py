@@ -230,6 +230,24 @@ def storage(request, memory_storage, local_storage, s3_storage):
 
 
 @pytest.fixture
+def memory_ds(memory_storage):
+    _skip_if_none(memory_storage)
+    return _get_dataset(memory_storage)
+
+
+@pytest.fixture
+def local_ds(local_storage):
+    _skip_if_none(local_storage)
+    return _get_dataset(local_storage)
+
+
+@pytest.fixture
+def s3_ds(s3_storage):
+    _skip_if_none(s3_storage)
+    return _get_dataset(s3_storage)
+
+
+@pytest.fixture
 def ds(request, memory_storage, local_storage, s3_storage):
     return _get_dataset(
         _storage_from_request(request, memory_storage, local_storage, s3_storage)

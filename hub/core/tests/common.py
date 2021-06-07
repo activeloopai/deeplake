@@ -1,4 +1,4 @@
-from hub.util.index import Index
+from hub.core.index import Index
 import pytest
 
 from typing import Dict, List

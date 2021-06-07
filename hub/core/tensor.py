@@ -1,4 +1,4 @@
-from hub.util.index import Index
+from hub.core.index import Index
 import numpy as np
 
 from hub.core.typing import StorageProvider
@@ -132,14 +132,21 @@ def read_samples_from_tensor(
 
     # TODO: read samples in parallel
     samples = []
-    for index_entry in index_map[index.to_slice()]:
+    for idx in index.values[0].indices(len(index_map)):
+        index_entry = index_map[idx]
         array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
 
+    idxs = tuple()
     array = np.array(samples)
-
-    if isinstance(index.item, int):
+    if isinstance(index.values[0].value, int):
         array = array.squeeze(axis=0)
+    else:
+        idxs += (slice(None),)
+
+    # TODO: tuck this away
+    idxs += tuple(item.value for item in index.values[1:])
+    array = array[idxs]
 
     return array
 

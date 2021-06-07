@@ -1,5 +1,7 @@
 import numpy as np
 import pytest
+from functools import reduce
+import operator
 from hub.api.dataset import Dataset
 
 from hub.core.meta.dataset_meta import read_dataset_meta
@@ -67,16 +69,6 @@ def test_compute_tensor(ds):
 
 
 @parametrize_all_dataset_storages
-def test_compute_tensor_slice(ds):
-    ds.create_tensor("image")
-    ds.image.extend(np.vstack((np.arange(16),) * 8))
-
-    sliced_data = ds.image[2:5].numpy()
-    expected_data = np.vstack((np.arange(16),) * 3)
-    np.testing.assert_array_equal(sliced_data, expected_data)
-
-
-@parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
@@ -91,3 +83,68 @@ def test_iterate_dataset(ds):
         np.testing.assert_array_equal(img, np.ones((28, 28)))
         assert label.shape == (1,)
         assert label == labels[idx]
+
+
+def test_compute_slices(memory_ds):
+    ds = memory_ds
+    shape = (64, 16, 16, 16)
+    data = np.arange(reduce(operator.mul, shape, 1)).reshape(shape)
+    ds.create_tensor("data")
+    ds.data.extend(data)
+
+    ss = ds.data[:].numpy()
+    np.testing.assert_array_equal(ss, data[:])
+
+    ss = ds.data[10:20].numpy()
+    np.testing.assert_array_equal(ss, data[10:20])
+
+    ss = ds.data[5].numpy()
+    np.testing.assert_array_equal(ss, data[5])
+
+    ss = ds.data[3, 3].numpy()
+    np.testing.assert_array_equal(ss, data[3, 3])
+
+    ss = ds.data[30:40, :, 8:11, 4].numpy()
+    np.testing.assert_array_equal(ss, data[30:40, :, 8:11, 4])
+
+    ss = ds.data[16, 4, 5, 1:3].numpy()
+    np.testing.assert_array_equal(ss, data[16, 4, 5, 1:3])
+
+    ss = ds.data[[0, 1, 2, 5, 6, 10, 60]].numpy()
+    np.testing.assert_array_equal(ss, data[[0, 1, 2, 5, 6, 10, 60]])
+
+    ss = ds.data[0][[0, 1, 2, 5, 6, 10, 15]].numpy()
+    np.testing.assert_array_equal(ss, data[0][[0, 1, 2, 5, 6, 10, 15]])
+
+    ss = ds.data[(0, 1, 6, 10, 15), :].numpy()
+    np.testing.assert_array_equal(ss, data[(0, 1, 6, 10, 15), :])
+
+    ss = ds.data[0][(0, 1, 6, 10, 15), :].numpy()
+    np.testing.assert_array_equal(ss, data[0][(0, 1, 6, 10, 15), :])
+
+    ss = ds.data[0, (0, 1, 5)].numpy()
+    np.testing.assert_array_equal(ss, data[0, (0, 1, 5)])
+
+    ss = ds.data[:, :][0].numpy()
+    np.testing.assert_array_equal(ss, data[:, :][0])
+
+    ss = ds.data[:, :][0:2].numpy()
+    np.testing.assert_array_equal(ss, data[:, :][0:2])
+
+    ss = ds.data[0, :][0:2].numpy()
+    np.testing.assert_array_equal(ss, data[0, :][0:2])
+
+    ss = ds.data[:, 0][0:2].numpy()
+    np.testing.assert_array_equal(ss, data[:, 0][0:2])
+
+    ss = ds.data[:, :][0][(0, 1, 2), 0].numpy()
+    np.testing.assert_array_equal(ss, data[:, :][0][(0, 1, 2), 0])
+
+    ss = ds.data[0][(0, 1, 2), 0][1].numpy()
+    np.testing.assert_array_equal(ss, data[0][(0, 1, 2), 0][1])
+
+    ss = ds.data[:, :][0][(0, 1, 2), 0][1].numpy()
+    np.testing.assert_array_equal(ss, data[:, :][0][(0, 1, 2), 0][1])
+
+    ss = ds.data[0][:].numpy()
+    np.testing.assert_array_equal(ss, data[0][:])

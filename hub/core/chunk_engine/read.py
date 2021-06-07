@@ -3,7 +3,6 @@ from typing import List, Optional
 import numpy as np
 
 from hub.util.keys import get_index_map_key
-from hub.util.index import Index
 
 import numpy as np
 from hub.core.typing import StorageProvider
