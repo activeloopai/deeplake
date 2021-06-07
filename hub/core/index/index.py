@@ -1,6 +1,6 @@
 from typing import Union, List, Tuple, Iterable, Optional, TypeVar
 from dataclasses import dataclass
-
+import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
 
@@ -96,7 +96,7 @@ class IndexEntry:
             TypeError: An integer IndexEntry should not be indexed further.
         """
 
-        if isinstance(self.value, int):
+        if not self.subscriptable():
             raise TypeError(
                 "Subscripting IndexEntry after 'int' is not allowed. Use Index instead."
             )
@@ -117,6 +117,9 @@ class IndexEntry:
                 return IndexEntry(new_value)
 
         raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
+
+    def subscriptable(self):
+        return not isinstance(self.value, int)
 
     def indices(self, length: int):
         """Generates the sequence of integer indices for a target of a given length."""
@@ -152,30 +155,23 @@ class Index:
 
     def find_axis(self, offset: int = 0):
         matches = 0
-        for i in range(len(self.values)):
-            if not isinstance(self.values[i].value, int):
+        for idx, entry in enumerate(self.values):
+            if entry.subscriptable():
                 if matches == offset:
-                    return i
+                    return idx
                 else:
                     matches += 1
         return None
 
-    def __add__(self, item: Union[IndexValue, IndexEntry]):
-        if isinstance(item, IndexEntry):
-            return Index(self.values + [item])
-        else:
-            return Index(self.values + [IndexEntry(item)])
-
     def compose_at(self, item: IndexValue, i: Optional[int] = None):
         if i is None:
-            return self + item
+            return Index(self.values + [IndexEntry(item)])
         else:
             new_values = self.values[:i] + [self.values[i][item]] + self.values[i + 1 :]
             return Index(new_values)
 
     def __getitem__(
-        self,
-        item: Union[int, slice, List[int], Tuple[IndexValue], "Index"],
+        self, item: Union[int, slice, List[int], Tuple[IndexValue], "Index"]
     ):
         if isinstance(item, int) or isinstance(item, slice):
             ax = self.find_axis()
@@ -187,7 +183,7 @@ class Index:
                 new_index = new_index.compose_at(sub_item, ax)
             return new_index
         elif isinstance(item, list):
-            return self[(tuple(item),)]
+            return self[(tuple(item),)]  # type: ignore
         elif isinstance(item, Index):
             base = self
             for index in item.values:
@@ -195,6 +191,15 @@ class Index:
             return base
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
+
+    def apply(self, array: np.ndarray):
+        index_values = tuple(item.value for item in self.values[1:])
+        if not self.values[0].subscriptable():
+            array = array[0]  # remove unit batch axis
+        else:
+            index_values = (slice(None),) + index_values
+
+        return array[index_values]
 
     def __str__(self):
         return f"Index(" + str(self.values) + ")"

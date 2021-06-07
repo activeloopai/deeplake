@@ -137,18 +137,8 @@ def read_samples_from_tensor(
         array = sample_from_index_entry(key, storage, index_entry, meta["dtype"])
         samples.append(array)
 
-    idxs = tuple()
     array = np.array(samples)
-    if isinstance(index.values[0].value, int):
-        array = array.squeeze(axis=0)
-    else:
-        idxs += (slice(None),)
-
-    # TODO: tuck this away
-    idxs += tuple(item.value for item in index.values[1:])
-    array = array[idxs]
-
-    return array
+    return index.apply(array)
 
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
