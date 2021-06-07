@@ -5,16 +5,10 @@ import numpy as np
 def _filter_ones(shape: Tuple):
     """Removes all 1s from `shape`. If ALL values in `shape` are 1s, `(1,)` is returned as the shape."""
 
-    out = tuple([x for x in shape if x != 1])
-    if len(out) <= 0:
+    out = tuple(x for x in shape if x != 1)
+    if not out:
         return (1,)
     return out
-
-
-def is_shape_empty(shape: Tuple[int]):
-    """Returns True if `shape` contains a 0, otherwise False."""
-
-    return np.prod(shape) == 0
 
 
 def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]:
@@ -42,7 +36,7 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
         tuple: All entries in `shape[1:]` will be > 1. Shape will have a guarenteed batch axis (`shape[0] >= 1`).
     """
 
-    if len(shape) < 1:
+    if not shape:
         raise ValueError("Empty shape cannot be normalized.")
 
     if batched:

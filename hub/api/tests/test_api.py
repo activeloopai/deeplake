@@ -84,7 +84,7 @@ def test_compute_dynamic_tensor(ds):
     actual_list = ds.image.numpy(aslist=True)
 
     for a1, a2 in zip(expected_list, actual_list):
-        assert (a1 == a2).all()
+        np.testing.assert_array_equal(a1, a2)
 
 
 @parametrize_all_dataset_storages

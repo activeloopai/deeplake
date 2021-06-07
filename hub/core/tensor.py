@@ -13,9 +13,8 @@ from hub.core.meta.tensor_meta import (
 )
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
-from hub.util.array import is_shape_empty, normalize_and_batchify_array_shape
+from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
-from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     TensorAlreadyExistsError,
@@ -96,7 +95,7 @@ def add_samples_to_tensor(
     for i in range(array_length):
         sample = array[i]
 
-        if is_shape_empty(sample.shape):
+        if 0 in sample.shape:
             # if sample has a 0 in the shape, no data will be written
             index_map_entry = {"chunk_names": []}  # type: ignore
 
@@ -151,16 +150,15 @@ def read_samples_from_tensor(
 
     # TODO: read samples in parallel
     samples = []
-    is_fixed_shape = True
     for i, index_entry in enumerate(index_entries):
         shape = index_entry["shape"]
 
         # check if all samples are the same shape
         last_shape = index_entries[i - 1]["shape"]
-        if is_fixed_shape and i > 0 and shape != last_shape:
-            is_fixed_shape = False
+        if not aslist and shape != last_shape:
+            raise DynamicTensorNumpyError(key, index)
 
-        if is_shape_empty(shape):
+        if 0 in shape:
             # TODO: implement support for 0s in shape and update docstring
             raise NotImplementedError("0s in shapes are not supported yet.")
 
@@ -172,9 +170,6 @@ def read_samples_from_tensor(
 
     if aslist:
         return samples
-
-    if not is_fixed_shape:
-        raise DynamicTensorNumpyError(key, index)
 
     return np.array(samples, dtype=dtype)
 
