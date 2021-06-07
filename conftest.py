@@ -1,9 +1,8 @@
 import os
-from uuid import uuid1
 
 import pytest
 
-from hub.core.typing import StorageProvider
+from hub.api.dataset import Dataset
 from hub.constants import (
     MIN_FIRST_CACHE_SIZE,
     MIN_SECOND_CACHE_SIZE,
@@ -11,9 +10,9 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     PYTEST_S3_PROVIDER_BASE_ROOT,
 )
-from hub.api.dataset import Dataset
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
+from hub.core.typing import StorageProvider
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
 
@@ -36,7 +35,8 @@ def _get_storage_configs(request):
             "base_root": PYTEST_MEMORY_PROVIDER_BASE_ROOT,
             "class": MemoryProvider,
             "use_id": False,
-            "is_id_prefix": False,  # if is_id_prefix (and use_id=True), the session id comes before test name, otherwise it is reversed
+            "is_id_prefix": False,
+            # if is_id_prefix (and use_id=True), the session id comes before test name, otherwise it is reversed
         },
         LOCAL: {
             "base_root": PYTEST_LOCAL_PROVIDER_BASE_ROOT,
@@ -70,8 +70,8 @@ def pytest_addoption(parser):
     parser.addoption(
         MEMORY_OPT,
         action="store_true",
-        help="Tests using the `memory_storage` fixture will be skipped. Tests using the `storage` fixture will be skipped if called with \
-                `MemoryProvider`.",
+        help="Tests using the `memory_storage` fixture will be skipped. Tests using the `storage` fixture will be "
+        "skipped if called with `MemoryProvider`.",
     )
     parser.addoption(
         LOCAL_OPT,
@@ -86,9 +86,9 @@ def pytest_addoption(parser):
     parser.addoption(
         CACHE_OPT,
         action="store_true",
-        help="Tests using the `storage` fixture may run with combinations of all enabled providers \
-                in cache chains. For example, if the option `%s` is not provided, all cache chains that use `S3Provider` are skipped."
-        % (S3_OPT),
+        help="Tests using the `storage` fixture may run with combinations of all enabled providers in cache chains. "
+        "For example, if the option `%s` is not provided, all cache chains that use `S3Provider`"
+        "  are skipped." % (S3_OPT),
     )
     parser.addoption(
         CACHE_ONLY_OPT,
@@ -106,7 +106,8 @@ def pytest_addoption(parser):
     parser.addoption(
         FULL_BENCHMARK_OPT,
         action="store_true",
-        help="Some benchmarks take a long time to run and by default should be skipped. This option enables them. It also force enables `--cache-chains`.",
+        help="Some benchmarks take a long time to run and by default should be skipped. This option enables them. "
+        "It also force enables `--cache-chains`.",
     )
     parser.addoption(
         KEEP_STORAGE_OPT,

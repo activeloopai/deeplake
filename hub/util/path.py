@@ -1,5 +1,6 @@
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 import os
+
+from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 
 
 def storage_provider_from_path(path: str):

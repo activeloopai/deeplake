@@ -1,6 +1,7 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import pytest
+
 from hub.core.chunk_engine.chunker import generate_chunks
 
 # chunk_size,bytes_batch,expected_chunks

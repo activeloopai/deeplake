@@ -1,6 +1,7 @@
 from hub.util.shape import Shape
 from typing import List, Sequence, Union
 import warnings
+from typing import Union, Iterable
 
 import numpy as np
 
@@ -13,8 +14,7 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-
-from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
+from hub.util.exceptions import TensorDoesNotExistError
 from hub.util.index import Index
 
 
@@ -27,18 +27,16 @@ class Tensor:
         index: Union[int, slice, Index] = None,
     ):
         """Initializes a new tensor.
-
         Note:
             This operation does not create a new tensor in the storage provider,
             and should normally only be performed by Hub internals.
-
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
-            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
+            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
+                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
-
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
@@ -49,9 +47,8 @@ class Tensor:
         if tensor_exists(self.key, self.storage):
             if tensor_meta is not None:
                 warnings.warn(
-                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
-                        self.key
-                    )
+                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming "
+                    "tensor_meta. Key: {}".format(self.key)
                 )
         else:
             if tensor_meta is None:
