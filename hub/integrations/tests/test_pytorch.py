@@ -3,14 +3,17 @@ import numpy as np
 from hub.integrations.pytorch_old import dataset_to_pytorch
 import pytest
 from hub.util.check_installation import pytorch_installed
+from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
-def test_pytorch_small():
+requires_torch = pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
+
+
+@requires_torch
+@parametrize_all_dataset_storages
+def test_pytorch_small(ds):
     import torch
 
-    root = "./test/pytorch"
-    ds = Dataset(root)
     ds.create_tensor("image")
     ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
     ds.create_tensor("image2")
@@ -31,12 +34,11 @@ def test_pytorch_small():
     ds.delete()
 
 
-@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
-def test_pytorch_large():
+@requires_torch
+@parametrize_all_dataset_storages
+def test_pytorch_large(ds):
     import torch
 
-    root = "./test/pytorch"
-    ds = Dataset(root)
     ds.create_tensor("image")
     arr = np.array(
         [
@@ -48,7 +50,7 @@ def test_pytorch_large():
     )
     ds.image.extend(arr)
     ds.create_tensor("classlabel")
-    ds.classlabel.extend(np.array([i for i in range(10)]))
+    ds.classlabel.extend(np.array(range(10)))
     ds.flush()
 
     ptds = ds.pytorch(workers=2)
@@ -65,12 +67,11 @@ def test_pytorch_large():
     ds.delete()
 
 
-@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
-def test_pytorch_small_old():
+@requires_torch
+@parametrize_all_dataset_storages
+def test_pytorch_small_old(ds):
     import torch
 
-    root = "./test/pytorch_old"
-    ds = Dataset(root)
     ds.create_tensor("image")
     ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
     ds.create_tensor("image2")
@@ -90,12 +91,11 @@ def test_pytorch_small_old():
     ds.delete()
 
 
-@pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
-def test_pytorch_large_old():
+@requires_torch
+@parametrize_all_dataset_storages
+def test_pytorch_large_old(ds):
     import torch
 
-    root = "./test/pytorch_old"
-    ds = Dataset(root)
     ds.create_tensor("image")
     arr = np.array(
         [

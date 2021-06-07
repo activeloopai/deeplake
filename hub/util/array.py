@@ -40,12 +40,6 @@ def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]
         raise ValueError("Empty shape cannot be normalized.")
 
     if batched:
-        if len(shape) < 2:
-            raise ValueError(
-                "A shape with length < 2 cannot be considered batched. Shape: {}".format(
-                    shape
-                )
-            )
         if len(shape) == 2:
             return shape
 
