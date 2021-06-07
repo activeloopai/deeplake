@@ -6,7 +6,9 @@ from hub.util.check_installation import pytorch_installed
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-requires_torch = pytest.mark.skipif(not pytorch_installed(), reason="requires pytorch to be installed")
+requires_torch = pytest.mark.skipif(
+    not pytorch_installed(), reason="requires pytorch to be installed"
+)
 
 
 @requires_torch

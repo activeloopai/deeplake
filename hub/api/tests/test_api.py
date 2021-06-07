@@ -89,7 +89,7 @@ def test_compute_dynamic_tensor(ds):
 
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
-    
+
     assert image.shape.lower == (28, 10)
     assert image.shape.upper == (36, 28)
     assert image.shape.is_dynamic

@@ -9,8 +9,6 @@ def _contains_negatives(shape: Sequence[int]):
 
 
 class Shape:
-    
-
     def __init__(self, lower: Sequence[int], upper: Sequence[int] = None):
         """
         Shapes in hub are best represented as intervals, this is to support dynamic tensors. Instead of having a single tuple of integers representing shape,

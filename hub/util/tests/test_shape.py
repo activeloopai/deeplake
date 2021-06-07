@@ -19,20 +19,22 @@ def assert_dynamic(raw_lower, raw_upper):
 
 def test_compatible_shapes():
     assert_fixed((100, 100, 3))
-    assert_fixed((1, ))
+    assert_fixed((1,))
 
     assert_dynamic((100, 100, 3), (100, 100, 4))
-    assert_dynamic((1, ), (50000, ))
+    assert_dynamic((1,), (50000,))
 
 
 FAILURES = [
-    [(100,), (100, 1)], 
+    [(100,), (100, 1)],
     [(1, 1, 1), (1,)],
     [(100,), (1,)],
     [(100, 100, 3), (100, 100, 1)],
     [(-1,), None],
-    [(1,), (-1, )],
+    [(1,), (-1,)],
 ]
+
+
 @pytest.mark.xfail(raises=InvalidShapeIntervalError, strict=True)
 @pytest.mark.parametrize("upper,lower", FAILURES)
 def test_invalid_shapes(upper, lower):
