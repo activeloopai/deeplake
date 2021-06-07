@@ -1,3 +1,5 @@
+from hub.util.shape import Shape
+from typing import List, Sequence, Union
 import warnings
 from typing import Union, Iterable
 
@@ -53,9 +55,9 @@ class Tensor:
                 raise TensorDoesNotExistError(self.key)
             create_tensor(self.key, self.storage, tensor_meta)
 
-    def extend(self, array: Union[np.ndarray, Iterable[np.ndarray]]):
-        """Extends a tensor by appending multiple elements from an iterable.
-        Accepts an iterable of numpy arrays or a single batched numpy array.
+    def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
+        """Extends a tensor by appending multiple elements from a sequence.
+        Accepts a sequence of numpy arrays or a single batched numpy array.
 
         Example:
             >>> len(image)
@@ -99,8 +101,12 @@ class Tensor:
 
     @property
     def shape(self):
-        # TODO: when dynamic arrays are supported, handle `min_shape != max_shape` (right now they're always equal)
-        return self.meta["max_shape"]
+        ds_meta = self.meta
+
+        min_shape = ds_meta["min_shape"]
+        max_shape = ds_meta["max_shape"]
+
+        return Shape(min_shape, max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
@@ -116,10 +122,21 @@ class Tensor:
         for i in range(len(self)):
             yield self[i]
 
-    def numpy(self):
+    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of a tensor in numpy format.
+
+        Args:
+            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
+                If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
+                an error is raised.
+
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.storage, self.index)
+
+        return read_samples_from_tensor(
+            self.key, self.storage, self.index, aslist=aslist
+        )

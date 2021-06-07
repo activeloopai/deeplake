@@ -1,3 +1,4 @@
+from hub.core.storage.memory import MemoryProvider
 from typing import Tuple
 
 import numpy as np
@@ -14,6 +15,9 @@ from hub.tests.common import (
     parametrize_num_batches,
     parametrize_dtypes,
     get_random_array,
+)
+from hub.core.tests.common import (
+    parametrize_all_storages_and_caches,
 )
 
 np.random.seed(1)
@@ -38,13 +42,12 @@ BATCHED_SHAPES = (
 @parametrize_num_batches
 @parametrize_chunk_sizes
 @parametrize_dtypes
-@parametrize_all_storages_and_caches
 def test_unbatched(
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: MemoryProvider,
 ):
     """
     Samples have FIXED shapes (must have the same shapes).
@@ -52,20 +55,19 @@ def test_unbatched(
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-    run_engine_test(arrays, storage, batched=False, chunk_size=chunk_size)
+    run_engine_test(arrays, memory_storage, batched=False, chunk_size=chunk_size)
 
 
 @pytest.mark.parametrize(SHAPE_PARAM, BATCHED_SHAPES)
 @parametrize_num_batches
 @parametrize_chunk_sizes
 @parametrize_dtypes
-@parametrize_all_storages_and_caches
 def test_batched(
     shape: Tuple[int],
     chunk_size: int,
     num_batches: int,
     dtype: str,
-    storage: StorageProvider,
+    memory_storage: MemoryProvider,
 ):
     """
     Samples have FIXED shapes (must have the same shapes).
@@ -73,4 +75,4 @@ def test_batched(
     """
 
     arrays = [get_random_array(shape, dtype) for _ in range(num_batches)]
-    run_engine_test(arrays, storage, batched=True, chunk_size=chunk_size)
+    run_engine_test(arrays, memory_storage, batched=True, chunk_size=chunk_size)
