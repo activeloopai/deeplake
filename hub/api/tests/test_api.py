@@ -76,15 +76,23 @@ def test_compute_dynamic_tensor(ds):
 
     a1 = np.ones((32, 28, 28))
     a2 = np.ones((10, 36, 11))
+    a3 = np.ones((29, 10))
 
-    ds.image.extend(a1)
-    ds.image.extend(a2)
+    image = ds.image
 
-    expected_list = [*a1, *a2]
-    actual_list = ds.image.numpy(aslist=True)
+    image.extend(a1)
+    image.extend(a2)
+    image.append(a3)
 
-    for a1, a2 in zip(expected_list, actual_list):
-        np.testing.assert_array_equal(a1, a2)
+    expected_list = [*a1, *a2, a3]
+    actual_list = image.numpy(aslist=True)
+
+    for expected, actual in zip(expected_list, actual_list):
+        np.testing.assert_array_equal(expected, actual)
+    
+    assert image.shape.lower == (28, 10)
+    assert image.shape.upper == (36, 28)
+    assert image.shape.is_dynamic
 
 
 @parametrize_all_dataset_storages
