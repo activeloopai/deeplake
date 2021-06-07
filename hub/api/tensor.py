@@ -130,6 +130,9 @@ class Tensor:
                 If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
                 an error is raised.
 
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+
         Returns:
             A numpy array containing the data represented by this tensor.
         """

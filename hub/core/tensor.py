@@ -135,7 +135,7 @@ def read_samples_from_tensor(
             an error is raised.
 
     Raises:
-        DynamicTensorNumpyError: If reading a dynamically-shaped array without `aslist=True`.
+        DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
         NotImplementedError: Empty samples (shape contains 0) not implemented.
 
     Returns:
