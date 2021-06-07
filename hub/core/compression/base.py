@@ -1,10 +1,11 @@
-from typing import Union, Dict
 from abc import ABC, abstractmethod  # type: ignore
-from numcodecs.abc import Codec  # type: ignore
+from typing import Union, Dict
 
 import numpy as np
-from .constants import WEBP_COMPRESSOR_NAME, MSGPACK
+from numcodecs.abc import Codec  # type: ignore
+
 from hub.util.exceptions import InvalidImageDimensions
+from .constants import WEBP_COMPRESSOR_NAME, MSGPACK
 
 
 class BaseNumCodec(ABC):

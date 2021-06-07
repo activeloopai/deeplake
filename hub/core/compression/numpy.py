@@ -1,6 +1,7 @@
 from io import BytesIO
 
 import numpy as np
+
 from hub.core.compression import BaseNumCodec
 
 

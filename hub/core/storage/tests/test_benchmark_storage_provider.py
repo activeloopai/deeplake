@@ -8,7 +8,6 @@ from hub.tests.common_benchmark import (
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 from hub.core.storage.tests.test_storage_provider import KEY  # type: ignore
 
-
 SIMULATED_DATA_SIZES = [128 * MB]
 
 # caclulate the number of chunks needed for each entry in `SIMULATED_DATA_SIZES`
@@ -16,7 +15,6 @@ NUM_CHUNKS = []
 for chunk_size in BENCHMARK_CHUNK_SIZES:
     for data_size in SIMULATED_DATA_SIZES:
         NUM_CHUNKS.append(data_size // chunk_size)
-
 
 mark_cache_group = pytest.mark.benchmark(group="storage_with_caches")
 mark_no_cache_group = pytest.mark.benchmark(group="storage_without_caches")

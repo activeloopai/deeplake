@@ -1,6 +1,7 @@
 import click
-from hub.cli.auth import login, logout, register
+
 from hub import __version__
+from hub.cli.auth import login, logout, register
 
 
 @click.group()

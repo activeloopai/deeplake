@@ -1,26 +1,23 @@
-from hub.util.index import Index
 import numpy as np
 
-from hub.core.typing import StorageProvider
-
+from hub.core.chunk_engine.read import sample_from_index_entry
+from hub.core.chunk_engine.write import write_bytes
+from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.core.meta.tensor_meta import (
     read_tensor_meta,
     write_tensor_meta,
     update_tensor_meta_with_array,
     validate_tensor_meta,
 )
-from hub.core.meta.index_map import read_index_map, write_index_map
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
+from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
-
-from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_bytes
-
+from hub.util.index import Index
+from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from .flatten import row_wise_to_bytes
 
 
@@ -61,17 +58,16 @@ def add_samples_to_tensor(
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
-
     Args:
-        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does have a
-            batch axis, you should pass the argument `batched=True`.
+        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
+        have a batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
-        batched (bool): If True, the provied `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-
-    raises:
-        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using `create_tensor(...)`.
+        batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
+        If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+    Raises:
+        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
+        `create_tensor(...)`.
     """
 
     if not tensor_exists(key, storage):
@@ -94,8 +90,8 @@ def add_samples_to_tensor(
     for i in range(array_length):
         sample = array[i]
 
-        # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
-        # choose to optimize for.
+        # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access
+        #  patterns we choose to optimize for.
         b = memoryview(tobytes(sample))
 
         index_map_entry = write_bytes(
@@ -146,13 +142,12 @@ def read_samples_from_tensor(
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
-
     Args:
         tensor_meta (dict): Tensor meta containing the expected properties of `array`.
         array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
-
     Raises:
-        TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when `len(array.shape)` != len(tensor_meta max/min shapes).
+        TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when
+        `len(array.shape)` != len(tensor_meta max/min shapes).
         NotImplementedError: When `array.shape` does not match for all samples. Dynamic shapes are not yet supported.
     """
 
