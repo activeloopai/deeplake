@@ -1,7 +1,5 @@
 import numpy as np
 import pytest
-from functools import reduce
-import operator
 from hub.api.dataset import Dataset
 
 from hub.core.meta.dataset_meta import read_dataset_meta
