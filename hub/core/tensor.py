@@ -1,5 +1,7 @@
 from hub.util.index import Index
 import numpy as np
+from PIL import Image
+import exiftool
 
 from hub.core.typing import StorageProvider
 
@@ -16,12 +18,14 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorMetaMismatchError,
     TensorDoesNotExistError,
+    ImageReadError,
+    WrongMetadataError,
 )
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
 
-from .flatten import row_wise_to_bytes
+from hub.core.flatten import row_wise_to_bytes
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
@@ -174,3 +178,76 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
         raise NotImplementedError("Dynamic shapes are not supported yet.")
     if not np.array_equal(tensor_meta["min_shape"], sample_shape):
         raise NotImplementedError("Dynamic shapes are not supported yet.")
+
+
+def read(image_path: str, check_meta: bool = True):
+    """
+    Get image bytes and metadata.
+
+    Args:
+        image_path (str): Path to the image file.
+        check_meta (bool): If True, check if image can be read and image metadata
+            information corresponds to the actual image parameters.
+
+    Raises:
+        ImageReadError: If image can't be opened by PIL.Image.open()
+        WrongMetadataError: If any parameter from metadata doesn't match the image.
+
+    Returns:
+        Dictionary containing image bytes, extension, dtype and shape.
+    """
+    with exiftool.ExifTool() as et:
+        metadata = et.get_metadata(image_path)
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+    meta_size = tuple(map(int, metadata["Composite:ImageSize"].split("x")))
+    for meta_key, meta_value in metadata.items():
+        if meta_key.endswith("FileType"):
+            meta_extension = meta_value
+        elif "ColorComponents" in meta_key:
+            meta_channels = meta_value
+        elif "PNG:ColorType" in meta_key:
+            color_type = int(meta_value)
+            if color_type == 6:
+                meta_channels = 4
+            elif color_type == 4:
+                meta_channels = 2
+            elif color_type == 2:
+                meta_channels = 3
+            else:
+                meta_channels = 1
+        elif "BitDepth" in meta_key or "BitsPerSample" in meta_key:
+            meta_dtype = "uint" + str(meta_value)
+    if check_meta:
+        try:
+            image = Image.open(image_path)
+        except Exception as e:
+            raise ImageReadError(image_path, e)
+        image_arr = np.asarray(image)
+        image_dtype = image_arr.dtype
+        if image.mode == "RGB":
+            image_channels = 3
+        elif image.mode == "RGBA":
+            image_channels = 4
+        else:
+            image_channels = 1
+        image_size = image.size
+        image_extension = image.format
+        if (
+            meta_size != image_size
+            or meta_extension != image_extension
+            or meta_channels != image_channels
+            or meta_dtype != image_dtype
+        ):
+            import pdb
+
+            pdb.set_trace()
+            raise WrongMetadataError(image_path)
+    return {
+        "bytes": image_bytes,
+        "name": image_path.split("/")[-1],
+        "dtype": meta_dtype,
+        "size": meta_size,
+        "channels": meta_channels,
+        "extension": meta_extension,
+    }

@@ -3,8 +3,8 @@ import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
 from typing import Any, Callable, Optional
 
-from hub.core.typing import StorageProvider
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
+from typing import StorageProvider
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_DTYPE
 from hub.util.keys import get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_shape
 
@@ -21,18 +21,22 @@ def default_tensor_meta(
     htype: Optional[str] = None,
     chunk_size: Optional[int] = None,
     dtype: Optional[str] = None,
+    compression: Optional[str] = None,
     extra_meta: Optional[dict] = None,
 ):
     if chunk_size is None:
         chunk_size = DEFAULT_CHUNK_SIZE
     if dtype is None:
         dtype = DEFAULT_DTYPE
+    if compression is None:
+        compression = DEFAULT_COMPRESSION
     if extra_meta is None:
         extra_meta = {}
 
     tensor_meta = extra_meta
     tensor_meta["chunk_size"] = chunk_size
     tensor_meta["dtype"] = dtype
+    tensor_meta["compression"] = compression
     tensor_meta["length"] = 0
     if htype is not None:
         tensor_meta["htype"] = htype  # TODO: identify presets

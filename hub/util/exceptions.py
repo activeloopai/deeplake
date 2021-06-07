@@ -1,5 +1,7 @@
 from typing import Any
 
+from PIL import Image
+
 
 class ChunkSizeTooSmallError(Exception):
     def __init__(
@@ -208,4 +210,16 @@ class InvalidImageDimensions(Exception):
         super().__init__(
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
+        )
+
+
+class ImageReadError(Exception):
+    def __init__(self, image_path, message) -> None:
+        super().__init__(f"Unable to read image: {image_path}. {message}")
+
+
+class WrongMetadataError(Exception):
+    def __init__(self, image_path) -> None:
+        super().__init__(
+            f"Image metadata doesn't match the actual image parameters for image: {image_path}"
         )
