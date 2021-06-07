@@ -88,7 +88,7 @@ def test_iterate_dataset(ds):
 def test_compute_slices(memory_ds):
     ds = memory_ds
     shape = (64, 16, 16, 16)
-    data = np.arange(reduce(operator.mul, shape, 1)).reshape(shape)
+    data = np.arange(np.prod(shape)).reshape(shape)
     ds.create_tensor("data")
     ds.data.extend(data)
 

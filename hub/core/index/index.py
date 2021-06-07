@@ -119,6 +119,7 @@ class IndexEntry:
         raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
     def subscriptable(self):
+        """Returns whether an IndexEntry can be further subscripted."""
         return not isinstance(self.value, int)
 
     def indices(self, length: int):
@@ -145,6 +146,10 @@ class Index:
         self,
         item: Union[IndexValue, "Index", List[IndexEntry]] = slice(None),
     ):
+        """Initializes an Index from an IndexValue, another Index, or the values from another Index.
+
+        Represents a list of IndexEntry objects corresponding to indexes into each axis of an ndarray.
+        """
         if isinstance(item, Index):
             item = item.values
 
@@ -154,6 +159,15 @@ class Index:
         self.values: List[IndexEntry] = item
 
     def find_axis(self, offset: int = 0):
+        """Returns the index for the nth subscriptable axis in the values of an Index.
+
+        Args:
+            offset (int): The number of subscriptable axes to skip before returning.
+                Defaults to 0, meaning that the first valid axis is returned.
+
+        Returns:
+            int: The index of the found axis, or None if no match is found.
+        """
         matches = 0
         for idx, entry in enumerate(self.values):
             if entry.subscriptable():
@@ -164,7 +178,25 @@ class Index:
         return None
 
     def compose_at(self, item: IndexValue, i: Optional[int] = None):
-        if i is None:
+        """Returns a new Index representing the addition of an IndexValue,
+        or the composition with a given axis.
+
+        Examples:
+            >>> Index([slice(None), slice(None)]).compose_at(5)
+            Index([slice(None), slice(None), 5])
+
+            >>> Index([slice(None), slice(5, 10), slice(None)]).compose_at(3, 1)
+            Index([slice(None), 8, slice(None)])
+
+        Args:
+            item (IndexValue): The value to append or compose with the Index.
+            i (int, optional): The axis to compose with the given item.
+                Defaults to None, meaning that the item will be appended instead.
+
+        Returns:
+            Index: The result of the addition or composition.
+        """
+        if i is None or i >= len(self.values):
             return Index(self.values + [IndexEntry(item)])
         else:
             new_values = self.values[:i] + [self.values[i][item]] + self.values[i + 1 :]
@@ -173,6 +205,34 @@ class Index:
     def __getitem__(
         self, item: Union[int, slice, List[int], Tuple[IndexValue], "Index"]
     ):
+        """Returns a new Index representing a subscripting with the given item.
+        Modeled after NumPy's advanced integer indexing.
+
+        See: https://numpy.org/doc/stable/reference/arrays.indexing.html
+
+        Examples:
+            >>> Index([5, slice(None)])[5]
+            Index([5, 5])
+
+            >>> Index([5])[5:6]
+            Index([5, slice(5, 6)])
+
+            >>> Index()[0, 1, 2:5, 3]
+            Index([0, 1, slice(2, 5), 3])
+
+            >>> Index([slice(5, 6)])[(0, 1, 2:5, 3),]
+            Index([(5, 1, slice(2, 5), 3)])
+
+        Args:
+            item: The contents of the subscript expression to add to this Index.
+
+        Returns:
+            Index: The Index representing the result of the subscript operation.
+
+        Raises:
+            TypeError: Given item should be another Index,
+                or compatible with NumPy's advanced integer indexing.
+        """
         if isinstance(item, int) or isinstance(item, slice):
             ax = self.find_axis()
             return self.compose_at(item, ax)
@@ -193,6 +253,9 @@ class Index:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
     def apply(self, array: np.ndarray):
+        """Applies an Index to a batched ndarray with the same number of samples
+        as the first entry in the Index.
+        """
         index_values = tuple(item.value for item in self.values[1:])
         if not self.values[0].subscriptable():
             array = array[0]  # remove unit batch axis
