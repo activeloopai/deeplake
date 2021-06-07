@@ -1,10 +1,8 @@
 from typing import List, Tuple
 from uuid import uuid1
 
-import numpy as np
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
-
 from .chunker import generate_chunks
 
 
@@ -15,13 +13,16 @@ def write_bytes(
     storage: StorageProvider,
     index_map: List[dict],
 ) -> dict:
-    """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single sample.
+    """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single
+        sample.
 
     Args:
-        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be chunked according
+        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
+            chunked according
             to `chunk_size`.
-        key (str): Key for where the index_map, and tensor_meta are located in `storage` relative to it's root. A subdirectory
-            is created under this `key` (defined in `constants.py`), which is where the chunks will be stored.
+        key (str): Key for where the index_map, and tensor_meta are located in `storage` relative to it's root.
+            A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
+            stored.
         chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and tensor_meta.
         index_map (list): List of dictionaries that represent each sample. An entry for `index_map` is returned
@@ -35,7 +36,8 @@ def write_bytes(
             end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
     """
 
-    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred for performance
+    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
+    #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, index_map, storage)
 
     bllc = 0

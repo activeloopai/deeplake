@@ -1,11 +1,11 @@
-import pytest
-import numpy as np
 import os
-from uuid import uuid1
 from typing import Tuple
+from uuid import uuid1
 
-from hub.constants import B, KB, MB
+import numpy as np
+import pytest
 
+from hub.constants import KB, MB
 
 SESSION_ID = str(uuid1())
 
@@ -16,9 +16,7 @@ NUM_BATCHES_PARAM = "num_batches"
 DTYPE_PARAM = "dtype"
 CHUNK_SIZE_PARAM = "chunk_size"
 
-
 NUM_BATCHES = (1, 5)
-
 
 CHUNK_SIZES = (
     1 * KB,
@@ -26,14 +24,12 @@ CHUNK_SIZES = (
     16 * MB,
 )
 
-
 DTYPES = (
     "uint8",
     "int64",
     "float64",
     "bool",
 )
-
 
 parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
 parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)

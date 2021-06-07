@@ -1,6 +1,8 @@
 from collections import OrderedDict
-from hub.core.storage.provider import StorageProvider
 from typing import Set
+
+from hub.core.storage.provider import StorageProvider
+
 
 # TODO use lock for multiprocessing
 class LRUCache(StorageProvider):

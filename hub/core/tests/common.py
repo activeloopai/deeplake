@@ -4,19 +4,22 @@ import pytest
 from typing import Dict, List
 
 import numpy as np
+import pytest
 
+from hub.core.meta.index_map import read_index_map
+from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,
     tensor_exists,
     read_samples_from_tensor,
 )
-from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
-from hub.core.meta.index_map import read_index_map
-
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import (
+    normalize_and_batchify_array_shape,
+    normalize_and_batchify_shape,
+)
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -25,7 +28,6 @@ DATASET_FIXTURE_NAME = "ds"
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
-
 
 ALL_PROVIDERS = [MEMORY, LOCAL, S3]
 
@@ -126,7 +128,7 @@ def assert_chunk_sizes(
         candidate_chunk_lengths = actual_chunk_lengths[:-1]
         assert np.all(
             candidate_chunk_lengths == chunk_size
-        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: %s\n\nactual chunk names: %s" % (
+        ), "All chunks (except the last one) MUST be == `chunk_size`. chunk_size=%i\n\nactual chunk sizes: " "%s\n\nactual chunk names: %s" % (
             chunk_size,
             str(candidate_chunk_lengths),
             str(actual_chunk_lengths_dict.keys()),
@@ -141,6 +143,12 @@ def run_engine_test(
 
     create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
+    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
+        1:
+    ]
+    expected_min_shape = first_sample_shape
+    expected_max_shape = first_sample_shape
+
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
             a_in,
@@ -149,16 +157,19 @@ def run_engine_test(
             batched=batched,
         )
 
-        a_in = normalize_and_batchify_shape(a_in, batched=batched)
+        a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
 
-        num_samples = a_in.shape[0]
-        index = Index(slice(sample_count, sample_count + num_samples))
+        current_batch_num_samples = a_in.shape[0]
+        index = Index(slice(sample_count, sample_count + current_batch_num_samples))
         a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
-        sample_count += num_samples
+        sample_count += current_batch_num_samples
+
+        expected_min_shape = np.minimum(expected_min_shape, a_in.shape[1:])
+        expected_max_shape = np.maximum(expected_max_shape, a_in.shape[1:])
 
         assert_meta_is_valid(
             meta,
@@ -166,12 +177,12 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": sample_count,
                 "dtype": a_in.dtype.name,
-                "min_shape": tuple(a_in.shape[1:]),
-                "max_shape": tuple(a_in.shape[1:]),
+                "min_shape": tuple(expected_min_shape),
+                "max_shape": tuple(expected_max_shape),
             },
         )
 
-        assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+        assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i  # type: ignore
 
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
@@ -180,7 +191,6 @@ def run_engine_test(
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-
     create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
     for a_in in arrays:

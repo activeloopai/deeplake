@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import normalize_and_batchify_array_shape
 
 from typing import Tuple
 
@@ -36,6 +36,6 @@ def test_normalize_and_batchify_shape(
     shape: Tuple[int], expected_shape: Tuple[int], batched: bool
 ):
     a = np.random.uniform(size=shape)
-    normal_a = normalize_and_batchify_shape(a, batched)
+    normal_a = normalize_and_batchify_array_shape(a, batched)
     assert normal_a.shape == expected_shape
     np.testing.assert_array_equal(a.flatten(), normal_a.flatten())

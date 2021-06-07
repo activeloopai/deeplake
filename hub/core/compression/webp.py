@@ -1,4 +1,5 @@
 from io import BytesIO
+
 import numcodecs  # type: ignore
 import numpy as np
 from PIL import Image, ImageOps  # type: ignore

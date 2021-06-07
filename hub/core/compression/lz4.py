@@ -1,6 +1,7 @@
 from typing import Union
-import numcodecs  # type: ignore
+
 import msgpack  # type: ignore
+import numcodecs  # type: ignore
 import numpy as np
 
 from hub.core.compression import BaseNumCodec

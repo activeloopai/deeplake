@@ -2,17 +2,17 @@ from typing import Tuple
 
 import numpy as np
 import pytest
-from hub.constants import GB
 
-from hub.tests.common import get_random_array
+from hub.constants import GB
+from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import (
     read_samples_from_tensor,
     add_samples_to_tensor,
     create_tensor,
 )
-from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tests.common import TENSOR_KEY
 from hub.core.typing import StorageProvider
+from hub.tests.common import get_random_array
 from hub.tests.common_benchmark import (
     parametrize_benchmark_chunk_sizes,
     parametrize_benchmark_dtypes,

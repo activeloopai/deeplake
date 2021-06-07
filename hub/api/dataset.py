@@ -1,29 +1,23 @@
-import os
 import warnings
 from typing import Callable, Dict, Optional, Union
 
-import numpy as np
 from hub.api.tensor import Tensor
-
-from hub.core.tensor import tensor_exists
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
-
+from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-
 from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.integrations import dataset_to_pytorch
+from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
-    UnsupportedTensorTypeError,
 )
-from hub.util.cache_chain import generate_chain
 from hub.util.path import storage_provider_from_path
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.integrations import dataset_to_pytorch
 
 
 class Dataset:
@@ -165,12 +159,14 @@ class Dataset:
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
-        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the underlying storage.
+        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
+        underlying storage.
         """
         self.storage.flush()
 
     def clear_cache(self):
-        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents of all the layers of it.
+        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+         of all the layers of it.
         This doesn't delete data from the actual storage.
         This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
         Also useful when local cache is no longer needed for certain datasets and is taking up storage space.

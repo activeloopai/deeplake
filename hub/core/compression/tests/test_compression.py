@@ -1,13 +1,15 @@
 from typing import Union
-import pytest
+
 import numpy as np
-from hub.core.compression.numpy import NUMPY
-from hub.core.compression.zstd import ZSTD
-from hub.core.compression.lz4 import LZ4
-from hub.core.compression.webp import WEBP
-from hub.core.compression.jpeg import JPEG
-from hub.core.compression.png import PNG
+import pytest
+
 from hub.core.compression import BaseNumCodec, BaseImgCodec
+from hub.core.compression.jpeg import JPEG
+from hub.core.compression.lz4 import LZ4
+from hub.core.compression.numpy import NUMPY
+from hub.core.compression.png import PNG
+from hub.core.compression.webp import WEBP
+from hub.core.compression.zstd import ZSTD
 
 IMG_ARRAY_SHAPES = (
     (30, 30, 3),
@@ -103,12 +105,12 @@ def test_png_codec_single_channel(single_channel: bool) -> None:
 @parametrize_from_config
 @parametrize_image_shape
 def test_jpeg_codec(from_config: bool, shape: tuple) -> None:
-    compr = JPEG()
+    codec = JPEG()
     if from_config:
-        config = compr.get_config()
-        compr = JPEG.from_config(config)
+        config = codec.get_config()
+        codec = JPEG.from_config(config)
     arr = np.ones(shape, dtype="uint8")
-    check_equals_decoded(arr, compr)
+    check_equals_decoded(arr, codec)
 
 
 @parametrize_single_channel

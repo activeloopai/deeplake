@@ -10,7 +10,8 @@ def generate_chunks(
 ) -> Generator[memoryview, None, None]:
     """Generator function that chunks bytes (as memoryview).
 
-    Chunking is the process of taking the input `content_bytes` and breaking it up into a sequence of smaller bytes called "chunks".
+    Chunking is the process of taking the input `content_bytes` and breaking it up into a sequence of smaller bytes
+    called "chunks".
     The sizes of each chunk are <= `chunk_size`.
 
     Example:
