@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -73,7 +73,12 @@ class Dataset:
         """Return the smallest length of tensors"""
         return min(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[str, int, slice, list, tuple, Index]):
+    def __getitem__(
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+    ):
         if isinstance(item, str):
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
