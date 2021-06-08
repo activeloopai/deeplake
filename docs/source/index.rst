@@ -6,7 +6,7 @@
 What is Hub?
 ==============
 .. image:: https://raw.githubusercontent.com/snarkai/Hub/master/docs/logo/hub_logo.png
-
+.. image:: https://static.scarf.sh/a.png?x-pxid=f8c63e4d-3e14-4a42-8d8b-6eeeabc55666
 
 **The fastest way to access and manage datasets for PyTorch and TensorFlow**
 
