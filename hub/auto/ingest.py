@@ -35,14 +35,14 @@ def from_path(unstructured_path: str, **kwargs):
     return ds
 
 
-def from_kaggle(tag: str, path: str, local_path: str=None, **kwargs):
+def from_kaggle(tag: str, path: str, local_path: str=None, credentials: dict={}, **kwargs):
     # TODO: docstring
     if not local_path:
         local_path = os.path.join(path, "unstructured")
 
     # TODO: make sure path and local path are not equal
 
-    download_kaggle(tag, local_path)
+    download_kaggle(tag, local_path, credentials=credentials)
 
     # TODO: make variable names more obvious
     ds = from_path(local_path, path=path, **kwargs)
