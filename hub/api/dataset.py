@@ -68,7 +68,7 @@ class Dataset:
 
         self.tensors: Dict[str, Tensor] = {}
 
-        if self.exists():
+        if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         else:
@@ -189,6 +189,3 @@ class Dataset:
 
     def keys(self):
         return tuple(self.tensors.keys())
-
-    def exists(self) -> bool:
-        return dataset_exists(self.storage)
