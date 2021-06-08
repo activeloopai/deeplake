@@ -6,3 +6,4 @@ mypy
 black
 darglint
 tensorflow_datasets
+tensorflow
