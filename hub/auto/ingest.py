@@ -30,7 +30,7 @@ def from_path(unstructured_path: str, **kwargs):
     ds = Dataset(**kwargs, mode="w")
 
     converter = Converter(unstructured_path)
-    converter.write_to(ds)
+    converter.from_image_classification(ds)
 
     return ds
 

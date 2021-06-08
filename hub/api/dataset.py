@@ -185,3 +185,6 @@ class Dataset:
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.storage.clear()
+
+    def keys(self):
+        return tuple(self.tensors.keys())
