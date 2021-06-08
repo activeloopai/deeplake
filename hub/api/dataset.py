@@ -1,6 +1,3 @@
-import os
-
-from hub.util.kaggle import download_kaggle
 import warnings
 from typing import Callable, Dict, Optional, Union
 
@@ -20,6 +17,20 @@ from hub.util.exceptions import (
 )
 from hub.util.index import Index
 from hub.util.path import storage_provider_from_path
+
+
+def _get_cache_chain(path: str, storage: StorageProvider, memory_cache_size: int, local_cache_size: int, **kwargs):
+    if storage is not None and path:
+        warnings.warn(
+            "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
+        )
+
+    base_storage = storage or storage_provider_from_path(path)
+    memory_cache_size_bytes = memory_cache_size * MB
+    local_cache_size_bytes = local_cache_size * MB
+    return generate_chain(
+        base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
+    )
 
 
 class Dataset:
@@ -53,16 +64,8 @@ class Dataset:
         self.mode = mode
         self.index = Index(index)
 
-        if storage is not None and path:
-            warnings.warn(
-                "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
-            )
-        base_storage = storage or storage_provider_from_path(path)
-        memory_cache_size_bytes = memory_cache_size * MB
-        local_cache_size_bytes = local_cache_size * MB
-        self.storage = generate_chain(
-            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
-        )
+        self.storage = _get_cache_chain(path, storage, memory_cache_size, local_cache_size)
+
         self.tensors: Dict[str, Tensor] = {}
 
         if dataset_exists(self.storage):
@@ -182,39 +185,3 @@ class Dataset:
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.storage.clear()
-
-    @staticmethod
-    def from_path(path: str):
-        """Creates a hub dataset from unstructured data.
-
-        Note:
-            This copies the data into hub format.
-            Be careful when using this with large datasets.
-
-        Args:
-            path (str): Path to the data to be converted
-
-        Returns:
-            A Dataset instance whose path points to the hub formatted
-            copy of the data.
-
-        Raises:
-            NotImplementedError: TODO.
-        """
-
-        raise NotImplementedError(
-            "Automatic dataset ingestion is not yet supported."
-        )  # TODO: hub.auto
-        return None
-
-
-    @staticmethod
-    def from_kaggle(tag: str, path: str, local_path: str=None):
-        # TODO: docstring
-        if not local_path:
-            local_path = os.path.join(path, "unstructured")
-
-        # TODO: make sure path and local path are not equal
-
-        download_kaggle(tag, local_path)
-        return Dataset.from_path(local_path)
