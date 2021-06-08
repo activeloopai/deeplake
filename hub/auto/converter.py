@@ -2,7 +2,8 @@ import numpy as np
 from pathlib import Path
 import os
 import glob
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple, Union
+from collections import defaultdict
 
 from tqdm import tqdm
 
@@ -16,47 +17,85 @@ LABELS_TENSOR_NAME = "labels"
 LABEL_NAMES_META_KEY = "class_names"
 
 
-def _get_file_paths(directory: Path) -> Sequence[str]:
+def _get_file_paths(directory: Path, relative_to: Union[str, Path]="") -> Sequence[str]:
     # TODO: make sure directory is actually a directory
-
     g = glob.glob(os.path.join(directory, "**"), recursive=True)
-    files = [path for path in g if os.path.isfile(path)]
-    return files
+    file_paths = []
+    for path_str in g:
+        if os.path.isfile(path_str):
+            path = Path(path_str)
+            if relative_to:
+                relative_path = Path(path).relative_to(directory)
+            else:
+                relative_path = path
+            file_paths.append(relative_path)
+    return file_paths
 
 
-def _class_name_from_path(path: str) -> str:
-    return path.split("/")[-2]
+def _class_name_from_path(path: Path) -> str:
+    return path.parts[-2]
+
+
+def _set_name_from_path(path: Path) -> str:
+    return path.parts[-3]
 
 
 # TODO: rename this
 class Converter:
     def __init__(self, unstructured_path: str):
         self.root = Path(find_root(unstructured_path))
-        self._file_paths = _get_file_paths(self.root)
+        self._abs_file_paths = _get_file_paths(self.root)
+        self._rel_file_paths = _get_file_paths(self.root, relative_to=self.root)
+
+        self.set_names = self.get_set_names()
+        self.class_names = self.get_class_names()
+
+
+    def get_set_names(self) -> Tuple[str]:
+        set_names = set()
+        for file_path in self._abs_file_paths:
+            set_names.add(_set_name_from_path(file_path))
+        set_names = sorted(set_names) # TODO: lexicographical sorting
+        return tuple(set_names)
 
 
     def get_class_names(self) -> Tuple[str]:
         class_names = set()
-        for file_path in self._file_paths:
+        for file_path in self._abs_file_paths:
             class_names.add(_class_name_from_path(file_path))
         class_names = sorted(class_names) # TODO: lexicographical sorting
         return tuple(class_names)
 
 
     def from_image_classification(self, ds: Dataset, use_tqdm: bool=False):
-        class_names = self.get_class_names()
+        images_tensor_map = {}
+        labels_tensor_map = {}
 
-        ds.create_tensor(IMAGES_TENSOR_NAME, htype="image")
-        ds.create_tensor(LABELS_TENSOR_NAME, htype="class_label", extra_meta={LABEL_NAMES_META_KEY: class_names})
+        use_set_prefix = len(self.set_names) > 1
 
-        iterator = tqdm(self._file_paths, desc="Ingesting image classification dataset", total=len(self._file_paths), disable=not use_tqdm)
-        for file_path in iterator:
+        for set_name in self.set_names:
+            if not use_set_prefix:
+                set_name = ""
+
+            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
+            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+
+            images_tensor_map[set_name] = images_tensor_name
+            labels_tensor_map[set_name] = labels_tensor_name
+            ds.create_tensor(images_tensor_name, htype="image")
+            ds.create_tensor(labels_tensor_name, htype="class_label", extra_meta={LABEL_NAMES_META_KEY: self.class_names})
+            # TODO: extra_meta arg should be replaced with `class_names=self.class_names` when htypes are supported
+
+        paths = self._abs_file_paths
+        iterator = tqdm(paths, desc="Ingesting image classification dataset", total=len(paths), disable=not use_tqdm)
+        for i, file_path in enumerate(self._abs_file_paths):
             image = load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)
-            label = np.array([class_names.index(class_name)])  # TODO: should be able to pass just an integer to `tensor.append`
+            label = np.array([self.class_names.index(class_name)])  # TODO: should be able to pass just an integer to `tensor.append`
 
-            ds[IMAGES_TENSOR_NAME].append(image)
-            ds[LABELS_TENSOR_NAME].append(label)
+            set_name = _set_name_from_path(file_path) if use_set_prefix else ""
+            ds[images_tensor_map[set_name]].append(image)
+            ds[labels_tensor_map[set_name]].append(label)
 
         ds.flush()
         return ds
