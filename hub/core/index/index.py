@@ -255,7 +255,7 @@ class Index:
             for index in item.values:
                 value = index.value
                 if isinstance(value, tuple):
-                    value = (value,)
+                    value = (value,)  # type: ignore
                 base = base[value]
             return base
         else:

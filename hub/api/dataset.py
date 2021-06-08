@@ -25,7 +25,7 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        index: Optional[Index] = None,
+        index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
@@ -37,7 +37,7 @@ class Dataset:
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a").
                 Defaults to "a".
-            index: The Index object restricting the view of this dataset's tensors.
+            index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
@@ -48,7 +48,7 @@ class Dataset:
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.index = index or Index()
+        self.index = index
 
         if storage is not None and path:
             warnings.warn(
