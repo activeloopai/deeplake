@@ -6,7 +6,6 @@ from core.tests.common import parametrize_all_dataset_storages
 from tools.from_tfds import from_tfds, from_tfds_to_path
 
 
-@pytest.mark.full_benchmark
 def test_from_tfds_to_path(local_storage):
     if local_storage is None:
         pytest.skip()
