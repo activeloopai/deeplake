@@ -15,8 +15,13 @@ HUB_DATASET_SUBDIR = "hub"
 UNSTRUCTURED_DATASET_SUBDIR = "unstructured"
 
 
+def _dataset_has_tensors(**kwargs):
+    ds = Dataset(**kwargs, mode="r")
+    return len(ds.keys()) > 0
+
+
 def _warn_kwargs(**kwargs):
-    if Dataset(**kwargs).exists():
+    if _dataset_has_tensors(**kwargs):
         warnings.warn("Dataset already exists, skipping ingestion and returning a read-only Dataset.")
         return  # no other warnings should print
 
@@ -41,17 +46,19 @@ def from_path(unstructured_path: str, **kwargs):
 
     _warn_kwargs(**kwargs)
 
-    ds = Dataset(**kwargs, mode="w")
-    if ds.exists():
+    # TODO: check for incomplete ingestion
+    # TODO: try to resume progress for incomplete ingestion
+
+    if _dataset_has_tensors(**kwargs):
         return Dataset(**kwargs, mode="r")
 
+    ds = Dataset(**kwargs, mode="w")
     converter = Converter(unstructured_path)
     converter.from_image_classification(ds)
 
     # TODO: opt-in delete unstructured data after ingestion
 
-    # TODO: return in read-only mode
-    return ds
+    return Dataset(**kwargs, mode="r")
 
 
 def from_kaggle(tag: str, path: str=None, local_path: str=DEFAULT_LOCAL_PATH, kaggle_credentials: dict={}, **kwargs):
@@ -81,19 +88,17 @@ def from_kaggle(tag: str, path: str=None, local_path: str=DEFAULT_LOCAL_PATH, ka
         path = os.path.join(local_path, tag, HUB_DATASET_SUBDIR)
         # TODO: warning?
 
-    _warn_kwargs(path=path, **kwargs)
+    kwargs["path"] = path
+    _warn_kwargs(**kwargs)
 
-    read_only_ds = Dataset(path=path, **kwargs, mode="r")
-    if read_only_ds.exists():
-        return read_only_ds
-
-    # TODO: try reading hub dataset before downloading (in case the unstructured folder was deleted, but the hub folder remains)
+    if _dataset_has_tensors(**kwargs):
+        return Dataset(**kwargs, mode="r")
 
     try:
         download_kaggle_dataset(tag, local_path=kaggle_download_path, kaggle_credentials=kaggle_credentials)
     except KaggleDatasetAlreadyDownloadedError as e:
         warnings.warn(e.message)
 
-    ds = from_path(kaggle_download_path, path=path, **kwargs)
+    ds = from_path(kaggle_download_path, **kwargs)
 
     return ds
