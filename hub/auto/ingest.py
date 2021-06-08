@@ -4,6 +4,7 @@ import os
 
 from hub import Dataset
 from hub.util.kaggle import download_kaggle
+from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError
 
 import warnings
 
@@ -46,7 +47,11 @@ def from_kaggle(tag: str, path: str, local_path: str=None, credentials: dict={},
     if not local_path:
         local_path = os.path.join(path, "unstructured")
 
-    download_kaggle(tag, local_path, credentials=credentials)
+    try:
+        download_kaggle(tag, local_path, credentials=credentials)
+    except KaggleDatasetAlreadyDownloadedError as e:
+        warnings.warn(e.message)
+
     ds = from_path(local_path, path=path, **kwargs)
 
     return ds

@@ -1,6 +1,8 @@
-from hub.util.exceptions import MissingKaggleCredentialsError
-from hub.core.storage.local import LocalProvider
 import os
+import glob
+
+from hub.util.exceptions import MissingKaggleCredentialsError, KaggleDatasetAlreadyDownloadedError
+from hub.core.storage.local import LocalProvider
 
 
 _KAGGLE_USERNAME = "KAGGLE_USERNAME"
@@ -28,8 +30,9 @@ def _set_environment_credentials_if_none(credentials: dict={}):
 def download_kaggle(tag: str, local_path: str, credentials: dict={}):
     # TODO: docstring
 
-    if os.path.isdir(local_path):
-        return  # TODO: 
+    zip_files = glob.glob(os.path.join(local_path, "*.zip"))
+    if len(zip_files) > 0:
+        raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
 
     _set_environment_credentials_if_none(credentials)
 
