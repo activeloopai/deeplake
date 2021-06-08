@@ -34,6 +34,6 @@ def test_readonly_flush(storage):
 
 @pytest.mark.xfail(raises=ReadOnlyProviderError, strict=True)
 @parametrize_all_storages_and_caches
-def test_readonly_flush(storage):
+def test_readonly_ds_create_tensor(storage):
     ds = Dataset(mode="r", storage=storage)
     ds.create_tensor("test")
