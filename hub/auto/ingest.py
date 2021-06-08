@@ -38,8 +38,7 @@ def from_path(unstructured_path: str, **kwargs):
     return ds
 
 
-# TODO: rename `credentials` -> `kaggle_credentials`
-def from_kaggle(tag: str, path: str, local_path: str=None, credentials: dict={}, **kwargs):
+def from_kaggle(tag: str, path: str, local_path: str=None, kaggle_credentials: dict={}, **kwargs):
     # TODO: docstring
     # TODO: make sure path and local path are not equal
     # TODO: make path variable names more obvious
@@ -48,7 +47,7 @@ def from_kaggle(tag: str, path: str, local_path: str=None, credentials: dict={},
         local_path = os.path.join(path, "unstructured")
 
     try:
-        download_kaggle(tag, local_path, credentials=credentials)
+        download_kaggle(tag, local_path, kaggle_credentials=kaggle_credentials)
     except KaggleDatasetAlreadyDownloadedError as e:
         warnings.warn(e.message)
 

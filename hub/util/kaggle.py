@@ -14,27 +14,27 @@ def _exec_command(command):
     assert out == 0  # TODO: replace assert with Exception
 
 
-def _set_environment_credentials_if_none(credentials: dict={}):
+def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
     if _KAGGLE_USERNAME not in os.environ:
-        username = credentials.get("username", None)
+        username = kaggle_credentials.get("username", None)
         os.environ[_KAGGLE_USERNAME] = username
         if not username:
             raise MissingKaggleCredentialsError(_KAGGLE_USERNAME)
     if _KAGGLE_KEY not in os.environ:
-        key = credentials.get("key", None)
+        key = kaggle_credentials.get("key", None)
         os.environ[_KAGGLE_KEY] = key
         if not key:
             raise MissingKaggleCredentialsError(_KAGGLE_KEY)
 
 
-def download_kaggle(tag: str, local_path: str, credentials: dict={}):
+def download_kaggle(tag: str, local_path: str, kaggle_credentials: dict={}):
     # TODO: docstring
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
     if len(zip_files) > 0:
         raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
 
-    _set_environment_credentials_if_none(credentials)
+    _set_environment_credentials_if_none(kaggle_credentials)
 
     os.makedirs(local_path, exist_ok=True)
     setup = "cd %s &&" % (local_path)
