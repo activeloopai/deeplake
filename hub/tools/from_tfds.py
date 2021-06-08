@@ -5,17 +5,18 @@ from tqdm import tqdm
 from hub import Dataset
 
 
-def from_tfds_to_path(tfds_dataset_name: str, split: str, hub_ds_path: str, batch_size: int = 100):
-    """Converts the tfds dataset into a hub dataset
+def from_tfds_to_path(
+    tfds_dataset_name: str, split: str, hub_ds_path: str, batch_size: int = 100
+):
+    """Converts the tfds dataset with name `tfds_dataset_name` into a hub dataset and saves it at `hub_ds_path`
     Args:
         tfds_dataset_name (str): Name of tfds dataset.You can see a list of all tfds datasets here:
             https://www.tensorflow.org/datasets/catalog/overview
         split (str) : Enum for dataset splits used for loading a certain tfds dataset split
         hub_ds_path (str): Path where new hub dataset will be created
         batch_size (int): Batch size for tfds dataset
-
     Returns:
-        A dataset object that can be passed to torch.utils.data.DataLoader
+        A hub dataset
     """
     tfds_ds = tfds.load(tfds_dataset_name, split=split).batch(batch_size)
     ds = Dataset(hub_ds_path)
@@ -23,7 +24,14 @@ def from_tfds_to_path(tfds_dataset_name: str, split: str, hub_ds_path: str, batc
     return from_tfds(tfds_ds=tfds_ds, ds=ds)
 
 
-def from_tfds(tfds_ds: (tensorflow.data.Dataset), ds: (Dataset)):
+def from_tfds(tfds_ds: tensorflow.data.Dataset, ds: Dataset):
+    """Converts a tfds dataset to hub dataset
+    Args:
+        tfds_ds (tensorflow.data.Dataset): A tfds_dataset object.
+        ds (Dataset) : A Hub dataset object where Tensor will be created.
+    Returns:
+        A hub dataset
+    """
     tfds_numpy = tfds.as_numpy(tfds_ds)  # Convert `tf.data.Dataset` to Python generator
 
     for ex in tqdm(tfds_numpy):
