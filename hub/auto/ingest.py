@@ -1,8 +1,19 @@
 import os
+import glob
+
 from hub import Dataset
 from hub.util.kaggle import download_kaggle
 
 import warnings
+
+
+def _get_file_paths(directory: str):
+    # TODO: make sure directory is actually a directory
+
+    g = glob.glob(os.path.join(directory, "**"), recursive=True)
+    files = [path for path in g if os.path.isfile(path)]
+    return files
+
 
 def from_path(unstructured_path: str, **kwargs):
     """Creates a hub dataset from unstructured data.
@@ -26,6 +37,10 @@ def from_path(unstructured_path: str, **kwargs):
     ds = Dataset(**kwargs, mode="w")
 
     # TODO
+    files = _get_file_paths(unstructured_path)
+
+    print(files[:10])
+    print(len(files))
 
     return None
 
