@@ -247,7 +247,10 @@ class Index:
         elif isinstance(item, Index):
             base = self
             for index in item.values:
-                base = base[index.value]
+                value = index.value
+                if isinstance(value, tuple):
+                    value = (value,)
+                base = base[value]
             return base
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
@@ -266,3 +269,6 @@ class Index:
 
     def __str__(self):
         return f"Index(" + str(self.values) + ")"
+
+    def __repr__(self):
+        return self.__str__()

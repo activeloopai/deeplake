@@ -114,7 +114,7 @@ class Tensor:
         """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
-    def __getitem__(self, item: Union[int, slice, Index]):
+    def __getitem__(self, item: Union[int, slice, list, tuple, Index]):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
