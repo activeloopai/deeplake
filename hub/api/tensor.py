@@ -1,5 +1,5 @@
 from hub.util.shape import Shape
-from typing import List, Sequence, Union, Iterable, Optional
+from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
 
 import numpy as np
@@ -114,7 +114,10 @@ class Tensor:
         """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
-    def __getitem__(self, item: Union[int, slice, list, tuple, Index]):
+    def __getitem__(
+        self,
+        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+    ):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
