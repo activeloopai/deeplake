@@ -6,11 +6,11 @@ RUN mkdir /app
 
 RUN git clone https://github.com/activeloopai/Hub.git /app/ && \
     cd /app/ && \
-    git checkout clean_2
+    git checkout release/2.0
 
 WORKDIR /app
 
-RUN pip install -r requirements/requirments.txt && \
+RUN pip install -r requirements/requirements.txt && \
     pip install -r requirements/common.txt && \
     pip install -r requirements/tests.txt && \
     pip install -r requirements/plugins.txt
