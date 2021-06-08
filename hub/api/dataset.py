@@ -35,7 +35,7 @@ class Dataset:
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
+                Supported modes include ("r", "w", "a").
                 Defaults to "a".
             index: The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -203,3 +203,9 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    def __str__(self):
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Dataset(mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"

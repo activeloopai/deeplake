@@ -142,3 +142,9 @@ class Tensor:
         return read_samples_from_tensor(
             self.key, self.storage, self.index, aslist=aslist
         )
+
+    def __str__(self):
+        index_str = f", index={self.index}"
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Tensor(key={repr(self.key)}{index_str})"
