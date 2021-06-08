@@ -34,8 +34,7 @@ class Dataset:
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
-                Defaults to "a".
+                Supported modes include ("r", "a"). Defaults to "a".
             index: The Index object restricting the view of this dataset's tensors.
                 Can be an int, slice, or (used internally) an Index object.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -60,8 +59,10 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        self.tensors: Dict[str, Tensor] = {}
+        if self.mode == "r":
+            self.storage.enable_readonly()
 
+        self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)

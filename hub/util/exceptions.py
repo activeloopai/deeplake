@@ -240,3 +240,8 @@ class InvalidImageDimensions(Exception):
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
         )
+
+
+class ReadOnlyProviderError(Exception):
+    def __init__(self):
+        super().__init__("Modification when in read-only mode is not supported!")

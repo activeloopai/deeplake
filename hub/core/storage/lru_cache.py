@@ -40,6 +40,7 @@ class LRUCache(StorageProvider):
         """Writes data from cache_storage to next_storage. Only the dirty keys are written.
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
+        self.assert_readonly()
         for key in self.dirty_keys:
             self.next_storage[key] = self.cache_storage[key]
         self.dirty_keys.clear()
@@ -73,7 +74,11 @@ class LRUCache(StorageProvider):
         Args:
             path (str): the path relative to the root of the underlying storage.
             value (bytes): the value to be assigned at the path.
+
+        Raises:
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
@@ -93,7 +98,9 @@ class LRUCache(StorageProvider):
 
         Raises:
             KeyError: If an object is not found at the path.
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         deleted_from_cache = False
         if path in self.lru_sizes:
             size = self.lru_sizes.pop(path)
@@ -112,6 +119,7 @@ class LRUCache(StorageProvider):
         """Flushes the content of the cache and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """
+        self.assert_readonly()
         self.flush()
         self.cache_used = 0
         self.lru_sizes.clear()
@@ -125,6 +133,7 @@ class LRUCache(StorageProvider):
         """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
+        self.assert_readonly()
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()
@@ -172,7 +181,11 @@ class LRUCache(StorageProvider):
         Args:
             path (str): the path relative to the root of the underlying storage.
             value (bytes): the value to be assigned at the path.
+
+        Raises:
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         self._free_up_space(len(value))
         self.cache_storage[path] = value
         self.cache_used += len(value)

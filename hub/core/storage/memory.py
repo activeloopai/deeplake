@@ -42,7 +42,11 @@ class MemoryProvider(StorageProvider):
         Args:
             path (str): the path relative to the root of the provider.
             value (bytes): the value to be assigned at the path.
+
+        Raises:
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         self.dict[path] = value
 
     def __iter__(self):
@@ -70,7 +74,9 @@ class MemoryProvider(StorageProvider):
 
         Raises:
             KeyError: If an object is not found at the path.
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         del self.dict[path]
 
     def __len__(self):
@@ -84,3 +90,8 @@ class MemoryProvider(StorageProvider):
             int: the number of files present inside the root.
         """
         return len(self.dict)
+
+    def clear(self):
+        """Clears the provider."""
+        self.assert_readonly()
+        self.dict = {}

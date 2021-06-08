@@ -85,7 +85,9 @@ class S3Provider(StorageProvider):
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         try:
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
@@ -110,7 +112,9 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -134,7 +138,9 @@ class S3Provider(StorageProvider):
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
                 won't raise KeyError.
+            ReadOnlyProviderError: If the provider is in read-only mode.
         """
+        self.assert_readonly()
         try:
             path = posixpath.join(self.path, path)
             self.client.delete_object(Bucket=self.bucket, Key=path)
@@ -185,6 +191,7 @@ class S3Provider(StorageProvider):
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+        self.assert_readonly()
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
             bucket.objects.filter(Prefix=self.path).delete()
