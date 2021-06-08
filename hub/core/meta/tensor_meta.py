@@ -3,6 +3,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
+import hub
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
@@ -35,6 +36,7 @@ def default_tensor_meta(
     tensor_meta["chunk_size"] = chunk_size
     tensor_meta["dtype"] = dtype
     tensor_meta["length"] = 0
+    tensor_meta["version"] = hub.__version__
     if htype is not None:
         tensor_meta["htype"] = htype  # TODO: identify presets
 
