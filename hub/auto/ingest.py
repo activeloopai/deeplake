@@ -1,18 +1,11 @@
+from hub.auto.converter import Converter
 import os
-import glob
+
 
 from hub import Dataset
 from hub.util.kaggle import download_kaggle
 
 import warnings
-
-
-def _get_file_paths(directory: str):
-    # TODO: make sure directory is actually a directory
-
-    g = glob.glob(os.path.join(directory, "**"), recursive=True)
-    files = [path for path in g if os.path.isfile(path)]
-    return files
 
 
 def from_path(unstructured_path: str, **kwargs):
@@ -36,13 +29,10 @@ def from_path(unstructured_path: str, **kwargs):
 
     ds = Dataset(**kwargs, mode="w")
 
-    # TODO
-    files = _get_file_paths(unstructured_path)
+    converter = Converter(unstructured_path)
+    converter.write_to(ds)
 
-    print(files[:10])
-    print(len(files))
-
-    return None
+    return ds
 
 
 def from_kaggle(tag: str, path: str, local_path: str=None, **kwargs):
