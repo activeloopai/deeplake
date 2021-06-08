@@ -71,8 +71,9 @@ class Dataset:
 
     def __enter__(self):
         self.storage.disable_autoflush()
+        return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         self.storage.enable_autoflush()
         self.flush()
 

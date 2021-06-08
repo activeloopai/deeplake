@@ -23,6 +23,28 @@ def test_persist_local(local_storage):
     ds.delete()
 
 
+def test_persist_with_local(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    with Dataset(local_storage.root, local_cache_size=512) as ds:
+
+        ds.create_tensor("image")
+        ds.image.extend(np.ones((4, 4096, 4096)))
+
+        ds_new = Dataset(local_storage.root)
+        assert len(ds_new) == 0  # shouldn't be flushed yet
+
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
+
+
 def test_persist_local_clear_cache(local_storage):
     if local_storage is None:
         pytest.skip()
