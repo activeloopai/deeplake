@@ -33,7 +33,7 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict=
 
     Args:
         tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
-        local_path (str): Path where the kaggle dataset will be downloaded and unzipped. Only local path downloading is supported.
+        local_path (str): Path where the kaggle dataset will be downloaded and unzipped. Only local path downloading is supported. 
         kaggle_credentials (dict): Credentials are gathered from the environment variables or `~/kaggle.json`. 
             If those don't exist, the `kaggle_credentials` argument will be used.
 
@@ -44,6 +44,11 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict=
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
     if len(zip_files) > 0:
+        # TODO: this case means file did not finish unzipping (after unzip, it should be deleted)
+        raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
+    subfolders = glob.glob(os.path.join(local_path, "*"))
+    if len(subfolders) > 0:
+        # TODO: this case means file finished unzipping and dataset is already there
         raise KaggleDatasetAlreadyDownloadedError(tag, local_path)
 
     _set_environment_credentials_if_none(kaggle_credentials)

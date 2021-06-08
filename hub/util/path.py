@@ -4,9 +4,6 @@ import glob
 from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 
 
-HUB_DIR = "hub"
-
-
 def storage_provider_from_path(path: str):
     """Construct a StorageProvider given a path.
 
@@ -54,10 +51,12 @@ def find_root(path: str) -> str:
     """
 
     subs = glob.glob(os.path.join(path, "*"))
-    hub_dir = os.path.join(path, HUB_DIR)
 
-    if hub_dir in subs:
-        subs.remove(hub_dir)  # ignore the hub directory
+    # if ignore_sub:
+    #     ignore_sub = os.path.join(path, ignore_sub)
+    #     if ignore_sub in subs:
+    #         subs.remove(ignore_sub)
+
     subs = [
         sub for sub in subs if os.path.isdir(sub)
     ]  # only keep directories (ignore files)

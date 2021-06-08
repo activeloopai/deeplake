@@ -11,7 +11,6 @@ from hub.api.dataset import Dataset
 from hub.auto.load import load
 from hub.util.path import find_root
 
-
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
 LABEL_NAMES_META_KEY = "class_names"
@@ -67,7 +66,7 @@ class Converter:
         return tuple(class_names)
 
 
-    def from_image_classification(self, ds: Dataset, use_tqdm: bool=False):
+    def from_image_classification(self, ds: Dataset, use_tqdm: bool=True):
         images_tensor_map = {}
         labels_tensor_map = {}
 
@@ -79,16 +78,16 @@ class Converter:
 
             images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
-
             images_tensor_map[set_name] = images_tensor_name
             labels_tensor_map[set_name] = labels_tensor_name
+
             ds.create_tensor(images_tensor_name, htype="image")
             ds.create_tensor(labels_tensor_name, htype="class_label", extra_meta={LABEL_NAMES_META_KEY: self.class_names})
             # TODO: extra_meta arg should be replaced with `class_names=self.class_names` when htypes are supported
 
         paths = self._abs_file_paths
-        iterator = tqdm(paths, desc="Ingesting image classification dataset", total=len(paths), disable=not use_tqdm)
-        for i, file_path in enumerate(self._abs_file_paths):
+        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.root, total=len(paths), disable=not use_tqdm)
+        for file_path in iterator:
             image = load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)
             label = np.array([self.class_names.index(class_name)])  # TODO: should be able to pass just an integer to `tensor.append`
