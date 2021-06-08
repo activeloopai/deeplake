@@ -13,7 +13,10 @@ from hub.core.tensor import (
 )
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import (
+    normalize_and_batchify_array_shape,
+    normalize_and_batchify_shape,
+)
 from hub.util.index import Index
 from hub.util.keys import get_chunk_key
 
@@ -138,6 +141,12 @@ def run_engine_test(
 
     create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
 
+    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
+        1:
+    ]
+    expected_min_shape = first_sample_shape
+    expected_max_shape = first_sample_shape
+
     for i, a_in in enumerate(arrays):
         add_samples_to_tensor(
             a_in,
@@ -146,16 +155,19 @@ def run_engine_test(
             batched=batched,
         )
 
-        a_in = normalize_and_batchify_shape(a_in, batched=batched)
+        a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
 
-        num_samples = a_in.shape[0]
-        index = Index(slice(sample_count, sample_count + num_samples))
+        current_batch_num_samples = a_in.shape[0]
+        index = Index(slice(sample_count, sample_count + current_batch_num_samples))
         a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
         meta = read_tensor_meta(key, storage)
 
-        sample_count += num_samples
+        sample_count += current_batch_num_samples
+
+        expected_min_shape = np.minimum(expected_min_shape, a_in.shape[1:])
+        expected_max_shape = np.maximum(expected_max_shape, a_in.shape[1:])
 
         assert_meta_is_valid(
             meta,
@@ -163,8 +175,8 @@ def run_engine_test(
                 "chunk_size": chunk_size,
                 "length": sample_count,
                 "dtype": a_in.dtype.name,
-                "min_shape": tuple(a_in.shape[1:]),
-                "max_shape": tuple(a_in.shape[1:]),
+                "min_shape": tuple(expected_min_shape),
+                "max_shape": tuple(expected_max_shape),
             },
         )
 

@@ -81,6 +81,9 @@ class Index:
         elif isinstance(item, slice):
             return Index(merge_slices(self.item, item))
 
+    def __str__(self):
+        return str(self.to_slice())
+
     def to_slice(self):
         """Convert this Index into a slice"""
         if isinstance(self.item, int):

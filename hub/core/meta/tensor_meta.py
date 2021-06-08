@@ -7,6 +7,7 @@ from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
+from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):

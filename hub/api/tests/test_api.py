@@ -16,7 +16,10 @@ def test_persist_local_flush(local_storage):
 
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
-    assert ds_new.image.shape == (4096, 4096)
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
 
@@ -31,7 +34,10 @@ def test_persist_local_clear_cache(local_storage):
     ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
-    assert ds_new.image.shape == (4096, 4096)
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
 
@@ -58,10 +64,35 @@ def test_populate_dataset(ds):
 
 
 @parametrize_all_dataset_storages
-def test_compute_tensor(ds):
+def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
+
+
+@parametrize_all_dataset_storages
+def test_compute_dynamic_tensor(ds):
+    ds.create_tensor("image")
+
+    a1 = np.ones((32, 28, 28))
+    a2 = np.ones((10, 36, 11))
+    a3 = np.ones((29, 10))
+
+    image = ds.image
+
+    image.extend(a1)
+    image.extend(a2)
+    image.append(a3)
+
+    expected_list = [*a1, *a2, a3]
+    actual_list = image.numpy(aslist=True)
+
+    for expected, actual in zip(expected_list, actual_list):
+        np.testing.assert_array_equal(expected, actual)
+
+    assert image.shape.lower == (28, 10)
+    assert image.shape.upper == (36, 28)
+    assert image.shape.is_dynamic
 
 
 @parametrize_all_dataset_storages
@@ -89,3 +120,20 @@ def test_iterate_dataset(ds):
         np.testing.assert_array_equal(img, np.ones((28, 28)))
         assert label.shape == (1,)
         assert label == labels[idx]
+
+
+def test_shape_property(memory_ds):
+    fixed = memory_ds.create_tensor("fixed_tensor")
+    dynamic = memory_ds.create_tensor("dynamic_tensor")
+
+    # dynamic shape property
+    dynamic.extend(np.ones((32, 28, 28)))
+    dynamic.extend(np.ones((16, 33, 9)))
+    assert dynamic.shape.lower == (28, 9)
+    assert dynamic.shape.upper == (33, 28)
+
+    # fixed shape property
+    fixed.extend(np.ones((9, 28, 28)))
+    fixed.extend(np.ones((13, 28, 28)))
+    assert fixed.shape.lower == (28, 28)
+    assert fixed.shape.upper == (28, 28)
