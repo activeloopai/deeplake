@@ -94,6 +94,8 @@ class StorageProvider(ABC, MutableMapping):
                 value = value.rjust(end_byte, BYTE_PADDING)
             self[path] = value
 
+        self.maybe_flush()
+
     @abstractmethod
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
@@ -125,3 +127,13 @@ class StorageProvider(ABC, MutableMapping):
         """Only needs to be implemented for caches. Flushes the data to the next storage provider.
         Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
         """
+
+    def enable_autoflush(self):
+        self.autoflush = True
+
+    def disable_autoflush(self):
+        self.autoflush = False
+
+    def maybe_flush(self):
+        if hasattr(self, "autoflush") and self.autoflush:
+            self.flush()

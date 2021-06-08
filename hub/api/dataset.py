@@ -60,6 +60,7 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
+        self.storage.enable_autoflush()
         self.tensors: Dict[str, Tensor] = {}
 
         if dataset_exists(self.storage):
@@ -67,6 +68,13 @@ class Dataset:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         else:
             self.meta = {"tensors": []}
+
+    def __enter__(self):
+        self.storage.disable_autoflush()
+
+    def __exit__(self):
+        self.storage.enable_autoflush()
+        self.flush()
 
     # TODO len should consider slice
     def __len__(self):
