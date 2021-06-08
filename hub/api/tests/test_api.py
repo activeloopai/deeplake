@@ -150,11 +150,17 @@ def test_compute_slices(memory_ds):
     ss = ds.data[16, 4, 5, 1:3].numpy()
     np.testing.assert_array_equal(ss, data[16, 4, 5, 1:3])
 
+    ss = ds[[0, 1, 2, 5, 6, 10, 60]].data.numpy()
+    np.testing.assert_array_equal(ss, data[[0, 1, 2, 5, 6, 10, 60]])
+
     ss = ds.data[[0, 1, 2, 5, 6, 10, 60]].numpy()
     np.testing.assert_array_equal(ss, data[[0, 1, 2, 5, 6, 10, 60]])
 
     ss = ds.data[0][[0, 1, 2, 5, 6, 10, 15]].numpy()
     np.testing.assert_array_equal(ss, data[0][[0, 1, 2, 5, 6, 10, 15]])
+
+    ss = ds[(0, 1, 6, 10, 15), :].data.numpy()
+    np.testing.assert_array_equal(ss, data[(0, 1, 6, 10, 15), :])
 
     ss = ds.data[(0, 1, 6, 10, 15), :].numpy()
     np.testing.assert_array_equal(ss, data[(0, 1, 6, 10, 15), :])
