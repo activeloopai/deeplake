@@ -3,7 +3,7 @@ import os
 
 
 from hub import Dataset
-from hub.util.kaggle import download_kaggle
+from hub.util.kaggle import download_kaggle_dataset
 from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError
 
 import warnings
@@ -47,7 +47,7 @@ def from_kaggle(tag: str, path: str, local_path: str=None, kaggle_credentials: d
         local_path = os.path.join(path, "unstructured")
 
     try:
-        download_kaggle(tag, local_path, kaggle_credentials=kaggle_credentials)
+        download_kaggle_dataset(tag, local_path, kaggle_credentials=kaggle_credentials)
     except KaggleDatasetAlreadyDownloadedError as e:
         warnings.warn(e.message)
 

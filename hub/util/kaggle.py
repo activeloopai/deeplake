@@ -27,8 +27,20 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
             raise MissingKaggleCredentialsError(_KAGGLE_KEY)
 
 
-def download_kaggle(tag: str, local_path: str, kaggle_credentials: dict={}):
+def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict={}):
     # TODO: docstring
+    """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
+
+    Args:
+        tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
+        local_path (str): Path where the kaggle dataset will be downloaded and unzipped. Only local path downloading is supported.
+        kaggle_credentials (dict): Credentials are gathered from the environment variables or `~/kaggle.json`. 
+            If those don't exist, the `kaggle_credentials` argument will be used.
+
+    Raises:
+        MissingKaggleCredentialsError: If no kaggle credentials are found.
+        KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
+    """
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
     if len(zip_files) > 0:
