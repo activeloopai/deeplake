@@ -240,3 +240,8 @@ class InvalidImageDimensions(Exception):
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
         )
+
+
+class MissingKaggleCredentialsError(Exception):
+    def __init__(self, env_var_name: str):
+        super().__init__("Could not find %s in environment variables." % env_var_name)

@@ -1,3 +1,6 @@
+import os
+
+from hub.util.kaggle import download_kaggle
 import warnings
 from typing import Callable, Dict, Optional, Union
 
@@ -203,3 +206,15 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+
+    @staticmethod
+    def from_kaggle(tag: str, path: str, local_path: str=None):
+        # TODO: docstring
+        if not local_path:
+            local_path = os.path.join(path, "unstructured")
+
+        # TODO: make sure path and local path are not equal
+
+        download_kaggle(tag, local_path)
+        return Dataset.from_path(local_path)
