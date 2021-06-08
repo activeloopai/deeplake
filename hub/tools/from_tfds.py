@@ -5,7 +5,7 @@ from tqdm import tqdm
 from hub import Dataset
 
 
-def from_tfds(tfds_dataset_name: str, split: str, hub_ds_path: str, batch_size: int = 100):
+def from_tfds_to_path(tfds_dataset_name: str, split: str, hub_ds_path: str, batch_size: int = 100):
     """Converts the tfds dataset into a hub dataset
     Args:
         tfds_dataset_name (str): Name of tfds dataset.You can see a list of all tfds datasets here:
