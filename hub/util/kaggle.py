@@ -8,34 +8,21 @@ _KAGGLE_KEY = "KAGGLE_KEY"
 
 
 def _exec_command(command):
-    # TODO: remove prints
-    print("using command", command)
-    print("-----------------")
     out = os.system(command)
-    print("-----------------")
-    print("exit code:", out)
-    assert out == 0  # TODO: remove assert
+    assert out == 0  # TODO: replace assert with Exception
 
 
-def _set_environment_credentials(credentials: dict={}):
+def _set_environment_credentials_if_none(credentials: dict={}):
     if _KAGGLE_USERNAME not in os.environ:
-        os.environ[_KAGGLE_USERNAME] = credentials.get("username", None)
+        username = credentials.get("username", None)
+        os.environ[_KAGGLE_USERNAME] = username
+        if not username:
+            raise MissingKaggleCredentialsError(_KAGGLE_USERNAME)
     if _KAGGLE_KEY not in os.environ:
-        os.environ[_KAGGLE_KEY] = credentials.get("key", None)
-
-
-def _get_kaggle_username(credentials: dict={}):
-    username = os.environ.get(_KAGGLE_USERNAME, None)
-    if not username:
-        raise MissingKaggleCredentialsError(_KAGGLE_USERNAME)
-    return username
-
-
-def _get_kaggle_key(credentials: dict={}):
-    key = os.environ.get(_KAGGLE_KEY, None)
-    if not key:
-        raise MissingKaggleCredentialsError(_KAGGLE_KEY)
-    return key
+        key = credentials.get("key", None)
+        os.environ[_KAGGLE_KEY] = key
+        if not key:
+            raise MissingKaggleCredentialsError(_KAGGLE_KEY)
 
 
 def download_kaggle(tag: str, local_path: str, credentials: dict={}):
@@ -44,16 +31,10 @@ def download_kaggle(tag: str, local_path: str, credentials: dict={}):
     if os.path.isdir(local_path):
         return  # TODO: 
 
-    _set_environment_credentials(credentials)
-    username = _get_kaggle_username(credentials)
-    key = _get_kaggle_key(credentials)
+    _set_environment_credentials_if_none(credentials)
 
     os.makedirs(local_path, exist_ok=True)
-    setup = "cd %s && export KAGGLE_USERNAME=%s && export KAGLE_KEY=%s &&" % (
-        local_path,
-        username,
-        key,
-    )
+    setup = "cd %s &&" % (local_path)
 
     _exec_command("%s kaggle datasets download -d %s" % (setup, tag))
     _exec_command("%s unzip -n *.zip" % setup)

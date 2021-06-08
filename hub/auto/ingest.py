@@ -32,19 +32,21 @@ def from_path(unstructured_path: str, **kwargs):
     converter = Converter(unstructured_path)
     converter.from_image_classification(ds)
 
+    # TODO: opt-in delete unstructured data after ingestion
+
     return ds
 
 
+# TODO: rename `credentials` -> `kaggle_credentials`
 def from_kaggle(tag: str, path: str, local_path: str=None, credentials: dict={}, **kwargs):
     # TODO: docstring
+    # TODO: make sure path and local path are not equal
+    # TODO: make path variable names more obvious
+
     if not local_path:
         local_path = os.path.join(path, "unstructured")
 
-    # TODO: make sure path and local path are not equal
-
     download_kaggle(tag, local_path, credentials=credentials)
-
-    # TODO: make variable names more obvious
     ds = from_path(local_path, path=path, **kwargs)
 
     return ds
