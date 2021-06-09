@@ -18,7 +18,6 @@ def test_pytorch_small(local_ds):
     local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
     local_ds.create_tensor("image2")
     local_ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
-    local_ds.flush()
 
     ptds = local_ds.pytorch(workers=2)
 
@@ -50,7 +49,6 @@ def test_pytorch_large(local_ds):
     local_ds.image.extend(arr)
     local_ds.create_tensor("classlabel")
     local_ds.classlabel.extend(np.array(range(10)))
-    local_ds.flush()
 
     ptds = local_ds.pytorch(workers=2)
 
@@ -74,7 +72,6 @@ def test_pytorch_small_old(local_ds):
     local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
     local_ds.create_tensor("image2")
     local_ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
-    local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     ptds = dataset_to_pytorch(local_ds, workers=2)
@@ -105,7 +102,6 @@ def test_pytorch_large_old(local_ds):
     local_ds.image.extend(arr)
     local_ds.create_tensor("classlabel")
     local_ds.classlabel.extend(np.array([i for i in range(10)]))
-    local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     ptds = dataset_to_pytorch(local_ds, workers=2)
