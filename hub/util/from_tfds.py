@@ -1,6 +1,6 @@
-import tensorflow
-import tensorflow_datasets as tfds
-from tqdm import tqdm
+import tensorflow  # type: ignore
+import tensorflow_datasets as tfds  # type: ignore
+from tqdm import tqdm  # type: ignore
 
 from hub import Dataset
 

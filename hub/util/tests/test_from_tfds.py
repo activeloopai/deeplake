@@ -1,11 +1,17 @@
 import numpy as np
 import pytest
-import tensorflow_datasets as tfds
+import tensorflow_datasets as tfds  # type: ignore
 
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.tools.from_tfds import from_tfds, from_tfds_to_path
+from util.check_installation import tfds_installed  # type: ignore
+from util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
+
+requires_tfds = pytest.mark.skipif(
+    not tfds_installed(), reason="requires tensorflow_datasets to be installed"
+)
 
 
+@requires_tfds
 def test_from_tfds_to_path(local_storage):
     if local_storage is None:
         pytest.skip()
@@ -22,6 +28,7 @@ def test_from_tfds_to_path(local_storage):
     assert hub_ds.image[1000].shape.lower == (28, 28)
 
 
+@requires_tfds
 @parametrize_all_dataset_storages
 def test_from_tfds(ds):
     tfds_ds = tfds.load("mnist", split="train").batch(1).take(10)
