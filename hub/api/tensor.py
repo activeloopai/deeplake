@@ -1,7 +1,6 @@
 from hub.util.shape import Shape
-from typing import List, Sequence, Union
+from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
-from typing import Union, Iterable
 
 import numpy as np
 
@@ -15,7 +14,7 @@ from hub.core.tensor import (
 )
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError
-from hub.util.index import Index
+from hub.core.index import Index
 
 
 class Tensor:
@@ -24,12 +23,14 @@ class Tensor:
         key: str,
         storage: StorageProvider,
         tensor_meta: dict = None,
-        index: Union[int, slice, Index] = None,
+        index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
+
         Note:
             This operation does not create a new tensor in the storage provider,
             and should normally only be performed by Hub internals.
+
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
@@ -37,12 +38,13 @@ class Tensor:
                 with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
+
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
         self.storage = storage
-        self.index = Index(index)
+        self.index = index or Index()
 
         if tensor_exists(self.key, self.storage):
             if tensor_meta is not None:
@@ -112,7 +114,10 @@ class Tensor:
         """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
-    def __getitem__(self, item: Union[int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+    ):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
