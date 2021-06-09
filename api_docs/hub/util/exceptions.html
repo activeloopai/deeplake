@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>hub.util.exceptions API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>hub.util.exceptions</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">from hub.util.index import Index
+from typing import Any, Sequence
+
+
+class ChunkSizeTooSmallError(Exception):
+    def __init__(
+        self,
+        message=&#34;If the size of the last chunk is given, it must be smaller than the requested chunk size.&#34;,
+    ):
+        super().__init__(message)
+
+
+class TensorMetaMismatchError(Exception):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            &#34;Meta value for {} expected {} but got {}.&#34;.format(
+                meta_key, str(expected), str(actual)
+            )
+        )
+
+
+class TensorInvalidSampleShapeError(Exception):
+    def __init__(self, message: str, shape: Sequence[int]):
+        super().__init__(&#34;{} Incoming sample shape: {}&#34;.format(message, str(shape)))
+
+
+class TensorMetaMissingKey(Exception):
+    def __init__(self, key: str, meta: dict):
+        super().__init__(&#34;Key {} missing from tensor meta {}.&#34;.format(key, str(meta)))
+
+
+class TensorMetaInvalidValue(Exception):
+    def __init__(self, key: str, value: Any, explanation: str = &#34;&#34;):
+        super().__init__(
+            &#34;Invalid value {} for tensor meta key {}. {}&#34;.format(
+                str(value), key, explanation
+            )
+        )
+
+
+class TensorDoesNotExistError(KeyError):
+    def __init__(self, tensor_name: str):
+        super().__init__(&#34;Tensor {} does not exist.&#34;.format(tensor_name))
+
+
+class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__(&#34;Tensor {} already exists.&#34;.format(key))
+
+
+class DynamicTensorNumpyError(Exception):
+    def __init__(self, key: str, index: Index):
+        super().__init__(
+            &#34;Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            Try setting the parameter `aslist=True`&#34;.format(
+                key, str(index)
+            )
+        )
+
+
+class InvalidShapeIntervalError(Exception):
+    def __init__(
+        self, message: str, lower: Sequence[int] = None, upper: Sequence[int] = None
+    ):
+        s = message
+
+        if lower is not None:
+            s += &#34; lower={}&#34;.format(str(lower))
+
+        if upper is not None:
+            s += &#34; upper={}&#34;.format(str(upper))
+
+        super().__init__(s)
+
+
+class InvalidKeyTypeError(TypeError):
+    def __init__(self, item: Any):
+        super().__init__(
+            &#34;Item {} is of type {} is not a valid key&#34;.format(
+                str(item), type(item).__name__
+            )
+        )
+
+
+class UnsupportedTensorTypeError(TypeError):
+    def __init__(self, item: Any):
+        super().__init__(
+            &#34;Key of type {} is not currently supported to convert to a tensor.&#34;.format(
+                type(item).__name__
+            )
+        )
+
+
+class InvalidBytesRequestedError(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The byte range provided is invalid. Ensure that start_byte &lt;= end_byte and start_byte &gt; 0 and end_byte &gt; 0&#34;
+        )
+
+
+class ProviderListEmptyError(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The provider_list passed to get_cache_chain needs to have 1 or more elements.&#34;
+        )
+
+
+class DirectoryAtPathException(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The provided path is incorrect for this operation, there is a directory at the path. Provide a path to a file.&#34;
+        )
+
+
+class FileAtPathException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f&#34;Expected a directory at path {path} but found a file instead.&#34;
+        )
+
+
+class ProviderSizeListMismatch(Exception):
+    def __init__(self):
+        super().__init__(&#34;Ensure that len(size_list) + 1 == len(provider_list)&#34;)
+
+
+class ModuleNotInstalledException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class LoginException(Exception):
+    def __init__(
+        self,
+        message=&#34;Error while logging in, invalid auth token. Please try logging in again.&#34;,
+    ):
+        super().__init__(message)
+
+
+# Exceptions encountered while interection with the Hub backend
+class AuthenticationException(Exception):
+    def __init__(self, message=&#34;Authentication failed. Please try logging in again.&#34;):
+        super().__init__(message)
+
+
+class AuthorizationException(Exception):
+    def __init__(
+        self,
+        message=&#34;You are not authorized to access this resource on Activeloop Server.&#34;,
+    ):
+        super().__init__(message)
+
+
+class ResourceNotFoundException(Exception):
+    def __init__(
+        self,
+        message=&#34;The resource you are looking for was not found. Check if the name or id is correct.&#34;,
+    ):
+        super().__init__(message)
+
+
+class BadRequestException(Exception):
+    def __init__(self, message):
+        message = (
+            f&#34;Invalid Request. One or more request parameters is incorrect.\n{message}&#34;
+        )
+        super().__init__(message)
+
+
+class OverLimitException(Exception):
+    def __init__(
+        self,
+        message=&#34;You are over the allowed limits for this operation.&#34;,
+    ):
+        super().__init__(message)
+
+
+class ServerException(Exception):
+    def __init__(self, message=&#34;Internal Activeloop server error.&#34;):
+        super().__init__(message)
+
+
+class BadGatewayException(Exception):
+    def __init__(self, message=&#34;Invalid response from Activeloop server.&#34;):
+        super().__init__(message)
+
+
+class GatewayTimeoutException(Exception):
+    def __init__(self, message=&#34;Activeloop server took too long to respond.&#34;):
+        super().__init__(message)
+
+
+class WaitTimeoutException(Exception):
+    def __init__(self, message=&#34;Timeout waiting for server state update.&#34;):
+        super().__init__(message)
+
+
+class LockedException(Exception):
+    def __init__(self, message=&#34;The resource is currently locked.&#34;):
+        super().__init__(message)
+
+
+class UnexpectedStatusCodeException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class InvalidTokenException(Exception):
+    def __init__(self, message=&#34;The authentication token is empty.&#34;):
+        super().__init__(message)
+
+
+# TODO Better S3 Exception handling
+class S3GetError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working getting an object from S3&#34;&#34;&#34;
+
+
+class S3SetError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working setting an object in S3&#34;&#34;&#34;
+
+
+class S3DeletionError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working deleting an object in S3&#34;&#34;&#34;
+
+
+class S3ListError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while retrieving a list of objects present in S3&#34;&#34;&#34;
+
+
+class InvalidCompressor(Exception):
+    def __init__(self, available_compressors):
+        super().__init__(
+            f&#34;Compressor is not supported. Supported compressions: {available_compressors}&#34;
+        )
+
+
+class InvalidImageDimensions(Exception):
+    def __init__(self, actual_dims, expected_dims):
+        super().__init__(
+            f&#34;The shape length {actual_dims} of the given array should &#34;
+            f&#34;be greater than the number of expected dimensions {expected_dims}&#34;
+        )</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="hub.util.exceptions.AuthenticationException"><code class="flex name class">
+<span>class <span class="ident">AuthenticationException</span></span>
+<span>(</span><span>message='Authentication failed. Please try logging in again.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthenticationException(Exception):
+    def __init__(self, message=&#34;Authentication failed. Please try logging in again.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.AuthorizationException"><code class="flex name class">
+<span>class <span class="ident">AuthorizationException</span></span>
+<span>(</span><span>message='You are not authorized to access this resource on Activeloop Server.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class AuthorizationException(Exception):
+    def __init__(
+        self,
+        message=&#34;You are not authorized to access this resource on Activeloop Server.&#34;,
+    ):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.BadGatewayException"><code class="flex name class">
+<span>class <span class="ident">BadGatewayException</span></span>
+<span>(</span><span>message='Invalid response from Activeloop server.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BadGatewayException(Exception):
+    def __init__(self, message=&#34;Invalid response from Activeloop server.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.BadRequestException"><code class="flex name class">
+<span>class <span class="ident">BadRequestException</span></span>
+<span>(</span><span>message)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class BadRequestException(Exception):
+    def __init__(self, message):
+        message = (
+            f&#34;Invalid Request. One or more request parameters is incorrect.\n{message}&#34;
+        )
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ChunkSizeTooSmallError"><code class="flex name class">
+<span>class <span class="ident">ChunkSizeTooSmallError</span></span>
+<span>(</span><span>message='If the size of the last chunk is given, it must be smaller than the requested chunk size.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ChunkSizeTooSmallError(Exception):
+    def __init__(
+        self,
+        message=&#34;If the size of the last chunk is given, it must be smaller than the requested chunk size.&#34;,
+    ):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.DirectoryAtPathException"><code class="flex name class">
+<span>class <span class="ident">DirectoryAtPathException</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DirectoryAtPathException(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The provided path is incorrect for this operation, there is a directory at the path. Provide a path to a file.&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.DynamicTensorNumpyError"><code class="flex name class">
+<span>class <span class="ident">DynamicTensorNumpyError</span></span>
+<span>(</span><span>key: str, index: <a title="hub.util.index.Index" href="index.m.html#hub.util.index.Index">Index</a>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class DynamicTensorNumpyError(Exception):
+    def __init__(self, key: str, index: Index):
+        super().__init__(
+            &#34;Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            Try setting the parameter `aslist=True`&#34;.format(
+                key, str(index)
+            )
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.FileAtPathException"><code class="flex name class">
+<span>class <span class="ident">FileAtPathException</span></span>
+<span>(</span><span>path)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FileAtPathException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f&#34;Expected a directory at path {path} but found a file instead.&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.GatewayTimeoutException"><code class="flex name class">
+<span>class <span class="ident">GatewayTimeoutException</span></span>
+<span>(</span><span>message='Activeloop server took too long to respond.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class GatewayTimeoutException(Exception):
+    def __init__(self, message=&#34;Activeloop server took too long to respond.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidBytesRequestedError"><code class="flex name class">
+<span>class <span class="ident">InvalidBytesRequestedError</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidBytesRequestedError(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The byte range provided is invalid. Ensure that start_byte &lt;= end_byte and start_byte &gt; 0 and end_byte &gt; 0&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidCompressor"><code class="flex name class">
+<span>class <span class="ident">InvalidCompressor</span></span>
+<span>(</span><span>available_compressors)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidCompressor(Exception):
+    def __init__(self, available_compressors):
+        super().__init__(
+            f&#34;Compressor is not supported. Supported compressions: {available_compressors}&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidImageDimensions"><code class="flex name class">
+<span>class <span class="ident">InvalidImageDimensions</span></span>
+<span>(</span><span>actual_dims, expected_dims)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidImageDimensions(Exception):
+    def __init__(self, actual_dims, expected_dims):
+        super().__init__(
+            f&#34;The shape length {actual_dims} of the given array should &#34;
+            f&#34;be greater than the number of expected dimensions {expected_dims}&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidKeyTypeError"><code class="flex name class">
+<span>class <span class="ident">InvalidKeyTypeError</span></span>
+<span>(</span><span>item: Any)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Inappropriate argument type.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidKeyTypeError(TypeError):
+    def __init__(self, item: Any):
+        super().__init__(
+            &#34;Item {} is of type {} is not a valid key&#34;.format(
+                str(item), type(item).__name__
+            )
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.TypeError</li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidShapeIntervalError"><code class="flex name class">
+<span>class <span class="ident">InvalidShapeIntervalError</span></span>
+<span>(</span><span>message: str, lower: Sequence[int] = None, upper: Sequence[int] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidShapeIntervalError(Exception):
+    def __init__(
+        self, message: str, lower: Sequence[int] = None, upper: Sequence[int] = None
+    ):
+        s = message
+
+        if lower is not None:
+            s += &#34; lower={}&#34;.format(str(lower))
+
+        if upper is not None:
+            s += &#34; upper={}&#34;.format(str(upper))
+
+        super().__init__(s)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.InvalidTokenException"><code class="flex name class">
+<span>class <span class="ident">InvalidTokenException</span></span>
+<span>(</span><span>message='The authentication token is empty.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class InvalidTokenException(Exception):
+    def __init__(self, message=&#34;The authentication token is empty.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.LockedException"><code class="flex name class">
+<span>class <span class="ident">LockedException</span></span>
+<span>(</span><span>message='The resource is currently locked.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LockedException(Exception):
+    def __init__(self, message=&#34;The resource is currently locked.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.LoginException"><code class="flex name class">
+<span>class <span class="ident">LoginException</span></span>
+<span>(</span><span>message='Error while logging in, invalid auth token. Please try logging in again.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class LoginException(Exception):
+    def __init__(
+        self,
+        message=&#34;Error while logging in, invalid auth token. Please try logging in again.&#34;,
+    ):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ModuleNotInstalledException"><code class="flex name class">
+<span>class <span class="ident">ModuleNotInstalledException</span></span>
+<span>(</span><span>message)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ModuleNotInstalledException(Exception):
+    def __init__(self, message):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.OverLimitException"><code class="flex name class">
+<span>class <span class="ident">OverLimitException</span></span>
+<span>(</span><span>message='You are over the allowed limits for this operation.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OverLimitException(Exception):
+    def __init__(
+        self,
+        message=&#34;You are over the allowed limits for this operation.&#34;,
+    ):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ProviderListEmptyError"><code class="flex name class">
+<span>class <span class="ident">ProviderListEmptyError</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProviderListEmptyError(Exception):
+    def __init__(self):
+        super().__init__(
+            &#34;The provider_list passed to get_cache_chain needs to have 1 or more elements.&#34;
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ProviderSizeListMismatch"><code class="flex name class">
+<span>class <span class="ident">ProviderSizeListMismatch</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ProviderSizeListMismatch(Exception):
+    def __init__(self):
+        super().__init__(&#34;Ensure that len(size_list) + 1 == len(provider_list)&#34;)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ResourceNotFoundException"><code class="flex name class">
+<span>class <span class="ident">ResourceNotFoundException</span></span>
+<span>(</span><span>message='The resource you are looking for was not found. Check if the name or id is correct.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ResourceNotFoundException(Exception):
+    def __init__(
+        self,
+        message=&#34;The resource you are looking for was not found. Check if the name or id is correct.&#34;,
+    ):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.S3DeletionError"><code class="flex name class">
+<span>class <span class="ident">S3DeletionError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Catchall for all errors encountered while working deleting an object in S3</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class S3DeletionError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working deleting an object in S3&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.S3GetError"><code class="flex name class">
+<span>class <span class="ident">S3GetError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Catchall for all errors encountered while working getting an object from S3</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class S3GetError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working getting an object from S3&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.S3ListError"><code class="flex name class">
+<span>class <span class="ident">S3ListError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Catchall for all errors encountered while retrieving a list of objects present in S3</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class S3ListError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while retrieving a list of objects present in S3&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.S3SetError"><code class="flex name class">
+<span>class <span class="ident">S3SetError</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Catchall for all errors encountered while working setting an object in S3</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class S3SetError(Exception):
+    &#34;&#34;&#34;Catchall for all errors encountered while working setting an object in S3&#34;&#34;&#34;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.ServerException"><code class="flex name class">
+<span>class <span class="ident">ServerException</span></span>
+<span>(</span><span>message='Internal Activeloop server error.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class ServerException(Exception):
+    def __init__(self, message=&#34;Internal Activeloop server error.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorAlreadyExistsError"><code class="flex name class">
+<span>class <span class="ident">TensorAlreadyExistsError</span></span>
+<span>(</span><span>key: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorAlreadyExistsError(Exception):
+    def __init__(self, key: str):
+        super().__init__(&#34;Tensor {} already exists.&#34;.format(key))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorDoesNotExistError"><code class="flex name class">
+<span>class <span class="ident">TensorDoesNotExistError</span></span>
+<span>(</span><span>tensor_name: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Mapping key not found.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorDoesNotExistError(KeyError):
+    def __init__(self, tensor_name: str):
+        super().__init__(&#34;Tensor {} does not exist.&#34;.format(tensor_name))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.KeyError</li>
+<li>builtins.LookupError</li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorInvalidSampleShapeError"><code class="flex name class">
+<span>class <span class="ident">TensorInvalidSampleShapeError</span></span>
+<span>(</span><span>message: str, shape: Sequence[int])</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorInvalidSampleShapeError(Exception):
+    def __init__(self, message: str, shape: Sequence[int]):
+        super().__init__(&#34;{} Incoming sample shape: {}&#34;.format(message, str(shape)))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorMetaInvalidValue"><code class="flex name class">
+<span>class <span class="ident">TensorMetaInvalidValue</span></span>
+<span>(</span><span>key: str, value: Any, explanation: str = '')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorMetaInvalidValue(Exception):
+    def __init__(self, key: str, value: Any, explanation: str = &#34;&#34;):
+        super().__init__(
+            &#34;Invalid value {} for tensor meta key {}. {}&#34;.format(
+                str(value), key, explanation
+            )
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorMetaMismatchError"><code class="flex name class">
+<span>class <span class="ident">TensorMetaMismatchError</span></span>
+<span>(</span><span>meta_key: str, expected: Any, actual: Any)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorMetaMismatchError(Exception):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            &#34;Meta value for {} expected {} but got {}.&#34;.format(
+                meta_key, str(expected), str(actual)
+            )
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.TensorMetaMissingKey"><code class="flex name class">
+<span>class <span class="ident">TensorMetaMissingKey</span></span>
+<span>(</span><span>key: str, meta: dict)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class TensorMetaMissingKey(Exception):
+    def __init__(self, key: str, meta: dict):
+        super().__init__(&#34;Key {} missing from tensor meta {}.&#34;.format(key, str(meta)))</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.UnexpectedStatusCodeException"><code class="flex name class">
+<span>class <span class="ident">UnexpectedStatusCodeException</span></span>
+<span>(</span><span>message)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UnexpectedStatusCodeException(Exception):
+    def __init__(self, message):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.UnsupportedTensorTypeError"><code class="flex name class">
+<span>class <span class="ident">UnsupportedTensorTypeError</span></span>
+<span>(</span><span>item: Any)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Inappropriate argument type.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class UnsupportedTensorTypeError(TypeError):
+    def __init__(self, item: Any):
+        super().__init__(
+            &#34;Key of type {} is not currently supported to convert to a tensor.&#34;.format(
+                type(item).__name__
+            )
+        )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.TypeError</li>
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+<dt id="hub.util.exceptions.WaitTimeoutException"><code class="flex name class">
+<span>class <span class="ident">WaitTimeoutException</span></span>
+<span>(</span><span>message='Timeout waiting for server state update.')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Common base class for all non-exit exceptions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class WaitTimeoutException(Exception):
+    def __init__(self, message=&#34;Timeout waiting for server state update.&#34;):
+        super().__init__(message)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.Exception</li>
+<li>builtins.BaseException</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="hub.util" href="index.html">hub.util</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="hub.util.exceptions.AuthenticationException" href="#hub.util.exceptions.AuthenticationException">AuthenticationException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.AuthorizationException" href="#hub.util.exceptions.AuthorizationException">AuthorizationException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.BadGatewayException" href="#hub.util.exceptions.BadGatewayException">BadGatewayException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.BadRequestException" href="#hub.util.exceptions.BadRequestException">BadRequestException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ChunkSizeTooSmallError" href="#hub.util.exceptions.ChunkSizeTooSmallError">ChunkSizeTooSmallError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.DirectoryAtPathException" href="#hub.util.exceptions.DirectoryAtPathException">DirectoryAtPathException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.DynamicTensorNumpyError" href="#hub.util.exceptions.DynamicTensorNumpyError">DynamicTensorNumpyError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.FileAtPathException" href="#hub.util.exceptions.FileAtPathException">FileAtPathException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.GatewayTimeoutException" href="#hub.util.exceptions.GatewayTimeoutException">GatewayTimeoutException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidBytesRequestedError" href="#hub.util.exceptions.InvalidBytesRequestedError">InvalidBytesRequestedError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidCompressor" href="#hub.util.exceptions.InvalidCompressor">InvalidCompressor</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidImageDimensions" href="#hub.util.exceptions.InvalidImageDimensions">InvalidImageDimensions</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidKeyTypeError" href="#hub.util.exceptions.InvalidKeyTypeError">InvalidKeyTypeError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidShapeIntervalError" href="#hub.util.exceptions.InvalidShapeIntervalError">InvalidShapeIntervalError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.InvalidTokenException" href="#hub.util.exceptions.InvalidTokenException">InvalidTokenException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.LockedException" href="#hub.util.exceptions.LockedException">LockedException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.LoginException" href="#hub.util.exceptions.LoginException">LoginException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ModuleNotInstalledException" href="#hub.util.exceptions.ModuleNotInstalledException">ModuleNotInstalledException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.OverLimitException" href="#hub.util.exceptions.OverLimitException">OverLimitException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ProviderListEmptyError" href="#hub.util.exceptions.ProviderListEmptyError">ProviderListEmptyError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ProviderSizeListMismatch" href="#hub.util.exceptions.ProviderSizeListMismatch">ProviderSizeListMismatch</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ResourceNotFoundException" href="#hub.util.exceptions.ResourceNotFoundException">ResourceNotFoundException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.S3DeletionError" href="#hub.util.exceptions.S3DeletionError">S3DeletionError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.S3GetError" href="#hub.util.exceptions.S3GetError">S3GetError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.S3ListError" href="#hub.util.exceptions.S3ListError">S3ListError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.S3SetError" href="#hub.util.exceptions.S3SetError">S3SetError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.ServerException" href="#hub.util.exceptions.ServerException">ServerException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorAlreadyExistsError" href="#hub.util.exceptions.TensorAlreadyExistsError">TensorAlreadyExistsError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorDoesNotExistError" href="#hub.util.exceptions.TensorDoesNotExistError">TensorDoesNotExistError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorInvalidSampleShapeError" href="#hub.util.exceptions.TensorInvalidSampleShapeError">TensorInvalidSampleShapeError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorMetaInvalidValue" href="#hub.util.exceptions.TensorMetaInvalidValue">TensorMetaInvalidValue</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorMetaMismatchError" href="#hub.util.exceptions.TensorMetaMismatchError">TensorMetaMismatchError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.TensorMetaMissingKey" href="#hub.util.exceptions.TensorMetaMissingKey">TensorMetaMissingKey</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.UnexpectedStatusCodeException" href="#hub.util.exceptions.UnexpectedStatusCodeException">UnexpectedStatusCodeException</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.UnsupportedTensorTypeError" href="#hub.util.exceptions.UnsupportedTensorTypeError">UnsupportedTensorTypeError</a></code></h4>
+</li>
+<li>
+<h4><code><a title="hub.util.exceptions.WaitTimeoutException" href="#hub.util.exceptions.WaitTimeoutException">WaitTimeoutException</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

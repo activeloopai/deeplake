@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>hub.api.dataset API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>hub.api.dataset</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">import warnings
+from typing import Callable, Dict, Optional, Union
+
+from hub.api.tensor import Tensor
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.core.dataset import dataset_exists
+from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.tensor_meta import default_tensor_meta
+from hub.core.tensor import tensor_exists
+from hub.core.typing import StorageProvider
+from hub.integrations import dataset_to_pytorch
+from hub.util.cache_chain import generate_chain
+from hub.util.exceptions import (
+    InvalidKeyTypeError,
+    TensorAlreadyExistsError,
+    TensorDoesNotExistError,
+)
+from hub.util.index import Index
+from hub.util.path import storage_provider_from_path
+
+
+class Dataset:
+    def __init__(
+        self,
+        path: str = &#34;&#34;,
+        mode: str = &#34;a&#34;,
+        index: Union[int, slice, Index] = None,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        storage: Optional[StorageProvider] = None,
+    ):
+        &#34;&#34;&#34;Initializes a new or existing dataset.
+
+        Args:
+            path (str): The location of the dataset. Used to initialize the storage provider.
+            mode (str): Mode in which the dataset is opened.
+                Supported modes include (&#34;r&#34;, &#34;w&#34;, &#34;a&#34;) plus an optional &#34;+&#34; suffix.
+                Defaults to &#34;a&#34;.
+            index: The Index object restricting the view of this dataset&#39;s tensors.
+                Can be an int, slice, or (used internally) an Index object.
+            memory_cache_size (int): The size of the memory cache to be used in MB.
+            local_cache_size (int): The size of the local filesystem cache to be used in MB.
+            storage (StorageProvider, optional): The storage provider used to access
+                the data stored by this dataset. If this is specified, the path given is ignored.
+
+        Raises:
+            ValueError: If an existing local path is given, it must be a directory.
+            UserWarning: Both path and storage should not be given.
+        &#34;&#34;&#34;
+        self.mode = mode
+        self.index = Index(index)
+
+        if storage is not None and path:
+            warnings.warn(
+                &#34;Dataset should not be constructed with both storage and path. Ignoring path and using storage.&#34;
+            )
+        base_storage = storage or storage_provider_from_path(path)
+        memory_cache_size_bytes = memory_cache_size * MB
+        local_cache_size_bytes = local_cache_size * MB
+        self.storage = generate_chain(
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
+        )
+        self.tensors: Dict[str, Tensor] = {}
+
+        if dataset_exists(self.storage):
+            for tensor_name in self.meta[&#34;tensors&#34;]:
+                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+        else:
+            self.meta = {&#34;tensors&#34;: []}
+
+    # TODO len should consider slice
+    def __len__(self):
+        &#34;&#34;&#34;Return the smallest length of tensors&#34;&#34;&#34;
+        return min(map(len, self.tensors.values()), default=0)
+
+    def __getitem__(self, item: Union[str, int, slice, Index]):
+        if isinstance(item, str):
+            if item not in self.tensors:
+                raise TensorDoesNotExistError(item)
+            else:
+                return self.tensors[item][self.index]
+        elif isinstance(item, (int, slice, Index)):
+            new_index = self.index[Index(item)]
+            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+        else:
+            raise InvalidKeyTypeError(item)
+
+    def create_tensor(
+        self,
+        name: str,
+        htype: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        dtype: Optional[str] = None,
+        extra_meta: Optional[dict] = None,
+    ):
+        &#34;&#34;&#34;Creates a new tensor in a dataset.
+
+        Args:
+            name (str): The name of the tensor to be created.
+            htype (str, optional): The class of data for the tensor.
+                The defaults for other parameters are determined in terms of this value.
+                For example, `htype=&#34;image&#34;` would have `dtype` default to `uint8`.
+                These defaults can be overridden by explicitly passing any of the other parameters to this function.
+                May also modify the defaults for other parameters.
+            chunk_size (int, optional): The target size for chunks in this tensor.
+            dtype (str, optional): The data type to use for this tensor.
+                Will be overwritten when the first sample is added.
+            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+
+        Returns:
+            The new tensor, which can also be accessed by `self[name]`.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+        &#34;&#34;&#34;
+        if tensor_exists(name, self.storage):
+            raise TensorAlreadyExistsError(name)
+
+        ds_meta = self.meta
+        ds_meta[&#34;tensors&#34;].append(name)
+        self.meta = ds_meta
+
+        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
+        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        self.tensors[name] = tensor
+
+        return tensor
+
+    __getattr__ = __getitem__
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    @property
+    def meta(self):
+        return read_dataset_meta(self.storage)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_dataset_meta(self.storage, new_meta)
+
+    def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
+        &#34;&#34;&#34;Converts the dataset into a pytorch compatible format.
+
+        Note:
+            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+            This spins up it&#39;s own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.
+
+        Args:
+            transform (Callable, optional) : Transformation function to be applied to each sample
+            workers (int): The number of workers to use for fetching data in parallel.
+
+        Returns:
+            A dataset object that can be passed to torch.utils.data.DataLoader
+        &#34;&#34;&#34;
+        return dataset_to_pytorch(self, transform, workers=workers)
+
+    def flush(self):
+        &#34;&#34;&#34;Necessary operation after writes if caches are being used.
+        Writes all the dirty data from the cache layers (if any) to the underlying storage.
+        Here dirty data corresponds to data that has been changed/assigned and but hasn&#39;t yet been sent to the
+        underlying storage.
+        &#34;&#34;&#34;
+        self.storage.flush()
+
+    def clear_cache(self):
+        &#34;&#34;&#34;Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+         of all the layers of it.
+        This doesn&#39;t delete data from the actual storage.
+        This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
+        Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
+        &#34;&#34;&#34;
+        if hasattr(self.storage, &#34;clear_cache&#34;):
+            self.storage.clear_cache()
+
+    def delete(self):
+        &#34;&#34;&#34;Deletes the entire dataset from the cache layers (if any) and the underlying storage.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        &#34;&#34;&#34;
+        self.storage.clear()
+
+    @staticmethod
+    def from_path(path: str):
+        &#34;&#34;&#34;Creates a hub dataset from unstructured data.
+
+        Note:
+            This copies the data into hub format.
+            Be careful when using this with large datasets.
+
+        Args:
+            path (str): Path to the data to be converted
+
+        Returns:
+            A Dataset instance whose path points to the hub formatted
+            copy of the data.
+
+        Raises:
+            NotImplementedError: TODO.
+        &#34;&#34;&#34;
+
+        raise NotImplementedError(
+            &#34;Automatic dataset ingestion is not yet supported.&#34;
+        )  # TODO: hub.auto
+        return None</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="hub.api.dataset.Dataset"><code class="flex name class">
+<span>class <span class="ident">Dataset</span></span>
+<span>(</span><span>path: str = '', mode: str = 'a', index: Union[int, slice, <a title="hub.util.index.Index" href="../util/index.m.html#hub.util.index.Index">Index</a>] = None, memory_cache_size: int = 256, local_cache_size: int = 0, storage: Union[<a title="hub.core.storage.provider.StorageProvider" href="../core/storage/provider.html#hub.core.storage.provider.StorageProvider">StorageProvider</a>, NoneType] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Initializes a new or existing dataset.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>path</code></strong> :&ensp;<code>str</code></dt>
+<dd>The location of the dataset. Used to initialize the storage provider.</dd>
+<dt><strong><code>mode</code></strong> :&ensp;<code>str</code></dt>
+<dd>Mode in which the dataset is opened.
+Supported modes include ("r", "w", "a") plus an optional "+" suffix.
+Defaults to "a".</dd>
+<dt><strong><code>index</code></strong></dt>
+<dd>The Index object restricting the view of this dataset's tensors.
+Can be an int, slice, or (used internally) an Index object.</dd>
+<dt><strong><code>memory_cache_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The size of the memory cache to be used in MB.</dd>
+<dt><strong><code>local_cache_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The size of the local filesystem cache to be used in MB.</dd>
+<dt><strong><code>storage</code></strong> :&ensp;<code>StorageProvider</code>, optional</dt>
+<dd>The storage provider used to access
+the data stored by this dataset. If this is specified, the path given is ignored.</dd>
+</dl>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>ValueError</code></dt>
+<dd>If an existing local path is given, it must be a directory.</dd>
+<dt><code>UserWarning</code></dt>
+<dd>Both path and storage should not be given.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Dataset:
+    def __init__(
+        self,
+        path: str = &#34;&#34;,
+        mode: str = &#34;a&#34;,
+        index: Union[int, slice, Index] = None,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        storage: Optional[StorageProvider] = None,
+    ):
+        &#34;&#34;&#34;Initializes a new or existing dataset.
+
+        Args:
+            path (str): The location of the dataset. Used to initialize the storage provider.
+            mode (str): Mode in which the dataset is opened.
+                Supported modes include (&#34;r&#34;, &#34;w&#34;, &#34;a&#34;) plus an optional &#34;+&#34; suffix.
+                Defaults to &#34;a&#34;.
+            index: The Index object restricting the view of this dataset&#39;s tensors.
+                Can be an int, slice, or (used internally) an Index object.
+            memory_cache_size (int): The size of the memory cache to be used in MB.
+            local_cache_size (int): The size of the local filesystem cache to be used in MB.
+            storage (StorageProvider, optional): The storage provider used to access
+                the data stored by this dataset. If this is specified, the path given is ignored.
+
+        Raises:
+            ValueError: If an existing local path is given, it must be a directory.
+            UserWarning: Both path and storage should not be given.
+        &#34;&#34;&#34;
+        self.mode = mode
+        self.index = Index(index)
+
+        if storage is not None and path:
+            warnings.warn(
+                &#34;Dataset should not be constructed with both storage and path. Ignoring path and using storage.&#34;
+            )
+        base_storage = storage or storage_provider_from_path(path)
+        memory_cache_size_bytes = memory_cache_size * MB
+        local_cache_size_bytes = local_cache_size * MB
+        self.storage = generate_chain(
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
+        )
+        self.tensors: Dict[str, Tensor] = {}
+
+        if dataset_exists(self.storage):
+            for tensor_name in self.meta[&#34;tensors&#34;]:
+                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+        else:
+            self.meta = {&#34;tensors&#34;: []}
+
+    # TODO len should consider slice
+    def __len__(self):
+        &#34;&#34;&#34;Return the smallest length of tensors&#34;&#34;&#34;
+        return min(map(len, self.tensors.values()), default=0)
+
+    def __getitem__(self, item: Union[str, int, slice, Index]):
+        if isinstance(item, str):
+            if item not in self.tensors:
+                raise TensorDoesNotExistError(item)
+            else:
+                return self.tensors[item][self.index]
+        elif isinstance(item, (int, slice, Index)):
+            new_index = self.index[Index(item)]
+            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+        else:
+            raise InvalidKeyTypeError(item)
+
+    def create_tensor(
+        self,
+        name: str,
+        htype: Optional[str] = None,
+        chunk_size: Optional[int] = None,
+        dtype: Optional[str] = None,
+        extra_meta: Optional[dict] = None,
+    ):
+        &#34;&#34;&#34;Creates a new tensor in a dataset.
+
+        Args:
+            name (str): The name of the tensor to be created.
+            htype (str, optional): The class of data for the tensor.
+                The defaults for other parameters are determined in terms of this value.
+                For example, `htype=&#34;image&#34;` would have `dtype` default to `uint8`.
+                These defaults can be overridden by explicitly passing any of the other parameters to this function.
+                May also modify the defaults for other parameters.
+            chunk_size (int, optional): The target size for chunks in this tensor.
+            dtype (str, optional): The data type to use for this tensor.
+                Will be overwritten when the first sample is added.
+            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+
+        Returns:
+            The new tensor, which can also be accessed by `self[name]`.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+        &#34;&#34;&#34;
+        if tensor_exists(name, self.storage):
+            raise TensorAlreadyExistsError(name)
+
+        ds_meta = self.meta
+        ds_meta[&#34;tensors&#34;].append(name)
+        self.meta = ds_meta
+
+        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
+        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        self.tensors[name] = tensor
+
+        return tensor
+
+    __getattr__ = __getitem__
+
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+    @property
+    def meta(self):
+        return read_dataset_meta(self.storage)
+
+    @meta.setter
+    def meta(self, new_meta: dict):
+        write_dataset_meta(self.storage, new_meta)
+
+    def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
+        &#34;&#34;&#34;Converts the dataset into a pytorch compatible format.
+
+        Note:
+            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+            This spins up it&#39;s own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.
+
+        Args:
+            transform (Callable, optional) : Transformation function to be applied to each sample
+            workers (int): The number of workers to use for fetching data in parallel.
+
+        Returns:
+            A dataset object that can be passed to torch.utils.data.DataLoader
+        &#34;&#34;&#34;
+        return dataset_to_pytorch(self, transform, workers=workers)
+
+    def flush(self):
+        &#34;&#34;&#34;Necessary operation after writes if caches are being used.
+        Writes all the dirty data from the cache layers (if any) to the underlying storage.
+        Here dirty data corresponds to data that has been changed/assigned and but hasn&#39;t yet been sent to the
+        underlying storage.
+        &#34;&#34;&#34;
+        self.storage.flush()
+
+    def clear_cache(self):
+        &#34;&#34;&#34;Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+         of all the layers of it.
+        This doesn&#39;t delete data from the actual storage.
+        This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
+        Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
+        &#34;&#34;&#34;
+        if hasattr(self.storage, &#34;clear_cache&#34;):
+            self.storage.clear_cache()
+
+    def delete(self):
+        &#34;&#34;&#34;Deletes the entire dataset from the cache layers (if any) and the underlying storage.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        &#34;&#34;&#34;
+        self.storage.clear()
+
+    @staticmethod
+    def from_path(path: str):
+        &#34;&#34;&#34;Creates a hub dataset from unstructured data.
+
+        Note:
+            This copies the data into hub format.
+            Be careful when using this with large datasets.
+
+        Args:
+            path (str): Path to the data to be converted
+
+        Returns:
+            A Dataset instance whose path points to the hub formatted
+            copy of the data.
+
+        Raises:
+            NotImplementedError: TODO.
+        &#34;&#34;&#34;
+
+        raise NotImplementedError(
+            &#34;Automatic dataset ingestion is not yet supported.&#34;
+        )  # TODO: hub.auto
+        return None</code></pre>
+</details>
+<h3>Static methods</h3>
+<dl>
+<dt id="hub.api.dataset.Dataset.from_path"><code class="name flex">
+<span>def <span class="ident">from_path</span></span>(<span>path: str)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Creates a hub dataset from unstructured data.</p>
+<h2 id="note">Note</h2>
+<p>This copies the data into hub format.
+Be careful when using this with large datasets.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>path</code></strong> :&ensp;<code>str</code></dt>
+<dd>Path to the data to be converted</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A Dataset instance whose path points to the hub formatted
+copy of the data.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>NotImplementedError</code></dt>
+<dd>TODO.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@staticmethod
+def from_path(path: str):
+    &#34;&#34;&#34;Creates a hub dataset from unstructured data.
+
+    Note:
+        This copies the data into hub format.
+        Be careful when using this with large datasets.
+
+    Args:
+        path (str): Path to the data to be converted
+
+    Returns:
+        A Dataset instance whose path points to the hub formatted
+        copy of the data.
+
+    Raises:
+        NotImplementedError: TODO.
+    &#34;&#34;&#34;
+
+    raise NotImplementedError(
+        &#34;Automatic dataset ingestion is not yet supported.&#34;
+    )  # TODO: hub.auto
+    return None</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Instance variables</h3>
+<dl>
+<dt id="hub.api.dataset.Dataset.meta"><code class="name">var <span class="ident">meta</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def meta(self):
+    return read_dataset_meta(self.storage)</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="hub.api.dataset.Dataset.clear_cache"><code class="name flex">
+<span>def <span class="ident">clear_cache</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+of all the layers of it.
+This doesn't delete data from the actual storage.
+This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
+Also useful when local cache is no longer needed for certain datasets and is taking up storage space.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def clear_cache(self):
+    &#34;&#34;&#34;Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+     of all the layers of it.
+    This doesn&#39;t delete data from the actual storage.
+    This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
+    Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
+    &#34;&#34;&#34;
+    if hasattr(self.storage, &#34;clear_cache&#34;):
+        self.storage.clear_cache()</code></pre>
+</details>
+</dd>
+<dt id="hub.api.dataset.Dataset.create_tensor"><code class="name flex">
+<span>def <span class="ident">create_tensor</span></span>(<span>self, name: str, htype: Union[str, NoneType] = None, chunk_size: Union[int, NoneType] = None, dtype: Union[str, NoneType] = None, extra_meta: Union[dict, NoneType] = None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Creates a new tensor in a dataset.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>The name of the tensor to be created.</dd>
+<dt><strong><code>htype</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The class of data for the tensor.
+The defaults for other parameters are determined in terms of this value.
+For example, <code>htype="image"</code> would have <code>dtype</code> default to <code>uint8</code>.
+These defaults can be overridden by explicitly passing any of the other parameters to this function.
+May also modify the defaults for other parameters.</dd>
+<dt><strong><code>chunk_size</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>The target size for chunks in this tensor.</dd>
+<dt><strong><code>dtype</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The data type to use for this tensor.
+Will be overwritten when the first sample is added.</dd>
+<dt><strong><code>extra_meta</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>Any additional metadata to be added to the tensor.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The new tensor, which can also be accessed by <code>self[name]</code>.</p>
+<h2 id="raises">Raises</h2>
+<dl>
+<dt><code>TensorAlreadyExistsError</code></dt>
+<dd>Duplicate tensors are not allowed.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def create_tensor(
+    self,
+    name: str,
+    htype: Optional[str] = None,
+    chunk_size: Optional[int] = None,
+    dtype: Optional[str] = None,
+    extra_meta: Optional[dict] = None,
+):
+    &#34;&#34;&#34;Creates a new tensor in a dataset.
+
+    Args:
+        name (str): The name of the tensor to be created.
+        htype (str, optional): The class of data for the tensor.
+            The defaults for other parameters are determined in terms of this value.
+            For example, `htype=&#34;image&#34;` would have `dtype` default to `uint8`.
+            These defaults can be overridden by explicitly passing any of the other parameters to this function.
+            May also modify the defaults for other parameters.
+        chunk_size (int, optional): The target size for chunks in this tensor.
+        dtype (str, optional): The data type to use for this tensor.
+            Will be overwritten when the first sample is added.
+        extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+
+    Returns:
+        The new tensor, which can also be accessed by `self[name]`.
+
+    Raises:
+        TensorAlreadyExistsError: Duplicate tensors are not allowed.
+    &#34;&#34;&#34;
+    if tensor_exists(name, self.storage):
+        raise TensorAlreadyExistsError(name)
+
+    ds_meta = self.meta
+    ds_meta[&#34;tensors&#34;].append(name)
+    self.meta = ds_meta
+
+    tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
+    tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+    self.tensors[name] = tensor
+
+    return tensor</code></pre>
+</details>
+</dd>
+<dt id="hub.api.dataset.Dataset.delete"><code class="name flex">
+<span>def <span class="ident">delete</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Deletes the entire dataset from the cache layers (if any) and the underlying storage.
+This is an IRREVERSIBLE operation. Data once deleted can not be recovered.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def delete(self):
+    &#34;&#34;&#34;Deletes the entire dataset from the cache layers (if any) and the underlying storage.
+    This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+    &#34;&#34;&#34;
+    self.storage.clear()</code></pre>
+</details>
+</dd>
+<dt id="hub.api.dataset.Dataset.flush"><code class="name flex">
+<span>def <span class="ident">flush</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Necessary operation after writes if caches are being used.
+Writes all the dirty data from the cache layers (if any) to the underlying storage.
+Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
+underlying storage.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def flush(self):
+    &#34;&#34;&#34;Necessary operation after writes if caches are being used.
+    Writes all the dirty data from the cache layers (if any) to the underlying storage.
+    Here dirty data corresponds to data that has been changed/assigned and but hasn&#39;t yet been sent to the
+    underlying storage.
+    &#34;&#34;&#34;
+    self.storage.flush()</code></pre>
+</details>
+</dd>
+<dt id="hub.api.dataset.Dataset.pytorch"><code class="name flex">
+<span>def <span class="ident">pytorch</span></span>(<span>self, transform: Union[Callable, NoneType] = None, workers: int = 1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Converts the dataset into a pytorch compatible format.</p>
+<h2 id="note">Note</h2>
+<p>Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+This spins up it's own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt>transform (Callable, optional) : Transformation function to be applied to each sample</dt>
+<dt><strong><code>workers</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of workers to use for fetching data in parallel.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A dataset object that can be passed to torch.utils.data.DataLoader</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
+    &#34;&#34;&#34;Converts the dataset into a pytorch compatible format.
+
+    Note:
+        Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
+        This spins up it&#39;s own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.
+
+    Args:
+        transform (Callable, optional) : Transformation function to be applied to each sample
+        workers (int): The number of workers to use for fetching data in parallel.
+
+    Returns:
+        A dataset object that can be passed to torch.utils.data.DataLoader
+    &#34;&#34;&#34;
+    return dataset_to_pytorch(self, transform, workers=workers)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="hub.api" href="index.html">hub.api</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="hub.api.dataset.Dataset" href="#hub.api.dataset.Dataset">Dataset</a></code></h4>
+<ul class="two-column">
+<li><code><a title="hub.api.dataset.Dataset.clear_cache" href="#hub.api.dataset.Dataset.clear_cache">clear_cache</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.create_tensor" href="#hub.api.dataset.Dataset.create_tensor">create_tensor</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.delete" href="#hub.api.dataset.Dataset.delete">delete</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.flush" href="#hub.api.dataset.Dataset.flush">flush</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.from_path" href="#hub.api.dataset.Dataset.from_path">from_path</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.meta" href="#hub.api.dataset.Dataset.meta">meta</a></code></li>
+<li><code><a title="hub.api.dataset.Dataset.pytorch" href="#hub.api.dataset.Dataset.pytorch">pytorch</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>

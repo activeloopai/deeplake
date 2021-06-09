@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.9.2" />
+<title>hub.core.compression.tests.test_compression API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>hub.core.compression.tests.test_compression</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">from typing import Union
+
+import numpy as np
+import pytest
+
+from hub.core.compression import BaseNumCodec, BaseImgCodec
+from hub.core.compression.jpeg import JPEG
+from hub.core.compression.lz4 import LZ4
+from hub.core.compression.numpy import NUMPY
+from hub.core.compression.png import PNG
+from hub.core.compression.webp import WEBP
+from hub.core.compression.zstd import ZSTD
+
+IMG_ARRAY_SHAPES = (
+    (30, 30, 3),
+    (2, 30, 30, 3),
+    (30, 30, 1),
+)
+GENERIC_ARRAY_SHAPES = ((20, 1), (1, 20), ((60, 60)))
+BENCHMARK_SHAPES = ((30, 30, 3), (5000, 5000, 3))
+ARRAY_DTYPES = (
+    &#34;uint8&#34;,
+    &#34;uint16&#34;,
+    &#34;float16&#34;,
+    &#34;float32&#34;,
+)
+LZ4_ACCELERATIONS = (1, 50, 100)
+ZSTD_LEVELS = (1, 11, 22)
+IMG_CODECS = (PNG, JPEG, WEBP)
+NUM_CODECS = (LZ4, ZSTD, NUMPY)
+SHAPE_PARAM = &#34;shape&#34;
+FROM_CONFIG_PARAM = &#34;from_config&#34;
+COMPRESSOR_PARAM = &#34;compressor&#34;
+SINGLE_CHANNEL_PARAM = &#34;single_channel&#34;
+DTYPE_PARAM = &#34;dtype&#34;
+ACCELERATION_PARAM = &#34;acceleration&#34;
+LEVEL_PARAM = &#34;level&#34;
+parametrize_image_shape = pytest.mark.parametrize(SHAPE_PARAM, IMG_ARRAY_SHAPES)
+parametrize_generic_array_shape = pytest.mark.parametrize(
+    SHAPE_PARAM, GENERIC_ARRAY_SHAPES
+)
+parametrize_benchmark_shape = pytest.mark.parametrize(SHAPE_PARAM, BENCHMARK_SHAPES)
+paramentrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, ARRAY_DTYPES)
+parametrize_lz4_accelerations = pytest.mark.parametrize(
+    ACCELERATION_PARAM, LZ4_ACCELERATIONS
+)
+parametrize_zstd_levels = pytest.mark.parametrize(LEVEL_PARAM, ZSTD_LEVELS)
+parametrize_compressor = pytest.mark.parametrize(
+    COMPRESSOR_PARAM, IMG_CODECS + NUM_CODECS
+)
+parametrize_single_channel = pytest.mark.parametrize(
+    SINGLE_CHANNEL_PARAM, (False, True)
+)
+parametrize_from_config = pytest.mark.parametrize(FROM_CONFIG_PARAM, (False, True))
+
+
+def check_equals_decoded(
+    actual_array: np.ndarray, codec: Union[BaseImgCodec, BaseNumCodec]
+) -&gt; None:
+    bytes_ = codec.encode(actual_array)
+    if isinstance(codec, BaseNumCodec):
+        bytes_double = codec.encode(bytes_)
+        bytes_ = codec.decode(bytes_double)
+    decoded_array = codec.decode(bytes_)
+    assert (actual_array == decoded_array).all()
+
+
+def check_codec_config(codec: Union[BaseImgCodec]) -&gt; None:
+    config = codec.get_config()
+    assert config[&#34;id&#34;] == codec.__name__
+    assert config[&#34;single_channel&#34;] == codec.single_channel
+
+
+def check_codec_single_channel(codec: Union[BaseImgCodec]) -&gt; None:
+    if codec.single_channel:
+        arr = np.ones((100, 100, 1), dtype=&#34;uint8&#34;)
+    else:
+        arr = np.ones((100, 100), dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_image_shape
+@parametrize_from_config
+def test_png_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = PNG()
+    if from_config:
+        config = codec.get_config()
+        codec = codec.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_single_channel
+def test_png_codec_config(single_channel: bool) -&gt; None:
+    codec = PNG(single_channel=single_channel)
+    check_codec_config(codec)
+
+
+@parametrize_single_channel
+def test_png_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = PNG(single_channel=single_channel)
+    check_codec_single_channel(codec)
+
+
+@parametrize_from_config
+@parametrize_image_shape
+def test_jpeg_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = JPEG()
+    if from_config:
+        config = codec.get_config()
+        codec = JPEG.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_single_channel
+def test_jpeg_codec_config(single_channel: bool) -&gt; None:
+    codec = JPEG(single_channel=single_channel)
+    check_codec_config(codec)
+
+
+@parametrize_single_channel
+def test_jpeg_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = JPEG(single_channel=single_channel)
+    check_codec_single_channel(codec)
+
+
+@parametrize_from_config
+@parametrize_image_shape
+def test_webp_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = WEBP()
+    if from_config:
+        config = codec.get_config()
+        codec = WEBP.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_single_channel
+def test_webp_codec_config(single_channel: bool) -&gt; None:
+    codec = WEBP(single_channel=single_channel)
+    check_codec_config(codec)
+
+
+@parametrize_single_channel
+def test_webp_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = WEBP(single_channel=single_channel)
+    check_codec_single_channel(codec)
+
+
+@parametrize_lz4_accelerations
+@parametrize_generic_array_shape
+def test_lz4(acceleration: int, shape: tuple) -&gt; None:
+    codec = LZ4(acceleration=acceleration)
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_generic_array_shape
+def test_numpy(shape: tuple) -&gt; None:
+    codec = NUMPY()
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)
+
+
+@parametrize_zstd_levels
+@parametrize_generic_array_shape
+def test_zstd(level: int, shape: tuple) -&gt; None:
+    codec = ZSTD(level=level)
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)
+
+
+def test_base_name():
+    class RandomCompressor(BaseImgCodec):
+        def __init__(single_channel=True):
+            super().__init__()
+
+    new_compressor = RandomCompressor()
+    assert new_compressor.__name__ == &#34;randomcompressor&#34;
+
+
+def test_kwargs():
+    with pytest.raises(ValueError):
+        compressor = LZ4(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = ZSTD(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = PNG(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = JPEG(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = WEBP(another_kwarg=1)
+
+
+def get_compr_input(compressor, shape):
+    comp_input = np.random.randint(0, 255, size=shape, dtype=&#34;uint8&#34;)
+    if compressor in NUM_CODECS:
+        comp_input = comp_input.tobytes()
+    if compressor == WEBP:
+        compressor = compressor(quality=85)
+    else:
+        compressor = compressor()
+    return compressor, comp_input
+
+
+@pytest.mark.full_benchmark
+@pytest.mark.benchmark(group=&#34;compressor_encode&#34;)
+@parametrize_benchmark_shape
+@parametrize_compressor
+def test_encode_speed(benchmark, compressor, shape):
+    compressor, comp_input = get_compr_input(compressor, shape)
+    benchmark(compressor.encode, comp_input)
+
+
+@pytest.mark.full_benchmark
+@pytest.mark.benchmark(group=&#34;compressor_decode&#34;)
+@parametrize_benchmark_shape
+@parametrize_compressor
+def test_decode_speed(benchmark, compressor, shape):
+    compressor, comp_input = get_compr_input(compressor, shape)
+    bytes = compressor.encode(comp_input)
+    benchmark(compressor.decode, bytes)</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="hub.core.compression.tests.test_compression.check_codec_config"><code class="name flex">
+<span>def <span class="ident">check_codec_config</span></span>(<span>codec: <a title="hub.core.compression.base.BaseImgCodec" href="../base.html#hub.core.compression.base.BaseImgCodec">BaseImgCodec</a>) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_codec_config(codec: Union[BaseImgCodec]) -&gt; None:
+    config = codec.get_config()
+    assert config[&#34;id&#34;] == codec.__name__
+    assert config[&#34;single_channel&#34;] == codec.single_channel</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.check_codec_single_channel"><code class="name flex">
+<span>def <span class="ident">check_codec_single_channel</span></span>(<span>codec: <a title="hub.core.compression.base.BaseImgCodec" href="../base.html#hub.core.compression.base.BaseImgCodec">BaseImgCodec</a>) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_codec_single_channel(codec: Union[BaseImgCodec]) -&gt; None:
+    if codec.single_channel:
+        arr = np.ones((100, 100, 1), dtype=&#34;uint8&#34;)
+    else:
+        arr = np.ones((100, 100), dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.check_equals_decoded"><code class="name flex">
+<span>def <span class="ident">check_equals_decoded</span></span>(<span>actual_array: numpy.ndarray, codec: Union[<a title="hub.core.compression.base.BaseImgCodec" href="../base.html#hub.core.compression.base.BaseImgCodec">BaseImgCodec</a>, <a title="hub.core.compression.base.BaseNumCodec" href="../base.html#hub.core.compression.base.BaseNumCodec">BaseNumCodec</a>]) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def check_equals_decoded(
+    actual_array: np.ndarray, codec: Union[BaseImgCodec, BaseNumCodec]
+) -&gt; None:
+    bytes_ = codec.encode(actual_array)
+    if isinstance(codec, BaseNumCodec):
+        bytes_double = codec.encode(bytes_)
+        bytes_ = codec.decode(bytes_double)
+    decoded_array = codec.decode(bytes_)
+    assert (actual_array == decoded_array).all()</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.get_compr_input"><code class="name flex">
+<span>def <span class="ident">get_compr_input</span></span>(<span>compressor, shape)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_compr_input(compressor, shape):
+    comp_input = np.random.randint(0, 255, size=shape, dtype=&#34;uint8&#34;)
+    if compressor in NUM_CODECS:
+        comp_input = comp_input.tobytes()
+    if compressor == WEBP:
+        compressor = compressor(quality=85)
+    else:
+        compressor = compressor()
+    return compressor, comp_input</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_base_name"><code class="name flex">
+<span>def <span class="ident">test_base_name</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_base_name():
+    class RandomCompressor(BaseImgCodec):
+        def __init__(single_channel=True):
+            super().__init__()
+
+    new_compressor = RandomCompressor()
+    assert new_compressor.__name__ == &#34;randomcompressor&#34;</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_decode_speed"><code class="name flex">
+<span>def <span class="ident">test_decode_speed</span></span>(<span>benchmark, compressor, shape)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.full_benchmark
+@pytest.mark.benchmark(group=&#34;compressor_decode&#34;)
+@parametrize_benchmark_shape
+@parametrize_compressor
+def test_decode_speed(benchmark, compressor, shape):
+    compressor, comp_input = get_compr_input(compressor, shape)
+    bytes = compressor.encode(comp_input)
+    benchmark(compressor.decode, bytes)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_encode_speed"><code class="name flex">
+<span>def <span class="ident">test_encode_speed</span></span>(<span>benchmark, compressor, shape)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@pytest.mark.full_benchmark
+@pytest.mark.benchmark(group=&#34;compressor_encode&#34;)
+@parametrize_benchmark_shape
+@parametrize_compressor
+def test_encode_speed(benchmark, compressor, shape):
+    compressor, comp_input = get_compr_input(compressor, shape)
+    benchmark(compressor.encode, comp_input)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_jpeg_codec"><code class="name flex">
+<span>def <span class="ident">test_jpeg_codec</span></span>(<span>from_config: bool, shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_from_config
+@parametrize_image_shape
+def test_jpeg_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = JPEG()
+    if from_config:
+        config = codec.get_config()
+        codec = JPEG.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_jpeg_codec_config"><code class="name flex">
+<span>def <span class="ident">test_jpeg_codec_config</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_jpeg_codec_config(single_channel: bool) -&gt; None:
+    codec = JPEG(single_channel=single_channel)
+    check_codec_config(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_jpeg_codec_single_channel"><code class="name flex">
+<span>def <span class="ident">test_jpeg_codec_single_channel</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_jpeg_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = JPEG(single_channel=single_channel)
+    check_codec_single_channel(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_kwargs"><code class="name flex">
+<span>def <span class="ident">test_kwargs</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def test_kwargs():
+    with pytest.raises(ValueError):
+        compressor = LZ4(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = ZSTD(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = PNG(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = JPEG(another_kwarg=1)
+    with pytest.raises(ValueError):
+        compressor = WEBP(another_kwarg=1)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_lz4"><code class="name flex">
+<span>def <span class="ident">test_lz4</span></span>(<span>acceleration: int, shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_lz4_accelerations
+@parametrize_generic_array_shape
+def test_lz4(acceleration: int, shape: tuple) -&gt; None:
+    codec = LZ4(acceleration=acceleration)
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_numpy"><code class="name flex">
+<span>def <span class="ident">test_numpy</span></span>(<span>shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_generic_array_shape
+def test_numpy(shape: tuple) -&gt; None:
+    codec = NUMPY()
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_png_codec"><code class="name flex">
+<span>def <span class="ident">test_png_codec</span></span>(<span>from_config: bool, shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_image_shape
+@parametrize_from_config
+def test_png_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = PNG()
+    if from_config:
+        config = codec.get_config()
+        codec = codec.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_png_codec_config"><code class="name flex">
+<span>def <span class="ident">test_png_codec_config</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_png_codec_config(single_channel: bool) -&gt; None:
+    codec = PNG(single_channel=single_channel)
+    check_codec_config(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_png_codec_single_channel"><code class="name flex">
+<span>def <span class="ident">test_png_codec_single_channel</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_png_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = PNG(single_channel=single_channel)
+    check_codec_single_channel(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_webp_codec"><code class="name flex">
+<span>def <span class="ident">test_webp_codec</span></span>(<span>from_config: bool, shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_from_config
+@parametrize_image_shape
+def test_webp_codec(from_config: bool, shape: tuple) -&gt; None:
+    codec = WEBP()
+    if from_config:
+        config = codec.get_config()
+        codec = WEBP.from_config(config)
+    arr = np.ones(shape, dtype=&#34;uint8&#34;)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_webp_codec_config"><code class="name flex">
+<span>def <span class="ident">test_webp_codec_config</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_webp_codec_config(single_channel: bool) -&gt; None:
+    codec = WEBP(single_channel=single_channel)
+    check_codec_config(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_webp_codec_single_channel"><code class="name flex">
+<span>def <span class="ident">test_webp_codec_single_channel</span></span>(<span>single_channel: bool) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_single_channel
+def test_webp_codec_single_channel(single_channel: bool) -&gt; None:
+    codec = WEBP(single_channel=single_channel)
+    check_codec_single_channel(codec)</code></pre>
+</details>
+</dd>
+<dt id="hub.core.compression.tests.test_compression.test_zstd"><code class="name flex">
+<span>def <span class="ident">test_zstd</span></span>(<span>level: int, shape: tuple) ‑> NoneType</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@parametrize_zstd_levels
+@parametrize_generic_array_shape
+def test_zstd(level: int, shape: tuple) -&gt; None:
+    codec = ZSTD(level=level)
+    arr = np.random.rand(*shape)
+    check_equals_decoded(arr, codec)</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="hub.core.compression.tests" href="index.html">hub.core.compression.tests</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="hub.core.compression.tests.test_compression.check_codec_config" href="#hub.core.compression.tests.test_compression.check_codec_config">check_codec_config</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.check_codec_single_channel" href="#hub.core.compression.tests.test_compression.check_codec_single_channel">check_codec_single_channel</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.check_equals_decoded" href="#hub.core.compression.tests.test_compression.check_equals_decoded">check_equals_decoded</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.get_compr_input" href="#hub.core.compression.tests.test_compression.get_compr_input">get_compr_input</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_base_name" href="#hub.core.compression.tests.test_compression.test_base_name">test_base_name</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_decode_speed" href="#hub.core.compression.tests.test_compression.test_decode_speed">test_decode_speed</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_encode_speed" href="#hub.core.compression.tests.test_compression.test_encode_speed">test_encode_speed</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_jpeg_codec" href="#hub.core.compression.tests.test_compression.test_jpeg_codec">test_jpeg_codec</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_jpeg_codec_config" href="#hub.core.compression.tests.test_compression.test_jpeg_codec_config">test_jpeg_codec_config</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_jpeg_codec_single_channel" href="#hub.core.compression.tests.test_compression.test_jpeg_codec_single_channel">test_jpeg_codec_single_channel</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_kwargs" href="#hub.core.compression.tests.test_compression.test_kwargs">test_kwargs</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_lz4" href="#hub.core.compression.tests.test_compression.test_lz4">test_lz4</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_numpy" href="#hub.core.compression.tests.test_compression.test_numpy">test_numpy</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_png_codec" href="#hub.core.compression.tests.test_compression.test_png_codec">test_png_codec</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_png_codec_config" href="#hub.core.compression.tests.test_compression.test_png_codec_config">test_png_codec_config</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_png_codec_single_channel" href="#hub.core.compression.tests.test_compression.test_png_codec_single_channel">test_png_codec_single_channel</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_webp_codec" href="#hub.core.compression.tests.test_compression.test_webp_codec">test_webp_codec</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_webp_codec_config" href="#hub.core.compression.tests.test_compression.test_webp_codec_config">test_webp_codec_config</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_webp_codec_single_channel" href="#hub.core.compression.tests.test_compression.test_webp_codec_single_channel">test_webp_codec_single_channel</a></code></li>
+<li><code><a title="hub.core.compression.tests.test_compression.test_zstd" href="#hub.core.compression.tests.test_compression.test_zstd">test_zstd</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc"><cite>pdoc</cite> 0.9.2</a>.</p>
+</footer>
+</body>
+</html>
