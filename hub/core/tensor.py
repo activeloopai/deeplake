@@ -1,5 +1,5 @@
+from hub.core.index import Index
 from typing import List, Tuple, Union
-from hub.util.index import Index
 import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
@@ -22,7 +22,6 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
-from hub.util.index import Index
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from .flatten import row_wise_to_bytes
 
@@ -144,7 +143,7 @@ def read_samples_from_tensor(
 
     meta = read_tensor_meta(key, storage)
     index_map = read_index_map(key, storage)
-    index_entries = index_map[index.to_slice()]
+    index_entries = [index_map[i] for i in index.values[0].indices(len(index_map))]
 
     dtype = meta["dtype"]
 
@@ -165,13 +164,13 @@ def read_samples_from_tensor(
         array = sample_from_index_entry(key, storage, index_entry, dtype)
         samples.append(array)
 
-    if isinstance(index.item, int):
-        return samples[0]
-
     if aslist:
-        return samples
+        if index.values[0].subscriptable():
+            return samples
+        else:
+            return samples[0]
 
-    return np.array(samples, dtype=dtype)
+    return index.apply(np.array(samples))
 
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
