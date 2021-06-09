@@ -3,8 +3,8 @@ import pytest
 import tensorflow_datasets as tfds  # type: ignore
 
 from hub.core.tests.common import parametrize_all_dataset_storages
-from util.check_installation import tfds_installed  # type: ignore
-from util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
+from hub.util.check_installation import tfds_installed  # type: ignore
+from hub.util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
 
 requires_tfds = pytest.mark.skipif(
     not tfds_installed(), reason="requires tensorflow_datasets to be installed"
