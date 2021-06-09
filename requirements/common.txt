@@ -1,5 +1,6 @@
 numpy
 numcodecs>=0.7.3
+PyExifTool==0.4.9
 msgpack>=1.0.2
 Pillow-SIMD==7.0.0.post3
 boto3
