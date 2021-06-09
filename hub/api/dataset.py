@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -12,6 +12,8 @@ from hub.core.meta.dataset_meta import (
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
+from hub.core.index import Index
+from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -19,7 +21,6 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
-from hub.util.index import Index
 from hub.util.path import storage_provider_from_path
 
 
@@ -28,7 +29,7 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        index: Union[int, slice, Index] = None,
+        index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
@@ -40,8 +41,7 @@ class Dataset:
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            index: The Index object restricting the view of this dataset's tensors.
-                Can be an int, slice, or (used internally) an Index object.
+            index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
@@ -52,7 +52,7 @@ class Dataset:
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.index = Index(index)
+        self.index = index
 
         if storage is not None and path:
             warnings.warn(
@@ -77,15 +77,19 @@ class Dataset:
         """Return the smallest length of tensors"""
         return min(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[str, int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+    ):
         if isinstance(item, str):
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.index]
-        elif isinstance(item, (int, slice, Index)):
-            new_index = self.index[Index(item)]
-            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+        elif isinstance(item, (int, slice, list, tuple, Index)):
+            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 

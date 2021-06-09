@@ -1,3 +1,6 @@
+from hub.core.index import Index
+import pytest
+
 from typing import Dict, List
 
 import numpy as np
@@ -17,7 +20,6 @@ from hub.util.array import (
     normalize_and_batchify_array_shape,
     normalize_and_batchify_shape,
 )
-from hub.util.index import Index
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -180,7 +182,7 @@ def run_engine_test(
             },
         )
 
-        assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i
+        assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i  # type: ignore
 
     index_map = read_index_map(key, storage)
     assert_chunk_sizes(key, index_map, chunk_size, storage)
