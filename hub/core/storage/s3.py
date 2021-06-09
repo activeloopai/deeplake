@@ -85,7 +85,7 @@ class S3Provider(StorageProvider):
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         try:
@@ -112,7 +112,7 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         try:
@@ -138,7 +138,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
                 won't raise KeyError.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         try:

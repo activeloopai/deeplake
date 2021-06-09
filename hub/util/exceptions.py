@@ -241,6 +241,6 @@ class InvalidImageDimensions(Exception):
         )
 
 
-class ReadOnlyProviderError(Exception):
+class ReadOnlyError(Exception):
     def __init__(self):
         super().__init__("Modification when in read-only mode is not supported!")

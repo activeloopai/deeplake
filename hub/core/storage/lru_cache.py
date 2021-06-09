@@ -76,7 +76,7 @@ class LRUCache(StorageProvider):
             value (bytes): the value to be assigned at the path.
 
         Raises:
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         if path in self.lru_sizes:
@@ -98,7 +98,7 @@ class LRUCache(StorageProvider):
 
         Raises:
             KeyError: If an object is not found at the path.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         deleted_from_cache = False
@@ -183,7 +183,7 @@ class LRUCache(StorageProvider):
             value (bytes): the value to be assigned at the path.
 
         Raises:
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         self._free_up_space(len(value))

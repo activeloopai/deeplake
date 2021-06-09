@@ -67,7 +67,7 @@ class LocalProvider(StorageProvider):
         Raises:
             Exception: If unable to set item due to directory at path or permission or space issues.
             FileAtPathException: If the directory to the path is a file instead of a directory.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         try:
@@ -96,7 +96,7 @@ class LocalProvider(StorageProvider):
             KeyError: If an object is not found at the path.
             DirectoryAtPathException: If a directory is found at the path.
             Exception: Any other exception encountered while trying to fetch the object.
-            ReadOnlyProviderError: If the provider is in read-only mode.
+            ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
         try:
