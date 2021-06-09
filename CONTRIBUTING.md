@@ -133,7 +133,8 @@ We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usag
 
 ## Generating API Docs
 
-Hub used pdocs3 to genereate docs: https://pdoc3.github.io/pdoc/
+Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
+API docs are hosted at: https://api-docs.activeloop.ai/
 
 Run the below command to generate API documentation:
 ```
