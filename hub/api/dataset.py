@@ -1,29 +1,23 @@
-import os
 import warnings
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
-import numpy as np
 from hub.api.tensor import Tensor
-
-from hub.core.tensor import tensor_exists
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
-
+from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
-from hub.util.index import Index
-
+from hub.core.index import Index
 from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.integrations import dataset_to_pytorch
+from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
-    UnsupportedTensorTypeError,
 )
-from hub.util.cache_chain import generate_chain
 from hub.util.path import storage_provider_from_path
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.integrations import dataset_to_pytorch
 
 
 class Dataset:
@@ -31,7 +25,7 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        index: Union[int, slice, Index] = None,
+        index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
@@ -43,8 +37,7 @@ class Dataset:
             mode (str): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a") plus an optional "+" suffix.
                 Defaults to "a".
-            index: The Index object restricting the view of this dataset's tensors.
-                Can be an int, slice, or (used internally) an Index object.
+            index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
@@ -55,7 +48,7 @@ class Dataset:
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.index = Index(index)
+        self.index = index
 
         if storage is not None and path:
             warnings.warn(
@@ -80,15 +73,19 @@ class Dataset:
         """Return the smallest length of tensors"""
         return min(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[str, int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+    ):
         if isinstance(item, str):
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.index]
-        elif isinstance(item, (int, slice, Index)):
-            new_index = self.index[Index(item)]
-            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+        elif isinstance(item, (int, slice, list, tuple, Index)):
+            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 
@@ -166,12 +163,14 @@ class Dataset:
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
-        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the underlying storage.
+        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
+        underlying storage.
         """
         self.storage.flush()
 
     def clear_cache(self):
-        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents of all the layers of it.
+        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
+         of all the layers of it.
         This doesn't delete data from the actual storage.
         This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
         Also useful when local cache is no longer needed for certain datasets and is taking up storage space.

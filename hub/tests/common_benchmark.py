@@ -1,14 +1,12 @@
 import pytest
 
 from hub.constants import MB
-
 from hub.tests.common import (
     CHUNK_SIZE_PARAM,
     SHAPE_PARAM,
     NUM_BATCHES_PARAM,
     DTYPE_PARAM,
 )
-
 
 # benchmark parametrizations
 BENCHMARK_NUM_BATCHES = (1,)

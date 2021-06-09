@@ -1,8 +1,8 @@
 from typing import List
 from uuid import uuid1
-from hub.constants import MB
-from hub.core.storage.lru_cache import LRUCache
+
 from hub.core.storage import StorageProvider, MemoryProvider, LocalProvider
+from hub.core.storage.lru_cache import LRUCache
 from hub.util.exceptions import ProviderSizeListMismatch, ProviderListEmptyError
 
 
@@ -14,11 +14,12 @@ def get_cache_chain(storage_list: List[StorageProvider], size_list: List[int]):
             Should have atleast one provider in the list.
             If only one provider, LRU cache isn't created and the provider is returned.
         size_list (List[int]): The list of sizes of the caches in bytes.
-            Should have size 1 less than provider_list and specifies size of cache for all providers except the last one.
-            The last one is the primary storage and is assumed to have infinite space.
+            Should have size 1 less than provider_list and specifies size of cache for all providers except the last
+            one. The last one is the primary storage and is assumed to have infinite space.
 
     Returns:
-        StorageProvider: Returns a cache containing all the storage providers in cache_list if cache_list has 2 or more elements.
+        StorageProvider: Returns a cache containing all the storage providers in cache_list if cache_list has 2 or more
+            elements.
             Returns the provider if the provider_list has only one provider.
 
     Raises:
@@ -43,16 +44,19 @@ def generate_chain(
     local_cache_size: int,
     path: str,
 ):
-    """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and local caches.
+    """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and
+        local caches.
 
     Args:
         base_storage (StorageProvider): The underlying actual storage of the Dataset.
         memory_cache_size (int): The size of the memory cache to be used in bytes.
         local_cache_size (int): The size of the local filesystem cache to be used in bytes.
-        path (str): The location of the dataset. If not None, it is used to figure out the folder name where the local cache is stored.
+        path (str): The location of the dataset. If not None, it is used to figure out the folder name where the local
+            cache is stored.
 
     Returns:
-        StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive size has been specified for them.
+        StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive
+            size has been specified for them.
     """
 
     if path:

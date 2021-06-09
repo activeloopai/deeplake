@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Sequence
 
 from PIL import Image
 
@@ -18,6 +18,11 @@ class TensorMetaMismatchError(Exception):
                 meta_key, str(expected), str(actual)
             )
         )
+
+
+class TensorInvalidSampleShapeError(Exception):
+    def __init__(self, message: str, shape: Sequence[int]):
+        super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
 
 
 class TensorMetaMissingKey(Exception):
@@ -42,6 +47,31 @@ class TensorDoesNotExistError(KeyError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__("Tensor {} already exists.".format(key))
+
+
+class DynamicTensorNumpyError(Exception):
+    def __init__(self, key: str, index):
+        super().__init__(
+            "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            Try setting the parameter `aslist=True`".format(
+                key, str(index)
+            )
+        )
+
+
+class InvalidShapeIntervalError(Exception):
+    def __init__(
+        self, message: str, lower: Sequence[int] = None, upper: Sequence[int] = None
+    ):
+        s = message
+
+        if lower is not None:
+            s += " lower={}".format(str(lower))
+
+        if upper is not None:
+            s += " upper={}".format(str(upper))
+
+        super().__init__(s)
 
 
 class InvalidKeyTypeError(TypeError):

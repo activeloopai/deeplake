@@ -1,7 +1,7 @@
 from typing import List
 
 try:
-    from multiprocessing.shared_memory import SharedMemory
+    from multiprocessing.shared_memory import SharedMemory  # type: ignore
     from multiprocessing import resource_tracker  # type: ignore
 except ImportError:
     pass

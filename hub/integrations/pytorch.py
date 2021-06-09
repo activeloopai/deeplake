@@ -16,7 +16,7 @@ from pathos.pools import ProcessPool  # type: ignore
 from hub.core.storage import MemoryProvider
 
 try:
-    from multiprocessing.shared_memory import SharedMemory
+    from multiprocessing.shared_memory import SharedMemory  # type: ignore
 except ModuleNotFoundError:
     pass
 

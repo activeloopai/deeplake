@@ -1,4 +1,5 @@
-from typing import Union, Iterable
+from hub.util.shape import Shape
+from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
 
 import numpy as np
@@ -12,9 +13,8 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-
-from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
-from hub.util.index import Index
+from hub.util.exceptions import TensorDoesNotExistError
+from hub.core.index import Index
 
 
 class Tensor:
@@ -23,7 +23,7 @@ class Tensor:
         key: str,
         storage: StorageProvider,
         tensor_meta: dict = None,
-        index: Union[int, slice, Index] = None,
+        index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
 
@@ -34,7 +34,8 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
-            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created with this meta.
+            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
+                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
@@ -43,23 +44,22 @@ class Tensor:
         """
         self.key = key
         self.storage = storage
-        self.index = Index(index)
+        self.index = index or Index()
 
         if tensor_exists(self.key, self.storage):
             if tensor_meta is not None:
                 warnings.warn(
-                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming tensor_meta. Key: {}".format(
-                        self.key
-                    )
+                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming "
+                    "tensor_meta. Key: {}".format(self.key)
                 )
         else:
             if tensor_meta is None:
                 raise TensorDoesNotExistError(self.key)
             create_tensor(self.key, self.storage, tensor_meta)
 
-    def extend(self, array: Union[np.ndarray, Iterable[np.ndarray]]):
-        """Extends a tensor by appending multiple elements from an iterable.
-        Accepts an iterable of numpy arrays or a single batched numpy array.
+    def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
+        """Extends a tensor by appending multiple elements from a sequence.
+        Accepts a sequence of numpy arrays or a single batched numpy array.
 
         Example:
             >>> len(image)
@@ -103,14 +103,21 @@ class Tensor:
 
     @property
     def shape(self):
-        # TODO: when dynamic arrays are supported, handle `min_shape != max_shape` (right now they're always equal)
-        return self.meta["max_shape"]
+        ds_meta = self.meta
+
+        min_shape = ds_meta["min_shape"]
+        max_shape = ds_meta["max_shape"]
+
+        return Shape(min_shape, max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
         return self.meta["length"]
 
-    def __getitem__(self, item: Union[int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+    ):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
@@ -120,10 +127,21 @@ class Tensor:
         for i in range(len(self)):
             yield self[i]
 
-    def numpy(self):
+    def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of a tensor in numpy format.
+
+        Args:
+            aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
+                If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
+                an error is raised.
+
+        Raises:
+            DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
 
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        return read_samples_from_tensor(self.key, self.storage, self.index)
+
+        return read_samples_from_tensor(
+            self.key, self.storage, self.index, aslist=aslist
+        )

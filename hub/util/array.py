@@ -1,38 +1,65 @@
+from typing import Tuple
 import numpy as np
 
 
-def normalize_and_batchify_shape(array: np.ndarray, batched: bool) -> np.ndarray:
-    """Remove all `array.shape` axes with a value of 1 & add a batch dimension if needed.
+def _filter_ones(shape: Tuple):
+    """Removes all 1s from `shape`. If ALL values in `shape` are 1s, `(1,)` is returned as the shape."""
+
+    out = tuple(x for x in shape if x != 1)
+    if not out:
+        return (1,)
+    return out
+
+
+def normalize_and_batchify_shape(
+    shape: Tuple[int, ...], batched: bool
+) -> Tuple[int, ...]:
+    """Remove all 1s from `shape`. If `batched`, shape[0] is preserved, otherwise a batch axis is prepended.
 
     Example 1:
-        input_array.shape = (10, 1, 5)
+        shape = (10, 1, 5)
         batched = False
-        output_array.shape = (1, 10, 5)  # batch axis is added
+        shape = (1, 10, 5)  # batch axis is added
 
     Example 2:
-        input_array.shape = (1, 100, 1, 1, 3)
+        shape = (1, 100, 1, 1, 3)
         batched = True
-        output_array.shape = (1, 100, 3)  # batch axis is preserved
+        shape = (1, 100, 3)  # batch axis is preserved
 
     Args:
-        array (np.ndarray): Array that will have it's shape normalized/batchified.
-        batched (bool): If True, `array.shape[0]` is assumed to be the batch axis. If False,
-            an axis will be added such that `array.shape[0] == 1`.
+        shape (tuple): Shape that will be normalized/batchified.
+        batched (bool): If True, `shape[0]` is assumed to be the batch axis. If False,
+            an axis will be added such that `shape[0] == 1`.
+
+    Raises:
+        ValueError: If an invalid `shape` is provided.
 
     Returns:
-        np.ndarray: Array with a guarenteed batch dimension. `out_array.shape[1:]` will always be > 1.
-            `out_array.shape[0]` may be >= 1.
+        tuple: All entries in `shape[1:]` will be > 1. Shape will have a guarenteed batch axis (`shape[0] >= 1`).
     """
 
-    if batched:
-        # Don't squeeze the primary axis, even if it's 1
-        squeeze_axes = tuple(i + 1 for i, s in enumerate(array.shape[1:]) if s == 1)
-        array = array.squeeze(squeeze_axes)
-    else:
-        array = array.squeeze()
-        array = np.expand_dims(array, axis=0)
+    if not shape:
+        raise ValueError("Empty shape cannot be normalized.")
 
-    # If we squeezed everything except the primary axis, append one dimension of length 1
-    if len(array.shape) == 1:
-        array = np.expand_dims(array, axis=1)
-    return array
+    if batched:
+        if len(shape) == 2:
+            return shape
+
+        norm_sample_shape = _filter_ones(shape[1:])
+        norm_sample_shape = (shape[0],) + norm_sample_shape
+    else:
+
+        if len(shape) == 1:
+            norm_sample_shape = shape
+        else:
+            norm_sample_shape = _filter_ones(shape)
+
+        norm_sample_shape = (1,) + norm_sample_shape
+
+    return norm_sample_shape
+
+
+def normalize_and_batchify_array_shape(array: np.ndarray, batched: bool) -> np.ndarray:
+    """Reshape `array` with the output shape of `normalize_and_batchify_shape`."""
+
+    return array.reshape(normalize_and_batchify_shape(array.shape, batched))

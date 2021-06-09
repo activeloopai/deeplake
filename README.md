@@ -1,4 +1,4 @@
-<p align="center">
+<img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
     <img src="https://github.com/activeloopai/new-hub/blob/istranic/readme/docs/logos/hub_logo_compact.png" width="30%"/>
     </br>
     <h2 align="center">Dataset management for deep learning applications
@@ -73,14 +73,20 @@ Accessing datasets in Hub requires a single line of code. Run this snippet to ge
 from hub import Dataset
 
 mnist = Dataset("activeloop/mnist")
-mnist_np = mnist["image"][0:1000].compute()
+mnist_np = mnist["image"][0:1000].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
-my_dataset = Dataset("http://s3.amazonaws.com/[my_bucket_name]/")
-my_dataset_pytorch = my_dataset.to_pytorch(lambda x: (x["image"], x["label"]))
+import torch
+from hub import Dataset
+
+my_dataset = Dataset("s3://bucket_name/dataset_folder")
+my_dataset_pytorch = my_dataset.pytorch(workers=2)
 
 train_loader = torch.utils.data.DataLoader(my_dataset_pytorch, batch_size=1, num_workers=0)
+
+for batch in train_loader:
+    print(batch["image"])
 
 ## Training Loop Here ##
 ```

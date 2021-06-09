@@ -3,16 +3,16 @@ from typing import List, Optional
 import numpy as np
 
 from hub.util.keys import get_index_map_key
-from hub.util.index import Index
 
 import numpy as np
+
 from hub.core.typing import StorageProvider
 
 
 def sample_from_index_entry(
     key: str, storage: StorageProvider, index_entry: dict, dtype: str
 ) -> np.ndarray:
-    """Get the unchunked sample from a single `index_map` entry."""
+    """Get the un-chunked sample from a single `index_map` entry."""
 
     b = bytearray()
     for chunk_name in index_entry["chunk_names"]:
@@ -39,7 +39,8 @@ def array_from_buffer(
     start_byte: int = 0,
     end_byte: Optional[int] = None,
 ) -> np.ndarray:
-    """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all bytes are used."""
+    """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all
+    bytes are used."""
 
     partial_b = b[start_byte:end_byte]
     array = np.frombuffer(partial_b, dtype=dtype)

@@ -1,12 +1,13 @@
-from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
-import numpy as np
 import pickle  # TODO: NEVER USE PICKLE
 from typing import Any, Callable, Optional
 
 from typing import StorageProvider
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_DTYPE
+import numpy as np
+
+from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
-from hub.util.array import normalize_and_batchify_shape
+from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
