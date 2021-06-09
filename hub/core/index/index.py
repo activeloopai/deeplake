@@ -274,6 +274,7 @@ class Index:
         return array[index_values]
 
     def is_trivial(self):
+        """Checks if an index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
 
     def __str__(self):
