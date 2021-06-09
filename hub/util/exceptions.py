@@ -1,5 +1,5 @@
 from hub.util.index import Index
-from typing import Any, Sequence
+from typing import Any, Sequence, List
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -251,3 +251,10 @@ class KaggleDatasetAlreadyDownloadedError(Exception):
     def __init__(self, tag: str, path: str):
         self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
         super().__init__(self.message)
+
+
+class HubAutoUnsupportedFileExtensionError(Exception):
+    def __init__(self, extension: str, supported_extensions: List[str]):
+        super().__init__(
+            f"hub.auto does not support the \"{extension}\" extension. Available extensions: {str(supported_extensions)}."
+        )
