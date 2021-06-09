@@ -7,7 +7,7 @@ from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.core.index import Index
 from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch

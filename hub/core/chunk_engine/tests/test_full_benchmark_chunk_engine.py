@@ -3,7 +3,7 @@ from typing import Tuple
 import pytest
 
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.tests.common_benchmark import (
     parametrize_full_benchmark_shapes,
     parametrize_benchmark_chunk_sizes,

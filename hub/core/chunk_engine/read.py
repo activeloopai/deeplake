@@ -6,7 +6,7 @@ from hub.util.keys import get_index_map_key
 
 import numpy as np
 
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 
 
 def sample_from_index_entry(

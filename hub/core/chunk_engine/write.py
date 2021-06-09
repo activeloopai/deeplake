@@ -1,7 +1,7 @@
 from typing import List, Tuple
 from uuid import uuid1
 
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.util.keys import get_chunk_key
 from .chunker import generate_chunks
 

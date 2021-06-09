@@ -1,7 +1,7 @@
 import pickle  # TODO: NEVER USE PICKLE
 from typing import Any, Callable, Optional
 
-from typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_DTYPE
 import numpy as np
 

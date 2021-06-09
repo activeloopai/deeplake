@@ -12,7 +12,7 @@ from hub.constants import (
 )
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.tests.common import SESSION_ID, current_test_name
 from hub.util.cache_chain import get_cache_chain
 

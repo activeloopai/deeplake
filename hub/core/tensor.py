@@ -16,7 +16,7 @@ from hub.core.meta.tensor_meta import (
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from hub.util.array import normalize_and_batchify_array_shape
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     TensorAlreadyExistsError,

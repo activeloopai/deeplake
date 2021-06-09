@@ -11,7 +11,7 @@ from hub.core.tensor import (
     create_tensor,
 )
 from hub.core.tests.common import TENSOR_KEY
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.tests.common import get_random_array
 from hub.tests.common_benchmark import (
     parametrize_benchmark_chunk_sizes,

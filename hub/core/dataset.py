@@ -1,4 +1,4 @@
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 
 from hub.util.keys import get_dataset_meta_key
 

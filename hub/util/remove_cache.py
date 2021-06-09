@@ -1,6 +1,6 @@
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage import MemoryProvider
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 
 
 def remove_memory_cache(storage: StorageProvider):

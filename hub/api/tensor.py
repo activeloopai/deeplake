@@ -12,7 +12,7 @@ from hub.core.tensor import (
     write_tensor_meta,
     tensor_exists,
 )
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError
 from hub.core.index import Index
 
