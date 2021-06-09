@@ -6,6 +6,8 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
+SUPPORTED_MODES = ["r", "a"]
+
 DEFAULT_DTYPE = "float64"
 
 DEFAULT_CHUNK_SIZE = 16 * MB

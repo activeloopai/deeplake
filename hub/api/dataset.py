@@ -2,20 +2,26 @@ import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+    DEFAULT_CHUNK_SIZE,
+    SUPPORTED_MODES,
+)
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    UnsupportedModeError,
 )
 from hub.util.path import storage_provider_from_path
 
@@ -46,6 +52,9 @@ class Dataset:
             ValueError: If an existing local path is given, it must be a directory.
             UserWarning: Both path and storage should not be given.
         """
+        if not mode in SUPPORTED_MODES:
+            raise UnsupportedModeError(mode)
+
         self.mode = mode
         self.index = index
 
