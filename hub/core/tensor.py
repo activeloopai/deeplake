@@ -32,6 +32,7 @@ from hub.core.chunk_engine.write import write_bytes
 
 from hub.core.flatten import row_wise_to_bytes
 from hub.util.keys import get_tensor_meta_key, get_index_map_key
+from hub.util.dataset import get_compressor
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
@@ -110,7 +111,10 @@ def add_samples_to_tensor(
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
             b = memoryview(tobytes(sample))
-
+            if not tensor_meta.get("is_compressed", False):
+                compressor = get_compressor(tensor_meta["compression"])
+                b = compressor.encode(b)
+                tensor_meta["is_compressed"] = True
             index_map_entry = write_bytes(
                 b, key, tensor_meta["chunk_size"], storage, index_map
             )
@@ -273,9 +277,6 @@ def read(image_path: str, check_meta: bool = True):
             or meta_channels != image_channels
             or meta_dtype != image_dtype
         ):
-            import pdb
-
-            pdb.set_trace()
             raise WrongMetadataError(image_path)
     return {
         "bytes": image_bytes,
@@ -284,6 +285,7 @@ def read(image_path: str, check_meta: bool = True):
         "size": meta_size,
         "channels": meta_channels,
         "compression": meta_extension,
+        "is_compressed": True,
     }
 
 
