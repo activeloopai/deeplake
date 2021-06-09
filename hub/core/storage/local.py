@@ -69,7 +69,7 @@ class LocalProvider(StorageProvider):
             FileAtPathException: If the directory to the path is a file instead of a directory.
             ReadOnlyProviderError: If the provider is in read-only mode.
         """
-        self.assert_readonly()
+        self.check_readonly()
         try:
             full_path = self._check_is_file(path)
             directory = os.path.dirname(full_path)
@@ -98,7 +98,7 @@ class LocalProvider(StorageProvider):
             Exception: Any other exception encountered while trying to fetch the object.
             ReadOnlyProviderError: If the provider is in read-only mode.
         """
-        self.assert_readonly()
+        self.check_readonly()
         try:
             full_path = self._check_is_file(path)
             os.remove(full_path)
@@ -166,6 +166,6 @@ class LocalProvider(StorageProvider):
 
     def clear(self):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
-        self.assert_readonly()
+        self.check_readonly()
         if os.path.exists(self.root):
             shutil.rmtree(self.root)

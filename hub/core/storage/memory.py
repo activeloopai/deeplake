@@ -46,7 +46,7 @@ class MemoryProvider(StorageProvider):
         Raises:
             ReadOnlyProviderError: If the provider is in read-only mode.
         """
-        self.assert_readonly()
+        self.check_readonly()
         self.dict[path] = value
 
     def __iter__(self):
@@ -76,7 +76,7 @@ class MemoryProvider(StorageProvider):
             KeyError: If an object is not found at the path.
             ReadOnlyProviderError: If the provider is in read-only mode.
         """
-        self.assert_readonly()
+        self.check_readonly()
         del self.dict[path]
 
     def __len__(self):
@@ -93,5 +93,5 @@ class MemoryProvider(StorageProvider):
 
     def clear(self):
         """Clears the provider."""
-        self.assert_readonly()
+        self.check_readonly()
         self.dict = {}

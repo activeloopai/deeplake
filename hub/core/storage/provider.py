@@ -79,7 +79,7 @@ class StorageProvider(ABC, MutableMapping):
             InvalidBytesRequestedError: If `start_byte` < 0.
             ReadOnlyProviderError: If the provider is in read-only mode.
         """
-        self.assert_readonly()
+        self.check_readonly()
         start_byte = start_byte or 0
         end_byte = start_byte + len(value)
         assert_byte_indexes(start_byte, end_byte)
@@ -132,7 +132,7 @@ class StorageProvider(ABC, MutableMapping):
         """Disables read-only mode for the provider."""
         self.read_only = False
 
-    def assert_readonly(self):
+    def check_readonly(self):
         """Raises an exception if the provider is in read-only mode."""
         if hasattr(self, "read_only") and self.read_only:
             raise ReadOnlyProviderError()
@@ -141,7 +141,7 @@ class StorageProvider(ABC, MutableMapping):
         """Only needs to be implemented for caches. Flushes the data to the next storage provider.
         Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
         """
-        self.assert_readonly()
+        self.check_readonly()
 
     @abstractmethod
     def clear(self):
