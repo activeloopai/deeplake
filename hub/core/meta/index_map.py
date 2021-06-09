@@ -1,7 +1,7 @@
 import pickle  # TODO: NEVER USE PICKLE
 from typing import List
 
-from hub.core.typing import StorageProvider
+from hub.core.storage_typing import StorageProvider
 from hub.util.keys import get_index_map_key
 
 
