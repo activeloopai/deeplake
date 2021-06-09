@@ -66,5 +66,5 @@ reporter = HumbugReporter(
     consent=consent,
     client_id=client_id,
     session_id=session_id,
-    bugout_token="a4bb7056-94b9-4857-893e-dc8e4fa41345",
+    bugout_token="f7176d62-73fa-4ecc-b24d-624364bddcb0",
 )
