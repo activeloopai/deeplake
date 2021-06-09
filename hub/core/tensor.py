@@ -8,7 +8,7 @@ from hub.core.meta.tensor_meta import (
     write_tensor_meta,
     validate_tensor_meta,
 )
-from hub.core.meta.index_map import IndexMap
+from hub.core.meta.index_map import IndexMap, IndexMapEntry
 from hub.util.keys import get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_shape
 from hub.util.exceptions import (
@@ -82,6 +82,7 @@ def add_samples_to_tensor(
         raise TensorDoesNotExistError(key)
 
     index_map = IndexMap(key, storage)
+    # index_map.create_entry(chunk_names=['start_chunk'],start_byte=0, end_byte=0, shape=None)
     tensor_meta = read_tensor_meta(key, storage)
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 

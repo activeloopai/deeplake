@@ -1,7 +1,7 @@
 from hub.util.index import Index
 import pytest
 
-from typing import Dict, List
+from typing import Dict, Iterable, List
 
 import numpy as np
 
@@ -74,12 +74,14 @@ def assert_meta_is_valid(meta: dict, expected_meta: dict):
 
 
 def assert_chunk_sizes(
-    key: str, index_map: List, chunk_size: int, storage: StorageProvider
+    key: str, index_map: IndexMap, chunk_size: int, storage: StorageProvider
 ):
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
     actual_chunk_lengths_dict: Dict[str, int] = {}
+    #TODO: find a better way to declare entry to fix mypy error
+    entry = index_map[0]
     for i, entry in enumerate(index_map):
         for j, chunk_name in enumerate(entry.chunk_names):
             chunk_key = get_chunk_key(key, chunk_name)

@@ -1,6 +1,8 @@
 import json
 from typing import List, Tuple, Optional
 
+from numpy import byte
+
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_index_map_key
 from hub.util.exceptions import InvalidIndexMapEntry
@@ -61,8 +63,25 @@ class IndexMapEntry:
     def shape(self):
         return self._dict.get("shape", None)
 
-    # def tobytes(self):
-    #     return json.dumps(self._dict)
+    def tobytes(self):
+        return self._dict
+
+
+def _read(payloadBytes: bytearray, key: str, storage: StorageProvider):
+    payload = []
+    index_map = IndexMap(get_index_map_key(key), storage)
+    payload = json.loads(payloadBytes)
+    if payload:
+        for entry in payload:
+            index_map.create_entry(
+                chunk_names=entry["chunk_names"],
+                start_byte=entry["start_byte"],
+                end_byte=entry["end_byte"],
+                shape=entry["shape"],
+            )
+
+    print(index_map[0].chunk_names())
+    return index_map
 
 
 class IndexMap:
@@ -74,8 +93,11 @@ class IndexMap:
                 the data stored by this dataset.
         """
         self.key: str = get_index_map_key(key)
-        self.state: list = storage.get(self.key, [])
         self.storage = storage
+        if storage.get(self.key) is not None:
+            self.state: IndexMap = _read(storage.get(self.key), self.key, self.storage)
+        else:
+            self.state: list = []
 
     def add_entry(self, entry: IndexMapEntry):
         """Appends the index map entry to the index map.
@@ -84,7 +106,7 @@ class IndexMap:
             entry (IndexMapEntry): The IndexMapEntry object to be stored in the index map
         """
         self.state.append(entry)
-        self._sync_storage()
+        self._write()
 
     def create_entry(self, **kwargs):
         """Initialize a new IndexMapEntry and calls __add_entry__().
@@ -101,8 +123,30 @@ class IndexMap:
         entry = IndexMapEntry(**kwargs)
         self.add_entry(entry)
 
-    def _sync_storage(self):
-        self.storage[self.key] = self.state
+    def _write(self):
+        payloadBytes = bytearray
+        payload = [entry.tobytes() for entry in self.state]
+        payloadBytes = bytes(json.dumps(payload), "utf-8")
+        self.storage[self.key] = payloadBytes
+
+    # def _read(self, storage, index_map):
+    #     # print(storage.get(self.key, []))
+    #     payloadBytes = bytearray
+    #     payload = []
+    #     if storage.get(self.key, []) != []:
+    #         payloadBytes = storage.get(self.key, [])
+    #         payload = json.loads(payloadBytes)
+    #     if payload:
+    #         for entry in payload:
+    #             index_map.create_entry(
+    #                 chunk_names=entry["chunk_names"],
+    #                 start_byte=entry["start_byte"],
+    #                 end_byte=entry["end_byte"],
+    #                 shape=entry["shape"],
+    #             )
+
+    #     print(index_map[0].chunk_names())
+    #     return index_map
 
     def __len__(self):
         return len(self.state)

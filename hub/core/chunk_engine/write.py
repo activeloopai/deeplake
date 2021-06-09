@@ -9,9 +9,6 @@ from hub.util.keys import get_chunk_key
 
 from .chunker import generate_chunks
 
-# def
-#     index_map = IndexMap(get_chunk_key(), StorageProvider)
-
 
 def write_bytes(
     b: memoryview,

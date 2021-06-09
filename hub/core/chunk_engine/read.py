@@ -16,7 +16,8 @@ def sample_from_index_entry(
     """Get the unchunked sample from a single `index_map` entry."""
 
     b = bytearray()
-    for chunk_name in index_entry.chunk_names:
+
+    for chunk_name in index_entry.chunk_names():
         chunk_key = os.path.join(key, "chunks", chunk_name)
         last_b_len = len(b)
         b.extend(storage[chunk_key])
