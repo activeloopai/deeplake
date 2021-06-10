@@ -16,12 +16,12 @@ def _load_image(image_path: str) -> np.ndarray:
 
 
 def load(path: Union[str, pathlib.Path], symbolic=False) -> Union[Callable, np.ndarray]:
-    # TODO: write load tests
     path = pathlib.Path(path)
 
     suffix = path.suffix.lower()
     if suffix in IMAGE_SUFFIXES:
         if symbolic:
+            # TODO: symbolic loading (for large samples)
             raise NotImplementedError("Symbolic `hub.load` not implemented.")
         return _load_image(path)
         
