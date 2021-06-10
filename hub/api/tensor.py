@@ -95,6 +95,10 @@ class Tensor:
 
         Args:
             array (np.ndarray): The data to add to the tensor.
+            index_map_dict (dict): Dictionary with image bytes and additional image metadata.
+
+        Raises:
+            NotSpecifiedAdditionError: If neither array nor index_map_dict are provided.
         """
 
         if array is None and index_map_dict is None:

@@ -66,19 +66,19 @@ def add_samples_to_tensor(
     batched: bool = False,
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
-    For more on chunking, see the `generate_chunks` method.
+        For more on chunking, see the `generate_chunks` method.
 
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
-        have a batch axis, you should pass the argument `batched=True`.
+            have a batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-        If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False.
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
-        `create_tensor(...)`.
+            `create_tensor(...)`.
     """
 
     if not tensor_exists(key, storage):
@@ -145,7 +145,7 @@ def add_index_map_to_tensor(
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
-        `create_tensor(...)`.
+            `create_tensor(...)`.
     """
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
@@ -236,7 +236,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
     Raises:
         TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when
-        `len(array.shape)` != len(tensor_meta max/min shapes).
+            `len(array.shape)` != len(tensor_meta max/min shapes).
         TensorInvalidSampleShapeError: All samples must have the same dimensionality (`len(sample.shape)`).
     """
 
