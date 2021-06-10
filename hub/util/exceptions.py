@@ -242,13 +242,13 @@ class InvalidImageDimensions(Exception):
         )
 
 
-class MissingKaggleCredentialsError(Exception):
-    def __init__(self, env_var_name: str):
-        super().__init__("Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api" % env_var_name)
-
-
 class KaggleError(Exception):
     message: str = ""
+
+
+class KaggleMissingCredentialsError(KaggleError):
+    def __init__(self, env_var_name: str):
+        super().__init__("Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api" % env_var_name)
 
 
 class KaggleDatasetAlreadyDownloadedError(KaggleError):

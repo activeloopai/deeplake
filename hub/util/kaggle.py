@@ -2,7 +2,7 @@ from hub.util.path import is_path_local
 import os
 import glob
 
-from hub.util.exceptions import KaggleInvalidSourcePathError, MissingKaggleCredentialsError, KaggleDatasetAlreadyDownloadedError
+from hub.util.exceptions import KaggleInvalidSourcePathError, KaggleMissingCredentialsError, KaggleDatasetAlreadyDownloadedError
 from hub.core.storage.local import LocalProvider
 
 
@@ -20,12 +20,12 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
         username = kaggle_credentials.get("username", None)
         os.environ[_KAGGLE_USERNAME] = username
         if not username:
-            raise MissingKaggleCredentialsError(_KAGGLE_USERNAME)
+            raise KaggleMissingCredentialsError(_KAGGLE_USERNAME)
     if _KAGGLE_KEY not in os.environ:
         key = kaggle_credentials.get("key", None)
         os.environ[_KAGGLE_KEY] = key
         if not key:
-            raise MissingKaggleCredentialsError(_KAGGLE_KEY)
+            raise KaggleMissingCredentialsError(_KAGGLE_KEY)
 
 
 def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict={}):
@@ -39,7 +39,7 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict=
             If those don't exist, the `kaggle_credentials` argument will be used.
 
     Raises:
-        MissingKaggleCredentialsError: If no kaggle credentials are found.
+        KaggleMissingCredentialsError: If no kaggle credentials are found.
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
     """
 
