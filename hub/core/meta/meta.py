@@ -1,16 +1,22 @@
 import json
 from abc import ABC
 from hub.core.storage.provider import StorageProvider
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import hub
 
 
 
 class CallbackList(list):
-    def __init__(self, write: Callable, *args):
+    def __init__(self, write: Callable, raw_list: list=[]):
         self.write = write
-        super().__init__(*args)
+
+        # TODO: handle recursive
+        callback_list = []
+        for v in raw_list:
+            callback_list.append(_convert_to_callback_classes(v, write))
+
+        super().__init__(callback_list)
 
     def append(self, *args):
         # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
@@ -19,9 +25,15 @@ class CallbackList(list):
 
 
 class CallbackDict(dict):
-    def __init__(self, write: Callable, *args):
+    def __init__(self, write: Callable, raw_dict: dict={}):
         self.write = write
-        super().__init__(*args)
+
+        # TODO: handle recursive
+        callback_dict = {}
+        for k, v in raw_dict.items():
+            callback_dict[k] = _convert_to_callback_classes(v, write)
+        
+        super().__init__(callback_dict)
 
     def __setitem__(self, *args):
         # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
@@ -29,7 +41,7 @@ class CallbackDict(dict):
         print("setitem", args)
         self.write()
 
-def _convert_to_callback_classes_recursively(value: Any, callback: Callable):
+def _convert_to_callback_classes(value: Any, callback: Callable):
     # TODO: explain what's going on here
 
     if value in (CallbackList, CallbackDict):
@@ -41,20 +53,18 @@ def _convert_to_callback_classes_recursively(value: Any, callback: Callable):
     else:
         new_value = value
 
-    # TODO: recursive (handle nested dicts and lists)
-
     return new_value
 
 
-def _convert_from_callback_classes_recursively(value: Any):
+def _convert_from_callback_classes(value: Any):
+    # TODO: explain what's going on here
+
     if isinstance(value, CallbackDict):
         new_value = dict(value)
     elif isinstance(value, CallbackList):
         new_value = list(value)
     else:
         new_value = value
-
-    # TODO: recursive (handle nested dicts and lists)
 
     return new_value
 
@@ -86,24 +96,18 @@ class Meta:
         d = {}
         for key in self._required_keys:
             value = getattr(self, key)
-            d[key] = _convert_from_callback_classes_recursively(value)
-
-
+            d[key] = _convert_from_callback_classes(value)
         return d
-
 
     def from_dict(self, meta: dict):
         for key, value in meta.items():
-            new_value = _convert_to_callback_classes_recursively(value, self._write)
+            new_value = _convert_to_callback_classes(value, self._write)
             setattr(self, key, new_value)
-
         self._required_keys = meta.keys()
         return self
 
-
     def _write(self):
         self.storage[self.key] = bytes(json.dumps(self.to_dict()), "utf8")
-
 
     def _read(self):
         meta = json.loads(self.storage[self.key])
