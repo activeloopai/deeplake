@@ -1,3 +1,4 @@
+from hub.core.storage.memory import MemoryProvider
 import warnings
 from typing import Callable, Dict, Optional, Union
 
@@ -24,6 +25,9 @@ def _get_cache_chain(path: str, storage: StorageProvider, memory_cache_size: int
         warnings.warn(
             "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
         )
+
+    if isinstance(storage, MemoryProvider):
+        return storage
 
     base_storage = storage or storage_provider_from_path(path)
     memory_cache_size_bytes = memory_cache_size * MB

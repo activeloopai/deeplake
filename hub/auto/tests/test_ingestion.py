@@ -2,9 +2,9 @@ from hub import from_path
 from hub.auto.tests.common import get_dummy_data_path
 
 
-def test_image_classification():
+def test_image_classification(memory_storage):
     path = get_dummy_data_path("image_classification")
-    ds = from_path(path)
+    ds = from_path(source=path, destination=memory_storage)
 
     assert ds.keys() == ("images", "labels")
     assert ds.images.numpy().shape == (3, 900, 900, 3)
@@ -12,9 +12,9 @@ def test_image_classification():
     assert ds.labels.meta["class_names"] == ("class0", "class1", "class2")
 
 
-def test_image_classification_with_sets():
+def test_image_classification_with_sets(memory_storage):
     path = get_dummy_data_path("image_classification_with_sets")
-    ds = from_path(path)
+    ds = from_path(source=path, destination=memory_storage)
 
     assert ds.keys() == ("test/images", "test/labels", "train/images", "train/labels")
 
