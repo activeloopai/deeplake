@@ -6,7 +6,7 @@ import uuid
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
 
-REPORT_CONFIG_FILE_NAME = "reporting_config_v2.json"
+REPORT_CONFIG_FILE_NAME = "reporting_config.json"
 
 
 def save_reporting_config(
@@ -68,12 +68,6 @@ def consent_from_reporting_config_file() -> bool:
     return reporting_config.get("consent", False)
 
 
-hub_tags = []
-
-hub_user = get_reporting_config().get("username")
-if hub_user is not None:
-    hub_tags.append(f"username:{hub_user}")
-
 session_id = str(uuid.uuid4())
 client_id = get_reporting_config().get("client_id")
 
@@ -85,4 +79,9 @@ hub_reporter = HumbugReporter(
     client_id=client_id,
     session_id=session_id,
     bugout_token="f7176d62-73fa-4ecc-b24d-624364bddcb0",
+    tags=[],
 )
+
+hub_user = get_reporting_config().get("username")
+if hub_user is not None:
+    hub_reporter.tags.append(f"username:{hub_user}")

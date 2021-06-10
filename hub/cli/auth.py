@@ -9,7 +9,6 @@ from hub.util.bugout_reporter import (
     save_reporting_config,
     get_reporting_config,
     hub_reporter,
-    hub_tags,
 )
 from hub.util.exceptions import AuthenticationException
 
@@ -54,7 +53,7 @@ def reporting(on):
     """Enable or disable sending crash report to Activeloop AI"""
     report = Report(
         title="Consent change",
-        tags=hub_reporter.system_tags() + hub_tags,
+        tags=hub_reporter.system_tags(),
         content=f"Consent? `{on}`",
     )
     hub_reporter.publish(report)
