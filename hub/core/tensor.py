@@ -218,9 +218,6 @@ def read_samples_from_tensor(
 
         array = sample_from_index_entry(key, storage, index_entry, dtype, compressor)
         samples.append(array)
-    # import pdb
-
-    # pdb.set_trace()
     if aslist:
         if index.values[0].subscriptable():
             return samples
