@@ -103,6 +103,7 @@ commands:
   install_deps:
     steps:
       - run:
+          name: "Install dependencies"
           command: sudo apt-get install exiftool
   info:
     steps:
