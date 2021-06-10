@@ -247,16 +247,21 @@ class MissingKaggleCredentialsError(Exception):
         super().__init__("Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api" % env_var_name)
 
 
-class KaggleDatasetAlreadyDownloadedError(Exception):
+class KaggleError(Exception):
+    message: str = ""
+
+
+class KaggleDatasetAlreadyDownloadedError(KaggleError):
     def __init__(self, tag: str, path: str):
         self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
         super().__init__(self.message)
 
 
-class KaggleInvalidSourcePathError(Exception):
+class KaggleInvalidSourcePathError(KaggleError):
     def __init__(self, source: str):
-        super().__init__(f"Source \"{source}\" is expected to always be local. This is because kaggle datasets can only be downloaded locally via the API.  \
-            However, `destination` may be a non-local path.")
+        self.message = f"Source \"{source}\" is expected to always be local. This is because kaggle datasets can only be downloaded locally via the API.  \
+            However, `destination` may be a non-local path."
+        super().__init__(self.message)
 
 
 class HubAutoUnsupportedFileExtensionError(Exception):

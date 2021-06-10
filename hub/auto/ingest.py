@@ -102,9 +102,6 @@ def from_kaggle(tag: str, source: str, destination: Union[str, StorageProvider],
         A read-only `hub.Dataset` instance pointing to the structured data.
     """
 
-    if not is_path_local(source):
-        raise KaggleInvalidSourcePathError(source)
-
     _warn_kwargs("from_kaggle", **kwargs)
 
     if _dataset_has_tensors(**kwargs):

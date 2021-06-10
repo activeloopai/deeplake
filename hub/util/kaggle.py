@@ -1,7 +1,8 @@
+from hub.util.path import is_path_local
 import os
 import glob
 
-from hub.util.exceptions import MissingKaggleCredentialsError, KaggleDatasetAlreadyDownloadedError
+from hub.util.exceptions import KaggleInvalidSourcePathError, MissingKaggleCredentialsError, KaggleDatasetAlreadyDownloadedError
 from hub.core.storage.local import LocalProvider
 
 
@@ -41,6 +42,9 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict=
         MissingKaggleCredentialsError: If no kaggle credentials are found.
         KaggleDatasetAlreadyDownloadedError: If the dataset `tag` already exists in `local_path`.
     """
+
+    if not is_path_local(local_path):
+        raise KaggleInvalidSourcePathError(local_path)
 
     zip_files = glob.glob(os.path.join(local_path, "*.zip"))
     if len(zip_files) > 0:
