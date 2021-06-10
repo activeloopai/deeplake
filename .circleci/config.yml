@@ -131,6 +131,10 @@ commands:
                 command: |
                   mkdir -p "$HOME/.secrets/"
                   echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "$HOME/.secrets/gcs.json"
+            - run:
+                name: "Insatll dependencies"
+                command: |
+                apt-get install exiftool
   requirements:
     parameters:
       plugins:
