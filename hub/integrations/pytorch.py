@@ -5,13 +5,14 @@ import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict
+from typing import Any, Callable, List, Optional, Set, Dict, Union
 from hub.core.meta.index_map import read_index_map
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
 )
+from hub.util.dataset import get_compressor
 from pathos.pools import ProcessPool  # type: ignore
 from hub.core.storage import MemoryProvider
 
@@ -184,11 +185,18 @@ class TorchDataset:
         shape = index_entry["shape"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
+
+        def decompress_combined_bytes(combined_bytes: Union[bytes, memoryview]):
+            compressor = get_compressor(index_entry["compression"])
+            arr_bytes = compressor.decode(combined_bytes)
+            arr = np.frombuffer(arr_bytes, dtype=dtype).reshape(shape)
+            return arr
+
         if isinstance(combined_bytes, memoryview):
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+            arr = decompress_combined_bytes(combined_bytes)
             combined_bytes.release()
         else:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+            arr = decompress_combined_bytes(combined_bytes)
         return arr
 
     def _get_data_from_chunks(
