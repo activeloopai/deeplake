@@ -38,7 +38,7 @@ class S3Provider(StorageProvider):
             endpoint_url (optional, str): The complete URL to use for the constructed client.
                 This needs to be provided for cases in which you're interacting with MinIO, Wasabi, etc.
             aws_region (optional, str): Specifies the AWS Region to send requests to.
-            max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
+            max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
