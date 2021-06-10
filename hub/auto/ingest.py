@@ -1,3 +1,4 @@
+from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError
 from typing import Union
 from hub.core.storage.provider import StorageProvider
 from hub.auto.unstructured_dataset.image_classification import ImageClassification
@@ -63,6 +64,7 @@ def from_path(source: str, destination: Union[str, StorageProvider], delete_sour
     # TODO: check for incomplete ingestion
     # TODO: try to resume progress for incomplete ingestion
 
+    # TODO: this is not properly working (write a test for this too). expected it to pick up already structured datasets, but it doesn't
     if _dataset_has_tensors(**kwargs):
         return Dataset(**kwargs, mode="r")
 
