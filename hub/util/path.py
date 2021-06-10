@@ -4,6 +4,10 @@ import glob
 from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 
 
+def is_path_local(path: str):
+    return path.startswith((".", "/", "~"))
+
+
 def storage_provider_from_path(path: str):
     """Construct a StorageProvider given a path.
 
@@ -18,7 +22,7 @@ def storage_provider_from_path(path: str):
     Raises:
         ValueError: If the given path is a local path to a file.
     """
-    if path.startswith((".", "/", "~")):
+    if is_path_local(path):
         if not os.path.exists(path) or os.path.isdir(path):
             return LocalProvider(path)
         else:

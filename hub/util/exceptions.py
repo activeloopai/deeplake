@@ -253,6 +253,12 @@ class KaggleDatasetAlreadyDownloadedError(Exception):
         super().__init__(self.message)
 
 
+class KaggleInvalidSourcePathError(Exception):
+    def __init__(self, source: str):
+        super().__init__(f"Source \"{source}\" is expected to always be local. This is because kaggle datasets can only be downloaded locally via the API.  \
+            However, `destination` may be a non-local path.")
+
+
 class HubAutoUnsupportedFileExtensionError(Exception):
     def __init__(self, extension: str, supported_extensions: List[str]):
         super().__init__(

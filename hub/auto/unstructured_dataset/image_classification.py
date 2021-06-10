@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 from hub.api.dataset import Dataset
 from hub.auto.load import load
-from hub.util.path import find_root
 from .base import UnstructuredDataset
 
 IMAGES_TENSOR_NAME = "images"
@@ -69,7 +68,7 @@ class ImageClassification(UnstructuredDataset):
         return tuple(class_names)
 
 
-    def structure(self, ds: Dataset, use_tqdm: bool=True):
+    def structure(self, ds: Dataset, use_progress_bar: bool=True):
         images_tensor_map = {}
         labels_tensor_map = {}
 
@@ -89,7 +88,7 @@ class ImageClassification(UnstructuredDataset):
             # TODO: extra_meta arg should be replaced with `class_names=self.class_names` when htypes are supported
 
         paths = self._abs_file_paths
-        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.source, total=len(paths), disable=not use_tqdm)
+        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.source, total=len(paths), disable=not use_progress_bar)
         for file_path in iterator:
             image = load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)

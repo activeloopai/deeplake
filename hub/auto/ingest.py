@@ -1,3 +1,4 @@
+from hub.util.path import is_path_local
 from typing import Union
 from hub.core.storage.provider import StorageProvider
 from hub.auto.unstructured_dataset.image_classification import ImageClassification
@@ -6,7 +7,7 @@ from shutil import rmtree
 
 from hub import Dataset
 from hub.util.kaggle import download_kaggle_dataset
-from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError
+from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError, KaggleInvalidSourcePathError
 
 import warnings
 
@@ -51,6 +52,8 @@ def from_path(source: str, destination: Union[str, StorageProvider], delete_sour
     Returns:
         A read-only `hub.Dataset` instance pointing to the structured data.
     """
+
+    # TODO: make sure source and destination paths are not equal
 
     _warn_kwargs("from_path", **kwargs)
 
@@ -99,9 +102,8 @@ def from_kaggle(tag: str, source: str, destination: Union[str, StorageProvider],
         A read-only `hub.Dataset` instance pointing to the structured data.
     """
 
-    # TODO: make sure source and destination paths are not equal
-    # TODO: make sure `destination` is an EMPTY directory
-    # TODO: make sure `source` is a local path ONLY
+    if not is_path_local(source):
+        raise KaggleInvalidSourcePathError(source)
 
     _warn_kwargs("from_kaggle", **kwargs)
 
