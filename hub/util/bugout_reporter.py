@@ -3,10 +3,9 @@ import os
 from typing import Any, Dict, Optional
 import uuid
 
+from hub.client.config import REPORTING_CONFIG_FILE_PATH
 from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
-
-REPORT_CONFIG_FILE_NAME = "reporting_config.json"
 
 
 def save_reporting_config(
@@ -19,7 +18,7 @@ def save_reporting_config(
 
     repo_dir = os.getcwd()
 
-    config_report_path = os.path.join(repo_dir, REPORT_CONFIG_FILE_NAME)
+    config_report_path = os.path.join(repo_dir, REPORTING_CONFIG_FILE_PATH)
     if os.path.isfile(config_report_path):
         try:
             with open(config_report_path, "r") as ifp:
@@ -49,7 +48,7 @@ def get_reporting_config() -> Dict[str, Any]:
     reporting_config = {}
     repo_dir = os.getcwd()
     if repo_dir is not None:
-        config_report_path = os.path.join(repo_dir, REPORT_CONFIG_FILE_NAME)
+        config_report_path = os.path.join(repo_dir, REPORTING_CONFIG_FILE_PATH)
         try:
             if not os.path.exists(config_report_path):
                 client_id = str(uuid.uuid4())
