@@ -1,7 +1,15 @@
+import textwrap
+
 import click
+from humbug.report import Report
 
 from hub.client.client import HubBackendClient
 from hub.client.utils import write_token, remove_token
+from hub.util.bugout_reporter import (
+    save_reporting_config,
+    get_reporting_config,
+    hub_reporter,
+)
 from hub.util.exceptions import AuthenticationException
 
 
@@ -23,6 +31,9 @@ def login(username: str, password: str):
         token = HubBackendClient().request_auth_token(username, password)
         write_token(token)
         click.echo("\nSuccessfully logged in to Hub.")
+        reporting_config = get_reporting_config()
+        if reporting_config.get("username") != username:
+            save_reporting_config(True, username=username)
     except AuthenticationException:
         raise SystemExit("\nLogin failed. Check username and password.")
     except Exception as e:
@@ -34,6 +45,19 @@ def logout():
     """Log out of Activeloop"""
     remove_token()
     click.echo("Logged out of Hub.")
+
+
+@click.command()
+@click.option("--on/--off", help="Turn crash report on/off")
+def reporting(on):
+    """Enable or disable sending crash report to Activeloop AI"""
+    report = Report(
+        title="Consent change",
+        tags=hub_reporter.system_tags(),
+        content=f"Consent? `{on}`",
+    )
+    hub_reporter.publish(report)
+    save_reporting_config(on)
 
 
 @click.command()
@@ -55,5 +79,20 @@ def register(username: str, email: str, password: str):
         token = client.request_auth_token(username, password)
         write_token(token)
         click.echo(f"\nSuccessfully registered and logged in as {username}")
+
+        consent_message = textwrap.dedent(
+            """
+            Privacy policy:
+            We collect basic system information and crash reports so that we can keep
+            improving your experience using Hub to work with your data.
+            You can find out more by reading our privacy policy:
+                https://www.activeloop.ai/privacy/
+            If you would like to opt out of reporting crashes and system information,
+            run the following command:
+                $ hub reporting --off
+            """
+        )
+        click.echo(consent_message)
+        save_reporting_config(True, username=username)
     except Exception as e:
         raise SystemExit(f"\nUnable to register new user: {e}")
