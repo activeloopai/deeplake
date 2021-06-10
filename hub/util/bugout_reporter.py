@@ -3,13 +3,15 @@ import os
 from typing import Any, Dict, Optional
 import uuid
 
-from humbug.consent import HumbugConsent, environment_variable_opt_in, yes
+from humbug.consent import HumbugConsent
 from humbug.report import HumbugReporter
 
-REPORT_CONFIG_FILE_NAME = "reporting_config.json"
+REPORT_CONFIG_FILE_NAME = "reporting_config_v2.json"
 
 
-def save_reporting_config(client_id: Optional[str] = None) -> None:
+def save_reporting_config(
+    consent: bool, client_id: Optional[str] = None, username: Optional[str] = None
+) -> None:
     """
     Allow or disallow reporting.
     """
@@ -31,6 +33,11 @@ def save_reporting_config(client_id: Optional[str] = None) -> None:
     if reporting_config.get("client_id") is None:
         reporting_config["client_id"] = str(uuid.uuid4())
 
+    if username is not None:
+        reporting_config["username"] = username
+
+    reporting_config["consent"] = consent
+
     try:
         with open(config_report_path, "w") as ofp:
             json.dump(reporting_config, ofp)
@@ -47,7 +54,7 @@ def get_reporting_config() -> Dict[str, Any]:
             if not os.path.exists(config_report_path):
                 client_id = str(uuid.uuid4())
                 reporting_config["client_id"] = client_id
-                save_reporting_config(client_id)
+                save_reporting_config(True, client_id)
             else:
                 with open(config_report_path, "r") as ifp:
                     reporting_config = json.load(ifp)
@@ -56,12 +63,23 @@ def get_reporting_config() -> Dict[str, Any]:
     return reporting_config
 
 
+def consent_from_reporting_config_file() -> bool:
+    reporting_config = get_reporting_config()
+    return reporting_config.get("consent", False)
+
+
+hub_tags = []
+
+hub_user = get_reporting_config().get("username")
+if hub_user is not None:
+    hub_tags.append(f"username:{hub_user}")
+
 session_id = str(uuid.uuid4())
 client_id = get_reporting_config().get("client_id")
 
-consent = HumbugConsent(environment_variable_opt_in("REPORTING_ENABLED", yes))
+consent = HumbugConsent(consent_from_reporting_config_file)
 
-reporter = HumbugReporter(
+hub_reporter = HumbugReporter(
     name="activeloopai/Hub",
     consent=consent,
     client_id=client_id,
