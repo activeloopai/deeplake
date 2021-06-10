@@ -11,7 +11,8 @@ _KAGGLE_KEY = "KAGGLE_KEY"
 
 def _exec_command(command):
     out = os.system(command)
-    raise ExternalCommandError(command, out)
+    if out != 0:
+        raise ExternalCommandError(command, out)
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
