@@ -34,10 +34,10 @@ def from_tfds(tfds_ds: tensorflow.data.Dataset, ds: Dataset):
     """
     tfds_numpy = tfds.as_numpy(tfds_ds)  # Convert `tf.data.Dataset` to Python generator
 
-    for ex in tqdm(tfds_numpy):
-        for col in ex:
+    for sample in tqdm(tfds_numpy):
+        for col in sample:
             if col not in ds.tensors:
                 print("Creating tensor with name: " + str(col))
                 ds.create_tensor(col)
-            ds[col].extend(ex[col])
+            ds[col].extend(sample[col])
     return ds
