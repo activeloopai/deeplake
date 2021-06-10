@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.util.check_installation import tfds_installed  # type: ignore
 from hub.util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
 
@@ -27,7 +26,6 @@ def test_from_tfds_to_path(local_storage):
     assert hub_ds.image[1000].shape.lower == (28, 28)
 
 
-@parametrize_all_dataset_storages
 @requires_tfds
 def test_from_tfds(ds):
     import tensorflow_datasets as tfds  # type: ignore
