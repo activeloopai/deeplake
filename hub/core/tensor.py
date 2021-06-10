@@ -1,8 +1,8 @@
 from hub.core.index import Index
 from typing import List, Tuple, Union
 import numpy as np
-from PIL import Image
-import exiftool
+from PIL import Image  # type: ignore
+import exiftool  # type: ignore
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
