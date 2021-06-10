@@ -6,6 +6,7 @@ def test_image_classification(memory_storage):
     path = get_dummy_data_path("image_classification")
     ds = from_path(source=path, destination=memory_storage)
 
+    assert ds.mode == "r"
     assert ds.keys() == ("images", "labels")
     assert ds.images.numpy().shape == (3, 900, 900, 3)
     assert ds.labels.numpy().shape == (3, 1)
@@ -16,6 +17,7 @@ def test_image_classification_with_sets(memory_storage):
     path = get_dummy_data_path("image_classification_with_sets")
     ds = from_path(source=path, destination=memory_storage)
 
+    assert ds.mode == "r"
     assert ds.keys() == ("test/images", "test/labels", "train/images", "train/labels")
 
     assert ds["test/images"].numpy().shape == (3, 900, 900, 3)
