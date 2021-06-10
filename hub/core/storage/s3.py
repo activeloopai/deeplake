@@ -19,7 +19,7 @@ class S3Provider(StorageProvider):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
-        max_pool_connections: Optional[int] = 50,
+        max_pool_connections: int = 50,
         client=None,
     ):
         """Initializes the S3Provider
