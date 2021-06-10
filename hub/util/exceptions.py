@@ -242,6 +242,11 @@ class InvalidImageDimensions(Exception):
         )
 
 
+class ExternalCommandError(Exception):
+    def __init__(self, command: str, status: int):
+        super().__init__(f"Status for command \"{command}\" was \"{status}\", expected to be \"0\".")
+
+
 class KaggleError(Exception):
     message: str = ""
 

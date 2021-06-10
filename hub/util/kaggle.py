@@ -2,8 +2,7 @@ from hub.util.path import is_path_local
 import os
 import glob
 
-from hub.util.exceptions import KaggleInvalidSourcePathError, KaggleMissingCredentialsError, KaggleDatasetAlreadyDownloadedError
-from hub.core.storage.local import LocalProvider
+from hub.util.exceptions import ExternalCommandError, KaggleInvalidSourcePathError, KaggleMissingCredentialsError, KaggleDatasetAlreadyDownloadedError
 
 
 _KAGGLE_USERNAME = "KAGGLE_USERNAME"
@@ -12,7 +11,7 @@ _KAGGLE_KEY = "KAGGLE_KEY"
 
 def _exec_command(command):
     out = os.system(command)
-    assert out == 0  # TODO: replace assert with Exception
+    raise ExternalCommandError(command, out)
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
@@ -29,7 +28,6 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict={}):
 
 
 def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict={}):
-    # TODO: docstring
     """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
 
     Args:
