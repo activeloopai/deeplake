@@ -3,6 +3,14 @@ import json
 from typing import Any, Callable, List
 
 from hub.core.typing import StorageProvider
+from hub.util.keys import get_dataset_meta_key
+
+
+def write_dataset_meta(storage: StorageProvider, meta: dict):
+    storage[get_dataset_meta_key()] = json.dumps(meta)
+
+def read_dataset_meta(storage: StorageProvider) -> dict:
+    return json.loads(storage[get_dataset_meta_key()])
 
 
 class CallbackList(list):
@@ -11,6 +19,7 @@ class CallbackList(list):
         super().__init__()
 
     def append(self, *args):
+        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
         super().append(*args)
         self.write()
 
@@ -21,6 +30,7 @@ class CallbackDict(dict):
         super().__init__()
 
     def __setitem__(self, *args):
+        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
         super().__setitem__(*args)
         self.write()
 
@@ -42,11 +52,14 @@ class DatasetMeta:
     def version(self):
         return self._version
 
+    def asdict(self):
+        return {"tensors": self.tensors, "version": self._version, "custom_meta": self.custom_meta}
+
     def _write(self):
-        self.storage[self.key] = {"tensors": self.tensors, "version": self._version, "custom_meta": self.custom_meta}
+        self.storage[self.key] = bytes(json.dumps(self.asdict()), "utf8")
 
     def _read(self):
-        meta = self.storage[self.key]
+        meta = json.loads(self.storage[self.key])
         self.tensors = meta["tensors"]
         self._version = meta["version"]
         self.custom_meta = meta["custom_meta"]

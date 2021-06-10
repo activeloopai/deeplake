@@ -3,8 +3,8 @@ import hub
 from hub.core.meta.dataset_meta import DatasetMeta
 
 
-def test_dataset_meta(memory_storage):
-    dataset_meta = DatasetMeta(get_dataset_meta_key(), memory_storage)
+def test_dataset_meta_updates(local_storage):
+    dataset_meta = DatasetMeta(get_dataset_meta_key(), local_storage)
 
     assert len(dataset_meta.tensors) == 0
 
@@ -20,7 +20,7 @@ def test_dataset_meta(memory_storage):
 
     del dataset_meta
 
-    dataset_meta = DatasetMeta(get_dataset_meta_key(), memory_storage)
+    dataset_meta = DatasetMeta(get_dataset_meta_key(), local_storage)
     assert dataset_meta.version == hub.__version__
     assert dataset_meta.tensors == ["tensor1", "tensor2", "tensor3"]
 
@@ -34,6 +34,6 @@ def test_dataset_meta(memory_storage):
 
     del dataset_meta
 
-    dataset_meta = DatasetMeta(get_dataset_meta_key(), memory_storage)
+    dataset_meta = DatasetMeta(get_dataset_meta_key(), local_storage)
     assert dataset_meta.custom_meta["another_thing"] == "AAAAAAHHHHH"
     assert dataset_meta.custom_meta["nested_thing"] == {"a": 123, "b": {"b.0": [1,2,3], "b.1": {"b.1.something": [1, 5], "WHY WOULD YOU DO THIS??": "test"}}}
