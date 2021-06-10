@@ -1,10 +1,11 @@
+from hub.util.keys import get_dataset_meta_key
 import warnings
 from typing import Callable, Dict, Optional, Union
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
-from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.dataset_meta import DatasetMeta 
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
@@ -62,11 +63,10 @@ class Dataset:
         )
         self.tensors: Dict[str, Tensor] = {}
 
+        self.meta = DatasetMeta(get_dataset_meta_key(), self.storage)
         if dataset_exists(self.storage):
-            for tensor_name in self.meta["tensors"]:
+            for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
-        else:
-            self.meta = {"tensors": []}
 
     # TODO len should consider slice
     def __len__(self):
@@ -116,9 +116,7 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        ds_meta = self.meta
-        ds_meta["tensors"].append(name)
-        self.meta = ds_meta
+        self.meta.tensors.append(name)
 
         tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
         tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
@@ -131,14 +129,6 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-
-    @property
-    def meta(self):
-        return read_dataset_meta(self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_dataset_meta(self.storage, new_meta)
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.

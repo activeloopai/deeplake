@@ -44,7 +44,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta == {"tensors": []}
+    assert ds.meta.tensors == []
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -60,7 +60,7 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta == {"tensors": ["image"]}
+    assert ds.meta.tensors == ["image"]
 
 
 @parametrize_all_dataset_storages
