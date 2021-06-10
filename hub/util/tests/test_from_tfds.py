@@ -27,8 +27,8 @@ def test_from_tfds_to_path(local_storage):
     assert hub_ds.image[1000].shape.lower == (28, 28)
 
 
-@requires_tfds
 @parametrize_all_dataset_storages
+@requires_tfds
 def test_from_tfds(ds):
     import tensorflow_datasets as tfds  # type: ignore
 
