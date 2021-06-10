@@ -33,6 +33,7 @@ def test_pytorch_small(local_ds):
         assert (batch["image2"].numpy() == i * np.ones((1, 100, 100))).all()
     local_ds.delete()
 
+
 # TODO Enable test once bug is fixed
 # @requires_torch
 # def test_pytorch_large(local_ds):

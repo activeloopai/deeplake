@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-import tensorflow_datasets as tfds  # type: ignore
 
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.util.check_installation import tfds_installed  # type: ignore
@@ -31,6 +30,8 @@ def test_from_tfds_to_path(local_storage):
 @requires_tfds
 @parametrize_all_dataset_storages
 def test_from_tfds(ds):
+    import tensorflow_datasets as tfds  # type: ignore
+
     tfds_ds = tfds.load("mnist", split="train").batch(1).take(10)
     from_tfds(tfds_ds=tfds_ds, ds=ds)
     for i, example in enumerate(tfds_ds):
