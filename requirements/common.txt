@@ -1,7 +1,6 @@
 numpy
 numcodecs>=0.7.3
 msgpack>=1.0.2
-PyExifTool==0.4.9
 Pillow-SIMD==7.0.0.post3
 boto3
 boto3-stubs[essential]
