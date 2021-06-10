@@ -67,9 +67,10 @@ class LZ4(BaseNumCodec):
         """
         try:
             data = MSGPACK.decode(bytes_)[0]
+            decoded_buf = self.compressor.decode(data["item"])
+            arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
+            arr = arr.reshape(data["shape"])
+            return arr
         except (msgpack.exceptions.ExtraData, ValueError):
-            return self.compressor.decode(bytes_)
-        decoded_buf = self.compressor.decode(data["item"])
-        arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
-        arr = arr.reshape(data["shape"])
-        return arr
+            decoded_buf = self.compressor.decode(bytes_)
+            return decoded_buf

@@ -11,9 +11,10 @@ from hub.core.tensor import (
     read_tensor_meta,
     write_tensor_meta,
     tensor_exists,
+    add_index_map_to_tensor,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError
+from hub.util.exceptions import TensorDoesNotExistError, NotSpecifiedAdditionError
 from hub.core.index import Index
 
 
@@ -78,7 +79,11 @@ class Tensor:
             for sample in array:
                 self.append(sample)
 
-    def append(self, array: np.ndarray):
+    def append(
+        self,
+        array: Optional[np.ndarray] = None,
+        index_map_dict: Optional[dict] = None,
+    ):
         """Appends a sample to the end of a tensor.
 
         Example:
@@ -91,7 +96,13 @@ class Tensor:
         Args:
             array (np.ndarray): The data to add to the tensor.
         """
-        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
+
+        if array is None and index_map_dict is None:
+            raise NotSpecifiedAdditionError()
+        if array is not None:
+            add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
+        elif index_map_dict is not None:
+            add_index_map_to_tensor(index_map_dict, self.key, storage=self.storage)
 
     @property
     def meta(self):

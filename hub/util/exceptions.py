@@ -239,3 +239,23 @@ class InvalidImageDimensions(Exception):
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
         )
+
+
+class ImageReadError(Exception):
+    def __init__(self, image_path, message) -> None:
+        super().__init__(f"Unable to read image: {image_path}. {message}")
+
+
+class WrongMetadataError(Exception):
+    def __init__(self, image_path) -> None:
+        super().__init__(
+            f"Image metadata doesn't match the actual image parameters for image: {image_path}"
+        )
+
+
+class NotSpecifiedAdditionError(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            f"Nothing added to tensor. Please specify numpy array, sequence of numpy arrays"
+            "or resulting dictionary from .read() to be added to the tensor"
+        )

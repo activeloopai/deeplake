@@ -1,16 +1,22 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Union
 import numpy as np
+from hub.core import compression
 
 from hub.util.keys import get_index_map_key
 
 import numpy as np
 
 from hub.core.typing import StorageProvider
+from hub.core.compression import BaseImgCodec, BaseNumCodec
 
 
 def sample_from_index_entry(
-    key: str, storage: StorageProvider, index_entry: dict, dtype: str
+    key: str,
+    storage: StorageProvider,
+    index_entry: dict,
+    dtype: str,
+    compressor: Union[BaseImgCodec, BaseNumCodec, None],
 ) -> np.ndarray:
     """Get the un-chunked sample from a single `index_map` entry."""
 
@@ -26,6 +32,7 @@ def sample_from_index_entry(
     return array_from_buffer(
         memoryview(b),
         dtype,
+        compressor,
         index_entry["shape"],
         start_byte,
         end_byte,
@@ -35,6 +42,7 @@ def sample_from_index_entry(
 def array_from_buffer(
     b: memoryview,
     dtype: str,
+    compressor: Union[BaseImgCodec, BaseNumCodec, None],
     shape: tuple = None,
     start_byte: int = 0,
     end_byte: Optional[int] = None,
@@ -43,7 +51,13 @@ def array_from_buffer(
     bytes are used."""
 
     partial_b = b[start_byte:end_byte]
-    array = np.frombuffer(partial_b, dtype=dtype)
+    if compressor is not None:
+        if isinstance(compressor, BaseImgCodec):
+            partial_b = compressor.decode_single_image(partial_b)
+            array = partial_b
+        else:
+            partial_b = compressor.decode(partial_b)
+            array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:
         array = array.reshape(shape)
     return array

@@ -95,6 +95,7 @@ class Dataset:
         htype: Optional[str] = None,
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
+        compression: Optional[str] = None,
         extra_meta: Optional[dict] = None,
     ):
         """Creates a new tensor in a dataset.
@@ -109,6 +110,7 @@ class Dataset:
             chunk_size (int, optional): The target size for chunks in this tensor.
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
+            compression (str, optional): Compressor name to apply on the tesnor.
             extra_meta (dict, optional): Any additional metadata to be added to the tensor.
 
         Returns:
@@ -124,7 +126,9 @@ class Dataset:
         ds_meta["tensors"].append(name)
         self.meta = ds_meta
 
-        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
+        tensor_meta = default_tensor_meta(
+            htype, chunk_size, dtype, compression, extra_meta
+        )
         tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
         self.tensors[name] = tensor
 

@@ -1,6 +1,8 @@
 from hub.core.index import Index
 from typing import List, Tuple, Union
 import numpy as np
+from PIL import Image
+import exiftool
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
@@ -21,9 +23,11 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
     TensorDoesNotExistError,
+    ImageReadError,
+    WrongMetadataError,
 )
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
-from .flatten import row_wise_to_bytes
+from hub.core.flatten import row_wise_to_bytes
+from hub.util.dataset import get_compressor
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
@@ -63,6 +67,7 @@ def add_samples_to_tensor(
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
+
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
         have a batch axis, you should pass the argument `batched=True`.
@@ -70,6 +75,7 @@ def add_samples_to_tensor(
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
         If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
         `create_tensor(...)`.
@@ -101,11 +107,18 @@ def add_samples_to_tensor(
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
-            b = memoryview(tobytes(sample))
-
+            b = tobytes(sample)
+            if not tensor_meta.get("is_compressed", False):
+                compressor = get_compressor(tensor_meta["compression"])
+                if compressor:
+                    b = compressor.encode(b)
+            b = memoryview(b)
+            # b = memoryview(tobytes(sample))
             index_map_entry = write_bytes(
                 b, key, tensor_meta["chunk_size"], storage, index_map
             )
+            index_map_entry["compression"] = tensor_meta["compression"]
+            index_map_entry["is_compressed"] = True
 
         index_map_entry["shape"] = sample.shape
         _update_tensor_meta_shapes(sample.shape, tensor_meta)
@@ -113,6 +126,49 @@ def add_samples_to_tensor(
 
     tensor_meta["length"] += array_length
 
+    write_tensor_meta(key, storage, tensor_meta)
+    write_index_map(key, storage, index_map)
+
+
+def add_index_map_to_tensor(
+    index_map_dict: dict,
+    key: str,
+    storage: StorageProvider,
+):
+    """Adds samples to a tensor that already exists. bytes of index_map are chunked and sent to `storage`.
+    For more on chunking, see the `generate_chunks` method.
+
+    Args:
+        index_map_dict (dict): Bytes of the image that should be chunked and written to the storage.
+        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+
+    Raises:
+        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
+        `create_tensor(...)`.
+    """
+    if not tensor_exists(key, storage):
+        raise TensorDoesNotExistError(key)
+
+    index_map = read_index_map(key, storage)
+    tensor_meta = read_tensor_meta(key, storage)
+    shape = index_map_dict["shape"]
+    if "min_shape" not in tensor_meta:
+        tensor_meta["dtype"] = str(index_map_dict["dtype"])
+        tensor_meta["min_shape"] = shape
+        tensor_meta["max_shape"] = shape
+    index_map_entry = {"chunk_names": []}  # type: ignore
+    index_map_entry = write_bytes(
+        index_map_dict["bytes"], key, tensor_meta["chunk_size"], storage, index_map
+    )
+    index_map_entry["compression"] = index_map_dict["compression"]
+    index_map_entry["is_compressed"] = index_map_dict["is_compressed"]
+    index_map_entry["dtype"] = index_map_dict["dtype"]
+    index_map_entry["shape"] = shape
+    _update_tensor_meta_shapes(shape, tensor_meta)
+    index_map.append(index_map_entry)
+
+    tensor_meta["length"] += 1
     write_tensor_meta(key, storage, tensor_meta)
     write_index_map(key, storage, index_map)
 
@@ -146,12 +202,11 @@ def read_samples_from_tensor(
     index_entries = [index_map[i] for i in index.values[0].indices(len(index_map))]
 
     dtype = meta["dtype"]
-
     # TODO: read samples in parallel
     samples = []
     for i, index_entry in enumerate(index_entries):
         shape = index_entry["shape"]
-
+        compressor = get_compressor(index_entry["compression"])
         # check if all samples are the same shape
         last_shape = index_entries[i - 1]["shape"]
         if not aslist and shape != last_shape:
@@ -161,9 +216,11 @@ def read_samples_from_tensor(
             # TODO: implement support for 0s in shape and update docstring
             raise NotImplementedError("0s in shapes are not supported yet.")
 
-        array = sample_from_index_entry(key, storage, index_entry, dtype)
+        array = sample_from_index_entry(key, storage, index_entry, dtype, compressor)
         samples.append(array)
+    # import pdb
 
+    # pdb.set_trace()
     if aslist:
         if index.values[0].subscriptable():
             return samples
@@ -175,9 +232,11 @@ def read_samples_from_tensor(
 
 def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
+
     Args:
         tensor_meta (dict): Tensor meta containing the expected properties of `array`.
         array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
+
     Raises:
         TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when
         `len(array.shape)` != len(tensor_meta max/min shapes).
@@ -198,6 +257,77 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
             ),
             sample_shape,
         )
+
+
+def read(image_path: str, check_meta: bool = True):
+    """
+    Get image bytes and metadata.
+
+    Args:
+        image_path (str): Path to the image file.
+        check_meta (bool): If True, check if image can be read and image metadata
+            information corresponds to the actual image parameters.
+
+    Raises:
+        ImageReadError: If image can't be opened by PIL.Image.open()
+        WrongMetadataError: If any parameter from metadata doesn't match the image.
+
+    Returns:
+        Dictionary containing image bytes, extension, dtype and shape.
+    """
+    with exiftool.ExifTool() as et:
+        metadata = et.get_metadata(image_path)
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+    meta_size = tuple(map(int, metadata["Composite:ImageSize"].split("x")))
+    for meta_key, meta_value in metadata.items():
+        if meta_key.endswith("FileType"):
+            meta_extension = meta_value
+        elif "ColorComponents" in meta_key:
+            meta_channels = meta_value
+        elif "PNG:ColorType" in meta_key:
+            color_type = int(meta_value)
+            if color_type == 6:
+                meta_channels = 4
+            elif color_type == 4:
+                meta_channels = 2
+            elif color_type == 2:
+                meta_channels = 3
+            else:
+                meta_channels = 1
+        elif "BitDepth" in meta_key or "BitsPerSample" in meta_key:
+            meta_dtype = "uint" + str(meta_value)
+    if check_meta:
+        try:
+            image = Image.open(image_path)
+        except Exception as e:
+            raise ImageReadError(image_path, e)
+        image_arr = np.asarray(image)
+        # print(image_arr.shape)
+        image_dtype = image_arr.dtype
+        if image.mode == "RGB":
+            image_channels = 3
+        elif image.mode == "RGBA":
+            image_channels = 4
+        else:
+            image_channels = 1
+        image_size = image.size
+        image_extension = image.format
+        if (
+            meta_size != image_size
+            or meta_extension != image_extension
+            or meta_channels != image_channels
+            or meta_dtype != image_dtype
+        ):
+            raise WrongMetadataError(image_path)
+    return {
+        "bytes": image_bytes,
+        "name": image_path.split("/")[-1],
+        "dtype": meta_dtype,
+        "shape": meta_size + (meta_channels,),
+        "compression": meta_extension,
+        "is_compressed": True,
+    }
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
