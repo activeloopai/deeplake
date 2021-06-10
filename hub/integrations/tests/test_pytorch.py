@@ -28,9 +28,10 @@ def test_pytorch_small(local_ds):
         batch_size=1,
         num_workers=0,
     )
-    for i, batch in enumerate(dl):
-        assert (batch["image"].numpy() == i * np.ones((1, 300, 300))).all()
-        assert (batch["image2"].numpy() == i * np.ones((1, 100, 100))).all()
+    for epoch in range(2):
+        for i, batch in enumerate(dl):
+            assert (batch["image"].numpy() == i * np.ones((1, 300, 300))).all()
+            assert (batch["image2"].numpy() == i * np.ones((1, 100, 100))).all()
     local_ds.delete()
 
 
@@ -60,9 +61,10 @@ def test_pytorch_large(local_ds):
         batch_size=1,
         num_workers=0,
     )
-    for i, batch in enumerate(dl):
-        assert (batch["image"].numpy() == (i + 1) * np.ones((1, 4096, 4096))).all()
-        assert (batch["classlabel"].numpy() == (i) * np.ones((1,))).all()
+    for epoch in range(2):
+        for i, batch in enumerate(dl):
+            assert (batch["image"].numpy() == (i + 1) * np.ones((1, 4096, 4096))).all()
+            assert (batch["classlabel"].numpy() == (i) * np.ones((1,))).all()
     local_ds.delete()
 
 
