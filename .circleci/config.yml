@@ -100,6 +100,10 @@ commands:
           command: |
               brew install zlib libjpeg webp       	
               sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
+  install_deps:
+    steps:
+      - run:
+          command: sudo apt-get install exiftool
   info:
     steps:
       - run:
@@ -131,10 +135,6 @@ commands:
                 command: |
                   mkdir -p "$HOME/.secrets/"
                   echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "$HOME/.secrets/gcs.json"
-            - run:
-                name: "Insatll dependencies"
-                command: |
-                apt-get install exiftool
   requirements:
     parameters:
       plugins:
@@ -259,7 +259,11 @@ jobs:
       - when:
           condition: << parameters.mac-like >>
           steps:
-            - get-python  
+            - get-python
+      - unless:
+          condition: << parameters.mac-like >>
+          steps:
+            - install_deps
       - info
       - google-creds:
           unix-like: << parameters.unix-like >>
