@@ -10,5 +10,5 @@ class UnstructuredDataset(ABC):
         self.source = Path(find_root(source))
 
     @abstractmethod
-    def structure(ds: Dataset):
+    def structure(ds: Dataset, use_progress_bar: bool=True):
         pass
