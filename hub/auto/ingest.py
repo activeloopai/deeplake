@@ -1,4 +1,6 @@
-from hub.auto.converter import Converter
+from typing import Union
+from hub.core.storage.provider import StorageProvider
+from hub.auto.unstructured_dataset.image_classification import ImageClassification
 import os
 
 
@@ -27,7 +29,10 @@ def _warn_kwargs(caller: str, **kwargs):
         warnings.warn("Argument `path` should not be passed to `%s`. Ignoring and using `destination`." % caller)
 
 
-def from_path(source: str, destination: str, **kwargs):
+# TODO: after plugins infra is available, move into `hub.Dataset`
+
+
+def from_path(source: str, destination: Union[str, StorageProvider], **kwargs):
     """Copies unstructured data from `source` and structures/sends it to `destination`.
 
     Note:
@@ -36,7 +41,7 @@ def from_path(source: str, destination: str, **kwargs):
         To be safe, you should assume the size of your dataset will consume 3-5x more space than expected.
 
     Args:
-        source (str): Path to where the unstructured dataset is stored.
+        source (str): Local-only path to where the unstructured dataset is stored.
         destination (str): Path to where the structured data will be stored.
         **kwargs: Args will be passed into `hub.Dataset`.
 
@@ -47,7 +52,11 @@ def from_path(source: str, destination: str, **kwargs):
     # TODO: test that ingestion methods ALWAYS return read-only datasets.
 
     _warn_kwargs("from_path", **kwargs)
-    kwargs["path"] = destination
+
+    if isinstance(destination, StorageProvider):
+        kwargs["storage"] = destination
+    else:
+        kwargs["path"] = destination
 
     # TODO: check for incomplete ingestion
     # TODO: try to resume progress for incomplete ingestion
@@ -56,8 +65,10 @@ def from_path(source: str, destination: str, **kwargs):
         return Dataset(**kwargs, mode="r")
 
     ds = Dataset(**kwargs, mode="w")
-    converter = Converter(source)
-    converter.from_image_classification(ds)
+
+    # TODO: auto detect which `UnstructuredDataset` subclass to use
+    unstructured = ImageClassification(source)
+    unstructured.structure(ds)
 
     # TODO: opt-in delete unstructured data after ingestion
 
@@ -75,7 +86,7 @@ def from_kaggle(tag: str, source: str, destination: str, kaggle_credentials: dic
 
     Args:
         tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
-        source (str): Path to where the unstructured kaggle dataset will be downloaded/unzipped.
+        source (str): Local-only path to where the unstructured kaggle dataset will be downloaded/unzipped.
         destination (str): Path to where the structured data will be stored.
         kaggle_credentials (dict): TODO:
         **kwargs: Args will be passed into `hub.Dataset`.

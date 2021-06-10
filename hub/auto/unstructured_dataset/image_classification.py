@@ -3,13 +3,13 @@ from pathlib import Path
 import os
 import glob
 from typing import Dict, List, Sequence, Tuple, Union
-from collections import defaultdict
 
 from tqdm import tqdm
 
 from hub.api.dataset import Dataset
 from hub.auto.load import load
 from hub.util.path import find_root
+from .base import UnstructuredDataset
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
@@ -39,18 +39,20 @@ def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
 
 
-# TODO: rename this
-class Converter:
-    def __init__(self, unstructured_path: str):
-        self.root = Path(find_root(unstructured_path))
-        self._abs_file_paths = _get_file_paths(self.root)
-        self._rel_file_paths = _get_file_paths(self.root, relative_to=self.root)
+class ImageClassification(UnstructuredDataset):
+    def __init__(self, source: str):
+        # TODO: should support any `StorageProvider`. right now only local files can be converted
+        super().__init__(source)
+
+        self._abs_file_paths = _get_file_paths(self.source)
+        self._rel_file_paths = _get_file_paths(self.source, relative_to=self.source)
 
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
 
     def get_set_names(self) -> Tuple[str]:
+        # TODO: move outside class
         set_names = set()
         for file_path in self._abs_file_paths:
             set_names.add(_set_name_from_path(file_path))
@@ -59,6 +61,7 @@ class Converter:
 
 
     def get_class_names(self) -> Tuple[str]:
+        # TODO: move outside class
         class_names = set()
         for file_path in self._abs_file_paths:
             class_names.add(_class_name_from_path(file_path))
@@ -66,7 +69,7 @@ class Converter:
         return tuple(class_names)
 
 
-    def from_image_classification(self, ds: Dataset, use_tqdm: bool=True):
+    def structure(self, ds: Dataset, use_tqdm: bool=True):
         images_tensor_map = {}
         labels_tensor_map = {}
 
@@ -86,7 +89,7 @@ class Converter:
             # TODO: extra_meta arg should be replaced with `class_names=self.class_names` when htypes are supported
 
         paths = self._abs_file_paths
-        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.root, total=len(paths), disable=not use_tqdm)
+        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.source, total=len(paths), disable=not use_tqdm)
         for file_path in iterator:
             image = load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)

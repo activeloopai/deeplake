@@ -10,34 +10,19 @@ IMAGE_SUFFIXES: List[str] = [".jpeg", ".jpg", ".png"]
 SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 
-class SymbolicSample:
-    def __init__(self, path: str, loaders: Dict[str, Callable]):
-        self.loaders = loaders
-        self.path = path
-
-    def load(self) -> Dict[str, np.ndarray]:
-        sample = {}
-        for tensor_name, loader in self.loaders.items():
-            sample[tensor_name] = loader(self.path)
-        return sample
-
-
 def _load_image(image_path: str) -> np.ndarray:
     img = Image.open(image_path)
     return np.array(img)
 
 
-def _class_name_from_path(path: str) -> str:
-    return "DUMMY"
-
-
 def load(path: Union[str, pathlib.Path], symbolic=False) -> Union[Callable, np.ndarray]:
+    # TODO: write load tests
     path = pathlib.Path(path)
 
-    suffix = suffixes[0].lower()
+    suffix = path.suffix.lower()
     if suffix in IMAGE_SUFFIXES:
         if symbolic:
-            return SymbolicSample(path, {"image": _load_image, "class_name": _class_name_from_path})
+            raise NotImplementedError("Symbolic `hub.load` not implemented.")
         return _load_image(path)
         
     raise HubAutoUnsupportedFileExtensionError(suffix, SUPPORTED_SUFFIXES)
