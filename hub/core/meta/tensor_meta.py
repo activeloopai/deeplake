@@ -3,11 +3,66 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE, DEFAULT_HTYPE
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_array_shape
+
+"""----"""
+from hub.core.meta.meta import CallbackDict, CallbackList, Meta
+from hub.core.typing import StorageProvider
+
+
+HTYPE_PROPERTIES = {
+    DEFAULT_HTYPE: {"dtype": DEFAULT_DTYPE},
+    "image": {"dtype": "uint8"},
+}
+
+
+def _required_meta_from_htype(htype: str) -> dict:
+    if htype not in HTYPE_PROPERTIES:
+        raise Exception()  # TODO: exceptions.py
+
+    defaults = HTYPE_PROPERTIES[htype]
+
+    required_meta = {
+        "htype": htype,
+        "chunk_size": DEFAULT_CHUNK_SIZE,
+    }
+
+    required_meta.update(defaults)
+    return required_meta
+
+
+
+def create_tensor_meta(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, meta_overwrite: dict={}) -> Meta:
+    required_meta = _required_meta_from_htype(htype)
+
+    # TODO: validate overwrite meta
+
+    required_meta.update(meta_overwrite)
+
+    return Meta(key, storage, required_meta)
+
+def load_tensor_meta(key: str, storage: StorageProvider) -> Meta:
+    return Meta(key, storage)
+"""----"""
+
+
+class TensorMeta:
+    # htype
+    # chunk_size
+    # dtype
+    # custom_meta (dict)
+
+    def __init__(self, htype: str, chunk_size: int=None, dtype: str=None, custom_meta: dict=None):
+        # TODO: `htype` determines defaults
+        # TODO: all other values overwrite `htype` defaults
+
+
+
+        pass
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):

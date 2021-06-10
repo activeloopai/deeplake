@@ -38,11 +38,12 @@ class CallbackDict(dict):
     def __setitem__(self, *args):
         # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
         super().__setitem__(*args)
-        print("setitem", args)
         self.write()
 
 def _convert_to_callback_classes(value: Any, callback: Callable):
     # TODO: explain what's going on here
+
+    # TODO: check if value is supported `type` (we should only support what json supports)
 
     if value in (CallbackList, CallbackDict):
         new_value = value(callback)
@@ -88,6 +89,7 @@ class Meta:
                 raise Exception("Version is automatically set.")  # TODO: exceptions.py
 
             required_meta["version"] = hub.__version__
+            required_meta["custom_meta"] = CallbackDict(self._write)
 
             self.from_dict(required_meta)
             self._write()
@@ -112,3 +114,6 @@ class Meta:
     def _read(self):
         meta = json.loads(self.storage[self.key])
         return self.from_dict(meta)
+
+    # TODO: __str__ & __repr__
+    # TODO: if trying to access an attribute that doesn't exist, raise more comprehensive error (what keys are available?)
