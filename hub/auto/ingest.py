@@ -1,4 +1,3 @@
-from hub.util.path import is_path_local
 from typing import Union
 from hub.core.storage.provider import StorageProvider
 from hub.auto.unstructured_dataset.image_classification import ImageClassification
@@ -7,7 +6,6 @@ from shutil import rmtree
 
 from hub import Dataset
 from hub.util.kaggle import download_kaggle_dataset
-from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError, KaggleInvalidSourcePathError
 
 import warnings
 
