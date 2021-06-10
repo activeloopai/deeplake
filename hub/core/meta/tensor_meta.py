@@ -9,7 +9,6 @@ from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_array_shape
 
-"""----"""
 from hub.core.meta.meta import CallbackDict, CallbackList, Meta
 from hub.core.typing import StorageProvider
 
@@ -29,6 +28,9 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = {
         "htype": htype,
         "chunk_size": DEFAULT_CHUNK_SIZE,
+        "min_shape": CallbackList,
+        "max_shape": CallbackList,
+        "length": 0,
     }
 
     required_meta.update(defaults)
@@ -39,7 +41,7 @@ def _required_meta_from_htype(htype: str) -> dict:
 def create_tensor_meta(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, meta_overwrite: dict={}) -> Meta:
     required_meta = _required_meta_from_htype(htype)
 
-    # TODO: validate overwrite meta
+    # TODO: validate created meta
 
     required_meta.update(meta_overwrite)
 
@@ -47,30 +49,15 @@ def create_tensor_meta(key: str, storage: StorageProvider, htype: str=DEFAULT_HT
 
 def load_tensor_meta(key: str, storage: StorageProvider) -> Meta:
     return Meta(key, storage)
-"""----"""
-
-
-class TensorMeta:
-    # htype
-    # chunk_size
-    # dtype
-    # custom_meta (dict)
-
-    def __init__(self, htype: str, chunk_size: int=None, dtype: str=None, custom_meta: dict=None):
-        # TODO: `htype` determines defaults
-        # TODO: all other values overwrite `htype` defaults
 
 
 
-        pass
+# def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
+    # storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
 
 
-def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
-
-
-def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+# def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
+    # return pickle.loads(storage[get_tensor_meta_key(key)])
 
 
 def default_tensor_meta(

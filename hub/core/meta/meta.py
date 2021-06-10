@@ -71,6 +71,8 @@ def _convert_from_callback_classes(value: Any):
 
 
 class Meta:
+    _initialized: bool = False
+
     def __init__(self, key: str, storage: StorageProvider, required_meta: dict=None):
         self.key = key
         self.storage = storage
@@ -94,6 +96,8 @@ class Meta:
             self.from_dict(required_meta)
             self._write()
 
+        self._initialized = True
+
     def to_dict(self):
         d = {}
         for key in self._required_keys:
@@ -114,6 +118,12 @@ class Meta:
     def _read(self):
         meta = json.loads(self.storage[self.key])
         return self.from_dict(meta)
+
+    def __setattr__(self, *args):
+        super().__setattr__(*args)
+        if self._initialized:
+            # can only call `_write` for subsequent setattrs
+            self._write()
 
     # TODO: __str__ & __repr__
     # TODO: if trying to access an attribute that doesn't exist, raise more comprehensive error (what keys are available?)

@@ -6,8 +6,8 @@ from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.core.meta.tensor_meta import (
-    read_tensor_meta,
-    write_tensor_meta,
+    create_tensor_meta,
+    load_tensor_meta,
     update_tensor_meta_with_array,
     validate_tensor_meta,
 )
@@ -50,9 +50,12 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    validate_tensor_meta(meta)
 
-    write_tensor_meta(key, storage, meta)
+
+    # TODO: create_tensor_meta & validate
+
+    # validate_tensor_meta(meta)
+    # write_tensor_meta(key, storage, meta)
     write_index_map(key, storage, [])
 
 
@@ -80,7 +83,7 @@ def add_samples_to_tensor(
         raise TensorDoesNotExistError(key)
 
     index_map = read_index_map(key, storage)
-    tensor_meta = read_tensor_meta(key, storage)
+    tensor_meta = load_tensor_meta(key, storage)
 
     array = normalize_and_batchify_array_shape(array, batched=batched)
     if "min_shape" not in tensor_meta:
@@ -142,7 +145,7 @@ def read_samples_from_tensor(
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
     """
 
-    meta = read_tensor_meta(key, storage)
+    meta = load_tensor_meta(key, storage)
     index_map = read_index_map(key, storage)
     index_entries = index_map[index.to_slice()]
 

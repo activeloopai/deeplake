@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from hub.core.meta.index_map import read_index_map
-from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
+from hub.core.meta.tensor_meta import load_tensor_meta, default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,
@@ -162,7 +162,7 @@ def run_engine_test(
         a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
-        meta = read_tensor_meta(key, storage)
+        meta = load_tensor_meta(key, storage)
 
         sample_count += current_batch_num_samples
 

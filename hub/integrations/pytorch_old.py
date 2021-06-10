@@ -1,6 +1,5 @@
 from typing import Callable
 import warnings
-from hub.core.meta.tensor_meta import read_tensor_meta
 from hub.util.exceptions import ModuleNotInstalledException
 
 

@@ -9,10 +9,9 @@ from hub.core.tensor import (
     create_tensor,
     add_samples_to_tensor,
     read_samples_from_tensor,
-    read_tensor_meta,
-    write_tensor_meta,
     tensor_exists,
 )
+
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError
 from hub.util.index import Index
@@ -92,25 +91,12 @@ class Tensor:
         add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
 
     @property
-    def meta(self):
-        return read_tensor_meta(self.key, self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_tensor_meta(self.key, self.storage, new_meta)
-
-    @property
     def shape(self):
-        ds_meta = self.meta
-
-        min_shape = ds_meta["min_shape"]
-        max_shape = ds_meta["max_shape"]
-
-        return Shape(min_shape, max_shape)
+        return Shape(self.meta.min_shape, self.meta.max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
-        return self.meta["length"]
+        return self.meta.length
 
     def __getitem__(self, item: Union[int, slice, Index]):
         return Tensor(self.key, self.storage, index=self.index[item])
