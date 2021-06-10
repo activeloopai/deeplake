@@ -19,7 +19,7 @@ def test_read(extension: str, check_meta: bool):
     img = Image.fromarray(img_arr)
     img.save(f"/tmp/test_read.{extension.lower()}", format=extension)
     ds = hub.Dataset("/tmp/test_read")
-    ds.create_tensor("image", dtype=np.dtype(img_arr.dtype))
+    ds.create_tensor("image", dtype="uint8")
     image_dict = read(f"/tmp/test_read.{extension.lower()}", check_meta=check_meta)
     assert image_dict["shape"] == img_arr.shape
     assert image_dict["dtype"] == img_arr.dtype
@@ -28,3 +28,4 @@ def test_read(extension: str, check_meta: bool):
     compressor = get_compressor(extension)
     image_decompressed = compressor.decode_single_image(image_dict["bytes"])
     assert np.all(image_decompressed == img_arr)
+    ds.delete()
