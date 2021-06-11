@@ -1,5 +1,5 @@
 import warnings
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -8,6 +8,8 @@ from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
+from hub.core.index import Index
+from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -26,7 +28,7 @@ class Dataset:
         tag: Optional[str] = None,
         url: Optional[str] = None,
         mode: Optional[str] = None,
-        index: Union[int, slice, Index] = None,
+        index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -42,8 +44,7 @@ class Dataset:
                 Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             mode (str, optional): Mode in which the dataset is opened.
                 Supported modes include ("r", "w", "a").
-            index: The Index object restricting the view of this dataset's tensors.
-                Can be an int, slice, or (used internally) an Index object.
+            index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the url.
@@ -59,7 +60,7 @@ class Dataset:
             InvalidTagException: If an incorrect tag argument is passed which is not in username/datasetname format.
             AuthorizationException: If a tag is specified and the user doesn't have access to the dataset.
         """
-        self.index = Index(index)
+        self.index = index
         if creds is None:
             creds = {}
         base_storage = get_storage_provider(tag, url, storage, mode, creds)
@@ -83,15 +84,19 @@ class Dataset:
         """Return the smallest length of tensors"""
         return min(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[str, int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+    ):
         if isinstance(item, str):
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.index]
-        elif isinstance(item, (int, slice, Index)):
-            new_index = self.index[Index(item)]
-            return Dataset(storage=self.storage, index=new_index)
+        elif isinstance(item, (int, slice, list, tuple, Index)):
+            return Dataset(storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 

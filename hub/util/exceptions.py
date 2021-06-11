@@ -1,4 +1,3 @@
-from hub.util.index import Index
 from typing import Any, Sequence
 
 
@@ -49,7 +48,7 @@ class TensorAlreadyExistsError(Exception):
 
 
 class DynamicTensorNumpyError(Exception):
-    def __init__(self, key: str, index: Index):
+    def __init__(self, key: str, index):
         super().__init__(
             "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
             Try setting the parameter `aslist=True`".format(

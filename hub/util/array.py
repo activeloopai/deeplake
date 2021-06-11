@@ -11,7 +11,9 @@ def _filter_ones(shape: Tuple):
     return out
 
 
-def normalize_and_batchify_shape(shape: Tuple[int], batched: bool) -> Tuple[int]:
+def normalize_and_batchify_shape(
+    shape: Tuple[int, ...], batched: bool
+) -> Tuple[int, ...]:
     """Remove all 1s from `shape`. If `batched`, shape[0] is preserved, otherwise a batch axis is prepended.
 
     Example 1:
