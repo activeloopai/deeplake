@@ -1,4 +1,4 @@
-import pickle  # TODO: NEVER USE PICKLE
+import json
 from typing import Any, Callable, Optional
 
 import numpy as np
@@ -11,11 +11,11 @@ from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
+    storage[get_tensor_meta_key(key)] = json.dumps(meta)
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+    return json.loads(storage[get_tensor_meta_key(key)])
 
 
 def default_tensor_meta(
@@ -48,8 +48,8 @@ def update_tensor_meta_with_array(
     if batched:
         shape = shape[1:]
     tensor_meta["dtype"] = str(array.dtype)
-    tensor_meta["min_shape"] = shape
-    tensor_meta["max_shape"] = shape
+    tensor_meta["min_shape"] = list(shape)
+    tensor_meta["max_shape"] = list(shape)
 
     return tensor_meta
 

@@ -189,16 +189,13 @@ def _storage_from_request(request, memory_storage, local_storage, s3_storage):
     cache_sizes = []
 
     if MEMORY in requested_providers:
-        _skip_if_none(memory_storage)
         storage_providers.append(memory_storage)
         cache_sizes.append(MIN_FIRST_CACHE_SIZE)
     if LOCAL in requested_providers:
-        _skip_if_none(local_storage)
         storage_providers.append(local_storage)
         cache_size = MIN_FIRST_CACHE_SIZE if not cache_sizes else MIN_SECOND_CACHE_SIZE
         cache_sizes.append(cache_size)
     if S3 in requested_providers:
-        _skip_if_none(s3_storage)
         storage_providers.append(s3_storage)
 
     if len(storage_providers) == len(cache_sizes):
@@ -211,18 +208,21 @@ def _storage_from_request(request, memory_storage, local_storage, s3_storage):
 def memory_storage(request):
     if not _is_opt_true(request, MEMORY_OPT):
         return _get_memory_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
 def local_storage(request):
     if _is_opt_true(request, LOCAL_OPT):
         return _get_local_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
 def s3_storage(request):
     if _is_opt_true(request, S3_OPT):
         return _get_s3_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
@@ -232,19 +232,16 @@ def storage(request, memory_storage, local_storage, s3_storage):
 
 @pytest.fixture
 def memory_ds(memory_storage):
-    _skip_if_none(memory_storage)
     return _get_dataset(memory_storage)
 
 
 @pytest.fixture
 def local_ds(local_storage):
-    _skip_if_none(local_storage)
     return _get_dataset(local_storage)
 
 
 @pytest.fixture
 def s3_ds(s3_storage):
-    _skip_if_none(s3_storage)
     return _get_dataset(s3_storage)
 
 
