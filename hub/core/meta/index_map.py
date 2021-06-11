@@ -1,15 +1,22 @@
-from hub.constants import META_ENCODING
-import json
-from typing import List
-
-from hub.core.typing import StorageProvider
-from hub.util.keys import get_index_map_key
+from hub.util.keys import get_index_meta_key
+from hub.core.storage.provider import StorageProvider
+from hub.core.meta.meta import CallbackList, Meta
 
 
-def write_index_map(key: str, storage: StorageProvider, index_map: list):
-    index_map_key = get_index_map_key(key)
-    storage[index_map_key] = json.dumps(index_map).encode(META_ENCODING)
+class IndexMeta(Meta):
+    @staticmethod
+    def create(key: str, storage: StorageProvider):
+        # TODO: check if already exists
 
+        required_meta = {"entries": CallbackList}
+        return IndexMeta(get_index_meta_key(key), storage, required_meta, allow_custom_meta=False)
 
-def read_index_map(key: str, storage: StorageProvider) -> List[dict]:
-    return json.loads(storage[get_index_map_key(key)])
+    @staticmethod
+    def load(key: str, storage: StorageProvider):
+        # TODO: check if doesn't exist
+
+        return IndexMeta(get_index_meta_key(key), storage)
+
+    def add_entry(self, entry: dict):
+        # TODO: validate entry
+        self.entries.append(entry)

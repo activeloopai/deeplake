@@ -88,14 +88,13 @@ def _convert_from_callback_classes(value: Any):
 class Meta:
     _initialized: bool = False
 
-    def __init__(self, key: str, storage: StorageProvider, required_meta: dict=None):
+    def __init__(self, key: str, storage: StorageProvider, required_meta: dict=None, allow_custom_meta=True):
         self.key = key
         self.storage = storage
 
         if self.key in self.storage:
             if required_meta is not None:
                 raise Exception()  # TODO: exceptions.py or have `create_meta`/`load_meta` functions
-
             self._read()
 
         else:
@@ -107,7 +106,7 @@ class Meta:
 
             required_meta["version"] = hub.__version__
 
-            if "custom_meta" not in required_meta:
+            if "custom_meta" not in required_meta and allow_custom_meta:
                 required_meta["custom_meta"] = CallbackDict(self._write)
 
             self.from_dict(required_meta)
