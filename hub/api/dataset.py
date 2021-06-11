@@ -18,7 +18,6 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
-from hub.util.index import Index
 from hub.util.get_storage_provider import get_storage_provider
 
 
