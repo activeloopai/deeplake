@@ -3,7 +3,7 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE, META_ENCODING
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
@@ -11,7 +11,7 @@ from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = json.dumps(meta)
+    storage[get_tensor_meta_key(key)] = json.dumps(meta).encode(META_ENCODING)
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
