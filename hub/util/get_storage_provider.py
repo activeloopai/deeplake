@@ -27,11 +27,15 @@ def get_storage_provider(
         return storage
 
 
-def storage_provider_from_url(url: str, creds: dict, mode: str):
+def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[str]):
     """Construct a StorageProvider given a path.
 
     Arguments:
-        url (str): url to the provider root, if any.
+        url (str): The full path to the Dataset.
+        creds (dict): A dictionary containing credentials used to access the dataset at the url.
+            This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+        mode (str, optional): Mode in which the dataset is opened.
+            Supported modes include ("r", "w", "a").
 
     Returns:
         If given a valid S3 path, return the S3Provider.
@@ -44,6 +48,8 @@ def storage_provider_from_url(url: str, creds: dict, mode: str):
     """
     # TODO pass mode to provider and use it to properly set access.
     mode = mode or "a"
+    if creds is None:
+        creds = {}
     if url.startswith("s3://"):
         key = creds.get("aws_access_key_id")
         secret = creds.get("aws_secret_access_key")

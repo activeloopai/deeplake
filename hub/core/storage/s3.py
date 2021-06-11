@@ -42,13 +42,15 @@ class S3Provider(StorageProvider):
             aws_region (optional, str): Specifies the AWS Region to send requests to.
             max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
+            mode (str, optional): Mode in which the S3Provider is opened.
+                Supported modes include ("r", "w", "a").
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
         """
-        self.aws_region = aws_region
-        self.endpoint_url = endpoint_url
-        self.expiration = None
-        self.mode = mode
+        self.aws_region: Optional[str] = aws_region
+        self.endpoint_url: Optional[str] = endpoint_url
+        self.expiration: Optional[str] = None
+        self.mode: Optional[str] = mode
 
         root = root.replace("s3://", "")
         self.bucket = root.split("/")[0]
@@ -209,7 +211,7 @@ class S3Provider(StorageProvider):
             tag (str): The Hub tag of the dataset in the format username/dataset_name.
             expiration (str): The time at which the credentials expire.
         """
-        self.tag = tag
+        self.tag: Optional[str] = tag
         self.expiration = expiration
 
     def _check_update_creds(self):

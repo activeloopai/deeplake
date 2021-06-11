@@ -58,6 +58,7 @@ class Dataset:
                 This is raised if none of them are specified or more than one are specifed.
             InvalidTagException: If an incorrect tag argument is passed which is not in username/datasetname format.
             AuthorizationException: If a tag is specified and the user doesn't have access to the dataset.
+            PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
         self.index = index
         if creds is None:

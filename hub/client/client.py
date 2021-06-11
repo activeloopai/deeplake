@@ -134,6 +134,9 @@ class HubBackendClient:
             ds_name (str): The name of the dataset being accessed.
             mode (str, optional): The mode in which the user has requested to open the dataset.
                 If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
+
+        Returns:
+            tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """
         relative_url = GET_DATASET_CREDENTIALS_SUFFIX % (org_id, ds_name)
         response = self.request(
