@@ -94,9 +94,11 @@ class TorchDataset:
         # processed cache miss, process more samples
         if index > self.processed_range.stop:
             self._process_samples()
+        sample = self.processed_samples[index - self.processed_range.start]
         if index == len(self) - 1:  # clean up at the end
             self._all_shared_memory_clean_up()
-        return self.processed_samples[index - self.processed_range.start]
+            self.processed_range = slice(-1, -1)
+        return sample
 
     def __iter__(self):
         for index in range(len(self)):
