@@ -47,8 +47,8 @@ class Dataset:
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the url.
-                This takes precedence over credentials present in the environment. Only used when url is provided.
-                This parameter is ignored if storage or tag are provided as arguments.
+                This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             storage (StorageProvider, optional): The storage provider used to access the dataset.
                 Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
 
@@ -91,7 +91,7 @@ class Dataset:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, Index)):
             new_index = self.index[Index(item)]
-            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+            return Dataset(storage=self.storage, index=new_index)
         else:
             raise InvalidKeyTypeError(item)
 
