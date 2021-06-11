@@ -1,13 +1,17 @@
-from hub.constants import META_ENCODING
-import json
-
-from hub.core.typing import StorageProvider
+from hub.core.storage.provider import StorageProvider
+from hub.core.meta.meta import CallbackList, Meta
 from hub.util.keys import get_dataset_meta_key
 
+class DatasetMeta(Meta):
 
-def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[get_dataset_meta_key()] = json.dumps(meta).encode(META_ENCODING)
+    @staticmethod
+    def create(storage: StorageProvider):
+        required_meta = {
+            "tensors": CallbackList,
+        }
+    
+        return DatasetMeta(get_dataset_meta_key(), storage, required_meta=required_meta)
 
-
-def read_dataset_meta(storage: StorageProvider) -> dict:
-    return json.loads(storage[get_dataset_meta_key()])
+    @staticmethod
+    def load(storage: StorageProvider):
+        return DatasetMeta(get_dataset_meta_key(), storage)
