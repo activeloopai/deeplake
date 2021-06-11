@@ -1,33 +1,33 @@
-from hub.core.index import Index
+import re
 from typing import List, Tuple, Union
-import numpy as np
-from PIL import Image  # type: ignore
-import exiftool  # type: ignore
 
+import exiftool  # type: ignore
+import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
+from hub.core.flatten import row_wise_to_bytes
+from hub.core.index import Index
 from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.core.meta.tensor_meta import (
     read_tensor_meta,
-    write_tensor_meta,
     update_tensor_meta_with_array,
     validate_tensor_meta,
+    write_tensor_meta,
 )
-from hub.core.meta.index_map import read_index_map, write_index_map
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
-from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
+from hub.util.array import normalize_and_batchify_array_shape
+from hub.util.dataset import get_compressor
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
+    ImageReadError,
     TensorAlreadyExistsError,
+    TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
-    TensorDoesNotExistError,
-    ImageReadError,
     WrongMetadataError,
 )
-from hub.core.flatten import row_wise_to_bytes
-from hub.util.dataset import get_compressor
+from hub.util.keys import get_index_map_key, get_tensor_meta_key
+from PIL import Image  # type: ignore
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
@@ -276,7 +276,7 @@ def read(image_path: str, check_meta: bool = True):
         metadata = et.get_metadata(image_path)
     with open(image_path, "rb") as image_file:
         image_bytes = image_file.read()
-    meta_size = tuple(map(int, metadata["Composite:ImageSize"].split("x")))
+    meta_size = tuple(map(int, re.split("x| ", metadata["Composite:ImageSize"])))
     for meta_key, meta_value in metadata.items():
         if meta_key.endswith("FileType"):
             meta_extension = meta_value
