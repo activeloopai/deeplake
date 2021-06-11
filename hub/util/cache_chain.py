@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import uuid1
 
 from hub.core.storage import StorageProvider, MemoryProvider, LocalProvider
@@ -42,7 +42,8 @@ def generate_chain(
     base_storage: StorageProvider,
     memory_cache_size: int,
     local_cache_size: int,
-    path: str,
+    url: Optional[str] = None,
+    tag: Optional[str] = None,
 ):
     """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and
         local caches.
@@ -51,7 +52,9 @@ def generate_chain(
         base_storage (StorageProvider): The underlying actual storage of the Dataset.
         memory_cache_size (int): The size of the memory cache to be used in bytes.
         local_cache_size (int): The size of the local filesystem cache to be used in bytes.
-        path (str): The location of the dataset. If not None, it is used to figure out the folder name where the local
+        url (str, optional): The url of the dataset. If not None, it is used to figure out the folder name where the local
+            cache is stored.
+        tag (str, optional): The tag of the dataset. If not None, it is used to figure out the folder name where the local
             cache is stored.
 
     Returns:
@@ -59,10 +62,12 @@ def generate_chain(
             size has been specified for them.
     """
 
-    if path:
-        cached_dataset_name = path.replace("://", "_")
+    if url:
+        cached_dataset_name = url.replace("://", "_")
         cached_dataset_name = cached_dataset_name.replace("/", "_")
         cached_dataset_name = cached_dataset_name.replace("\\", "_")
+    elif tag:
+        cached_dataset_name = tag.replace("/", "_")
     else:
         cached_dataset_name = str(uuid1())
 
