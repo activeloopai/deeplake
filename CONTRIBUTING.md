@@ -131,3 +131,12 @@ We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usag
 - You can opt out of `--local` and `--s3` for all commands, or add `--memory-skip`. Also `--cache-chains-only` works.
 - Optionally, you can remove the `--benchmark-only` flag in any of these commands to run normal tests alongside the benchmarks.
 
+## Generating API Docs
+
+Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
+API docs are hosted at: https://api-docs.activeloop.ai/
+
+Run the below command to generate API documentation:
+```
+  pdoc3 --html --output-dir api_docs hub
+```
