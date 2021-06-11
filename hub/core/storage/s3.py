@@ -1,6 +1,7 @@
+from hub.client.client import HubBackendClient
 import posixpath
 from typing import Optional
-
+import time
 import boto3
 import botocore  # type: ignore
 
@@ -19,7 +20,8 @@ class S3Provider(StorageProvider):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
-        max_pool_connections: Optional[int] = 50,
+        max_pool_connections: int = 50,
+        mode: Optional[str] = None,
         client=None,
     ):
         """Initializes the S3Provider
@@ -38,16 +40,17 @@ class S3Provider(StorageProvider):
             endpoint_url (optional, str): The complete URL to use for the constructed client.
                 This needs to be provided for cases in which you're interacting with MinIO, Wasabi, etc.
             aws_region (optional, str): Specifies the AWS Region to send requests to.
-            max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
+            max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
         """
         self.aws_region = aws_region
         self.endpoint_url = endpoint_url
+        self.expiration = None
+        self.mode = mode
 
         root = root.replace("s3://", "")
-
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
 
@@ -86,6 +89,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
         """
+        self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
@@ -111,6 +115,7 @@ class S3Provider(StorageProvider):
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
         """
+        self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -135,6 +140,7 @@ class S3Provider(StorageProvider):
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
                 won't raise KeyError.
         """
+        self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
             self.client.delete_object(Bucket=self.bucket, Key=path)
@@ -150,6 +156,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
+        self._check_update_creds()
         try:
             # TODO boto3 list_objects only returns first 1000 objects
             items = self.client.list_objects_v2(Bucket=self.bucket, Prefix=self.path)
@@ -173,6 +180,7 @@ class S3Provider(StorageProvider):
         Raises:
             S3ListError: Any S3 error encountered while listing the objects.
         """
+        self._check_update_creds()
         return len(self._list_keys())
 
     def __iter__(self):
@@ -181,12 +189,57 @@ class S3Provider(StorageProvider):
         Yields:
             str: the name of the object that it is iterating over.
         """
+        self._check_update_creds()
         yield from self._list_keys()
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+        self._check_update_creds()
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
             bucket.objects.filter(Prefix=self.path).delete()
         else:
             super().clear()
+
+    def _set_hub_creds_info(self, tag: str, expiration: str):
+        """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
+        This info is used to fetch new credentials when the temporary 12 hour credentials expire.
+
+        Args:
+            tag (str): The Hub tag of the dataset in the format username/dataset_name.
+            expiration (str): The time at which the credentials expire.
+        """
+        self.tag = tag
+        self.expiration = expiration
+
+    def _check_update_creds(self):
+        """If the client has an expiration time, check if creds are expired and fetch new ones.
+        This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
+        """
+        if self.expiration and float(self.expiration) < time.time():
+            hub_client = HubBackendClient()
+            org_id, ds_name = self.tag.split("/")
+            url, creds, mode, expiration = hub_client.get_dataset_credentials(
+                org_id,
+                ds_name,
+                self.mode,
+            )
+            self.expiration = expiration
+            self.client = boto3.client(
+                "s3",
+                aws_access_key_id=creds["access_key"],
+                aws_secret_access_key=creds["secret_key"],
+                aws_session_token=creds["session_token"],
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )
+            self.resource = boto3.resource(
+                "s3",
+                aws_access_key_id=creds["access_key"],
+                aws_secret_access_key=creds["secret_key"],
+                aws_session_token=creds["session_token"],
+                config=self.client_config,
+                endpoint_url=self.endpoint_url,
+                region_name=self.aws_region,
+            )

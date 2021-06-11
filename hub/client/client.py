@@ -1,24 +1,28 @@
 import sys
-from typing import Optional
-
 import requests
-
-from hub import __version__
+from typing import Optional
+from hub.util.exceptions import LoginException
+from hub.util.get_property import get_property
+from hub.client.utils import get_auth_header, check_response_status, write_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     GET_TOKEN_SUFFIX,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
+    GET_DATASET_CREDENTIALS_SUFFIX,
 )
-from hub.client.utils import get_auth_header, check_response_status
-from hub.util.exceptions import LoginException
 
 
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self):
-        self.auth_header = None
+        self.version = get_property("__version__", "hub")
+        self.auth_header = get_auth_header()
+        if not self.auth_header:
+            token = self.request_auth_token(username="public", password="")
+            write_token(token)
+            self.auth_header = f"Bearer {token}"
 
     def request(
         self,
@@ -63,8 +67,7 @@ class HubBackendClient:
         relative_url = relative_url.strip("/")
         request_url = f"{endpoint}/{relative_url}"
         headers = headers or {}
-        headers["hub-cli-version"] = __version__
-        self.auth_header = self.auth_header or get_auth_header()
+        headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
         try:
             response = requests.request(
@@ -110,7 +113,7 @@ class HubBackendClient:
         return token
 
     def send_register_request(self, username: str, email: str, password: str):
-        """Sends a request to backend to register a new
+        """Sends a request to backend to register a new user.
 
         Args:
             username (str): The Activeloop username to create account for.
@@ -121,6 +124,26 @@ class HubBackendClient:
         json = {"username": username, "email": email, "password": password}
         self.request("POST", REGISTER_USER_SUFFIX, json=json)
 
-    def get_dataset_credentials(self, org_id: str, ds_name: str, mode: str):
-        # waiting for AL-942
-        pass
+    def get_dataset_credentials(
+        self, org_id: str, ds_name: str, mode: Optional[str] = None
+    ):
+        """Retrieves temporary 12 hour credentials for the required dataset from the backend.
+
+        Args:
+            org_id (str): The name of the user/organization to which the dataset belongs.
+            ds_name (str): The name of the dataset being accessed.
+            mode (str, optional): The mode in which the user has requested to open the dataset.
+                If not provided, the backend will set mode to 'a' if user has write permission, else 'r'.
+        """
+        relative_url = GET_DATASET_CREDENTIALS_SUFFIX % (org_id, ds_name)
+        response = self.request(
+            "GET",
+            relative_url,
+            endpoint=HUB_REST_ENDPOINT,
+            params={"mode": mode},
+        ).json()
+        full_url = response.get("path")
+        creds = response["creds"]
+        mode = response["mode"]
+        expiration = creds["expiration"]
+        return full_url, creds, mode, expiration

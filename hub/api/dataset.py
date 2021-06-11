@@ -12,59 +12,69 @@ from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
+    PathNotEmptyException,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
 from hub.util.index import Index
-from hub.util.path import storage_provider_from_path
+from hub.util.get_storage_provider import get_storage_provider
 
 
 class Dataset:
     def __init__(
         self,
-        path: str = "",
-        mode: str = "a",
+        tag: Optional[str] = None,
+        url: Optional[str] = None,
+        mode: Optional[str] = None,
         index: Union[int, slice, Index] = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        creds: Optional[dict] = None,
         storage: Optional[StorageProvider] = None,
     ):
         """Initializes a new or existing dataset.
 
         Args:
-            path (str): The location of the dataset. Used to initialize the storage provider.
-            mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
-                Defaults to "a".
+            tag (str, optional): The Hub tag of the dataset in the format username/datasetname. Use this if you want to use Hub cloud storage.
+            url (str, optional): The full path to the dataset. Use this if you want to use local filesystem or s3 or RAM to store the dataset.
+                Can be either a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            mode (str, optional): Mode in which the dataset is opened.
+                Supported modes include ("r", "w", "a").
             index: The Index object restricting the view of this dataset's tensors.
                 Can be an int, slice, or (used internally) an Index object.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            storage (StorageProvider, optional): The storage provider used to access
-                the data stored by this dataset. If this is specified, the path given is ignored.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the url.
+                This takes precedence over credentials present in the environment. Only used when url is provided.
+                This parameter is ignored if storage or tag are provided as arguments.
+            storage (StorageProvider, optional): The storage provider used to access the dataset.
+                Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
-            UserWarning: Both path and storage should not be given.
+            ImproperDatasetInitialization: Exactly one argument out of 'tag', 'url' and 'storage' needs to be specified.
+                This is raised if none of them are specified or more than one are specifed.
+            InvalidTagException: If an incorrect tag argument is passed which is not in username/datasetname format.
+            AuthorizationException: If a tag is specified and the user doesn't have access to the dataset.
         """
-        self.mode = mode
         self.index = Index(index)
-
-        if storage is not None and path:
-            warnings.warn(
-                "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
-            )
-        base_storage = storage or storage_provider_from_path(path)
+        if creds is None:
+            creds = {}
+        base_storage = get_storage_provider(tag, url, storage, mode, creds)
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
-            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, url
         )
         self.tensors: Dict[str, Tensor] = {}
 
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+        elif len(self.storage) > 0:
+            raise PathNotEmptyException
         else:
             self.meta = {"tensors": []}
 

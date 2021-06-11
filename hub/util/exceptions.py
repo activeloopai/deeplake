@@ -137,6 +137,27 @@ class LoginException(Exception):
         super().__init__(message)
 
 
+class ImproperDatasetInitialization(Exception):
+    def __init__(self, path):
+        super().__init__(
+            "Exactly one argument out of 'tag', 'url' and 'storage' should be provided."
+        )
+
+
+class InvalidTagException(Exception):
+    def __init__(self):
+        super().__init__(
+            f"The Dataset's 'tag' is invalid. It should be of the form username/dataset."
+        )
+
+
+class PathNotEmptyException(Exception):
+    def __init__(self):
+        super().__init__(
+            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+        )
+
+
 # Exceptions encountered while interection with the Hub backend
 class AuthenticationException(Exception):
     def __init__(self, message="Authentication failed. Please try logging in again."):

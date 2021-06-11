@@ -54,6 +54,6 @@ def register(username: str, email: str, password: str):
         client.send_register_request(username, email, password)
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo(f"\nSuccessfully registered and logged in as {username}")
+        click.echo(f"\nSuccessfully registered and logged in to Hub as {username}.")
     except Exception as e:
         raise SystemExit(f"\nUnable to register new user: {e}")
