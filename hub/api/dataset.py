@@ -56,7 +56,8 @@ class Dataset:
                 "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
             )
         elif storage is not None and hasattr(storage, "root"):
-            self.path = storage.root  # Extract the path for printing, if path not given
+            # Extract the path for printing, if path not given
+            self.path = storage.root  # type: ignore
 
         base_storage = storage or storage_provider_from_path(path)
         memory_cache_size_bytes = memory_cache_size * MB
