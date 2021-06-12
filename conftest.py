@@ -180,13 +180,22 @@ def _storage_from_request(request):
     cache_sizes = []
 
     if MEMORY in requested_providers:
+        if _is_opt_true(request, MEMORY_OPT):
+            pytest.skip()
+
         storage_providers.append(_get_memory_provider(request))
         cache_sizes.append(MIN_FIRST_CACHE_SIZE)
     if LOCAL in requested_providers:
+        if not _is_opt_true(request, LOCAL_OPT):
+            pytest.skip()
+
         storage_providers.append(_get_local_provider(request))
         cache_size = MIN_FIRST_CACHE_SIZE if not cache_sizes else MIN_SECOND_CACHE_SIZE
         cache_sizes.append(cache_size)
     if S3 in requested_providers:
+        if not _is_opt_true(request, S3_OPT):
+            pytest.skip()
+
         storage_providers.append(_get_s3_provider(request))
 
     if len(storage_providers) == len(cache_sizes):
@@ -214,8 +223,8 @@ def s3_storage(request):
 
 
 @pytest.fixture
-def storage(request, memory_storage, local_storage, s3_storage):
-    return _storage_from_request(request, memory_storage, local_storage, s3_storage)
+def storage(request):
+    return _storage_from_request(request)
 
 
 @pytest.fixture
@@ -235,9 +244,7 @@ def s3_ds(s3_storage):
 
 @pytest.fixture
 def ds(request):
-    return _get_dataset(
-        _storage_from_request(request)
-    )
+    return _get_dataset(_storage_from_request(request))
 
 
 def print_session_id():
