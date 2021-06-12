@@ -1,4 +1,4 @@
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -247,11 +247,23 @@ class MetaError(Exception):
 
 class MetaDoesNotExistError(MetaError):
     def __init__(self, key: str):
-        super().__init__(f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
-            If you are trying to read the meta, heads up: it didn't get written.")
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
+            If you are trying to read the meta, heads up: it didn't get written."
+        )
 
 
 class MetaAlreadyExistsError(MetaError):
     def __init__(self, key: str, required_meta: dict):
-        super().__init__(f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
-            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta}).")
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
+            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta})."
+        )
+
+
+class MetaInvalidKey(MetaError):
+    def __init__(self, name: str, available_keys: List[str]):
+        super().__init__(
+            f'"{name}" is an invalid key for meta (`meta_object.{name}`). \
+            Maybe a typo? Available keys: {str(available_keys)}'
+        )

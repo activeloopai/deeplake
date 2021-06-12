@@ -1,5 +1,15 @@
-from hub.util.exceptions import MetaAlreadyExistsError, MetaDoesNotExistError
-from hub.util.callbacks import CallbackDict, CallbackList, convert_from_callback_classes, convert_to_callback_classes
+from attr import Attribute
+from hub.util.exceptions import (
+    MetaAlreadyExistsError,
+    MetaDoesNotExistError,
+    MetaInvalidKey,
+)
+from hub.util.callbacks import (
+    CallbackDict,
+    CallbackList,
+    convert_from_callback_classes,
+    convert_to_callback_classes,
+)
 import json
 from hub.core.storage.provider import StorageProvider
 
@@ -9,7 +19,13 @@ import hub
 class Meta:
     _initialized: bool = False
 
-    def __init__(self, key: str, storage: StorageProvider, required_meta: dict=None, allow_custom_meta=True):
+    def __init__(
+        self,
+        key: str,
+        storage: StorageProvider,
+        required_meta: dict = None,
+        allow_custom_meta=True,
+    ):
         self.key = key
         self.storage = storage
 
@@ -46,7 +62,7 @@ class Meta:
         for key, value in meta.items():
             new_value = convert_to_callback_classes(value, self._write)
             setattr(self, key, new_value)
-        self._required_keys = meta.keys()
+        self._required_keys = list(meta.keys())
         return self
 
     def _write(self):
@@ -62,11 +78,11 @@ class Meta:
             # can only call `_write` for subsequent setattrs
             self._write()
 
-#     def __getattr__(self, key):
-#         print(key, hasattr(self, key))
-#         if not hasattr(self, key):
-#             raise Exception('No attribute')
-#         return super().__getattr__(key)
+    def __getattribute__(self, name: str):
+        try:
+            return super().__getattribute__(name)
+        except AttributeError:
+            raise MetaInvalidKey(name, self._required_keys)
 
     def __iter__(self):
         return self.to_dict().__iter__()

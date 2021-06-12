@@ -1,8 +1,11 @@
 from typing import Callable, Any
 
 
+# TODO: __str__ & __repr__
+
+
 class CallbackList(list):
-    def __init__(self, callback: Callable, raw_list: list=[]):
+    def __init__(self, callback: Callable, raw_list: list = []):
         self.callback = callback
 
         # TODO: generalize callbacks to a list of callback functions
@@ -30,14 +33,14 @@ class CallbackList(list):
 
 
 class CallbackDict(dict):
-    def __init__(self, callback: Callable, raw_dict: dict={}):
+    def __init__(self, callback: Callable, raw_dict: dict = {}):
         self.callback = callback
 
         # TODO: handle recursive
         callback_dict = {}
         for k, v in raw_dict.items():
             callback_dict[k] = convert_to_callback_classes(v, self.callback)
-        
+
         super().__init__(callback_dict)
 
     def __setitem__(self, *args):
@@ -48,6 +51,7 @@ class CallbackDict(dict):
     def update(self, *args):
         super().update(*args)
         self.callback()
+
 
 def convert_to_callback_classes(value: Any, callback: Callable):
     # TODO: explain what's going on here

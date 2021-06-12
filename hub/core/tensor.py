@@ -140,7 +140,9 @@ def read_samples_from_tensor(
 
     meta = read_tensor_meta(key, storage)
     index_meta = IndexMeta.load(key, storage)
-    index_entries = [index_meta.entries[i] for i in index.values[0].indices(len(index_meta.entries))]
+    index_entries = [
+        index_meta.entries[i] for i in index.values[0].indices(len(index_meta.entries))
+    ]
 
     dtype = meta["dtype"]
 

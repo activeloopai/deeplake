@@ -61,7 +61,6 @@ class Dataset:
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
 
-
         self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
             self.meta = DatasetMeta.load(self.storage)

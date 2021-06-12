@@ -1,3 +1,5 @@
+from hub.util.exceptions import MetaInvalidKey
+import pytest
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.meta.meta import CallbackList, Meta
 import hub
@@ -7,12 +9,16 @@ TEST_META_KEY = "test_meta.json"
 
 
 def test_meta(local_storage):
-    meta = Meta(TEST_META_KEY, local_storage, {
-        "list": CallbackList, 
-        "nested_list": CallbackList, 
-        "number": 9, 
-        "string": "uhhh"
-    })
+    meta = Meta(
+        TEST_META_KEY,
+        local_storage,
+        {
+            "list": CallbackList,
+            "nested_list": CallbackList,
+            "number": 9,
+            "string": "uhhh",
+        },
+    )
     meta.list.append(1)
     meta.list.extend([5, 6])
     meta.nested_list.append([1, 2, 3])
@@ -58,3 +64,9 @@ def test_dataset_meta(local_storage):
 
     dataset_meta = DatasetMeta.load(local_storage)
     assert dataset_meta.tensors == ["tensor1"]
+
+
+@pytest.mark.xfail(raises=MetaInvalidKey, strict=True)
+def test_invalid_meta_key(local_storage):
+    meta = Meta(TEST_META_KEY, local_storage, required_meta={})
+    meta.some_key

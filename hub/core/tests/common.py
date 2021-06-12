@@ -75,9 +75,7 @@ def assert_meta_is_valid(meta: dict, expected_meta: dict):
         )
 
 
-def assert_chunk_sizes(
-    key: str, storage: StorageProvider, chunk_size: int
-):
+def assert_chunk_sizes(key: str, storage: StorageProvider, chunk_size: int):
     index_meta = IndexMeta.load(key, storage)
 
     incomplete_chunk_names = set()

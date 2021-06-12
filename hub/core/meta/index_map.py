@@ -9,7 +9,9 @@ class IndexMeta(Meta):
         # TODO: check if already exists
 
         required_meta = {"entries": CallbackList}
-        return IndexMeta(get_index_meta_key(key), storage, required_meta, allow_custom_meta=False)
+        return IndexMeta(
+            get_index_meta_key(key), storage, required_meta, allow_custom_meta=False
+        )
 
     @staticmethod
     def load(key: str, storage: StorageProvider):
