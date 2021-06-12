@@ -1,4 +1,4 @@
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -239,3 +239,41 @@ class InvalidImageDimensions(Exception):
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
         )
+
+
+class MetaError(Exception):
+    pass
+
+
+class MetaDoesNotExistError(MetaError):
+    def __init__(self, key: str):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
+            If you are trying to read the meta, heads up: it didn't get written."
+        )
+
+
+class MetaAlreadyExistsError(MetaError):
+    def __init__(self, key: str, required_meta: dict):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
+            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta})."
+        )
+
+
+class MetaInvalidKey(MetaError):
+    def __init__(self, name: str, available_keys: List[str]):
+        super().__init__(
+            f'"{name}" is an invalid key for meta (`meta_object.{name}`). \
+            Maybe a typo? Available keys: {str(available_keys)}'
+        )
+
+class MetaInvalidRequiredMetaKey(MetaError):
+    def __init__(self, key: str, subclass_name: str):
+        super().__init__(f"\"{key}\" should not be passed in `required_meta` (it is probably automatically set). \
+            This means the \"{subclass_name}\" class was constructed improperly.")
+
+
+class MetaInvalidInitFunctionCall(MetaError):
+    def __init__(self):
+        super().__init__("Only the `Meta` baseclass `__init__` function should be called.")

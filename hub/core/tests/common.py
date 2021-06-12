@@ -6,7 +6,7 @@ from typing import Dict, List
 import numpy as np
 import pytest
 
-from hub.core.meta.index_map import read_index_map
+from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
@@ -75,14 +75,14 @@ def assert_meta_is_valid(meta: dict, expected_meta: dict):
         )
 
 
-def assert_chunk_sizes(
-    key: str, index_map: List, chunk_size: int, storage: StorageProvider
-):
+def assert_chunk_sizes(key: str, storage: StorageProvider, chunk_size: int):
+    index_meta = IndexMeta.load(key, storage)
+
     incomplete_chunk_names = set()
     complete_chunk_count = 0
     total_chunks = 0
     actual_chunk_lengths_dict: Dict[str, int] = {}
-    for i, entry in enumerate(index_map):
+    for i, entry in enumerate(index_meta.entries):
         for j, chunk_name in enumerate(entry["chunk_names"]):
             chunk_key = get_chunk_key(key, chunk_name)
             chunk_length = len(storage[chunk_key])
@@ -184,8 +184,7 @@ def run_engine_test(
 
         assert np.array_equal(a_in, a_out), "Array not equal @ batch_index=%i." % i  # type: ignore
 
-    index_map = read_index_map(key, storage)
-    assert_chunk_sizes(key, index_map, chunk_size, storage)
+    assert_chunk_sizes(key, storage, chunk_size)
 
 
 def benchmark_write(

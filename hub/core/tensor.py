@@ -1,18 +1,17 @@
+from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
 from typing import List, Tuple, Union
 import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
-from hub.core.meta.index_map import read_index_map, write_index_map
 from hub.core.meta.tensor_meta import (
     read_tensor_meta,
     write_tensor_meta,
     update_tensor_meta_with_array,
     validate_tensor_meta,
 )
-from hub.core.meta.index_map import read_index_map, write_index_map
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
+from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
@@ -22,7 +21,6 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
-from hub.util.keys import get_tensor_meta_key, get_index_map_key
 from .flatten import row_wise_to_bytes
 
 
@@ -30,15 +28,15 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
     """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
 
     meta_key = get_tensor_meta_key(key)
-    index_map_key = get_index_map_key(key)
-    return meta_key in storage and index_map_key in storage
+    index_meta_key = get_index_meta_key(key)
+    return meta_key in storage and index_meta_key in storage
 
 
 def create_tensor(key: str, storage: StorageProvider, meta: dict):
     """If a tensor does not exist, create a new one with the provided meta.
 
     Args:
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         meta (dict): Meta for the tensor. For required properties, see `default_tensor_meta`.
 
@@ -52,7 +50,7 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     validate_tensor_meta(meta)
 
     write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, [])
+    IndexMeta.create(key, storage)
 
 
 def add_samples_to_tensor(
@@ -60,14 +58,15 @@ def add_samples_to_tensor(
     key: str,
     storage: StorageProvider,
     batched: bool = False,
+    index_meta: IndexMeta = None,
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
         have a batch axis, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
         If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
     Raises:
@@ -78,7 +77,9 @@ def add_samples_to_tensor(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    index_map = read_index_map(key, storage)
+    if index_meta is None:
+        index_meta = IndexMeta.load(key, storage)
+
     tensor_meta = read_tensor_meta(key, storage)
 
     array = normalize_and_batchify_array_shape(array, batched=batched)
@@ -96,25 +97,25 @@ def add_samples_to_tensor(
 
         if 0 in sample.shape:
             # if sample has a 0 in the shape, no data will be written
-            index_map_entry = {"chunk_names": []}  # type: ignore
+            index_entry = {"chunk_names": []}  # type: ignore
 
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
             b = memoryview(tobytes(sample))
 
-            index_map_entry = write_bytes(
-                b, key, tensor_meta["chunk_size"], storage, index_map
+            # TODO: remove `index_entry` return value
+            index_entry = write_bytes(
+                b, key, tensor_meta["chunk_size"], storage, index_meta
             )
 
-        index_map_entry["shape"] = sample.shape
+        index_entry["shape"] = sample.shape
         _update_tensor_meta_shapes(sample.shape, tensor_meta)
-        index_map.append(index_map_entry)
+        index_meta.entries.append(index_entry)
 
     tensor_meta["length"] += array_length
 
     write_tensor_meta(key, storage, tensor_meta)
-    write_index_map(key, storage, index_map)
 
 
 def read_samples_from_tensor(
@@ -126,8 +127,8 @@ def read_samples_from_tensor(
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
-        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
+        key (str): Key for where the chunks, index_meta, and meta are located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for reading the chunks, index_meta, and meta.
         index (Index): Index that represents which samples to read.
         aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
             If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
@@ -142,8 +143,10 @@ def read_samples_from_tensor(
     """
 
     meta = read_tensor_meta(key, storage)
-    index_map = read_index_map(key, storage)
-    index_entries = [index_map[i] for i in index.values[0].indices(len(index_map))]
+    index_meta = IndexMeta.load(key, storage)
+    index_entries = [
+        index_meta.entries[i] for i in index.values[0].indices(len(index_meta.entries))
+    ]
 
     dtype = meta["dtype"]
 
