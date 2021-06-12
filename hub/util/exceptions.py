@@ -267,3 +267,8 @@ class MetaInvalidKey(MetaError):
             f'"{name}" is an invalid key for meta (`meta_object.{name}`). \
             Maybe a typo? Available keys: {str(available_keys)}'
         )
+
+class MetaInvalidRequiredMetaKey(MetaError):
+    def __init__(self, key: str, subclass_name: str):
+        super().__init__(f"\"{key}\" should not be passed in `required_meta` (it is probably automatically set). \
+            This means the \"{subclass_name}\" class was constructed improperly.")

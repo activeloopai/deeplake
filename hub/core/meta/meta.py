@@ -3,10 +3,10 @@ from hub.util.exceptions import (
     MetaAlreadyExistsError,
     MetaDoesNotExistError,
     MetaInvalidKey,
+    MetaInvalidRequiredMetaKey,
 )
 from hub.util.callbacks import (
     CallbackDict,
-    CallbackList,
     convert_from_callback_classes,
     convert_to_callback_classes,
 )
@@ -30,16 +30,18 @@ class Meta:
         self.storage = storage
 
         if self.key in self.storage:
+            # TODO: maybe we want to use an @staticmethod `create` like `DatasetMeta`?
             if required_meta is not None:
                 raise MetaAlreadyExistsError(self.key, required_meta)
             self._read()
 
         else:
+            # TODO: maybe we want to use an @staticmethod `load` like `DatasetMeta`?
             if required_meta is None:
                 raise MetaDoesNotExistError(self.key)
 
             if "version" in required_meta:
-                raise Exception("Version is automatically set.")  # TODO: exceptions.py
+                raise MetaInvalidRequiredMetaKey("version", self.__class__.__name__)
 
             required_meta["version"] = hub.__version__
 

@@ -1,6 +1,7 @@
+from hub.util.callbacks import CallbackList
 from hub.util.keys import get_index_meta_key
 from hub.core.storage.provider import StorageProvider
-from hub.core.meta.meta import CallbackList, Meta
+from hub.core.meta.meta import Meta
 
 
 class IndexMeta(Meta):

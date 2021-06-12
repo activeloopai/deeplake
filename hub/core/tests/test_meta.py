@@ -1,7 +1,8 @@
-from hub.util.exceptions import MetaInvalidKey
+from hub.util.callbacks import CallbackList
+from hub.util.exceptions import MetaInvalidKey, MetaInvalidRequiredMetaKey
 import pytest
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.meta.meta import CallbackList, Meta
+from hub.core.meta.meta import Meta
 import hub
 
 
@@ -70,3 +71,9 @@ def test_dataset_meta(local_storage):
 def test_invalid_meta_key(local_storage):
     meta = Meta(TEST_META_KEY, local_storage, required_meta={})
     meta.some_key
+
+
+@pytest.mark.xfail(raises=MetaInvalidRequiredMetaKey, strict=True)
+def test_invalid_required_meta(local_storage):
+    # "version" should not be passed into `required_meta` (auto-populated)
+    meta = Meta(TEST_META_KEY, local_storage, required_meta={"version": hub.__version__})
