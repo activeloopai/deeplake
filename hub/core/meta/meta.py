@@ -1,88 +1,8 @@
+from hub.util.callbacks import CallbackDict, CallbackList, convert_from_callback_classes, convert_to_callback_classes
 import json
-from abc import ABC
 from hub.core.storage.provider import StorageProvider
-from typing import Any, Callable, Iterable
 
 import hub
-
-
-
-class CallbackList(list):
-    def __init__(self, write: Callable, raw_list: list=[]):
-        self.write = write
-
-        # TODO: generalize callbacks to a list of callback functions
-
-        # TODO: handle recursive
-        callback_list = []
-        for v in raw_list:
-            callback_list.append(_convert_to_callback_classes(v, write))
-
-        super().__init__(callback_list)
-
-    def append(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().append(*args)
-        self.write()
-
-    def extend(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().extend(*args)
-        self.write()
-
-    def __setitem__(self, *args):
-        super().__setitem__(*args)
-        self.write()
-
-
-class CallbackDict(dict):
-    def __init__(self, write: Callable, raw_dict: dict={}):
-        self.write = write
-
-        # TODO: handle recursive
-        callback_dict = {}
-        for k, v in raw_dict.items():
-            callback_dict[k] = _convert_to_callback_classes(v, write)
-        
-        super().__init__(callback_dict)
-
-    def __setitem__(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().__setitem__(*args)
-        self.write()
-
-    def update(self, *args):
-        super().update(*args)
-        self.write()
-
-def _convert_to_callback_classes(value: Any, callback: Callable):
-    # TODO: explain what's going on here
-
-    # TODO: check if value is supported `type` (we should only support what json supports)
-
-    if value in (CallbackList, CallbackDict):
-        new_value = value(callback)
-    elif isinstance(value, dict):
-        new_value = CallbackDict(callback, value)
-    elif isinstance(value, list):
-        new_value = CallbackList(callback, value)
-    else:
-        new_value = value
-
-    return new_value
-
-
-def _convert_from_callback_classes(value: Any):
-    # TODO: explain what's going on here
-
-    if isinstance(value, CallbackDict):
-        new_value = dict(value)
-    elif isinstance(value, CallbackList):
-        new_value = list(value)
-    else:
-        new_value = value
-
-    return new_value
 
 
 class Meta:
@@ -118,12 +38,12 @@ class Meta:
         d = {}
         for key in self._required_keys:
             value = getattr(self, key)
-            d[key] = _convert_from_callback_classes(value)
+            d[key] = convert_from_callback_classes(value)
         return d
 
     def from_dict(self, meta: dict):
         for key, value in meta.items():
-            new_value = _convert_to_callback_classes(value, self._write)
+            new_value = convert_to_callback_classes(value, self._write)
             setattr(self, key, new_value)
         self._required_keys = meta.keys()
         return self
