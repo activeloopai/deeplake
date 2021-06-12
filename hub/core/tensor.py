@@ -201,5 +201,6 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
 
 
 def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
-    tensor_meta["min_shape"] = tuple(np.minimum(tensor_meta["min_shape"], shape))
-    tensor_meta["max_shape"] = tuple(np.maximum(tensor_meta["max_shape"], shape))
+    for i, dim in enumerate(shape):
+        tensor_meta["min_shape"][i] = min(dim, tensor_meta["min_shape"][i])
+        tensor_meta["max_shape"][i] = max(dim, tensor_meta["max_shape"][i])

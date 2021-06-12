@@ -22,6 +22,7 @@ CHUNKS_FOLDER = "chunks"
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
 INDEX_MAP_FILENAME = "index_map.json"
+META_ENCODING = "utf8"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
