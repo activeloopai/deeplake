@@ -1,4 +1,4 @@
-from hub.core.meta.index_map import IndexMeta
+from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
 from typing import List, Tuple, Union
 import numpy as np
@@ -64,8 +64,8 @@ def add_samples_to_tensor(
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
         have a batch axis, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
         If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
     Raises:

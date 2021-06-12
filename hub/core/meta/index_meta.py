@@ -5,8 +5,6 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 
 
-# TODO: rename file to index_meta.py
-
 class IndexMeta(Meta):
     def __init__(self, *args, **kwargs):  # unused args for faster + better error message
         raise MetaInvalidInitFunctionCall()

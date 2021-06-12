@@ -6,7 +6,7 @@ import numpy as np
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict
-from hub.core.meta.index_map import read_index_map
+from hub.core.meta.index_meta import read_index_meta
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
@@ -59,15 +59,15 @@ class TorchDataset:
         # contains meta for each Tensor
         self.all_meta: Dict[str, Dict] = self._load_all_meta()
 
-        # contains index_map for each Tensor
-        self.all_index_maps: Dict[str, List] = self._load_all_index_maps()
+        # contains index_meta for each Tensor
+        self.all_index_metas: Dict[str, List] = self._load_all_index_metas()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
         self.all_index_value_maps: Dict[str, Dict[int, Any]] = defaultdict(dict)
 
         # tracks last index that was prefetched in the prefetch cache for each Tensor
-        self.last_index_map: Dict[str, int] = {}
+        self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
         self.processed_samples: List[Dict] = []
@@ -121,12 +121,12 @@ class TorchDataset:
         # could it be working here as we're only reading data?
         _hub_storage_provider = remove_memory_cache(self.dataset.storage)
 
-    def _load_all_index_maps(self):
+    def _load_all_index_metas(self):
         """Loads index maps for all Tensors into memory"""
-        all_index_maps = {
-            key: read_index_map(key, _hub_storage_provider) for key in self.keys
+        all_index_metas = {
+            key: read_index_meta(key, _hub_storage_provider) for key in self.keys
         }
-        return all_index_maps
+        return all_index_metas
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
@@ -169,16 +169,16 @@ class TorchDataset:
     def _get_chunk_names(self, index: int, key: str):
         """Gets chunk names for elements starting from index to read in parallel"""
         chunk_names: Set[str] = set()
-        index_map = self.all_index_maps[key]
+        index_meta = self.all_index_metas[key]
         while len(chunk_names) < self.workers and index < len(self):
-            chunks = index_map[index]["chunk_names"]
+            chunks = index_meta[index]["chunk_names"]
             chunk_names.update(chunks)
             index += 1
         return chunk_names
 
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
-        index_entry = self.all_index_maps[key][index]
+        index_entry = self.all_index_metas[key][index]
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
@@ -214,15 +214,15 @@ class TorchDataset:
         # saves np array for each index in memory
         for i in range(index, len(self)):
             chunks = []
-            index_entry = self.all_index_maps[key][i]
+            index_entry = self.all_index_metas[key][i]
             for chunk_name in index_entry["chunk_names"]:
                 if chunk_name not in chunk_map:
-                    self.last_index_map[key] = i - 1
+                    self.last_index_meta[key] = i - 1
                     return
                 chunks.append(chunk_map[chunk_name])
             self.all_index_value_maps[key][i] = self._np_from_chunk_list(i, key, chunks)
 
-        self.last_index_map[key] = len(self) - 1
+        self.last_index_meta[key] = len(self) - 1
 
     def _process_samples(self):
         """Processes the prefetched values from across tensors into dictionaries.
@@ -230,7 +230,7 @@ class TorchDataset:
         """
         first_index = self.processed_range.stop + 1
         # different no. of samples are fetched for each tensor, take the min and process
-        last_index = min(self.last_index_map[key] for key in self.keys)
+        last_index = min(self.last_index_meta[key] for key in self.keys)
         samples = []
         for i in range(first_index, last_index + 1):
             sample = {key: self.all_index_value_maps[key][i] for key in self.keys}

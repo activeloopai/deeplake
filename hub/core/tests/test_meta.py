@@ -1,4 +1,4 @@
-from hub.core.meta.index_map import IndexMeta
+from hub.core.meta.index_meta import IndexMeta
 from hub.util.callbacks import CallbackList
 from hub.util.exceptions import MetaInvalidKey, MetaInvalidRequiredMetaKey
 import pytest

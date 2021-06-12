@@ -6,7 +6,7 @@ from typing import Dict, List
 import numpy as np
 import pytest
 
-from hub.core.meta.index_map import IndexMeta
+from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import read_tensor_meta, default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
