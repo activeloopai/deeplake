@@ -39,7 +39,7 @@ class Dataset:
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
+                Supported modes include ("r", "w", "a").
                 Defaults to "a".
             index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -53,11 +53,16 @@ class Dataset:
         """
         self.mode = mode
         self.index = index
+        self.path = path  # Used for printing, if given
 
         if storage is not None and path:
             warnings.warn(
                 "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
             )
+        elif storage is not None and hasattr(storage, "root"):
+            # Extract the path for printing, if path not given
+            self.path = storage.root  # type: ignore
+
         base_storage = storage or storage_provider_from_path(path)
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
@@ -211,3 +216,12 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    def __str__(self):
+        path_str = f"path={self.path}, "
+        if not self.path:
+            path_str = ""
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"
