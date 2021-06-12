@@ -1,3 +1,4 @@
+from hub.core.meta.index_map import IndexMeta
 from hub.util.callbacks import CallbackList
 from hub.util.exceptions import MetaInvalidKey, MetaInvalidRequiredMetaKey
 import pytest
@@ -65,6 +66,18 @@ def test_dataset_meta(local_storage):
 
     dataset_meta = DatasetMeta.load(local_storage)
     assert dataset_meta.tensors == ["tensor1"]
+
+
+def test_index_meta(local_storage):
+    index_meta = IndexMeta.create(TEST_META_KEY, local_storage)
+    with pytest.raises(MetaInvalidKey):
+        index_meta.custom_meta
+    assert index_meta.entries == []
+    index_meta.entries.append({"start_byte": 0})
+    del index_meta
+
+    index_meta = IndexMeta.load(TEST_META_KEY, local_storage)
+    assert index_meta.entries == [{"start_byte": 0}]
 
 
 @pytest.mark.xfail(raises=MetaInvalidKey, strict=True)
