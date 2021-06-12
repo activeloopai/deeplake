@@ -53,15 +53,6 @@ def _get_storage_configs(request):
     }
 
 
-def _has_fixture(request, fixture):
-    return fixture in request.fixturenames
-
-
-def _skip_if_none(val):
-    if val is None:
-        pytest.skip()
-
-
 def _is_opt_true(request, opt):
     return request.config.getoption(opt)
 
@@ -168,7 +159,7 @@ def marks(request):
     yield marks
 
 
-def _storage_from_request(request, memory_storage, local_storage, s3_storage):
+def _storage_from_request(request):
     requested_providers = request.param.split(",")
 
     # --cache-chains-only force enables --cache-chains
@@ -189,14 +180,14 @@ def _storage_from_request(request, memory_storage, local_storage, s3_storage):
     cache_sizes = []
 
     if MEMORY in requested_providers:
-        storage_providers.append(memory_storage)
+        storage_providers.append(_get_memory_provider(request))
         cache_sizes.append(MIN_FIRST_CACHE_SIZE)
     if LOCAL in requested_providers:
-        storage_providers.append(local_storage)
+        storage_providers.append(_get_local_provider(request))
         cache_size = MIN_FIRST_CACHE_SIZE if not cache_sizes else MIN_SECOND_CACHE_SIZE
         cache_sizes.append(cache_size)
     if S3 in requested_providers:
-        storage_providers.append(s3_storage)
+        storage_providers.append(_get_s3_provider(request))
 
     if len(storage_providers) == len(cache_sizes):
         cache_sizes.pop()
@@ -208,21 +199,18 @@ def _storage_from_request(request, memory_storage, local_storage, s3_storage):
 def memory_storage(request):
     if not _is_opt_true(request, MEMORY_OPT):
         return _get_memory_provider(request)
-    pytest.skip()
 
 
 @pytest.fixture
 def local_storage(request):
     if _is_opt_true(request, LOCAL_OPT):
         return _get_local_provider(request)
-    pytest.skip()
 
 
 @pytest.fixture
 def s3_storage(request):
     if _is_opt_true(request, S3_OPT):
         return _get_s3_provider(request)
-    pytest.skip()
 
 
 @pytest.fixture
@@ -246,9 +234,9 @@ def s3_ds(s3_storage):
 
 
 @pytest.fixture
-def ds(request, memory_storage, local_storage, s3_storage):
+def ds(request):
     return _get_dataset(
-        _storage_from_request(request, memory_storage, local_storage, s3_storage)
+        _storage_from_request(request)
     )
 
 
