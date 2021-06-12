@@ -208,18 +208,21 @@ def _storage_from_request(request):
 def memory_storage(request):
     if not _is_opt_true(request, MEMORY_OPT):
         return _get_memory_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
 def local_storage(request):
     if _is_opt_true(request, LOCAL_OPT):
         return _get_local_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
 def s3_storage(request):
     if _is_opt_true(request, S3_OPT):
         return _get_s3_provider(request)
+    pytest.skip()
 
 
 @pytest.fixture
