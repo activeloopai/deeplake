@@ -58,6 +58,7 @@ def add_samples_to_tensor(
     key: str,
     storage: StorageProvider,
     batched: bool = False,
+    index_meta: IndexMeta = None,
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
@@ -76,7 +77,9 @@ def add_samples_to_tensor(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    index_meta = IndexMeta.load(key, storage)
+    if index_meta is None:
+        index_meta = IndexMeta.load(key, storage)
+
     tensor_meta = read_tensor_meta(key, storage)
 
     array = normalize_and_batchify_array_shape(array, batched=batched)
@@ -101,6 +104,7 @@ def add_samples_to_tensor(
             # choose to optimize for.
             b = memoryview(tobytes(sample))
 
+            # TODO: remove `index_entry` return value
             index_entry = write_bytes(
                 b, key, tensor_meta["chunk_size"], storage, index_meta
             )
