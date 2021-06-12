@@ -239,3 +239,19 @@ class InvalidImageDimensions(Exception):
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
         )
+
+
+class MetaError(Exception):
+    pass
+
+
+class MetaDoesNotExistError(MetaError):
+    def __init__(self, key: str):
+        super().__init__(f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
+            If you are trying to read the meta, heads up: it didn't get written.")
+
+
+class MetaAlreadyExistsError(MetaError):
+    def __init__(self, key: str, required_meta: dict):
+        super().__init__(f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
+            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta}).")

@@ -1,3 +1,4 @@
+from hub.util.exceptions import MetaAlreadyExistsError, MetaDoesNotExistError
 from hub.util.callbacks import CallbackDict, CallbackList, convert_from_callback_classes, convert_to_callback_classes
 import json
 from hub.core.storage.provider import StorageProvider
@@ -14,12 +15,12 @@ class Meta:
 
         if self.key in self.storage:
             if required_meta is not None:
-                raise Exception()  # TODO: exceptions.py or have `create_meta`/`load_meta` functions
+                raise MetaAlreadyExistsError(self.key, required_meta)
             self._read()
 
         else:
             if required_meta is None:
-                raise Exception()  # TODO: exceptions.py or have `create_meta`/`load_meta` functions
+                raise MetaDoesNotExistError(self.key)
 
             if "version" in required_meta:
                 raise Exception("Version is automatically set.")  # TODO: exceptions.py
@@ -61,8 +62,22 @@ class Meta:
             # can only call `_write` for subsequent setattrs
             self._write()
 
+#     def __getattr__(self, key):
+#         print(key, hasattr(self, key))
+#         if not hasattr(self, key):
+#             raise Exception('No attribute')
+#         return super().__getattr__(key)
+
     def __iter__(self):
         return self.to_dict().__iter__()
 
-    # TODO: __str__ & __repr__
+    def __str__(self):
+        if self._initialized:
+            return f"Meta(key={self.key}, data={self.to_dict()})"
+        else:
+            return f"UninitializedMeta"
+
+    def __repr__(self):
+        return str(self)
+
     # TODO: if trying to access an attribute that doesn't exist, raise more comprehensive error (what keys are available?)
