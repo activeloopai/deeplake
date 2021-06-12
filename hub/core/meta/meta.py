@@ -97,5 +97,3 @@ class Meta:
 
     def __repr__(self):
         return str(self)
-
-    # TODO: if trying to access an attribute that doesn't exist, raise more comprehensive error (what keys are available?)

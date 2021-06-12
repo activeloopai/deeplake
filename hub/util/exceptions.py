@@ -272,3 +272,8 @@ class MetaInvalidRequiredMetaKey(MetaError):
     def __init__(self, key: str, subclass_name: str):
         super().__init__(f"\"{key}\" should not be passed in `required_meta` (it is probably automatically set). \
             This means the \"{subclass_name}\" class was constructed improperly.")
+
+
+class MetaInvalidInitFunctionCall(MetaError):
+    def __init__(self):
+        super().__init__("Only the `Meta` baseclass `__init__` function should be called.")

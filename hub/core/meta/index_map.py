@@ -1,24 +1,26 @@
+from hub.util.exceptions import MetaInvalidInitFunctionCall
 from hub.util.callbacks import CallbackList
 from hub.util.keys import get_index_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 
 
+# TODO: rename file to index_meta.py
+
 class IndexMeta(Meta):
+    def __init__(self, *args, **kwargs):  # unused args for faster + better error message
+        raise MetaInvalidInitFunctionCall()
+
     @staticmethod
     def create(key: str, storage: StorageProvider):
-        # TODO: check if already exists
-
         required_meta = {"entries": CallbackList}
-        return IndexMeta(
+        return Meta(
             get_index_meta_key(key), storage, required_meta, allow_custom_meta=False
         )
 
     @staticmethod
     def load(key: str, storage: StorageProvider):
-        # TODO: check if doesn't exist
-
-        return IndexMeta(get_index_meta_key(key), storage)
+        return Meta(get_index_meta_key(key), storage)
 
     def add_entry(self, entry: dict):
         # TODO: validate entry
