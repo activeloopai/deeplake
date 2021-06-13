@@ -14,6 +14,7 @@ def write_bytes(
     chunk_size: int,
     storage: StorageProvider,
     index_meta: IndexMeta,
+    extra_index_meta: dict = {},
 ) -> dict:
     """Chunk and write bytes to storage and return the index_meta entry. The provided bytes are treated as a single
         sample.
@@ -78,15 +79,7 @@ def write_bytes(
         last_chunk = memoryview(chunk)
         last_chunk_name = chunk_name
 
-    # TODO: encode index_meta_entry as array instead of dictionary
-    # TODO: rename index_entry -> sample_meta
-    index_entry = {
-        "chunk_names": chunk_names,
-        "start_byte": start_byte,
-        "end_byte": end_byte,
-    }
-
-    return index_entry
+    index_meta.add_entry(chunk_names=chunk_names, start_byte=start_byte, end_byte=end_byte, **extra_index_meta)
 
 
 def _get_last_chunk(

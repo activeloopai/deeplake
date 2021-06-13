@@ -94,27 +94,18 @@ def add_samples_to_tensor(
     array_length = array.shape[0]
     for i in range(array_length):
         sample = array[i]
-
         if 0 in sample.shape:
             # if sample has a 0 in the shape, no data will be written
             index_entry = {"chunk_names": []}  # type: ignore
-
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
             b = memoryview(tobytes(sample))
+            write_bytes(b, key, tensor_meta["chunk_size"], storage, index_meta, extra_index_meta={"shape": sample.shape})
 
-            # TODO: remove `index_entry` return value
-            index_entry = write_bytes(
-                b, key, tensor_meta["chunk_size"], storage, index_meta
-            )
-
-        index_entry["shape"] = sample.shape
         _update_tensor_meta_shapes(sample.shape, tensor_meta)
-        index_meta.entries.append(index_entry)
 
     tensor_meta["length"] += array_length
-
     write_tensor_meta(key, storage, tensor_meta)
 
 
