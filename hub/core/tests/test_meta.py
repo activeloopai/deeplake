@@ -86,10 +86,12 @@ def test_tensor_meta(local_storage):
     assert tensor_meta.length == 10
     assert tensor_meta.min_shape == [1,2,3]
     tensor_meta.min_shape[2] = 99
+    tensor_meta.length += 1
     del tensor_meta
 
     tensor_meta = TensorMeta.load(TEST_META_KEY, local_storage)
     assert tensor_meta.min_shape == [1, 2, 99]
+    assert tensor_meta.length == 11
 
 
 def test_tensor_meta_htype_overwrite(local_storage):

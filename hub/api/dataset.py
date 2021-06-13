@@ -1,3 +1,5 @@
+from hub.htypes import DEFAULT_HTYPE
+from hub.core.meta.tensor_meta import TensorMeta
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
@@ -92,10 +94,10 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: Optional[str] = None,
+        htype: Optional[str] = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
-        extra_meta: Optional[dict] = None,
+        custom_meta: Optional[dict] = None,
     ):
         """Creates a new tensor in a dataset.
 
@@ -109,7 +111,7 @@ class Dataset:
             chunk_size (int, optional): The target size for chunks in this tensor.
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
-            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+            custom_meta (dict, optional): Any additional user-defined metadata to be added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -122,10 +124,13 @@ class Dataset:
 
         self.meta.tensors.append(name)
 
-        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
-        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        htype_overwrite={
+            "chunk_size": chunk_size,
+            "dtype": dtype,
+            "custom_meta" : custom_meta,
+        }
+        tensor = Tensor.create(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
         self.tensors[name] = tensor
-
         return tensor
 
     __getattr__ = __getitem__

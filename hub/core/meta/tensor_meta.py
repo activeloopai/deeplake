@@ -9,6 +9,14 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 
 
+def _remove_none_values_from_dict(d: dict) -> dict:
+    new_d = {}
+    for k, v in d.items():
+        if v is not None:
+            new_d[k] = v
+    return new_d
+
+
 class TensorMeta(Meta):
     htype: str
     dtype: str
@@ -19,6 +27,7 @@ class TensorMeta(Meta):
 
     @staticmethod
     def create(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
+        htype_overwrite = _remove_none_values_from_dict(htype_overwrite)
         validate_htype_overwrite(htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)

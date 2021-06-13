@@ -1,3 +1,5 @@
+from hub.htypes import DEFAULT_HTYPE
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.shape import Shape
 from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
@@ -11,7 +13,7 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError
+from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
 from hub.core.index import Index
 
 
@@ -20,7 +22,6 @@ class Tensor:
         self,
         key: str,
         storage: StorageProvider,
-        tensor_meta: dict = None,
         index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
@@ -44,16 +45,15 @@ class Tensor:
         self.storage = storage
         self.index = index or Index()
 
-        if tensor_exists(self.key, self.storage):
-            if tensor_meta is not None:
-                warnings.warn(
-                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming "
-                    "tensor_meta. Key: {}".format(self.key)
-                )
-        else:
-            if tensor_meta is None:
-                raise TensorDoesNotExistError(self.key)
-            create_tensor(self.key, self.storage, tensor_meta)
+        if not tensor_exists(self.key, self.storage):
+            raise TensorDoesNotExistError(self.key)
+
+
+    @staticmethod
+    def create(name: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
+        create_tensor(name, storage, htype=htype, htype_overwrite=htype_overwrite)
+        return Tensor(name, storage)
+
 
     def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
         """Extends a tensor by appending multiple elements from a sequence.
@@ -93,24 +93,15 @@ class Tensor:
 
     @property
     def meta(self):
-        return read_tensor_meta(self.key, self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_tensor_meta(self.key, self.storage, new_meta)
+        return TensorMeta.load(self.key, self.storage)
 
     @property
     def shape(self):
-        ds_meta = self.meta
-
-        min_shape = ds_meta["min_shape"]
-        max_shape = ds_meta["max_shape"]
-
-        return Shape(min_shape, max_shape)
+        return Shape(self.meta.min_shape, self.meta.max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
-        return self.meta["length"]
+        return self.meta.length
 
     def __getitem__(
         self,
@@ -141,5 +132,5 @@ class Tensor:
         """
 
         return read_samples_from_tensor(
-            self.key, self.storage, self.index, aslist=aslist
+            self.key, self.storage, index=self.index, aslist=aslist
         )
