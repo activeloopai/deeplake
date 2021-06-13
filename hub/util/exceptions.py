@@ -259,13 +259,6 @@ class MetaInvalidRequiredMetaKey(MetaError):
         )
 
 
-class MetaInvalidInitFunctionCall(MetaError):
-    def __init__(self):
-        super().__init__(
-            "Only the `Meta` baseclass `__init__` function should be called."
-        )
-
-
 class TensorMetaInvalidHtype(MetaError):
     def __init__(self, htype: str, available_htypes: Sequence[str]):
         super().__init__(

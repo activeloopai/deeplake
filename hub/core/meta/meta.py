@@ -1,4 +1,3 @@
-from attr import Attribute
 from hub.util.exceptions import (
     MetaAlreadyExistsError,
     MetaDoesNotExistError,

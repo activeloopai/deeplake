@@ -1,4 +1,3 @@
-from hub.util.exceptions import MetaInvalidInitFunctionCall
 from hub.util.callbacks import CallbackList
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
