@@ -16,28 +16,21 @@ def write_bytes(
     index_meta: IndexMeta,
     extra_index_meta: dict = {},
 ) -> dict:
-    """Chunk and write bytes to storage and return the index_meta entry. The provided bytes are treated as a single
-        sample.
+    """Chunk and write bytes to storage, then update `index_meta`. The provided bytes are treated as a single sample.
 
     Args:
         b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
-            chunked according
-            to `chunk_size`.
-        key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to it's root.
+            chunked according to `chunk_size`.
+        key (str): Key for where the index_meta and tensor_meta are located in `storage` relative to it's root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
         chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
-        index_meta (list): List of dictionaries that represent each sample. An entry for `index_meta` is returned
-            but not appended to `index_meta`.
-
-    Returns:
-        dict: Index map entry (note: it does not get appended to the `index_meta` argument). Dictionary keys:
-            chunk_names: Sequential list of names of chunks that were created.
-            start_byte: Start byte for this sample. Will be 0 if no previous chunks exist, otherwise will
-                be set to the length of the last chunk before writing.
-            end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
-    """  # TODO: Update docstring
+        index_meta (IndexMeta): IndexMeta object that will be written to to keep track of the written chunk(s).
+        extra_index_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however 
+            `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
+            to call `IndexMeta.add_entry`.
+    """
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
@@ -91,6 +84,7 @@ def _get_last_chunk(
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider where the chunks are stored.
+        index_meta (IndexMeta): IndexMeta object that is used to find the last chunk.
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
