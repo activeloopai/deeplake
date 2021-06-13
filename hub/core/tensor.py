@@ -114,7 +114,7 @@ def add_samples_to_tensor(
                 tensor_meta.chunk_size,
                 storage,
                 index_meta,
-                extra_index_meta={"shape": sample.shape},
+                extra_entry_meta={"shape": sample.shape},
             )
 
         tensor_meta.update_shape_interval(sample.shape)
