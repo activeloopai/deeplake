@@ -15,7 +15,7 @@ def write_bytes(
     storage: StorageProvider,
     index_meta: IndexMeta,
     extra_index_meta: dict = {},
-) -> dict:
+):
     """Chunk and write bytes to storage, then update `index_meta`. The provided bytes are treated as a single sample.
 
     Args:

@@ -1,12 +1,12 @@
+from hub.core.meta.index_meta import IndexMeta
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
-from hub.core.meta.tensor_meta import read_tensor_meta
 import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict
-from hub.core.meta.index_meta import read_index_meta
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
@@ -124,7 +124,7 @@ class TorchDataset:
     def _load_all_index_metas(self):
         """Loads index maps for all Tensors into memory"""
         all_index_metas = {
-            key: read_index_meta(key, _hub_storage_provider) for key in self.keys
+            key: IndexMeta.load(key, _hub_storage_provider) for key in self.keys
         }
         return all_index_metas
 
@@ -133,7 +133,7 @@ class TorchDataset:
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
         for key in self.keys:
-            meta = read_tensor_meta(key, _hub_storage_provider)
+            meta = TensorMeta.load(key, _hub_storage_provider)
             if meta["dtype"] == "uint16":
                 meta["dtype"] = "int32"
             elif meta["dtype"] in ["uint32", "uint64"]:

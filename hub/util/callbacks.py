@@ -66,7 +66,7 @@ class CallbackDict(dict):
         self.callback()
 
 
-def convert_to_callback_objects(value: Any, callback: Callable):
+def convert_to_callback_objects(value, callback: Callable):
     """Convert value into callback objects based on their type. For example, if `type(value) == list`,
     this will return a `CallbackList`.
     """
@@ -83,7 +83,7 @@ def convert_to_callback_objects(value: Any, callback: Callable):
     return new_value
 
 
-def convert_from_callback_objects(value: Any):
+def convert_from_callback_objects(value):
     """Convert value from callback objects into their subclass counterpart. For example, if `type(value) == CallbackList`,
     this will return a `list`.
     """
