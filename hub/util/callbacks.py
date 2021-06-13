@@ -6,14 +6,14 @@ class CallbackList(list):
         """Acts exactly like a normal `list`, however when modifier methods are called (ie. `append`, `extend`, `__setitem__`),
             the provided `callback` method will be called immediately afterwards.
 
-        Note: `raw_list` is recursively processed into callback compatible objects using `convert_to_callback_objects`. 
+        Note: `raw_list` is recursively processed into callback compatible objects using `convert_to_callback_objects`.
             This also applies to all modifier methods.
 
         Args:
             callback (Callable): A function to be called after every update method call.
             raw_list (list): Starter list to be initialized with. Emulates `list(raw_list)`.
         """
-        
+
         self.callback = callback
 
         callback_list = []

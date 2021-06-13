@@ -2,7 +2,11 @@ from hub.htypes import DEFAULT_DTYPE, DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.util.callbacks import CallbackList
-from hub.util.exceptions import MetaInvalidKey, MetaInvalidRequiredMetaKey, TensorMetaInvalidHtype
+from hub.util.exceptions import (
+    MetaInvalidKey,
+    MetaInvalidRequiredMetaKey,
+    TensorMetaInvalidHtype,
+)
 import pytest
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.meta.meta import Meta
@@ -84,7 +88,7 @@ def test_tensor_meta(local_storage):
 
     tensor_meta = TensorMeta.load(TEST_META_KEY, local_storage)
     assert tensor_meta.length == 10
-    assert tensor_meta.min_shape == [1,2,3]
+    assert tensor_meta.min_shape == [1, 2, 3]
     tensor_meta.min_shape[2] = 99
     tensor_meta.length += 1
     del tensor_meta
@@ -95,7 +99,9 @@ def test_tensor_meta(local_storage):
 
 
 def test_tensor_meta_htype_overwrite(local_storage):
-    tensor_meta = TensorMeta.create(TEST_META_KEY, local_storage, htype_overwrite={"dtype": "bool"})
+    tensor_meta = TensorMeta.create(
+        TEST_META_KEY, local_storage, htype_overwrite={"dtype": "bool"}
+    )
     del tensor_meta
 
     tensor_meta = TensorMeta.load(TEST_META_KEY, local_storage)
@@ -128,4 +134,6 @@ def test_invalid_meta_key(local_storage):
 @pytest.mark.xfail(raises=MetaInvalidRequiredMetaKey, strict=True)
 def test_invalid_required_meta(local_storage):
     # "version" should not be passed into `required_meta` (auto-populated)
-    meta = Meta(TEST_META_KEY, local_storage, required_meta={"version": hub.__version__})
+    meta = Meta(
+        TEST_META_KEY, local_storage, required_meta={"version": hub.__version__}
+    )

@@ -250,20 +250,27 @@ class MetaInvalidKey(MetaError):
             Maybe a typo? Available keys: {str(available_keys)}'
         )
 
+
 class MetaInvalidRequiredMetaKey(MetaError):
     def __init__(self, key: str, subclass_name: str):
-        super().__init__(f"'{key}' should not be passed in `required_meta` (it is probably automatically set). \
-            This means the '{subclass_name}' class was constructed improperly.")
+        super().__init__(
+            f"'{key}' should not be passed in `required_meta` (it is probably automatically set). \
+            This means the '{subclass_name}' class was constructed improperly."
+        )
 
 
 class MetaInvalidInitFunctionCall(MetaError):
     def __init__(self):
-        super().__init__("Only the `Meta` baseclass `__init__` function should be called.")
+        super().__init__(
+            "Only the `Meta` baseclass `__init__` function should be called."
+        )
 
 
 class TensorMetaInvalidHtype(MetaError):
     def __init__(self, htype: str, available_htypes: Sequence[str]):
-        super().__init__(f"Htype '{htype}' does not exist. Available htypes: {str(available_htypes)}")
+        super().__init__(
+            f"Htype '{htype}' does not exist. Available htypes: {str(available_htypes)}"
+        )
 
 
 class TensorMetaInvalidHtypeOverwrite(MetaError):
@@ -273,6 +280,7 @@ class TensorMetaInvalidHtypeOverwrite(MetaError):
                 str(value), key, explanation
             )
         )
+
 
 class TensorMetaMismatchError(MetaError):
     def __init__(self, meta_key: str, expected: Any, actual: Any):

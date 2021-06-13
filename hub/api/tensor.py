@@ -48,12 +48,15 @@ class Tensor:
         if not tensor_exists(self.key, self.storage):
             raise TensorDoesNotExistError(self.key)
 
-
     @staticmethod
-    def create(name: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
+    def create(
+        name: str,
+        storage: StorageProvider,
+        htype: str = DEFAULT_HTYPE,
+        htype_overwrite: dict = {},
+    ):
         create_tensor(name, storage, htype=htype, htype_overwrite=htype_overwrite)
         return Tensor(name, storage)
-
 
     def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
         """Extends a tensor by appending multiple elements from a sequence.

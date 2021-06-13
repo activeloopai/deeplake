@@ -60,9 +60,7 @@ def test_invalid_chunk_sizes(memory_storage, chunk_size):
 @pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwrite, strict=True)
 @pytest.mark.parametrize("dtype", [1, False, "floatf", "intj", "foo", "bar"])
 def test_invalid_dtypes(memory_storage, dtype):
-    create_tensor(
-        TENSOR_KEY, memory_storage, htype_overwrite={"dtype": dtype}
-    )
+    create_tensor(TENSOR_KEY, memory_storage, htype_overwrite={"dtype": dtype})
 
 
 @pytest.mark.xfail(raises=DynamicTensorNumpyError, strict=True)

@@ -27,7 +27,7 @@ def write_bytes(
         chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
         index_meta (IndexMeta): IndexMeta object that will be written to to keep track of the written chunk(s).
-        extra_index_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however 
+        extra_index_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
     """
@@ -72,7 +72,12 @@ def write_bytes(
         last_chunk = memoryview(chunk)
         last_chunk_name = chunk_name
 
-    index_meta.add_entry(chunk_names=chunk_names, start_byte=start_byte, end_byte=end_byte, **extra_index_meta)
+    index_meta.add_entry(
+        chunk_names=chunk_names,
+        start_byte=start_byte,
+        end_byte=end_byte,
+        **extra_index_meta
+    )
 
 
 def _get_last_chunk(

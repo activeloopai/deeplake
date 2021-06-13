@@ -124,12 +124,14 @@ class Dataset:
 
         self.meta.tensors.append(name)
 
-        htype_overwrite={
+        htype_overwrite = {
             "chunk_size": chunk_size,
             "dtype": dtype,
-            "custom_meta" : custom_meta,
+            "custom_meta": custom_meta,
         }
-        tensor = Tensor.create(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
+        tensor = Tensor.create(
+            name, self.storage, htype=htype, htype_overwrite=htype_overwrite
+        )
         self.tensors[name] = tensor
         return tensor
 

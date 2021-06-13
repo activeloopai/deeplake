@@ -65,9 +65,12 @@ parametrize_all_dataset_storages_and_caches = pytest.mark.parametrize(
 
 def assert_meta_is_valid(tensor_meta: TensorMeta, expected_meta: dict):
     for k, v in expected_meta.items():
-        assert hasattr(tensor_meta, k), 'Key "%s" not found in meta: %s' % (k, str(tensor_meta))
-        assert (
-            v == getattr(tensor_meta, k)
+        assert hasattr(tensor_meta, k), 'Key "%s" not found in meta: %s' % (
+            k,
+            str(tensor_meta),
+        )
+        assert v == getattr(
+            tensor_meta, k
         ), 'Value for key "%s" mismatch.\n(actual): %s\n!=\n(expected):%s' % (
             k,
             getattr(tensor_meta, k),
@@ -163,7 +166,9 @@ def run_engine_test(
 
         current_batch_num_samples = a_in.shape[0]
         index = Index(slice(sample_count, sample_count + current_batch_num_samples))
-        a_out = read_samples_from_tensor(key=key, storage=storage, tensor_meta=tensor_meta, index=index)
+        a_out = read_samples_from_tensor(
+            key=key, storage=storage, tensor_meta=tensor_meta, index=index
+        )
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
 

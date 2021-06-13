@@ -6,7 +6,9 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 
 
-def _create_entry(chunk_names: List[str], start_byte: int, end_byte: int, shape: Tuple[int]=None) -> dict:
+def _create_entry(
+    chunk_names: List[str], start_byte: int, end_byte: int, shape: Tuple[int] = None
+) -> dict:
     entry = {
         "chunk_names": chunk_names,
         "start_byte": start_byte,
@@ -29,5 +31,11 @@ class IndexMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return IndexMeta(get_index_meta_key(key), storage)
 
-    def add_entry(self, chunk_names: List[str], start_byte: int, end_byte: int, shape: Tuple[int]=None):
+    def add_entry(
+        self,
+        chunk_names: List[str],
+        start_byte: int,
+        end_byte: int,
+        shape: Tuple[int] = None,
+    ):
         self.entries.append(_create_entry(chunk_names, start_byte, end_byte, shape))

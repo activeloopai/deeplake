@@ -26,23 +26,27 @@ class TensorMeta(Meta):
     length: int
 
     @staticmethod
-    def create(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
+    def create(
+        key: str,
+        storage: StorageProvider,
+        htype: str = DEFAULT_HTYPE,
+        htype_overwrite: dict = {},
+    ):
         htype_overwrite = _remove_none_values_from_dict(htype_overwrite)
         validate_htype_overwrite(htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(htype_overwrite)
 
-        return TensorMeta(get_tensor_meta_key(key), storage, required_meta=required_meta)
+        return TensorMeta(
+            get_tensor_meta_key(key), storage, required_meta=required_meta
+        )
 
     @staticmethod
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-
-    def update_tensor_meta_with_array(
-        self, array: np.ndarray, batched=False
-    ):
+    def update_tensor_meta_with_array(self, array: np.ndarray, batched=False):
         shape = array.shape
         if batched:
             shape = shape[1:]
@@ -73,7 +77,11 @@ def _required_meta_from_htype(htype: str) -> dict:
 
 def validate_htype_overwrite(htype_overwrite: dict):
     if "htype" in htype_overwrite:
-        raise TensorMetaInvalidHtypeOverwrite("htype", htype_overwrite, "Cannot overwrite `htype`. Use the `htype` parameter instead.")
+        raise TensorMetaInvalidHtypeOverwrite(
+            "htype",
+            htype_overwrite,
+            "Cannot overwrite `htype`. Use the `htype` parameter instead.",
+        )
 
     if "chunk_size" in htype_overwrite:
         _raise_if_condition(
@@ -86,7 +94,9 @@ def validate_htype_overwrite(htype_overwrite: dict):
     if "dtype" in htype_overwrite:
         if type(htype_overwrite["dtype"]) != str:
             # TODO: support np.dtype alongside str
-            raise TensorMetaInvalidHtypeOverwrite("dtype", htype_overwrite["dtype"], "dtype must be of type `str`.")
+            raise TensorMetaInvalidHtypeOverwrite(
+                "dtype", htype_overwrite["dtype"], "dtype must be of type `str`."
+            )
 
         _raise_if_condition(
             "dtype",

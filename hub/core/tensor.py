@@ -28,7 +28,12 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
     return meta_key in storage and index_meta_key in storage
 
 
-def create_tensor(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
+def create_tensor(
+    key: str,
+    storage: StorageProvider,
+    htype: str = DEFAULT_HTYPE,
+    htype_overwrite: dict = {},
+):
     """If a tensor does not exist, create a new one with the provided meta.
 
     Args:
@@ -38,7 +43,7 @@ def create_tensor(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, 
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
-    """ # TODO: update docstring
+    """  # TODO: update docstring
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
@@ -97,7 +102,14 @@ def add_samples_to_tensor(
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
             b = memoryview(tobytes(sample))
-            write_bytes(b, key, tensor_meta.chunk_size, storage, index_meta, extra_index_meta={"shape": sample.shape})
+            write_bytes(
+                b,
+                key,
+                tensor_meta.chunk_size,
+                storage,
+                index_meta,
+                extra_index_meta={"shape": sample.shape},
+            )
 
         _update_tensor_meta_shapes(sample.shape, tensor_meta)
 
