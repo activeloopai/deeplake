@@ -103,7 +103,7 @@ class Dataset:
 
         Args:
             name (str): The name of the tensor to be created.
-            htype (str, optional): The class of data for the tensor.
+            htype (str): The class of data for the tensor.
                 The defaults for other parameters are determined in terms of this value.
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
@@ -119,6 +119,7 @@ class Dataset:
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
+
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 

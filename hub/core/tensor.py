@@ -39,11 +39,13 @@ def create_tensor(
     Args:
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
-        meta (dict): Meta for the tensor. For required properties, see `default_tensor_meta`.
+        htype (str): Htype is how the default tensor metadata is defined.
+        htype_overwrite (dict): All `htype` properties may be overwritten explicitly. Any property in `htype_overwrite` is
+            prioritized over the `htype`'s defaults.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
-    """  # TODO: update docstring
+    """
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
@@ -62,17 +64,21 @@ def add_samples_to_tensor(
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
+
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
-        have a batch axis, you should pass the argument `batched=True`.
+            have a batch axis, you should pass the argument `batched=True`.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-        If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+        tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
+        index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
         `create_tensor(...)`.
-    """  # TODO: update docstring
+    """
 
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
@@ -119,7 +125,6 @@ def add_samples_to_tensor(
 def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
-    tensor_meta: TensorMeta = None,
     index: Index = Index(),
     aslist: bool = False,
 ) -> Union[np.ndarray, List[np.ndarray]]:
@@ -142,8 +147,7 @@ def read_samples_from_tensor(
     """
 
     index_meta = IndexMeta.load(key, storage)
-    if tensor_meta is None:
-        tensor_meta = TensorMeta.load(key, storage)
+    tensor_meta = TensorMeta.load(key, storage)
 
     index_entries = [
         index_meta.entries[i] for i in index.values[0].indices(len(index_meta.entries))

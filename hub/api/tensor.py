@@ -13,7 +13,7 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorAlreadyExistsError, TensorDoesNotExistError
+from hub.util.exceptions import TensorDoesNotExistError
 from hub.core.index import Index
 
 
@@ -33,8 +33,6 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
-            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
-                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
@@ -55,6 +53,8 @@ class Tensor:
         htype: str = DEFAULT_HTYPE,
         htype_overwrite: dict = {},
     ):
+        """For internal use only."""
+
         create_tensor(name, storage, htype=htype, htype_overwrite=htype_overwrite)
         return Tensor(name, storage)
 
