@@ -7,7 +7,7 @@ from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.tensor import tensor_exists
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.constants import DEFAULT_CHUNK_SIZE
@@ -123,17 +123,18 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        self.meta.tensors.append(name)
-
         htype_overwrite = {
             "chunk_size": chunk_size,
             "dtype": dtype,
             "custom_meta": custom_meta,
         }
-        tensor = Tensor.create(
-            name, self.storage, htype=htype, htype_overwrite=htype_overwrite
-        )
+
+        create_tensor(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
+        tensor = Tensor(name, self.storage)
+
         self.tensors[name] = tensor
+        self.meta.tensors.append(name)
+
         return tensor
 
     __getattr__ = __getitem__
