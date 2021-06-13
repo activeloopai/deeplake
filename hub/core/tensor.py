@@ -111,7 +111,7 @@ def add_samples_to_tensor(
                 extra_index_meta={"shape": sample.shape},
             )
 
-        _update_tensor_meta_shapes(sample.shape, tensor_meta)
+        tensor_meta.update_shape_interval(sample.shape)
 
     tensor_meta.length += array_length
 
@@ -200,10 +200,3 @@ def _check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.nd
             ),
             sample_shape,
         )
-
-
-def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: TensorMeta):
-    # TODO: move into TensorMeta
-    for i, dim in enumerate(shape):
-        tensor_meta.min_shape[i] = min(dim, tensor_meta.min_shape[i])
-        tensor_meta.max_shape[i] = max(dim, tensor_meta.max_shape[i])

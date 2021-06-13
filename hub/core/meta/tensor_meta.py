@@ -1,4 +1,4 @@
-from typing import Any, Callable, List
+from typing import Any, Callable, List, Tuple
 import numpy as np
 from hub.util.exceptions import TensorMetaInvalidHtype, TensorMetaInvalidHtypeOverwrite
 from hub.util.callbacks import CallbackList
@@ -54,6 +54,11 @@ class TensorMeta(Meta):
         self.dtype = str(array.dtype)
         self.min_shape = list(shape)
         self.max_shape = list(shape)
+
+    def update_shape_interval(self, shape: Tuple[int]):
+        for i, dim in enumerate(shape):
+            self.min_shape[i] = min(dim, self.min_shape[i])
+            self.max_shape[i] = max(dim, self.max_shape[i])
 
 
 def _required_meta_from_htype(htype: str) -> dict:

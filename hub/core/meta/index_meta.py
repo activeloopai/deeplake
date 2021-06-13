@@ -9,6 +9,8 @@ from hub.core.meta.meta import Meta
 def _create_entry(
     chunk_names: List[str], start_byte: int, end_byte: int, shape: Tuple[int] = None
 ) -> dict:
+    # TODO: replace with `SampleMeta` class
+
     entry = {
         "chunk_names": chunk_names,
         "start_byte": start_byte,
@@ -20,6 +22,8 @@ def _create_entry(
 
 
 class IndexMeta(Meta):
+    entries: CallbackList
+
     @staticmethod
     def create(key: str, storage: StorageProvider):
         required_meta = {"entries": CallbackList}

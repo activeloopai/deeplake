@@ -6,6 +6,8 @@ from hub.util.keys import get_dataset_meta_key
 
 
 class DatasetMeta(Meta):
+    tensors: CallbackList
+
     @staticmethod
     def create(storage: StorageProvider):
         required_meta = {
