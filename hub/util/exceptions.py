@@ -9,15 +9,6 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class TensorMetaMismatchError(Exception):
-    def __init__(self, meta_key: str, expected: Any, actual: Any):
-        super().__init__(
-            "Meta value for {} expected {} but got {}.".format(
-                meta_key, str(expected), str(actual)
-            )
-        )
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -26,15 +17,6 @@ class TensorInvalidSampleShapeError(Exception):
 class TensorMetaMissingKey(Exception):
     def __init__(self, key: str, meta: dict):
         super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
-
-
-class TensorMetaInvalidValue(Exception):
-    def __init__(self, key: str, value: Any, explanation: str = ""):
-        super().__init__(
-            "Invalid value {} for tensor meta key {}. {}".format(
-                str(value), key, explanation
-            )
-        )
 
 
 class TensorDoesNotExistError(KeyError):
@@ -270,10 +252,32 @@ class MetaInvalidKey(MetaError):
 
 class MetaInvalidRequiredMetaKey(MetaError):
     def __init__(self, key: str, subclass_name: str):
-        super().__init__(f"\"{key}\" should not be passed in `required_meta` (it is probably automatically set). \
-            This means the \"{subclass_name}\" class was constructed improperly.")
+        super().__init__(f"'{key}' should not be passed in `required_meta` (it is probably automatically set). \
+            This means the '{subclass_name}' class was constructed improperly.")
 
 
 class MetaInvalidInitFunctionCall(MetaError):
     def __init__(self):
         super().__init__("Only the `Meta` baseclass `__init__` function should be called.")
+
+
+class TensorMetaInvalidHtype(MetaError):
+    def __init__(self, htype: str, available_htypes: Sequence[str]):
+        super().__init__(f"Htype '{htype}' does not exist. Available htypes: {str(available_htypes)}")
+
+
+class TensorMetaInvalidHtypeOverwrite(MetaError):
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
+
+class TensorMetaMismatchError(MetaError):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            "Meta value for {} expected {} but got {}.".format(
+                meta_key, str(expected), str(actual)
+            )
+        )

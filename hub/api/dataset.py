@@ -5,7 +5,6 @@ from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index

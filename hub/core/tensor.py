@@ -5,12 +5,6 @@ import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
-from hub.core.meta.tensor_meta import (
-    read_tensor_meta,
-    write_tensor_meta,
-    update_tensor_meta_with_array,
-    validate_tensor_meta,
-)
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider

@@ -8,8 +8,6 @@ from hub.core.tensor import (
     create_tensor,
     add_samples_to_tensor,
     read_samples_from_tensor,
-    read_tensor_meta,
-    write_tensor_meta,
     tensor_exists,
 )
 from hub.core.typing import StorageProvider

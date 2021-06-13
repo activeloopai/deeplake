@@ -15,7 +15,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
-    TensorMetaInvalidValue,
+    TensorMetaInvalidHtypeOverwrite,
     TensorMetaMismatchError,
 )
 
@@ -50,7 +50,7 @@ def test_tensor_already_exists(memory_storage):
     create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
 
 
-@pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
+@pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwrite, strict=True)
 @pytest.mark.parametrize("chunk_size", [0, -1, -100])
 def test_invalid_chunk_sizes(memory_storage, chunk_size):
     create_tensor(
@@ -58,7 +58,7 @@ def test_invalid_chunk_sizes(memory_storage, chunk_size):
     )
 
 
-@pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
+@pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwrite, strict=True)
 @pytest.mark.parametrize("dtype", [1, False, "floatf", "intj", "foo", "bar"])
 def test_invalid_dtypes(memory_storage, dtype):
     create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta(dtype=dtype))
