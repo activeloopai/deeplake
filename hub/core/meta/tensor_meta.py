@@ -19,8 +19,7 @@ class TensorMeta(Meta):
 
     @staticmethod
     def create(key: str, storage: StorageProvider, htype: str=DEFAULT_HTYPE, htype_overwrite: dict={}):
-        if "htype" in htype_overwrite:
-            raise ValueError("Cannot overwrite `htype`. Use the `htype` parameter instead.")
+        validate_htype_overwrite(htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(htype_overwrite)
@@ -64,6 +63,9 @@ def _required_meta_from_htype(htype: str) -> dict:
 
 
 def validate_htype_overwrite(htype_overwrite: dict):
+    if "htype" in htype_overwrite:
+        raise TensorMetaInvalidHtypeOverwrite("htype", htype_overwrite, "Cannot overwrite `htype`. Use the `htype` parameter instead.")
+
     if "chunk_size" in htype_overwrite:
         _raise_if_condition(
             "chunk_size",

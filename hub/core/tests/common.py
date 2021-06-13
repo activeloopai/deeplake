@@ -1,3 +1,4 @@
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index import Index
 import pytest
 
@@ -62,14 +63,14 @@ parametrize_all_dataset_storages_and_caches = pytest.mark.parametrize(
 )
 
 
-def assert_meta_is_valid(meta: dict, expected_meta: dict):
+def assert_meta_is_valid(tensor_meta: TensorMeta, expected_meta: dict):
     for k, v in expected_meta.items():
-        assert k in meta, 'Key "%s" not found in meta: %s' % (k, str(meta))
+        assert hasattr(tensor_meta, k), 'Key "%s" not found in meta: %s' % (k, str(tensor_meta))
         assert (
-            v == meta[k]
+            v == getattr(tensor_meta, k)
         ), 'Value for key "%s" mismatch.\n(actual): %s\n!=\n(expected):%s' % (
             k,
-            meta[k],
+            getattr(tensor_meta, k),
             v,
         )
 
@@ -140,7 +141,8 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
-    create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
+    create_tensor(key, storage, htype_overwrite={"chunk_size": chunk_size})
+    tensor_meta = TensorMeta.load(key, storage)
 
     first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
         1:
@@ -154,16 +156,16 @@ def run_engine_test(
             key,
             storage,
             batched=batched,
+            tensor_meta=tensor_meta,
         )
 
         a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
 
         current_batch_num_samples = a_in.shape[0]
         index = Index(slice(sample_count, sample_count + current_batch_num_samples))
-        a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
+        a_out = read_samples_from_tensor(key=key, storage=storage, tensor_meta=tensor_meta, index=index)
 
         assert tensor_exists(key, storage), "Tensor {} was not found.".format(key)
-        meta = read_tensor_meta(key, storage)
 
         sample_count += current_batch_num_samples
 
@@ -171,7 +173,7 @@ def run_engine_test(
         expected_max_shape = np.maximum(expected_max_shape, a_in.shape[1:])
 
         assert_meta_is_valid(
-            meta,
+            tensor_meta,
             {
                 "chunk_size": chunk_size,
                 "length": sample_count,
@@ -189,7 +191,7 @@ def run_engine_test(
 def benchmark_write(
     key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
 ):
-    create_tensor(key, storage, default_tensor_meta(chunk_size=chunk_size))
+    create_tensor(key, storage, htype_overwrite={"chunk_size": chunk_size})
 
     for a_in in arrays:
         add_samples_to_tensor(
