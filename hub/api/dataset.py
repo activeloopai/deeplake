@@ -1,5 +1,4 @@
 from hub.htypes import DEFAULT_HTYPE
-from hub.core.meta.tensor_meta import TensorMeta
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
@@ -10,7 +9,6 @@ from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (

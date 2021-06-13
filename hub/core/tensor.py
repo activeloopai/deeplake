@@ -77,7 +77,7 @@ def add_samples_to_tensor(
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
-        `create_tensor(...)`.
+            `create_tensor(...)`.
     """
 
     if not tensor_exists(key, storage):
