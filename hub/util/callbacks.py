@@ -1,62 +1,75 @@
 from typing import Callable, Any
 
 
-# TODO: __str__ & __repr__
-
-
 class CallbackList(list):
     def __init__(self, callback: Callable, raw_list: list = []):
+        """Acts exactly like a normal `list`, however when modifier methods are called (ie. `append`, `extend`, `__setitem__`),
+            the provided `callback` method will be called immediately afterwards.
+
+        Note: `raw_list` is recursively processed into callback compatible objects using `convert_to_callback_objects`. 
+            This also applies to all modifier methods.
+
+        Args:
+            callback (Callable): A function to be called after every update method call.
+            raw_list (list): Starter list to be initialized with. Emulates `list(raw_list)`.
+        """
+        
         self.callback = callback
 
-        # TODO: generalize callbacks to a list of callback functions
-
-        # TODO: handle recursive
         callback_list = []
         for v in raw_list:
-            callback_list.append(convert_to_callback_classes(v, self.callback))
+            callback_list.append(convert_to_callback_objects(v, self.callback))
 
         super().__init__(callback_list)
 
-    def append(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().append(*args)
+    def append(self, item):
+        super().append(convert_to_callback_objects(item, self.callback))
         self.callback()
 
-    def extend(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().extend(*args)
+    def extend(self, items):
+        super().extend(convert_to_callback_objects(items, self.callback))
         self.callback()
 
-    def __setitem__(self, *args):
-        super().__setitem__(*args)
+    def __setitem__(self, key, item):
+        super().__setitem__(key, convert_to_callback_objects(item, self.callback))
         self.callback()
 
 
 class CallbackDict(dict):
     def __init__(self, callback: Callable, raw_dict: dict = {}):
+        """Acts exactly like a normal `dict`, however when modifier methods are called (ie. `update`, `__setitem__`),
+            the provided `callback` method will be called immediately afterwards.
+
+        Note: `raw_dict` is recursively processed into callback compatible objects using `convert_to_callback_objects`.
+            This also applies to all modifier methods.
+
+        Args:
+            callback (Callable): A function to be called after every update method call.
+            raw_dict (dict): Starter dictionary to be initialized with. Emulates `dict(raw_dict)`.
+        """
+
         self.callback = callback
 
-        # TODO: handle recursive
         callback_dict = {}
         for k, v in raw_dict.items():
-            callback_dict[k] = convert_to_callback_classes(v, self.callback)
+            callback_dict[k] = convert_to_callback_objects(v, self.callback)
 
         super().__init__(callback_dict)
 
-    def __setitem__(self, *args):
-        # TODO: only support list/dictionary objects (and parse them to be CallbackDicts/CallbackLists)
-        super().__setitem__(*args)
+    def __setitem__(self, key, item):
+        super().__setitem__(key, convert_to_callback_objects(item, self.callback))
         self.callback()
 
-    def update(self, *args):
-        super().update(*args)
+    def update(self, *args, **kwargs):
+        converted = convert_to_callback_objects(dict(kwargs), self.callback)
+        super().update(*args, **converted)
         self.callback()
 
 
-def convert_to_callback_classes(value: Any, callback: Callable):
-    # TODO: explain what's going on here
-
-    # TODO: check if value is supported `type` (we should only support what json supports)
+def convert_to_callback_objects(value: Any, callback: Callable):
+    """Convert value into callback objects based on their type. For example, if `type(value) == list`,
+    this will return a `CallbackList`.
+    """
 
     if value in (CallbackList, CallbackDict):
         new_value = value(callback)
@@ -70,8 +83,10 @@ def convert_to_callback_classes(value: Any, callback: Callable):
     return new_value
 
 
-def convert_from_callback_classes(value: Any):
-    # TODO: explain what's going on here
+def convert_from_callback_objects(value: Any):
+    """Convert value from callback objects into their subclass counterpart. For example, if `type(value) == CallbackList`,
+    this will return a `list`.
+    """
 
     if isinstance(value, CallbackDict):
         new_value = dict(value)
