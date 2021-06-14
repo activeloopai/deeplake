@@ -217,4 +217,4 @@ class Dataset:
         index_str = f"index={self.index}, "
         if self.index.is_trivial():
             index_str = ""
-        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta.tensors})"

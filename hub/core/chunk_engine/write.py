@@ -1,4 +1,3 @@
-from hub.util.index import Index
 from hub.core.meta.index_meta import IndexMeta
 from typing import List, Tuple
 from uuid import uuid1
