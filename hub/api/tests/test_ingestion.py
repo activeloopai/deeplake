@@ -41,3 +41,6 @@ def test_image_classification_with_sets(memory_storage):
 
     ds = Dataset(storage=memory_storage, mode="w")
     assert ds["train/labels"].meta.class_names == ["class0", "class1", "dog"]
+
+
+# TODO: test kaggle ingestion
