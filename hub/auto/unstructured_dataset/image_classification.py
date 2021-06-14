@@ -12,10 +12,11 @@ from .base import UnstructuredDataset
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
-LABEL_NAMES_META_KEY = "class_names"
 
 
-def _get_file_paths(directory: Path, relative_to: Union[str, Path]="") -> Sequence[str]:
+def _get_file_paths(
+    directory: Path, relative_to: Union[str, Path] = ""
+) -> Sequence[str]:
     # TODO: make sure directory is actually a directory
     g = glob.glob(os.path.join(directory, "**"), recursive=True)
     file_paths = []
@@ -49,26 +50,23 @@ class ImageClassification(UnstructuredDataset):
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
-
     def get_set_names(self) -> Tuple[str]:
         # TODO: move outside class
         set_names = set()
         for file_path in self._abs_file_paths:
             set_names.add(_set_name_from_path(file_path))
-        set_names = sorted(set_names) # TODO: lexicographical sorting
+        set_names = sorted(set_names)  # TODO: lexicographical sorting
         return tuple(set_names)
-
 
     def get_class_names(self) -> Tuple[str]:
         # TODO: move outside class
         class_names = set()
         for file_path in self._abs_file_paths:
             class_names.add(_class_name_from_path(file_path))
-        class_names = sorted(class_names) # TODO: lexicographical sorting
+        class_names = sorted(class_names)  # TODO: lexicographical sorting
         return tuple(class_names)
 
-
-    def structure(self, ds: Dataset, use_progress_bar: bool=True):
+    def structure(self, ds: Dataset, use_progress_bar: bool = True):
         images_tensor_map = {}
         labels_tensor_map = {}
 
@@ -84,15 +82,24 @@ class ImageClassification(UnstructuredDataset):
             labels_tensor_map[set_name] = labels_tensor_name
 
             ds.create_tensor(images_tensor_name, htype="image")
-            ds.create_tensor(labels_tensor_name, htype="class_label", extra_meta={LABEL_NAMES_META_KEY: self.class_names})
+            ds.create_tensor(
+                labels_tensor_name, htype="class_label", class_names=self.class_names
+            )
             # TODO: extra_meta arg should be replaced with `class_names=self.class_names` when htypes are supported
 
         paths = self._abs_file_paths
-        iterator = tqdm(paths, desc="Ingesting \"%s\"" % self.source, total=len(paths), disable=not use_progress_bar)
+        iterator = tqdm(
+            paths,
+            desc='Ingesting "%s"' % self.source,
+            total=len(paths),
+            disable=not use_progress_bar,
+        )
         for file_path in iterator:
             image = load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)
-            label = np.array([self.class_names.index(class_name)])  # TODO: should be able to pass just an integer to `tensor.append`
+            label = np.array(
+                [self.class_names.index(class_name)]
+            )  # TODO: should be able to pass just an integer to `tensor.append`
 
             set_name = _set_name_from_path(file_path) if use_set_prefix else ""
             ds[images_tensor_map[set_name]].append(image)
@@ -100,4 +107,3 @@ class ImageClassification(UnstructuredDataset):
 
         ds.flush()
         return ds
-
