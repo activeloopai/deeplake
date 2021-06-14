@@ -4,6 +4,7 @@ from typing import Optional
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
+from hub.util.exceptions import ReadOnlyError
 
 
 class StorageProvider(ABC, MutableMapping):
@@ -76,7 +77,9 @@ class StorageProvider(ABC, MutableMapping):
 
         Raises:
             InvalidBytesRequestedError: If `start_byte` < 0.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         start_byte = start_byte or 0
         end_byte = start_byte + len(value)
         assert_byte_indexes(start_byte, end_byte)
@@ -121,7 +124,25 @@ class StorageProvider(ABC, MutableMapping):
             int: the number of files present inside the root.
         """
 
+    def enable_readonly(self):
+        """Enables read-only mode for the provider."""
+        self.read_only = True
+
+    def disable_readonly(self):
+        """Disables read-only mode for the provider."""
+        self.read_only = False
+
+    def check_readonly(self):
+        """Raises an exception if the provider is in read-only mode."""
+        if hasattr(self, "read_only") and self.read_only:
+            raise ReadOnlyError()
+
     def flush(self):
         """Only needs to be implemented for caches. Flushes the data to the next storage provider.
         Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
         """
+        self.check_readonly()
+
+    @abstractmethod
+    def clear(self):
+        """Delete the contents of the provider."""

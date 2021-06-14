@@ -2,7 +2,13 @@ import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+    DEFAULT_CHUNK_SIZE,
+    SUPPORTED_MODES,
+)
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import (
     read_dataset_meta,
@@ -13,13 +19,13 @@ from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    UnsupportedModeError,
 )
 from hub.util.path import storage_provider_from_path
 
@@ -39,8 +45,7 @@ class Dataset:
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a").
-                Defaults to "a".
+                Supported modes include ("r", "a"). Defaults to "a".
             index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -50,10 +55,10 @@ class Dataset:
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
             UserWarning: Both path and storage should not be given.
+            UnsupportedModeError: If mode is not any of the options listed above.
         """
-        self.mode = mode
-        self.index = index
-        self.path = path  # Used for printing, if given
+        if not mode in SUPPORTED_MODES:
+            raise UnsupportedModeError(mode)
 
         if storage is not None and path:
             warnings.warn(
@@ -62,6 +67,8 @@ class Dataset:
         elif storage is not None and hasattr(storage, "root"):
             # Extract the path for printing, if path not given
             self.path = storage.root  # type: ignore
+        else:
+            self.path = path  # Used for printing, if given
 
         base_storage = storage or storage_provider_from_path(path)
         memory_cache_size_bytes = memory_cache_size * MB
@@ -69,8 +76,11 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        self.tensors: Dict[str, Tensor] = {}
 
+        self.mode = mode
+        self.index = index
+
+        self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
@@ -152,6 +162,18 @@ class Dataset:
     @meta.setter
     def meta(self, new_meta: dict):
         write_dataset_meta(self.storage, new_meta)
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, new_mode):
+        if new_mode == "r":
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
+        self._mode = new_mode
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
