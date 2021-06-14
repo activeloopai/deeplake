@@ -129,5 +129,8 @@ class StorageProvider(ABC, MutableMapping):
         """
 
     def maybe_flush(self):
+        """Flush cache if autoflush has been enabled.
+        Called at the end of methods which write data, to ensure consistency as a default.
+        """
         if hasattr(self, "autoflush") and self.autoflush:
             self.flush()
