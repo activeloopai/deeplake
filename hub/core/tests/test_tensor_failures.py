@@ -1,4 +1,4 @@
-from hub.util.index import Index
+from hub.core.index import Index
 import numpy as np
 import pytest
 

@@ -1,5 +1,5 @@
 from hub.core.storage.memory import MemoryProvider
-from hub.util.index import Index
+from hub.core.index import Index
 from hub.util.array import (
     normalize_and_batchify_array_shape,
     normalize_and_batchify_shape,
