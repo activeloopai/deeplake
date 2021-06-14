@@ -14,7 +14,7 @@ def write_bytes(
     chunk_size: int,
     storage: StorageProvider,
     index_meta: IndexMeta,
-    extra_entry_meta: dict = {},
+    extra_sample_meta: dict = {},
 ):
     """Chunk and write bytes to storage, then update `index_meta`. The provided bytes are treated as a single sample.
 
@@ -27,7 +27,7 @@ def write_bytes(
         chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
         index_meta (IndexMeta): IndexMeta object that will be written to to keep track of the written chunk(s).
-        extra_index_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
+        extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
     """
@@ -76,7 +76,7 @@ def write_bytes(
         chunk_names=chunk_names,
         start_byte=start_byte,
         end_byte=end_byte,
-        **extra_entry_meta
+        **extra_sample_meta
     )
 
 
