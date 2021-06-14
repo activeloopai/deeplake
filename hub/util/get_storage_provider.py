@@ -66,13 +66,11 @@ def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[st
             raise ValueError(f"Local path {url} must be a path to a local directory")
 
 
-def storage_provider_from_tag(
-    tag: str, mode: Optional[str] = None, public: Optional[bool] = None
-):
+def storage_provider_from_tag(tag: str, mode: Optional[str] = None):
     check_tag(tag)
     org_id, ds_name = tag.split("/")
     client = HubBackendClient()
     url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
-    storage = storage_provider_from_url(url, creds, mode, public)
+    storage = storage_provider_from_url(url, creds, mode)
     storage._set_hub_creds_info(tag, expiration)
     return storage

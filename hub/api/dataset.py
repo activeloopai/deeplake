@@ -4,6 +4,7 @@ from boto3.resources import base
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.core import storage
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
@@ -83,9 +84,9 @@ class Dataset:
         self.meta = {"tensors": []}
         self.client = HubBackendClient()
         if tag and dataset_exists(self.storage) and not dataset_exists(base_storage):
-            org_id, ds_name = tag.split("/")
+            self.org_id, self.ds_name = tag.split("/")
             self.flush()
-            self.client.create_dataset_entry(org_id, ds_name, public=public)
+            self.client.create_dataset_entry(self.org_id, self.ds_name, public=public)
 
     # TODO len should consider slice
     def __len__(self):
@@ -179,12 +180,25 @@ class Dataset:
         """
         return dataset_to_pytorch(self, transform, workers=workers)
 
+    def get_total_meta(self):
+        return {
+            tensor_key: tensor_value.meta
+            for tensor_key, tensor_value in self.tensors.items()
+        }
+
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
+        try:
+            if self.tensors:
+                self.client.update_dataset(
+                    self.org_id, self.ds_name, meta=self.get_total_meta()
+                )
+        except TensorDoesNotExistError:
+            pass
         self.storage.flush()
 
     def clear_cache(self):

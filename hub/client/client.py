@@ -194,12 +194,13 @@ class HubBackendClient:
         except Exception as e:
             logger.error("Unable to delete Dataset entry" + str(e))
 
-    def update_dataset_state(self, username, dataset_name, **kwargs):
+    def update_dataset(self, username, dataset_name, **kwargs):
         try:
+            suffix = UPDATE_SUFFIX.format(username, dataset_name)
             self.request(
-                "POST",
-                UPDATE_SUFFIX,
-                json={"org_id": username, "ds_name": dataset_name} + kwargs,
+                "PUT",
+                suffix,
+                json=kwargs,
                 endpoint=HUB_REST_ENDPOINT,
             ).json()
         except Exception as e:
