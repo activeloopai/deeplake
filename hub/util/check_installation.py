@@ -6,3 +6,13 @@ def pytorch_installed():
     except ImportError:
         return False
     return True
+
+
+def tensorflow_installed():
+    try:
+        import tensorflow
+
+        tensorflow.__version__
+    except ImportError:
+        return False
+    return True
