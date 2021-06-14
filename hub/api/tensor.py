@@ -130,7 +130,7 @@ class Tensor:
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
-        
+
         Example:
             Given a tensor `tensor` with 2 samples where:
 
