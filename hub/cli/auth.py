@@ -20,7 +20,8 @@ def login(username: str, password: str):
     password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
-        token = HubBackendClient().request_auth_token(username, password)
+        client = HubBackendClient()
+        token = client.request_auth_token(username, password)
         write_token(token)
         click.echo("\nSuccessfully logged in to Hub.")
     except AuthenticationException:

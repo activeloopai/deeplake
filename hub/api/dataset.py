@@ -63,7 +63,8 @@ class Dataset:
         self.index = index
         if creds is None:
             creds = {}
-        base_storage = get_storage_provider(tag, url, storage, mode, creds)
+        base_storage, mode = get_storage_provider(tag, url, storage, mode, creds)
+        self.mode = mode
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
@@ -96,7 +97,7 @@ class Dataset:
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(storage=self.storage, index=self.index[item])
+            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 

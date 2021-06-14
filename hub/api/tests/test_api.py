@@ -1,8 +1,10 @@
+import os
 import numpy as np
 import pytest
-
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
+from hub.client.utils import has_hub_testing_creds, write_token
+from hub.client.client import HubBackendClient
 
 
 def test_persist_local_flush(local_storage):
@@ -162,3 +164,15 @@ def test_shape_property(memory_ds):
     fixed.extend(np.ones((13, 28, 28)))
     assert fixed.shape.lower == (28, 28)
     assert fixed.shape.upper == (28, 28)
+
+
+@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+def test_hub_cloud_dataset():
+    username = "testingacc"
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    write_token(token)
+    ds = Dataset(tag="testingacc/hub2ds")
+    for i in range(10):
+        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
