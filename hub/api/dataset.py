@@ -98,9 +98,7 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        chunk_size: Optional[int] = None,
-        dtype: Optional[str] = None,
-        custom_meta: Optional[dict] = None,
+        **kwargs,
     ):
         """Creates a new tensor in a dataset.
 
@@ -111,28 +109,18 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int, optional): The target size for chunks in this tensor.
-            dtype (str, optional): The data type to use for this tensor.
-                Will be overwritten when the first sample is added.
-            custom_meta (dict, optional): Any additional user-defined metadata to be added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
-        """
+        """  # TODO: update docstring about **kwargs (custom meta too)
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        htype_overwrite = {
-            "chunk_size": chunk_size,
-            "dtype": dtype,
-            "custom_meta": custom_meta,
-        }
-
-        create_tensor(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
+        create_tensor(name, self.storage, htype=htype, **kwargs)
         tensor = Tensor(name, self.storage)
 
         self.tensors[name] = tensor
