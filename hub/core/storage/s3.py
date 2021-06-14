@@ -26,7 +26,6 @@ class S3Provider(StorageProvider):
         max_pool_connections: int = 50,
         mode: Optional[str] = None,
         client=None,
-        public=None,
     ):
         """Initializes the S3Provider
 

@@ -15,7 +15,6 @@ def get_storage_provider(
     storage: Optional[StorageProvider] = None,
     mode: Optional[str] = None,
     creds: Optional[dict] = None,
-    public: Optional[bool] = None,
 ):
     num_storage_args = sum(a is not None for a in (tag, url, storage))
     if num_storage_args != 1:
@@ -28,9 +27,7 @@ def get_storage_provider(
         return storage
 
 
-def storage_provider_from_url(
-    url: str, creds: Optional[dict], mode: Optional[str], public: Optional[bool]
-):
+def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[str]):
     """Construct a StorageProvider given a path.
 
     Arguments:
@@ -59,9 +56,7 @@ def storage_provider_from_url(
         token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
-        return S3Provider(
-            url, key, secret, token, endpoint_url, region, mode=mode, public=public
-        )
+        return S3Provider(url, key, secret, token, endpoint_url, region, mode=mode)
     elif url.startswith("mem://"):
         return MemoryProvider(url)
     else:
