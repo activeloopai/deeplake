@@ -1,4 +1,3 @@
-from attr import Attribute
 from hub.util.exceptions import (
     MetaAlreadyExistsError,
     MetaDoesNotExistError,
@@ -7,8 +6,8 @@ from hub.util.exceptions import (
 )
 from hub.util.callbacks import (
     CallbackDict,
-    convert_from_callback_classes,
-    convert_to_callback_classes,
+    convert_from_callback_objects,
+    convert_to_callback_objects,
 )
 import json
 from hub.core.storage.provider import StorageProvider
@@ -30,13 +29,11 @@ class Meta:
         self.storage = storage
 
         if self.key in self.storage:
-            # TODO: maybe we want to use an @staticmethod `create` like `DatasetMeta`?
             if required_meta is not None:
                 raise MetaAlreadyExistsError(self.key, required_meta)
             self._read()
 
         else:
-            # TODO: maybe we want to use an @staticmethod `load` like `DatasetMeta`?
             if required_meta is None:
                 raise MetaDoesNotExistError(self.key)
 
@@ -57,12 +54,12 @@ class Meta:
         d = {}
         for key in self._required_keys:
             value = getattr(self, key)
-            d[key] = convert_from_callback_classes(value)
+            d[key] = convert_from_callback_objects(value)
         return d
 
     def from_dict(self, meta: dict):
         for key, value in meta.items():
-            new_value = convert_to_callback_classes(value, self._write)
+            new_value = convert_to_callback_objects(value, self._write)
             setattr(self, key, new_value)
         self._required_keys = list(meta.keys())
         return self

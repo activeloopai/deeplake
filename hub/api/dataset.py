@@ -1,3 +1,4 @@
+from hub.htypes import DEFAULT_HTYPE
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
@@ -5,11 +6,9 @@ from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.meta.tensor_meta import default_tensor_meta
-from hub.core.tensor import tensor_exists
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -98,16 +97,16 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: Optional[str] = None,
+        htype: str = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
-        extra_meta: Optional[dict] = None,
+        custom_meta: Optional[dict] = None,
     ):
         """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
-            htype (str, optional): The class of data for the tensor.
+            htype (str): The class of data for the tensor.
                 The defaults for other parameters are determined in terms of this value.
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
@@ -115,7 +114,7 @@ class Dataset:
             chunk_size (int, optional): The target size for chunks in this tensor.
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
-            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+            custom_meta (dict, optional): Any additional user-defined metadata to be added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -123,14 +122,21 @@ class Dataset:
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
+
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        self.meta.tensors.append(name)
+        htype_overwrite = {
+            "chunk_size": chunk_size,
+            "dtype": dtype,
+            "custom_meta": custom_meta,
+        }
 
-        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
-        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        create_tensor(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
+        tensor = Tensor(name, self.storage)
+
         self.tensors[name] = tensor
+        self.meta.tensors.append(name)
 
         return tensor
 
@@ -211,4 +217,4 @@ class Dataset:
         index_str = f"index={self.index}, "
         if self.index.is_trivial():
             index_str = ""
-        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta.tensors})"

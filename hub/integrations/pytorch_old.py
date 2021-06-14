@@ -1,13 +1,15 @@
 from typing import Callable
 import warnings
-from hub.core.meta.tensor_meta import read_tensor_meta
 from hub.util.exceptions import ModuleNotInstalledException
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+def dataset_to_pytorch(
+    dataset, transform: Callable = None, workers: int = 1, python_version_warning=True
+):
     return TorchDataset(
         dataset,
         transform,
+        python_version_warning=python_version_warning,
     )
 
 
@@ -16,6 +18,7 @@ class TorchDataset:
         self,
         dataset,
         transform: Callable = None,
+        python_version_warning: bool = True,
     ):
         global torch
         try:
@@ -25,9 +28,11 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-        warnings.warn(
-            "Python version<3.8 detected. The 'workers' argument will be ignored and Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
-        )
+        if python_version_warning:
+            warnings.warn(
+                "Python version<3.8 detected. The 'workers' argument will be ignored and Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
+            )
+
         self.dataset = dataset
         self.transform = transform
 

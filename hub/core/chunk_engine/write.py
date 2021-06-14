@@ -18,9 +18,9 @@ def write_bytes(
     chunk_size: int,
     storage: StorageProvider,
     index_meta: IndexMeta,
-) -> dict:
-    """Chunk and write bytes to storage and return the index_meta entry. The provided bytes are treated as a single
-        sample.
+    extra_sample_meta: dict = {},
+):
+    """Chunk and write bytes to storage, then update `index_meta`. The provided bytes are treated as a single sample.
 
     Args:
         content (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
@@ -30,15 +30,14 @@ def write_bytes(
             stored.
         chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
-        index_meta (list): List of dictionaries that represent each sample. An entry for `index_meta` is returned
-            but not appended to `index_meta`.
+        index_meta (IndexMeta): IndexMeta object that will be written to to keep track of the written chunk(s).
+        extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
+            `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
+            to call `IndexMeta.add_entry`.
+    """
 
-    Returns:
-        dict: Index map entry (note: it does not get appended to the `index_meta` argument). Dictionary keys:
-            chunk_names: Sequential list of names of chunks that were created.
-            start_byte: Start byte for this sample.
-            end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
-    """  # TODO: Update docstring
+    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
+    #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
     chunk_names = []
@@ -64,7 +63,13 @@ def write_bytes(
         storage[chunk_key] = content[0:chunk_size]
         end_byte = chunk_size
         content = content[chunk_size:]
-    return {"chunk_names": chunk_names, "start_byte": start_byte, "end_byte": end_byte}
+
+    index_meta.add_entry(
+        chunk_names=chunk_names,
+        start_byte=start_byte,
+        end_byte=end_byte,
+        **extra_sample_meta
+    )
 
 
 def _get_last_chunk(
@@ -76,6 +81,7 @@ def _get_last_chunk(
     Args:
         key (str): Key for where the chunks are located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider where the chunks are stored.
+        index_meta (IndexMeta): IndexMeta object that is used to find the last chunk.
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
