@@ -48,7 +48,7 @@ def test_pytorch_small_old(local_ds):
     local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2, warning=False)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
@@ -83,7 +83,7 @@ def test_pytorch_large_old(local_ds):
     local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2, warning=False)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,

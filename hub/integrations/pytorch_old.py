@@ -3,11 +3,11 @@ import warnings
 from hub.util.exceptions import ModuleNotInstalledException
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1, warning=True):
+def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1, python_version_warning=True):
     return TorchDataset(
         dataset,
         transform,
-        warning=warning,
+        python_version_warning=python_version_warning,
     )
 
 
@@ -16,7 +16,7 @@ class TorchDataset:
         self,
         dataset,
         transform: Callable = None,
-        warning: bool = True,
+        python_version_warning: bool = True,
     ):
         global torch
         try:
@@ -26,7 +26,7 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-        if warning:
+        if python_version_warning:
             warnings.warn(
                 "Python version<3.8 detected. The 'workers' argument will be ignored and Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
             )
