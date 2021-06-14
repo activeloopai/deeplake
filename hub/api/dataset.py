@@ -55,10 +55,6 @@ class Dataset:
         if not mode in SUPPORTED_MODES:
             raise UnsupportedModeError(mode)
 
-        self.mode = mode
-        self.index = index
-        self.path = path  # Used for printing, if given
-
         if storage is not None and path:
             warnings.warn(
                 "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
@@ -66,6 +62,8 @@ class Dataset:
         elif storage is not None and hasattr(storage, "root"):
             # Extract the path for printing, if path not given
             self.path = storage.root  # type: ignore
+        else:
+            self.path = path  # Used for printing, if given
 
         base_storage = storage or storage_provider_from_path(path)
         memory_cache_size_bytes = memory_cache_size * MB
@@ -73,8 +71,9 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        if self.mode == "r":
-            self.storage.enable_readonly()
+
+        self.mode = mode
+        self.index = index
 
         self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
@@ -158,6 +157,18 @@ class Dataset:
     @meta.setter
     def meta(self, new_meta: dict):
         write_dataset_meta(self.storage, new_meta)
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, new_mode):
+        if new_mode == "r":
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
+        self._mode = new_mode
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
