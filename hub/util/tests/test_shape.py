@@ -1,17 +1,17 @@
 from hub.util.exceptions import InvalidShapeIntervalError
 import pytest
-from hub.util.shape import Shape
+from hub.util.shape import ShapeInterval
 
 
 def assert_fixed(raw_shape):
-    fixed_shape = Shape(raw_shape)
+    fixed_shape = ShapeInterval(raw_shape)
     assert fixed_shape.lower == raw_shape
     assert fixed_shape.upper == raw_shape
-    assert fixed_shape.is_fixed
+    assert not fixed_shape.is_dynamic
 
 
 def assert_dynamic(raw_lower, raw_upper):
-    dynamic_shape = Shape(raw_lower, raw_upper)
+    dynamic_shape = ShapeInterval(raw_lower, raw_upper)
     assert dynamic_shape.lower == raw_lower
     assert dynamic_shape.upper == raw_upper
     assert dynamic_shape.is_dynamic
@@ -38,4 +38,4 @@ FAILURES = [
 @pytest.mark.xfail(raises=InvalidShapeIntervalError, strict=True)
 @pytest.mark.parametrize("upper,lower", FAILURES)
 def test_invalid_shapes(upper, lower):
-    Shape(upper, lower)
+    ShapeInterval(upper, lower)

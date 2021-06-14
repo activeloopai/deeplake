@@ -1,4 +1,4 @@
-from hub.util.shape import Shape
+from hub.util.shape import ShapeInterval
 from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
 
@@ -42,6 +42,7 @@ class Tensor:
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
+
         self.key = key
         self.storage = storage
         self.index = index or Index()
@@ -102,13 +103,26 @@ class Tensor:
         write_tensor_meta(self.key, self.storage, new_meta)
 
     @property
-    def shape(self):
+    def shape(self) -> Tuple[int]:
+        # TODO: docstring
+        return self.shape_interval.astuple()
+
+    @property
+    def is_dynamic(self) -> bool:
+        return self.shape_interval.is_dynamic
+
+    @property
+    def shape_interval(self):
+        # TODO: docstring
+        # TODO: shape interval should have `len(self)`
+
         ds_meta = self.meta
+        length = [len(self)]
 
-        min_shape = ds_meta["min_shape"]
-        max_shape = ds_meta["max_shape"]
+        min_shape = length + list(ds_meta["min_shape"])
+        max_shape = length + list(ds_meta["max_shape"])
 
-        return Shape(min_shape, max_shape)
+        return ShapeInterval(min_shape, max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
