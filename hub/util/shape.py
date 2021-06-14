@@ -1,7 +1,7 @@
 import numpy as np
 
 from hub.util.exceptions import InvalidShapeIntervalError
-from typing import Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 
 def _contains_negatives(shape: Sequence[int]):
@@ -47,13 +47,12 @@ class ShapeInterval:
         self._lower = tuple(lower)
         self._upper = tuple(upper)
 
-    def astuple(self) -> Tuple[int]:
+    def astuple(self) -> Tuple[Optional[int], ...]:
         # TODO: named tuple? NHWC shape would be (10, 224, 224, 3) could be (N=10, H=224, W=224, C=3).
-        # TODO: named tuples require `htype` definitions
 
         shape = []
         for low, up in zip(self.lower, self.upper):
-            shape.append(None if low != up else low)
+            shape.append(None if low != up else low)  # type: ignore
         return tuple(shape)
 
     @property
@@ -61,11 +60,11 @@ class ShapeInterval:
         return self.lower != self.upper
 
     @property
-    def lower(self):
+    def lower(self) -> Tuple[int, ...]:
         return self._lower
 
     @property
-    def upper(self):
+    def upper(self) -> Tuple[int, ...]:
         return self._upper
 
     def __str__(self):

@@ -103,18 +103,40 @@ class Tensor:
         write_tensor_meta(self.key, self.storage, new_meta)
 
     @property
-    def shape(self) -> Tuple[int]:
-        # TODO: docstring
+    def shape(self) -> Tuple[Optional[int], ...]:
+        """Get the shape of this tensor.
+
+        Note:
+            If you don't want `None` in the output shape or want the lower/upper bound shapes,
+            use `tensor.shape_interval` instead.
+
+        Example:
+            Given a tensor `tensor` with 2 samples where:
+                tensor[0].shape == (10, 10)
+                tensor[1].shape == (10, 15)
+            The expected shape is:
+                tensor.shape = (2, 10, None)
+
+        Returns:
+            tuple: Tuple where each value is either `None` (if that axis is dynamic) or
+                an `int` (if that axis is fixed).
+        """
+
         return self.shape_interval.astuple()
 
     @property
-    def is_dynamic(self) -> bool:
-        return self.shape_interval.is_dynamic
+    def shape_interval(self) -> ShapeInterval:
+        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately.
 
-    @property
-    def shape_interval(self):
-        # TODO: docstring
-        # TODO: shape interval should have `len(self)`
+        Note:
+            If you are expecting a `tuple`, use `tensor.shape` instead.
+        
+        Example:
+            Given a tensor `tensor` with 2 samples where:
+
+        Returns:
+            ShapeInterval: Object containing `lower` and `upper` properties.
+        """
 
         ds_meta = self.meta
         length = [len(self)]
@@ -123,6 +145,11 @@ class Tensor:
         max_shape = length + list(ds_meta["max_shape"])
 
         return ShapeInterval(min_shape, max_shape)
+
+    @property
+    def is_dynamic(self) -> bool:
+        """Will return True if samples in this tensor have shapes that are unequal."""
+        return self.shape_interval.is_dynamic
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
