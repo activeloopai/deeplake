@@ -3,7 +3,9 @@ import warnings
 from hub.util.exceptions import ModuleNotInstalledException
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1, python_version_warning=True):
+def dataset_to_pytorch(
+    dataset, transform: Callable = None, workers: int = 1, python_version_warning=True
+):
     return TorchDataset(
         dataset,
         transform,
