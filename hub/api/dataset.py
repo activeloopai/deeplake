@@ -127,13 +127,15 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
+            **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
+                To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
-        """  # TODO: update docstring about **kwargs (custom meta too)
+        """
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
