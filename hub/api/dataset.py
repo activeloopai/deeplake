@@ -1,6 +1,4 @@
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
-
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
@@ -19,6 +17,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 from hub.util.get_storage_provider import get_storage_provider
+from hub.util.path import get_path_from_storage
 
 
 class Dataset:
@@ -65,6 +64,7 @@ class Dataset:
             creds = {}
         base_storage, mode = get_storage_provider(tag, url, storage, mode, creds)
         self.mode = mode
+        self.path = tag or url or get_path_from_storage(storage)  # Used for printing
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
@@ -219,3 +219,12 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    def __str__(self):
+        path_str = ""
+        if self.path:
+            path_str = f"path={self.path}, "
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"

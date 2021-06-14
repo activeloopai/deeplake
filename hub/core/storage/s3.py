@@ -51,6 +51,7 @@ class S3Provider(StorageProvider):
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
         self.mode: Optional[str] = mode
+        self.root = root
 
         root = root.replace("s3://", "")
         self.bucket = root.split("/")[0]

@@ -6,6 +6,7 @@ class MemoryProvider(StorageProvider):
 
     def __init__(self, root=""):
         self.dict = {}
+        self.root = root
 
     def __getitem__(
         self,
