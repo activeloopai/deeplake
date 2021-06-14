@@ -1,6 +1,6 @@
 import pytest
 
-from hub.constants import GB
+from hub.constants import MB
 from hub.tests.common_benchmark import (
     parametrize_benchmark_chunk_sizes,
     BENCHMARK_CHUNK_SIZES,
