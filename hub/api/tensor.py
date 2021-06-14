@@ -1,16 +1,15 @@
 from hub.htypes import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.shape import Shape
-from typing import List, Sequence, Union, Iterable, Optional, Tuple
-import warnings
+from typing import List, Sequence, Union, Optional, Tuple
 
 import numpy as np
 
 from hub.core.tensor import (
-    create_tensor,
     add_samples_to_tensor,
     read_samples_from_tensor,
     tensor_exists,
+    update_samples_in_tensor,
 )
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError
@@ -100,8 +99,17 @@ class Tensor:
     ):
         return Tensor(self.key, self.storage, index=self.index[item])
 
-    def __setitem__(self, item: Union[int, slice], value: np.ndarray):
-        raise NotImplementedError("Tensor update not currently supported!")
+    def __setitem__(
+        self,
+        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+        value: Union[np.ndarray, Sequence[np.ndarray]],
+    ):
+        if isinstance(value, np.ndarray):
+            update_samples_in_tensor(value, self.key, self.storage, self.index[item])
+        else:
+            raise NotImplementedError(
+                "Tensor update for Sequence[np.ndarray] not currently supported!"
+            )
 
     def __iter__(self):
         for i in range(len(self)):

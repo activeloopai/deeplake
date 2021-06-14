@@ -122,6 +122,12 @@ def add_samples_to_tensor(
     tensor_meta.length += array_length
 
 
+def update_samples_in_tensor(
+    array: np.ndarray, key: str, storage: StorageProvider, index: Index
+):
+    raise NotImplementedError("Update samples in tensor currently not supported!")
+
+
 def read_samples_from_tensor(
     key: str,
     storage: StorageProvider,
