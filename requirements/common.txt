@@ -6,3 +6,4 @@ boto3
 boto3-stubs[essential]
 pathos
 types-requests
+tqdm
