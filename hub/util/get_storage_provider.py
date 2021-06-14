@@ -15,19 +15,22 @@ def get_storage_provider(
     storage: Optional[StorageProvider] = None,
     mode: Optional[str] = None,
     creds: Optional[dict] = None,
+    public: Optional[bool] = None,
 ):
     num_storage_args = sum(a is not None for a in (tag, url, storage))
     if num_storage_args != 1:
         raise ImproperDatasetInitialization
     if tag is not None:
-        return storage_provider_from_tag(tag, mode)
+        return storage_provider_from_tag(tag, mode, public)
     elif url is not None:
         return storage_provider_from_url(url, creds, mode)
     elif storage is not None:
         return storage
 
 
-def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[str]):
+def storage_provider_from_url(
+    url: str, creds: Optional[dict], mode: Optional[str], public: Optional[bool]
+):
     """Construct a StorageProvider given a path.
 
     Arguments:
@@ -56,7 +59,9 @@ def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[st
         token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
-        return S3Provider(url, key, secret, token, endpoint_url, region, mode=mode)
+        return S3Provider(
+            url, key, secret, token, endpoint_url, region, mode=mode, public=public
+        )
     elif url.startswith("mem://"):
         return MemoryProvider(url)
     else:
@@ -66,11 +71,13 @@ def storage_provider_from_url(url: str, creds: Optional[dict], mode: Optional[st
             raise ValueError(f"Local path {url} must be a path to a local directory")
 
 
-def storage_provider_from_tag(tag: str, mode: Optional[str] = None):
+def storage_provider_from_tag(
+    tag: str, mode: Optional[str] = None, public: Optional[bool] = None
+):
     check_tag(tag)
     org_id, ds_name = tag.split("/")
     client = HubBackendClient()
     url, creds, mode, expiration = client.get_dataset_credentials(org_id, ds_name, mode)
-    storage = storage_provider_from_url(url, creds, mode)
+    storage = storage_provider_from_url(url, creds, mode, public)
     storage._set_hub_creds_info(tag, expiration)
     return storage

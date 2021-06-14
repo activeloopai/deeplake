@@ -11,6 +11,8 @@ from hub.client.config import (
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
+    DATASET_SUFFIX,
+    UPDATE_SUFFIX,
 )
 from hub.client.log import logger
 
@@ -157,9 +159,6 @@ class HubBackendClient:
         try:
             tag = f"{username}/{dataset_name}"
             repo = f"protected/{username}"
-            import pdb
-
-            pdb.set_trace()
             response = self.request(
                 "POST",
                 CREATE_DATASET_SUFFIX,
@@ -182,3 +181,26 @@ class HubBackendClient:
                     )
         except Exception as e:
             logger.error("Unable to create Dataset entry" + str(e))
+
+    def delete_dataset_entry(self, username, dataset_name):
+        try:
+            tag = f"{username}/{dataset_name}"
+            suffix = f"{DATASET_SUFFIX}/{tag}"
+            self.request(
+                "DELETE",
+                suffix,
+                endpoint=HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            logger.error("Unable to delete Dataset entry" + str(e))
+
+    def update_dataset_state(self, username, dataset_name, **kwargs):
+        try:
+            self.request(
+                "POST",
+                UPDATE_SUFFIX,
+                json={"org_id": username, "ds_name": dataset_name} + kwargs,
+                endpoint=HUB_REST_ENDPOINT,
+            ).json()
+        except Exception as e:
+            logger.error("Unable to update Dataset entry state " + str(e))
