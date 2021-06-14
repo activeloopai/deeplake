@@ -20,7 +20,7 @@ def get_storage_provider(
     if num_storage_args != 1:
         raise ImproperDatasetInitialization
     if tag is not None:
-        return storage_provider_from_tag(tag, mode, public)
+        return storage_provider_from_tag(tag, mode)
     elif url is not None:
         return storage_provider_from_url(url, creds, mode)
     elif storage is not None:
