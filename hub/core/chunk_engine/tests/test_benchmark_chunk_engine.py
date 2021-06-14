@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 
 from hub.constants import GB
-from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import (
     read_samples_from_tensor,
     add_samples_to_tensor,
@@ -24,7 +23,7 @@ from hub.tests.common_benchmark import (
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
-    create_tensor(actual_key, storage, default_tensor_meta(chunk_size=chunk_size))
+    create_tensor(actual_key, storage, htype_overwrite={"chunk_size": chunk_size})
 
     for a_in in arrays:
         add_samples_to_tensor(

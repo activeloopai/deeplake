@@ -1,5 +1,4 @@
-from hub.util.index import Index
-from typing import Any, Sequence, List
+from typing import Any, List, Sequence
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -10,15 +9,6 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class TensorMetaMismatchError(Exception):
-    def __init__(self, meta_key: str, expected: Any, actual: Any):
-        super().__init__(
-            "Meta value for {} expected {} but got {}.".format(
-                meta_key, str(expected), str(actual)
-            )
-        )
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -27,15 +17,6 @@ class TensorInvalidSampleShapeError(Exception):
 class TensorMetaMissingKey(Exception):
     def __init__(self, key: str, meta: dict):
         super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
-
-
-class TensorMetaInvalidValue(Exception):
-    def __init__(self, key: str, value: Any, explanation: str = ""):
-        super().__init__(
-            "Invalid value {} for tensor meta key {}. {}".format(
-                str(value), key, explanation
-            )
-        )
 
 
 class TensorDoesNotExistError(KeyError):
@@ -49,7 +30,7 @@ class TensorAlreadyExistsError(Exception):
 
 
 class DynamicTensorNumpyError(Exception):
-    def __init__(self, key: str, index: Index):
+    def __init__(self, key: str, index):
         super().__init__(
             "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
             Try setting the parameter `aslist=True`".format(
@@ -244,7 +225,9 @@ class InvalidImageDimensions(Exception):
 
 class ExternalCommandError(Exception):
     def __init__(self, command: str, status: int):
-        super().__init__(f"Status for command \"{command}\" was \"{status}\", expected to be \"0\".")
+        super().__init__(
+            f'Status for command "{command}" was "{status}", expected to be "0".'
+        )
 
 
 class KaggleError(Exception):
@@ -253,7 +236,10 @@ class KaggleError(Exception):
 
 class KaggleMissingCredentialsError(KaggleError):
     def __init__(self, env_var_name: str):
-        super().__init__("Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api" % env_var_name)
+        super().__init__(
+            "Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api"
+            % env_var_name
+        )
 
 
 class KaggleDatasetAlreadyDownloadedError(KaggleError):
@@ -264,13 +250,74 @@ class KaggleDatasetAlreadyDownloadedError(KaggleError):
 
 class KaggleInvalidSourcePathError(KaggleError):
     def __init__(self, source: str):
-        self.message = f"Source \"{source}\" is expected to always be local. This is because kaggle datasets can only be downloaded locally via the API.  \
-            However, `destination` may be a non-local path."
+        self.message = f'Source "{source}" is expected to always be local. This is because kaggle datasets can only be downloaded locally via the API.  \
+            However, `destination` may be a non-local path.'
         super().__init__(self.message)
 
 
 class HubAutoUnsupportedFileExtensionError(Exception):
     def __init__(self, extension: str, supported_extensions: List[str]):
         super().__init__(
-            f"hub.auto does not support the \"{extension}\" extension. Available extensions: {str(supported_extensions)}."
+            f'hub.auto does not support the "{extension}" extension. Available extensions: {str(supported_extensions)}.'
+        )
+
+
+class MetaError(Exception):
+    pass
+
+
+class MetaDoesNotExistError(MetaError):
+    def __init__(self, key: str):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
+            If you are trying to read the meta, heads up: it didn't get written."
+        )
+
+
+class MetaAlreadyExistsError(MetaError):
+    def __init__(self, key: str, required_meta: dict):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
+            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta})."
+        )
+
+
+class MetaInvalidKey(MetaError):
+    def __init__(self, name: str, available_keys: List[str]):
+        super().__init__(
+            f'"{name}" is an invalid key for meta (`meta_object.{name}`). \
+            Maybe a typo? Available keys: {str(available_keys)}'
+        )
+
+
+class MetaInvalidRequiredMetaKey(MetaError):
+    def __init__(self, key: str, subclass_name: str):
+        super().__init__(
+            f"'{key}' should not be passed in `required_meta` (it is probably automatically set). \
+            This means the '{subclass_name}' class was constructed improperly."
+        )
+
+
+class TensorMetaInvalidHtype(MetaError):
+    def __init__(self, htype: str, available_htypes: Sequence[str]):
+        super().__init__(
+            f"Htype '{htype}' does not exist. Available htypes: {str(available_htypes)}"
+        )
+
+
+class TensorMetaInvalidHtypeOverwrite(MetaError):
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
+
+
+class TensorMetaMismatchError(MetaError):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            "Meta value for {} expected {} but got {}.".format(
+                meta_key, str(expected), str(actual)
+            )
         )

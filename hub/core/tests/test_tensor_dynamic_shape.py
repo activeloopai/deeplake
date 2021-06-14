@@ -1,10 +1,9 @@
 from hub.core.storage.memory import MemoryProvider
-from hub.util.index import Index
+from hub.core.index import Index
 from hub.util.array import (
     normalize_and_batchify_array_shape,
     normalize_and_batchify_shape,
 )
-from hub.core.meta.tensor_meta import read_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,

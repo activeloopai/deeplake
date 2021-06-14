@@ -44,7 +44,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta == {"tensors": []}
+    assert ds.meta.tensors == []
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -60,7 +60,26 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta == {"tensors": ["image"]}
+    assert ds.meta.tensors == ["image"]
+
+
+def test_stringify(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4)))
+    assert str(ds) == "Dataset(mode='a', tensors=['image'])"
+    assert (
+        str(ds[1:2])
+        == "Dataset(mode='a', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+    )
+    assert str(ds.image) == "Tensor(key='image')"
+    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
+
+
+def test_stringify_with_path(local_ds):
+    ds = local_ds
+    assert local_ds.path
+    assert str(ds) == f"Dataset(path={local_ds.path}, mode='a', tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -96,16 +115,6 @@ def test_compute_dynamic_tensor(ds):
 
 
 @parametrize_all_dataset_storages
-def test_compute_tensor_slice(ds):
-    ds.create_tensor("image")
-    ds.image.extend(np.vstack((np.arange(16),) * 8))
-
-    sliced_data = ds.image[2:5].numpy()
-    expected_data = np.vstack((np.arange(16),) * 3)
-    np.testing.assert_array_equal(sliced_data, expected_data)
-
-
-@parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
@@ -120,6 +129,41 @@ def test_iterate_dataset(ds):
         np.testing.assert_array_equal(img, np.ones((28, 28)))
         assert label.shape == (1,)
         assert label == labels[idx]
+
+
+def _check_tensor(tensor, data):
+    np.testing.assert_array_equal(tensor.numpy(), data)
+
+
+def test_compute_slices(memory_ds):
+    ds = memory_ds
+    shape = (64, 16, 16, 16)
+    data = np.arange(np.prod(shape)).reshape(shape)
+    ds.create_tensor("data")
+    ds.data.extend(data)
+
+    _check_tensor(ds.data[:], data[:])
+    _check_tensor(ds.data[10:20], data[10:20])
+    _check_tensor(ds.data[5], data[5])
+    _check_tensor(ds.data[0][:], data[0][:])
+    _check_tensor(ds.data[3, 3], data[3, 3])
+    _check_tensor(ds.data[30:40, :, 8:11, 4], data[30:40, :, 8:11, 4])
+    _check_tensor(ds.data[16, 4, 5, 1:3], data[16, 4, 5, 1:3])
+    _check_tensor(ds[[0, 1, 2, 5, 6, 10, 60]].data, data[[0, 1, 2, 5, 6, 10, 60]])
+    _check_tensor(ds.data[[0, 1, 2, 5, 6, 10, 60]], data[[0, 1, 2, 5, 6, 10, 60]])
+    _check_tensor(ds.data[0][[0, 1, 2, 5, 6, 10, 15]], data[0][[0, 1, 2, 5, 6, 10, 15]])
+    _check_tensor(ds[(0, 1, 6, 10, 15), :].data, data[(0, 1, 6, 10, 15), :])
+    _check_tensor(ds.data[(0, 1, 6, 10, 15), :], data[(0, 1, 6, 10, 15), :])
+    _check_tensor(ds.data[0][(0, 1, 6, 10, 15), :], data[0][(0, 1, 6, 10, 15), :])
+    _check_tensor(ds.data[0, (0, 1, 5)], data[0, (0, 1, 5)])
+    _check_tensor(ds.data[:, :][0], data[:, :][0])
+    _check_tensor(ds.data[:, :][0:2], data[:, :][0:2])
+    _check_tensor(ds.data[0, :][0:2], data[0, :][0:2])
+    _check_tensor(ds.data[:, 0][0:2], data[:, 0][0:2])
+    _check_tensor(ds.data[:, 0][0:2], data[:, 0][0:2])
+    _check_tensor(ds.data[:, :][0][(0, 1, 2), 0], data[:, :][0][(0, 1, 2), 0])
+    _check_tensor(ds.data[0][(0, 1, 2), 0][1], data[0][(0, 1, 2), 0][1])
+    _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
 
 
 def test_shape_property(memory_ds):

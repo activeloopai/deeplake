@@ -1,5 +1,6 @@
 import os
-from typing import Optional
+from typing import List, Optional
+import numpy as np
 
 import numpy as np
 
@@ -9,7 +10,7 @@ from hub.core.typing import StorageProvider
 def sample_from_index_entry(
     key: str, storage: StorageProvider, index_entry: dict, dtype: str
 ) -> np.ndarray:
-    """Get the un-chunked sample from a single `index_map` entry."""
+    """Get the un-chunked sample from a single `index_meta` entry."""
 
     b = bytearray()
     for chunk_name in index_entry["chunk_names"]:

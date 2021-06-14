@@ -1,14 +1,15 @@
 from hub.core.storage.memory import MemoryProvider
+from hub.htypes import DEFAULT_HTYPE
 import warnings
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
-from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
-from hub.core.meta.tensor_meta import default_tensor_meta
-from hub.core.tensor import tensor_exists
+from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
+from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -16,11 +17,16 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
-from hub.util.index import Index
 from hub.util.path import storage_provider_from_path
 
 
-def _get_cache_chain(path: str, storage: StorageProvider, memory_cache_size: int, local_cache_size: int, **kwargs):
+def _get_cache_chain(
+    path: str,
+    storage: StorageProvider,
+    memory_cache_size: int,
+    local_cache_size: int,
+    **kwargs,
+):
     if storage is not None and path:
         warnings.warn(
             "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
@@ -42,7 +48,7 @@ class Dataset:
         self,
         path: str = "",
         mode: str = "a",
-        index: Union[int, slice, Index] = None,
+        index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         storage: Optional[StorageProvider] = None,
@@ -52,10 +58,9 @@ class Dataset:
         Args:
             path (str): The location of the dataset. Used to initialize the storage provider.
             mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
+                Supported modes include ("r", "w", "a").
                 Defaults to "a".
-            index: The Index object restricting the view of this dataset's tensors.
-                Can be an int, slice, or (used internally) an Index object.
+            index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             storage (StorageProvider, optional): The storage provider used to access
@@ -66,48 +71,60 @@ class Dataset:
             UserWarning: Both path and storage should not be given.
         """
         self.mode = mode
-        self.index = Index(index)
+        self.index = index
+        self.path = path  # Used for printing, if given
 
-        self.storage = _get_cache_chain(path, storage, memory_cache_size, local_cache_size)
+        if storage is not None and hasattr(storage, "root"):
+            # Extract the path for printing, if path not given
+            self.path = storage.root  # type: ignore
 
+        self.storage = _get_cache_chain(
+            path, storage, memory_cache_size, local_cache_size
+        )
         self.tensors: Dict[str, Tensor] = {}
 
+        self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
-            for tensor_name in self.meta["tensors"]:
+            self.meta = DatasetMeta.load(self.storage)
+            for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         else:
-            self.meta = {"tensors": []}
+            self.meta = DatasetMeta.create(self.storage)
 
     # TODO len should consider slice
     def __len__(self):
         """Return the smallest length of tensors"""
         return min(map(len, self.tensors.values()), default=0)
 
-    def __getitem__(self, item: Union[str, int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[
+            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
+        ],
+    ):
         if isinstance(item, str):
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
                 return self.tensors[item][self.index]
-        elif isinstance(item, (int, slice, Index)):
-            new_index = self.index[Index(item)]
-            return Dataset(mode=self.mode, storage=self.storage, index=new_index)
+        elif isinstance(item, (int, slice, list, tuple, Index)):
+            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 
     def create_tensor(
         self,
         name: str,
-        htype: Optional[str] = None,
+        htype: str = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
-        extra_meta: Optional[dict] = None,
+        custom_meta: Optional[dict] = None,
     ):
         """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
-            htype (str, optional): The class of data for the tensor.
+            htype (str): The class of data for the tensor.
                 The defaults for other parameters are determined in terms of this value.
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
@@ -115,7 +132,7 @@ class Dataset:
             chunk_size (int, optional): The target size for chunks in this tensor.
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
-            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+            custom_meta (dict, optional): Any additional user-defined metadata to be added to the tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -127,13 +144,17 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        ds_meta = self.meta
-        ds_meta["tensors"].append(name)
-        self.meta = ds_meta
+        htype_overwrite = {
+            "chunk_size": chunk_size,
+            "dtype": dtype,
+            "custom_meta": custom_meta,
+        }
 
-        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
-        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        create_tensor(name, self.storage, htype=htype, htype_overwrite=htype_overwrite)
+        tensor = Tensor(name, self.storage)
+
         self.tensors[name] = tensor
+        self.meta.tensors.append(name)
 
         return tensor
 
@@ -142,14 +163,6 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-
-    @property
-    def meta(self):
-        return read_dataset_meta(self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_dataset_meta(self.storage, new_meta)
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
@@ -193,3 +206,36 @@ class Dataset:
 
     def keys(self):
         return tuple(self.tensors.keys())
+
+    @staticmethod
+    def from_path(path: str):
+        """Creates a hub dataset from unstructured data.
+
+        Note:
+            This copies the data into hub format.
+            Be careful when using this with large datasets.
+
+        Args:
+            path (str): Path to the data to be converted
+
+        Returns:
+            A Dataset instance whose path points to the hub formatted
+            copy of the data.
+
+        Raises:
+            NotImplementedError: TODO.
+        """
+
+        raise NotImplementedError(
+            "Automatic dataset ingestion is not yet supported."
+        )  # TODO: hub.auto
+        return None
+
+    def __str__(self):
+        path_str = f"path={self.path}, "
+        if not self.path:
+            path_str = ""
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta.tensors})"

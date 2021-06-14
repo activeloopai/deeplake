@@ -1,7 +1,8 @@
+from hub.htypes import DEFAULT_HTYPE
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.shape import Shape
-from typing import List, Sequence, Union
+from typing import List, Sequence, Union, Iterable, Optional, Tuple
 import warnings
-from typing import Union, Iterable
 
 import numpy as np
 
@@ -9,13 +10,11 @@ from hub.core.tensor import (
     create_tensor,
     add_samples_to_tensor,
     read_samples_from_tensor,
-    read_tensor_meta,
-    write_tensor_meta,
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError
-from hub.util.index import Index
+from hub.core.index import Index
 
 
 class Tensor:
@@ -23,37 +22,29 @@ class Tensor:
         self,
         key: str,
         storage: StorageProvider,
-        tensor_meta: dict = None,
-        index: Union[int, slice, Index] = None,
+        index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
+
         Note:
             This operation does not create a new tensor in the storage provider,
             and should normally only be performed by Hub internals.
+
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
-            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
-                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
+
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
         self.key = key
         self.storage = storage
-        self.index = Index(index)
+        self.index = index or Index()
 
-        if tensor_exists(self.key, self.storage):
-            if tensor_meta is not None:
-                warnings.warn(
-                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming "
-                    "tensor_meta. Key: {}".format(self.key)
-                )
-        else:
-            if tensor_meta is None:
-                raise TensorDoesNotExistError(self.key)
-            create_tensor(self.key, self.storage, tensor_meta)
+        if not tensor_exists(self.key, self.storage):
+            raise TensorDoesNotExistError(self.key)
 
     def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
         """Extends a tensor by appending multiple elements from a sequence.
@@ -93,26 +84,20 @@ class Tensor:
 
     @property
     def meta(self):
-        return read_tensor_meta(self.key, self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_tensor_meta(self.key, self.storage, new_meta)
+        return TensorMeta.load(self.key, self.storage)
 
     @property
     def shape(self):
-        ds_meta = self.meta
-
-        min_shape = ds_meta["min_shape"]
-        max_shape = ds_meta["max_shape"]
-
-        return Shape(min_shape, max_shape)
+        return Shape(self.meta.min_shape, self.meta.max_shape)
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
-        return self.meta["length"]
+        return self.meta.length
 
-    def __getitem__(self, item: Union[int, slice, Index]):
+    def __getitem__(
+        self,
+        item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
+    ):
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
@@ -138,5 +123,11 @@ class Tensor:
         """
 
         return read_samples_from_tensor(
-            self.key, self.storage, self.index, aslist=aslist
+            self.key, self.storage, index=self.index, aslist=aslist
         )
+
+    def __str__(self):
+        index_str = f", index={self.index}"
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Tensor(key={repr(self.key)}{index_str})"
