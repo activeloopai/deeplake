@@ -6,9 +6,9 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 from tqdm import tqdm
 
-from hub.api.dataset import Dataset
-from hub.auto.load import load
 from .base import UnstructuredDataset
+
+import hub
 
 IMAGES_TENSOR_NAME = "images"
 LABELS_TENSOR_NAME = "labels"
@@ -66,7 +66,7 @@ class ImageClassification(UnstructuredDataset):
         class_names = sorted(class_names)  # TODO: lexicographical sorting
         return tuple(class_names)
 
-    def structure(self, ds: Dataset, use_progress_bar: bool = True):
+    def structure(self, ds, use_progress_bar: bool = True):
         images_tensor_map = {}
         labels_tensor_map = {}
 
@@ -95,7 +95,7 @@ class ImageClassification(UnstructuredDataset):
             disable=not use_progress_bar,
         )
         for file_path in iterator:
-            image = load(file_path, symbolic=False)
+            image = hub.load(file_path, symbolic=False)
             class_name = _class_name_from_path(file_path)
             label = np.array(
                 [self.class_names.index(class_name)]

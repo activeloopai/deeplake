@@ -1,6 +1,4 @@
-
 from abc import ABC, abstractmethod
-from hub.api.dataset import Dataset
 from hub.util.path import find_root
 from pathlib import Path
 
@@ -10,5 +8,5 @@ class UnstructuredDataset(ABC):
         self.source = Path(find_root(source))
 
     @abstractmethod
-    def structure(ds: Dataset, use_progress_bar: bool=True):
+    def structure(ds, use_progress_bar: bool = True):
         pass

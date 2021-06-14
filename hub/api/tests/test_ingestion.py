@@ -1,11 +1,12 @@
 from hub.api.dataset import Dataset
-from hub import from_path
-from hub.auto.tests.common import get_dummy_data_path
+from hub.api.tests.common import get_dummy_data_path
 
 
 def test_image_classification(memory_storage):
     path = get_dummy_data_path("image_classification")
-    ds = from_path(source=path, destination=memory_storage, use_progress_bar=False)
+    ds = Dataset.from_path(
+        source=path, destination=memory_storage, use_progress_bar=False
+    )
 
     assert ds.mode == "r"
     assert ds.keys() == ("images", "labels")
@@ -16,7 +17,9 @@ def test_image_classification(memory_storage):
 
 def test_image_classification_with_sets(memory_storage):
     path = get_dummy_data_path("image_classification_with_sets")
-    ds = from_path(source=path, destination=memory_storage, use_progress_bar=False)
+    ds = Dataset.from_path(
+        source=path, destination=memory_storage, use_progress_bar=False
+    )
 
     assert ds.mode == "r"
     assert ds.keys() == ("test/images", "test/labels", "train/images", "train/labels")

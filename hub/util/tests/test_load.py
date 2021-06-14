@@ -1,8 +1,9 @@
 from hub.util.exceptions import HubAutoUnsupportedFileExtensionError
 import pytest
 import numpy as np
-from hub.auto.tests.common import get_dummy_data_path
+from hub.api.tests.common import get_dummy_data_path
 import hub
+
 
 def test_jpeg():
     path = get_dummy_data_path("cat.jpeg")
