@@ -1,3 +1,6 @@
+from hub.api.tensor import Tensor
+from hub.core.storage.local import LocalProvider
+from hub.core.storage.provider import StorageProvider
 import numpy as np
 import pytest
 
@@ -5,7 +8,7 @@ from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-def test_persist_local_flush(local_storage):
+def test_persist_local_flush(local_storage: LocalProvider):
     if local_storage is None:
         pytest.skip()
 
@@ -24,7 +27,7 @@ def test_persist_local_flush(local_storage):
     ds.delete()
 
 
-def test_persist_local_clear_cache(local_storage):
+def test_persist_local_clear_cache(local_storage: LocalProvider):
     if local_storage is None:
         pytest.skip()
 
@@ -43,7 +46,7 @@ def test_persist_local_clear_cache(local_storage):
 
 
 @parametrize_all_dataset_storages
-def test_populate_dataset(ds):
+def test_populate_dataset(ds: Dataset):
     assert ds.meta.tensors == []
     ds.create_tensor("image")
     assert len(ds) == 0
@@ -63,7 +66,8 @@ def test_populate_dataset(ds):
     assert ds.meta.tensors == ["image"]
 
 
-def test_stringify(memory_ds):
+
+def test_stringify(memory_ds: Dataset):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
@@ -76,21 +80,21 @@ def test_stringify(memory_ds):
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
 
 
-def test_stringify_with_path(local_ds):
+def test_stringify_with_path(local_ds: Dataset):
     ds = local_ds
     assert local_ds.path
     assert str(ds) == f"Dataset(path={local_ds.path}, mode='a', tensors=[])"
 
 
 @parametrize_all_dataset_storages
-def test_compute_fixed_tensor(ds):
+def test_compute_fixed_tensor(ds: Dataset):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
 @parametrize_all_dataset_storages
-def test_compute_dynamic_tensor(ds):
+def test_compute_dynamic_tensor(ds: Dataset):
     ds.create_tensor("image")
 
     a1 = np.ones((32, 28, 28))
@@ -115,7 +119,7 @@ def test_compute_dynamic_tensor(ds):
 
 
 @parametrize_all_dataset_storages
-def test_iterate_dataset(ds):
+def test_iterate_dataset(ds: Dataset):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
     ds.create_tensor("label")
@@ -131,11 +135,11 @@ def test_iterate_dataset(ds):
         assert label == labels[idx]
 
 
-def _check_tensor(tensor, data):
+def _check_tensor(tensor: Tensor, data: np.ndarray):
     np.testing.assert_array_equal(tensor.numpy(), data)
 
 
-def test_compute_slices(memory_ds):
+def test_compute_slices(memory_ds: Dataset):
     ds = memory_ds
     shape = (64, 16, 16, 16)
     data = np.arange(np.prod(shape)).reshape(shape)
@@ -166,7 +170,7 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
 
 
-def test_shape_property(memory_ds):
+def test_shape_property(memory_ds: Dataset):
     fixed = memory_ds.create_tensor("fixed_tensor")
     dynamic = memory_ds.create_tensor("dynamic_tensor")
 
