@@ -2,7 +2,6 @@ import os
 
 TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
 
-# HUB_REST_ENDPOINT = "http://localhost:5000"
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
 
 GET_TOKEN_SUFFIX = "/api/user/token"

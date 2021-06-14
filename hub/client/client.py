@@ -21,7 +21,7 @@ class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self):
-        self.version = get_property("__version__", "Hub/hub")
+        self.version = get_property("__version__", "hub")
         self.auth_header = get_auth_header()
         if not self.auth_header:
             token = self.request_auth_token(username="public", password="")
