@@ -78,7 +78,6 @@ class Dataset:
         )
         self.storage.autoflush = True
 
-
         self.mode = mode
         self.index = index
 
