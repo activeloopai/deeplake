@@ -133,12 +133,12 @@ class TorchDataset:
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
         for key in self.keys:
-            meta = TensorMeta.load(key, _hub_storage_provider)
-            if meta["dtype"] == "uint16":
-                meta["dtype"] = "int32"
-            elif meta["dtype"] in ["uint32", "uint64"]:
-                meta["dtype"] = "int64"
-            all_meta[key] = meta
+            tensor_meta = TensorMeta.load(key, _hub_storage_provider)
+            if tensor_meta.dtype == "uint16":
+                tensor_meta.dtype = "int32"
+            elif tensor_meta.dtype in ["uint32", "uint64"]:
+                tensor_meta.dtype = "int64"
+            all_meta[key] = tensor_meta
         return all_meta
 
     def _prefetch_data(self, key: str, index: int):
