@@ -6,6 +6,7 @@ from hub.util.exceptions import (
     MetaInvalidKey,
     MetaInvalidRequiredMetaKey,
     TensorMetaInvalidHtype,
+    TensorMetaInvalidHtypeOverwriteKey,
 )
 import pytest
 from hub.core.meta.dataset_meta import DatasetMeta
@@ -99,9 +100,7 @@ def test_tensor_meta(local_storage):
 
 
 def test_tensor_meta_htype_overwrite(local_storage):
-    tensor_meta = TensorMeta.create(
-        TEST_META_KEY, local_storage, htype_overwrite={"dtype": "bool"}
-    )
+    tensor_meta = TensorMeta.create(TEST_META_KEY, local_storage, dtype="bool")
     del tensor_meta
 
     tensor_meta = TensorMeta.load(TEST_META_KEY, local_storage)
@@ -125,8 +124,13 @@ def test_invalid_htype(local_storage):
     TensorMeta.create(TEST_META_KEY, local_storage, htype="bad_htype")
 
 
+@pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwriteKey, strict=True)
+def test_invalid_htype_overwrite_key(local_storage):
+    TensorMeta.create(TEST_META_KEY, local_storage, non_existent_htype_key="some_value")
+
+
 @pytest.mark.xfail(raises=MetaInvalidKey, strict=True)
-def test_invalid_meta_key(local_storage):
+def test_read_invalid_meta_key(local_storage):
     meta = Meta(TEST_META_KEY, local_storage, required_meta={})
     meta.some_key
 

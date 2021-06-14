@@ -305,12 +305,19 @@ class TensorMetaInvalidHtype(MetaError):
         )
 
 
-class TensorMetaInvalidHtypeOverwrite(MetaError):
+class TensorMetaInvalidHtypeOverwriteValue(MetaError):
     def __init__(self, key: str, value: Any, explanation: str = ""):
         super().__init__(
             "Invalid value {} for tensor meta key {}. {}".format(
                 str(value), key, explanation
             )
+        )
+
+
+class TensorMetaInvalidHtypeOverwriteKey(MetaError):
+    def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
+        super().__init__(
+            f"Htype '{htype}' doesn't have a key for '{key}'. Available keys: {str(available_keys)}"
         )
 
 

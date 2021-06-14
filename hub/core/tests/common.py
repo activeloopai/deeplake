@@ -144,7 +144,7 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
-    create_tensor(key, storage, htype_overwrite={"chunk_size": chunk_size})
+    create_tensor(key, storage, chunk_size=chunk_size)
     tensor_meta = TensorMeta.load(key, storage)
 
     first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
@@ -191,10 +191,8 @@ def run_engine_test(
     assert_chunk_sizes(key, storage, chunk_size)
 
 
-def benchmark_write(
-    key, arrays, chunk_size, storage, batched, clear_memory_after_write=True
-):
-    create_tensor(key, storage, htype_overwrite={"chunk_size": chunk_size})
+def benchmark_write(key, arrays, chunk_size, storage, batched):
+    create_tensor(key, storage, chunk_size=chunk_size)
 
     for a_in in arrays:
         add_samples_to_tensor(
