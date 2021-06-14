@@ -1,5 +1,6 @@
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
+from boto3.resources import base
 
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
@@ -19,6 +20,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 from hub.util.get_storage_provider import get_storage_provider
+from hub.client.client import HubBackendClient
 
 
 class Dataset:
@@ -32,6 +34,7 @@ class Dataset:
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
         storage: Optional[StorageProvider] = None,
+        public: Optional[bool] = True,
     ):
         """Initializes a new or existing dataset.
 
@@ -51,6 +54,7 @@ class Dataset:
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             storage (StorageProvider, optional): The storage provider used to access the dataset.
                 Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
+            public (bool, optional): Applied only if storage is Hub cloud storage. Defines if the dataset will have public access.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -70,14 +74,20 @@ class Dataset:
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, url
         )
         self.tensors: Dict[str, Tensor] = {}
-
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
             raise PathNotEmptyException
-        else:
-            self.meta = {"tensors": []}
+        self.meta = {"tensors": []}
+        self.flush()
+        import pdb
+
+        pdb.set_trace()
+        if base_storage.tag and not dataset_exists(base_storage):
+            org_id, ds_name = tag.split("/")
+            client = HubBackendClient()
+            client.create_dataset_entry(org_id, ds_name, public=public)
 
     # TODO len should consider slice
     def __len__(self):

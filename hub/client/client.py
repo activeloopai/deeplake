@@ -10,14 +10,16 @@ from hub.client.config import (
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
+    CREATE_DATASET_SUFFIX,
 )
+from hub.client.log import logger
 
 
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self):
-        self.version = get_property("__version__", "hub")
+        self.version = get_property("__version__", "Hub/hub")
         self.auth_header = get_auth_header()
         if not self.auth_header:
             token = self.request_auth_token(username="public", password="")
@@ -150,3 +152,33 @@ class HubBackendClient:
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
+
+    def create_dataset_entry(self, username, dataset_name, public=True):
+        try:
+            tag = f"{username}/{dataset_name}"
+            repo = f"protected/{username}"
+            import pdb
+
+            pdb.set_trace()
+            response = self.request(
+                "POST",
+                CREATE_DATASET_SUFFIX,
+                json={
+                    "tag": tag,
+                    "repository": repo,
+                    "public": public,
+                    "rewrite": True,
+                },
+                endpoint=HUB_REST_ENDPOINT,
+            )
+
+            if response.status_code == 200:
+                logger.info(
+                    f"Your dataset is available at {HUB_REST_ENDPOINT}/datasets/explore?tag={tag}"
+                )
+                if public is False:
+                    logger.info(
+                        "The dataset is private so make sure you are logged in!"
+                    )
+        except Exception as e:
+            logger.error("Unable to create Dataset entry" + str(e))
