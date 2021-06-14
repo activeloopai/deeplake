@@ -94,8 +94,6 @@ class StorageProvider(ABC, MutableMapping):
                 value = value.rjust(end_byte, BYTE_PADDING)
             self[path] = value
 
-        self.maybe_flush()
-
     @abstractmethod
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
