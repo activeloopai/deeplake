@@ -1,7 +1,4 @@
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
-from boto3.resources import base
-
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core import storage
@@ -23,6 +20,7 @@ from hub.util.exceptions import (
 )
 from hub.util.get_storage_provider import get_storage_provider
 from hub.client.client import HubBackendClient
+from hub.util.path import get_path_from_storage
 
 
 class Dataset:
@@ -69,7 +67,9 @@ class Dataset:
         self.index = index
         if creds is None:
             creds = {}
-        base_storage = get_storage_provider(tag, url, storage, mode, creds)
+        base_storage, mode = get_storage_provider(tag, url, storage, mode, creds)
+        self.mode = mode
+        self.path = tag or url or get_path_from_storage(storage)  # Used for printing
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
@@ -105,7 +105,7 @@ class Dataset:
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(storage=self.storage, index=self.index[item])
+            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
         else:
             raise InvalidKeyTypeError(item)
 
@@ -242,9 +242,9 @@ class Dataset:
         return None
 
     def __str__(self):
-        path_str = f"path={self.path}, "
-        if not self.path:
-            path_str = ""
+        path_str = ""
+        if self.path:
+            path_str = f"path={self.path}, "
         index_str = f"index={self.index}, "
         if self.index.is_trivial():
             index_str = ""
