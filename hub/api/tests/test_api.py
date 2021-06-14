@@ -63,6 +63,25 @@ def test_populate_dataset(ds):
     assert ds.meta == {"tensors": ["image"]}
 
 
+def test_stringify(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4)))
+    assert str(ds) == "Dataset(mode='a', tensors=['image'])"
+    assert (
+        str(ds[1:2])
+        == "Dataset(mode='a', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+    )
+    assert str(ds.image) == "Tensor(key='image')"
+    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
+
+
+def test_stringify_with_path(local_ds):
+    ds = local_ds
+    assert local_ds.path
+    assert str(ds) == f"Dataset(path={local_ds.path}, mode='a', tensors=[])"
+
+
 @parametrize_all_dataset_storages
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")

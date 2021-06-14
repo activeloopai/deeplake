@@ -7,6 +7,7 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
 from hub.core.meta.tensor_meta import default_tensor_meta
+from hub.core.storage.lru_cache import LRUCache
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
@@ -80,14 +81,11 @@ class Dataset:
         elif len(self.storage) > 0:
             raise PathNotEmptyException
         self.meta = {"tensors": []}
-        self.flush()
-        import pdb
-
-        pdb.set_trace()
-        if base_storage.tag and not dataset_exists(base_storage):
+        self.client = HubBackendClient()
+        if tag and dataset_exists(self.storage) and not dataset_exists(base_storage):
             org_id, ds_name = tag.split("/")
-            client = HubBackendClient()
-            client.create_dataset_entry(org_id, ds_name, public=public)
+            self.flush()
+            self.client.create_dataset_entry(org_id, ds_name, public=public)
 
     # TODO len should consider slice
     def __len__(self):
@@ -228,3 +226,12 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    def __str__(self):
+        path_str = f"path={self.path}, "
+        if not self.path:
+            path_str = ""
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"
