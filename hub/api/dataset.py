@@ -51,6 +51,7 @@ class Dataset:
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
             UserWarning: Both path and storage should not be given.
+            UnsupportedModeError: If mode is not any of the options listed above.
         """
         if not mode in SUPPORTED_MODES:
             raise UnsupportedModeError(mode)
