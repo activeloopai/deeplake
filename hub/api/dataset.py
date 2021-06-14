@@ -1,6 +1,5 @@
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
-
 from hub.api.tensor import Tensor
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.core.dataset import dataset_exists
@@ -10,7 +9,7 @@ from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.constants import DEFAULT_CHUNK_SIZE
-from hub.integrations import dataset_to_pytorch
+from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -164,6 +163,14 @@ class Dataset:
             A dataset object that can be passed to torch.utils.data.DataLoader
         """
         return dataset_to_pytorch(self, transform, workers=workers)
+
+    def tensorflow(self):
+        """Converts the dataset into a pytorch compatible format.
+
+        Returns:
+            tf.data.Dataset object that can be used for tensorflow training.
+        """
+        return dataset_to_tensorflow(self)
 
     def flush(self):
         """Necessary operation after writes if caches are being used.
