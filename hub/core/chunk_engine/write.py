@@ -1,4 +1,4 @@
-from hub.constants import MB
+from hub.constants import CHUNK_MAX_SIZE, CHUNK_MIN_TARGET
 from hub.core.meta.index_meta import IndexMeta
 from typing import List, Tuple
 from uuid import uuid1
@@ -6,10 +6,6 @@ from uuid import uuid1
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
 from math import ceil
-
-
-CHUNK_MAX_SIZE = 32 * MB  # chunks won't ever be bigger than this
-CHUNK_MIN_TARGET = 16 * MB  # some chunks might be smaller than this
 
 
 def write_bytes(
@@ -35,13 +31,15 @@ def write_bytes(
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
     """
+    # TODO pass CHUNK_MIN, CHUNK_MAX instead of using constants
+    # do we need min target?
 
-    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
-    #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
     chunk_names = []
-    if len(last_chunk) > 0:  # last chunk exists
+    if (
+        len(last_chunk) > 0 and len(last_chunk) < CHUNK_MIN_TARGET
+    ):  # last chunk exists and has space
         last_chunk_size = len(last_chunk)
         num_chunks_b = _get_chunk_count(len(content))
         extra_bytes_in_last_chunk = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
