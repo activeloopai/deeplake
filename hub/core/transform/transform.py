@@ -1,4 +1,7 @@
-from collections import defaultdict
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.storage.memory import MemoryProvider
+from hub.core.meta.index_meta import IndexMeta
+from hub.core.tensor import add_samples_to_tensor
 from hub.api.dataset import Dataset
 from hub.constants import MB
 from typing import Callable, Dict, List
@@ -68,22 +71,20 @@ class Transform:
         # result = self._unwrap(result) if isinstance(result, list) else result
         # return result
 
-    def get_size(self, sample):
-        # TODO, may exist in core
-        return 10
+    # def get_size(self, sample):
+    #     # TODO, may exist in core
+    #     return 10
 
-    def write_chunk(self, key, samples, last_index):
-        """Writes a chunk and returns index map of all of its items"""
-        # TODO should be in core
-        pass
+    # def write_chunks(self, key, samples, last_index, process_num):
+    #     """Writes a chunk/chunks(in case of huge samples) and returns index map of all of its items"""
+    #     # TODO should be in core
+    #     pass
 
     def merge(self, all_index_maps):
         """Merges index maps from all workers and merges the corner chunks if required
-
         Assuming range is between 16-32MB. n workers
 
         Strategy, keep combining corner chunks till you hit or exceed optimal range.
-
         * signifies suboptimal
 
         Eg1
@@ -109,38 +110,31 @@ class Transform:
 
             becomes:-
             7MB*
-
-        Overall from Eg 4 and 5, combine huge image with previous chunk if it reduces total number of chunks, else don't.
         """
         pass
 
-    def store_shard(self, data_shard):
+    def store_shard(self, data_shard, storage, tensors):
         """Takes a shard of the original data and iterates through it, producing chunks."""
-        outputs: Dict[str, list] = defaultdict(list)
-        current_sizes: Dict[str, int] = {}
-        last_indexes: Dict[str, int] = defaultdict(int)
-        local_index_map = {}
-
+        local_index_map = {
+            tensor: IndexMeta.create(tensor, MemoryProvider()) for tensor in tensors
+        }
+        local_storage_map = {
+            tensor: LRUCache(MemoryProvider(), storage, 32 * MB) for tensor in tensors
+        }
         for i in range(len(data_shard)):
             sample = data_shard[i]
             if isinstance(sample, Dataset):
                 sample = sample.numpy()
-
             results = self.transform_sample(sample)  # always a list of dicts
             for result in results:
                 for key, value in result.items():
-                    outputs[key].append(value)
-                    current_sizes[key] += self.get_size(value)
-                    if current_sizes[key] >= CHUNK_SIZE or i == len(data_shard) - 1:
-                        data = outputs[key]
-                        index = last_indexes[key]
-                        chunk_index_map = self.write_chunk(key, data, index)
-
-                        # updating all maps
-                        local_index_map.update(chunk_index_map)
-                        last_indexes[key] += len(outputs[key])
-                        outputs[key].clear()
-                        current_sizes[key] = 0
+                    add_samples_to_tensor(
+                        value,
+                        key,
+                        local_storage_map[key],
+                        batched=False,
+                        index_meta=local_index_map[key],
+                    )
         return local_index_map
 
     def store(self, url: str):

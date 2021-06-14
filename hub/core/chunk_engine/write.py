@@ -1,15 +1,19 @@
-from hub.util.index import Index
+from hub.constants import MB
 from hub.core.meta.index_meta import IndexMeta
 from typing import List, Tuple
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
-from .chunker import generate_chunks
+from math import ceil
+
+
+CHUNK_MAX_SIZE = 32 * MB  # chunks won't ever be bigger than this
+CHUNK_MIN_TARGET = 16 * MB  # some chunks might be smaller than this
 
 
 def write_bytes(
-    b: memoryview,
+    content: memoryview,
     key: str,
     chunk_size: int,
     storage: StorageProvider,
@@ -19,9 +23,8 @@ def write_bytes(
         sample.
 
     Args:
-        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
-            chunked according
-            to `chunk_size`.
+        content (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
+            chunked according to `chunk_size`.
         key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to it's root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
@@ -33,60 +36,35 @@ def write_bytes(
     Returns:
         dict: Index map entry (note: it does not get appended to the `index_meta` argument). Dictionary keys:
             chunk_names: Sequential list of names of chunks that were created.
-            start_byte: Start byte for this sample. Will be 0 if no previous chunks exist, otherwise will
-                be set to the length of the last chunk before writing.
+            start_byte: Start byte for this sample.
             end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
     """  # TODO: Update docstring
-
-    # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
-    #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
-
-    bllc = 0
-    extend_last_chunk = False
-    if len(index_meta.entries) > 0 and len(last_chunk) < chunk_size:
-        bllc = chunk_size - len(last_chunk)
-        # use bytearray for concatenation (fastest method)
-        last_chunk = bytearray(last_chunk)  # type: ignore
-        extend_last_chunk = True
-
-    chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
-
-    chunk_names = []
     start_byte = 0
-    for chunk in chunk_generator:
-        if extend_last_chunk:
-            chunk_name = last_chunk_name
-
-            last_chunk += chunk  # type: ignore
-            chunk = memoryview(last_chunk)
-
+    chunk_names = []
+    if len(last_chunk) > 0:  # last chunk exists
+        last_chunk_size = len(last_chunk)
+        num_chunks_b = _get_chunk_count(len(content))
+        extra_bytes_in_last_chunk = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
+        num_chunks_after_combining = _get_chunk_count(len(content) + last_chunk_size)
+        if num_chunks_after_combining == num_chunks_b:  # combine if count is same
             start_byte = index_meta.entries[-1]["end_byte"]
+            chunk_names.append(last_chunk_name)
+            last_chunk = bytearray(last_chunk) + content
+            chunk_key = get_chunk_key(key, last_chunk_name)
+            storage[chunk_key] = last_chunk
+            end_byte = len(last_chunk)
+            content = content[extra_bytes_in_last_chunk:]
 
-            if len(chunk) >= chunk_size:
-                extend_last_chunk = False
-        else:
-            chunk_name = _random_chunk_name()
-
-        end_byte = len(chunk)
-
-        chunk_key = get_chunk_key(key, chunk_name)
-        storage[chunk_key] = chunk
-
+    while len(content) > 0:
+        chunk_name = _generate_chunk_name()
         chunk_names.append(chunk_name)
-
-        last_chunk = memoryview(chunk)
-        last_chunk_name = chunk_name
-
-    # TODO: encode index_meta_entry as array instead of dictionary
-    # TODO: rename index_entry -> sample_meta
-    index_entry = {
-        "chunk_names": chunk_names,
-        "start_byte": start_byte,
-        "end_byte": end_byte,
-    }
-
-    return index_entry
+        chunk_key = get_chunk_key(key, chunk_name)
+        chunk_size = min(len(content), CHUNK_MAX_SIZE)
+        storage[chunk_key] = content[0:chunk_size]
+        end_byte = chunk_size
+        content = content[chunk_size:]
+    return {"chunk_names": chunk_names, "start_byte": start_byte, "end_byte": end_byte}
 
 
 def _get_last_chunk(
@@ -103,7 +81,6 @@ def _get_last_chunk(
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
         memoryview: Content of the last chunk. If the last chunk doesn't exist, returns empty memoryview of bytes.
     """
-
     if len(index_meta.entries) > 0:
         entry = index_meta.entries[-1]
         last_chunk_name = entry["chunk_names"][-1]
@@ -113,5 +90,10 @@ def _get_last_chunk(
     return "", memoryview(bytes())
 
 
-def _random_chunk_name() -> str:
+def _generate_chunk_name() -> str:
     return str(uuid1())
+
+
+def _get_chunk_count(size):
+    """Returns the minimum number of chunks in which data of given size can be fit."""
+    return ceil(len(size) / CHUNK_MAX_SIZE)
