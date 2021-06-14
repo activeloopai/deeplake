@@ -90,6 +90,8 @@ class LRUCache(StorageProvider):
             self.dirty_keys.discard(path)
             self.next_storage[path] = value
 
+        self.maybe_flush()
+
     def __delitem__(self, path: str):
         """Deletes the object present at the path from the cache and the underlying storage.
 
@@ -114,6 +116,8 @@ class LRUCache(StorageProvider):
         except KeyError:
             if not deleted_from_cache:
                 raise
+
+        self.maybe_flush()
 
     def clear_cache(self):
         """Flushes the content of the cache and and then deletes contents of all the layers of it.

@@ -76,6 +76,7 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
+        self.storage.autoflush = True
 
         self.mode = mode
         self.index = index
@@ -86,6 +87,14 @@ class Dataset:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         else:
             self.meta = default_dataset_meta()
+
+    def __enter__(self):
+        self.storage.autoflush = False
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.storage.autoflush = True
+        self.flush()
 
     # TODO len should consider slice
     def __len__(self):

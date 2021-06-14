@@ -143,6 +143,13 @@ class StorageProvider(ABC, MutableMapping):
         """
         self.check_readonly()
 
+    def maybe_flush(self):
+        """Flush cache if autoflush has been enabled.
+        Called at the end of methods which write data, to ensure consistency as a default.
+        """
+        if hasattr(self, "autoflush") and self.autoflush:
+            self.flush()
+
     @abstractmethod
     def clear(self):
         """Delete the contents of the provider."""
