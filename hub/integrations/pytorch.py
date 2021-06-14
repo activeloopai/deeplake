@@ -57,10 +57,10 @@ class TorchDataset:
         self.keys = list(self.dataset.tensors)
 
         # contains meta for each Tensor
-        self.all_meta: Dict[str, Dict] = self._load_all_meta()
+        self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
 
         # contains index_meta for each Tensor
-        self.all_index_metas: Dict[str, List] = self._load_all_index_metas()
+        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_metas()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
@@ -171,18 +171,18 @@ class TorchDataset:
         chunk_names: Set[str] = set()
         index_meta = self.all_index_metas[key]
         while len(chunk_names) < self.workers and index < len(self):
-            chunks = index_meta[index]["chunk_names"]
+            chunks = index_meta.entries[index]["chunk_names"]
             chunk_names.update(chunks)
             index += 1
         return chunk_names
 
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
-        index_entry = self.all_index_metas[key][index]
+        index_entry = self.all_index_metas[key].entries[index]
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
-        dtype = self.all_meta[key]["dtype"]
+        dtype = self.all_tensor_metas[key].dtype
         shape = index_entry["shape"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
@@ -214,7 +214,7 @@ class TorchDataset:
         # saves np array for each index in memory
         for i in range(index, len(self)):
             chunks = []
-            index_entry = self.all_index_metas[key][i]
+            index_entry = self.all_index_metas[key].entries[i]
             for chunk_name in index_entry["chunk_names"]:
                 if chunk_name not in chunk_map:
                     self.last_index_meta[key] = i - 1
