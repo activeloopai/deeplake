@@ -4,7 +4,24 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 @parametrize_all_dataset_storages
-def test_update_tensor(ds: Dataset):
+def test_update_fixed_tensor(ds: Dataset):
+    image = ds.create_tensor("image")
+    image.extend(np.ones((20, 28, 28, 3)))
+
+    assert image.shape.lower == (28, 28, 3)
+    assert image.shape.upper == (28, 28, 3)
+
+    image[5] = np.arange(28 * 28 * 3).reshape((28, 28, 3))
+
+    assert len(image) == 20
+    assert image.shape.lower == (28, 28, 3)
+    assert image.shape.upper == (28, 28, 3)
+
+    assert image.numpy() == np.ones((20, 28, 28, 3))
+
+
+@parametrize_all_dataset_storages
+def test_update_dynamic_tensor(ds: Dataset):
     image = ds.create_tensor("image")
     image.extend(np.ones((20, 28, 28, 3)))
 
