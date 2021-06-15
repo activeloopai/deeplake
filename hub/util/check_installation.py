@@ -7,7 +7,6 @@ def pytorch_installed():
         return False
     return True
 
-
 def tfds_installed():
     try:
         import tensorflow_datasets  # type: ignore
@@ -16,5 +15,12 @@ def tfds_installed():
         tensorflow.__version__
         tensorflow_datasets.__version__
     except ModuleNotFoundError:
+      
+def tensorflow_installed():
+    try:
+        import tensorflow  # type: ignore
+
+        tensorflow.__version__
+    except ImportError:
         return False
     return True
