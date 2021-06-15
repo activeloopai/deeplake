@@ -11,7 +11,7 @@ def dataset_to_tensorflow(dataset):
             "'tensorflow' should be installed to convert the Dataset into tensorflow format"
         )
 
-    def tf_gen():
+    def __iter__():
         for index in range(len(dataset)):
             sample = {}
             for key in dataset.tensors:
@@ -29,4 +29,4 @@ def dataset_to_tensorflow(dataset):
         return signature
 
     signature = generate_signature()
-    return tf.data.Dataset.from_generator(tf_gen, output_signature=signature)
+    return tf.data.Dataset.from_generator(__iter__, output_signature=signature)

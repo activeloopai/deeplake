@@ -9,7 +9,7 @@ requires_tensorflow = pytest.mark.skipif(
 
 
 @requires_tensorflow
-def test_pytorch_small_old(local_ds):
+def test_tensorflow_small(local_ds):
     local_ds.create_tensor("image")
     local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
     local_ds.create_tensor("image2")
@@ -18,13 +18,14 @@ def test_pytorch_small_old(local_ds):
 
     tds = local_ds.tensorflow()
     for i, batch in enumerate(tds):
+        # converting tf Tensors to numpy
         np.testing.assert_array_equal(batch["image"].numpy(), i * np.ones((300, 300)))
         np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((100, 100)))
     local_ds.delete()
 
 
 @requires_tensorflow
-def test_pytorch_large_old(local_ds):
+def test_tensorflow_large(local_ds):
     local_ds.create_tensor("image")
     arr = np.array(
         [
@@ -41,6 +42,7 @@ def test_pytorch_large_old(local_ds):
 
     tds = local_ds.tensorflow()
     for i, batch in enumerate(tds):
+        # converting tf Tensors to numpy
         np.testing.assert_array_equal(
             batch["image"].numpy(), (i + 1) * np.ones((4096, 4096))
         )
