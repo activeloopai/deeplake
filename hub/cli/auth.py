@@ -1,5 +1,6 @@
 import textwrap
 
+from hub.client.config import HUB_REST_ENDPOINT
 import click
 from humbug.report import Report
 
@@ -18,19 +19,20 @@ from hub.util.exceptions import AuthenticationException
 @click.option("--password", "-p", default=None, help="Your Activeloop password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    click.echo("Log in using Activeloop credentials.")
+    click.echo("Login to Activeloop Hub using your credentials.")
     click.echo(
-        "If you don't have an account register by using 'hub register' command or by going to "
-        "https://app.activeloop.ai/register."
+        "If you don't have an account, register by using 'activeloop register' command or by going to "
+        f"{HUB_REST_ENDPOINT}/register."
     )
     username = username or click.prompt("Username")
     username = username.strip()
     password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
-        token = HubBackendClient().request_auth_token(username, password)
+        client = HubBackendClient()
+        token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo("\nSuccessfully logged in to Hub.")
+        click.echo("\nSuccessfully logged in to Activeloop Hub.")
         reporting_config = get_reporting_config()
         if reporting_config.get("username") != username:
             save_reporting_config(True, username=username)
@@ -78,8 +80,9 @@ def register(username: str, email: str, password: str):
         client.send_register_request(username, email, password)
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo(f"\nSuccessfully registered and logged in as {username}")
-
+        click.echo(
+            f"\nSuccessfully registered and logged in to Activeloop Hub as {username}."
+        )
         consent_message = textwrap.dedent(
             """
             Privacy policy:
