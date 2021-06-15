@@ -1,18 +1,43 @@
+import os
 import numpy as np
 import pytest
 
+import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
+from hub.client.utils import has_hub_testing_creds, write_token
+from hub.client.client import HubBackendClient
 
 
-def test_persist_local_flush(local_storage):
+def test_persist_local(local_storage):
     if local_storage is None:
         pytest.skip()
 
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4096, 4096)))
-    ds.flush()
+
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
+
+
+def test_persist_with_local(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    with Dataset(local_storage.root, local_cache_size=512) as ds:
+
+        ds.create_tensor("image")
+        ds.image.extend(np.ones((4, 4096, 4096)))
+
+        ds_new = Dataset(local_storage.root)
+        assert len(ds_new) == 0  # shouldn't be flushed yet
 
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
@@ -42,7 +67,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta == {"tensors": []}
+    assert ds.meta == {"tensors": [], "version": hub.__version__}
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -58,7 +83,28 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta == {"tensors": ["image"]}
+    assert ds.meta == {"tensors": ["image"], "version": hub.__version__}
+
+
+def test_stringify(memory_ds):
+    ds = memory_ds
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4)))
+    assert (
+        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
+    )
+    assert (
+        str(ds[1:2])
+        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
+    )
+    assert str(ds.image) == "Tensor(key='image')"
+    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
+
+
+def test_stringify_with_path(local_ds):
+    ds = local_ds
+    assert local_ds.path
+    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -165,3 +211,15 @@ def test_shape_property(memory_ds):
     assert fixed.shape_interval.lower == (22, 28, 28)
     assert fixed.shape_interval.upper == (22, 28, 28)
     assert not fixed.is_dynamic
+
+
+@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+def test_hub_cloud_dataset():
+    username = "testingacc"
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    write_token(token)
+    ds = Dataset("hub://testingacc/hub2ds")
+    for i in range(10):
+        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))

@@ -137,8 +137,14 @@ class IndexEntry:
                     break
                 yield i
 
-    def __str__(self):
-        return str(self.value)
+    def is_trivial(self):
+        """Checks if an IndexEntry represents the entire slice"""
+        return (
+            isinstance(self.value, slice)
+            and not self.value.start
+            and self.value.stop == None
+            and ((self.value.step or 1) == 1)
+        )
 
 
 class Index:
@@ -267,8 +273,13 @@ class Index:
 
         return array[index_values]
 
+    def is_trivial(self):
+        """Checks if an index is equivalent to the trivial slice `[:]`, aka slice(None)."""
+        return (len(self.values) == 1) and self.values[0].is_trivial()
+
     def __str__(self):
-        return f"Index(" + str(self.values) + ")"
+        values = [entry.value for entry in self.values]
+        return f"Index({values})"
 
     def __repr__(self):
-        return self.__str__()
+        return f"Index(values={self.values})"

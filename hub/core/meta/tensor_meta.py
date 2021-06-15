@@ -1,9 +1,10 @@
-import pickle  # TODO: NEVER USE PICKLE
+import json
 from typing import Any, Callable, Optional
 
 import numpy as np
 
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE
+import hub
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE, META_ENCODING
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
 from hub.util.keys import get_tensor_meta_key
@@ -11,11 +12,11 @@ from hub.util.array import normalize_and_batchify_array_shape
 
 
 def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
+    storage[get_tensor_meta_key(key)] = json.dumps(meta).encode(META_ENCODING)
 
 
 def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+    return json.loads(storage[get_tensor_meta_key(key)])
 
 
 def default_tensor_meta(
@@ -35,6 +36,7 @@ def default_tensor_meta(
     tensor_meta["chunk_size"] = chunk_size
     tensor_meta["dtype"] = dtype
     tensor_meta["length"] = 0
+    tensor_meta["version"] = hub.__version__
     if htype is not None:
         tensor_meta["htype"] = htype  # TODO: identify presets
 
@@ -48,8 +50,8 @@ def update_tensor_meta_with_array(
     if batched:
         shape = shape[1:]
     tensor_meta["dtype"] = str(array.dtype)
-    tensor_meta["min_shape"] = shape
-    tensor_meta["max_shape"] = shape
+    tensor_meta["min_shape"] = list(shape)
+    tensor_meta["max_shape"] = list(shape)
 
     return tensor_meta
 
