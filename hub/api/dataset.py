@@ -1,16 +1,22 @@
 from typing import Callable, Dict, Optional, Union, Tuple, List
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
-from hub.core import storage
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+)
 from hub.core.dataset import dataset_exists
-from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
+from hub.core.meta.dataset_meta import (
+    read_dataset_meta,
+    write_dataset_meta,
+    default_dataset_meta,
+)
 from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
-from hub.integrations import dataset_to_pytorch
+from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -26,9 +32,8 @@ from hub.util.path import get_path_from_storage
 class Dataset:
     def __init__(
         self,
-        tag: Optional[str] = None,
-        url: Optional[str] = None,
-        mode: Optional[str] = None,
+        path: Optional[str] = None,
+        read_only: bool = False,
         index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
@@ -39,18 +44,18 @@ class Dataset:
         """Initializes a new or existing dataset.
 
         Args:
-            tag (str, optional): The Hub tag of the dataset in the format username/datasetname. Use this if you want to use Hub cloud storage.
-            url (str, optional): The full path to the dataset. Use this if you want to use local filesystem or s3 or RAM to store the dataset.
-                Can be either a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+            path (str, optional): The full path to the dataset.
+                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            mode (str, optional): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a").
+            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+                Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): A dictionary containing credentials used to access the dataset at the url.
-                This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             storage (StorageProvider, optional): The storage provider used to access the dataset.
                 Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
@@ -58,35 +63,56 @@ class Dataset:
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
-            ImproperDatasetInitialization: Exactly one argument out of 'tag', 'url' and 'storage' needs to be specified.
+            ImproperDatasetInitialization: Exactly one argument out of 'path' and 'storage' needs to be specified.
                 This is raised if none of them are specified or more than one are specifed.
-            InvalidTagException: If an incorrect tag argument is passed which is not in username/datasetname format.
-            AuthorizationException: If a tag is specified and the user doesn't have access to the dataset.
+            InvalidHubPathException: If a Hub cloud path (path starting with hub://) is specified and it isn't of the form hub://username/datasetname.
+            AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        self.index = index
         if creds is None:
             creds = {}
-        base_storage, mode = get_storage_provider(tag, url, storage, mode, creds)
-        self.mode = mode
-        self.path = tag or url or get_path_from_storage(storage)  # Used for printing
+        base_storage = get_storage_provider(path, storage, read_only, creds)
+
+        # done instead of directly assigning read_only as backend might return return read_only permissions
+        if hasattr(base_storage, "read_only") and base_storage.read_only:
+            self.read_only = True
+        else:
+            self.read_only = False
+
+        # uniquely identifies dataset
+        self.path = path or get_path_from_storage(base_storage)
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
-            base_storage, memory_cache_size_bytes, local_cache_size_bytes, url
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
+        self.storage.autoflush = True
+        self.index = index
+
         self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
             raise PathNotEmptyException
+        else:
+            self.meta = default_dataset_meta()
         self.meta = {"tensors": []}
         self.client = HubBackendClient()
         if tag and dataset_exists(self.storage) and not dataset_exists(base_storage):
             self.org_id, self.ds_name = tag.split("/")
             self.flush()
             self.client.create_dataset_entry(self.org_id, self.ds_name, public=public)
+        else:
+            self.meta = default_dataset_meta()
+
+    def __enter__(self):
+        self.storage.autoflush = False
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.storage.autoflush = True
+        self.flush()
 
     # TODO len should consider slice
     def __len__(self):
@@ -105,7 +131,11 @@ class Dataset:
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
+            return Dataset(
+                read_only=self.read_only,
+                storage=self.storage,
+                index=self.index[item],
+            )
         else:
             raise InvalidKeyTypeError(item)
 
@@ -186,6 +216,14 @@ class Dataset:
             for tensor_key, tensor_value in self.tensors.items()
         }
 
+    def tensorflow(self):
+        """Converts the dataset into a pytorch compatible format.
+
+        Returns:
+            tf.data.Dataset object that can be used for tensorflow training.
+        """
+        return dataset_to_tensorflow(self)
+
     def flush(self):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
@@ -245,7 +283,13 @@ class Dataset:
         path_str = ""
         if self.path:
             path_str = f"path={self.path}, "
+
+        mode_str = ""
+        if self.read_only:
+            mode_str = f"read_only=True, "
+
         index_str = f"index={self.index}, "
         if self.index.is_trivial():
             index_str = ""
-        return f"Dataset({path_str}mode={repr(self.mode)}, {index_str}tensors={self.meta['tensors']})"
+
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta['tensors']})"

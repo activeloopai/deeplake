@@ -24,7 +24,6 @@ class S3Provider(StorageProvider):
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
         max_pool_connections: int = 50,
-        mode: Optional[str] = None,
         client=None,
     ):
         """Initializes the S3Provider
@@ -45,15 +44,12 @@ class S3Provider(StorageProvider):
             aws_region (optional, str): Specifies the AWS Region to send requests to.
             max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
-            mode (str, optional): Mode in which the S3Provider is opened.
-                Supported modes include ("r", "w", "a").
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
         """
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
         self.expiration: Optional[str] = None
-        self.mode: Optional[str] = mode
         self.root = root
 
         root = root.replace("s3://", "")
@@ -99,7 +95,9 @@ class S3Provider(StorageProvider):
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
@@ -125,7 +123,9 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
@@ -150,7 +150,9 @@ class S3Provider(StorageProvider):
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
                 won't raise KeyError.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         self._check_update_creds()
         try:
             path = posixpath.join(self.path, path)
@@ -205,6 +207,7 @@ class S3Provider(StorageProvider):
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+        self.check_readonly()
         self._check_update_creds()
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
@@ -229,12 +232,15 @@ class S3Provider(StorageProvider):
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
         if self.expiration and float(self.expiration) < time.time():
-            hub_client = HubBackendClient()
+            client = HubBackendClient()
             org_id, ds_name = self.tag.split("/")
-            url, creds, mode, expiration = hub_client.get_dataset_credentials(
-                org_id,
-                ds_name,
-                self.mode,
+
+            if hasattr(self, "read_only") and self.read_only:
+                mode = "r"
+            else:
+                mode = "a"
+            url, creds, mode, expiration = client.get_dataset_credentials(
+                org_id, ds_name, mode
             )
             self.expiration = expiration
             self.client = boto3.client(
