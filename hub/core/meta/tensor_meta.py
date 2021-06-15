@@ -86,7 +86,7 @@ class TensorMeta(Meta):
             # update meta subsequent times
             self._update_shape_interval(shape)
 
-    def _update_shape_interval(self, shape: Tuple[int]):
+    def _update_shape_interval(self, shape: Tuple[int, ...]):
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
