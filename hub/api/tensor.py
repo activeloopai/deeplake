@@ -104,7 +104,7 @@ class Tensor:
 
     @property
     def shape(self) -> Tuple[Optional[int], ...]:
-        """Get the shape of this tensor.
+        """Get the shape of this tensor. Length is included.
 
         Note:
             If you don't want `None` in the output shape or want the lower/upper bound shapes,
@@ -126,19 +126,25 @@ class Tensor:
 
     @property
     def shape_interval(self) -> ShapeInterval:
-        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately.
+        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
         Note:
             If you are expecting a `tuple`, use `tensor.shape` instead.
 
         Example:
             Given a tensor `tensor` with 2 samples where:
+                tensor[0].shape == (10, 10)
+                tensor[1].shape == (10, 15)
+            The expected shape_interval is:
+                tensor.shape_interval.lower = (2, 10, 10)
+                tensor.shape_interval.upper = (2, 10, 15)
 
         Returns:
             ShapeInterval: Object containing `lower` and `upper` properties.
         """
 
         ds_meta = self.meta
+
         length = [len(self)]
 
         min_shape = length + list(ds_meta["min_shape"])
