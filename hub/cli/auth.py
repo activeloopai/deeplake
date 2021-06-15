@@ -1,3 +1,4 @@
+from hub.client.config import HUB_REST_ENDPOINT
 import click
 
 from hub.client.client import HubBackendClient
@@ -13,7 +14,7 @@ def login(username: str, password: str):
     click.echo("Login to Activeloop Hub using your credentials.")
     click.echo(
         "If you don't have an account, register by using 'activeloop register' command or by going to "
-        "https://app.activeloop.ai/register."
+        f"{HUB_REST_ENDPOINT}/register."
     )
     username = username or click.prompt("Username")
     username = username.strip()

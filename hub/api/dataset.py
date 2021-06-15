@@ -75,7 +75,8 @@ class Dataset:
         else:
             self.read_only = False
 
-        self.path = path or get_path_from_storage(base_storage)  # Used for printing
+        # uniquely identifies dataset
+        self.path = path or get_path_from_storage(base_storage)
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
