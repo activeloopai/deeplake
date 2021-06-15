@@ -11,7 +11,6 @@ from .chunker import generate_chunks
 from .flatten import row_wise_to_bytes
 
 
-# TODO: reorganize parameters (key, storage)
 def write_array(
     array: np.ndarray,
     key: str,
@@ -39,8 +38,8 @@ def write_array(
             write_bytes(
                 b,
                 key,
-                tensor_meta.chunk_size,
                 storage,
+                tensor_meta,
                 index_meta,
                 extra_sample_meta={"shape": sample.shape},  # TODO: use kwargs
             )
@@ -53,8 +52,8 @@ def write_array(
 def write_bytes(
     b: memoryview,
     key: str,
-    chunk_size: int,
     storage: StorageProvider,
+    tensor_meta: TensorMeta,
     index_meta: IndexMeta,
     extra_sample_meta: dict = {},
 ):
@@ -66,7 +65,6 @@ def write_bytes(
         key (str): Key for where the index_meta and tensor_meta are located in `storage` relative to it's root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
-        chunk_size (int): Desired length of each chunk.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
         index_meta (IndexMeta): IndexMeta object that will be written to to keep track of the written chunk(s).
         extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
@@ -81,13 +79,15 @@ def write_bytes(
     # refactor TODO: move to separate function
     bllc = 0
     extend_last_chunk = False
-    if len(index_meta.entries) > 0 and len(last_chunk) < chunk_size:
-        bllc = chunk_size - len(last_chunk)
+    if len(index_meta.entries) > 0 and len(last_chunk) < tensor_meta.chunk_size:
+        bllc = tensor_meta.chunk_size - len(last_chunk)
         # use bytearray for concatenation (fastest method)
         last_chunk = bytearray(last_chunk)  # type: ignore
         extend_last_chunk = True
 
-    chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
+    chunk_generator = generate_chunks(
+        b, tensor_meta.chunk_size, bytes_left_in_last_chunk=bllc
+    )
 
     # refactor TODO: move to separate function
     chunk_names = []
@@ -101,7 +101,7 @@ def write_bytes(
 
             start_byte = index_meta.entries[-1]["end_byte"]
 
-            if len(chunk) >= chunk_size:
+            if len(chunk) >= tensor_meta.chunk_size:
                 extend_last_chunk = False
         else:
             chunk_name = _random_chunk_name()

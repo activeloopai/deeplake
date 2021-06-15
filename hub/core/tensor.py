@@ -6,14 +6,12 @@ from typing import List, Tuple, Union
 import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_array, write_bytes
+from hub.core.chunk_engine.write import write_array
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     TensorAlreadyExistsError,
-    TensorInvalidSampleShapeError,
-    TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
 
@@ -55,8 +53,6 @@ def create_tensor(
 def _get_metas_from_kwargs(
     key: str, storage: StorageProvider, **kwargs
 ) -> Tuple[TensorMeta, IndexMeta]:
-    # TODO: generalize this function?
-
     if "tensor_meta" in kwargs:
         tensor_meta = kwargs["tensor_meta"]
     else:
@@ -107,11 +103,15 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
             index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
+        ValueError: If `array` has <= 1 axes.
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
     """
 
-    # TODO: check if `array.shape` can be batched (len(shape) matters, if len(shape) <= 1 it cannot be batched)
+    if len(array.shape) <= 1:
+        raise ValueError(
+            f"An array with shape={array.shape} cannot be used to extend because it's shape length is <= 1."
+        )
 
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
@@ -179,32 +179,3 @@ def read_samples_from_tensor(
             return samples[0]
 
     return index.apply(np.array(samples))
-
-
-def __check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.ndarray):
-    """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
-    Args:
-        tensor_meta (dict): Tensor meta containing the expected properties of `array`.
-        array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
-    Raises:
-        TensorMetaMismatchError: When `array` properties do not match the `tensor_meta`'s exactly. Also when
-        `len(array.shape)` != len(tensor_meta max/min shapes).
-        TensorInvalidSampleShapeError: All samples must have the same dimensionality (`len(sample.shape)`).
-    """
-
-    # TODO: update docstring (always assume batched)
-
-    if tensor_meta.dtype != array.dtype.name:
-        raise TensorMetaMismatchError("dtype", tensor_meta.dtype, array.dtype.name)
-
-    sample_shape = array.shape[1:]
-
-    expected_shape_len = len(tensor_meta.min_shape)
-    actual_shape_len = len(sample_shape)
-    if expected_shape_len != actual_shape_len:
-        raise TensorInvalidSampleShapeError(
-            "Sample shape length is expected to be {}, actual length is {}.".format(
-                expected_shape_len, actual_shape_len
-            ),
-            sample_shape,
-        )
