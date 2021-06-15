@@ -108,9 +108,9 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
             `create_tensor(...)`.
     """
 
-    if len(array.shape) <= 1:
+    if len(array.shape) < 1:
         raise ValueError(
-            f"An array with shape={array.shape} cannot be used to extend because it's shape length is <= 1."
+            f"An array with shape={array.shape} cannot be used to extend because it's shape length is < 1."
         )
 
     if not tensor_exists(key, storage):
