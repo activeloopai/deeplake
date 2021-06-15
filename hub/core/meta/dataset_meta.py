@@ -9,6 +9,17 @@ class DatasetMeta(Meta):
 
     @staticmethod
     def create(storage: StorageProvider):
+        """Dataset metadata is responsible for keeping track of global tensor metadata and where tensors exist.
+
+        Note:
+            Dataset metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
+            Auto-populates `required_meta` that `Meta` accepts as an argument.
+
+        Args:
+            storage (StorageProvider): Destination of this meta. No `key` argument required, the
+                dataset meta file will be added to the root of `storage`.
+        """
+
         required_meta = {
             "tensors": [],
         }

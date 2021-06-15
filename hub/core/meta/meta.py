@@ -15,7 +15,6 @@ import hub
 
 
 class Meta:
-
     _initialized: bool = False
 
     def __init__(
@@ -25,8 +24,12 @@ class Meta:
         required_meta: dict = None,
         allow_custom_meta=True,
     ):
-        """Synchronizes `required_meta` properties with `storage`. When any update method is called on
+        """Internal use only. Synchronizes `required_meta` properties with `storage`. When any update method is called on
         properties defined in `required_meta`, `self._write()` is called which pushes these updates to `storage`.
+
+        Important Note!!!:
+            If you are trying to use this constructor for `DatasetMeta`, `TensorMeta`, or `IndexMeta`, you should
+                instead use their respective static `create(...)` methods as all of these arguments will be auto-populated.
 
         Args:
             key (str): Key relative to `storage` where this instance will be synchronized to.
