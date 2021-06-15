@@ -1,7 +1,7 @@
 # Dataset
 
 ## Auto Create
-If your dataset format is supported, you can point `hub.Dataset` to it's path & allow the `hub.auto` package to infer it's schema & auto convert it into hub format. 
+If your dataset format is supported, you can point `hub_v1.Dataset` to it's path & allow the `hub.auto` package to infer it's schema & auto convert it into hub format. 
 
 ### Supported Dataset Formats
 The `hub.auto` package supports the following datasets:
@@ -46,7 +46,7 @@ Expects the folder path to point to a directory where the folder structure is th
 If your dataset is supported (see [above](#supported-dataset-formats)), you can convert it into hub format with a single line of code:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset.from_path("path/to/dataset")
 ```
@@ -58,8 +58,8 @@ If you created & uploaded a dataset into hub, you might as well contribute to th
 - This function should be decorated with `hub.auto.infer.state.directory_parser`. Example:
 
 ```python
-import hub
-from hub.auto.infer import state
+import hub_v1
+from hub_v1.auto.infer import state
 
 # priority is the sort idx of this parser. 
 # it's useful for executing more general code first
@@ -68,7 +68,7 @@ def image_classification(path, scheduler, workers):
     data_iter = ...
     schema = ...
 
-    @hub.transform(schema=schema, scheduler=scheduler, workers=workers)
+    @hub_v1.transform(schema=schema, scheduler=scheduler, workers=workers)
     def upload_data(sample):
         ...
 
@@ -95,7 +95,7 @@ To create and store dataset you would need to define shape and specify the datas
 For example, to create a dataset `basic` with 4 samples containing images and labels with shape (512, 512) of dtype 'float' in account `username`:
 
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 tag = "username/basic"
 
 ds = Dataset(
@@ -173,7 +173,7 @@ If you spot any trouble or have any question, please open a github issue.
 ## API
 
 ```eval_rst
-.. autoclass:: hub.Dataset
+.. autoclass:: hub_v1.Dataset
    :members:
    :no-undoc-members:
    :private-members:

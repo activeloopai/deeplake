@@ -17,7 +17,7 @@ Hub Schema:
 Wrapper to the numpy primitive data types like int32, float64, etc...
 
 ```python
-from hub.schema import Primitive
+from hub_v1.schema import Primitive
 
 schema = { "scalar": Primitive(dtype="float32") }
 ```
@@ -27,7 +27,7 @@ schema = { "scalar": Primitive(dtype="float32") }
 Np-array like structure that contains any type of elements (Primitive and non-Primitive). Hub Tensors can't be visualized at [app.activeloop.ai](https://app.activeloop.ai).
 
 ```python
-from hub.schema import Tensor
+from hub_v1.schema import Tensor
 
 schema = {
     "tensor_1": Tensor((None, None), "int32", max_shape=(200, 200)),
@@ -42,7 +42,7 @@ Array representation of image of arbitrary shape and primitive data type.
 Default encoding format - `png` (`jpeg` is also supported).
 
 ```python
-from hub.schema import Image
+from hub_v1.schema import Image
 
 schema = {"image": Image(shape=(None, None),
                          dtype="int32",
@@ -54,7 +54,7 @@ schema = {"image": Image(shape=(None, None),
 Integer representation of feature labels. Can be constructed from number of labels, label names or a text file with a single label name in each line.
 
 ```python
-from hub.schema import ClassLabel
+from hub_v1.schema import ClassLabel
 
 schema = {
     "class_label_1": ClassLabel(num_classes=10),
@@ -68,7 +68,7 @@ schema = {
 Array representation of binary mask. The shape of mask should have format: (height, width, 1).
 
 ```python
-from hub.schema import Image
+from hub_v1.schema import Image
 
 schema = {"mask": Mask(shape=(244, 244, 1))}
 ```
@@ -80,7 +80,7 @@ Segmentation array. Also constructs ClassLabel feature connector to support segm
 The shape of segmentation mask should have format: (height, width, 1).
 
 ```python
-from hub.schema import Segmentation
+from hub_v1.schema import Segmentation
 
 schema = {"segmentation": Segmentation(shape=(244, 244, 1), dtype='uint8', 
                                        names=['label_1', 'label_2', ...])}
@@ -92,7 +92,7 @@ schema = {"segmentation": Segmentation(shape=(244, 244, 1), dtype='uint8',
 Bounding box coordinates with shape (4, ).
 
 ```python
-from hub.schema import BBox
+from hub_v1.schema import BBox
 
 schema = {"bbox": BBox()}
 ```
@@ -103,7 +103,7 @@ Hub schema for audio files. A file can have any format ffmpeg understands. If `f
 will attempt to infer it from the file extension. Also, `sample_rate` parameter can be added as additional metadata. User can access through info.schema[‘audio’].sample_rate.
 
 ```python
-from hub.schema import Audio
+from hub_v1.schema import Audio
 
 schema = {'audio': Audio(shape=(300,))}
 ```
@@ -114,7 +114,7 @@ Video format support.
 Accepts as input a 4 dimensional uint8 array representing a video.
 The video is stored as a sequence of encoded images. `encoding_format` can be any format supported by Image.
 ```python
-from hub.schema import Video
+from hub_v1.schema import Video
 
 schema = {'video': Video(shape=(20, None, None, 3), max_shape=(20, 1200, 1200, 3))}
 ```
@@ -123,7 +123,7 @@ schema = {'video': Video(shape=(20, None, None, 3), max_shape=(20, 1200, 1200, 3
 
 Autoconverts given string into its integer(int64) representation.
 ```python
-from hub.schema import Text
+from hub_v1.schema import Text
 
 schema = {'text': Text(shape=(None, ), max_shape=(20, ))}
 ```
@@ -137,7 +137,7 @@ If the length of the sequence is static and known in advance, it should be
 specified in the constructor using the `length` param.
 
 ```python
-from hub.schema import Sequence, BBox
+from hub_v1.schema import Sequence, BBox
 
 schema = {'sequence': Sequence(shape=(10, ), dtype=BBox)}
 ```
@@ -152,56 +152,56 @@ Argument `chunks` describes how to split tensor dimensions into chunks (files) t
 
 ## API
 ```eval_rst
-.. autoclass:: hub.schema.audio.Audio
+.. autoclass:: hub_v1.schema.audio.Audio
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.bbox.BBox
+.. autoclass:: hub_v1.schema.bbox.BBox
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:   
-.. autoclass:: hub.schema.class_label.ClassLabel
+.. autoclass:: hub_v1.schema.class_label.ClassLabel
    :members:
    :no-undoc-members:
    :private-members:
    :special-members: 
-.. autoclass:: hub.schema.image.Image
+.. autoclass:: hub_v1.schema.image.Image
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. automodule:: hub.schema.features
+.. automodule:: hub_v1.schema.features
    :members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.mask.Mask
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-.. autoclass:: hub.schema.polygon.Polygon
+.. autoclass:: hub_v1.schema.mask.Mask
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.segmentation.Segmentation
+.. autoclass:: hub_v1.schema.polygon.Polygon
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.sequence.Sequence
+.. autoclass:: hub_v1.schema.segmentation.Segmentation
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.text.Text
+.. autoclass:: hub_v1.schema.sequence.Sequence
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.video.Video
+.. autoclass:: hub_v1.schema.text.Text
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+.. autoclass:: hub_v1.schema.video.Video
    :members:
    :no-undoc-members:
    :private-members:

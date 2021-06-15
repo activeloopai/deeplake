@@ -76,7 +76,7 @@ pip3 install hub
 여러분은 Hub를 이용하여 몇 줄의 간단한 코드만으로 구성된 절차를 거쳐서 공용 데이터셋에 접근하실 수 있습니다. 예를 들어 [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)의 첫 1000개의 이미지들을 numpy array 포맷으로 불러오고 싶으시다면 다음과 같은 코드를 작성하시면 됩니다:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
@@ -89,7 +89,7 @@ mnist["image"][0:1000].compute()
 데이터를 로드해서 여러분의 모델을 **바로** 학습시킬 수 있습니다. Hub는 Pytorch, Tensorflow와 연동이 가능하고, 데이터 형식 간의 변환 또한 쉽게 가능합니다.   다음은 Pytorch에서 hub를 이용한 예시입니다:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -106,7 +106,7 @@ for image, label in train_loader:
 만약 여러분이 기존 방식처럼 로컬에서 여러분만의 데이터셋을 사용하고 싶으시다면, 다음과 같이 데이터셋을 생성하실 수도 있습니다:
 
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -144,7 +144,7 @@ activeloop login -u username -p password
 2. 데이터셋을 생성한 후 이름을 정하고, 당신의 계정에 업로드합니다. 예시는 다음과 같습니다:
 
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -165,7 +165,7 @@ ds.flush()
 3. 전 세계 어디에서나 커맨드 라인 입력이 가능한 어떤 기기로든 당신의 데이터셋에 다음과 같이 접근하실 수 있습니다:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset("username/dataset_name")
 ```

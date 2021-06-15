@@ -76,7 +76,7 @@ pip3 install hub
 Akses dataset terbuka (<i>public</i>) dengan mudah yang tersedia di Hub menggunakan beberapa baris kode. Jalankan kutipan kode berikut untuk dapat mengakses 1000 data pertama dari [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) dalam format <i>numpy array</i>:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # memuat data MNIST dengan mode lazy
 # menghemat waktu dengan *compute* untuk mengambil data yang diperlukan saja
@@ -90,7 +90,7 @@ Kamu dapat mencari dataset populer lainnya di [app.activeloop.ai](https://app.ac
 Muat datanya dan <i>train</i> modelmu secara *langsung*. Hub sudah terintegrasi dengan PyTorch dan Tensorflow yang mampu melakukan perubahan format data dengan cara yang mudah dipahami. Lihatlah contoh dibawah ini untuk menggunakannya dengan PyTorch:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -107,7 +107,7 @@ for image, label in train_loader:
 Jika kamu ingin bekerja menggunakan datamu sendiri secara lokal, kamu dapat mulai membuat datasetmu dengan cara ini:
 
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -145,7 +145,7 @@ activeloop login -u username -p password
 
 2. Buatlah dataset, dengan merincikan nama dan unggahlah ke akunmu. Contohnya:
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -164,7 +164,7 @@ ds.flush()
 ```
 3. Dapat diakses di mana pun dan perangkat mana pun dengan perintah:
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset("username/dataset_name")
 ```

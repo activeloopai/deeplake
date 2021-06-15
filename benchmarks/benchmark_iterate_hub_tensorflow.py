@@ -1,4 +1,4 @@
-from hub import Dataset
+from hub_v1 import Dataset
 
 
 def benchmark_iterate_hub_tensorflow_setup(dataset_name, batch_size, prefetch_factor):

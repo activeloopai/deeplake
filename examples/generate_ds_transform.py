@@ -1,4 +1,4 @@
-"""Example of generating hub.Dataset for image classification using @hub.transform
+"""Example of generating hub_v1.Dataset for image classification using @hub_v1.transform
 
 Link to the original dataset: https://www.kaggle.com/paultimothymooney/chest-xray-pneumonia
 """
@@ -8,8 +8,8 @@ import os
 import numpy as np
 import PIL.Image
 
-import hub
-from hub.schema import ClassLabel, Image
+import hub_v1
+from hub_v1.schema import ClassLabel, Image
 
 
 # Create a new dataset
@@ -19,11 +19,11 @@ schema = {
 }
 tag = "/tmp/chest_xray/train"
 len_ds = 5216
-ds = hub.Dataset(tag, mode="w+", shape=(len_ds,), schema=schema)
+ds = hub_v1.Dataset(tag, mode="w+", shape=(len_ds,), schema=schema)
 
 
 # Transform function
-@hub.transform(schema=schema, scheduler="threaded", workers=8)
+@hub_v1.transform(schema=schema, scheduler="threaded", workers=8)
 def fill_ds(filename):
     if os.path.basename(os.path.dirname(filename)) == "NORMAL":
         label = 0

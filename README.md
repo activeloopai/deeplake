@@ -77,7 +77,7 @@ pip3 install hub
 
 Access public datasets in Hub by following a straight-forward convention which merely requires a few lines of simple code. Run this excerpt to get the first thousand images in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
@@ -90,7 +90,7 @@ You can find all the other popular datasets on [app.activeloop.ai](https://app.a
 Load the data and train your model **directly**. Hub is integrated with PyTorch and TensorFlow and performs conversions between formats in an understandable fashion. Take a look at the example with PyTorch below:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -106,7 +106,7 @@ for image, label in train_loader:
 ### Create a local dataset 
 If you want to work on your own data locally, you can start by creating a dataset:
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -143,7 +143,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 
 2. Then create a dataset, specifying its name and upload it to your account. For instance:
     ```python
-    from hub import Dataset, schema
+    from hub_v1 import Dataset, schema
     import numpy as np
 
     ds = Dataset(
@@ -163,7 +163,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 
 3. Access it from anywhere else in the world, on any device having a command line:
     ```python
-    from hub import Dataset
+    from hub_v1 import Dataset
 
     ds = Dataset("username/dataset_name")
     ```

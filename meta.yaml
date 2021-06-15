@@ -71,7 +71,7 @@ test:
     - hub.collections.dataset
     - hub.collections.tensor
     - hub.compute
-    - hub.schema
+    - hub_v1.schema
     - hub.store
     - hub.store.tests
   commands:

@@ -1,10 +1,10 @@
-"""Basic example of training tensorflow model on hub.Dataset
+"""Basic example of training tensorflow model on hub_v1.Dataset
 """
 
 import tensorflow as tf
 
-import hub
-from hub.training.model import Model
+import hub_v1
+from hub_v1.training.model import Model
 
 
 def to_model_fit(item):
@@ -14,13 +14,13 @@ def to_model_fit(item):
 
 
 def example_to_tensorflow():
-    ds = hub.Dataset("activeloop/fashion_mnist_train")
+    ds = hub_v1.Dataset("activeloop/fashion_mnist_train")
     tds = ds.to_tensorflow(include_shapes=True).batch(8)
     tds = tds.map(lambda x: to_model_fit(x))
     return tds
 
 
-def train(ds: hub.Dataset):
+def train(ds: hub_v1.Dataset):
     net = tf.keras.Sequential(
         [
             tf.keras.layers.Flatten(input_shape=(28, 28)),

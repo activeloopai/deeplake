@@ -73,7 +73,7 @@ pip3 install hub
 用 Hub 访问公共数据集仅仅需要几行约定俗成的简单代码。运行这个片段就可以 numpy 数组的形式取得[MNIST 数据集](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme)前1000张图片。
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data
@@ -86,7 +86,7 @@ mnist["image"][0:1000].compute()
 加载数据并**直接**训练您的模型。Hub 已经与 PyTorch 和 TensorFlow 整合，能以通俗的方式进行格式转换。看看下面使用 PyTorch 的例子：
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -103,7 +103,7 @@ for image, label in train_loader:
 如果您想在本地处理您的数据，您可以从创建一个数据集开始：
 
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -135,7 +135,7 @@ activeloop login
 
 2. 然后创建一个数据集，注明它的名字，然后将它上传到您的账户。例如：
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -155,7 +155,7 @@ ds.flush()
 
 3. 在任何地点，以任何拥有命令行的机器访问它：
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset("username/dataset_name")
 ```

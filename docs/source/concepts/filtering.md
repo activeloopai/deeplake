@@ -13,7 +13,7 @@ my_schema = {
     "img": Tensor((100, 100)),
     "name": Text((None,), max_shape=(10,))
 }
-ds = hub.Dataset("./data/filtering_example", shape=(20,), schema=my_schema)
+ds = hub_v1.Dataset("./data/filtering_example", shape=(20,), schema=my_schema)
 for i in range(10):  # assigning some values to the dataset
     ds["img", i] = np.ones((100, 100))
     ds["name", i] = "abc" + str(i) if i % 2 == 0 else "def" + str(i)

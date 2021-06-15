@@ -73,7 +73,7 @@ pip3 install hub
 Accédez aux ensembles de données publiques dans Hub en suivant une convention simple qui ne nécessite que quelques lignes de code simple. Lancez cet exemple pour obtenir les mille premières images de la [base de données du MNIST] (https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) au format numpy array :
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # charger les données du MNIST facilement
 # gagner du temps avec *compute* pour ne récupérer que les données nécessaires
@@ -86,7 +86,7 @@ Vous pouvez trouver tous les autres ensembles de données populaires sur [app.ac
 Chargez les données et entraînez votre modèle **directement**. Hub est intégré à PyTorch et TensorFlow et effectue des conversions entre formats de manière compréhensible. Regardez l'exemple avec PyTorch ci-dessous :
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -102,7 +102,7 @@ for image, label in train_loader:
 ### Créer un ensemble de données local
 Si vous souhaitez travailler sur vos propres données au niveau local, vous pouvez commencer par créer un ensemble de données :
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -138,7 +138,7 @@ activeloop login -u username -p password
 
 2. Créez ensuite un ensemble de données, en précisant son nom, et téléchargez-le sur votre compte. Par exemple :
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -158,7 +158,7 @@ ds.flush()
 
 3. Vous pouvez y accéder de n'importe où dans le monde, sur n'importe quel appareil disposant d'une ligne de commande :
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset("username/dataset_name")
 ```

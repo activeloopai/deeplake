@@ -1,0 +1,153 @@
+"""
+License:
+This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
+If a copy of the MPL was not distributed with this file, You can obtain one at https://mozilla.org/MPL/2.0/.
+"""
+
+import requests
+import sys
+
+from hub_v1 import config
+from hub_v1.log import logger
+from hub_v1.client.token_manager import TokenManager
+from hub_v1.version import __version__
+
+from hub_v1.exceptions import (
+    AuthenticationException,
+    AuthorizationException,
+    BadGatewayException,
+    BadRequestException,
+    GatewayTimeoutException,
+    NotFoundException,
+    OverLimitException,
+    ServerException,
+    LockedException,
+    HubException,
+)
+
+
+def urljoin(*args):
+    """
+    Joins given arguments into a url. Trailing but not leading slashes are
+    stripped for each argument.
+    """
+    return "/".join(map(lambda x: str(x).strip("/"), args))
+
+
+class HubHttpClient:
+    """
+    Basic communication with Hub AI Controller rest API
+    """
+
+    def __init__(self):
+        self.auth_header = TokenManager.get_auth_header()
+
+    def request(
+        self,
+        method,
+        relative_url,
+        endpoint=None,
+        params=None,
+        data=None,
+        files=None,
+        json=None,
+        timeout=config.DEFAULT_TIMEOUT,
+        headers=None,
+    ):
+
+        if endpoint is None:
+            endpoint = {}
+        if params is None:
+            params = {}
+        if data is None:
+            data = {}
+        if files is None:
+            files = {}
+        if json is None:
+            json = {}
+        if headers is None:
+            headers = {}
+
+        if not endpoint:
+            endpoint = config.HUB_REST_ENDPOINT
+
+        request_url = urljoin(endpoint, relative_url)
+        headers["hub-cli-version"] = __version__
+        if (
+            "Authorization" not in headers
+            or headers["Authorization"] != self.auth_header
+        ):
+            headers["Authorization"] = self.auth_header
+        try:
+            logger.debug(f"Sending: Headers {headers}, Json: {json}")
+
+            response = requests.request(
+                method,
+                request_url,
+                params=params,
+                data=data,
+                json=json,
+                headers=headers,
+                files=files,
+                timeout=timeout,
+            )
+
+        except requests.exceptions.ConnectionError as e:
+            logger.debug("Exception: {}".format(e, exc_info=True))
+            sys.exit("Connection error. Please retry or check your internet connection")
+        except requests.exceptions.Timeout as e:
+            logger.debug("Exception: {}".format(e, exc_info=True))
+            sys.exit(
+                "Connection timeout. Please retry or check your internet connection"
+            )
+        logger.debug(
+            "Response Content: {}, Headers: {}".format(
+                response.content, response.headers
+            )
+        )
+        self.check_response_status(response)
+        return response
+
+    def check_response_status(self, response):
+        """
+        Check response status and throw corresponding exception on failure
+        """
+        code = response.status_code
+        if code < 200 or code >= 300:
+            try:
+                message = response.json()["description"]
+            except Exception:
+                message = " "
+
+            logger.debug(f'Error received: status code: {code}, message: "{message}"')
+            if code == 400:
+                raise BadRequestException(response)
+            elif response.status_code == 401:
+                raise AuthenticationException()
+            elif response.status_code == 403:
+                raise AuthorizationException()
+            elif response.status_code == 404:
+                if message != " ":
+                    raise NotFoundException(message)
+                else:
+                    raise NotFoundException
+            elif response.status_code == 429:
+                raise OverLimitException(message)
+            elif response.status_code == 502:
+                raise BadGatewayException()
+            elif response.status_code == 504:
+                raise GatewayTimeoutException(message)
+            elif response.status_code == 423:
+                raise LockedException(message)
+            elif 500 <= response.status_code < 600:
+                if "Server under maintenance" in response.content.decode():
+                    raise ServerException(
+                        "Server under maintenance, please try again later."
+                    )
+                else:
+                    raise ServerException()
+            else:
+                msg = "An error occurred. Server response: {}".format(
+                    response.status_code
+                )
+                raise HubException(message=msg)

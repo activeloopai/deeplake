@@ -1,8 +1,8 @@
 import numpy as np
 
-import hub
-from hub.schema import Image, ClassLabel
-from hub.utils import Timer
+import hub_v1
+from hub_v1.schema import Image, ClassLabel
+from hub_v1.utils import Timer
 
 
 schema = {
@@ -16,7 +16,7 @@ def main():
     step = 10
     with Timer("Time"):
 
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             "./data/examples/mnist_upload_speed_benchmark",
             mode="w",
             schema=schema,

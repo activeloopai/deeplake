@@ -18,9 +18,9 @@
 3. Load a dataset
 
     ```python
-    import hub
+    import hub_v1
 
-    ds = hub.Dataset("activeloop/cifar10_train")
+    ds = hub_v1.Dataset("activeloop/cifar10_train")
     print(ds["label", :10].compute())
     print(ds["id", 1234].compute())
     print(ds["image", 4321].compute())
@@ -31,8 +31,8 @@
     ```python
     import numpy as np
 
-    import hub
-    from hub.schema import ClassLabel, Image
+    import hub_v1
+    from hub_v1.schema import ClassLabel, Image
 
     my_schema = {
         "image": Image((28, 28)),
@@ -41,7 +41,7 @@
 
     url = "./data/examples/quickstart" # write your {username}/{dataset_name} to make it remotely accessible
 
-    ds = hub.Dataset(url, shape=(1000,), schema=my_schema)
+    ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema)
     for i in range(len(ds)):
         ds["image", i] = np.ones((28, 28), dtype="uint8")
         ds["label", i] = 3
@@ -55,10 +55,10 @@
 
     You can also transfer a dataset from TFDS (as below) and convert it from/to [Tensorflow](./integrations/tensorflow.md) or [PyTorch](./integrations/pytorch.md).
     ```python
-    import hub
+    import hub_v1
     import tensorflow as tf
 
-    out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+    out_ds = hub_v1.Dataset.from_tfds('mnist', split='test+train', num=1000)
     res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
     ```
 
@@ -72,7 +72,7 @@ If `url` parameter has the form of `username/dataset`, the dataset will be store
 
 ```python
 url = 'username/dataset'
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema)
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema)
 ```
 
 This is the default way to work with Hub datasets. Besides, you can also create or load a dataset locally or in *S3*, *MinIO*, *Google Cloud Storage* and *Azure*.
@@ -83,12 +83,12 @@ In case you choose other remote storage platforms, you will need to provide the 
 To store datasets locally, let the `url` parameter be a local path.
 ```python
 url = './datasets/'
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema)
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema)
 ```
 #### S3
  ```python
 url = 's3://new_dataset'  # your s3 path
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id": "...",
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id": "...",
                                                               "aws_secret_access_key": "...",
                                                               ...})
 ```
@@ -96,7 +96,7 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id
 #### MinIO
 ```python
 url = 's3://new_dataset'  # minio also uses *s3://* prefix
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id": "your_minio_access_key",
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id": "your_minio_access_key",
                                                               "aws_secret_access_key": "your_minio_secret_key",
                                                               "endpoint_url": "your_minio_url:port",
                                                               ...})
@@ -105,13 +105,13 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token={"aws_access_key_id
 #### Google Cloud Storage
 ```python
 url = 'gcs://new_dataset' # your google storage (gs://) path
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
 ```
 
 #### Azure
 ```python
 url = 'https://activeloop.blob.core.windows.net/activeloop-hub/dataset' # Azure link
-ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
+ds = hub_v1.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentials")
 ```
 
 
@@ -120,7 +120,7 @@ ds = hub.Dataset(url, shape=(1000,), schema=my_schema, token="/path/to/credentia
 [Schema](./concepts/features.md) is a dictionary that describes what a dataset consists of. Every dataset is required to have a schema. This is how you can create a simple schema:
 
 ```python
-from hub.schema import ClassLabel, Image, BBox, Text
+from hub_v1.schema import ClassLabel, Image, BBox, Text
 
 my_schema = {
     'kind': ClassLabel(names=["cows", "horses"]),
@@ -155,7 +155,7 @@ In rare cases, you may also use `.close()` to invalidate the dataset object afte
 
 If you prefer flushing to be taken care for you, wrap your operations on the dataset with the `with` statement in this fashion:
 ```python
-with hub.Dataset(...) as ds:
+with hub_v1.Dataset(...) as ds:
     pass
 ```
 

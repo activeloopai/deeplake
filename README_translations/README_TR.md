@@ -70,7 +70,7 @@ pip3 install hub
 
 Basit bir kuralı izleyerek sadece birkaç satırlık kod parçacığı ile Hub'daki herkese açık veri setlerine erişin. [MNIST veri setindeki](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) ilk bin fotoğrafı numpy dizisi formatında almak için aşağıdaki kod parçacığını çalıştırabilirsiniz:  
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # MNIST veri setini basitce yukleme
 # *compute* ile sadece gerekli verileri alarak zaman kazanın  
@@ -83,7 +83,7 @@ Diğer tüm popüler veri setlerine [app.activeloop.ai](https://app.activeloop.a
 Verilerinizi yükleyin ve **direkt** olarak modelinizi eğitin. Hub, PyTorch ve TensorFlow ile entegre edilmiştir ve formatlar arasında arasında basit ve anlaşılır şekilde dönüşümler gerçekleştirebilir. Bunun için aşağıdaki PyTorch örneğini inceleyebilirsiniz:  
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -99,7 +99,7 @@ for image, label in train_loader:
 ### Yerel veri seti olusturun   
 Eğer kendi verileriniz üzerinde çalışmak isterseniz, veri seti oluşturarak başlayabilirsiniz:   
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -134,7 +134,7 @@ activeloop login -u username -p password
 
 2. Ardından isim vererek veri setinizi oluşturun ve bunu hesabınıza yükleyin. Örneğin:  
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -154,7 +154,7 @@ ds.flush()
 
 3. Komut satırına sahip herhangi bir cihazdan, dünyanın herhangi bir yerinden oluşturduğunuz veri setine erişin:  
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 ds = Dataset("username/dataset_name")
 ```

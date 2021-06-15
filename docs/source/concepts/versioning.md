@@ -22,7 +22,7 @@ Hub datasets are always stored in a chunk wise manner. This allows us to store a
 The current state of a dataset can be saved using commit which is very similar to git commit. commit takes a message as a parameter, saves the current state of the dataset and returns the commit id generated. You can use this commit id to come back to this commit at any time. You don’t necessarily need to store this commit id, it can be accessed later using log (similar to git log).
 Example:-
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 for i in range(10):
     ds["img", i] = i * np.ones((100, 100, 3))  # assuming the dataset has a tensor called img
 a = ds.commit("my first commit") # the commit message is optional, but recommended
@@ -34,7 +34,7 @@ Similar to git, you start out on the master branch by default. There are 2 ways 
 * Making changes while not on the head of a branch i.e. in a state similar to the “Detached head" state in git. For instance, if you have made 5 commits on master and go back to the second commit (again using checkout, explained in detail in the next section) and try to make some change there, you will automatically get checked out to a new branch with a name similar to “auto:ec33fced9d75021a32ae28ff”. Alternatively you could also manually checkout to a branch from this state yourself and prevent auto checkout.
 
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 ds.checkout("alternate", create=True)  # creates a new branch
 
 ds.checkout("master")
@@ -55,7 +55,7 @@ Checkout is used to switch between different versions of the dataset. It takes a
 When checking out from the head of a branch, the current uncommitted changes (if any) are also brought over to the new branch.
 Example:-
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 ds.checkout("alternate", create=True)  # creates a new branch
 
 # checkout to a commit id of the dataset (this is an example id for illustration)
@@ -66,7 +66,7 @@ ds.checkout("ec33fced9d75021a32ae28ff")  # commit id can be obtained from log or
 Using log you can get a log of all commits made in the past that lead up to the current commit similar to git log. The log provides the commit ids and commit messages. This can be useful for figuring out which commit to go back to.
 
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 ds.log()
 ```
 
@@ -74,7 +74,7 @@ ds.log()
 The branches property of dataset can be used to get a list of all the branches present.
 
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 print(ds.branches)
 ```
 
@@ -82,7 +82,7 @@ print(ds.branches)
 Hub uses a memory cache to ensure fast data storage and retrieval. This cache is automatically flushed to the storage whenever it gets full. Every time you are done making changes to the dataset, you should make a call to commit to ensure that the data is properly flushed. In case you don’t want to create a new commit at the moment, save or flush can be used to save the dataset state so you can continue from where you left off next time.
 
 ```python
-ds = hub.Dataset("path/to/dataset")
+ds = hub_v1.Dataset("path/to/dataset")
 for i in range(10):
     ds["img", i] = i * np.ones((100, 100, 3))
 

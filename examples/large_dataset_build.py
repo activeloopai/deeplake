@@ -1,6 +1,6 @@
 import numpy as np
-import hub
-from hub.schema import Tensor
+import hub_v1
+from hub_v1.schema import Tensor
 
 
 def create_large_dataset():
@@ -11,7 +11,7 @@ def create_large_dataset():
     array = np.random.random((10, 1920, 1080, 3))
 
     # Write the dataset
-    ds = hub.Dataset(
+    ds = hub_v1.Dataset(
         "./data/examples/large_dataset_build",
         shape=(sample_count,),
         schema=schema,
@@ -21,11 +21,11 @@ def create_large_dataset():
         ds["image", i * 10 : i * 10 + 10] = i * array
     ds.flush()
 
-    ds = hub.Dataset("./data/examples/large_dataset_build")
+    ds = hub_v1.Dataset("./data/examples/large_dataset_build")
     print(ds.keys, ds["image"].shape, ds["image"].dtype)
 
     # Read the dataset
-    with hub.Dataset("./data/examples/large_dataset_build") as ds:
+    with hub_v1.Dataset("./data/examples/large_dataset_build") as ds:
         for i in range(len(ds) // 10):
             assert (ds["image", i * 10, 0, 0, 0].compute() / array[0, 0, 0, 0]) == i
 

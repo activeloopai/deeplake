@@ -26,7 +26,7 @@ pip install -e .
 Make sure that, after following the preceeding steps, you can now run this python script
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # loading the MNIST data lazily
 # saving time with *compute* to retrieve just the necessary data

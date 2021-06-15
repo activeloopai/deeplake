@@ -1,9 +1,9 @@
 import time
 import io
 import torch
-import hub
-from hub.schema import Tensor
-from hub.store.store import get_fs_and_path
+import hub_v1
+from hub_v1.schema import Tensor
+from hub_v1.store.store import get_fs_and_path
 from helper import report
 import numpy as np
 from PIL import Image
@@ -68,9 +68,9 @@ def get_dataset_from_hub(samples=1, read_from_fs=False, pytorch=False):
     """
     my_schema = {"img": Tensor(shape=(3, 256, 256)), "label": "uint8"}
     if not read_from_fs:
-        ds = hub.Dataset("test/benchmarking", shape=(samples,), schema=my_schema)
+        ds = hub_v1.Dataset("test/benchmarking", shape=(samples,), schema=my_schema)
     else:
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             "s3://snark-test/benchmarking_test", shape=(samples,), schema=my_schema
         )
     for i in range(samples):

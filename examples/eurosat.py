@@ -1,9 +1,9 @@
-import hub
+import hub_v1
 import torch
 
 
 def main():
-    ds = hub.Dataset("eurosat/eurosat-rgb")
+    ds = hub_v1.Dataset("eurosat/eurosat-rgb")
 
     # 26000 samples in dataset, accessing values
     print(ds["image"][10].numpy())

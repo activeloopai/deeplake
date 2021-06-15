@@ -9,8 +9,8 @@ First, let's import all the necessary packages and libraries:
 import os
 import pandas as pd
 from tqdm import tqdm
-import hub
-from hub.schema import Text, ClassLabel
+import hub_v1
+from hub_v1.schema import Text, ClassLabel
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfTransformer
 ```
@@ -75,7 +75,7 @@ max_length = 13704 # Obtained from the code above
 my_schema = {"Review": Text(shape=(None, ), max_shape=(max_length, )),
              "Label": ClassLabel(num_classes=2)}
 
-ds = hub.Dataset(url, shape=(25000,), schema=my_schema)
+ds = hub_v1.Dataset(url, shape=(25000,), schema=my_schema)
 for i in tqdm(range(len(ds))):
     ds["Review", i] = reviews_df["Review"][i]
     ds["Label", i] = labels[i]
@@ -84,7 +84,7 @@ ds.flush()
 ```
 Please note that there is no need to run this piece of code multiple times. Once you've run this cell once, you can find your dataset at [https://app.activeloop.ai](https://app.activeloop.ai), and you can call that dataset at anytime, simply by running the line below.
 ```py
-ds = hub.Dataset(url) # Where url is the same as the code above
+ds = hub_v1.Dataset(url) # Where url is the same as the code above
 ```
 See? It's that easy! Upload your dataset once, then just keep calling it for your use case! In the cases of many popular datasets such as the one we're using right now, you don't even need to download the dataset yourself. Simply run the code above with the correct `url`, and you're good to go!
 
@@ -99,7 +99,7 @@ print(ds["label", 4].compute())
 All is well. Your dataset is safe in the cloud!
 
 ### Hub in Action
-Let's try to see Hub in action. We'll train a binary classification model, streaming the data from Hub. 
+Let's try to see Hub in action. We'll train a binary classification model, streaming the data from hub_v1. 
 Some basic preprocessing functions are provided below.
 ```py
 import re

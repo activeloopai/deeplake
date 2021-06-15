@@ -3,7 +3,7 @@ from torchvision import transforms
 import torch
 import os
 
-from hub import Dataset
+from hub_v1 import Dataset
 
 
 class HubAdapter(torch.utils.data.Dataset):

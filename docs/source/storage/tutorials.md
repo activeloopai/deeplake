@@ -9,7 +9,7 @@ Hub Arrays are scalable numpy-like arrays stored on the cloud accessible over th
 In order to store in the cloud, first, you should connect to it.  
 For AWS S3 storage. 
 ```python
-import hub
+import hub_v1
 datahub = hub.s3("your_bucket_name", aws_creds_filepath="filepath_to_your_credentials").connect()
 ```
 Google Cloud.
@@ -46,7 +46,7 @@ Hub Datasets are dictionaries of Hub Arrays stored in the cloud.
 Usage example.
 
 ```python
-import hub
+import hub_v1
 datahub = hub.s3("your_bucket_name", aws_creds_filepath="filepath_to_your_credentials").connect()
 x = datahub.array(
     name="test/example:input", shape=(100, 25, 25), chunk=(20, 5, 5), dtype="uint8"
@@ -125,7 +125,7 @@ TensorFlow:
 ```
 
 ## Tips on using Hub arrays
-When you want to get numpy array from Hub array just add the slicing. 
+When you want to get numpy array from hub_v1 array just add the slicing. 
 
 ```python
 bigarray = datahub.open('your_array_name')

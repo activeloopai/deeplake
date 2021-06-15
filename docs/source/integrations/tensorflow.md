@@ -4,7 +4,7 @@
 Here is an example to transform the dataset into Tensorflow form.
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 # Create dataset
 ds = Dataset(
@@ -30,7 +30,7 @@ Hub dataset can be created from tensorflow dataset:
 ```python
 import tensorflow as tf
 ds = tf.data.Dataset.from_tensor_slices(tf.range(10))
-out_ds = hub.Dataset.from_tensorflow(ds)
+out_ds = hub_v1.Dataset.from_tensorflow(ds)
 res_ds = out_ds.store("./data/from_tf/ds")
 ```
 
@@ -40,7 +40,7 @@ Also, it is possible to load a dataset using tensorflow_datasets:
 ```python
 import tensorflow_datasets as tfds
 with tfds.testing.mock_data(num_examples=5):
-    ds = hub.Dataset.from_tfds('mnist', num=5)
+    ds = hub_v1.Dataset.from_tfds('mnist', num=5)
     res_ds = ds.store("./data/tfds/mnist", length=5)
 ```
 

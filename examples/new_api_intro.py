@@ -1,8 +1,8 @@
 import numpy as np
 
-from hub import Dataset
-from hub.schema import ClassLabel, Image
-from hub.utils import Timer
+from hub_v1 import Dataset
+from hub_v1.schema import ClassLabel, Image
+from hub_v1.utils import Timer
 
 
 def main():

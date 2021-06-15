@@ -1,5 +1,5 @@
-import hub
-from hub.schema import Tensor
+import hub_v1
+from hub_v1.schema import Tensor
 import time
 import numpy as np
 
@@ -26,7 +26,7 @@ for cs in chunk_sizes:
     my_schema = {
         "img": Tensor(shape=(cs, cs), chunks=cs, dtype="uint8", compressor="default")
     }
-    ds = hub.Dataset(
+    ds = hub_v1.Dataset(
         "test/benchmark:t{}".format(str(cs)), shape=shape, schema=my_schema
     )
     arr = (255 * np.random.rand(shape[0], cs, cs)).astype("uint8")

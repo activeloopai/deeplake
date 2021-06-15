@@ -6,11 +6,11 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import tiledb
 import zarr
-import hub
+import hub_v1
 import numpy as np
 import os
 from time import time
-from hub.utils import Timer
+from hub_v1.utils import Timer
 from tqdm import tqdm
 
 
@@ -44,11 +44,11 @@ def time_tiledb(dataset, batch_size=1, split=None):
         ds_tldb = tiledb.open(dataset.split("/")[1] + "_tileDB")
     else:
         if split is not None:
-            ds = hub.Dataset(
+            ds = hub_v1.Dataset(
                 dataset + "_" + split, cache=False, storage_cache=False, mode="r"
             )
         else:
-            ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
+            ds = hub_v1.Dataset(dataset, cache=False, storage_cache=False, mode="r")
         y_dim = tiledb.Dim(
             name="y",
             domain=(0, ds.shape[0] - 1),
@@ -102,11 +102,11 @@ def time_zarr(dataset, batch_size=1, split=None):
         ds_zarr = zarr.open(dataset.split("/")[1] + "_zarr")
     else:
         if split is not None:
-            ds = hub.Dataset(
+            ds = hub_v1.Dataset(
                 dataset + "_" + split, cache=False, storage_cache=False, mode="r"
             )
         else:
-            ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
+            ds = hub_v1.Dataset(dataset, cache=False, storage_cache=False, mode="r")
         store = zarr.DirectoryStore(dataset.split("/")[1] + "_zarr")
         shape = [
             ds["image"].shape[0],
@@ -137,11 +137,11 @@ def time_zarr(dataset, batch_size=1, split=None):
 
 def time_hub(dataset, batch_size=1, split=None):
     if split is not None:
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             dataset + "_" + split, cache=False, storage_cache=False, mode="r"
         )
     else:
-        ds = hub.Dataset(dataset, cache=False, storage_cache=False, mode="r")
+        ds = hub_v1.Dataset(dataset, cache=False, storage_cache=False, mode="r")
 
     assert type(ds) == hub.api.dataset.Dataset
 
@@ -169,9 +169,9 @@ if __name__ == "__main__":
 
         if not os.path.exists(dataset.split("/")[1] + "_hub"):
             if split is not None:
-                data = hub.Dataset.from_tfds(dataset.split("/")[1], split=split)
+                data = hub_v1.Dataset.from_tfds(dataset.split("/")[1], split=split)
             else:
-                data = hub.Dataset.from_tfds(dataset.split("/")[1])
+                data = hub_v1.Dataset.from_tfds(dataset.split("/")[1])
             data.store(dataset.split("/")[1] + "_hub")
 
         print("Dataset: ", dataset, "with Batch Size: ", batch_size)

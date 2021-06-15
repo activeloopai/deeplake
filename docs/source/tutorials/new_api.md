@@ -35,8 +35,8 @@ hub login
 ```python
 import numpy as np
 
-import hub
-from hub.schema import ClassLabel, Image
+import hub_v1
+from hub_v1.schema import ClassLabel, Image
 
 schema = {
     "image": Image((28, 28)),
@@ -45,7 +45,7 @@ schema = {
 
 url = "./data/examples/new_api_intro" #instead write your {username}/{dataset} to make it public
 
-ds = hub.Dataset(url, mode="w", shape=(1000,), schema=ds_type)
+ds = hub_v1.Dataset(url, mode="w", shape=(1000,), schema=ds_type)
 for i in range(len(ds)):
     ds["image", i] = np.ones((28, 28), dtype="uint8")
     ds["label", i] = 3
@@ -59,10 +59,10 @@ ds.flush()
 
 In `hub==1.0.0a5` we would also have 
 ```python
-import hub
+import hub_v1
 import tensorflow as tf
 
-out_ds = hub.Dataset.from_tfds('mnist', split='test+train', num=1000)
+out_ds = hub_v1.Dataset.from_tfds('mnist', split='test+train', num=1000)
 res_ds = out_ds.store("username/mnist") # res_ds is now a usable hub dataset
 ```
 
@@ -84,7 +84,7 @@ NOTE: This action invalidates dataset.
 Alternatively you can use following style.
 
 ```python
-with hub.Dataset(...) as ds:
+with hub_v1.Dataset(...) as ds:
     pass
 ```
 

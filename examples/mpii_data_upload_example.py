@@ -4,9 +4,9 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 
-import hub
-from hub import Dataset, schema
-from hub.schema import Tensor, Text
+import hub_v1
+from hub_v1 import Dataset, schema
+from hub_v1.schema import Tensor, Text
 
 """
 Below we will define a schema for our dataset. Schema is kind of
@@ -63,7 +63,7 @@ dataset with specified schema. More info. on docs.
 """
 
 
-@hub.transform(schema=mpii_schema, workers=8)
+@hub_v1.transform(schema=mpii_schema, workers=8)
 def mpii_transform(annotation):
     return {
         "image": np.array(Image.open(img_path + annotation["img_paths"])),

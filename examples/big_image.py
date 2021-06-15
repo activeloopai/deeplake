@@ -1,8 +1,8 @@
 import numpy as np
 
-import hub
-from hub.schema import Image
-from hub.utils import Timer
+import hub_v1
+from hub_v1.schema import Image
+from hub_v1.utils import Timer
 
 
 def main():
@@ -15,7 +15,7 @@ def main():
                 max_shape=(100000, 100000, 4),
             )
         }
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             "./data/examples/big_image", mode="w", schema=schema, shape=(10000,)
         )
 

@@ -8,7 +8,7 @@ import os
 
 from setuptools import find_packages, setup
 
-project = "hub"
+project = "hub_v1"
 
 
 this_directory = os.path.abspath(os.path.dirname(__file__))

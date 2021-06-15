@@ -12,12 +12,12 @@ import pandas as pd
 import numpy as np
 from numpy import asarray
 from tqdm import tqdm
-import hub
-from hub.schema import Image, ClassLabel
+import hub_v1
+from hub_v1.schema import Image, ClassLabel
 from PIL import Image
 from skimage.transform import resize
 from skimage import img_as_ubyte
-from hub import Dataset, transform, schema
+from hub_v1 import Dataset, transform, schema
 from sklearn.model_selection import train_test_split
 
 import matplotlib.pyplot as plt
@@ -75,7 +75,7 @@ my_schema={
         "image": schema.Image(shape=(None,None , 3), max_shape=(150,150,3), dtype="uint8"),
         "label": ClassLabel(num_classes=2)}
 
-ds = hub.Dataset(url, shape=(25000,), schema=my_schema)
+ds = hub_v1.Dataset(url, shape=(25000,), schema=my_schema)
 for i in tqdm(range(len(ds))):
     ds["image", i] = images_df["Image"][i]
     ds["label", i] = images_df["Label"][i]
@@ -84,7 +84,7 @@ ds.flush()
 ```
 Please note that there is no need to run this piece of code multiple times. Once you've run this cell once, you can find your dataset at [https://app.activeloop.ai](https://app.activeloop.ai), and you can call that dataset at anytime, simply by running the line below.
 ```py
-ds = hub.Dataset(url) # Where url is the same as the code above
+ds = hub_v1.Dataset(url) # Where url is the same as the code above
 ```
 Upload your dataset once, then just keep calling it for your use case! In the cases of many popular datasets such as the one we're using right now, you don't even need to download the dataset yourself. Simply run the code above with the correct `url`, and you're good to go!
 
@@ -101,7 +101,7 @@ new_schema = {
 
 Hub transform method to resize images
 ```py
-@hub.transform(schema=new_schema)
+@hub_v1.transform(schema=new_schema)
 def resize_transform(index):
     image = resize(ds['image', index].compute(), (150, 150, 3), anti_aliasing=True)
     image = img_as_ubyte(image)  # recast from float to uint8
@@ -121,7 +121,7 @@ ds3 = ds2.store(url)
 ```
 
 ### Hub in Action
-Let's try to see Hub in action. We'll train a binary classification model, streaming the data from Hub. 
+Let's try to see Hub in action. We'll train a binary classification model, streaming the data from hub_v1. 
 
 ```py
 # Training dataset

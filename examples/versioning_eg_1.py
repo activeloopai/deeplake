@@ -1,7 +1,9 @@
-import hub
+import hub_v1
 
 my_schema = {"abc": "uint32"}
-ds = hub.Dataset("./data/test_versioning/eg_1", shape=(10,), schema=my_schema, mode="w")
+ds = hub_v1.Dataset(
+    "./data/test_versioning/eg_1", shape=(10,), schema=my_schema, mode="w"
+)
 ds["abc", 0] = 1
 a = ds.commit("first")
 ds["abc", 0] = 2

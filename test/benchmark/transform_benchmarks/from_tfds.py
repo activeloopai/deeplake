@@ -1,11 +1,11 @@
-import hub
-from hub.utils import Timer
+import hub_v1
+from hub_v1.utils import Timer
 import tensorflow_datasets as tfds
 
 
 def benchmark_coco(num=5):
     with tfds.testing.mock_data(num_examples=num):
-        ds = hub.Dataset.from_tfds("coco", num=num)
+        ds = hub_v1.Dataset.from_tfds("coco", num=num)
 
         res_ds = ds.store(
             "./data/test_tfds/coco", length=num

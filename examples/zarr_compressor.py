@@ -7,8 +7,8 @@ from numcodecs import MsgPack
 import numpy as np
 from PIL import Image
 
-from hub.utils import Timer
-from hub.numcodecs import PngCodec
+from hub_v1.utils import Timer
+from hub_v1.png_numcodec import PngCodec
 
 
 def main():

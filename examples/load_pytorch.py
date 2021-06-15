@@ -1,5 +1,5 @@
 import torch
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 
 
 def main():

@@ -1,17 +1,17 @@
-"""Example of using @hub.transform to modify datasets
+"""Example of using @hub_v1.transform to modify datasets
 """
 
 import os
 import numpy as np
 
-import hub
+import hub_v1
 
 # Load the dataset
-ds = hub.Dataset("activeloop/cifar10_train")
+ds = hub_v1.Dataset("activeloop/cifar10_train")
 
 
 # Transform function
-@hub.transform(schema=ds.schema, scheduler="threaded")
+@hub_v1.transform(schema=ds.schema, scheduler="threaded")
 def add_noise(sample):
     image_shape = sample["image"].shape
 

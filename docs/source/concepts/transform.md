@@ -4,16 +4,16 @@ Data pipelines are a series of data transformations on datasets.
 
 ## Transform
 Hub Transform provides a functionality to modify the samples of the dataset or create a new dataset from the existing one. 
-To apply these modifications user needs to add a `@hub.transform` decorator to any custom function. User defined transform function is applied to every sample on the input. It takes in an iterator or a dataset, and output another dataset with specified schema.
+To apply these modifications user needs to add a `@hub_v1.transform` decorator to any custom function. User defined transform function is applied to every sample on the input. It takes in an iterator or a dataset, and output another dataset with specified schema.
 
 There are optimizations done behind the scenes to efficiently process and store the data. 
 
-### How to upload a dataset with @hub.Transform
+### How to upload a dataset with @hub_v1.Transform
 
 Define the desired schema
 ```python
-import hub
-from hub.schema import Tensor, Text
+import hub_v1
+from hub_v1.schema import Tensor, Text
 import numpy as np
 
 my_schema = {
@@ -27,7 +27,7 @@ tag = "./data/test/test_pipeline_basic"
 Before
 
 ```python 
-ds = hub.Dataset(
+ds = hub_v1.Dataset(
    tag, mode="w+", shape=(100,), schema=my_schema
 )
 
@@ -42,7 +42,7 @@ assert ds["confidence"][0].compute() == 0.2
 After
 
 ```python
-@hub.transform(schema=my_schema)
+@hub_v1.transform(schema=my_schema)
 def my_transform(index):
     return {
         "image": np.ones((28, 28, 4), dtype="int32"),
@@ -57,14 +57,14 @@ ds = ds.store(tag)
 assert ds["confidence"][0].compute() == 0.2
 
 # Access the dataset later
-ds = hub.Dataset(tag)
+ds = hub_v1.Dataset(tag)
 assert ds["confidence"][0].compute() == 0.2
 ```
 
 ### Adding arguments
 
 ```python
-@hub.transform(schema=my_schema)
+@hub_v1.transform(schema=my_schema)
 def my_transform(index, multiplier):
     return {
         "image": np.ones((28, 28, 4), dtype="int32"),
@@ -82,7 +82,7 @@ assert ds["confidence"][0].compute() == 2.0
 ### Stacking multiple transforms 
 
 ```python
-@hub.transform(schema=my_schema)
+@hub_v1.transform(schema=my_schema)
 def my_transform_1(index):
     return {
         "image": np.ones((28, 28, 4), dtype="int32"),
@@ -91,7 +91,7 @@ def my_transform_1(index):
     }
 
 
-@hub.transform(schema=my_schema)
+@hub_v1.transform(schema=my_schema)
 def my_transform_2(sample, multiplier: int = 2):
     return {
         "image": sample["image"].compute() * multiplier,
@@ -117,7 +117,7 @@ my_schema = {
     "label": Text(shape=(None,), max_shape=(20,)),
 }
 
-ds = hub.Dataset(
+ds = hub_v1.Dataset(
     "./data/test/test_pipeline_dynamic3",
     mode="w+",
     shape=(1,),
@@ -128,7 +128,7 @@ ds = hub.Dataset(
 ds["image", 0] = np.ones((30, 32, 3))
 
 
-@hub.transform(schema=my_schema)
+@hub_v1.transform(schema=my_schema)
 def dynamic_transform(sample, multiplier: int = 2):
     return [
         {
@@ -157,7 +157,7 @@ dtype = "uint8"
 my_schema = {"image": Image(shape=(width, width, channels), dtype=dtype)}
 
 
-@hub.transform(schema=my_schema, scheduler="processed", workers=2)
+@hub_v1.transform(schema=my_schema, scheduler="processed", workers=2)
 def my_transform(x):
 
     a = np.random.random((width, width, channels))
@@ -179,7 +179,7 @@ ds_t = my_transform(range(100)).store("./data/pipeline")
 There is also an option of using `ray` as a scheduler. In this case `RayTransform` will be applied to samples. 
 
 ```python
-ds = hub.Dataset(
+ds = hub_v1.Dataset(
    "./data/ray/ray_pipeline_basic",
    mode="w+",
    shape=(100,),
@@ -192,7 +192,7 @@ for i in range(len(ds)):
    ds["label", i] = f"hello {i}"
    ds["confidence/confidence", i] = 0.2
 
-@hub.transform(schema=my_schema, scheduler="ray")
+@hub_v1.transform(schema=my_schema, scheduler="ray")
 def my_transform(sample, multiplier: int = 2):
    return {
       "image": sample["image"].compute() * multiplier,

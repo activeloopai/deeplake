@@ -1,4 +1,4 @@
-from hub import Dataset
+from hub_v1 import Dataset
 import os
 
 

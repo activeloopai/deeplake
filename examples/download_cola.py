@@ -1,6 +1,6 @@
 """Download handler for CoLA dataset"""
-from hub import transform
-from hub.schema import Primitive, Text
+from hub_v1 import transform
+from hub_v1.schema import Primitive, Text
 
 import zipfile
 import requests

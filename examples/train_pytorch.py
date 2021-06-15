@@ -1,15 +1,15 @@
-"""Basic example of training pytorch model on hub.Dataset
+"""Basic example of training pytorch model on hub_v1.Dataset
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import hub
-from hub.training.model import Model
+import hub_v1
+from hub_v1.training.model import Model
 
 
 def example_to_pytorch():
-    ds = hub.Dataset("activeloop/fashion_mnist_train")
+    ds = hub_v1.Dataset("activeloop/fashion_mnist_train")
     torch_ds = ds.to_pytorch(output_type=list)
     torch_dataloader = torch.utils.data.DataLoader(
         torch_ds,

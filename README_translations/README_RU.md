@@ -74,7 +74,7 @@ pip3 install hub
 
 Получайте доступ к публичным датасетам в Hub, следуя простым инструкциям и используя несколько строк кода. Запустите данный кусок кода чтобы получить первую тысячу изображений из [датасета MNIST](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) в виде numpy-массива:
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 
 mnist = Dataset("activeloop/mnist")  # ленивая загрузка данных MNIST
 # экономьте время с помощью *compute* чтобы получить только нужные данные
@@ -87,7 +87,7 @@ mnist["image"][0:1000].compute()
 Загрузиите данные и обучите модель **напрямую**. Hub имеет интеграцию с PyTorch и TensorFlow, а также выполняет конвертацию между форматами в понятном виде. Посмотрите на пример с PyTorch ниже:
 
 ```python
-from hub import Dataset
+from hub_v1 import Dataset
 import torch
 
 mnist = Dataset("activeloop/mnist")
@@ -103,7 +103,7 @@ for image, label in train_loader:
 ### Создание датасета локально 
 Если вы хотите работать со своими данными локально, вы можете начать с создания датасета:
 ```python
-from hub import Dataset, schema
+from hub_v1 import Dataset, schema
 import numpy as np
 
 ds = Dataset(
@@ -147,7 +147,7 @@ ds.flush()  # вызов создания датасета
 
 2. Затем создайте датасет, укажите его название и загрузите в ваш аккаунт. Например:
     ```python
-    from hub import Dataset, schema
+    from hub_v1 import Dataset, schema
     import numpy as np
 
     ds = Dataset(
@@ -167,7 +167,7 @@ ds.flush()  # вызов создания датасета
 
 3. Получайте доступ к нему где угодно, на любом устройстве, где есть командная строка:
     ```python
-    from hub import Dataset
+    from hub_v1 import Dataset
 
     ds = Dataset("username/dataset_name")
     ```

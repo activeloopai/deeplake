@@ -3,7 +3,7 @@
 ## Datasets
 ### Dataset
 ```eval_rst
-.. autoclass:: hub.Dataset
+.. autoclass:: hub_v1.Dataset
    :members:
    :no-undoc-members:
    :private-members:
@@ -54,56 +54,56 @@
 
 ## Schema
 ```eval_rst
-.. autoclass:: hub.schema.audio.Audio
+.. autoclass:: hub_v1.schema.audio.Audio
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.bbox.BBox
+.. autoclass:: hub_v1.schema.bbox.BBox
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:   
-.. autoclass:: hub.schema.class_label.ClassLabel
+.. autoclass:: hub_v1.schema.class_label.ClassLabel
    :members:
    :no-undoc-members:
    :private-members:
    :special-members: 
-.. autoclass:: hub.schema.image.Image
+.. autoclass:: hub_v1.schema.image.Image
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. automodule:: hub.schema.features
+.. automodule:: hub_v1.schema.features
    :members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.mask.Mask
-   :members:
-   :no-undoc-members:
-   :private-members:
-   :special-members:
-.. autoclass:: hub.schema.polygon.Polygon
+.. autoclass:: hub_v1.schema.mask.Mask
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.segmentation.Segmentation
+.. autoclass:: hub_v1.schema.polygon.Polygon
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.sequence.Sequence
+.. autoclass:: hub_v1.schema.segmentation.Segmentation
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.text.Text
+.. autoclass:: hub_v1.schema.sequence.Sequence
    :members:
    :no-undoc-members:
    :private-members:
    :special-members:
-.. autoclass:: hub.schema.video.Video
+.. autoclass:: hub_v1.schema.text.Text
+   :members:
+   :no-undoc-members:
+   :private-members:
+   :special-members:
+.. autoclass:: hub_v1.schema.video.Video
    :members:
    :no-undoc-members:
    :private-members:

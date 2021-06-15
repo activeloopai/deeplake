@@ -6,11 +6,11 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 
 import tiledb
 import zarr
-import hub
+import hub_v1
 import numpy as np
 import os
 from time import time
-from hub.utils import Timer
+from hub_v1.utils import Timer
 
 
 def time_batches(dataset, batch_size=1, num_batches=1, hub=False):
@@ -83,18 +83,18 @@ def time_zarr(dataset, batch_size=1, num_batches=1):
 
 def time_hub(dataset, batch_size=1, num_batches=1, local=True, user=None):
     my_schema = {
-        "image": hub.schema.Image(shape=(28, 28, 1), dtype="uint8"),
-        "label": hub.schema.ClassLabel(num_classes=10),
+        "image": hub_v1.schema.Image(shape=(28, 28, 1), dtype="uint8"),
+        "label": hub_v1.schema.ClassLabel(num_classes=10),
     }
     if local is True:
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             "./" + dataset + "_hub",
             shape=(batch_size * num_batches,),
             schema=my_schema,
             mode="w",
         )
     else:
-        ds = hub.Dataset(
+        ds = hub_v1.Dataset(
             user + "/" + dataset,
             shape=(batch_size * num_batches,),
             schema=my_schema,

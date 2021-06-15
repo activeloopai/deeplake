@@ -10,7 +10,7 @@ One can specify `dtag` for the element to specify its nature.
 ## Initialize
 You can initialize a tensor like this and get the first element.
 ```python
-from hub import tensor
+from hub_v1 import tensor
 
 t = tensor.from_zeros((10, 512, 512), dtype="uint8")
 t[0].compute()
@@ -20,7 +20,7 @@ You can also initialize the tensor object from a numpy array.
 
 ```python
 import numpy as np
-from hub import tensor
+from hub_v1 import tensor
 
 t = tensor.from_zeros(np.zeros((10, 512, 512)))
 ```
@@ -31,7 +31,7 @@ t = tensor.from_zeros(np.zeros((10, 512, 512)))
 Concatenating or stacking tensors works as in other frameworks.
 
 ```python
-from hub import tensor
+from hub_v1 import tensor
 
 t1 = tensor.from_zeros((10, 512, 512), dtype="uint8")
 t2 = tensor.from_zeros((20, 512, 512), dtype="uint8")

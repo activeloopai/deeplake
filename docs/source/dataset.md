@@ -9,7 +9,7 @@
 
 2. Then create your dataset
 ```python
-from hub import tensor, dataset
+from hub_v1 import tensor, dataset
 
 images = tensor.from_array(np.zeros((4, 512, 512)))
 labels = tensor.from_array(np.zeros((4, 512, 512)))
@@ -57,7 +57,7 @@ For each tensor you would need to specify a dtag so that visualizer knows how dr
 2. Train a model using Pytorch
 
 ```python
-import hub
+import hub_v1
 import pytorch
 
 ds = hub.load("username/dataset")
@@ -70,7 +70,7 @@ ds = ds.to_pytorch()
 3. Train a model using Tensorflow 
 
 ```python
-import hub
+import hub_v1
 import tensorflow
 
 ds = hub.load("username/dataset")

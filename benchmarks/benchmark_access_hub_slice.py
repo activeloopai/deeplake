@@ -1,4 +1,4 @@
-from hub import Dataset
+from hub_v1 import Dataset
 
 
 def benchmark_access_hub_slice_setup(dataset_name, slice_bounds, field=None):

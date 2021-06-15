@@ -1,6 +1,6 @@
 import torch
 
-from hub import Dataset
+from hub_v1 import Dataset
 
 
 def benchmark_iterate_hub_pytorch_setup(

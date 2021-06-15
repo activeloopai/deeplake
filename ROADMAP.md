@@ -17,7 +17,7 @@ Currently, the process consists of:
 We would like to abstract away as many steps as possible. Examples include [schema generation](https://github.com/activeloopai/Hub/pull/344) and [higher level dataset objects](https://github.com/activeloopai/Hub/issues/505).
 
 ### Data Out
-"Data Out" features help users stream data from Hub. New features should meaningfully improve performance (benchmarking scripts can be found [here](https://github.com/activeloopai/Hub/tree/master/benchmarks).
+"Data Out" features help users stream data from hub_v1. New features should meaningfully improve performance (benchmarking scripts can be found [here](https://github.com/activeloopai/Hub/tree/master/benchmarks).
 
 Currently, the process consists of:
 * Locating the relevant dataset on Hub

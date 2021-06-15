@@ -5,7 +5,7 @@ Here is an example to transform the dataset into Pytorch form.
 
 ```python
 import torch
-from hub import dataset
+from hub_v1 import dataset
 
 # Create dataset
 ds = Dataset(
@@ -62,5 +62,5 @@ class TorchDataset(Dataset):
         return sample
 
 tds = TorchDataset()
-ds = hub.Dataset.from_pytorch(tds)
+ds = hub_v1.Dataset.from_pytorch(tds)
 ```

@@ -1,12 +1,12 @@
-import hub
-from hub.schema import Image
+import hub_v1
+from hub_v1.schema import Image
 import numpy as np
 
 my_schema = {
     "abc": "uint32",
     "img": Image((1000, 1000, 3), dtype="uint16"),
 }
-ds = hub.Dataset(
+ds = hub_v1.Dataset(
     "./data/test_versioning/eg_3", shape=(100,), schema=my_schema, mode="w"
 )
 for i in range(100):
