@@ -10,7 +10,7 @@ def pytorch_installed():
 
 def tensorflow_installed():
     try:
-        import tensorflow
+        import tensorflow  # type: ignore
 
         tensorflow.__version__
     except ImportError:

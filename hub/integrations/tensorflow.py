@@ -5,7 +5,7 @@ def dataset_to_tensorflow(dataset):
     """Converts the dataset into a tensorflow compatible format"""
     global tf
     try:
-        import tensorflow as tf
+        import tensorflow as tf  # type: ignore
     except ModuleNotFoundError:
         raise ModuleNotInstalledException(
             "'tensorflow' should be installed to convert the Dataset into tensorflow format"
