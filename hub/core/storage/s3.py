@@ -41,8 +41,6 @@ class S3Provider(StorageProvider):
             aws_region (optional, str): Specifies the AWS Region to send requests to.
             max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
-            mode (str, optional): Mode in which the S3Provider is opened.
-                Supported modes include ("r", "w", "a").
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
         """

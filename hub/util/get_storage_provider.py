@@ -47,14 +47,15 @@ def storage_provider_from_path(
     """
     if creds is None:
         creds = {}
-
     if path.startswith("s3://"):
         key = creds.get("aws_access_key_id")
         secret = creds.get("aws_secret_access_key")
         token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
-        storage = S3Provider(path, key, secret, token, endpoint_url, region)
+        storage: StorageProvider = S3Provider(
+            path, key, secret, token, endpoint_url, region
+        )
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):

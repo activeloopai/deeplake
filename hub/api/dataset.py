@@ -119,7 +119,7 @@ class Dataset:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
-                read_only = self.read_only,
+                read_only=self.read_only,
                 storage=self.storage,
                 index=self.index[item],
             )
