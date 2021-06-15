@@ -55,10 +55,6 @@ class S3Provider(StorageProvider):
         root = root.replace("s3://", "")
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
-        if len(self.path.split("/")) == 3:
-            path_split = self.path.split("/")
-            self.org_id = path_split[1]
-            self.ds_name = path_split[2]
         self.client_config = botocore.config.Config(
             max_pool_connections=max_pool_connections,
         )
@@ -83,8 +79,6 @@ class S3Provider(StorageProvider):
                 endpoint_url=self.endpoint_url,
                 region_name=self.aws_region,
             )
-
-        self.hub_client = HubBackendClient()
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
@@ -212,7 +206,6 @@ class S3Provider(StorageProvider):
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
             bucket.objects.filter(Prefix=self.path).delete()
-            self.hub_client.delete_dataset_entry(self.org_id, self.ds_name)
         else:
             super().clear()
 

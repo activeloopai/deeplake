@@ -251,6 +251,8 @@ class Dataset:
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.storage.clear()
+        if self.path.startswith("hub://"):
+            self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     @staticmethod
     def from_path(path: str):
