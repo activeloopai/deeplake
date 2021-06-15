@@ -5,7 +5,6 @@ from hub.util.exceptions import (
     MetaInvalidRequiredMetaKey,
 )
 from hub.util.callbacks import (
-    CallbackDict,
     convert_from_callback_objects,
     convert_to_callback_objects,
 )
@@ -16,6 +15,7 @@ import hub
 
 
 class Meta:
+
     _initialized: bool = False
 
     def __init__(
@@ -25,6 +25,27 @@ class Meta:
         required_meta: dict = None,
         allow_custom_meta=True,
     ):
+        """Synchronizes `required_meta` properties with `storage`. When any update method is called on
+        properties defined in `required_meta`, `self._write()` is called which pushes these updates to `storage`.
+
+        Args:
+            key (str): Key relative to `storage` where this instance will be synchronized to.
+            storage (StorageProvider): Destination of this meta.
+            required_meta (dict): A dictionary that describes what properties this Meta should keep track of.
+                - If `required_meta` is `{"meta_key": []}`, you will be able to access `meta.meta_key`.
+                - If you wanted to update `meta_key`, simply do: `meta.meta_key.append(10)` and it will be
+                    immediately syncrhonized.
+                - If the value of a property is a `dict` or `list`, it will be recursively converted into `CallbackDict` and
+                `CallbackList` respectively.
+            allow_custom_meta (bool): If `True`, a `custom_meta` property will be added to `required_meta`. This is
+                intended for users to populate themselves and should be empty upon initialization.
+
+        Raises:
+            MetaAlreadyExistsError: If trying to initialize with `required_meta` when `key` already exists in `storage`.
+            MetaDoesNotExistError: If trying to initialize without `required_meta` when `key` does not exist in `storage`.
+            MetaInvalidRequiredMetaKey: `version` will be automatically added to `required_meta`.
+        """
+
         self.key = key
         self.storage = storage
 
@@ -43,7 +64,7 @@ class Meta:
             required_meta["version"] = hub.__version__
 
             if "custom_meta" not in required_meta and allow_custom_meta:
-                required_meta["custom_meta"] = CallbackDict(self._write)
+                required_meta["custom_meta"] = {}
 
             self.from_dict(required_meta)
             self._write()

@@ -5,7 +5,6 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
 )
-from hub.util.callbacks import CallbackList
 from hub.util.keys import get_tensor_meta_key
 from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
@@ -73,8 +72,8 @@ def _required_meta_from_htype(htype: str) -> dict:
         "htype": htype,
         "dtype": defaults["dtype"],
         "chunk_size": DEFAULT_CHUNK_SIZE,
-        "min_shape": CallbackList,
-        "max_shape": CallbackList,
+        "min_shape": [],
+        "max_shape": [],
         "length": 0,
     }
 

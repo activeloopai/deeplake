@@ -1,7 +1,6 @@
 from hub.htypes import DEFAULT_DTYPE, DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
-from hub.util.callbacks import CallbackList
 from hub.util.exceptions import (
     MetaInvalidKey,
     MetaInvalidRequiredMetaKey,
@@ -22,8 +21,8 @@ def test_meta(local_storage):
         TEST_META_KEY,
         local_storage,
         {
-            "list": CallbackList,
-            "nested_list": CallbackList,
+            "list": [],
+            "nested_list": [],
             "number": 9,
             "string": "uhhh",
         },

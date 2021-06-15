@@ -21,11 +21,11 @@ def _create_entry(
 
 
 class IndexMeta(Meta):
-    entries: CallbackList
+    entries: List
 
     @staticmethod
     def create(key: str, storage: StorageProvider):
-        required_meta = {"entries": CallbackList}
+        required_meta = {"entries": []}
         return IndexMeta(
             get_index_meta_key(key), storage, required_meta, allow_custom_meta=False
         )
