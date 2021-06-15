@@ -6,6 +6,8 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
+SUPPORTED_MODES = ["r", "a"]
+
 DEFAULT_CHUNK_SIZE = 16 * MB
 
 CHUNK_MAX_SIZE = 32 * MB  # chunks won't ever be bigger than this
