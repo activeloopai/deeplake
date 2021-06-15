@@ -9,16 +9,14 @@ import pytest
 
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.tensor import (
+    append_tensor,
     create_tensor,
+    extend_tensor,
     tensor_exists,
     read_samples_from_tensor,
 )
 from hub.core.typing import StorageProvider
 from hub.tests.common import TENSOR_KEY
-from hub.util.array import (
-    normalize_and_batchify_array_shape,
-    normalize_and_batchify_shape,
-)
 from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -143,27 +141,21 @@ def run_engine_test(
     key = TENSOR_KEY
     sample_count = 0
 
-    create_tensor(key, storage, chunk_size=chunk_size)
+    create_tensor(key, storage, chunk_size=chunk_size, dtype=arrays[0].dtype.name)
     tensor_meta = TensorMeta.load(key, storage)
 
-    first_sample_shape = normalize_and_batchify_shape(arrays[0].shape, batched=batched)[
-        1:
-    ]
+    first_sample_shape = arrays[0].shape
     expected_min_shape = first_sample_shape
     expected_max_shape = first_sample_shape
 
     for i, a_in in enumerate(arrays):
-        add_samples_to_tensor(
-            a_in,
-            key,
-            storage,
-            batched=batched,
-            tensor_meta=tensor_meta,
-        )
+        if batched:
+            current_batch_num_samples = a_in.shape[0]
+            extend_tensor(a_in, key, storage, tensor_meta=tensor_meta)
+        else:
+            current_batch_num_samples = 1
+            append_tensor(a_in, key, storage, tensor_meta=tensor_meta)
 
-        a_in = normalize_and_batchify_array_shape(a_in, batched=batched)
-
-        current_batch_num_samples = a_in.shape[0]
         index = Index(slice(sample_count, sample_count + current_batch_num_samples))
         a_out = read_samples_from_tensor(key=key, storage=storage, index=index)
 
@@ -171,8 +163,8 @@ def run_engine_test(
 
         sample_count += current_batch_num_samples
 
-        expected_min_shape = np.minimum(expected_min_shape, a_in.shape[1:])
-        expected_max_shape = np.maximum(expected_max_shape, a_in.shape[1:])
+        expected_min_shape = np.minimum(expected_min_shape, a_in.shape)
+        expected_max_shape = np.maximum(expected_max_shape, a_in.shape)
 
         assert_meta_is_valid(
             tensor_meta,
@@ -194,12 +186,10 @@ def benchmark_write(key, arrays, chunk_size, storage, batched):
     create_tensor(key, storage, chunk_size=chunk_size)
 
     for a_in in arrays:
-        add_samples_to_tensor(
-            a_in,
-            key,
-            storage,
-            batched=batched,
-        )
+        if batched:
+            extend_tensor(a_in, key, storage)
+        else:
+            append_tensor(a_in, key, storage)
 
 
 def benchmark_read(key: str, storage: StorageProvider):

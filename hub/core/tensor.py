@@ -8,7 +8,6 @@ import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_array, write_bytes
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
-from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
@@ -120,46 +119,8 @@ def _add_samples_to_tensor(
             `create_tensor(...)`.
     """
 
-    if not tensor_exists(key, storage):
-        raise TensorDoesNotExistError(key)
-
-    if index_meta is None:
-        index_meta = IndexMeta.load(key, storage)
-    if tensor_meta is None:
-        tensor_meta = TensorMeta.load(key, storage)
-
-    array = normalize_and_batchify_array_shape(array, batched=batched)
-
-    if len(tensor_meta.max_shape) <= 0:
-        tensor_meta.update_tensor_meta_with_array(array, batched=True)
-
-    _check_array_and_tensor_are_compatible(tensor_meta, array)
-
-    # TODO: get the tobytes function from meta
-    tobytes = row_wise_to_bytes
-
-    array_length = array.shape[0]
-    for i in range(array_length):
-        sample = array[i]
-        if 0 in sample.shape:
-            # if sample has a 0 in the shape, no data will be written
-            index_entry = {"chunk_names": []}  # type: ignore
-        else:
-            # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
-            # choose to optimize for.
-            b = memoryview(tobytes(sample))
-            write_bytes(
-                b,
-                key,
-                tensor_meta.chunk_size,
-                storage,
-                index_meta,
-                extra_sample_meta={"shape": sample.shape},
-            )
-
-        tensor_meta.update_shape_interval(sample.shape)
-
-    tensor_meta.length += array_length
+    # TODO: DELETE THIS
+    pass
 
 
 def read_samples_from_tensor(
