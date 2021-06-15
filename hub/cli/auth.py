@@ -10,9 +10,9 @@ from hub.util.exceptions import AuthenticationException
 @click.option("--password", "-p", default=None, help="Your Activeloop password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    click.echo("Log in using Activeloop credentials.")
+    click.echo("Login to Activeloop Hub using your credentials.")
     click.echo(
-        "If you don't have an account register by using 'hub register' command or by going to "
+        "If you don't have an account, register by using 'activeloop register' command or by going to "
         "https://app.activeloop.ai/register."
     )
     username = username or click.prompt("Username")
@@ -23,7 +23,7 @@ def login(username: str, password: str):
         client = HubBackendClient()
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo("\nSuccessfully logged in to Hub.")
+        click.echo("\nSuccessfully logged in to Activeloop Hub.")
     except AuthenticationException:
         raise SystemExit("\nLogin failed. Check username and password.")
     except Exception as e:
@@ -55,6 +55,8 @@ def register(username: str, email: str, password: str):
         client.send_register_request(username, email, password)
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo(f"\nSuccessfully registered and logged in to Hub as {username}.")
+        click.echo(
+            f"\nSuccessfully registered and logged in to Activeloop Hub as {username}."
+        )
     except Exception as e:
         raise SystemExit(f"\nUnable to register new user: {e}")

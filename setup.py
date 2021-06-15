@@ -20,7 +20,7 @@ setup(
     install_requires=requirements,
     entry_points={
         "console_scripts": [
-            "hub = hub.cli.commands:cli",
+            "activeloop = hub.cli.commands:cli",
         ]
     },
 )
