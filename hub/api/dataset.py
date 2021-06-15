@@ -104,7 +104,10 @@ class Dataset:
         else:
             self.meta = default_dataset_meta()
             self.flush()
-            self.client.create_dataset_entry(self.org_id, self.ds_name, public=public)
+            if self.path.startswith("hub://"):
+                self.client.create_dataset_entry(
+                    self.org_id, self.ds_name, public=public
+                )
 
     def __enter__(self):
         self.storage.autoflush = False
