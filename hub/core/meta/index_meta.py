@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from hub.util.callbacks import CallbackList
 from hub.util.keys import get_index_meta_key
 from hub.core.storage.provider import StorageProvider
@@ -39,7 +39,7 @@ class IndexMeta(Meta):
             IndexMeta: Index meta object.
         """
 
-        required_meta = {"entries": []}
+        required_meta: Dict = {"entries": []}
         return IndexMeta(
             get_index_meta_key(key), storage, required_meta, allow_custom_meta=False
         )
