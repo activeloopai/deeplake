@@ -1,3 +1,4 @@
+from hub.util.exceptions import TensorMetaMismatchError
 import numpy as np
 import pytest
 
@@ -140,7 +141,7 @@ def test_compute_dynamic_tensor(ds):
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
-    ds.create_tensor("label")
+    ds.create_tensor("label", dtype="int64")
 
     ds.image.extend(np.ones((4, 28, 28)))
     ds.label.extend(np.asarray(labels).reshape((4, 1)))
@@ -161,7 +162,7 @@ def test_compute_slices(memory_ds):
     ds = memory_ds
     shape = (64, 16, 16, 16)
     data = np.arange(np.prod(shape)).reshape(shape)
-    ds.create_tensor("data")
+    ds.create_tensor("data", dtype="int64")
     ds.data.extend(data)
 
     _check_tensor(ds.data[:], data[:])
@@ -203,3 +204,9 @@ def test_shape_property(memory_ds):
     fixed.extend(np.ones((13, 28, 28)))
     assert fixed.shape.lower == (28, 28)
     assert fixed.shape.upper == (28, 28)
+
+
+@pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
+def test_append_dtype_mismatch(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor", dtype="uint8")
+    tensor.append(np.ones(100, dtype="float64"))

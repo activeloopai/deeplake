@@ -45,7 +45,7 @@ def write_array(
                 extra_sample_meta={"shape": sample.shape},  # TODO: use kwargs
             )
 
-        tensor_meta.update(sample)
+        tensor_meta.update_with_sample(sample, key)
 
     tensor_meta.length += num_samples
 

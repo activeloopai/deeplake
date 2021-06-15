@@ -52,9 +52,10 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    def check_is_compatible(self, array: np.ndarray):
+    def check_batch_is_compatible(self, array: np.ndarray):
         # TODO: docstring (note that `array` is assumed to be batched)
 
+        # dtype is only strict after a sample exists
         if self.dtype != array.dtype.name:
             raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
 
@@ -71,14 +72,13 @@ class TensorMeta(Meta):
                     sample_shape,
                 )
 
-    def update(self, array: np.ndarray):
+    def update_with_sample(self, array: np.ndarray, tensor_name: str):
         """`array` is assumed to have a batch axis."""
         # TODO: docstring (note that `array` is assumed to be batched)
 
-        shape = array.shape[1:]
+        shape = array.shape
 
         if self.length <= 0:
-            # udpate (set) meta for the first time
             self.dtype = str(array.dtype)
             self.min_shape = list(shape)
             self.max_shape = list(shape)
@@ -98,13 +98,14 @@ def _required_meta_from_htype(htype: str) -> dict:
 
     required_meta = {
         "htype": htype,
-        "dtype": defaults["dtype"],
+        "dtype": defaults.get("dtype", None),
         "chunk_size": DEFAULT_CHUNK_SIZE,
         "min_shape": CallbackList,
         "max_shape": CallbackList,
         "length": 0,
     }
 
+    required_meta = _remove_none_values_from_dict(required_meta)
     required_meta.update(defaults)
     return required_meta
 
