@@ -15,6 +15,6 @@ def tfds_installed():
 
         tensorflow.__version__
         tensorflow_datasets.__version__
-    except ImportError:
+    except ModuleNotFoundError:
         return False
     return True
