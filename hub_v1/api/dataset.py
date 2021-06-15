@@ -78,6 +78,10 @@ from hub_v1.utils import norm_cache, norm_shape, _tuple_product
 from hub_v1 import defaults
 import pickle
 
+import sys
+
+sys.modules["hub"] = hub_v1
+
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):
     return len(fs.listdir(path, detail=False))
