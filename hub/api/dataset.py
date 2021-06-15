@@ -4,7 +4,6 @@ from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     MB,
-    SUPPORTED_MODES,
 )
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import (
@@ -23,7 +22,6 @@ from hub.util.exceptions import (
     PathNotEmptyException,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
-    UnsupportedModeError,
 )
 from hub.util.get_storage_provider import get_storage_provider
 from hub.util.path import get_path_from_storage
@@ -120,7 +118,11 @@ class Dataset:
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
+            return Dataset(
+                read_only = self.read_only,
+                storage=self.storage,
+                index=self.index[item],
+            )
         else:
             raise InvalidKeyTypeError(item)
 

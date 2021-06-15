@@ -93,12 +93,11 @@ def test_stringify(memory_ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
     assert (
-        str(ds)
-        == "Dataset(path=hub_pytest/test_api/test_stringify, mode='a', tensors=['image'])"
+        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path=hub_pytest/test_api/test_stringify, mode='a', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -107,7 +106,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, mode='a', tensors=[])"
+    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
 
 
 @parametrize_all_dataset_storages

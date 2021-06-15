@@ -83,7 +83,9 @@ def storage_provider_from_hub_path(path: str, read_only: bool = False):
 
     if not read_only and mode == "r":
         # warns user about automatic mode change
-        print("Opening Hub Cloud Dataset in read-only mode as you don't have write permissions.")
+        print(
+            "Opening Hub Cloud Dataset in read-only mode as you don't have write permissions."
+        )
         read_only = True
 
     storage = storage_provider_from_path(url, creds, read_only)
