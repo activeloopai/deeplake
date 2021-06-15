@@ -9,7 +9,6 @@ import pytest
 
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.tensor import (
-    add_samples_to_tensor,
     create_tensor,
     tensor_exists,
     read_samples_from_tensor,

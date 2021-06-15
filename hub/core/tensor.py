@@ -6,7 +6,7 @@ from typing import List, Tuple, Union
 import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_bytes
+from hub.core.chunk_engine.write import write_array, write_bytes
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
@@ -17,7 +17,6 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
     TensorDoesNotExistError,
 )
-from .flatten import row_wise_to_bytes
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
@@ -54,7 +53,49 @@ def create_tensor(
     IndexMeta.create(key, storage)
 
 
-def add_samples_to_tensor(
+def _get_metas_from_kwargs(
+    key: str, storage: StorageProvider, **kwargs
+) -> Tuple[TensorMeta, IndexMeta]:
+    # TODO: generalize this function?
+
+    if "tensor_meta" in kwargs:
+        tensor_meta = kwargs["tensor_meta"]
+    else:
+        tensor_meta = TensorMeta.load(key, storage)
+
+    if "index_meta" in kwargs:
+        index_meta = kwargs["index_meta"]
+    else:
+        index_meta = IndexMeta.load(key, storage)
+
+    return tensor_meta, index_meta
+
+
+def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
+    # TODO: docstring
+
+    # append is guarenteed to NOT have a batch axis
+    array = np.expand_dims(array, axis=0)
+    extend_tensor(array, key, storage, **kwargs)
+
+
+def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
+    # TODO: docstring
+    # TODO: check if `array.shape` can be batched (len(shape) matters)
+
+    if not tensor_exists(key, storage):
+        raise TensorDoesNotExistError(key)
+
+    tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
+
+    # extend is guarenteed to have a batch axis
+    tensor_meta.check_is_compatible(array)
+    tensor_meta.update(array)
+
+    write_array(array, key, storage, tensor_meta, index_meta)
+
+
+def _add_samples_to_tensor(
     array: np.ndarray,
     key: str,
     storage: StorageProvider,
@@ -179,7 +220,7 @@ def read_samples_from_tensor(
     return index.apply(np.array(samples))
 
 
-def _check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.ndarray):
+def __check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.ndarray):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
     Args:
         tensor_meta (dict): Tensor meta containing the expected properties of `array`.
@@ -189,6 +230,8 @@ def _check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.nd
         `len(array.shape)` != len(tensor_meta max/min shapes).
         TensorInvalidSampleShapeError: All samples must have the same dimensionality (`len(sample.shape)`).
     """
+
+    # TODO: update docstring (always assume batched)
 
     if tensor_meta.dtype != array.dtype.name:
         raise TensorMetaMismatchError("dtype", tensor_meta.dtype, array.dtype.name)

@@ -1,10 +1,53 @@
+from hub.core.meta.tensor_meta import TensorMeta
+import numpy as np
 from hub.core.meta.index_meta import IndexMeta
 from typing import List, Tuple
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
+
 from .chunker import generate_chunks
+from .flatten import row_wise_to_bytes
+
+
+# TODO: reorganize parameters (key, storage)
+def write_array(
+    array: np.ndarray,
+    key: str,
+    storage: StorageProvider,
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
+):
+    # TODO: docstring (note that `array` is assumed to be batched)
+
+    # TODO: get the tobytes function from meta
+    tobytes = row_wise_to_bytes
+
+    num_samples = len(array)
+
+    for i in range(num_samples):
+        sample = array[i]
+        if 0 in sample.shape:
+            # if sample has a 0 in the shape, no data will be written
+            index_entry = {"chunk_names": []}  # type: ignore
+
+        else:
+            # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
+            # choose to optimize for.
+            b = memoryview(tobytes(sample))
+            write_bytes(
+                b,
+                key,
+                tensor_meta.chunk_size,
+                storage,
+                index_meta,
+                extra_sample_meta={"shape": sample.shape},  # TODO: use kwargs
+            )
+
+        tensor_meta.update(sample)
+
+    tensor_meta.length += num_samples
 
 
 def write_bytes(
@@ -35,6 +78,7 @@ def write_bytes(
     #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
 
+    # refactor TODO: move to separate function
     bllc = 0
     extend_last_chunk = False
     if len(index_meta.entries) > 0 and len(last_chunk) < chunk_size:
@@ -45,6 +89,7 @@ def write_bytes(
 
     chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
 
+    # refactor TODO: move to separate function
     chunk_names = []
     start_byte = 0
     for chunk in chunk_generator:

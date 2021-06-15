@@ -7,8 +7,9 @@ import warnings
 import numpy as np
 
 from hub.core.tensor import (
+    append_tensor,
     create_tensor,
-    add_samples_to_tensor,
+    extend_tensor,
     read_samples_from_tensor,
     tensor_exists,
 )
@@ -62,7 +63,7 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         if isinstance(array, np.ndarray):
-            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
+            extend_tensor(array, self.key, storage=self.storage)
         else:
             for sample in array:
                 self.append(sample)
@@ -80,7 +81,8 @@ class Tensor:
         Args:
             array (np.ndarray): The data to add to the tensor.
         """
-        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
+
+        append_tensor(array, self.key, storage=self.storage)
 
     @property
     def meta(self):

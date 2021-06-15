@@ -1,9 +1,11 @@
 from typing import Any, Callable, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
+    TensorInvalidSampleShapeError,
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
+    TensorMetaMismatchError,
 )
 from hub.util.callbacks import CallbackList
 from hub.util.keys import get_tensor_meta_key
@@ -50,16 +52,41 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    def update_tensor_meta_with_array(self, array: np.ndarray, batched=False):
-        shape = array.shape
-        if batched:
-            shape = shape[1:]
+    def check_is_compatible(self, array: np.ndarray):
+        # TODO: docstring (note that `array` is assumed to be batched)
 
-        self.dtype = str(array.dtype)
-        self.min_shape = list(shape)
-        self.max_shape = list(shape)
+        if self.dtype != array.dtype.name:
+            raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
 
-    def update_shape_interval(self, shape: Tuple[int]):
+        sample_shape = array.shape[1:]
+
+        if self.length > 0:
+            expected_shape_len = len(self.min_shape)
+            actual_shape_len = len(sample_shape)
+            if expected_shape_len != actual_shape_len:
+                raise TensorInvalidSampleShapeError(
+                    "Sample shape length is expected to be {}, actual length is {}.".format(
+                        expected_shape_len, actual_shape_len
+                    ),
+                    sample_shape,
+                )
+
+    def update(self, array: np.ndarray):
+        """`array` is assumed to have a batch axis."""
+        # TODO: docstring (note that `array` is assumed to be batched)
+
+        shape = array.shape[1:]
+
+        if self.length <= 0:
+            # udpate (set) meta for the first time
+            self.dtype = str(array.dtype)
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
+        else:
+            # update meta subsequent times
+            self._update_shape_interval(shape)
+
+    def _update_shape_interval(self, shape: Tuple[int]):
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
