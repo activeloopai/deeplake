@@ -71,7 +71,22 @@ def _get_metas_from_kwargs(
 
 
 def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
-    # TODO: docstring
+    """Append to an existing tensor with an array. This array will be chunked and sent to `storage`.
+
+    For more on chunking, see the `generate_chunks` method.
+
+    Args:
+        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
+        **kwargs:
+            tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
+            index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+
+    Raises:
+        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
+            `create_tensor(...)`.
+    """
 
     # append is guarenteed to NOT have a batch axis
     array = np.expand_dims(array, axis=0)
@@ -79,8 +94,24 @@ def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
 
 
 def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
-    # TODO: docstring
-    # TODO: check if `array.shape` can be batched (len(shape) matters)
+    """Extend an existing tensor with an array. This array will be chunked and sent to `storage`.
+
+    For more on chunking, see the `generate_chunks` method.
+
+    Args:
+        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
+        **kwargs:
+            tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
+            index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+
+    Raises:
+        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
+            `create_tensor(...)`.
+    """
+
+    # TODO: check if `array.shape` can be batched (len(shape) matters, if len(shape) <= 1 it cannot be batched)
 
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
@@ -91,36 +122,6 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
     tensor_meta.check_batch_is_compatible(array)
 
     write_array(array, key, storage, tensor_meta, index_meta)
-
-
-def _add_samples_to_tensor(
-    array: np.ndarray,
-    key: str,
-    storage: StorageProvider,
-    batched: bool = False,
-    tensor_meta: TensorMeta = None,
-    index_meta: IndexMeta = None,
-):
-    """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
-    For more on chunking, see the `generate_chunks` method.
-
-    Args:
-        array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
-            have a batch axis, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
-        batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
-        tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-        index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
-
-    Raises:
-        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
-            `create_tensor(...)`.
-    """
-
-    # TODO: DELETE THIS
-    pass
 
 
 def read_samples_from_tensor(
