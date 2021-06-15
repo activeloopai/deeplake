@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from core.tests.common import parametrize_all_dataset_storages
+from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.util.check_installation import tfds_installed  # type: ignore
 
 requires_tfds = pytest.mark.skipif(
