@@ -18,6 +18,7 @@ from hub.core.tensor import tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
+from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -115,6 +116,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @hub_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -182,6 +184,7 @@ class Dataset:
             self.storage.disable_readonly()
         self._mode = new_mode
 
+    @hub_reporter.record_call
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
 
