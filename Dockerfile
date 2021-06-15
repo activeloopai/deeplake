@@ -1,6 +1,8 @@
 FROM python:3.8-slim
 
-RUN apt-get -y update && apt-get -y install git wget build-essential python-setuptools python3-dev
+RUN apt-get -y update && \
+    apt-get -y install git wget build-essential python-setuptools python3-dev libjpeg-dev libpng-dev zlib1g-dev && \
+    apt install build-essential
 
 RUN mkdir /app
 

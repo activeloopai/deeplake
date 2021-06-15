@@ -19,7 +19,7 @@ class S3Provider(StorageProvider):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
-        max_pool_connections: Optional[int] = 50,
+        max_pool_connections: int = 50,
         client=None,
     ):
         """Initializes the S3Provider
@@ -38,7 +38,7 @@ class S3Provider(StorageProvider):
             endpoint_url (optional, str): The complete URL to use for the constructed client.
                 This needs to be provided for cases in which you're interacting with MinIO, Wasabi, etc.
             aws_region (optional, str): Specifies the AWS Region to send requests to.
-            max_pool_connections (optional, int): The maximum number of connections to keep in a connection pool.
+            max_pool_connections (int): The maximum number of connections to keep in a connection pool.
                 If this value is not set, the default value of 10 is used.
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
@@ -85,7 +85,9 @@ class S3Provider(StorageProvider):
 
         Raises:
             S3SetError: Any S3 error encountered while setting the value at the path.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         try:
             path = posixpath.join(self.path, path)
             content = bytearray(memoryview(content))
@@ -110,7 +112,9 @@ class S3Provider(StorageProvider):
         Raises:
             KeyError: If an object is not found at the path.
             S3GetError: Any other error other than KeyError while retrieving the object.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         try:
             path = posixpath.join(self.path, path)
             resp = self.client.get_object(
@@ -134,7 +138,9 @@ class S3Provider(StorageProvider):
         Raises:
             S3DeletionError: Any S3 error encountered while deleting the object. Note: if the object is not found, s3
                 won't raise KeyError.
+            ReadOnlyError: If the provider is in read-only mode.
         """
+        self.check_readonly()
         try:
             path = posixpath.join(self.path, path)
             self.client.delete_object(Bucket=self.bucket, Key=path)
@@ -185,6 +191,7 @@ class S3Provider(StorageProvider):
 
     def clear(self):
         """Deletes ALL data on the s3 bucket (under self.root). Exercise caution!"""
+        self.check_readonly()
         if self.resource is not None:
             bucket = self.resource.Bucket(self.bucket)
             bucket.objects.filter(Prefix=self.path).delete()
