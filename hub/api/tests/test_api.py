@@ -11,12 +11,12 @@ def test_persist_local_flush(local_storage):
     if local_storage is None:
         pytest.skip()
 
-    ds = Dataset(url=local_storage.root, local_cache_size=512)
+    ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4096, 4096)))
     ds.flush()
 
-    ds_new = Dataset(url=local_storage.root)
+    ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
     assert ds_new.image.shape.lower == (4096, 4096)
@@ -30,11 +30,11 @@ def test_persist_local_clear_cache(local_storage):
     if local_storage is None:
         pytest.skip()
 
-    ds = Dataset(url=local_storage.root, local_cache_size=512)
+    ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4096, 4096)))
     ds.clear_cache()
-    ds_new = Dataset(url=local_storage.root)
+    ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
     assert ds_new.image.shape.lower == (4096, 4096)
@@ -195,6 +195,6 @@ def test_hub_cloud_dataset():
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
     write_token(token)
-    ds = Dataset(tag="testingacc/hub2ds")
+    ds = Dataset("hub://testingacc/hub2ds")
     for i in range(10):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
