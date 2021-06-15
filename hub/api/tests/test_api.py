@@ -1,9 +1,12 @@
+import os
 import numpy as np
 import pytest
 
 import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
+from hub.client.utils import has_hub_testing_creds, write_token
+from hub.client.client import HubBackendClient
 
 
 def test_persist_local(local_storage):
@@ -89,10 +92,12 @@ def test_stringify(memory_ds):
     ds = memory_ds
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
-    assert str(ds) == "Dataset(mode='a', tensors=['image'])"
+    assert (
+        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
+    )
     assert (
         str(ds[1:2])
-        == "Dataset(mode='a', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -101,7 +106,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, mode='a', tensors=[])"
+    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -203,3 +208,15 @@ def test_shape_property(memory_ds):
     fixed.extend(np.ones((13, 28, 28)))
     assert fixed.shape.lower == (28, 28)
     assert fixed.shape.upper == (28, 28)
+
+
+@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+def test_hub_cloud_dataset():
+    username = "testingacc"
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    write_token(token)
+    ds = Dataset("hub://testingacc/hub2ds")
+    for i in range(10):
+        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))

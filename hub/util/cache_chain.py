@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import uuid1
 
 from hub.core.storage import StorageProvider, MemoryProvider, LocalProvider
@@ -42,7 +42,7 @@ def generate_chain(
     base_storage: StorageProvider,
     memory_cache_size: int,
     local_cache_size: int,
-    path: str,
+    path: Optional[str] = None,
 ):
     """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and
         local caches.
@@ -51,7 +51,7 @@ def generate_chain(
         base_storage (StorageProvider): The underlying actual storage of the Dataset.
         memory_cache_size (int): The size of the memory cache to be used in bytes.
         local_cache_size (int): The size of the local filesystem cache to be used in bytes.
-        path (str): The location of the dataset. If not None, it is used to figure out the folder name where the local
+        path (str, optional): The path to the dataset. If not None, it is used to figure out the folder name where the local
             cache is stored.
 
     Returns:
