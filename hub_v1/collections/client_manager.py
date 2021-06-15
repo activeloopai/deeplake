@@ -9,8 +9,8 @@ import sys
 from timeit import default_timer
 import psutil
 
-import hub
-from hub import config
+import hub_v1
+from hub_v1 import config
 from hub_v1.exceptions import ModuleNotInstalledException
 
 try:
