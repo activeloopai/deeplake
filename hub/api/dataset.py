@@ -96,15 +96,15 @@ class Dataset:
         elif len(self.storage) > 0:
             raise PathNotEmptyException
         else:
+            self.client = HubBackendClient()
             self.meta = default_dataset_meta()
-        self.meta = {"tensors": []}
-        self.client = HubBackendClient()
-        if tag and dataset_exists(self.storage) and not dataset_exists(base_storage):
-            self.org_id, self.ds_name = tag.split("/")
             self.flush()
-            self.client.create_dataset_entry(self.org_id, self.ds_name, public=public)
-        else:
-            self.meta = default_dataset_meta()
+            if self.path.startswith("hub://"):
+                split_path = self.path.split("/")
+                self.org_id, self.ds_name = split_path[2], split_path[3]
+                self.client.create_dataset_entry(
+                    self.org_id, self.ds_name, public=public
+                )
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -230,13 +230,10 @@ class Dataset:
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
-        try:
-            if self.tensors:
-                self.client.update_dataset(
-                    self.org_id, self.ds_name, meta=self.get_total_meta()
-                )
-        except TensorDoesNotExistError:
-            pass
+        if self.tensors and self.path.startswith("hub://"):
+            self.client.update_dataset(
+                self.org_id, self.ds_name, meta=self.get_total_meta()
+            )
         self.storage.flush()
 
     def clear_cache(self):
