@@ -95,6 +95,12 @@ class Dataset:
         else:
             self.meta = default_dataset_meta()
 
+        hub_reporter.custom_report(
+            title="Usage: Dataset",
+            content=f"Path: `{self.path}`",
+            tags=hub_reporter.system_tags(),
+        )
+
     def __enter__(self):
         self.storage.autoflush = False
         return self
