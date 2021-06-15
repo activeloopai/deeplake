@@ -128,6 +128,7 @@ def test_compute_dynamic_tensor(ds):
     expected_list = [*a1, *a2, a3]
     actual_list = image.numpy(aslist=True)
 
+    assert type(actual_list) == list
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
 
@@ -203,3 +204,8 @@ def test_shape_property(memory_ds):
     fixed.extend(np.ones((13, 28, 28)))
     assert fixed.shape.lower == (28, 28)
     assert fixed.shape.upper == (28, 28)
+
+
+@pytest.mark.xfail(raises=TypeError, strict=True)
+def test_fails_on_wrong_tensor_syntax(memory_ds):
+    memory_ds.some_tensor = np.ones((28, 28))
