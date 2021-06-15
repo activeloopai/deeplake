@@ -137,16 +137,16 @@ class LoginException(Exception):
 
 
 class ImproperDatasetInitialization(Exception):
-    def __init__(self, path):
+    def __init__(self):
         super().__init__(
-            "Exactly one argument out of 'tag', 'url' and 'storage' should be provided."
+            "Exactly one argument out of 'path' and 'storage' should be provided."
         )
 
 
-class InvalidTagException(Exception):
-    def __init__(self):
+class InvalidHubPathException(Exception):
+    def __init__(self, path):
         super().__init__(
-            f"The Dataset's 'tag' is invalid. It should be of the form username/dataset."
+            f"The Dataset's path is an invalid Hub path. It should be of the form hub://username/dataset got {path}."
         )
 
 

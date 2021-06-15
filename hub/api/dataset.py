@@ -23,8 +23,7 @@ from hub.util.path import get_path_from_storage
 class Dataset:
     def __init__(
         self,
-        tag: Optional[str] = None,
-        url: Optional[str] = None,
+        path: Optional[str] = None,
         mode: Optional[str] = None,
         index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
@@ -35,9 +34,9 @@ class Dataset:
         """Initializes a new or existing dataset.
 
         Args:
-            tag (str, optional): The Hub tag of the dataset in the format username/datasetname. Use this if you want to use Hub cloud storage.
-            url (str, optional): The full path to the dataset. Use this if you want to use local filesystem or s3 or RAM to store the dataset.
-                Can be either a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+            path (str, optional): The full path to the dataset.
+                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'hub login' from command line)
+                Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             mode (str, optional): Mode in which the dataset is opened.
@@ -45,30 +44,30 @@ class Dataset:
             index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            creds (dict, optional): A dictionary containing credentials used to access the dataset at the url.
-                This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             storage (StorageProvider, optional): The storage provider used to access the dataset.
-                Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
+                Use this if you want to specify the storage provider object manually instead of using a path to generate it.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
-            ImproperDatasetInitialization: Exactly one argument out of 'tag', 'url' and 'storage' needs to be specified.
+            ImproperDatasetInitialization: Exactly one argument out of 'path' and 'storage' needs to be specified.
                 This is raised if none of them are specified or more than one are specifed.
-            InvalidTagException: If an incorrect tag argument is passed which is not in username/datasetname format.
-            AuthorizationException: If a tag is specified and the user doesn't have access to the dataset.
+            InvalidHubPathException: If a Hub cloud path (path starting with hub://) is specified and it isn't of the form hub://username/datasetname.
+            AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
         self.index = index
         if creds is None:
             creds = {}
-        base_storage, mode = get_storage_provider(tag, url, storage, mode, creds)
+        base_storage, mode = get_storage_provider(path, storage, mode, creds)
         self.mode = mode
-        self.path = tag or url or get_path_from_storage(storage)  # Used for printing
+        self.path = path or get_path_from_storage(storage)  # Used for printing
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
-            base_storage, memory_cache_size_bytes, local_cache_size_bytes, url
+            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
         self.tensors: Dict[str, Tensor] = {}
 
