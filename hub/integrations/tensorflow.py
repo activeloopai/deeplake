@@ -24,8 +24,7 @@ def dataset_to_tensorflow(dataset):
         for key in dataset.tensors:
             dtype = dataset[key].meta["dtype"]
             shape = dataset[key].shape
-            dynamic_shape = [None for dim in shape.lower]
-            signature[key] = tf.TensorSpec(shape=dynamic_shape, dtype=dtype)
+            signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
         return signature
 
     signature = generate_signature()
