@@ -50,6 +50,9 @@ class TensorMeta(Meta):
         Raises:
             TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
             TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+
+        Returns:
+            TensorMeta: Tensor meta object.
         """
 
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))

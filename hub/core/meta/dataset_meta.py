@@ -18,6 +18,9 @@ class DatasetMeta(Meta):
         Args:
             storage (StorageProvider): Destination of this meta. No `key` argument required, the
                 dataset meta file will be added to the root of `storage`.
+
+        Returns:
+            DatasetMeta: Dataset meta object.
         """
 
         required_meta = {
