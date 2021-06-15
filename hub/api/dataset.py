@@ -90,21 +90,21 @@ class Dataset:
         self.index = index
 
         self.tensors: Dict[str, Tensor] = {}
+
+        self.client = HubBackendClient()
+
+        if self.path.startswith("hub://"):
+            split_path = self.path.split("/")
+            self.org_id, self.ds_name = split_path[2], split_path[3]
         if dataset_exists(self.storage):
             for tensor_name in self.meta["tensors"]:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
             raise PathNotEmptyException
         else:
-            self.client = HubBackendClient()
             self.meta = default_dataset_meta()
             self.flush()
-            if self.path.startswith("hub://"):
-                split_path = self.path.split("/")
-                self.org_id, self.ds_name = split_path[2], split_path[3]
-                self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, public=public
-                )
+            self.client.create_dataset_entry(self.org_id, self.ds_name, public=public)
 
     def __enter__(self):
         self.storage.autoflush = False
