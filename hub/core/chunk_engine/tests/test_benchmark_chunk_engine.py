@@ -5,8 +5,9 @@ import pytest
 
 from hub.constants import GB
 from hub.core.tensor import (
+    append_tensor,
+    extend_tensor,
     read_samples_from_tensor,
-    add_samples_to_tensor,
     create_tensor,
 )
 from hub.core.tests.common import TENSOR_KEY
@@ -23,15 +24,15 @@ from hub.tests.common_benchmark import (
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
-    create_tensor(actual_key, storage, chunk_size=chunk_size)
+    create_tensor(
+        actual_key, storage, chunk_size=chunk_size, dtype=arrays[0].dtype.name
+    )
 
     for a_in in arrays:
-        add_samples_to_tensor(
-            array=a_in,
-            key=actual_key,
-            storage=storage,
-            batched=batched,
-        )
+        if batched:
+            extend_tensor(a_in, actual_key, storage)
+        else:
+            append_tensor(a_in, actual_key, storage)
 
     info["iteration"] += 1
 
