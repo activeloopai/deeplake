@@ -5,7 +5,7 @@ import pytest
 from hub.client.client import HubBackendClient
 from hub.client.utils import (
     write_token,
-    get_auth_header,
+    read_token,
     remove_token,
     has_hub_testing_creds,
 )
@@ -25,6 +25,6 @@ def test_client_requests():
 
 def test_client_utils():
     write_token("abcdefgh")
-    assert get_auth_header() == "Bearer abcdefgh"
+    assert read_token() == "abcdefgh"
     remove_token()
-    assert get_auth_header() is None
+    assert read_token() is None

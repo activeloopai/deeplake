@@ -14,11 +14,12 @@ def get_storage_provider(
     storage: Optional[StorageProvider] = None,
     read_only: bool = False,
     creds: Optional[dict] = None,
+    token: Optional[str] = None,
 ):
     if path is not None and storage is not None:
         raise ImproperDatasetInitialization
     elif path is not None:
-        return storage_provider_from_path(path, creds, read_only)
+        return storage_provider_from_path(path, creds, read_only, token)
     elif storage is not None:
         if read_only:
             storage.enable_readonly()
@@ -26,7 +27,7 @@ def get_storage_provider(
 
 
 def storage_provider_from_path(
-    path: str, creds: Optional[dict], read_only: bool = False
+    path: str, creds: Optional[dict], read_only: bool = False, token: str = None
 ):
     """Construct a StorageProvider given a path.
 
@@ -59,7 +60,7 @@ def storage_provider_from_path(
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only)
+        storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -71,11 +72,11 @@ def storage_provider_from_path(
     return storage
 
 
-def storage_provider_from_hub_path(path: str, read_only: bool = False):
+def storage_provider_from_hub_path(path: str, read_only: bool = False, token: str = None):
     check_hub_path(path)
     tag = path[6:]
     org_id, ds_name = tag.split("/")
-    client = HubBackendClient()
+    client = HubBackendClient(token=token)
 
     mode = "r" if read_only else None
 

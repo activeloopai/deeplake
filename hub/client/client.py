@@ -3,7 +3,7 @@ import requests
 from typing import Optional
 from hub.util.exceptions import LoginException
 from hub.util.get_property import get_property
-from hub.client.utils import get_auth_header, check_response_status, write_token
+from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
@@ -22,14 +22,21 @@ import hub
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
-    def __init__(self):
+    def __init__(self, token):
         self.version = get_property("__version__", "hub")
-        self.auth_header = get_auth_header()
-        if not self.auth_header:
+        self.auth_header = None
+        self.token = token or self.get_token()
+        self.auth_header = f"Bearer {token}"
+            
+    def get_token(self):
+        """Returns a token"""
+        token = read_token()
+        if token is None:
             token = self.request_auth_token(username="public", password="")
             write_token(token)
-            self.auth_header = f"Bearer {token}"
-
+            
+        return token
+    
     def request(
         self,
         method: str,
@@ -198,15 +205,3 @@ class HubBackendClient:
             ).json()
         except Exception as e:
             logger.error("Unable to delete Dataset entry" + str(e))
-
-    def update_dataset(self, username, dataset_name, **kwargs):
-        try:
-            suffix = UPDATE_SUFFIX.format(username, dataset_name)
-            self.request(
-                "PUT",
-                suffix,
-                json=kwargs,
-                endpoint=self.endpoint(),
-            ).json()
-        except Exception as e:
-            logger.error("Unable to update Dataset entry state " + str(e))
