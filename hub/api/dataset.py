@@ -175,7 +175,7 @@ class Dataset:
     def __setattr__(self, name: str, value):
         if isinstance(value, (np.ndarray, np.generic)):
             raise TypeError(
-                "Tensor attributes not supported. To add a tensor, use the create_tensor method."
+                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
                 + "To add data to a tensor, use the `append` and `extend` methods."
             )
         else:
