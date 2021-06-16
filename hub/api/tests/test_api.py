@@ -86,6 +86,7 @@ def test_populate_dataset(ds):
     assert len(ds.image) == 16
 
     assert ds.meta.tensors == ["image"]
+    assert ds.meta.version == hub.__version__
 
 
 def test_stringify(memory_ds):
