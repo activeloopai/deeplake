@@ -2,9 +2,11 @@ from hub.core import compression
 from typing import Any, Callable, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
+    TensorInvalidSampleShapeError,
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
+    TensorMetaMismatchError,
 )
 from hub.util.keys import get_tensor_meta_key
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION
@@ -73,16 +75,64 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    def update_tensor_meta_with_array(self, array: np.ndarray, batched=False):
+    def check_batch_is_compatible(self, array: np.ndarray):
+        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a batch of samples.
+
+        Note:
+            If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
+
+        Args:
+            array (np.ndarray): Batched array to check compatibility with.
+
+        Raises:
+            TensorMetaMismatchError: Dtype for array must be equal to this meta.
+            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
+        """
+
+        if self.length > 0 and self.dtype != array.dtype.name:
+            raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
+
+        sample_shape = array.shape[1:]
+
+        # shape length is only enforced after at least 1 sample exists.
+        if self.length > 0:
+            expected_shape_len = len(self.min_shape)
+            actual_shape_len = len(sample_shape)
+            if expected_shape_len != actual_shape_len:
+                raise TensorInvalidSampleShapeError(
+                    "Sample shape length is expected to be {}, actual length is {}.".format(
+                        expected_shape_len, actual_shape_len
+                    ),
+                    sample_shape,
+                )
+
+    def update_with_sample(self, array: np.ndarray):
+        """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
+
+        Note:
+            If no samples exist, `min_shape` and `max_shape` are set to this array's shape.
+            If samples do exist, `min_shape` and `max_shape` are updated.
+
+        Args:
+            array (np.ndarray): Unbatched array to update this meta with.
+        """
+
+        """`array` is assumed to have a batch axis."""
+
         shape = array.shape
-        if batched:
-            shape = shape[1:]
 
-        self.dtype = str(array.dtype)
-        self.min_shape = list(shape)
-        self.max_shape = list(shape)
+        if self.length <= 0:
+            self.dtype = str(array.dtype)
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
+        else:
+            # update meta subsequent times
+            self._update_shape_interval(shape)
 
-    def update_shape_interval(self, shape: Tuple[int]):
+    def _update_shape_interval(self, shape: Tuple[int, ...]):
+        if self.length <= 0:
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
@@ -98,7 +148,7 @@ def _required_meta_from_htype(htype: str) -> dict:
 
     required_meta = {
         "htype": htype,
-        "dtype": defaults["dtype"],
+        "dtype": defaults.get("dtype", None),
         "chunk_size": DEFAULT_CHUNK_SIZE,
         "min_shape": [],
         "max_shape": [],
@@ -106,6 +156,7 @@ def _required_meta_from_htype(htype: str) -> dict:
         "compression": defaults["compression"],
     }
 
+    required_meta = _remove_none_values_from_dict(required_meta)
     required_meta.update(defaults)
     return required_meta
 

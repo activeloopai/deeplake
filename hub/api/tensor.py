@@ -1,3 +1,4 @@
+from numpy.lib.function_base import append
 from hub.htypes import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.shape import Shape
@@ -7,8 +8,9 @@ import warnings
 import numpy as np
 
 from hub.core.tensor import (
+    append_tensor,
     create_tensor,
-    add_samples_to_tensor,
+    extend_tensor,
     read_samples_from_tensor,
     tensor_exists,
     add_index_map_to_tensor,
@@ -63,14 +65,14 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         if isinstance(array, np.ndarray):
-            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
+            extend_tensor(array, self.key, storage=self.storage)
         else:
             for sample in array:
                 self.append(sample)
 
     def append(
         self,
-        sample: Optional[Union[np.ndarray, Dict]] = None,
+        sample: Optional[Union[np.ndarray, Dict, float, int]] = None,
     ):
         """Appends a sample to the end of a tensor.
 
@@ -89,8 +91,8 @@ class Tensor:
         Raises:
             UnsupportedInputType: If provided isn't np.ndarray or .read() result.
         """
-        if isinstance(sample, np.ndarray):
-            add_samples_to_tensor(sample, self.key, storage=self.storage, batched=False)
+        if isinstance(sample, (np.ndarray, int, float)):
+            append_tensor(sample, self.key, storage=self.storage, batched=False)
         elif isinstance(sample, dict):
             add_index_map_to_tensor(sample, self.key, storage=self.storage)
         else:

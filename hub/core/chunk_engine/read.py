@@ -8,6 +8,7 @@ import numpy as np
 from hub.core.typing import StorageProvider
 from hub.core.compression import BaseImgCodec, BaseNumCodec
 from hub.util.exceptions import ArrayShapeInfoNotFound
+from hub.util.dataset import get_compressor
 
 
 def sample_from_index_entry(
@@ -15,7 +16,6 @@ def sample_from_index_entry(
     storage: StorageProvider,
     index_entry: dict,
     dtype: str,
-    compressor: Union[BaseImgCodec, BaseNumCodec, None],
 ) -> np.ndarray:
     """Get the un-chunked sample from a single `index_meta` entry.
 
@@ -30,8 +30,15 @@ def sample_from_index_entry(
         Numpy array from the bytes of the sample.
     """
 
+    chunk_names = index_entry["chunk_names"]
+    shape = index_entry["shape"]
+    compressor = get_compressor(index_entry["compression"])
+    # sample has no data
+    if len(chunk_names) <= 0:
+        return np.zeros(shape, dtype=dtype)
+
     b = bytearray()
-    for chunk_name in index_entry["chunk_names"]:
+    for chunk_name in chunk_names:
         chunk_key = os.path.join(key, "chunks", chunk_name)
         last_b_len = len(b)
         b.extend(storage[chunk_key])
@@ -43,7 +50,7 @@ def sample_from_index_entry(
         memoryview(b),
         dtype,
         compressor,
-        index_entry["shape"],
+        shape,
         start_byte,
         end_byte,
     )

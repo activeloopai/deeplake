@@ -62,7 +62,7 @@ def check_image_meta(image_path: str, **kwargs):
 
     Raises:
         ImageReadError: If image can't be opened by PIL.Image.open()
-        WrongMetadataError: If any parameter from metadata doesn't match the image.
+        SampleCorruptedError: If any parameter from metadata doesn't match the image.
     """
     try:
         image = Image.open(image_path)
@@ -128,5 +128,4 @@ def read(image_path: str, check_meta: bool = True):
         "dtype": meta_dtype,
         "shape": meta_size + (meta_channels,),
         "compression": meta_extension,
-        "is_compressed": True,
     }

@@ -12,7 +12,6 @@ def _create_entry(
     end_byte: int,
     shape: Tuple[int] = None,
     compression: str = None,
-    is_compressed: bool = False,
 ) -> dict:
     # TODO: replace with `SampleMeta` class
 
@@ -24,7 +23,6 @@ def _create_entry(
     if shape is not None:
         entry["shape"] = shape
     entry["compression"] = compression
-    entry["is_compressed"] = is_compressed
     return entry
 
 
@@ -63,10 +61,7 @@ class IndexMeta(Meta):
         end_byte: int,
         shape: Tuple[int] = None,
         compression: str = None,
-        is_compressed: bool = None,
     ):
         self.entries.append(
-            _create_entry(
-                chunk_names, start_byte, end_byte, shape, compression, is_compressed
-            )
+            _create_entry(chunk_names, start_byte, end_byte, shape, compression)
         )

@@ -40,7 +40,7 @@ class LZ4(BaseNumCodec):
         Returns:
             Encoded data.
         """
-        if isinstance(input, bytes):
+        if isinstance(input, bytes) or isinstance(input, memoryview):
             return self.compressor.encode(input)
         return MSGPACK.encode(
             [
