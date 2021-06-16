@@ -1,6 +1,5 @@
 from typing import Any, List, Sequence
 from typing import Any, Sequence
-from hub.constants import SUPPORTED_MODES
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -118,6 +117,27 @@ class LoginException(Exception):
         message="Error while logging in, invalid auth token. Please try logging in again.",
     ):
         super().__init__(message)
+
+
+class ImproperDatasetInitialization(Exception):
+    def __init__(self):
+        super().__init__(
+            "Exactly one argument out of 'path' and 'storage' should be provided."
+        )
+
+
+class InvalidHubPathException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f"The Dataset's path is an invalid Hub path. It should be of the form hub://username/dataset got {path}."
+        )
+
+
+class PathNotEmptyException(Exception):
+    def __init__(self):
+        super().__init__(
+            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+        )
 
 
 # Exceptions encountered while interection with the Hub backend
@@ -293,11 +313,6 @@ class TensorMetaMismatchError(MetaError):
         )
 
 
-class ReadOnlyError(Exception):
+class ReadOnlyModeError(Exception):
     def __init__(self):
         super().__init__("Modification when in read-only mode is not supported!")
-
-
-class UnsupportedModeError(Exception):
-    def __init__(self, mode):
-        super().__init__(f"Mode {mode} not recognized. Options are {SUPPORTED_MODES}")

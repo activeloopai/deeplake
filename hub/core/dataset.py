@@ -7,4 +7,8 @@ def dataset_exists(storage: StorageProvider) -> bool:
     """A dataset exists if at the specified `storage` there is a dataset meta file."""
 
     dataset_key = get_dataset_meta_key()
-    return dataset_key in storage
+    try:
+        storage[dataset_key]
+        return True
+    except KeyError:
+        return False
