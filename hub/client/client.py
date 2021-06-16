@@ -158,10 +158,11 @@ class HubBackendClient:
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
 
-    def create_dataset_entry(self, username, dataset_name, public=True):
+    def create_dataset_entry(self, username, dataset_name, meta, public=True):
         try:
             tag = f"{username}/{dataset_name}"
             repo = f"protected/{username}"
+
             response = self.request(
                 "POST",
                 CREATE_DATASET_SUFFIX,
@@ -170,6 +171,7 @@ class HubBackendClient:
                     "repository": repo,
                     "public": public,
                     "rewrite": True,
+                    "meta": meta
                 },
                 endpoint=self.endpoint(),
             )
