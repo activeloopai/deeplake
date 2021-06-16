@@ -31,13 +31,17 @@ def test_dynamic_shape(storage: StorageProvider):
     a1 = np.arange(100).reshape(25, 4)
     a2 = np.arange(1000).reshape(10, 50, 2)
     a3 = np.arange(10).reshape(10, 1)
+    a4 = np.arange(100).reshape(1, 100)
+    a5 = np.arange(1000).reshape(10, 1, 100)
     append_tensor(a1, TENSOR_KEY, storage)
     extend_tensor(a2, TENSOR_KEY, storage)
     append_tensor(a3, TENSOR_KEY, storage)
+    append_tensor(a4, TENSOR_KEY, storage)
+    extend_tensor(a5, TENSOR_KEY, storage)
 
     out = read_samples_from_tensor(TENSOR_KEY, storage, aslist=True)
-    expected_out = [a1, *a2, a3]
+    expected_out = [a1, *a2, a3, a4, *a5]
 
-    assert len(out) == 12
+    assert len(out) == 23
     for actual, expected in zip(out, expected_out):
         np.testing.assert_array_equal(actual, expected)
