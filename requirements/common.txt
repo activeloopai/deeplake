@@ -5,5 +5,7 @@ Pillow-SIMD==7.0.0.post3
 boto3
 boto3-stubs[essential]
 pathos
-humbug
 types-requests
+types-click
+tqdm
+humbug

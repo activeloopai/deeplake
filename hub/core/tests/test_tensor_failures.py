@@ -2,7 +2,6 @@ from hub.core.index import Index
 import numpy as np
 import pytest
 
-from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import (
     add_samples_to_tensor,
     create_tensor,
@@ -15,7 +14,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
-    TensorMetaInvalidValue,
+    TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaMismatchError,
 )
 
@@ -24,7 +23,7 @@ from hub.util.exceptions import (
 def test_dtype_mismatch(memory_storage):
     a1 = np.array([1, 2, 3, 5.3], dtype=float)
     a2 = np.array([0, 1, 1, 0], dtype=bool)
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
+    create_tensor(TENSOR_KEY, memory_storage)
     add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
     add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
 
@@ -33,7 +32,7 @@ def test_dtype_mismatch(memory_storage):
 def test_shape_length_mismatch(memory_storage):
     a1 = np.ones((5, 20))
     a2 = np.ones((5, 20, 2))
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
+    create_tensor(TENSOR_KEY, memory_storage)
     add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
     add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
 
@@ -46,29 +45,27 @@ def test_tensor_does_not_exist(memory_storage):
 
 @pytest.mark.xfail(raises=TensorAlreadyExistsError, strict=True)
 def test_tensor_already_exists(memory_storage):
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
+    create_tensor(TENSOR_KEY, memory_storage)
+    create_tensor(TENSOR_KEY, memory_storage)
 
 
-@pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
+@pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwriteValue, strict=True)
 @pytest.mark.parametrize("chunk_size", [0, -1, -100])
 def test_invalid_chunk_sizes(memory_storage, chunk_size):
-    create_tensor(
-        TENSOR_KEY, memory_storage, default_tensor_meta(chunk_size=chunk_size)
-    )
+    create_tensor(TENSOR_KEY, memory_storage, chunk_size=chunk_size)
 
 
-@pytest.mark.xfail(raises=TensorMetaInvalidValue, strict=True)
+@pytest.mark.xfail(raises=TensorMetaInvalidHtypeOverwriteValue, strict=True)
 @pytest.mark.parametrize("dtype", [1, False, "floatf", "intj", "foo", "bar"])
 def test_invalid_dtypes(memory_storage, dtype):
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta(dtype=dtype))
+    create_tensor(TENSOR_KEY, memory_storage, dtype=dtype)
 
 
 @pytest.mark.xfail(raises=DynamicTensorNumpyError, strict=True)
 def test_dynamic_as_numpy(memory_storage):
     a1 = np.ones((9, 23))
     a2 = np.ones((99, 2))
-    create_tensor(TENSOR_KEY, memory_storage, default_tensor_meta())
+    create_tensor(TENSOR_KEY, memory_storage)
     add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
     add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
 

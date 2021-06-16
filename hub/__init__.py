@@ -1,7 +1,7 @@
 from .api.dataset import Dataset
 from .util.bugout_reporter import hub_reporter
 
-__version__ = "2.0a0"
+__version__ = "2.0a1"
 
 # Reporting
 hub_reporter.tags.append(f"version:{__version__}")

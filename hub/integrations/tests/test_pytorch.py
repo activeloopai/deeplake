@@ -1,12 +1,7 @@
-from hub.api.dataset import Dataset
 import numpy as np
-from hub.integrations.pytorch_old import dataset_to_pytorch
-import pytest
-from hub.util.check_installation import pytorch_installed
 
-requires_torch = pytest.mark.skipif(
-    not pytorch_installed(), reason="requires pytorch to be installed"
-)
+from hub.integrations.pytorch_old import dataset_to_pytorch
+from hub.util.check_installation import requires_torch
 
 
 @requires_torch
@@ -48,7 +43,7 @@ def test_pytorch_small_old(local_ds):
     local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
@@ -83,7 +78,7 @@ def test_pytorch_large_old(local_ds):
     local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
