@@ -301,4 +301,4 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.tensor_names})"
