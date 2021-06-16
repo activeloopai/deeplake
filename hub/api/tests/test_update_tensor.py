@@ -53,8 +53,9 @@ def test_delete_with_multiple_tensors(ds: Dataset):
 
     _assert_dead_tensor(other_tensor)
 
-    assert len(ds) == 10
     assert ds.tensor_names == ("tensor",)
+    assert len(ds) == 10
+    np.testing.assert_array_equal(tensor.numpy(), np.ones((10, 100, 100)))
 
     _assert_tensor_deleted_from_core("other_tensor", ds.storage)
 
