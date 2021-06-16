@@ -263,7 +263,13 @@ def test_dtype(memory_ds: Dataset):
     np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float)
     py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
 
-    # this check is necessary because `np.dtype(None) == None` would pass even though `np.dtype(None)` returns `np.float64`
+    # .meta.dtype should always be str or None
+    assert type(tensor.meta.dtype) == type(None)
+    assert type(dtyped_tensor.meta.dtype) == str
+    assert type(np_dtyped_tensor.meta.dtype) == str
+    assert type(py_dtyped_tensor.meta.dtype) == str
+
+    # .dtype should always be np.dtype or None
     assert type(tensor.dtype) == type(
         None
     ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."

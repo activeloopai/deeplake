@@ -170,15 +170,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         )
 
     if "dtype" in htype_overwrite:
-        if type(htype_overwrite["dtype"]) != str:
-            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
-
         _raise_if_condition(
             "dtype",
             htype_overwrite,
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
-            "Datatype must be supported by numpy. Can be a string, but this string must represent a numpy type. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
+
+        if type(htype_overwrite["dtype"]) != str:
+            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
 
 def _check_valid_htype(htype: str):
