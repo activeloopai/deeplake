@@ -4,7 +4,7 @@ import pytest
 import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.util.exceptions import TensorMetaMismatchError
+from hub.util.exceptions import TensorDtypeMismatchError
 
 
 def test_persist_local(local_storage):
@@ -260,18 +260,35 @@ def test_shape_property(memory_ds):
 def test_dtype(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
     dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
+    np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float)
+    py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
 
-    assert tensor.meta.dtype == None
-    assert dtyped_tensor.meta.dtype == "uint8"
+    # .meta.dtype should always be str or None
+    assert type(tensor.meta.dtype) == type(None)
+    assert type(dtyped_tensor.meta.dtype) == str
+    assert type(np_dtyped_tensor.meta.dtype) == str
+    assert type(py_dtyped_tensor.meta.dtype) == str
+
+    # .dtype should always be np.dtype or None
+    assert type(tensor.dtype) == type(
+        None
+    ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
 
     tensor.append(np.ones((10, 10), dtype="float32"))
     dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
+    np_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
+    py_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
 
-    assert tensor.meta.dtype == "float32"
-    assert dtyped_tensor.meta.dtype == "uint8"
+    assert tensor.dtype == np.float32
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
 
 
-@pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
+@pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
 def test_dtype_mismatch(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor", dtype="float16")
     tensor.append(np.ones(100, dtype="uint8"))
