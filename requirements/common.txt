@@ -1,7 +1,7 @@
 numpy~=1.19.2
 numcodecs>=0.7.3
 msgpack>=1.0.2
-Pillow-SIMD==7.0.0.post3
+Pillow
 boto3~=1.17.43
 boto3-stubs[essential]
 botocore~=1.20.78

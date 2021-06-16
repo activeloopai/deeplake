@@ -2,3 +2,4 @@ torch
 tensorflow
 tensorflow_datasets
 tensorflow
+Pillow-SIMD
