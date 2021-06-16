@@ -151,10 +151,5 @@ class StorageProvider(ABC, MutableMapping):
             self.flush()
 
     @abstractmethod
-    def clear(self, prefix: str=None):
-        """Delete the contents of the provider.
-        
-        Args:
-            prefix (str, optional): If None, all data is cleared that was stored in this provider under it's root. Otherwise, it will only
-                clear data under `os.path.join(self.root, prefix)`.
-        """
+    def clear(self):
+        """Delete the contents of the provider."""
