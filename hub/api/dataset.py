@@ -129,6 +129,8 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
+        chunk_size: int = None,
+        dtype: str = None,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
@@ -140,6 +142,9 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
+            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the size of files (chunks) being created to represent this tensor's samples.
+                For more on chunking, check out `hub.core.chunk_engine.chunker`.
+            dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -153,7 +158,14 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        create_tensor(name, self.storage, htype=htype, **kwargs)
+        create_tensor(
+            name,
+            self.storage,
+            htype=htype,
+            chunk_size=chunk_size,
+            dtype=dtype,
+            **kwargs,
+        )
         tensor = Tensor(name, self.storage)
 
         self.tensors[name] = tensor
