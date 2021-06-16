@@ -52,7 +52,7 @@ class LZ4(BaseNumCodec):
             ]
         )
 
-    def decode(self, bytes_: bytes) -> Union[np.ndarray, bytes]:
+    def decode(self, buf: Union[int, memoryview, bytes]) -> Union[np.ndarray, bytes]:
         """
         Decode data from buffer.
 
@@ -60,17 +60,17 @@ class LZ4(BaseNumCodec):
             arr_decoded = lz4_codec.decode(arr_encoded)
 
         Args:
-            bytes_ (bytes): Encoded data
+            buf (Union[int, memoryview, bytes]): Encoded data
 
         Returns:
             Decoded data.
         """
         try:
-            data = MSGPACK.decode(bytes_)[0]
+            data = MSGPACK.decode(buf)[0]
             decoded_buf = self.compressor.decode(data["item"])
             arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
             arr = arr.reshape(data["shape"])
             return arr
         except (msgpack.exceptions.ExtraData, ValueError):
-            decoded_buf = self.compressor.decode(bytes_)
+            decoded_buf = self.compressor.decode(buf)
             return decoded_buf

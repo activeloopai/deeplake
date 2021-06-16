@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Union  # type: ignore
 
 import numcodecs  # type: ignore
 import numpy as np
@@ -52,7 +53,9 @@ class WEBP(BaseImgCodec):
             img.save(buffer, format=self.codec_id, quality=self.quality)
             return buffer.getvalue()
 
-    def decode_single_image(self, buf: bytes, image_shape: tuple) -> np.ndarray:
+    def decode_single_image(
+        self, buf: Union[int, memoryview, bytes], image_shape: tuple
+    ) -> np.ndarray:
         """
         Decode single image from buffer.
 
@@ -60,7 +63,7 @@ class WEBP(BaseImgCodec):
             imgs_decoded = png_codec.decode(imgs_encoded)
 
         Args:
-            buf (bytes): Encoded image
+            buf (Union[int, memoryview, bytes]): Encoded image
             image_shape (tuple): Shape of encoded image.
 
         Returns:

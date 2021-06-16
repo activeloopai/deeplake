@@ -1,6 +1,7 @@
 from io import BytesIO
 
 import numcodecs  # type: ignore
+from typing import Union  # type: ignore
 import numpy as np
 from PIL import Image  # type: ignore
 
@@ -53,7 +54,7 @@ class JPEG(BaseImgCodec):
             )
             return buffer.getvalue()
 
-    def decode_single_image(self, buf: bytes) -> np.ndarray:
+    def decode_single_image(self, buf: Union[int, memoryview, bytes]) -> np.ndarray:
         """
         Decode single image from buffer.
 
@@ -61,7 +62,7 @@ class JPEG(BaseImgCodec):
             imgs_decoded = jpeg_codec.decode(imgs_encoded)
 
         Args:
-            buf (bytes): Encoded image
+            buf (Union[int, memoryview, bytes]): Encoded image
 
         Returns:
             Decoded data.

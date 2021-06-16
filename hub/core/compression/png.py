@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Union  # type: ignore
 
 import numcodecs  # type: ignore
 import numpy as np
@@ -44,7 +45,7 @@ class PNG(BaseImgCodec):
             Image.fromarray(image).save(buffer, format=self.codec_id)
             return buffer.getvalue()
 
-    def decode_single_image(self, buf: bytes) -> np.ndarray:
+    def decode_single_image(self, buf: Union[int, memoryview, bytes]) -> np.ndarray:
         """
         Decode single image from buffer.
 
@@ -52,7 +53,7 @@ class PNG(BaseImgCodec):
             imgs_decoded = png_codec.decode(imgs_encoded)
 
         Args:
-            buf (bytes): Encoded image
+            buf (Union[int, memoryview, bytes]): Encoded image
 
         Returns:
             Decoded data.

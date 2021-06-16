@@ -1,4 +1,5 @@
 from io import BytesIO
+from typing import Union  # type: ignore
 
 import numpy as np
 
@@ -27,7 +28,7 @@ class NUMPY(BaseNumCodec):
             np.save(f, array, allow_pickle=True)
             return f.getvalue()
 
-    def decode(self, bytes_: bytes) -> np.ndarray:
+    def decode(self, buf: Union[int, memoryview, bytes]) -> np.ndarray:
         """
         Decode data from buffer.
 
@@ -35,10 +36,10 @@ class NUMPY(BaseNumCodec):
             arr_decoded = numpy_codec.decode(arr_encoded)
 
         Args:
-            bytes_ (bytes): Encoded data
+            buf (Union[int, memoryview, bytes]): Encoded data
 
         Returns:
             Decoded data.
         """
-        with BytesIO(bytes_) as f:
+        with BytesIO(buf) as f:
             return np.load(f, allow_pickle=True)

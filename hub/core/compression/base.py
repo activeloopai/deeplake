@@ -16,7 +16,7 @@ class BaseNumCodec(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def decode(self, bytes: bytes) -> Union[np.ndarray, bytes]:
+    def decode(self, bytes: Union[int, memoryview, bytes]) -> Union[np.ndarray, bytes]:
         raise NotImplementedError()
 
     @property
@@ -161,7 +161,7 @@ class BaseImgCodec(ABC, Codec):
         return images
 
     @abstractmethod
-    def decode_single_image(buf: bytes) -> np.ndarray:
+    def decode_single_image(buf: Union[int, memoryview, bytes]) -> np.ndarray:
         raise NotImplementedError()
 
     @abstractmethod

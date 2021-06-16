@@ -50,7 +50,7 @@ class ZSTD(BaseNumCodec):
             ]
         )
 
-    def decode(self, bytes_: bytes) -> Union[np.ndarray, bytes]:
+    def decode(self, buf: Union[int, memoryview, bytes]) -> Union[np.ndarray, bytes]:
         """
         Decode data from buffer.
 
@@ -58,15 +58,15 @@ class ZSTD(BaseNumCodec):
             arr_decoded = zstd_codec.decode(arr_encoded)
 
         Args:
-            bytes_ (bytes): Encoded data
+            buf (Union[int, memoryview, bytes]): Encoded data
 
         Returns:
             Decoded data.
         """
         try:
-            data = MSGPACK.decode(bytes_)[0]
+            data = MSGPACK.decode(buf)[0]
         except msgpack.exceptions.ExtraData:
-            return self.compressor.decode(bytes_)
+            return self.compressor.decode(buf)
         decoded_buf = self.compressor.decode(data["item"])
         arr = np.frombuffer(decoded_buf, dtype=np.dtype(data["dtype"]))
         arr = arr.reshape(data["shape"])
