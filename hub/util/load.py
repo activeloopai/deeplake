@@ -33,6 +33,53 @@ def load(path: Union[str, pathlib.Path], symbolic=False) -> Union[Callable, np.n
     raise HubAutoUnsupportedFileExtensionError(suffix, SUPPORTED_SUFFIXES)
 
 
+def get_png_channels(color_type: int):
+    """
+    Get number of image channels from png color type.
+
+    Args:
+        color_type (int): Png color type value from metainfo
+    """
+    if color_type == 6:
+        return 4
+    elif color_type == 4:
+        return 2
+    elif color_type == 2:
+        return 3
+    return 1
+
+
+def check_image_meta(image_path: str, **kwargs):
+    """
+    Check if image metadata correesponds to actual image params.
+
+    Args:
+        image_path: Path to image to be checked
+        kwargs: meta_size, meta_channels, meta_extension and meta dtype from the image metainfo.
+    """
+    try:
+        image = Image.open(image_path)
+    except Exception as e:
+        raise ImageReadError(image_path, e)
+    image_arr = np.asarray(image)
+    image_dtype = image_arr.dtype
+    if image.mode == "RGB":
+        image_channels = 3
+    elif image.mode == "RGBA":
+        image_channels = 4
+    else:
+        image_channels = 1
+    image_size = image.size
+    image_extension = image.format
+    if (
+        kwargs["meta_size"] != image_size
+        or kwargs["meta_extension"] != image_extension
+        or kwargs["meta_channels"] != image_channels
+        or kwargs["meta_dtype"] != image_dtype
+    ):
+        raise SampleCorruptedError(image_path)
+
+
 def read(image_path: str, check_meta: bool = True):
     """
     Get image bytes and metadata.
@@ -61,38 +108,17 @@ def read(image_path: str, check_meta: bool = True):
             meta_channels = meta_value
         elif "PNG:ColorType" in meta_key:
             color_type = int(meta_value)
-            if color_type == 6:
-                meta_channels = 4
-            elif color_type == 4:
-                meta_channels = 2
-            elif color_type == 2:
-                meta_channels = 3
-            else:
-                meta_channels = 1
+            meta_channels = get_png_channels(color_type)
         elif "BitDepth" in meta_key or "BitsPerSample" in meta_key:
             meta_dtype = "uint" + str(meta_value)
     if check_meta:
-        try:
-            image = Image.open(image_path)
-        except Exception as e:
-            raise ImageReadError(image_path, e)
-        image_arr = np.asarray(image)
-        image_dtype = image_arr.dtype
-        if image.mode == "RGB":
-            image_channels = 3
-        elif image.mode == "RGBA":
-            image_channels = 4
-        else:
-            image_channels = 1
-        image_size = image.size
-        image_extension = image.format
-        if (
-            meta_size != image_size
-            or meta_extension != image_extension
-            or meta_channels != image_channels
-            or meta_dtype != image_dtype
-        ):
-            raise SampleCorruptedError(image_path)
+        check_image_meta(
+            image_path,
+            meta_channels=meta_channels,
+            meta_dtype=meta_dtype,
+            meta_extension=meta_extension,
+            meta_size=meta_size,
+        )
     return {
         "bytes": image_bytes,
         "name": image_path.split("/")[-1],
