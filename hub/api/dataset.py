@@ -157,9 +157,6 @@ class Dataset:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
 
-        if tensor_exists(name, self.storage):
-            raise TensorAlreadyExistsError(name)
-
         create_tensor(
             name,
             self.storage,
@@ -174,6 +171,19 @@ class Dataset:
         self.meta.tensors.append(name)
 
         return tensor
+
+    def delete_tensor(self, name: str):
+        """Permanently deletes an existing tensor in a dataset.
+
+        WARNING:
+            All data inside the tensor `name` will be deleted -- after doing this your data will be unrecoverable!
+        """
+
+        # delete_tensor(name, self.storage)
+        # del self.tensors[name]
+        # self.meta.tensors.remove(name)
+        # TODO:
+        raise NotImplementedError("Tensor deletion not supported yet!")
 
     __getattr__ = __getitem__
 
@@ -273,6 +283,10 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    @property
+    def tensor_names(self) -> Tuple[str, ...]:
+        return tuple(self.meta.tensors)
 
     def __str__(self):
         path_str = ""
