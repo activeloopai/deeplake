@@ -2,7 +2,7 @@ from hub.htypes import DEFAULT_HTYPE, DEFAULT_COMPRESSION
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
@@ -31,8 +31,8 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
 def create_tensor(
     key: str,
     storage: StorageProvider,
-    htype: str = DEFAULT_HTYPE,
-    compression: str = DEFAULT_COMPRESSION,
+    htype: Optional[str] = DEFAULT_HTYPE,
+    compression: Optional[str] = DEFAULT_COMPRESSION,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
