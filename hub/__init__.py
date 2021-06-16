@@ -1,3 +1,3 @@
 from .api.dataset import Dataset
 
-__version__ = "2.0a0"
+__version__ = "2.0a1"

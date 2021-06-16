@@ -1,18 +1,34 @@
-from hub.constants import META_ENCODING
-import json
-
-import hub
-from hub.core.typing import StorageProvider
+from typing import Dict, List
+from hub.core.storage.provider import StorageProvider
+from hub.core.meta.meta import Meta
 from hub.util.keys import get_dataset_meta_key
 
 
-def write_dataset_meta(storage: StorageProvider, meta: dict):
-    storage[get_dataset_meta_key()] = json.dumps(meta).encode(META_ENCODING)
+class DatasetMeta(Meta):
+    tensors: List
 
+    @staticmethod
+    def create(storage: StorageProvider):
+        """Dataset metadata is responsible for keeping track of global tensor metadata and where tensors exist.
 
-def read_dataset_meta(storage: StorageProvider) -> dict:
-    return json.loads(storage[get_dataset_meta_key()])
+        Note:
+            Dataset metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
+            Auto-populates `required_meta` that `Meta` accepts as an argument.
 
+        Args:
+            storage (StorageProvider): Destination of this meta. No `key` argument required, the
+                dataset meta file will be added to the root of `storage`.
 
-def default_dataset_meta():
-    return {"tensors": [], "version": hub.__version__}
+        Returns:
+            DatasetMeta: Dataset meta object.
+        """
+
+        required_meta: Dict = {
+            "tensors": [],
+        }
+
+        return DatasetMeta(get_dataset_meta_key(), storage, required_meta=required_meta)
+
+    @staticmethod
+    def load(storage: StorageProvider):
+        return DatasetMeta(get_dataset_meta_key(), storage)

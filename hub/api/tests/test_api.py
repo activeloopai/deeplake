@@ -1,12 +1,9 @@
-import os
 import numpy as np
 import pytest
 
 import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.client.utils import has_hub_testing_creds, write_token
-from hub.client.client import HubBackendClient
 
 
 def test_persist_local(local_storage):
@@ -32,7 +29,6 @@ def test_persist_with_local(local_storage):
         pytest.skip()
 
     with Dataset(local_storage.root, local_cache_size=512) as ds:
-
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 4096, 4096)))
 
@@ -69,7 +65,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta == {"tensors": [], "version": hub.__version__}
+    assert ds.meta.tensors == []
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -85,7 +81,8 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta == {"tensors": ["image"], "version": hub.__version__}
+    assert ds.meta.tensors == ["image"]
+    assert ds.meta.version == hub.__version__
 
 
 def test_stringify(memory_ds):
@@ -216,13 +213,14 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_hub_cloud_dataset():
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    client = HubBackendClient()
-    token = client.request_auth_token(username, password)
-    write_token(token)
-    ds = Dataset("hub://testingacc/hub2ds")
-    for i in range(10):
-        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+# TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented
+# @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+# def test_hub_cloud_dataset():
+#     username = "testingacc"
+#     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+#     client = HubBackendClient()
+#     token = client.request_auth_token(username, password)
+#     write_token(token)
+#     ds = Dataset("hub://testingacc/hub2ds")
+#     for i in range(10):
+#         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
