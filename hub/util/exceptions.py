@@ -246,7 +246,7 @@ class ImageReadError(Exception):
         super().__init__(f"Unable to read image: {image_path}. {message}")
 
 
-class WrongMetadataError(Exception):
+class SampleCorruptedError(Exception):
     def __init__(self, image_path) -> None:
         super().__init__(
             f"Image metadata doesn't match the actual image parameters for image: {image_path}"

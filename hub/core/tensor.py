@@ -24,7 +24,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
-    WrongMetadataError,
+    SampleCorruptedError,
 )
 from hub.util.keys import get_index_map_key, get_tensor_meta_key
 from PIL import Image  # type: ignore
@@ -315,7 +315,7 @@ def read(image_path: str, check_meta: bool = True):
             or meta_channels != image_channels
             or meta_dtype != image_dtype
         ):
-            raise WrongMetadataError(image_path)
+            raise SampleCorruptedError(image_path)
     return {
         "bytes": image_bytes,
         "name": image_path.split("/")[-1],
