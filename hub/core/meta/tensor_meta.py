@@ -152,6 +152,8 @@ def _required_meta_from_htype(htype: str) -> dict:
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
+    """Raises appropriate errors if `htype_overwrite` keys/values are invalid in correspondence to `htype`. May modify `dtype` in `htype_overwrite` if it is a non-str."""
+
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -169,16 +171,13 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
     if "dtype" in htype_overwrite:
         if type(htype_overwrite["dtype"]) != str:
-            # TODO: support np.dtype alongside str
-            raise TensorMetaInvalidHtypeOverwriteValue(
-                "dtype", htype_overwrite["dtype"], "dtype must be of type `str`."
-            )
+            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
         _raise_if_condition(
             "dtype",
             htype_overwrite,
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
-            "Datatype must be supported by numpy. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            "Datatype must be supported by numpy. Can be a string, but this string must represent a numpy type. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
 
 

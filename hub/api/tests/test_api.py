@@ -265,8 +265,8 @@ def test_dtype(memory_ds: Dataset):
 
     assert tensor.meta.dtype == None
     assert dtyped_tensor.meta.dtype == "uint8"
-    assert np_dtyped_tensor == "float64"
-    assert py_dtyped_tensor == "float64"
+    assert np_dtyped_tensor.meta.dtype == "float64"
+    assert py_dtyped_tensor.meta.dtype == "float64"
 
     tensor.append(np.ones((10, 10), dtype="float32"))
     dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
@@ -275,8 +275,8 @@ def test_dtype(memory_ds: Dataset):
 
     assert tensor.meta.dtype == "float32"
     assert dtyped_tensor.meta.dtype == "uint8"
-    assert np_dtyped_tensor == "float64"
-    assert py_dtyped_tensor == "float64"
+    assert np_dtyped_tensor.meta.dtype == "float64"
+    assert py_dtyped_tensor.meta.dtype == "float64"
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
