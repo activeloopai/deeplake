@@ -67,15 +67,6 @@ def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
     index_meta.add_entry(chunk_names=[], start_byte=0, end_byte=0, **extra_sample_meta)
 
 
-def _compress_bytes(
-    bytes: memoryview,
-    compressor: Union[BaseNumCodec, BaseImgCodec, None],
-):
-    if compressor:
-        return compressor.encode(bytes)
-    return bytes
-
-
 def write_bytes(
     b: memoryview,
     key: str,
@@ -100,11 +91,12 @@ def write_bytes(
             to call `IndexMeta.add_entry`.
     """
     compression = extra_sample_meta.get("compression", False)
-    if not compression and tensor_meta.compression is not None:
-        compression = tensor_meta.compression
+    if not compression and tensor_meta.default_compression is not None:
+        compression = tensor_meta.default_compression
         extra_sample_meta["compression"] = compression
         compressor = get_compressor(compression)
-        b = _compress_bytes(b, compressor)
+        if compressor:
+            b = compressor.encode(b)
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)

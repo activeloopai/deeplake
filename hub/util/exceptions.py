@@ -257,7 +257,7 @@ class SampleCorruptedError(Exception):
         )
 
 
-class UnsupportedInputType(Exception):
+class TensorUnsupportedSampleType(Exception):
     def __init__(self) -> None:
         super().__init__(
             f"Unable to append sample. Please specify numpy array, sequence of numpy arrays"

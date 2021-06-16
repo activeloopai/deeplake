@@ -133,8 +133,8 @@ class Dataset:
         name: str,
         htype: Optional[str] = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
-        dtype: Optional[str] = None,
-        compression: Optional[str] = DEFAULT_COMPRESSION,
+        dtype: str = None,
+        default_compression: Optional[str] = ...,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
@@ -146,10 +146,13 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int, optional): The target size for chunks in this tensor.
-            dtype (str, optional): The data type to use for this tensor.
-                Will be overwritten when the first sample is added.
-            compression (str, optional): Compressor name to apply on the tensor.
+            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the
+                size of files (chunks) being created to represent this tensor's samples.
+                For more on chunking, check out `hub.core.chunk_engine.chunker`.
+            dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
+            default_compression (str): Optionally override this tensor's `default_compression`.
+                If a sample is already compressed during ingestion (when using the `hub.util.load.read` method),
+                this `default_compression` is ignored. However if a sample is added that is uncompressed, `default_compression` will be used.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -169,7 +172,7 @@ class Dataset:
             htype=htype,
             chunk_size=chunk_size,
             dtype=dtype,
-            compression=compression,
+            default_compression=default_compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)

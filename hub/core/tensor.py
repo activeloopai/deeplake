@@ -32,7 +32,7 @@ def create_tensor(
     key: str,
     storage: StorageProvider,
     htype: Optional[str] = DEFAULT_HTYPE,
-    compression: Optional[str] = DEFAULT_COMPRESSION,
+    default_compression: Optional[str] = None,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -52,7 +52,9 @@ def create_tensor(
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
-    TensorMeta.create(key, storage, htype=htype, compression=compression, **kwargs)
+    TensorMeta.create(
+        key, storage, htype=htype, default_compression=default_compression, **kwargs
+    )
     IndexMeta.create(key, storage)
 
 

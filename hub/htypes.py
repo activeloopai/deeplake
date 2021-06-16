@@ -16,7 +16,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 COMMON_CONFIGS = {
     "chunk_size": DEFAULT_CHUNK_SIZE,
     "custom_meta": {},
-    "compression": DEFAULT_COMPRESSION,
+    "default_compression": DEFAULT_COMPRESSION,
 }
 
 for config in HTYPE_CONFIGURATIONS.values():

@@ -1,5 +1,5 @@
 from hub.core import compression
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -30,14 +30,13 @@ class TensorMeta(Meta):
     max_shape: List[int]
     chunk_size: int
     length: int
-    compression: str
+    default_compression: str
 
     @staticmethod
     def create(
         key: str,
         storage: StorageProvider,
         htype: str = DEFAULT_HTYPE,
-        compression: str = DEFAULT_COMPRESSION,
         **kwargs,
     ):
         """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
@@ -50,7 +49,6 @@ class TensorMeta(Meta):
             key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
             storage (StorageProvider): Destination of this meta.
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            compression (str): Compression name that will be applied to all samples if compressions of specific tensors won't be provided.
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
 
         Raises:
@@ -60,8 +58,12 @@ class TensorMeta(Meta):
         Returns:
             TensorMeta: Tensor meta object.
         """
+        compression_val = ""
+        if "default_compression" in kwargs:
+            compression_val = kwargs["default_compression"]
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
-        _set_compression(htype_overwrite, compression)
+        if compression_val != "":
+            _set_compression(htype_overwrite, compression_val)
         _validate_htype_overwrites(htype, htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)
@@ -140,9 +142,10 @@ class TensorMeta(Meta):
             self.max_shape[i] = max(dim, self.max_shape[i])
 
 
-def _set_compression(htype_overwrite: dict, compression: str) -> dict:
-    htype_overwrite.update({"compression": compression})
-    return htype_overwrite
+def _set_compression(htype_overwrite: dict, compression: Union[str, None]) -> dict:
+    if isinstance(compression, str) or compression is None:
+        htype_overwrite.update({"default_compression": compression})
+    return htype_overwrite.pop("default_compression")
 
 
 def _required_meta_from_htype(htype: str) -> dict:
@@ -156,7 +159,7 @@ def _required_meta_from_htype(htype: str) -> dict:
         "min_shape": [],
         "max_shape": [],
         "length": 0,
-        "compression": defaults["compression"],
+        "default_compression": defaults["default_compression"],
     }
 
     required_meta = _remove_none_values_from_dict(required_meta)

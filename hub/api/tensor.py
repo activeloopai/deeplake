@@ -14,7 +14,7 @@ from hub.core.tensor import (
     add_index_map_to_tensor,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError, UnsupportedInputType
+from hub.util.exceptions import TensorDoesNotExistError, TensorUnsupportedSampleType
 from hub.core.index import Index
 
 
@@ -95,7 +95,7 @@ class Tensor:
         elif isinstance(sample, dict):
             add_index_map_to_tensor(sample, self.key, storage=self.storage)
         else:
-            raise UnsupportedInputType()
+            raise TensorUnsupportedSampleType()
 
     @property
     def meta(self):
