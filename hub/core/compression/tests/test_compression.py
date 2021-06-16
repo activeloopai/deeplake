@@ -172,9 +172,15 @@ def test_zstd(level: int, shape: tuple) -> None:
 
 
 def test_base_name():
-    class RandomCompressor(BaseImgCodec):
+    class RandomCompressor(BaseNumCodec):
         def __init__(single_channel=True):
             super().__init__()
+
+        def decode(self, bytes: bytes) -> Union[np.ndarray, bytes]:
+            return super().decode(bytes)
+
+        def encode(self, input: np.ndarray) -> bytes:
+            return super().encode(input)
 
     new_compressor = RandomCompressor()
     assert new_compressor.__name__ == "randomcompressor"

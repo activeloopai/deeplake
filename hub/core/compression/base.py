@@ -160,6 +160,14 @@ class BaseImgCodec(ABC, Codec):
             images = np.reshape(images, images.shape + (1,))
         return images
 
+    @abstractmethod
+    def decode_single_image(buf: bytes) -> np.ndarray:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def encode_single_image(image: np.ndarray) -> bytes:
+        raise NotImplementedError()
+
     def get_config(self):
         """Get compressor configuration dict"""
         return {"id": self.codec_id, "single_channel": self.single_channel}
