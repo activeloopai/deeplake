@@ -20,10 +20,10 @@ def test_from_tfds_to_path(local_storage):
         batch_size=100,
     )
     assert len(hub_ds) == 10000
-    assert hub_ds.image.shape.upper == (28, 28)
-    assert hub_ds.image.shape.lower == (28, 28)
-    assert hub_ds.image[1000].shape.upper == (28, 28)
-    assert hub_ds.image[1000].shape.lower == (28, 28)
+    assert hub_ds.image.shape.upper == (28, 28, 1)
+    assert hub_ds.image.shape.lower == (28, 28, 1)
+    assert hub_ds.image[1000].shape.upper == (28, 28, 1)
+    assert hub_ds.image[1000].shape.lower == (28, 28, 1)
 
 
 @requires_tensorflow
