@@ -21,7 +21,7 @@ def test_tensorflow_small(local_ds):
 
 @requires_tensorflow
 def test_tensorflow_large(local_ds):
-    local_ds.create_tensor("image", dtype="int64")
+    local_ds.create_tensor("image")
     arr = np.array(
         [
             np.ones((4096, 4096)),
@@ -29,11 +29,10 @@ def test_tensorflow_large(local_ds):
             3 * np.ones((4096, 4096)),
             4 * np.ones((4096, 4096)),
         ],
-        dtype="int64",
     )
     local_ds.image.extend(arr)
-    local_ds.create_tensor("classlabel", dtype="uint8")
-    local_ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint8"))
+    local_ds.create_tensor("classlabel")
+    local_ds.classlabel.extend(np.array([i for i in range(10)]))
     local_ds.flush()
 
     tds = local_ds.tensorflow()

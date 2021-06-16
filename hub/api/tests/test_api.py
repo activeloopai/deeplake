@@ -142,7 +142,7 @@ def test_compute_dynamic_tensor(ds):
 
 @parametrize_all_dataset_storages
 def test_empty_samples(ds: Dataset):
-    tensor = ds.create_tensor("with_empty", dtype="int64")
+    tensor = ds.create_tensor("with_empty")
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -172,7 +172,7 @@ def test_empty_samples(ds: Dataset):
 
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
-    tensor = ds.create_tensor("scalars", dtype="int64")
+    tensor = ds.create_tensor("scalars")
 
     tensor.append(5)
     tensor.append(10)
@@ -190,7 +190,7 @@ def test_scalar_samples(ds: Dataset):
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
-    ds.create_tensor("label", dtype="int64")
+    ds.create_tensor("label")
 
     ds.image.extend(np.ones((4, 28, 28)))
     ds.label.extend(np.asarray(labels).reshape((4, 1)))
@@ -211,7 +211,7 @@ def test_compute_slices(memory_ds):
     ds = memory_ds
     shape = (64, 16, 16, 16)
     data = np.arange(np.prod(shape)).reshape(shape)
-    ds.create_tensor("data", dtype="int64")
+    ds.create_tensor("data")
     ds.data.extend(data)
 
     _check_tensor(ds.data[:], data[:])
@@ -262,17 +262,17 @@ def test_dtype(memory_ds: Dataset):
     assert tensor.meta.dtype == None
     assert dtyped_tensor.meta.dtype == "uint8"
 
-    tensor.append(np.ones((10, 10), dtype="int32"))
+    tensor.append(np.ones((10, 10), dtype="float32"))
     dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
 
-    assert tensor.meta.dtype == "int32"
+    assert tensor.meta.dtype == "float32"
     assert dtyped_tensor.meta.dtype == "uint8"
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
 def test_dtype_mismatch(memory_ds: Dataset):
-    tensor = memory_ds.create_tensor("tensor", dtype="uint8")
-    tensor.append(np.ones(100, dtype="float32"))
+    tensor = memory_ds.create_tensor("tensor", dtype="float16")
+    tensor.append(np.ones(100, dtype="uint8"))
 
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
