@@ -12,7 +12,7 @@ class BaseNumCodec(ABC):
     """Base class for numcodec compressors"""
 
     @abstractmethod
-    def encode(self, input: np.ndarray) -> bytes:
+    def encode(self, sample: np.ndarray) -> bytes:
         raise NotImplementedError()
 
     @abstractmethod

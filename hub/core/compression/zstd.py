@@ -24,7 +24,7 @@ class ZSTD(BaseNumCodec):
         level = kwargs.get("level", numcodecs.zstd.DEFAULT_CLEVEL)
         self.compressor = numcodecs.zstd.Zstd(level)
 
-    def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
+    def encode(self, sample: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array
 
@@ -33,19 +33,19 @@ class ZSTD(BaseNumCodec):
             arr_encoded = zstd_codec.encode(x)
 
         Args:
-            input (np.ndarray/bytes): Data to be encoded
+            sample (np.ndarray/bytes): Data to be encoded
 
         Returns:
             Encoded data.
         """
-        if isinstance(input, bytes):
-            return self.compressor.encode(input)
+        if isinstance(sample, bytes):
+            return self.compressor.encode(sample)
         return MSGPACK.encode(
             [
                 {
-                    "item": self.compressor.encode(input),
-                    "dtype": input.dtype.name,
-                    "shape": input.shape,
+                    "item": self.compressor.encode(sample),
+                    "dtype": sample.dtype.name,
+                    "shape": sample.shape,
                 }
             ]
         )

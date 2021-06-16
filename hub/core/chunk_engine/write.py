@@ -1,11 +1,13 @@
+from hub.core.compression.base import BaseImgCodec, BaseNumCodec
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
 from hub.core.meta.index_meta import IndexMeta
-from typing import List, Tuple
+from typing import List, Tuple, Union, Dict
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
+from hub.util.dataset import get_compressor
 
 from .chunker import generate_chunks
 from .flatten import row_wise_to_bytes
@@ -32,7 +34,6 @@ def write_array(
 
     # TODO: get the tobytes function from meta
     tobytes = row_wise_to_bytes
-
     num_samples = len(array)
 
     for i in range(num_samples):
@@ -66,6 +67,15 @@ def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
     index_meta.add_entry(chunk_names=[], start_byte=0, end_byte=0, **extra_sample_meta)
 
 
+def _compress_bytes(
+    bytes: memoryview,
+    compressor: Union[BaseNumCodec, BaseImgCodec, None],
+):
+    if compressor:
+        return compressor.encode(bytes)
+    return bytes
+
+
 def write_bytes(
     b: memoryview,
     key: str,
@@ -89,7 +99,12 @@ def write_bytes(
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
     """
-
+    compression = extra_sample_meta.get("compression", False)
+    if not compression and tensor_meta.compression is not None:
+        compression = tensor_meta.compression
+        extra_sample_meta["compression"] = compression
+        compressor = get_compressor(compression)
+        b = _compress_bytes(b, compressor)
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)

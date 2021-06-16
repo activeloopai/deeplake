@@ -26,7 +26,7 @@ class LZ4(BaseNumCodec):
         acceleration = kwargs.get("acceleration", numcodecs.lz4.DEFAULT_ACCELERATION)
         self.compressor = numcodecs.lz4.LZ4(acceleration)
 
-    def encode(self, input: Union[np.ndarray, bytes]) -> bytes:
+    def encode(self, sample: Union[np.ndarray, bytes]) -> bytes:
         """
         Encode given array
 
@@ -35,19 +35,19 @@ class LZ4(BaseNumCodec):
             arr_encoded = lz4_codec.encode(x)
 
         Args:
-            input (np.ndarray/bytes): Data to be encoded
+            sample (np.ndarray/bytes): Data to be encoded
 
         Returns:
             Encoded data.
         """
-        if isinstance(input, bytes) or isinstance(input, memoryview):
-            return self.compressor.encode(input)
+        if isinstance(sample, bytes) or isinstance(sample, memoryview):
+            return self.compressor.encode(sample)
         return MSGPACK.encode(
             [
                 {
-                    "item": self.compressor.encode(input),
-                    "dtype": input.dtype.name,
-                    "shape": input.shape,
+                    "item": self.compressor.encode(sample),
+                    "dtype": sample.dtype.name,
+                    "shape": sample.shape,
                 }
             ]
         )

@@ -10,7 +10,7 @@ class NUMPY(BaseNumCodec):
     def __init__(self):
         super().__init__()
 
-    def encode(self, array: np.ndarray) -> bytes:
+    def encode(self, sample: np.ndarray) -> bytes:
         """
         Encode given array
 
@@ -19,13 +19,13 @@ class NUMPY(BaseNumCodec):
             arr_encoded = numpy_codec.encode(x)
 
         Args:
-            array (np.ndarray): Data to be encoded
+            sample (np.ndarray): Data to be encoded
 
         Returns:
             Encoded data.
         """
         with BytesIO() as f:
-            np.save(f, array, allow_pickle=True)
+            np.save(f, sample, allow_pickle=True)
             return f.getvalue()
 
     def decode(self, buf: Union[int, memoryview, bytes]) -> np.ndarray:
