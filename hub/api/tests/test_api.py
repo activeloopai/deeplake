@@ -260,13 +260,13 @@ def test_dtype(memory_ds: Dataset):
     dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
 
     assert tensor.meta.dtype == None
-    assert dtyped_tensor.dtype == "uint8"
+    assert dtyped_tensor.meta.dtype == "uint8"
 
     tensor.append(np.ones((10, 10), dtype="int32"))
     tensor.append(np.ones((10, 10), dtype="uint8"))
 
     assert tensor.meta.dtype == "int32"
-    assert dtyped_tensor.dtype == "uint8"
+    assert dtyped_tensor.meta.dtype == "uint8"
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
