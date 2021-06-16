@@ -28,6 +28,14 @@ def test_delete_with_single_tensor(ds: Dataset):
 
     _assert_tensor_deleted_from_core("tensor", ds.storage)
 
+    recreated_tensor = ds.create_tensor("tensor")
+
+    recreated_tensor.append(np.zeros((5, 5)))
+
+    assert len(recreated_tensor) == 1
+    assert len(ds) == 1
+    assert recreated_tensor.numpy() == np.zeros((5, 5))
+
 
 @parametrize_all_dataset_storages
 def test_delete_with_multiple_tensors(ds: Dataset):
@@ -47,6 +55,14 @@ def test_delete_with_multiple_tensors(ds: Dataset):
     assert ds.tensor_names == ("tensor",)
 
     _assert_tensor_deleted_from_core("other_tensor", ds.storage)
+
+    recreated_other_tensor = ds.create_tensor("other_tensor")
+
+    recreated_other_tensor.append(np.zeros((5, 5)))
+
+    assert len(recreated_other_tensor) == 1
+    assert len(ds) == 1
+    assert recreated_other_tensor.numpy() == np.zeros((5, 5))
 
 
 def _assert_tensor_deleted_from_core(name: str, storage: StorageProvider):

@@ -177,6 +177,9 @@ class Dataset:
 
         WARNING:
             All data inside the tensor `name` will be deleted -- after doing this your data will be unrecoverable!
+
+        Args:
+            name (str): The name of the tensor to be deleted.
         """
 
         # delete_tensor(name, self.storage)
