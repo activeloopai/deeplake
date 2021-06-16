@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from hub.core.tensor import (
-    add_samples_to_tensor,
+    append_tensor,
     create_tensor,
     read_samples_from_tensor,
 )
@@ -24,8 +24,8 @@ def test_dtype_mismatch(memory_storage):
     a1 = np.array([1, 2, 3, 5.3], dtype=float)
     a2 = np.array([0, 1, 1, 0], dtype=bool)
     create_tensor(TENSOR_KEY, memory_storage)
-    add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
-    add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
+    append_tensor(a1, TENSOR_KEY, memory_storage)
+    append_tensor(a2, TENSOR_KEY, memory_storage)
 
 
 @pytest.mark.xfail(raises=TensorInvalidSampleShapeError, strict=True)
@@ -33,14 +33,14 @@ def test_shape_length_mismatch(memory_storage):
     a1 = np.ones((5, 20))
     a2 = np.ones((5, 20, 2))
     create_tensor(TENSOR_KEY, memory_storage)
-    add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
-    add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
+    append_tensor(a1, TENSOR_KEY, memory_storage)
+    append_tensor(a2, TENSOR_KEY, memory_storage)
 
 
 @pytest.mark.xfail(raises=TensorDoesNotExistError, strict=True)
 def test_tensor_does_not_exist(memory_storage):
     a1 = np.arange(10)
-    add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
+    append_tensor(a1, TENSOR_KEY, memory_storage)
 
 
 @pytest.mark.xfail(raises=TensorAlreadyExistsError, strict=True)
@@ -66,8 +66,8 @@ def test_dynamic_as_numpy(memory_storage):
     a1 = np.ones((9, 23))
     a2 = np.ones((99, 2))
     create_tensor(TENSOR_KEY, memory_storage)
-    add_samples_to_tensor(a1, TENSOR_KEY, memory_storage, batched=False)
-    add_samples_to_tensor(a2, TENSOR_KEY, memory_storage, batched=False)
+    append_tensor(a1, TENSOR_KEY, memory_storage)
+    append_tensor(a2, TENSOR_KEY, memory_storage)
 
     # aslist=False, but a1 / a2 are not the same shape
     read_samples_from_tensor(TENSOR_KEY, memory_storage, aslist=False)
