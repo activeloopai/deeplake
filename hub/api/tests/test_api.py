@@ -273,7 +273,6 @@ def test_dtype(memory_ds: Dataset):
     assert type(tensor.dtype) == type(
         None
     ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."
-    assert type(dtyped_tensor.dtype) == np.dtype
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == np.float64
     assert py_dtyped_tensor.dtype == np.float64

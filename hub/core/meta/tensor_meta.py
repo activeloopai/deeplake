@@ -81,7 +81,7 @@ class TensorMeta(Meta):
             array (np.ndarray): Batched array to check compatibility with.
 
         Raises:
-            TensorMetaMismatchError: Dtype for array must be equal to this meta.
+            TensorDtypeMismatchError: Dtype for array must be equal to this meta.
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
