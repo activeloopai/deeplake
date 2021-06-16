@@ -22,7 +22,7 @@ def dataset_to_tensorflow(dataset):
     def generate_signature():
         signature = {}
         for key in dataset.tensors:
-            dtype = dataset[key].meta["dtype"]
+            dtype = dataset[key].meta.dtype
             shape = dataset[key].shape
             signature[key] = tf.TensorSpec(shape=shape[1:], dtype=dtype)
         return signature

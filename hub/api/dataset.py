@@ -1,4 +1,8 @@
+from hub.htypes import DEFAULT_HTYPE
+import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
+import numpy as np
+
 from hub.api.tensor import Tensor
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -6,13 +10,8 @@ from hub.constants import (
     MB,
 )
 from hub.core.dataset import dataset_exists
-from hub.core.meta.dataset_meta import (
-    read_dataset_meta,
-    write_dataset_meta,
-    default_dataset_meta,
-)
-from hub.core.meta.tensor_meta import default_tensor_meta
-from hub.core.tensor import tensor_exists
+from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
@@ -87,12 +86,13 @@ class Dataset:
 
         self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
-            for tensor_name in self.meta["tensors"]:
+            self.meta = DatasetMeta.load(self.storage)
+            for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
             raise PathNotEmptyException
         else:
-            self.meta = default_dataset_meta()
+            self.meta = DatasetMeta.create(self.storage)
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -130,24 +130,25 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: Optional[str] = None,
-        chunk_size: Optional[int] = None,
-        dtype: Optional[str] = None,
-        extra_meta: Optional[dict] = None,
+        htype: str = DEFAULT_HTYPE,
+        chunk_size: int = None,
+        dtype: str = None,
+        **kwargs,
     ):
         """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
-            htype (str, optional): The class of data for the tensor.
+            htype (str): The class of data for the tensor.
                 The defaults for other parameters are determined in terms of this value.
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int, optional): The target size for chunks in this tensor.
-            dtype (str, optional): The data type to use for this tensor.
-                Will be overwritten when the first sample is added.
-            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the size of files (chunks) being created to represent this tensor's samples.
+                For more on chunking, check out `hub.core.chunk_engine.chunker`.
+            dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
+            **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
+                To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -155,32 +156,51 @@ class Dataset:
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
+
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        ds_meta = self.meta
-        ds_meta["tensors"].append(name)
-        self.meta = ds_meta
+        create_tensor(
+            name,
+            self.storage,
+            htype=htype,
+            chunk_size=chunk_size,
+            dtype=dtype,
+            **kwargs,
+        )
+        tensor = Tensor(name, self.storage)
 
-        tensor_meta = default_tensor_meta(htype, chunk_size, dtype, extra_meta)
-        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
         self.tensors[name] = tensor
+        self.meta.tensors.append(name)
 
         return tensor
 
     __getattr__ = __getitem__
+
+    def __setattr__(self, name: str, value):
+        if isinstance(value, (np.ndarray, np.generic)):
+            raise TypeError(
+                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
+                + "To add data to a tensor, use the `append` and `extend` methods."
+            )
+        else:
+            return super().__setattr__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
     @property
-    def meta(self):
-        return read_dataset_meta(self.storage)
+    def mode(self):
+        return self._mode
 
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_dataset_meta(self.storage, new_meta)
+    @mode.setter
+    def mode(self, new_mode):
+        if new_mode == "r":
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
+        self._mode = new_mode
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
@@ -267,4 +287,4 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta['tensors']})"
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
