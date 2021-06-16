@@ -132,7 +132,7 @@ class Dataset:
         name: str,
         htype: str = DEFAULT_HTYPE,
         chunk_size: int = None,
-        dtype: str = None,
+        dtype: Union[str, np.dtype, type] = None,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
