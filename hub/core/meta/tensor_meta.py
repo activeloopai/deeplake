@@ -142,6 +142,7 @@ class TensorMeta(Meta):
 
 def _set_compression(htype_overwrite: dict, compression: str) -> dict:
     htype_overwrite.update({"compression": compression})
+    return _set_compression
 
 
 def _required_meta_from_htype(htype: str) -> dict:
