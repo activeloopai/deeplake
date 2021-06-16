@@ -142,7 +142,6 @@ def read_samples_from_tensor(
 
     Raises:
         DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
-        NotImplementedError: Empty samples (shape contains 0) not implemented.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
@@ -164,10 +163,6 @@ def read_samples_from_tensor(
         last_shape = index_entries[i - 1]["shape"]
         if not aslist and shape != last_shape:
             raise DynamicTensorNumpyError(key, index)
-
-        if 0 in shape:
-            # TODO: implement support for 0s in shape and update docstring
-            raise NotImplementedError("0s in shapes are not supported yet.")
 
         array = sample_from_index_entry(key, storage, index_entry, tensor_meta.dtype)
         samples.append(array)
