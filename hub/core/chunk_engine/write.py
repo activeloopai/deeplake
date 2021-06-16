@@ -107,7 +107,7 @@ def write_bytes(
         if num_chunks_after_combining == num_chunks_b:  # combine if count is same
             start_byte = index_meta.entries[-1]["end_byte"]
             chunk_names.append(last_chunk_name)
-            last_chunk = bytearray(last_chunk) + content  # type: ignore
+            last_chunk = bytearray(last_chunk) + content[0:extra_bytes_in_last_chunk]  # type: ignore
             chunk_key = get_chunk_key(key, last_chunk_name)
             storage[chunk_key] = last_chunk
             end_byte = len(last_chunk)
