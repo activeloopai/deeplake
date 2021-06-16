@@ -189,17 +189,17 @@ class TorchDataset:
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
 
-        def decompress_combined_bytes(combined_bytes: Union[bytes, memoryview]):
+        def _decompress_combined_bytes(combined_bytes: Union[bytes, memoryview]):
             compressor = get_compressor(index_entry["compression"])
             arr_bytes = compressor.decode(combined_bytes)
             arr = np.frombuffer(arr_bytes, dtype=dtype).reshape(shape)
             return arr
 
         if isinstance(combined_bytes, memoryview):
-            arr = decompress_combined_bytes(combined_bytes)
+            arr = _decompress_combined_bytes(combined_bytes)
             combined_bytes.release()
         else:
-            arr = decompress_combined_bytes(combined_bytes)
+            arr = _decompress_combined_bytes(combined_bytes)
         return arr
 
     def _get_data_from_chunks(
