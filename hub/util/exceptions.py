@@ -1,4 +1,4 @@
-from typing import Any, Sequence
+from typing import Any, Sequence, List
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -258,4 +258,11 @@ class UnsupportedInputType(Exception):
         super().__init__(
             f"Unable to append sample. Please specify numpy array, sequence of numpy arrays"
             "or resulting dictionary from .read() to be added to the tensor"
+        )
+
+
+class HubAutoUnsupportedFileExtensionError(Exception):
+    def __init__(self, extension: str, supported_extensions: List[str]):
+        super().__init__(
+            f'hub.auto does not support the "{extension}" extension. Available extensions: {str(supported_extensions)}.'
         )
