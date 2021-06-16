@@ -100,4 +100,4 @@ def _generate_chunk_name() -> str:
 
 def _get_chunk_count(size):
     """Returns the minimum number of chunks in which data of given size can be fit."""
-    return ceil(len(size) / CHUNK_MAX_SIZE)
+    return ceil(size / CHUNK_MAX_SIZE)

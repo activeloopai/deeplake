@@ -9,3 +9,9 @@ def remove_memory_cache(storage: StorageProvider):
     ):
         return storage.next_storage
     return storage
+
+
+def remove_all_cache(storage: StorageProvider):
+    while isinstance(storage, LRUCache):
+        storage = storage.next_storage
+    return storage
