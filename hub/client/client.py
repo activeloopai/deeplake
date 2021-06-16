@@ -6,6 +6,7 @@ from hub.util.get_property import get_property
 from hub.client.utils import get_auth_header, check_response_status, write_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
+    HUB_REST_ENDPOINT_LOCAL,
     GET_TOKEN_SUFFIX,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
@@ -15,6 +16,7 @@ from hub.client.config import (
     UPDATE_SUFFIX,
 )
 from hub.client.log import logger
+import hub
 
 
 class HubBackendClient:
@@ -66,32 +68,33 @@ class HubBackendClient:
         data = data or {}
         files = files or {}
         json = json or {}
-        endpoint = endpoint or HUB_REST_ENDPOINT
+        endpoint = endpoint or self.endpoint()
         endpoint = endpoint.strip("/")
         relative_url = relative_url.strip("/")
         request_url = f"{endpoint}/{relative_url}"
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-        try:
-            response = requests.request(
-                method,
-                request_url,
-                params=params,
-                data=data,
-                json=json,
-                headers=headers,
-                files=files,
-                timeout=timeout,
-            )
-        except requests.exceptions.ConnectionError as e:
-            sys.exit("Connection error. Please retry or check your internet connection")
-        except requests.exceptions.Timeout as e:
-            sys.exit(
-                "Connection timeout. Please retry or check your internet connection"
-            )
+
+        response = requests.request(
+            method,
+            request_url,
+            params=params,
+            data=data,
+            json=json,
+            headers=headers,
+            files=files,
+            timeout=timeout,
+        )
+
         check_response_status(response)
         return response
+
+    def endpoint(self):
+        endpoint = (
+            HUB_REST_ENDPOINT_LOCAL if hub.client.config.LOCAL else HUB_REST_ENDPOINT
+        )
+        return endpoint
 
     def request_auth_token(self, username: str, password: str):
         """Sends a request to backend to retrieve auth token.
@@ -146,7 +149,7 @@ class HubBackendClient:
         response = self.request(
             "GET",
             relative_url,
-            endpoint=HUB_REST_ENDPOINT,
+            endpoint=self.endpoint(),
             params={"mode": mode},
         ).json()
         full_url = response.get("path")
@@ -168,12 +171,12 @@ class HubBackendClient:
                     "public": public,
                     "rewrite": True,
                 },
-                endpoint=HUB_REST_ENDPOINT,
+                endpoint=self.endpoint(),
             )
 
             if response.status_code == 200:
                 logger.info(
-                    f"Your dataset is available at {HUB_REST_ENDPOINT}/datasets/explore?tag={tag}"
+                    f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
                 )
                 if public is False:
                     logger.info(
@@ -189,7 +192,7 @@ class HubBackendClient:
             self.request(
                 "DELETE",
                 suffix,
-                endpoint=HUB_REST_ENDPOINT,
+                endpoint=self.endpoint(),
             ).json()
         except Exception as e:
             logger.error("Unable to delete Dataset entry" + str(e))
@@ -201,7 +204,7 @@ class HubBackendClient:
                 "PUT",
                 suffix,
                 json=kwargs,
-                endpoint=HUB_REST_ENDPOINT,
+                endpoint=self.endpoint(),
             ).json()
         except Exception as e:
             logger.error("Unable to update Dataset entry state " + str(e))
