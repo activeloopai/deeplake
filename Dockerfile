@@ -12,9 +12,9 @@ RUN git clone https://github.com/activeloopai/Hub.git /app/ && \
 
 WORKDIR /app
 
-RUN pip install -r requirements/requirements.txt && \
-    pip install -r requirements/common.txt && \
+RUN pip install -r requirements/common.txt && \
     pip install -r requirements/tests.txt && \
     pip install -r requirements/plugins.txt
 
-ENV PYTHONPATH="/app/Hub:$PYTHONPATH"
+ENV PYTHONPATH="/app/:$PYTHONPATH"
+RUN python3 -m pip install -U .
