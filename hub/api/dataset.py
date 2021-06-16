@@ -1,6 +1,8 @@
 from hub.htypes import DEFAULT_HTYPE
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
+import numpy as np
+
 from hub.api.tensor import Tensor
 from hub.constants import (
     DEFAULT_MEMORY_CACHE_SIZE,
@@ -174,6 +176,15 @@ class Dataset:
         return tensor
 
     __getattr__ = __getitem__
+
+    def __setattr__(self, name: str, value):
+        if isinstance(value, (np.ndarray, np.generic)):
+            raise TypeError(
+                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
+                + "To add data to a tensor, use the `append` and `extend` methods."
+            )
+        else:
+            return super().__setattr__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
