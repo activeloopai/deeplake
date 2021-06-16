@@ -22,7 +22,7 @@ import hub
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
-    def __init__(self, token):
+    def __init__(self, token: Optional[str] = None):
         self.version = get_property("__version__", "hub")
         self.auth_header = None
         self.token = token or self.get_token()
@@ -166,42 +166,36 @@ class HubBackendClient:
         return full_url, creds, mode, expiration
 
     def create_dataset_entry(self, username, dataset_name, meta, public=True):
-        try:
-            tag = f"{username}/{dataset_name}"
-            repo = f"protected/{username}"
+        tag = f"{username}/{dataset_name}"
+        repo = f"protected/{username}"
 
-            response = self.request(
-                "POST",
-                CREATE_DATASET_SUFFIX,
-                json={
-                    "tag": tag,
-                    "repository": repo,
-                    "public": public,
-                    "rewrite": True,
-                    "meta": meta
-                },
-                endpoint=self.endpoint(),
+        response = self.request(
+            "POST",
+            CREATE_DATASET_SUFFIX,
+            json={
+                "tag": tag,
+                "repository": repo,
+                "public": public,
+                "rewrite": True,
+                "meta": meta
+            },
+            endpoint=self.endpoint(),
+        )
+
+        if response.status_code == 200:
+            logger.info(
+                f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
             )
-
-            if response.status_code == 200:
+            if public is False:
                 logger.info(
-                    f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
+                    "The dataset is private so make sure you are logged in!"
                 )
-                if public is False:
-                    logger.info(
-                        "The dataset is private so make sure you are logged in!"
-                    )
-        except Exception as e:
-            logger.error("Unable to create Dataset entry" + str(e))
-
+                    
     def delete_dataset_entry(self, username, dataset_name):
-        try:
-            tag = f"{username}/{dataset_name}"
-            suffix = f"{DATASET_SUFFIX}/{tag}"
-            self.request(
-                "DELETE",
-                suffix,
-                endpoint=self.endpoint(),
-            ).json()
-        except Exception as e:
-            logger.error("Unable to delete Dataset entry" + str(e))
+        tag = f"{username}/{dataset_name}"
+        suffix = f"{DATASET_SUFFIX}/{tag}"
+        self.request(
+            "DELETE",
+            suffix,
+            endpoint=self.endpoint(),
+        ).json()

@@ -111,7 +111,7 @@ class Dataset:
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta, public=public
+                    self.org_id, self.ds_name, self.meta.to_dict(), public=public
                 )
 
     def __enter__(self):
