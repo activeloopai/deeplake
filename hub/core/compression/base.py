@@ -161,11 +161,13 @@ class BaseImgCodec(ABC, Codec):
         return images
 
     @abstractmethod
-    def decode_single_image(buf: Union[int, memoryview, bytes], *args) -> np.ndarray:
+    def decode_single_image(
+        self, buf: Union[int, memoryview, bytes], *args
+    ) -> np.ndarray:
         raise NotImplementedError()
 
     @abstractmethod
-    def encode_single_image(image: np.ndarray) -> bytes:
+    def encode_single_image(self, image: np.ndarray) -> bytes:
         raise NotImplementedError()
 
     def get_config(self):
