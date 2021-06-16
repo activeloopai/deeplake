@@ -255,11 +255,24 @@ def test_shape_property(memory_ds):
     assert fixed.shape.upper == (28, 28)
 
 
+def test_dtype(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
+
+    assert tensor.meta.dtype == None
+    assert dtyped_tensor.dtype == "uint8"
+
+    tensor.append(np.ones((10, 10), dtype="int32"))
+    tensor.append(np.ones((10, 10), dtype="uint8"))
+
+    assert tensor.meta.dtype == "int32"
+    assert dtyped_tensor.dtype == "uint8"
+
+
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
-def test_append_dtype_mismatch(memory_ds: Dataset):
+def test_dtype_mismatch(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor", dtype="uint8")
-    tensor.append(np.ones(100, dtype="float64"))
-    tensor.append(np.ones(100, dtype="uint8"))
+    tensor.append(np.ones(100, dtype="float32"))
 
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
