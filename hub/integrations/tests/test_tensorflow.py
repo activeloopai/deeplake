@@ -1,11 +1,6 @@
-from hub.util.check_installation import tensorflow_installed
 import numpy as np
-import pytest
 
-
-requires_tensorflow = pytest.mark.skipif(
-    not tensorflow_installed(), reason="requires tensorflow to be installed"
-)
+from hub.util.check_installation import requires_tensorflow
 
 
 @requires_tensorflow
@@ -33,7 +28,7 @@ def test_tensorflow_large(local_ds):
             2 * np.ones((4096, 4096)),
             3 * np.ones((4096, 4096)),
             4 * np.ones((4096, 4096)),
-        ]
+        ],
     )
     local_ds.image.extend(arr)
     local_ds.create_tensor("classlabel")

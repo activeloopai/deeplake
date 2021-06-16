@@ -1,6 +1,8 @@
 # pytest-cov #
 ##############
 
+datasets
+
 PYTEST_TMPDIR
 .coverage
 .coverage.*

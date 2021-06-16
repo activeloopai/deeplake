@@ -1,15 +1,15 @@
-from hub.util.shape import Shape
-from typing import List, Sequence, Union, Iterable, Optional, Tuple
+from hub.util.shape import ShapeInterval
+from hub.core.meta.tensor_meta import TensorMeta
+from typing import List, Sequence, Union, Optional, Tuple
 import warnings
 
 import numpy as np
 
 from hub.core.tensor import (
+    append_tensor,
     create_tensor,
-    add_samples_to_tensor,
+    extend_tensor,
     read_samples_from_tensor,
-    read_tensor_meta,
-    write_tensor_meta,
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
@@ -22,7 +22,6 @@ class Tensor:
         self,
         key: str,
         storage: StorageProvider,
-        tensor_meta: dict = None,
         index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
@@ -34,28 +33,19 @@ class Tensor:
         Args:
             key (str): The internal identifier for this tensor.
             storage (StorageProvider): The storage provider for the parent dataset.
-            tensor_meta (dict): For internal use only. If a tensor with `key` doesn't exist, a new tensor is created
-                with this meta.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
+
         self.key = key
         self.storage = storage
         self.index = index or Index()
 
-        if tensor_exists(self.key, self.storage):
-            if tensor_meta is not None:
-                warnings.warn(
-                    "Tensor should not be constructed with tensor_meta if a tensor already exists. Ignoring incoming "
-                    "tensor_meta. Key: {}".format(self.key)
-                )
-        else:
-            if tensor_meta is None:
-                raise TensorDoesNotExistError(self.key)
-            create_tensor(self.key, self.storage, tensor_meta)
+        if not tensor_exists(self.key, self.storage):
+            raise TensorDoesNotExistError(self.key)
 
     def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
         """Extends a tensor by appending multiple elements from a sequence.
@@ -73,7 +63,7 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         if isinstance(array, np.ndarray):
-            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
+            extend_tensor(array, self.key, storage=self.storage)
         else:
             for sample in array:
                 self.append(sample)
@@ -91,28 +81,68 @@ class Tensor:
         Args:
             array (np.ndarray): The data to add to the tensor.
         """
-        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
+
+        append_tensor(array, self.key, storage=self.storage)
 
     @property
     def meta(self):
-        return read_tensor_meta(self.key, self.storage)
-
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_tensor_meta(self.key, self.storage, new_meta)
+        return TensorMeta.load(self.key, self.storage)
 
     @property
-    def shape(self):
-        ds_meta = self.meta
+    def shape(self) -> Tuple[Optional[int], ...]:
+        """Get the shape of this tensor. Length is included.
 
-        min_shape = ds_meta["min_shape"]
-        max_shape = ds_meta["max_shape"]
+        Note:
+            If you don't want `None` in the output shape or want the lower/upper bound shapes,
+            use `tensor.shape_interval` instead.
 
-        return Shape(min_shape, max_shape)
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape
+            (2, 10, None)
+
+        Returns:
+            tuple: Tuple where each value is either `None` (if that axis is dynamic) or
+                an `int` (if that axis is fixed).
+        """
+
+        return self.shape_interval.astuple()
+
+    @property
+    def shape_interval(self) -> ShapeInterval:
+        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+
+        Note:
+            If you are expecting a `tuple`, use `tensor.shape` instead.
+
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape_interval
+            ShapeInterval(lower=(2, 10, 10), upper=(2, 10, 15))
+            >>> str(tensor.shape_interval)
+            (2, 10, 10:15)
+
+        Returns:
+            ShapeInterval: Object containing `lower` and `upper` properties.
+        """
+
+        length = [len(self)]
+
+        min_shape = length + list(self.meta.min_shape)
+        max_shape = length + list(self.meta.max_shape)
+
+        return ShapeInterval(min_shape, max_shape)
+
+    @property
+    def is_dynamic(self) -> bool:
+        """Will return True if samples in this tensor have shapes that are unequal."""
+        return self.shape_interval.is_dynamic
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
-        return self.meta["length"]
+        return self.meta.length
 
     def __getitem__(
         self,
@@ -143,7 +173,7 @@ class Tensor:
         """
 
         return read_samples_from_tensor(
-            self.key, self.storage, self.index, aslist=aslist
+            self.key, self.storage, index=self.index, aslist=aslist
         )
 
     def __str__(self):
