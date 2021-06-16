@@ -75,7 +75,7 @@ def test_update_tensor_slice_with_list(ds: Dataset):
 
     # dynamic samples
     image[5:10] = [
-        *np.arange(3 * 10 * 30 * 3).reshape((3, 10, 30, 5)),
+        *np.arange(3 * 10 * 30 * 5).reshape((3, 10, 30, 5)),
         *np.arange(2 * 90 * 3 * 2).reshape((2, 90, 3, 2)),
     ]
 
