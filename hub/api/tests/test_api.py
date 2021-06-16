@@ -263,20 +263,24 @@ def test_dtype(memory_ds: Dataset):
     np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float)
     py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
 
-    assert tensor.meta.dtype == None
-    assert dtyped_tensor.meta.dtype == "uint8"
-    assert np_dtyped_tensor.meta.dtype == "float64"
-    assert py_dtyped_tensor.meta.dtype == "float64"
+    # this check is necessary because `np.dtype(None) == None` would pass even though `np.dtype(None)` returns `np.float64`
+    assert type(tensor.dtype) == type(
+        None
+    ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."
+    assert type(dtyped_tensor.dtype) == np.dtype
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
 
     tensor.append(np.ones((10, 10), dtype="float32"))
     dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
     np_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
     py_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
 
-    assert tensor.meta.dtype == "float32"
-    assert dtyped_tensor.meta.dtype == "uint8"
-    assert np_dtyped_tensor.meta.dtype == "float64"
-    assert py_dtyped_tensor.meta.dtype == "float64"
+    assert tensor.dtype == np.float32
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
