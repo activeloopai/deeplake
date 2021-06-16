@@ -5,7 +5,7 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
-    TensorMetaMismatchError,
+    TensorDtypeMismatchError,
 )
 from hub.util.keys import get_tensor_meta_key
 from hub.constants import DEFAULT_CHUNK_SIZE
@@ -86,7 +86,11 @@ class TensorMeta(Meta):
         """
 
         if self.dtype and self.dtype != array.dtype.name:
-            raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
+            raise TensorDtypeMismatchError(
+                self.dtype,
+                array.dtype.name,
+                self.htype,
+            )
 
         sample_shape = array.shape[1:]
 

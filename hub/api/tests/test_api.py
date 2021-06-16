@@ -4,7 +4,7 @@ import pytest
 import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.util.exceptions import TensorMetaMismatchError
+from hub.util.exceptions import TensorDtypeMismatchError
 
 
 def test_persist_local(local_storage):
@@ -289,7 +289,7 @@ def test_dtype(memory_ds: Dataset):
     assert py_dtyped_tensor.dtype == np.float64
 
 
-@pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
+@pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
 def test_dtype_mismatch(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor", dtype="float16")
     tensor.append(np.ones(100, dtype="uint8"))
