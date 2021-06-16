@@ -215,6 +215,7 @@ def test_shape_property(memory_ds):
 def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
+
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
 def test_hub_cloud_dataset():
     username = "testingacc"
