@@ -110,7 +110,7 @@ class Dataset:
             chunk_size (int, optional): The target size for chunks in this tensor.
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
-            compression (str, optional): Compressor name to apply on the tesnor.
+            compression (str, optional): Compressor name to apply on the tensor.
             extra_meta (dict, optional): Any additional metadata to be added to the tensor.
 
         Returns:
