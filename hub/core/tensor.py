@@ -2,7 +2,7 @@ from hub.htypes import DEFAULT_HTYPE, DEFAULT_COMPRESSION
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
-from typing import List, Tuple, Union, Optional
+from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
@@ -17,6 +17,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
+    TensorUnsupportedSampleType,
 )
 
 
@@ -74,7 +75,12 @@ def _get_metas_from_kwargs(
     return tensor_meta, index_meta
 
 
-def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
+def append_tensor(
+    sample: Optional[Union[np.ndarray, Dict, float, int]],
+    key: str,
+    storage: StorageProvider,
+    **kwargs,
+):
     """Append to an existing tensor with an array. This array will be chunked and sent to `storage`.
 
     For more on chunking, see the `generate_chunks` method.
@@ -90,11 +96,33 @@ def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
+        UnsupportedInputType: If provided isn't np.ndarray or .read() result.
     """
+    if isinstance(sample, (np.ndarray, int, float)):
+        # append is guaranteed to NOT have a batch axis
+        array = np.expand_dims(sample, axis=0)
+        extend_tensor(array, key, storage, **kwargs)
+    elif isinstance(sample, dict):
+        if not tensor_exists(key, storage):
+            raise TensorDoesNotExistError(key)
+        tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
+        shape = sample["shape"]
+        index_meta_entry = {}
+        index_meta_entry["shape"] = shape
+        index_meta_entry["compression"] = sample["compression"]
+        write_bytes(
+            sample["bytes"],
+            key,
+            storage,
+            tensor_meta,
+            index_meta=index_meta,
+            extra_sample_meta=index_meta_entry,
+        )
+        tensor_meta._update_shape_interval(shape)
+        tensor_meta.length += shape[0]
 
-    # append is guaranteed to NOT have a batch axis
-    array = np.expand_dims(array, axis=0)
-    extend_tensor(array, key, storage, **kwargs)
+    else:
+        raise TensorUnsupportedSampleType()
 
 
 def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
@@ -129,45 +157,6 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
     tensor_meta.check_batch_is_compatible(array)
 
     write_array(array, key, storage, tensor_meta, index_meta)
-
-
-def add_index_meta_to_tensor(
-    index_meta_dict: dict, key: str, storage: StorageProvider, **kwargs
-):
-    """Adds samples to a tensor that already exists. bytes of index_meta are chunked and sent to `storage`.
-    For more on chunking, see the `generate_chunks` method.
-
-    Args:
-        index_meta_dict (dict): Bytes of the image that should be chunked and written to the storage.
-        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
-        **kwargs:
-            tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-            index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
-
-    Raises:
-        TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
-            `create_tensor(...)`.
-    """
-    if not tensor_exists(key, storage):
-        raise TensorDoesNotExistError(key)
-
-    tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
-    shape = index_meta_dict["shape"]
-    index_meta_entry = {}
-    index_meta_entry["shape"] = shape
-    index_meta_entry["compression"] = index_meta_dict["compression"]
-    write_bytes(
-        index_meta_dict["bytes"],
-        key,
-        storage,
-        tensor_meta,
-        index_meta=index_meta,
-        extra_sample_meta=index_meta_entry,
-    )
-
-    tensor_meta._update_shape_interval(shape)
-    tensor_meta.length += shape[0]
 
 
 def read_samples_from_tensor(
