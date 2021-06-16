@@ -4,7 +4,7 @@ from typing import Optional
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
-from hub.util.exceptions import ReadOnlyError
+from hub.util.exceptions import ReadOnlyModeError
 
 
 class StorageProvider(ABC, MutableMapping):
@@ -135,7 +135,7 @@ class StorageProvider(ABC, MutableMapping):
     def check_readonly(self):
         """Raises an exception if the provider is in read-only mode."""
         if hasattr(self, "read_only") and self.read_only:
-            raise ReadOnlyError()
+            raise ReadOnlyModeError()
 
     def flush(self):
         """Only needs to be implemented for caches. Flushes the data to the next storage provider.

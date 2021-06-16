@@ -7,7 +7,6 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteKey,
     TensorMetaMismatchError,
 )
-from hub.util.callbacks import CallbackList
 from hub.util.keys import get_tensor_meta_key
 from hub.constants import DEFAULT_CHUNK_SIZE
 from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
@@ -38,6 +37,26 @@ class TensorMeta(Meta):
         htype: str = DEFAULT_HTYPE,
         **kwargs,
     ):
+        """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
+
+        Note:
+            Tensor metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
+            Auto-populates `required_meta` that `Meta` accepts as an argument.
+
+        Args:
+            key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
+            storage (StorageProvider): Destination of this meta.
+            htype (str): All tensors require an `htype`. This determines the default meta keys/values.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+
+        Raises:
+            TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
+            TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+
+        Returns:
+            TensorMeta: Tensor meta object.
+        """
+
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
         _validate_htype_overwrites(htype, htype_overwrite)
 
@@ -120,8 +139,8 @@ def _required_meta_from_htype(htype: str) -> dict:
         "htype": htype,
         "dtype": defaults.get("dtype", None),
         "chunk_size": DEFAULT_CHUNK_SIZE,
-        "min_shape": CallbackList,
-        "max_shape": CallbackList,
+        "min_shape": [],
+        "max_shape": [],
         "length": 0,
     }
 
