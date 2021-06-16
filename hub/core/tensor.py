@@ -300,7 +300,6 @@ def read(image_path: str, check_meta: bool = True):
         except Exception as e:
             raise ImageReadError(image_path, e)
         image_arr = np.asarray(image)
-        # print(image_arr.shape)
         image_dtype = image_arr.dtype
         if image.mode == "RGB":
             image_channels = 3

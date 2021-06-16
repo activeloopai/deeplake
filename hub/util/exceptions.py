@@ -253,9 +253,9 @@ class WrongMetadataError(Exception):
         )
 
 
-class NotSpecifiedAdditionError(Exception):
+class UnsupportedInputType(Exception):
     def __init__(self) -> None:
         super().__init__(
-            f"Nothing added to tensor. Please specify numpy array, sequence of numpy arrays"
+            f"Unable to append sample. Please specify numpy array, sequence of numpy arrays"
             "or resulting dictionary from .read() to be added to the tensor"
         )

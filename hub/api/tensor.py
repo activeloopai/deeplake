@@ -1,5 +1,5 @@
 from hub.util.shape import Shape
-from typing import List, Sequence, Union, Iterable, Optional, Tuple
+from typing import List, Sequence, Union, Iterable, Optional, Tuple, Dict
 import warnings
 
 import numpy as np
@@ -14,7 +14,7 @@ from hub.core.tensor import (
     add_index_map_to_tensor,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError, NotSpecifiedAdditionError
+from hub.util.exceptions import TensorDoesNotExistError, UnsupportedInputType
 from hub.core.index import Index
 
 
@@ -81,8 +81,7 @@ class Tensor:
 
     def append(
         self,
-        array: Optional[np.ndarray] = None,
-        index_map_dict: Optional[dict] = None,
+        sample: Optional[Union[np.ndarray, Dict]] = None,
     ):
         """Appends a sample to the end of a tensor.
 
@@ -93,20 +92,20 @@ class Tensor:
             >>> len(image)
             1
 
+            >>> image.append(hub.read("/path/to/image"))
+
         Args:
-            array (np.ndarray): The data to add to the tensor.
-            index_map_dict (dict): Dictionary with image bytes and additional image metadata.
+            sample (np.ndarray, Dict): The data to add to the tensor.
 
         Raises:
-            NotSpecifiedAdditionError: If neither array nor index_map_dict are provided.
+            UnsupportedInputType: If provided isn't np.ndarray or .read() result.
         """
-
-        if array is None and index_map_dict is None:
-            raise NotSpecifiedAdditionError()
-        if array is not None:
-            add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
-        elif index_map_dict is not None:
-            add_index_map_to_tensor(index_map_dict, self.key, storage=self.storage)
+        if isinstance(sample, np.ndarray):
+            add_samples_to_tensor(sample, self.key, storage=self.storage, batched=False)
+        elif isinstance(sample, dict):
+            add_index_map_to_tensor(sample, self.key, storage=self.storage)
+        else:
+            raise UnsupportedInputType()
 
     @property
     def meta(self):
