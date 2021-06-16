@@ -99,6 +99,8 @@ def read(image_path: str, check_meta: bool = True):
     Returns:
         Dictionary containing image bytes, extension, dtype and shape.
     """
+    # TODO: merge into `load` method as `symbolic`
+
     with exiftool.ExifTool() as et:
         metadata = et.get_metadata(image_path)
     with open(image_path, "rb") as image_file:
