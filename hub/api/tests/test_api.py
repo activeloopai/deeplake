@@ -263,7 +263,7 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.meta.dtype == "uint8"
 
     tensor.append(np.ones((10, 10), dtype="int32"))
-    tensor.append(np.ones((10, 10), dtype="uint8"))
+    dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
 
     assert tensor.meta.dtype == "int32"
     assert dtyped_tensor.meta.dtype == "uint8"
