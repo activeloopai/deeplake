@@ -1,7 +1,6 @@
-import numpy as np
+from typing import Sequence
 
 from hub.util.exceptions import InvalidShapeIntervalError
-from typing import Sequence
 
 
 def _contains_negatives(shape: Sequence[int]):
