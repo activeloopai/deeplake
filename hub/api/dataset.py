@@ -133,7 +133,7 @@ class Dataset:
         htype: Optional[str] = None,
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
-        compression: Optional[str] = None,
+        compression: Optional[str] = Ellipsis,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
@@ -168,6 +168,7 @@ class Dataset:
             htype=htype,
             chunk_size=chunk_size,
             dtype=dtype,
+            compression=compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)

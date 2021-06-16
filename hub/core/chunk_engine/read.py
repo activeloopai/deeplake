@@ -55,7 +55,7 @@ def array_from_buffer(
             array = partial_b
         else:
             partial_b = compressor.decode(partial_b)
-            array = np.frombuffer(partial_b, dtype=dtype)
+    array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:
         array = array.reshape(shape)
     return array

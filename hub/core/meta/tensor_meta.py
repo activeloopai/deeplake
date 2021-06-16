@@ -7,7 +7,7 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteKey,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION
 from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
@@ -28,12 +28,14 @@ class TensorMeta(Meta):
     max_shape: List[int]
     chunk_size: int
     length: int
+    compression: str
 
     @staticmethod
     def create(
         key: str,
         storage: StorageProvider,
         htype: str = DEFAULT_HTYPE,
+        compression: str = DEFAULT_COMPRESSION,
         **kwargs,
     ):
         """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
@@ -55,8 +57,8 @@ class TensorMeta(Meta):
         Returns:
             TensorMeta: Tensor meta object.
         """
-
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
+        _set_compression(htype_overwrite, compression)
         _validate_htype_overwrites(htype, htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)
@@ -85,6 +87,10 @@ class TensorMeta(Meta):
             self.max_shape[i] = max(dim, self.max_shape[i])
 
 
+def _set_compression(htype_overwrite: dict, compression: str) -> dict:
+    htype_overwrite.update({"compression": compression})
+
+
 def _required_meta_from_htype(htype: str) -> dict:
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
@@ -96,6 +102,7 @@ def _required_meta_from_htype(htype: str) -> dict:
         "min_shape": [],
         "max_shape": [],
         "length": 0,
+        "compression": defaults["compression"],
     }
 
     required_meta.update(defaults)

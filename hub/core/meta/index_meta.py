@@ -23,13 +23,7 @@ def _create_entry(
     }
     if shape is not None:
         entry["shape"] = shape
-    if compression is None:
-        if not is_compressed:
-            entry["compression"] = DEFAULT_COMPRESSION
-        else:
-            entry["compression"] = None
-    else:
-        entry["compression"] = compression
+    entry["compression"] = compression
     entry["is_compressed"] = is_compressed
     return entry
 

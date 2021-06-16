@@ -1,4 +1,4 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.htypes import DEFAULT_HTYPE, DEFAULT_COMPRESSION
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
@@ -35,6 +35,7 @@ def create_tensor(
     key: str,
     storage: StorageProvider,
     htype: str = DEFAULT_HTYPE,
+    compression: str = Ellipsis,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -52,8 +53,9 @@ def create_tensor(
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
-
-    TensorMeta.create(key, storage, htype=htype, **kwargs)
+    if compression is Ellipsis:
+        compression = DEFAULT_COMPRESSION
+    TensorMeta.create(key, storage, htype=htype, compression=compression, **kwargs)
     IndexMeta.create(key, storage)
 
 
@@ -106,17 +108,23 @@ def add_samples_to_tensor(
         sample = array[i]
         if 0 in sample.shape:
             # if sample has a 0 in the shape, no data will be written
-            index_entry = {"shape": sample.shape}  # type: ignore
+            index_entry = {"chunk_names": []}  # type: ignore
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
+            index_entry = {"shape": sample.shape}
             b = tobytes(sample)
-            if not index_meta.get("is_compressed", False):
-                compressor = get_compressor(index_meta["compression"])
-                if compressor:
+            if not index_meta.to_dict().get("is_compressed", False):
+                compression = index_meta.to_dict().get("compression", None)
+                if not compression and tensor_meta.compression:
+                    compression = tensor_meta.compression
+                index_entry["compression"] = compression
+                compressor = get_compressor(compression)
+                if compression:
                     b = compressor.encode(b)
                     index_entry["is_compressed"] = True
-                    index_entry["compression"] = None
+                else:
+                    index_entry["is_compressed"] = False
 
             b = memoryview(b)
             write_bytes(
@@ -162,17 +170,17 @@ def add_index_map_to_tensor(
     if tensor_meta is None:
         tensor_meta = TensorMeta.load(key, storage)
     shape = index_map_dict["shape"]
-    index_meta_entry = {"chunk_names": []}  # type: ignore
-    index_meta_entry["dtype"] = index_map_dict["dtype"]
+    index_meta_entry = {}
     index_meta_entry["shape"] = shape
     index_meta_entry["compression"] = index_map_dict["compression"]
     index_meta_entry["is_compressed"] = index_map_dict["is_compressed"]
     write_bytes(
         index_map_dict["bytes"],
         key,
-        tensor_meta["chunk_size"],
+        tensor_meta.chunk_size,
         storage,
-        index_meta=index_meta_entry,
+        index_meta=index_meta,
+        extra_sample_meta=index_meta_entry,
     )
 
     tensor_meta.update_shape_interval(shape)
