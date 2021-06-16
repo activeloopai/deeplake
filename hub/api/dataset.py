@@ -238,7 +238,8 @@ class Dataset:
         """
         return dataset_to_pytorch(self, transform, workers=workers)
 
-    def get_total_meta(self):
+    def _get_total_meta(self):
+        """ Returns tensor metas all together """
         return {
             tensor_key: tensor_value.meta
             for tensor_key, tensor_value in self.tensors.items()
