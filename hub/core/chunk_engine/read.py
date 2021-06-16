@@ -12,8 +12,15 @@ def sample_from_index_entry(
 ) -> np.ndarray:
     """Get the un-chunked sample from a single `index_meta` entry."""
 
+    chunk_names = index_entry["chunk_names"]
+    shape = index_entry["shape"]
+
+    # sample has no data
+    if len(chunk_names) <= 0:
+        return np.zeros(shape, dtype=dtype)
+
     b = bytearray()
-    for chunk_name in index_entry["chunk_names"]:
+    for chunk_name in chunk_names:
         chunk_key = os.path.join(key, "chunks", chunk_name)
         last_b_len = len(b)
         b.extend(storage[chunk_key])
@@ -24,7 +31,7 @@ def sample_from_index_entry(
     return array_from_buffer(
         memoryview(b),
         dtype,
-        index_entry["shape"],
+        shape,
         start_byte,
         end_byte,
     )
