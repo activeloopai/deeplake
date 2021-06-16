@@ -1,12 +1,7 @@
-from hub.api.dataset import Dataset
 import numpy as np
-from hub.integrations.pytorch_old import dataset_to_pytorch
-import pytest
-from hub.util.check_installation import pytorch_installed
 
-requires_torch = pytest.mark.skipif(
-    not pytorch_installed(), reason="requires pytorch to be installed"
-)
+from hub.integrations.pytorch_old import dataset_to_pytorch
+from hub.util.check_installation import requires_torch
 
 
 @requires_torch

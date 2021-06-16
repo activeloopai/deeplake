@@ -20,7 +20,7 @@ def from_tfds_to_path(
             https://www.tensorflow.org/datasets/catalog/overview
         split (str, Split) : Used for dataset splits as defined here: https://www.tensorflow.org/datasets/splits
         hub_ds_path (str): Path where new hub dataset will be created
-        batch_size (int): Batch size for tfds dataset
+        batch_size (int): Batch size for tfds dataset. Has no effect on output, but may affect performance.
     Returns:
         A hub dataset
     """
