@@ -7,6 +7,7 @@ import numpy as np
 
 from hub.core.typing import StorageProvider
 from hub.core.compression import BaseImgCodec, BaseNumCodec
+from hub.util.exceptions import ArrayShapeInfoNotFound
 
 
 def sample_from_index_entry(
@@ -16,7 +17,18 @@ def sample_from_index_entry(
     dtype: str,
     compressor: Union[BaseImgCodec, BaseNumCodec, None],
 ) -> np.ndarray:
-    """Get the un-chunked sample from a single `index_meta` entry."""
+    """Get the un-chunked sample from a single `index_meta` entry.
+
+    Args:
+        key (str): Key relative to `storage` where this instance.
+        storage (StorageProvider): Storage of the sample.
+        index_entry (dict): Index metadata of sample with `chunks_names`, `start_byte` and `end_byte` keys.
+        dtype (str): Data type of the sample.
+        compressor (BaseImgCodec/BaseNumCodec/None): Compressor applied on the sample.
+
+    Returns:
+        Numpy array from the bytes of the sample.
+    """
 
     b = bytearray()
     for chunk_name in index_entry["chunk_names"]:
@@ -46,7 +58,19 @@ def array_from_buffer(
     end_byte: Optional[int] = None,
 ) -> np.ndarray:
     """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all
-    bytes are used."""
+    bytes are used.
+
+    Args:
+        b (memoryview): Bytes that should be decompressed and converted to array.
+        dtype (str): Data type of the sample.
+        compressor (BaseImgCodec/BaseNumCodec/None): Compressor applied on the sample.
+        shape (tuple): Array shape from index entry.
+        start_byte (int, optional): Get only bytes starting from start_byte.
+        end_byte (int, optional): Get only bytes up to end_byte.
+
+    Returns:
+        Numpy array from the bytes of the sample.
+    """
 
     partial_b = b[start_byte:end_byte]
     if compressor is not None:
@@ -58,4 +82,6 @@ def array_from_buffer(
     array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:
         array = array.reshape(shape)
+    else:
+        raise ArrayShapeInfoNotFound()
     return array

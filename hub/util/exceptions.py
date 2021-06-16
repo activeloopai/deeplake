@@ -272,6 +272,13 @@ class HubAutoUnsupportedFileExtensionError(Exception):
         )
 
 
+class ArrayShapeInfoNotFound(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            "Unable to get array from from storage. Information about shape not found in sample meta"
+        )
+
+
 class MetaError(Exception):
     pass
 
