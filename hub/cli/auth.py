@@ -49,6 +49,7 @@ def logout():
     click.echo("Logged out of Hub.")
 
 
+# TODO: Add how to enable/disable reporting to docs
 @click.command()
 @click.option("--on/--off", help="Turn crash report on/off")
 def reporting(on):

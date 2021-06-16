@@ -95,10 +95,8 @@ class Dataset:
         else:
             self.meta = DatasetMeta.create(self.storage)
 
-        hub_reporter.custom_report(
-            title="Usage: Dataset",
-            content=f"Path: `{self.path}`",
-            tags=hub_reporter.system_tags(),
+        hub_reporter.feature_report(
+            feature_name="Dataset", parameters={"Path": str(self.path)}
         )
 
     def __enter__(self):

@@ -11,8 +11,13 @@ from humbug.report import HumbugReporter
 def save_reporting_config(
     consent: bool, client_id: Optional[str] = None, username: Optional[str] = None
 ) -> None:
-    """
-    Allow or disallow reporting.
+    """Modify reporting config.
+
+    Args:
+        consent (bool): Enabling and disabling sending crashes and system reports 
+        to Activeloop Hub.
+        client_id (str, optional): Unique client id.
+        username (str, optional): Activeloop username.
     """
     reporting_config = {}
 
@@ -45,6 +50,7 @@ def save_reporting_config(
 
 
 def get_reporting_config() -> Dict[str, Any]:
+    """Get an existing reporting config"""
     reporting_config = {}
     repo_dir = os.getcwd()
     if repo_dir is not None:
@@ -63,6 +69,7 @@ def get_reporting_config() -> Dict[str, Any]:
 
 
 def consent_from_reporting_config_file() -> bool:
+    """Get consent settings from the existing reporting config"""
     reporting_config = get_reporting_config()
     return reporting_config.get("consent", False)
 
