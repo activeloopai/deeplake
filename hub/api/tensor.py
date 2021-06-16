@@ -97,11 +97,10 @@ class Tensor:
             use `tensor.shape_interval` instead.
 
         Example:
-            Given a tensor `tensor` with 2 samples where:
-                tensor[0].shape == (10, 10)
-                tensor[1].shape == (10, 15)
-            The expected shape is:
-                tensor.shape = (2, 10, None)
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape
+            (2, 10, None)
 
         Returns:
             tuple: Tuple where each value is either `None` (if that axis is dynamic) or
@@ -118,12 +117,12 @@ class Tensor:
             If you are expecting a `tuple`, use `tensor.shape` instead.
 
         Example:
-            Given a tensor `tensor` with 2 samples where:
-                tensor[0].shape == (10, 10)
-                tensor[1].shape == (10, 15)
-            The expected shape_interval is:
-                tensor.shape_interval.lower = (2, 10, 10)
-                tensor.shape_interval.upper = (2, 10, 15)
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape_interval
+            ShapeInterval(lower=(2, 10, 10), upper=(2, 10, 15))
+            >>> str(tensor.shape_interval)
+            (2, 10, 10:15)
 
         Returns:
             ShapeInterval: Object containing `lower` and `upper` properties.
