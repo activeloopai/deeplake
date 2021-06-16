@@ -1,4 +1,7 @@
 import re
+import os
+import pathlib
+import hub
 
 
 def get_property(prop, project):
@@ -10,7 +13,8 @@ def get_property(prop, project):
         returns the __version__ variable set inside `hub/__init__.py`.
     """
 
-    fname = project + "/__init__.py"
+    # this_directory = path.abspath(path.dirname(__file__))
+    fname = pathlib.Path(hub.__file__).absolute()
     result = re.search(
         # find variable with name `prop` in the `project + __init__.py` file.
         r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),
