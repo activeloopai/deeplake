@@ -181,6 +181,7 @@ class TorchDataset:
     def _decompress_combined_bytes(
         self, key: str, combined_bytes: memoryview, index_entry: Dict
     ):
+        """Decompress bytes of joined chunks."""
         dtype = self.all_tensor_metas[key].dtype
         shape = index_entry["shape"]
         compressor = get_compressor(index_entry["compression"])
@@ -196,7 +197,7 @@ class TorchDataset:
         end_byte = index_entry["end_byte"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-        arr = self._decompress_combined_bytes(combined_bytes)
+        arr = self._decompress_combined_bytes(key, combined_bytes, index_entry)
         if isinstance(combined_bytes, memoryview):
             combined_bytes.release()
         return arr
