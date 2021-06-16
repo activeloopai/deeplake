@@ -42,7 +42,7 @@ def create_tensor(
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
-        compression (str): Compression name that will be applied to all samples
+        default_compression (str): Compression name that will be applied to all samples
             if compressions of specific tensors won't be provided.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
@@ -86,7 +86,7 @@ def append_tensor(
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        sample (Union[np.ndarray, Dict, float, int]): Array to be chunked/written. This array will be considered as 1 sample.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
@@ -97,6 +97,7 @@ def append_tensor(
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
         UnsupportedInputType: If provided isn't np.ndarray or .read() result.
+        TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
     if isinstance(sample, (np.ndarray, int, float)):
         # append is guaranteed to NOT have a batch axis
