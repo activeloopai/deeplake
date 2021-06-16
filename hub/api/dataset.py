@@ -1,72 +1,106 @@
+from hub.htypes import DEFAULT_HTYPE
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
+import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import (
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+)
 from hub.core.dataset import dataset_exists
-from hub.core.meta.dataset_meta import read_dataset_meta, write_dataset_meta
-from hub.core.meta.tensor_meta import default_tensor_meta
-from hub.core.tensor import tensor_exists
+from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.constants import DEFAULT_CHUNK_SIZE
-from hub.integrations import dataset_to_pytorch
+from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
+    PathNotEmptyException,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
-from hub.util.path import storage_provider_from_path
+from hub.util.get_storage_provider import get_storage_provider
+from hub.util.path import get_path_from_storage
 
 
 class Dataset:
     def __init__(
         self,
-        path: str = "",
-        mode: str = "a",
+        path: Optional[str] = None,
+        read_only: bool = False,
         index: Index = Index(),
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        creds: Optional[dict] = None,
         storage: Optional[StorageProvider] = None,
     ):
         """Initializes a new or existing dataset.
 
         Args:
-            path (str): The location of the dataset. Used to initialize the storage provider.
-            mode (str): Mode in which the dataset is opened.
-                Supported modes include ("r", "w", "a") plus an optional "+" suffix.
-                Defaults to "a".
+            path (str, optional): The full path to the dataset.
+                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+                Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             index (Index): The Index object restricting the view of this dataset's tensors.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
-            storage (StorageProvider, optional): The storage provider used to access
-                the data stored by this dataset. If this is specified, the path given is ignored.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+            storage (StorageProvider, optional): The storage provider used to access the dataset.
+                Use this if you want to specify the storage provider object manually instead of using a path to generate it.
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
-            UserWarning: Both path and storage should not be given.
+            ImproperDatasetInitialization: Exactly one argument out of 'path' and 'storage' needs to be specified.
+                This is raised if none of them are specified or more than one are specifed.
+            InvalidHubPathException: If a Hub cloud path (path starting with hub://) is specified and it isn't of the form hub://username/datasetname.
+            AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
+            PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        self.mode = mode
-        self.index = index
+        if creds is None:
+            creds = {}
+        base_storage = get_storage_provider(path, storage, read_only, creds)
 
-        if storage is not None and path:
-            warnings.warn(
-                "Dataset should not be constructed with both storage and path. Ignoring path and using storage."
-            )
-        base_storage = storage or storage_provider_from_path(path)
+        # done instead of directly assigning read_only as backend might return return read_only permissions
+        if hasattr(base_storage, "read_only") and base_storage.read_only:
+            self.read_only = True
+        else:
+            self.read_only = False
+
+        # uniquely identifies dataset
+        self.path = path or get_path_from_storage(base_storage)
         memory_cache_size_bytes = memory_cache_size * MB
         local_cache_size_bytes = local_cache_size * MB
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        self.tensors: Dict[str, Tensor] = {}
+        self.storage.autoflush = True
+        self.index = index
 
+        self.tensors: Dict[str, Tensor] = {}
         if dataset_exists(self.storage):
-            for tensor_name in self.meta["tensors"]:
+            self.meta = DatasetMeta.load(self.storage)
+            for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+        elif len(self.storage) > 0:
+            raise PathNotEmptyException
         else:
-            self.meta = {"tensors": []}
+            self.meta = DatasetMeta.create(self.storage)
+
+    def __enter__(self):
+        self.storage.autoflush = False
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.storage.autoflush = True
+        self.flush()
 
     # TODO len should consider slice
     def __len__(self):
@@ -85,7 +119,11 @@ class Dataset:
             else:
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(mode=self.mode, storage=self.storage, index=self.index[item])
+            return Dataset(
+                read_only=self.read_only,
+                storage=self.storage,
+                index=self.index[item],
+            )
         else:
             raise InvalidKeyTypeError(item)
 
@@ -96,13 +134,13 @@ class Dataset:
         chunk_size: Optional[int] = None,
         dtype: Optional[str] = None,
         compression: Optional[str] = None,
-        extra_meta: Optional[dict] = None,
+        **kwargs,
     ):
         """Creates a new tensor in a dataset.
 
         Args:
             name (str): The name of the tensor to be created.
-            htype (str, optional): The class of data for the tensor.
+            htype (str): The class of data for the tensor.
                 The defaults for other parameters are determined in terms of this value.
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
@@ -111,7 +149,8 @@ class Dataset:
             dtype (str, optional): The data type to use for this tensor.
                 Will be overwritten when the first sample is added.
             compression (str, optional): Compressor name to apply on the tensor.
-            extra_meta (dict, optional): Any additional metadata to be added to the tensor.
+            **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
+                To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -119,34 +158,51 @@ class Dataset:
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
         """
+
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        ds_meta = self.meta
-        ds_meta["tensors"].append(name)
-        self.meta = ds_meta
-
-        tensor_meta = default_tensor_meta(
-            htype, chunk_size, dtype, compression, extra_meta
+        create_tensor(
+            name,
+            self.storage,
+            htype=htype,
+            chunk_size=chunk_size,
+            dtype=dtype,
+            **kwargs,
         )
-        tensor = Tensor(name, self.storage, tensor_meta=tensor_meta)
+        tensor = Tensor(name, self.storage)
+
         self.tensors[name] = tensor
+        self.meta.tensors.append(name)
 
         return tensor
 
     __getattr__ = __getitem__
+
+    def __setattr__(self, name: str, value):
+        if isinstance(value, (np.ndarray, np.generic)):
+            raise TypeError(
+                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
+                + "To add data to a tensor, use the `append` and `extend` methods."
+            )
+        else:
+            return super().__setattr__(name, value)
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
 
     @property
-    def meta(self):
-        return read_dataset_meta(self.storage)
+    def mode(self):
+        return self._mode
 
-    @meta.setter
-    def meta(self, new_meta: dict):
-        write_dataset_meta(self.storage, new_meta)
+    @mode.setter
+    def mode(self, new_mode):
+        if new_mode == "r":
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
+        self._mode = new_mode
 
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
@@ -163,6 +219,14 @@ class Dataset:
             A dataset object that can be passed to torch.utils.data.DataLoader
         """
         return dataset_to_pytorch(self, transform, workers=workers)
+
+    def tensorflow(self):
+        """Converts the dataset into a pytorch compatible format.
+
+        Returns:
+            tf.data.Dataset object that can be used for tensorflow training.
+        """
+        return dataset_to_tensorflow(self)
 
     def flush(self):
         """Necessary operation after writes if caches are being used.
@@ -211,3 +275,18 @@ class Dataset:
             "Automatic dataset ingestion is not yet supported."
         )  # TODO: hub.auto
         return None
+
+    def __str__(self):
+        path_str = ""
+        if self.path:
+            path_str = f"path={self.path}, "
+
+        mode_str = ""
+        if self.read_only:
+            mode_str = f"read_only=True, "
+
+        index_str = f"index={self.index}, "
+        if self.index.is_trivial():
+            index_str = ""
+
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"

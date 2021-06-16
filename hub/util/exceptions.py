@@ -1,4 +1,5 @@
-from typing import Any, Sequence, List
+from typing import Any, List, Sequence
+from typing import Any, Sequence
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -9,15 +10,6 @@ class ChunkSizeTooSmallError(Exception):
         super().__init__(message)
 
 
-class TensorMetaMismatchError(Exception):
-    def __init__(self, meta_key: str, expected: Any, actual: Any):
-        super().__init__(
-            "Meta value for {} expected {} but got {}.".format(
-                meta_key, str(expected), str(actual)
-            )
-        )
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -26,15 +18,6 @@ class TensorInvalidSampleShapeError(Exception):
 class TensorMetaMissingKey(Exception):
     def __init__(self, key: str, meta: dict):
         super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
-
-
-class TensorMetaInvalidValue(Exception):
-    def __init__(self, key: str, value: Any, explanation: str = ""):
-        super().__init__(
-            "Invalid value {} for tensor meta key {}. {}".format(
-                str(value), key, explanation
-            )
-        )
 
 
 class TensorDoesNotExistError(KeyError):
@@ -134,6 +117,27 @@ class LoginException(Exception):
         message="Error while logging in, invalid auth token. Please try logging in again.",
     ):
         super().__init__(message)
+
+
+class ImproperDatasetInitialization(Exception):
+    def __init__(self):
+        super().__init__(
+            "Exactly one argument out of 'path' and 'storage' should be provided."
+        )
+
+
+class InvalidHubPathException(Exception):
+    def __init__(self, path):
+        super().__init__(
+            f"The Dataset's path is an invalid Hub path. It should be of the form hub://username/dataset got {path}."
+        )
+
+
+class PathNotEmptyException(Exception):
+    def __init__(self):
+        super().__init__(
+            f"The url specified doesn't point to a Hub Dataset and the folder isn't empty. Please use a url that points to an existing Hub Dataset or an empty folder."
+        )
 
 
 # Exceptions encountered while interection with the Hub backend
@@ -266,3 +270,76 @@ class HubAutoUnsupportedFileExtensionError(Exception):
         super().__init__(
             f'hub.auto does not support the "{extension}" extension. Available extensions: {str(supported_extensions)}.'
         )
+
+
+class MetaError(Exception):
+    pass
+
+
+class MetaDoesNotExistError(MetaError):
+    def __init__(self, key: str):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated without `required_meta` when it does not exist yet. \
+            If you are trying to read the meta, heads up: it didn't get written."
+        )
+
+
+class MetaAlreadyExistsError(MetaError):
+    def __init__(self, key: str, required_meta: dict):
+        super().__init__(
+            f"A meta (key={key}) cannot be instantiated with `required_meta` when it already exists. \
+            If you are trying to write the meta, heads up: it already got written (required_meta={required_meta})."
+        )
+
+
+class MetaInvalidKey(MetaError):
+    def __init__(self, name: str, available_keys: List[str]):
+        super().__init__(
+            f'"{name}" is an invalid key for meta (`meta_object.{name}`). \
+            Maybe a typo? Available keys: {str(available_keys)}'
+        )
+
+
+class MetaInvalidRequiredMetaKey(MetaError):
+    def __init__(self, key: str, subclass_name: str):
+        super().__init__(
+            f"'{key}' should not be passed in `required_meta` (it is probably automatically set). \
+            This means the '{subclass_name}' class was constructed improperly."
+        )
+
+
+class TensorMetaInvalidHtype(MetaError):
+    def __init__(self, htype: str, available_htypes: Sequence[str]):
+        super().__init__(
+            f"Htype '{htype}' does not exist. Available htypes: {str(available_htypes)}"
+        )
+
+
+class TensorMetaInvalidHtypeOverwriteValue(MetaError):
+    def __init__(self, key: str, value: Any, explanation: str = ""):
+        super().__init__(
+            "Invalid value {} for tensor meta key {}. {}".format(
+                str(value), key, explanation
+            )
+        )
+
+
+class TensorMetaInvalidHtypeOverwriteKey(MetaError):
+    def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
+        super().__init__(
+            f"Htype '{htype}' doesn't have a key for '{key}'. Available keys: {str(available_keys)}"
+        )
+
+
+class TensorMetaMismatchError(MetaError):
+    def __init__(self, meta_key: str, expected: Any, actual: Any):
+        super().__init__(
+            "Meta value for {} expected {} but got {}.".format(
+                meta_key, str(expected), str(actual)
+            )
+        )
+
+
+class ReadOnlyModeError(Exception):
+    def __init__(self):
+        super().__init__("Modification when in read-only mode is not supported!")

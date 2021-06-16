@@ -1,92 +1,141 @@
-import pickle  # TODO: NEVER USE PICKLE
-from typing import Any, Callable, Optional
+from hub.core import compression
+from typing import Any, Callable, List, Tuple
 import numpy as np
-
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_DTYPE, DEFAULT_COMPRESSION
-from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorMetaInvalidValue, TensorMetaMissingKey
+from hub.util.exceptions import (
+    TensorMetaInvalidHtype,
+    TensorMetaInvalidHtypeOverwriteValue,
+    TensorMetaInvalidHtypeOverwriteKey,
+)
 from hub.util.keys import get_tensor_meta_key
-from hub.util.array import normalize_and_batchify_array_shape
+from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
+from hub.core.storage.provider import StorageProvider
+from hub.core.meta.meta import Meta
 
 
-def write_tensor_meta(key: str, storage: StorageProvider, meta: dict):
-    storage[get_tensor_meta_key(key)] = pickle.dumps(meta)
+def _remove_none_values_from_dict(d: dict) -> dict:
+    new_d = {}
+    for k, v in d.items():
+        if v is not None:
+            new_d[k] = v
+    return new_d
 
 
-def read_tensor_meta(key: str, storage: StorageProvider) -> dict:
-    return pickle.loads(storage[get_tensor_meta_key(key)])
+class TensorMeta(Meta):
+    htype: str
+    dtype: str
+    min_shape: List[int]
+    max_shape: List[int]
+    chunk_size: int
+    length: int
+
+    @staticmethod
+    def create(
+        key: str,
+        storage: StorageProvider,
+        htype: str = DEFAULT_HTYPE,
+        **kwargs,
+    ):
+        """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
+
+        Note:
+            Tensor metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
+            Auto-populates `required_meta` that `Meta` accepts as an argument.
+
+        Args:
+            key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
+            storage (StorageProvider): Destination of this meta.
+            htype (str): All tensors require an `htype`. This determines the default meta keys/values.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+
+        Raises:
+            TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
+            TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+
+        Returns:
+            TensorMeta: Tensor meta object.
+        """
+
+        htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
+        _validate_htype_overwrites(htype, htype_overwrite)
+
+        required_meta = _required_meta_from_htype(htype)
+        required_meta.update(htype_overwrite)
+
+        return TensorMeta(
+            get_tensor_meta_key(key), storage, required_meta=required_meta
+        )
+
+    @staticmethod
+    def load(key: str, storage: StorageProvider):
+        return TensorMeta(get_tensor_meta_key(key), storage)
+
+    def update_tensor_meta_with_array(self, array: np.ndarray, batched=False):
+        shape = array.shape
+        if batched:
+            shape = shape[1:]
+
+        self.dtype = str(array.dtype)
+        self.min_shape = list(shape)
+        self.max_shape = list(shape)
+
+    def update_shape_interval(self, shape: Tuple[int]):
+        for i, dim in enumerate(shape):
+            self.min_shape[i] = min(dim, self.min_shape[i])
+            self.max_shape[i] = max(dim, self.max_shape[i])
 
 
-def default_tensor_meta(
-    htype: Optional[str] = None,
-    chunk_size: Optional[int] = None,
-    dtype: Optional[str] = None,
-    compression: Optional[str] = None,
-    extra_meta: Optional[dict] = None,
-):
-    if chunk_size is None:
-        chunk_size = DEFAULT_CHUNK_SIZE
-    if dtype is None:
-        dtype = DEFAULT_DTYPE
-    if compression is None:
-        compression = DEFAULT_COMPRESSION
-    if extra_meta is None:
-        extra_meta = {}
+def _required_meta_from_htype(htype: str) -> dict:
+    _check_valid_htype(htype)
+    defaults = HTYPE_CONFIGURATIONS[htype]
 
-    tensor_meta = extra_meta
-    tensor_meta["chunk_size"] = chunk_size
-    tensor_meta["dtype"] = dtype
-    tensor_meta["compression"] = compression
-    tensor_meta["length"] = 0
-    if htype is not None:
-        tensor_meta["htype"] = htype  # TODO: identify presets
+    required_meta = {
+        "htype": htype,
+        "dtype": defaults["dtype"],
+        "chunk_size": DEFAULT_CHUNK_SIZE,
+        "min_shape": [],
+        "max_shape": [],
+        "length": 0,
+    }
 
-    return tensor_meta
+    required_meta.update(defaults)
+    return required_meta
 
 
-def update_tensor_meta_with_array(
-    tensor_meta: dict, array: np.ndarray, batched=False
-) -> dict:
-    shape = array.shape
-    if batched:
-        shape = shape[1:]
-    tensor_meta["dtype"] = str(array.dtype)
-    tensor_meta["min_shape"] = shape
-    tensor_meta["max_shape"] = shape
+def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
+    _check_valid_htype(htype)
+    defaults = HTYPE_CONFIGURATIONS[htype]
 
-    return tensor_meta
+    for key in htype_overwrite.keys():
+        if key not in defaults:
+            raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
+    if "chunk_size" in htype_overwrite:
+        _raise_if_condition(
+            "chunk_size",
+            htype_overwrite,
+            lambda chunk_size: chunk_size <= 0,
+            "Chunk size must be greater than 0.",
+        )
 
-def validate_tensor_meta(meta: dict):
-    _raise_if_no_key("chunk_size", meta)
-    _raise_if_condition(
-        "chunk_size",
-        meta,
-        lambda chunk_size: chunk_size <= 0,
-        "Chunk size must be greater than 0.",
-    )
+    if "dtype" in htype_overwrite:
+        if type(htype_overwrite["dtype"]) != str:
+            # TODO: support np.dtype alongside str
+            raise TensorMetaInvalidHtypeOverwriteValue(
+                "dtype", htype_overwrite["dtype"], "dtype must be of type `str`."
+            )
 
-    _raise_if_no_key("dtype", meta)
-    dtype_type = type(meta["dtype"])
-    if dtype_type == str:
         _raise_if_condition(
             "dtype",
-            meta,
+            htype_overwrite,
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
             "Datatype must be supported by numpy. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
-    else:
-        _raise_if_condition(
-            "dtype",
-            meta,
-            lambda dtype: type(dtype) != np.dtype,
-            "Datatype must be of type string or numpy.dtype.",
-        )
 
 
-def _raise_if_no_key(key: str, meta: dict):
-    if key not in meta:
-        raise TensorMetaMissingKey(key, meta)
+def _check_valid_htype(htype: str):
+    if htype not in HTYPE_CONFIGURATIONS:
+        raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS.keys()))
 
 
 def _raise_if_condition(
@@ -94,7 +143,7 @@ def _raise_if_condition(
 ):
     v = meta[key]
     if condition(v):
-        raise TensorMetaInvalidValue(key, v, explanation)
+        raise TensorMetaInvalidHtypeOverwriteValue(key, v, explanation)
 
 
 def _is_dtype_supported_by_numpy(dtype: str) -> bool:

@@ -6,8 +6,8 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
-DEFAULT_DTYPE = "float64"
 DEFAULT_COMPRESSION = "LZ4"
+SUPPORTED_MODES = ["r", "a"]
 
 DEFAULT_CHUNK_SIZE = 16 * MB
 MIN_FIRST_CACHE_SIZE = 32 * MB
@@ -20,7 +20,8 @@ DEFAULT_LOCAL_CACHE_SIZE = 0
 CHUNKS_FOLDER = "chunks"
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
-INDEX_MAP_FILENAME = "index_map.json"
+INDEX_META_FILENAME = "index_meta.json"
+META_ENCODING = "utf8"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows

@@ -1,17 +1,14 @@
+from hub.htypes import DEFAULT_HTYPE
+from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.meta.index_meta import IndexMeta
+from hub.core.index import Index
 from typing import List, Tuple, Union
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_bytes
-from hub.core.flatten import row_wise_to_bytes
-from hub.core.index import Index
-from hub.core.meta.index_map import read_index_map, write_index_map
-from hub.core.meta.tensor_meta import (
-    read_tensor_meta,
-    update_tensor_meta_with_array,
-    validate_tensor_meta,
-    write_tensor_meta,
-)
+from hub.util.keys import get_index_meta_key, get_tensor_meta_key
+from hub.util.array import normalize_and_batchify_array_shape
 from hub.core.typing import StorageProvider
 from hub.util.array import normalize_and_batchify_array_shape
 from hub.util.dataset import get_compressor
@@ -23,24 +20,31 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     TensorMetaMismatchError,
 )
-from hub.util.keys import get_index_map_key, get_tensor_meta_key
+from .flatten import row_wise_to_bytes
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
     """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
 
     meta_key = get_tensor_meta_key(key)
-    index_map_key = get_index_map_key(key)
-    return meta_key in storage and index_map_key in storage
+    index_meta_key = get_index_meta_key(key)
+    return meta_key in storage and index_meta_key in storage
 
 
-def create_tensor(key: str, storage: StorageProvider, meta: dict):
+def create_tensor(
+    key: str,
+    storage: StorageProvider,
+    htype: str = DEFAULT_HTYPE,
+    **kwargs,
+):
     """If a tensor does not exist, create a new one with the provided meta.
 
     Args:
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
+        key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
-        meta (dict): Meta for the tensor. For required properties, see `default_tensor_meta`.
+        htype (str): Htype is how the default tensor metadata is defined.
+        **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
+            To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
     Raises:
         TensorAlreadyExistsError: If a tensor defined with `key` already exists.
@@ -49,10 +53,8 @@ def create_tensor(key: str, storage: StorageProvider, meta: dict):
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    validate_tensor_meta(meta)
-
-    write_tensor_meta(key, storage, meta)
-    write_index_map(key, storage, [])
+    TensorMeta.create(key, storage, htype=htype, **kwargs)
+    IndexMeta.create(key, storage)
 
 
 def add_samples_to_tensor(
@@ -60,17 +62,21 @@ def add_samples_to_tensor(
     key: str,
     storage: StorageProvider,
     batched: bool = False,
+    tensor_meta: TensorMeta = None,
+    index_meta: IndexMeta = None,
 ):
     """Adds samples to a tensor that already exists. `array` is chunked and sent to `storage`.
-        For more on chunking, see the `generate_chunks` method.
+    For more on chunking, see the `generate_chunks` method.
 
     Args:
         array (np.ndarray): Array to be chunked/written. Batch axis (`array.shape[0]`) is optional, if `array` does
             have a batch axis, you should pass the argument `batched=True`.
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         batched (bool): If True, the provided `array`'s first axis (`shape[0]`) will be considered it's batch axis.
-            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False.
+            If False, a new axis will be created with a size of 1 (`array.shape[0] == 1`). default=False
+        tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
+        index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
@@ -80,12 +86,15 @@ def add_samples_to_tensor(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    index_map = read_index_map(key, storage)
-    tensor_meta = read_tensor_meta(key, storage)
+    if index_meta is None:
+        index_meta = IndexMeta.load(key, storage)
+    if tensor_meta is None:
+        tensor_meta = TensorMeta.load(key, storage)
 
     array = normalize_and_batchify_array_shape(array, batched=batched)
-    if "min_shape" not in tensor_meta:
-        tensor_meta = update_tensor_meta_with_array(tensor_meta, array, batched=True)
+
+    if len(tensor_meta.max_shape) <= 0:
+        tensor_meta.update_tensor_meta_with_array(array, batched=True)
 
     _check_array_and_tensor_are_compatible(tensor_meta, array)
 
@@ -95,41 +104,41 @@ def add_samples_to_tensor(
     array_length = array.shape[0]
     for i in range(array_length):
         sample = array[i]
-
         if 0 in sample.shape:
             # if sample has a 0 in the shape, no data will be written
-            index_map_entry = {"chunk_names": []}  # type: ignore
-
+            index_entry = {"shape": sample.shape}  # type: ignore
         else:
             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
             # choose to optimize for.
             b = tobytes(sample)
-            if not tensor_meta.get("is_compressed", False):
-                compressor = get_compressor(tensor_meta["compression"])
+            if not index_meta.get("is_compressed", False):
+                compressor = get_compressor(index_meta["compression"])
                 if compressor:
                     b = compressor.encode(b)
+                    index_entry["is_compressed"] = True
+                    index_entry["compression"] = None
+
             b = memoryview(b)
-            # b = memoryview(tobytes(sample))
-            index_map_entry = write_bytes(
-                b, key, tensor_meta["chunk_size"], storage, index_map
+            write_bytes(
+                b,
+                key,
+                tensor_meta.chunk_size,
+                storage,
+                index_meta,
+                extra_sample_meta=index_entry,
             )
-            index_map_entry["compression"] = tensor_meta["compression"]
-            index_map_entry["is_compressed"] = True
 
-        index_map_entry["shape"] = sample.shape
-        _update_tensor_meta_shapes(sample.shape, tensor_meta)
-        index_map.append(index_map_entry)
+        tensor_meta.update_shape_interval(sample.shape)
 
-    tensor_meta["length"] += array_length
-
-    write_tensor_meta(key, storage, tensor_meta)
-    write_index_map(key, storage, index_map)
+    tensor_meta.length += array_length
 
 
 def add_index_map_to_tensor(
     index_map_dict: dict,
     key: str,
     storage: StorageProvider,
+    tensor_meta: TensorMeta = None,
+    index_meta: IndexMeta = None,
 ):
     """Adds samples to a tensor that already exists. bytes of index_map are chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
@@ -138,6 +147,8 @@ def add_index_map_to_tensor(
         index_map_dict (dict): Bytes of the image that should be chunked and written to the storage.
         key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
+        index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
@@ -146,27 +157,26 @@ def add_index_map_to_tensor(
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
-    index_map = read_index_map(key, storage)
-    tensor_meta = read_tensor_meta(key, storage)
+    if index_meta is None:
+        index_meta = IndexMeta.load(key, storage)
+    if tensor_meta is None:
+        tensor_meta = TensorMeta.load(key, storage)
     shape = index_map_dict["shape"]
-    if "min_shape" not in tensor_meta:
-        tensor_meta["dtype"] = str(index_map_dict["dtype"])
-        tensor_meta["min_shape"] = shape
-        tensor_meta["max_shape"] = shape
-    index_map_entry = {"chunk_names": []}  # type: ignore
-    index_map_entry = write_bytes(
-        index_map_dict["bytes"], key, tensor_meta["chunk_size"], storage, index_map
+    index_meta_entry = {"chunk_names": []}  # type: ignore
+    index_meta_entry["dtype"] = index_map_dict["dtype"]
+    index_meta_entry["shape"] = shape
+    index_meta_entry["compression"] = index_map_dict["compression"]
+    index_meta_entry["is_compressed"] = index_map_dict["is_compressed"]
+    write_bytes(
+        index_map_dict["bytes"],
+        key,
+        tensor_meta["chunk_size"],
+        storage,
+        index_meta=index_meta_entry,
     )
-    index_map_entry["compression"] = index_map_dict["compression"]
-    index_map_entry["is_compressed"] = index_map_dict["is_compressed"]
-    index_map_entry["dtype"] = index_map_dict["dtype"]
-    index_map_entry["shape"] = shape
-    _update_tensor_meta_shapes(shape, tensor_meta)
-    index_map.append(index_map_entry)
 
-    tensor_meta["length"] += 1
-    write_tensor_meta(key, storage, tensor_meta)
-    write_index_map(key, storage, index_map)
+    tensor_meta.update_shape_interval(shape)
+    tensor_meta.length += shape[0]
 
 
 def read_samples_from_tensor(
@@ -178,8 +188,8 @@ def read_samples_from_tensor(
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
-        key (str): Key for where the chunks, index_map, and meta are located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for reading the chunks, index_map, and meta.
+        key (str): Key for where the chunks, index_meta, and meta are located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for reading the chunks, index_meta, and meta.
         index (Index): Index that represents which samples to read.
         aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
             If False, a single np.ndarray will be returned unless the samples are dynamically shaped, in which case
@@ -193,11 +203,13 @@ def read_samples_from_tensor(
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
     """
 
-    meta = read_tensor_meta(key, storage)
-    index_map = read_index_map(key, storage)
-    index_entries = [index_map[i] for i in index.values[0].indices(len(index_map))]
+    index_meta = IndexMeta.load(key, storage)
+    tensor_meta = TensorMeta.load(key, storage)
 
-    dtype = meta["dtype"]
+    index_entries = [
+        index_meta.entries[i] for i in index.values[0].indices(len(index_meta.entries))
+    ]
+
     # TODO: read samples in parallel
     samples = []
     for i, index_entry in enumerate(index_entries):
@@ -212,7 +224,9 @@ def read_samples_from_tensor(
             # TODO: implement support for 0s in shape and update docstring
             raise NotImplementedError("0s in shapes are not supported yet.")
 
-        array = sample_from_index_entry(key, storage, index_entry, dtype, compressor)
+        array = sample_from_index_entry(
+            key, storage, index_entry, tensor_meta.dtype, compressor
+        )
         samples.append(array)
     if aslist:
         if index.values[0].subscriptable():
@@ -223,7 +237,7 @@ def read_samples_from_tensor(
     return index.apply(np.array(samples))
 
 
-def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray):
+def _check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.ndarray):
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
 
     Args:
@@ -236,12 +250,12 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
         TensorInvalidSampleShapeError: All samples must have the same dimensionality (`len(sample.shape)`).
     """
 
-    if tensor_meta["dtype"] != array.dtype.name:
-        raise TensorMetaMismatchError("dtype", tensor_meta["dtype"], array.dtype.name)
+    if tensor_meta.dtype != array.dtype.name:
+        raise TensorMetaMismatchError("dtype", tensor_meta.dtype, array.dtype.name)
 
     sample_shape = array.shape[1:]
 
-    expected_shape_len = len(tensor_meta["min_shape"])
+    expected_shape_len = len(tensor_meta.min_shape)
     actual_shape_len = len(sample_shape)
     if expected_shape_len != actual_shape_len:
         raise TensorInvalidSampleShapeError(
@@ -250,8 +264,3 @@ def _check_array_and_tensor_are_compatible(tensor_meta: dict, array: np.ndarray)
             ),
             sample_shape,
         )
-
-
-def _update_tensor_meta_shapes(shape: Tuple[int], tensor_meta: dict):
-    tensor_meta["min_shape"] = tuple(np.minimum(tensor_meta["min_shape"], shape))
-    tensor_meta["max_shape"] = tuple(np.maximum(tensor_meta["max_shape"], shape))

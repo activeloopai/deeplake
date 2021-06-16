@@ -3,8 +3,6 @@ from typing import List, Optional, Union
 import numpy as np
 from hub.core import compression
 
-from hub.util.keys import get_index_map_key
-
 import numpy as np
 
 from hub.core.typing import StorageProvider
@@ -18,7 +16,7 @@ def sample_from_index_entry(
     dtype: str,
     compressor: Union[BaseImgCodec, BaseNumCodec, None],
 ) -> np.ndarray:
-    """Get the un-chunked sample from a single `index_map` entry."""
+    """Get the un-chunked sample from a single `index_meta` entry."""
 
     b = bytearray()
     for chunk_name in index_entry["chunk_names"]:

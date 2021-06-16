@@ -7,3 +7,6 @@ boto3-stubs[essential]
 types-requests
 types-click
 pathos
+types-requests
+types-click
+tqdm

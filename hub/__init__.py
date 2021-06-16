@@ -1,4 +1,4 @@
 from .api.dataset import Dataset
 from .util.load import read
 
-__version__ = "2.0.0"
+__version__ = "2.0a1"
