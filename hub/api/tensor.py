@@ -1,7 +1,6 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.util.shape import ShapeInterval
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.util.shape import Shape
-from typing import List, Sequence, Union, Iterable, Optional, Tuple
+from typing import List, Sequence, Union, Optional, Tuple
 import warnings
 
 import numpy as np
@@ -40,6 +39,7 @@ class Tensor:
         Raises:
             TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
         """
+
         self.key = key
         self.storage = storage
         self.index = index or Index()
@@ -89,8 +89,56 @@ class Tensor:
         return TensorMeta.load(self.key, self.storage)
 
     @property
-    def shape(self):
-        return Shape(self.meta.min_shape, self.meta.max_shape)
+    def shape(self) -> Tuple[Optional[int], ...]:
+        """Get the shape of this tensor. Length is included.
+
+        Note:
+            If you don't want `None` in the output shape or want the lower/upper bound shapes,
+            use `tensor.shape_interval` instead.
+
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape
+            (2, 10, None)
+
+        Returns:
+            tuple: Tuple where each value is either `None` (if that axis is dynamic) or
+                an `int` (if that axis is fixed).
+        """
+
+        return self.shape_interval.astuple()
+
+    @property
+    def shape_interval(self) -> ShapeInterval:
+        """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
+
+        Note:
+            If you are expecting a `tuple`, use `tensor.shape` instead.
+
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.append(np.zeros((10, 15)))
+            >>> tensor.shape_interval
+            ShapeInterval(lower=(2, 10, 10), upper=(2, 10, 15))
+            >>> str(tensor.shape_interval)
+            (2, 10, 10:15)
+
+        Returns:
+            ShapeInterval: Object containing `lower` and `upper` properties.
+        """
+
+        length = [len(self)]
+
+        min_shape = length + list(self.meta.min_shape)
+        max_shape = length + list(self.meta.max_shape)
+
+        return ShapeInterval(min_shape, max_shape)
+
+    @property
+    def is_dynamic(self) -> bool:
+        """Will return True if samples in this tensor have shapes that are unequal."""
+        return self.shape_interval.is_dynamic
 
     def __len__(self):
         """Returns the length of the primary axis of a tensor."""
