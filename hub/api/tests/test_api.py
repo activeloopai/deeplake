@@ -138,6 +138,36 @@ def test_compute_dynamic_tensor(ds):
 
 
 @parametrize_all_dataset_storages
+def test_empty_samples(ds: Dataset):
+    tensor = ds.create_tensor("with_empty", dtype="int64")
+
+    a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
+    a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
+    a3 = np.arange(0).reshape(0, 0, 2)
+    a4 = np.arange(0).reshape(9, 0, 10, 2)
+
+    tensor.append(a1)
+    tensor.extend(a2)
+    tensor.append(a3)
+    tensor.extend(a4)
+
+    actual_list = tensor.numpy(aslist=True)
+    expected_list = [a1, *a2, a3, *a4]
+
+    assert tensor.shape.lower == (0, 0, 2)
+    assert tensor.shape.upper == (25, 50, 2)
+
+    assert len(tensor) == 16
+    for actual, expected in zip(actual_list, expected_list):
+        np.testing.assert_array_equal(actual, expected)
+
+    # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
+    for actual_sample, expected in zip(ds, expected_list):
+        actual = actual_sample.with_empty.numpy()
+        np.testing.assert_array_equal(actual, expected)
+
+
+@parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
