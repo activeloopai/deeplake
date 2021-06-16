@@ -155,10 +155,10 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.shape.lower == (0, 0, 2)
-    assert tensor.shape.upper == (25, 50, 2)
-
     assert len(tensor) == 16
+    assert tensor.shape_interval.lower == (16, 0, 0, 2)
+    assert tensor.shape_interval.upper == (16, 25, 50, 2)
+
     for actual, expected in zip(actual_list, expected_list):
         np.testing.assert_array_equal(actual, expected)
 
