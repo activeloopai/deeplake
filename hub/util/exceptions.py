@@ -1,4 +1,6 @@
 from typing import Any, List, Sequence
+from typing import Any, Sequence
+from hub.constants import SUPPORTED_MODES
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -266,12 +268,19 @@ class TensorMetaInvalidHtype(MetaError):
         )
 
 
-class TensorMetaInvalidHtypeOverwrite(MetaError):
+class TensorMetaInvalidHtypeOverwriteValue(MetaError):
     def __init__(self, key: str, value: Any, explanation: str = ""):
         super().__init__(
             "Invalid value {} for tensor meta key {}. {}".format(
                 str(value), key, explanation
             )
+        )
+
+
+class TensorMetaInvalidHtypeOverwriteKey(MetaError):
+    def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
+        super().__init__(
+            f"Htype '{htype}' doesn't have a key for '{key}'. Available keys: {str(available_keys)}"
         )
 
 
@@ -282,3 +291,13 @@ class TensorMetaMismatchError(MetaError):
                 meta_key, str(expected), str(actual)
             )
         )
+
+
+class ReadOnlyError(Exception):
+    def __init__(self):
+        super().__init__("Modification when in read-only mode is not supported!")
+
+
+class UnsupportedModeError(Exception):
+    def __init__(self, mode):
+        super().__init__(f"Mode {mode} not recognized. Options are {SUPPORTED_MODES}")

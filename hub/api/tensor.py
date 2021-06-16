@@ -6,7 +6,8 @@ from typing import List, Sequence, Union, Optional, Tuple
 import numpy as np
 
 from hub.core.tensor import (
-    add_samples_to_tensor,
+    append_tensor,
+    extend_tensor,
     read_samples_from_tensor,
     tensor_exists,
     update_samples_in_tensor,
@@ -61,7 +62,7 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         if isinstance(array, np.ndarray):
-            add_samples_to_tensor(array, self.key, storage=self.storage, batched=True)
+            extend_tensor(array, self.key, storage=self.storage)
         else:
             for sample in array:
                 self.append(sample)
@@ -79,7 +80,8 @@ class Tensor:
         Args:
             array (np.ndarray): The data to add to the tensor.
         """
-        add_samples_to_tensor(array, self.key, storage=self.storage, batched=False)
+
+        append_tensor(array, self.key, storage=self.storage)
 
     @property
     def meta(self):

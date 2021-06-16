@@ -1,6 +1,7 @@
 from hub.api.tensor import Tensor
 from hub.core.storage.local import LocalProvider
 from hub.core.storage.provider import StorageProvider
+from hub.util.exceptions import TensorMetaMismatchError
 import numpy as np
 import pytest
 
@@ -15,7 +16,28 @@ def test_persist_local_flush(local_storage: LocalProvider):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4096, 4096)))
-    ds.flush()
+
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+
+    assert ds_new.image.shape.lower == (4096, 4096)
+    assert ds_new.image.shape.upper == (4096, 4096)
+
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
+
+
+def test_persist_with_local(local_storage):
+    if local_storage is None:
+        pytest.skip()
+
+    with Dataset(local_storage.root, local_cache_size=512) as ds:
+
+        ds.create_tensor("image")
+        ds.image.extend(np.ones((4, 4096, 4096)))
+
+        ds_new = Dataset(local_storage.root)
+        assert len(ds_new) == 0  # shouldn't be flushed yet
 
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
@@ -64,7 +86,6 @@ def test_populate_dataset(ds: Dataset):
     assert len(ds.image) == 16
 
     assert ds.meta.tensors == ["image"]
-
 
 
 def test_stringify(memory_ds: Dataset):
@@ -119,10 +140,56 @@ def test_compute_dynamic_tensor(ds: Dataset):
 
 
 @parametrize_all_dataset_storages
-def test_iterate_dataset(ds: Dataset):
+def test_empty_samples(ds: Dataset):
+    tensor = ds.create_tensor("with_empty", dtype="int64")
+
+    a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
+    a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
+    a3 = np.arange(0).reshape(0, 0, 2)
+    a4 = np.arange(0).reshape(9, 0, 10, 2)
+
+    tensor.append(a1)
+    tensor.extend(a2)
+    tensor.append(a3)
+    tensor.extend(a4)
+
+    actual_list = tensor.numpy(aslist=True)
+    expected_list = [a1, *a2, a3, *a4]
+
+    assert tensor.shape.lower == (0, 0, 2)
+    assert tensor.shape.upper == (25, 50, 2)
+
+    assert len(tensor) == 16
+    for actual, expected in zip(actual_list, expected_list):
+        np.testing.assert_array_equal(actual, expected)
+
+    # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
+    for actual_sample, expected in zip(ds, expected_list):
+        actual = actual_sample.with_empty.numpy()
+        np.testing.assert_array_equal(actual, expected)
+
+
+@parametrize_all_dataset_storages
+def test_scalar_samples(ds: Dataset):
+    tensor = ds.create_tensor("scalars", dtype="int64")
+
+    tensor.append(5)
+    tensor.append(10)
+    tensor.append(-99)
+    tensor.extend([10, 1, 4])
+    tensor.extend([1])
+
+    assert len(tensor) == 7
+
+    expected = np.array([5, 10, -99, 10, 1, 4, 1])
+    np.testing.assert_array_equal(tensor.numpy(), expected)
+
+
+@parametrize_all_dataset_storages
+def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
-    ds.create_tensor("label")
+    ds.create_tensor("label", dtype="int64")
 
     ds.image.extend(np.ones((4, 28, 28)))
     ds.label.extend(np.asarray(labels).reshape((4, 1)))
@@ -143,7 +210,7 @@ def test_compute_slices(memory_ds: Dataset):
     ds = memory_ds
     shape = (64, 16, 16, 16)
     data = np.arange(np.prod(shape)).reshape(shape)
-    ds.create_tensor("data")
+    ds.create_tensor("data", dtype="int64")
     ds.data.extend(data)
 
     _check_tensor(ds.data[:], data[:])
@@ -185,3 +252,9 @@ def test_shape_property(memory_ds: Dataset):
     fixed.extend(np.ones((13, 28, 28)))
     assert fixed.shape.lower == (28, 28)
     assert fixed.shape.upper == (28, 28)
+
+
+@pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
+def test_append_dtype_mismatch(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor", dtype="uint8")
+    tensor.append(np.ones(100, dtype="float64"))
