@@ -7,7 +7,13 @@ import numpy as np
 
 from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_array
-from hub.util.keys import get_index_meta_key, get_tensor_meta_key
+from hub.util.keys import (
+    get_chunk_folder,
+    get_chunk_key,
+    get_dataset_meta_key,
+    get_index_meta_key,
+    get_tensor_meta_key,
+)
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
@@ -19,9 +25,9 @@ from hub.util.exceptions import (
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
     """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
 
-    meta_key = get_tensor_meta_key(key)
+    tensor_meta_key = get_tensor_meta_key(key)
     index_meta_key = get_index_meta_key(key)
-    return meta_key in storage and index_meta_key in storage
+    return tensor_meta_key in storage and index_meta_key in storage
 
 
 def create_tensor(
@@ -48,6 +54,28 @@ def create_tensor(
 
     TensorMeta.create(key, storage, htype=htype, **kwargs)
     IndexMeta.create(key, storage)
+
+
+def delete_tensor(key: str, storage: StorageProvider):
+    """If a tensor exists, permanently delete it.
+
+    WARNING:
+        All data inside the tensor at `key` will be deleted -- after doing this the data will be unrecoverable!
+
+    Args:
+        key (str): Key where the tensor to delete is located relative to `storage`'s root.
+        storage (StorageProvider): StorageProvider that all tensor data exists.
+
+    Raises:
+        TensorDoesNotExistError: Cannot delete a tensor that hasn't been created. Use `create_tensor`.
+    """
+
+    if not tensor_exists(key, storage):
+        raise TensorDoesNotExistError(key)
+
+    del storage[get_tensor_meta_key(key)]
+    del storage[get_index_meta_key(key)]
+    del storage[get_dataset_meta_key()]
 
 
 def _get_metas_from_kwargs(
@@ -146,6 +174,9 @@ def read_samples_from_tensor(
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
     """
+
+    if not tensor_exists(key, storage):
+        raise TensorDoesNotExistError(key)
 
     index_meta = IndexMeta.load(key, storage)
     tensor_meta = TensorMeta.load(key, storage)

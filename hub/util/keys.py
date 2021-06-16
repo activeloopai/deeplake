@@ -3,8 +3,12 @@ import os
 from hub import constants
 
 
+def get_chunk_folder(key: str):
+    return os.path.join(key, constants.CHUNKS_FOLDER)
+
+
 def get_chunk_key(key: str, chunk_name: str) -> str:
-    return os.path.join(key, constants.CHUNKS_FOLDER, chunk_name)
+    return os.path.join(get_chunk_folder(key), chunk_name)
 
 
 def get_dataset_meta_key() -> str:

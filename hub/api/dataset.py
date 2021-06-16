@@ -11,7 +11,7 @@ from hub.constants import (
 )
 from hub.core.dataset import dataset_exists
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.tensor import create_tensor, tensor_exists
+from hub.core.tensor import create_tensor, delete_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
@@ -19,7 +19,6 @@ from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
     PathNotEmptyException,
-    TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
 from hub.util.get_storage_provider import get_storage_provider
@@ -180,13 +179,14 @@ class Dataset:
 
         Args:
             name (str): The name of the tensor to be deleted.
+
+        Raises:
+            TensorDoesNotExistError: Cannot delete a tensor that hasn't been created. Use `create_tensor`.
         """
 
-        # delete_tensor(name, self.storage)
-        # del self.tensors[name]
-        # self.meta.tensors.remove(name)
-        # TODO:
-        raise NotImplementedError("Tensor deletion not supported yet!")
+        delete_tensor(name, self.storage)
+        del self.tensors[name]
+        self.meta.tensors.remove(name)
 
     __getattr__ = __getitem__
 

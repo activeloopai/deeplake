@@ -1,3 +1,5 @@
+from hub.api.tensor import Tensor
+from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 import numpy as np
 
 from hub.core.storage.provider import StorageProvider
@@ -20,8 +22,7 @@ def test_delete_with_single_tensor(ds: Dataset):
 
     ds.delete_tensor("tensor")
 
-    # TODO: what do we do with `tensor`? the reference should die?
-    print(tensor)
+    _assert_dead_tensor(tensor)
 
     assert len(ds) == 0
     assert ds.tensor_names == tuple()
@@ -34,7 +35,7 @@ def test_delete_with_single_tensor(ds: Dataset):
 
     assert len(recreated_tensor) == 1
     assert len(ds) == 1
-    assert recreated_tensor.numpy() == np.zeros((5, 5))
+    np.testing.assert_array_equal(recreated_tensor.numpy(), np.zeros((1, 5, 5)))
 
 
 @parametrize_all_dataset_storages
@@ -50,7 +51,8 @@ def test_delete_with_multiple_tensors(ds: Dataset):
 
     ds.delete_tensor("other_tensor")
 
-    # TODO: what do we do with `other_tensor`? the reference should die?
+    _assert_dead_tensor(other_tensor)
+
     assert len(ds) == 10
     assert ds.tensor_names == ("tensor",)
 
@@ -62,11 +64,26 @@ def test_delete_with_multiple_tensors(ds: Dataset):
 
     assert len(recreated_other_tensor) == 1
     assert len(ds) == 1
-    assert recreated_other_tensor.numpy() == np.zeros((5, 5))
+    np.testing.assert_array_equal(recreated_other_tensor.numpy(), np.zeros((1, 5, 5)))
 
 
 def _assert_tensor_deleted_from_core(name: str, storage: StorageProvider):
     # read directly from core to make sure it's gone
-    assert not tensor_exists("tensor", storage)
+
+    # cannot use `tensor_exists` here because that checks if both `index_meta` + `tensor_meta` are there, but we need to check them individually
+    tensor_meta_key = get_tensor_meta_key(name)
+    index_meta_key = get_index_meta_key(name)
+    assert tensor_meta_key not in storage
+    assert index_meta_key not in storage
+
     with pytest.raises(TensorDoesNotExistError):
-        read_samples_from_tensor("tensor", storage)
+        read_samples_from_tensor(name, storage)
+
+
+def _assert_dead_tensor(tensor: Tensor):
+    with pytest.raises(TensorDoesNotExistError):
+        tensor.append(np.ones((10, 10)))
+    with pytest.raises(TensorDoesNotExistError):
+        tensor.extend(np.ones((10, 10)))
+    with pytest.raises(TensorDoesNotExistError):
+        tensor.numpy()
