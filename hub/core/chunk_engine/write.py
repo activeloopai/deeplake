@@ -62,7 +62,7 @@ def write_array(
 
 
 def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
-    """Simply adds an entry to `index_map` that symbolizes an empty array."""
+    """Simply adds an entry to `index_meta` that symbolizes an empty array."""
 
     index_meta.add_entry(chunk_names=[], start_byte=0, end_byte=0, **extra_sample_meta)
 

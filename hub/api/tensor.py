@@ -11,7 +11,7 @@ from hub.core.tensor import (
     extend_tensor,
     read_samples_from_tensor,
     tensor_exists,
-    add_index_map_to_tensor,
+    add_index_meta_to_tensor,
 )
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import TensorDoesNotExistError, TensorUnsupportedSampleType
@@ -93,7 +93,7 @@ class Tensor:
         if isinstance(sample, (np.ndarray, int, float)):
             append_tensor(sample, self.key, storage=self.storage, batched=False)
         elif isinstance(sample, dict):
-            add_index_map_to_tensor(sample, self.key, storage=self.storage)
+            add_index_meta_to_tensor(sample, self.key, storage=self.storage)
         else:
             raise TensorUnsupportedSampleType()
 

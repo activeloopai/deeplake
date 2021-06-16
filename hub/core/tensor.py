@@ -131,16 +131,16 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
     write_array(array, key, storage, tensor_meta, index_meta)
 
 
-def add_index_map_to_tensor(
-    index_map_dict: dict, key: str, storage: StorageProvider, **kwargs
+def add_index_meta_to_tensor(
+    index_meta_dict: dict, key: str, storage: StorageProvider, **kwargs
 ):
-    """Adds samples to a tensor that already exists. bytes of index_map are chunked and sent to `storage`.
+    """Adds samples to a tensor that already exists. bytes of index_meta are chunked and sent to `storage`.
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        index_map_dict (dict): Bytes of the image that should be chunked and written to the storage.
-        key (str): Key for where the chunks, index_map, and meta will be located in `storage` relative to it's root.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and meta.
+        index_meta_dict (dict): Bytes of the image that should be chunked and written to the storage.
+        key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
             tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
             index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
@@ -153,12 +153,12 @@ def add_index_map_to_tensor(
         raise TensorDoesNotExistError(key)
 
     tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
-    shape = index_map_dict["shape"]
+    shape = index_meta_dict["shape"]
     index_meta_entry = {}
     index_meta_entry["shape"] = shape
-    index_meta_entry["compression"] = index_map_dict["compression"]
+    index_meta_entry["compression"] = index_meta_dict["compression"]
     write_bytes(
-        index_map_dict["bytes"],
+        index_meta_dict["bytes"],
         key,
         storage,
         tensor_meta,
