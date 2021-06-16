@@ -1,7 +1,5 @@
 from typing import Dict
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION
-
-DEFAULT_HTYPE = "generic"
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_HTYPE
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},

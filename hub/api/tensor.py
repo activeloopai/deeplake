@@ -1,4 +1,4 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE
 from typing import List, Sequence, Union, Iterable, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
 from hub.core.meta.tensor_meta import TensorMeta

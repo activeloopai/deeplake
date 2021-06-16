@@ -6,6 +6,7 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
+DEFAULT_HTYPE = "generic"
 DEFAULT_COMPRESSION = "LZ4"
 SUPPORTED_MODES = ["r", "a"]
 

@@ -9,8 +9,8 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION
-from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_HTYPE
+from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 

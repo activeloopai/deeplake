@@ -1,4 +1,4 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
