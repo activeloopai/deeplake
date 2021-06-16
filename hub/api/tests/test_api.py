@@ -166,6 +166,7 @@ def test_empty_samples(ds: Dataset):
         actual = actual_sample.with_empty.numpy()
         np.testing.assert_array_equal(actual, expected)
 
+
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars", dtype="int64")
@@ -180,6 +181,7 @@ def test_scalar_samples(ds: Dataset):
 
     expected = np.array([5, 10, -99, 10, 1, 4, 1])
     np.testing.assert_array_equal(tensor.numpy(), expected)
+
 
 @parametrize_all_dataset_storages
 def test_iterate_dataset(ds):
