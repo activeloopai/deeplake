@@ -7,7 +7,7 @@ If a copy of the MPL was not distributed with this file, You can obtain one at h
 import logging
 import sys
 
-logger = logging.getLogger("hub")
+logger = logging.getLogger("hub_v1")
 
 
 def configure_logger(debug=0):

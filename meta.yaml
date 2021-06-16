@@ -1,5 +1,5 @@
-{% set name = "hub" %}
-{% set version = "1.2.2" %}
+{% set name = "hub_v1" %}
+{% set version = "1.3.7" %}
 
 package:
   name: "{{ name }}"
@@ -11,9 +11,9 @@ source:
 build:
   number: 0
   entry_points:
-    - hub = hub.cli.command:cli
-    - hub-local = hub.cli.local:cli
-    - hub-dev = hub.cli.dev:cli
+    - hub_v1 = hub_v1.cli.command:cli
+    - hub_v1-local = hub_v1.cli.local:cli
+    - hub_v1-dev = hub_v1.cli.dev:cli
   script: "{{ PYTHON }} -m pip install . -vv"
   noarch: python
 
@@ -62,22 +62,22 @@ requirements:
 
 test:
   imports:
-    - hub
-    - hub.api
-    - hub.cli
-    - hub.client
-    - hub.codec
-    - hub.collections
-    - hub.collections.dataset
-    - hub.collections.tensor
-    - hub.compute
+    - hub_v1
+    - hub_v1.api
+    - hub_v1.cli
+    - hub_v1.client
+    - hub_v1.codec
+    - hub_v1.collections
+    - hub_v1.collections.dataset
+    - hub_v1.collections.tensor
+    - hub_v1.compute
     - hub_v1.schema
-    - hub.store
-    - hub.store.tests
+    - hub_v1.store
+    - hub_v1.store.tests
   commands:
-    - hub --help
-    - hub-local --help
-    - hub-dev --help
+    - hub_v1 --help
+    - hub_v1-local --help
+    - hub_v1-dev --help
   requires:
     - mock >=1.0.1
     - pytest

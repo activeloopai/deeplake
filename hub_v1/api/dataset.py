@@ -16,6 +16,7 @@ from collections import defaultdict
 import numpy as np
 from PIL import Image as im, ImageChops
 
+
 import fsspec
 from fsspec.spec import AbstractFileSystem
 import numcodecs
@@ -30,6 +31,7 @@ from hub_v1.schema.features import (
 )
 from hub_v1.log import logger
 import hub_v1.store.pickle_s3_storage
+
 
 from hub_v1.api.datasetview import DatasetView
 from hub_v1.api.objectview import ObjectView
@@ -48,10 +50,12 @@ from hub_v1.api.dataset_utils import (
     same_schema,
 )
 
+
 import hub_v1.schema.serialize
 import hub_v1.schema.deserialize
 from hub_v1.schema.features import flatten
 from hub_v1 import auto
+
 
 from hub_v1.store.dynamic_tensor import DynamicTensor
 from hub_v1.store.store import get_fs_and_path, get_storage_map
@@ -71,6 +75,8 @@ from hub_v1.exceptions import (
     InvalidVersionInfoException,
     SchemaMismatchException,
 )
+
+
 from hub_v1.store.metastore import MetaStorage
 from hub_v1.client.hub_control import HubControlClient
 from hub_v1.schema import Audio, BBox, ClassLabel, Image, Sequence, Text, Video
@@ -78,9 +84,10 @@ from hub_v1.utils import norm_cache, norm_shape, _tuple_product
 from hub_v1 import defaults
 import pickle
 
+
 import sys
 
-sys.modules["hub"] = hub_v1
+sys.modules["hub_v1"] = hub_v1
 
 
 def get_file_count(fs: fsspec.AbstractFileSystem, path):

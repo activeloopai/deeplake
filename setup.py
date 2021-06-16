@@ -34,8 +34,8 @@ setup(
     license="MPL 2.0",
     url="https://github.com/activeloopai/Hub",
     packages=find_packages(),
-    include_package_data=True,
-    zip_safe=False,
+    include_package_data=False,
+    zip_safe=True,
     keywords="snark-hub",
     project_urls={
         "Documentation": "https://docs.activeloop.ai/",
@@ -56,10 +56,10 @@ setup(
     dependency_links=[],
     entry_points={
         "console_scripts": [
-            "activeloop = hub.cli.command:cli",
-            "activeloop-local = hub.cli.local:cli",
-            "activeloop-dev = hub.cli.dev:cli",
-            "hub = hub.cli.command:cli",
+            "activeloop_v1 = hub_v1.cli.command:cli",
+            "activeloop_v1-local = hub_v1.cli.local:cli",
+            "activeloop_v1-dev = hub_v1.cli.dev:cli",
+            "hub_v1 = hub_v1.cli.command:cli",
         ]
     },
     tests_require=["pytest", "mock>=1.0.1"],
