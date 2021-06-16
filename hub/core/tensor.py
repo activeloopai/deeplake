@@ -44,6 +44,8 @@ def create_tensor(
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
+        compression (str): Compression name that will be applied to all samples
+            if compressions of specific tensors won't be provided.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -249,7 +251,7 @@ def _check_array_and_tensor_are_compatible(tensor_meta: TensorMeta, array: np.nd
     """An array is considered incompatible with a tensor if the `tensor_meta` entries don't match the `array` properties.
 
     Args:
-        tensor_meta (dict): Tensor meta containing the expected properties of `array`.
+        tensor_meta (TensorMeta): Tensor meta containing the expected properties of `array`.
         array (np.ndarray): Candidate array to check compatibility with `tensor_meta`.
 
     Raises:

@@ -48,6 +48,7 @@ class TensorMeta(Meta):
             key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
             storage (StorageProvider): Destination of this meta.
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
+            compression (str): Compression name that will be applied to all samples if compressions of specific tensors won't be provided.
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
 
         Raises:

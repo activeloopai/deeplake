@@ -65,11 +65,14 @@ def array_from_buffer(
         dtype (str): Data type of the sample.
         compressor (BaseImgCodec/BaseNumCodec/None): Compressor applied on the sample.
         shape (tuple): Array shape from index entry.
-        start_byte (int, optional): Get only bytes starting from start_byte.
+        start_byte (int): Get only bytes starting from start_byte.
         end_byte (int, optional): Get only bytes up to end_byte.
 
     Returns:
         Numpy array from the bytes of the sample.
+
+    Raises:
+        ArrayShapeInfoNotFound: If no info about sample shape is in meta.
     """
 
     partial_b = b[start_byte:end_byte]

@@ -33,12 +33,15 @@ def load(path: Union[str, pathlib.Path], symbolic=False) -> Union[Callable, np.n
     raise HubAutoUnsupportedFileExtensionError(suffix, SUPPORTED_SUFFIXES)
 
 
-def get_png_channels(color_type: int):
+def get_png_channels(color_type: int) -> int:
     """
     Get number of image channels from png color type.
 
     Args:
         color_type (int): Png color type value from metainfo
+
+    Returns:
+        Number of png image channels.
     """
     if color_type == 6:
         return 4
@@ -56,6 +59,10 @@ def check_image_meta(image_path: str, **kwargs):
     Args:
         image_path: Path to image to be checked
         kwargs: meta_size, meta_channels, meta_extension and meta dtype from the image metainfo.
+
+    Raises:
+        ImageReadError: If image can't be opened by PIL.Image.open()
+        WrongMetadataError: If any parameter from metadata doesn't match the image.
     """
     try:
         image = Image.open(image_path)
@@ -88,10 +95,6 @@ def read(image_path: str, check_meta: bool = True):
         image_path (str): Path to the image file.
         check_meta (bool): If True, check if image can be read and image metadata
             information corresponds to the actual image parameters.
-
-    Raises:
-        ImageReadError: If image can't be opened by PIL.Image.open()
-        WrongMetadataError: If any parameter from metadata doesn't match the image.
 
     Returns:
         Dictionary containing image bytes, extension, dtype and shape.
