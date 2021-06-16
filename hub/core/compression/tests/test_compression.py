@@ -176,10 +176,12 @@ def test_base_name():
         def __init__(single_channel=True):
             super().__init__()
 
-        def decode(self, bytes: bytes) -> Union[np.ndarray, bytes]:
+        def decode(
+            self, bytes: Union[int, memoryview, bytes]
+        ) -> Union[np.ndarray, bytes]:
             return super().decode(bytes)
 
-        def encode(self, input: np.ndarray) -> bytes:
+        def encode(self, sample: np.ndarray) -> bytes:
             return super().encode(input)
 
     new_compressor = RandomCompressor()
