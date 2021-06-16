@@ -14,10 +14,9 @@ def save_reporting_config(
     """Modify reporting config.
 
     Args:
-    consent (bool): Enabling and disabling sending crashes and system reports
-    to Activeloop Hub.
-    client_id (str, optional): Unique client id.
-    username (str, optional): Activeloop username.
+        consent (bool): Enabling and disabling sending crashes and system report to Activeloop Hub.
+        client_id (str, optional): Unique client id.
+        username (str, optional): Activeloop username.
     """
     reporting_config = {}
 
