@@ -74,9 +74,10 @@ class ShapeInterval:
             if l == u:
                 intervals.append(str(l))
             else:
-                intervals.append("{}:{}".format(l, u))
+                intervals.append(f"{l}:{u}")
 
-        return "({})".format(", ".join(intervals))
+        intervals_str = ", ".join(intervals)
+        return f"({intervals_str})"
 
     def __repr__(self):
         return str(self)

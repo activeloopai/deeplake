@@ -62,7 +62,7 @@ def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
         a = np.random.uniform(size=shape)
         return a > 0.5
 
-    raise ValueError("Dtype %s not supported." % dtype)
+    raise ValueError(f"Dtype {dtype} not supported.")
 
 
 @parametrize_dtypes

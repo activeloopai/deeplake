@@ -22,7 +22,8 @@ from hub.tests.common_benchmark import (
 
 
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
-    actual_key = "%s_%i" % (key, info["iteration"])
+    iteration = info["iteration"]
+    actual_key = f"{key}_{iteration}"
 
     create_tensor(
         actual_key, storage, chunk_size=chunk_size, dtype=arrays[0].dtype.name
