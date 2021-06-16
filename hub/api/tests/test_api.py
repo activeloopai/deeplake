@@ -1,13 +1,10 @@
-from hub.util.exceptions import TensorMetaMismatchError
-import os
 import numpy as np
 import pytest
 
 import hub
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.client.utils import has_hub_testing_creds, write_token
-from hub.client.client import HubBackendClient
+from hub.util.exceptions import TensorMetaMismatchError
 
 
 def test_persist_local(local_storage):
@@ -33,7 +30,6 @@ def test_persist_with_local(local_storage):
         pytest.skip()
 
     with Dataset(local_storage.root, local_cache_size=512) as ds:
-
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 4096, 4096)))
 
@@ -135,6 +131,7 @@ def test_compute_dynamic_tensor(ds):
     expected_list = [*a1, *a2, a3]
     actual_list = image.numpy(aslist=True)
 
+    assert type(actual_list) == list
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
 
@@ -262,6 +259,12 @@ def test_shape_property(memory_ds):
 def test_append_dtype_mismatch(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor", dtype="uint8")
     tensor.append(np.ones(100, dtype="float64"))
+    tensor.append(np.ones(100, dtype="uint8"))
+
+
+@pytest.mark.xfail(raises=TypeError, strict=True)
+def test_fails_on_wrong_tensor_syntax(memory_ds):
+    memory_ds.some_tensor = np.ones((28, 28))
 
 
 # TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented

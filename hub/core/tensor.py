@@ -77,7 +77,7 @@ def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
             tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-            index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+            index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
@@ -100,7 +100,7 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
             tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-            index_meta (IndexMeta): Optionally proivide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+            index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
         ValueError: If `array` has <= 1 axes.
