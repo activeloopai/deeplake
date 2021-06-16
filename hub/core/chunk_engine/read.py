@@ -24,7 +24,6 @@ def sample_from_index_entry(
         storage (StorageProvider): Storage of the sample.
         index_entry (dict): Index metadata of sample with `chunks_names`, `start_byte` and `end_byte` keys.
         dtype (str): Data type of the sample.
-        compressor (BaseImgCodec/BaseNumCodec/None): Compressor applied on the sample.
 
     Returns:
         Numpy array from the bytes of the sample.
