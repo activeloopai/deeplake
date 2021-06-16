@@ -18,10 +18,10 @@ def write_array(
     tensor_meta: TensorMeta,
     index_meta: IndexMeta,
 ):
-    """Chunk and write an array to storage, also updates `index_meta`/`tensor_meta`. The provided array is treated as a batched of samples.
+    """Chunk and write an array to storage, also updates `index_meta`/`tensor_meta`. The provided array is treated as a batch of samples.
 
     Args:
-        array (np.ndarray): Batched array to be chunked/written. 
+        array (np.ndarray): Batched array to be chunked/written.
         key (str): Key for where the index_meta and tensor_meta are located in `storage` relative to it's root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
@@ -54,7 +54,7 @@ def write_array(
                 extra_sample_meta={"shape": sample.shape},  # TODO: use kwargs
             )
 
-        tensor_meta.update_with_sample(sample, key)
+        tensor_meta.update_with_sample(sample)
 
     tensor_meta.length += num_samples
 
@@ -88,16 +88,15 @@ def write_bytes(
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
 
     # refactor TODO: move to separate function
-    bllc = 0
+    bytes_left_in_last_chunk = 0
     extend_last_chunk = False
     if len(index_meta.entries) > 0 and len(last_chunk) < tensor_meta.chunk_size:
-        bllc = tensor_meta.chunk_size - len(last_chunk)
-        # use bytearray for concatenation (fastest method)
+        bytes_left_in_last_chunk = tensor_meta.chunk_size - len(last_chunk)
         last_chunk = bytearray(last_chunk)  # type: ignore
         extend_last_chunk = True
 
     chunk_generator = generate_chunks(
-        b, tensor_meta.chunk_size, bytes_left_in_last_chunk=bllc
+        b, tensor_meta.chunk_size, bytes_left_in_last_chunk=bytes_left_in_last_chunk
     )
 
     # refactor TODO: move to separate function

@@ -84,7 +84,7 @@ def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
             `create_tensor(...)`.
     """
 
-    # append is guarenteed to NOT have a batch axis
+    # append is guaranteed to NOT have a batch axis
     array = np.expand_dims(array, axis=0)
     extend_tensor(array, key, storage, **kwargs)
 
@@ -118,7 +118,7 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
 
     tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
 
-    # extend is guarenteed to have a batch axis
+    # extend is guaranteed to have a batch axis
     tensor_meta.check_batch_is_compatible(array)
 
     write_array(array, key, storage, tensor_meta, index_meta)

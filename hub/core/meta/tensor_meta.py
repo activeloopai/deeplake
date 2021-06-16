@@ -53,14 +53,25 @@ class TensorMeta(Meta):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
     def check_batch_is_compatible(self, array: np.ndarray):
-        # TODO: docstring (note that `array` is assumed to be batched)
+        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a batch of samples.
 
-        # dtype is only strict after a sample exists
+        Note:
+            If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
+
+        Args:
+            array (np.ndarray): Batched array to check compatibility with.
+
+        Raises:
+            TensorMetaMismatchError: Dtype for array must be equal to this meta.
+            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
+        """
+
         if self.dtype != array.dtype.name:
             raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
 
         sample_shape = array.shape[1:]
 
+        # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
             actual_shape_len = len(sample_shape)
@@ -72,9 +83,18 @@ class TensorMeta(Meta):
                     sample_shape,
                 )
 
-    def update_with_sample(self, array: np.ndarray, tensor_name: str):
+    def update_with_sample(self, array: np.ndarray):
+        """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
+
+        Note:
+            If no samples exist, `min_shape` and `max_shape` are set to this array's shape.
+            If samples do exist, `min_shape` and `max_shape` are updated.
+
+        Args:
+            array (np.ndarray): Unbatched array to update this meta with.
+        """
+
         """`array` is assumed to have a batch axis."""
-        # TODO: docstring (note that `array` is assumed to be batched)
 
         shape = array.shape
 
