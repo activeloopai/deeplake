@@ -1,9 +1,13 @@
+from hub.util.exceptions import InvalidTransformOutput
+from typing import Any, Callable, Dict, List, Set
+from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
+from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import CHUNK_MAX_SIZE, CHUNK_MIN_TARGET
 
 
-def transform_sample(sample, fn_list, arg_list, tensors):
+def transform_sample(sample: Any, fn_list: List[Callable], arg_list):
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
     """
@@ -15,21 +19,21 @@ def transform_sample(sample, fn_list, arg_list, tensors):
             result = [fn(data, **kwargs) for data in result]
         else:
             result = fn(result, **kwargs)
-        verify_transform_output(result, tensors)
+        verify_transform_output(result)
     return result if isinstance(result, list) else [result]
 
 
-def verify_transform_output(output, tensors):
-    # TODO better exceptions
+def verify_transform_output(output):
     if isinstance(output, (list, tuple)):
         for item in output:
-            assert isinstance(item, dict)
-            assert set(item.keys()) == tensors
+            if not isinstance(item, dict):
+                raise InvalidTransformOutput
     else:
-        assert isinstance(output, dict)
+        if not isinstance(output, dict):
+            raise InvalidTransformOutput
 
 
-def get_first_chunk(index_meta):
+def get_first_chunk(index_meta: IndexMeta):
     chunk_name = None
     chunk_size = None
 
@@ -50,19 +54,28 @@ def get_first_chunk(index_meta):
     return chunk_name, chunk_size
 
 
-def merge_corner_chunks(index_meta, last_chunk_name, last_chunk_size, tensor, storage):
+def merge_corner_chunks(
+    index_meta: IndexMeta,
+    last_chunk_name: str,
+    last_chunk_size: int,
+    tensor: str,
+    storage: StorageProvider,
+):
     first_chunk_name, first_chunk_size = get_first_chunk(index_meta)
     if (
         last_chunk_name
         and first_chunk_size < CHUNK_MIN_TARGET
         and first_chunk_size + last_chunk_size <= CHUNK_MAX_SIZE
     ):
-        # TODO get_chunk_key
-        last_chunk_content: bytes = storage[f"{tensor}/chunks/{last_chunk_name}"]
-        first_chunk_content: bytes = storage[f"{tensor}/chunks/{first_chunk_name}"]
+        first_chunk_key = get_chunk_key(tensor, first_chunk_name)
+        last_chunk_key = get_chunk_key(tensor, last_chunk_name)
+
+        last_chunk_content: bytes = storage[last_chunk_key]
+        first_chunk_content: bytes = storage[first_chunk_key]
+
         new_chunk = bytearray(last_chunk_content) + first_chunk_content
-        del storage[f"{tensor}/chunks/{first_chunk_name}"]
-        storage[f"{tensor}/chunks/{last_chunk_name}"] = new_chunk
+        del storage[first_chunk_key]
+        storage[last_chunk_key] = new_chunk
 
         offset = last_chunk_size
 
@@ -76,36 +89,44 @@ def merge_corner_chunks(index_meta, last_chunk_name, last_chunk_size, tensor, st
                 break
 
 
-def merge_tensor_metas(all_workers_tensor_meta, storage, tensors):
+def merge_tensor_metas(
+    all_workers_tensor_meta: List[Dict[str, TensorMeta]],
+    storage: StorageProvider,
+    tensors: Set[str],
+):
     for tensor in tensors:
-        tensor_meta = None
-        tensor_meta_key = None
+        tensor_meta = TensorMeta.load(tensor, storage)
 
         for all_tensor_meta in all_workers_tensor_meta:
             current_meta = all_tensor_meta[tensor]
-            if tensor_meta is None:
+            if tensor_meta.dtype is None:
                 tensor_meta = current_meta
-                tensor_meta_key = current_meta.key
             else:
                 assert tensor_meta.dtype == current_meta.dtype
                 tensor_meta.length += current_meta.length
+
+                # TODO we can support this once we have ragged tensor support
                 assert len(tensor_meta.max_shape) == len(current_meta.max_shape)
                 assert len(tensor_meta.min_shape) == len(current_meta.min_shape)
-                tensor_meta.update_shape_interval(tuple(current_meta.max_shape))
-                tensor_meta.update_shape_interval(tuple(current_meta.min_shape))
+                tensor_meta._update_shape_interval(tuple(current_meta.max_shape))
+                tensor_meta._update_shape_interval(tuple(current_meta.min_shape))
 
-        # update in meta tensor_meta.migrate
-        del storage[tensor_meta_key]
-        tensor_meta_dict = tensor_meta.to_dict()
-        new_tensor_meta = TensorMeta.create(tensor, storage)
-        new_tensor_meta.from_dict(tensor_meta_dict)
+        tensor_meta_key = get_tensor_meta_key(tensor)
+        try:
+            del storage[tensor_meta_key]
+        except KeyError:
+            pass
+        TensorMeta.copy(tensor, tensor_meta, storage)
 
 
-def merge_index_metas(all_workers_index_meta, storage, tensors):
-    # TODO by fixing the initial loading part in both merge fn, transforms can support appending in the future
+def merge_index_metas(
+    all_workers_index_meta: List[Dict[str, IndexMeta]],
+    storage: StorageProvider,
+    tensors: Set[str],
+):
     for tensor in tensors:
-        index_meta = None
-        index_meta_key = None
+        # if dataset exists, we can append to it. prerequisite for appending is in transfrom/transform.py (commented out assertion)
+        index_meta = IndexMeta.load(tensor, storage)
         last_chunk_name = None
         last_chunk_size = None
 
@@ -117,7 +138,6 @@ def merge_index_metas(all_workers_index_meta, storage, tensors):
 
             if index_meta is None:
                 index_meta = current_meta
-                index_meta_key = current_meta.key
             else:
                 index_meta.entries.extend(current_meta.entries)
 
@@ -129,7 +149,11 @@ def merge_index_metas(all_workers_index_meta, storage, tensors):
                 last_chunk_name = index_meta.entries[-1]["chunk_names"][-1]
                 last_chunk_size = index_meta.entries[-1]["end_byte"]
 
-        del storage[index_meta_key]
-        index_meta_dict = index_meta.to_dict()
-        new_index_meta = IndexMeta.create(tensor, storage)
-        new_index_meta.from_dict(index_meta_dict)
+        index_meta_key = get_index_meta_key(tensor)
+
+        try:
+            del storage[index_meta_key]
+        except KeyError:
+            pass
+
+        IndexMeta.copy(tensor, index_meta, storage)

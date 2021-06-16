@@ -96,7 +96,7 @@ def write_bytes(
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
     chunk_names = []
-    
+
     if (
         len(last_chunk) > 0 and len(last_chunk) < CHUNK_MIN_TARGET
     ):  # last chunk exists and has space
