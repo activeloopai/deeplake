@@ -1,3 +1,4 @@
+from hub.core.compute.provider import ComputeProvider
 from hub.util.exceptions import (
     InvalidInputDataException,
     TensorMismatchException,
@@ -53,11 +54,11 @@ def transform(
             If this contains more kwargs than the number of functions, the extra kwargs are ignore.
             Tip: If you want to apply kwargs to non-continuos functions, then use empty dictionaries in the middle.
             For example:- transform(data_in, [fn1, fn2, fn3], ds_out, [{"a":5, "b":6}, {}, {"c":11, "s":7}]), only applies kwargs to fn1 and fn3.
-        scheduler (str, optional): The scheduler to be used to compute the transformation.
+        scheduler (str): The scheduler to be used to compute the transformation.
             Currently can be one of:-
             threaded: Uses multithreading to perform the transform. Best applicable for I/O intensive transforms.
             processed: Uses multiprocessing to perform the transform. Best applicable for CPU intensive transforms. Currently doesn't work with S3 or Hub cloud datasets.
-        workers (int, optional): The number of workers to use for performing the transform. Defaults to 1.
+        workers (int): The number of workers to use for performing the transform. Defaults to 1.
 
     Raises:
         InvalidInputDataException: If ds_in passed to transform is invalid. It should support __getitem__ and __len__ operations.
@@ -79,7 +80,7 @@ def transform(
     workers = max(workers, 1)
 
     if scheduler == "threaded":
-        compute = ThreadProvider(workers)
+        compute: ComputeProvider = ThreadProvider(workers)
     elif scheduler == "processed":
         compute = ProcessProvider(workers)
     else:
@@ -108,7 +109,10 @@ def store_shard(transform_input: Tuple):
     for i in range(min(len(data_shard), size)):
         sample = data_shard[i]
         if isinstance(sample, Dataset):
-            sample = sample.numpy()
+            sample_dict = {}
+            for k in sample.tensors:
+                sample_dict[k] = sample[k].numpy()
+            sample = sample_dict
 
         # always a list of dicts
         results = transform_sample(sample, pipeline, pipeline_kwargs)

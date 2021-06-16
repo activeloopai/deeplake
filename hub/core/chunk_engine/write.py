@@ -90,8 +90,7 @@ def write_bytes(
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
     """
-    # TODO pass CHUNK_MIN, CHUNK_MAX instead of using constants
-    # do we need min target?
+    # TODO pass CHUNK_MIN, CHUNK_MAX and read from tensor_meta instead of using constants
 
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
@@ -104,10 +103,11 @@ def write_bytes(
         num_chunks_b = _get_chunk_count(len(content))
         extra_bytes_in_last_chunk = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
         num_chunks_after_combining = _get_chunk_count(len(content) + last_chunk_size)
+
         if num_chunks_after_combining == num_chunks_b:  # combine if count is same
             start_byte = index_meta.entries[-1]["end_byte"]
             chunk_names.append(last_chunk_name)
-            last_chunk = bytearray(last_chunk) + content
+            last_chunk = bytearray(last_chunk) + content  # type: ignore
             chunk_key = get_chunk_key(key, last_chunk_name)
             storage[chunk_key] = last_chunk
             end_byte = len(last_chunk)

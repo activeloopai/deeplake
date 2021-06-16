@@ -1,5 +1,5 @@
 from hub.util.exceptions import InvalidTransformOutput
-from typing import Any, Callable, Dict, List, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
@@ -56,10 +56,10 @@ def get_first_chunk(index_meta: IndexMeta):
 
 def merge_corner_chunks(
     index_meta: IndexMeta,
-    last_chunk_name: str,
-    last_chunk_size: int,
     tensor: str,
     storage: StorageProvider,
+    last_chunk_name: Optional[str] = None,
+    last_chunk_size: Optional[int] = None,
 ):
     first_chunk_name, first_chunk_size = get_first_chunk(index_meta)
     if (
@@ -127,13 +127,17 @@ def merge_index_metas(
     for tensor in tensors:
         # if dataset exists, we can append to it. prerequisite for appending is in transfrom/transform.py (commented out assertion)
         index_meta = IndexMeta.load(tensor, storage)
-        last_chunk_name = None
-        last_chunk_size = None
+        last_chunk_name: Optional[str] = None
+        last_chunk_size: Optional[int] = None
 
         for all_index_meta in all_workers_index_meta:
             current_meta = all_index_meta[tensor]
             merge_corner_chunks(
-                current_meta, last_chunk_name, last_chunk_size, tensor, storage
+                current_meta,
+                tensor,
+                storage,
+                last_chunk_name,
+                last_chunk_size,
             )
 
             if index_meta is None:

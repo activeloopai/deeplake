@@ -1,5 +1,5 @@
 from hub.core.compute.provider import ComputeProvider
-from pathos.pools import ProcessPool
+from pathos.pools import ProcessPool  # type: ignore
 
 
 class ProcessProvider(ComputeProvider):
