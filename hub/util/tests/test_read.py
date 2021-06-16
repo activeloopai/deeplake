@@ -2,7 +2,7 @@ import io
 import pytest
 import numpy as np
 from PIL import Image  # type: ignore
-from hub.core.tensor import read
+from hub.util.load import read
 from hub.util.dataset import get_compressor
 import hub
 
