@@ -170,6 +170,7 @@ def read_samples_from_tensor(
 
     Raises:
         DynamicTensorNumpyError: If reading a dynamically-shaped array slice without `aslist=True`.
+        TensorDoesNotExistError: Cannot read samples from a tensor that hasn't been created. Use `create_tensor`.
 
     Returns:
         np.ndarray: Array containing the sample(s) in the `array_slice` slice.
