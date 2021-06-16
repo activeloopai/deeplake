@@ -63,7 +63,7 @@ def test_pytorch_small_old(local_ds):
 def test_pytorch_large_old(local_ds):
     import torch
 
-    local_ds.create_tensor("image", dtype="int64")
+    local_ds.create_tensor("image")
     arr = np.array(
         [
             np.ones((4096, 4096)),
@@ -71,7 +71,6 @@ def test_pytorch_large_old(local_ds):
             3 * np.ones((4096, 4096)),
             4 * np.ones((4096, 4096)),
         ],
-        dtype="int64",
     )
     local_ds.image.extend(arr)
     local_ds.create_tensor("classlabel", htype="class_label")

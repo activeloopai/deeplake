@@ -1,4 +1,4 @@
-from hub.htypes import DEFAULT_DTYPE, DEFAULT_HTYPE
+from hub.htypes import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.util.exceptions import (
@@ -83,7 +83,7 @@ def test_dataset_meta(storage):
 def test_tensor_meta(storage):
     tensor_meta = TensorMeta.create(TEST_META_KEY, storage)
     assert tensor_meta.htype == DEFAULT_HTYPE
-    assert tensor_meta.dtype == DEFAULT_DTYPE
+    assert tensor_meta.dtype == None
     assert tensor_meta.length == 0
     assert tensor_meta.min_shape == []
     assert tensor_meta.max_shape == []

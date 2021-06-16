@@ -13,7 +13,7 @@ from .common import parametrize_all_storages_and_caches
 
 @parametrize_all_storages_and_caches
 def test_fixed_shape(storage: StorageProvider):
-    create_tensor(TENSOR_KEY, storage, dtype="int64")
+    create_tensor(TENSOR_KEY, storage)
 
     a1 = np.arange(100).reshape(50, 2)
     a2 = np.arange(1000).reshape(10, 50, 2)
@@ -26,7 +26,7 @@ def test_fixed_shape(storage: StorageProvider):
 
 @parametrize_all_storages_and_caches
 def test_dynamic_shape(storage: StorageProvider):
-    create_tensor(TENSOR_KEY, storage, dtype="int64")
+    create_tensor(TENSOR_KEY, storage)
 
     a1 = np.arange(100).reshape(25, 4)
     a2 = np.arange(1000).reshape(10, 50, 2)

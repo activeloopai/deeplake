@@ -89,7 +89,7 @@ class TensorMeta(Meta):
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
-        if self.length > 0 and self.dtype != array.dtype.name:
+        if self.dtype and self.dtype != array.dtype.name:
             raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
 
         sample_shape = array.shape[1:]
@@ -122,7 +122,9 @@ class TensorMeta(Meta):
         shape = array.shape
 
         if self.length <= 0:
-            self.dtype = str(array.dtype)
+            if not self.dtype:
+                self.dtype = str(array.dtype)
+
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:

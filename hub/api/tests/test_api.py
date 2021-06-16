@@ -18,8 +18,7 @@ def test_persist_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -39,8 +38,7 @@ def test_persist_with_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -57,8 +55,7 @@ def test_persist_local_clear_cache(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -135,14 +132,15 @@ def test_compute_dynamic_tensor(ds):
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
 
-    assert image.shape.lower == (28, 10)
-    assert image.shape.upper == (36, 28)
-    assert image.shape.is_dynamic
+    assert image.shape == (43, None, None)
+    assert image.shape_interval.lower == (43, 28, 10)
+    assert image.shape_interval.upper == (43, 36, 28)
+    assert image.is_dynamic
 
 
 @parametrize_all_dataset_storages
 def test_empty_samples(ds: Dataset):
-    tensor = ds.create_tensor("with_empty", dtype="int64")
+    tensor = ds.create_tensor("with_empty")
 
     a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
     a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
@@ -157,10 +155,10 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.shape.lower == (0, 0, 2)
-    assert tensor.shape.upper == (25, 50, 2)
-
     assert len(tensor) == 16
+    assert tensor.shape_interval.lower == (16, 0, 0, 2)
+    assert tensor.shape_interval.upper == (16, 25, 50, 2)
+
     for actual, expected in zip(actual_list, expected_list):
         np.testing.assert_array_equal(actual, expected)
 
@@ -172,7 +170,7 @@ def test_empty_samples(ds: Dataset):
 
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
-    tensor = ds.create_tensor("scalars", dtype="int64")
+    tensor = ds.create_tensor("scalars")
 
     tensor.append(5)
     tensor.append(10)
@@ -190,7 +188,7 @@ def test_scalar_samples(ds: Dataset):
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
-    ds.create_tensor("label", dtype="int64")
+    ds.create_tensor("label")
 
     ds.image.extend(np.ones((4, 28, 28)))
     ds.label.extend(np.asarray(labels).reshape((4, 1)))
@@ -211,7 +209,7 @@ def test_compute_slices(memory_ds):
     ds = memory_ds
     shape = (64, 16, 16, 16)
     data = np.arange(np.prod(shape)).reshape(shape)
-    ds.create_tensor("data", dtype="int64")
+    ds.create_tensor("data")
     ds.data.extend(data)
 
     _check_tensor(ds.data[:], data[:])
@@ -243,22 +241,39 @@ def test_shape_property(memory_ds):
     dynamic = memory_ds.create_tensor("dynamic_tensor")
 
     # dynamic shape property
-    dynamic.extend(np.ones((32, 28, 28)))
-    dynamic.extend(np.ones((16, 33, 9)))
-    assert dynamic.shape.lower == (28, 9)
-    assert dynamic.shape.upper == (33, 28)
+    dynamic.extend(np.ones((32, 28, 20, 2)))
+    dynamic.extend(np.ones((16, 33, 20, 5)))
+    assert dynamic.shape == (48, None, 20, None)
+    assert dynamic.shape_interval.lower == (48, 28, 20, 2)
+    assert dynamic.shape_interval.upper == (48, 33, 20, 5)
+    assert dynamic.is_dynamic
 
     # fixed shape property
     fixed.extend(np.ones((9, 28, 28)))
     fixed.extend(np.ones((13, 28, 28)))
-    assert fixed.shape.lower == (28, 28)
-    assert fixed.shape.upper == (28, 28)
+    assert fixed.shape == (22, 28, 28)
+    assert fixed.shape_interval.lower == (22, 28, 28)
+    assert fixed.shape_interval.upper == (22, 28, 28)
+    assert not fixed.is_dynamic
+
+
+def test_dtype(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
+
+    assert tensor.meta.dtype == None
+    assert dtyped_tensor.meta.dtype == "uint8"
+
+    tensor.append(np.ones((10, 10), dtype="float32"))
+    dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
+
+    assert tensor.meta.dtype == "float32"
+    assert dtyped_tensor.meta.dtype == "uint8"
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
-def test_append_dtype_mismatch(memory_ds: Dataset):
-    tensor = memory_ds.create_tensor("tensor", dtype="uint8")
-    tensor.append(np.ones(100, dtype="float64"))
+def test_dtype_mismatch(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor", dtype="float16")
     tensor.append(np.ones(100, dtype="uint8"))
 
 

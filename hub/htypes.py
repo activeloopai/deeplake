@@ -1,12 +1,10 @@
 from typing import Dict
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION
 
-
 DEFAULT_HTYPE = "generic"
-DEFAULT_DTYPE = "float64"
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
-    DEFAULT_HTYPE: {"dtype": DEFAULT_DTYPE},
+    DEFAULT_HTYPE: {"dtype": None},
     "image": {"dtype": "uint8"},
     "class_label": {
         "dtype": "uint32",

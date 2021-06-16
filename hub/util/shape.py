@@ -1,13 +1,14 @@
 from typing import Sequence
 
 from hub.util.exceptions import InvalidShapeIntervalError
+from typing import Optional, Sequence, Tuple
 
 
 def _contains_negatives(shape: Sequence[int]):
     return any(x < 0 for x in shape)
 
 
-class Shape:
+class ShapeInterval:
     def __init__(self, lower: Sequence[int], upper: Sequence[int] = None):
         """
         Shapes in hub are best represented as intervals, this is to support dynamic tensors. Instead of having a single tuple of integers representing shape,
@@ -46,20 +47,24 @@ class Shape:
         self._lower = tuple(lower)
         self._upper = tuple(upper)
 
+    def astuple(self) -> Tuple[Optional[int], ...]:
+        # TODO: named tuple? NHWC shape would be (10, 224, 224, 3) could be (N=10, H=224, W=224, C=3).
+
+        shape = []
+        for low, up in zip(self.lower, self.upper):
+            shape.append(None if low != up else low)  # type: ignore
+        return tuple(shape)
+
     @property
     def is_dynamic(self) -> bool:
         return self.lower != self.upper
 
     @property
-    def is_fixed(self) -> bool:
-        return self.lower == self.upper
-
-    @property
-    def lower(self):
+    def lower(self) -> Tuple[int, ...]:
         return self._lower
 
     @property
-    def upper(self):
+    def upper(self) -> Tuple[int, ...]:
         return self._upper
 
     def __str__(self):
@@ -72,3 +77,6 @@ class Shape:
                 intervals.append("{}:{}".format(l, u))
 
         return "({})".format(", ".join(intervals))
+
+    def __repr__(self):
+        return str(self)
