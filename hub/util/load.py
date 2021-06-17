@@ -1,3 +1,4 @@
+from hub.util.compress import compress_array, decompress_array
 from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
@@ -68,14 +69,19 @@ class Sample:
         self.read()
         return self._compression.lower()
 
-    def raw_bytes(self) -> bytes:
-        if self.path is None:
-            # TODO: get tobytes from meta
-            return row_wise_to_bytes(self._array)
+    def compressed_bytes(self) -> bytes:
+        if self.compression == UNCOMPRESSED:
+            raise Exception("Sample is not compressed.")  # TODO:
 
-        else:
-            with open(self.path, "rb") as image_file:
-                return image_file.read()
+        if self.path is None:
+            return compress_array(self.array, self.compression)
+
+        with open(self.path, "rb") as f:
+            return f.read()
+
+    def uncompressed_bytes(self) -> bytes:
+        # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
+        return row_wise_to_bytes(self.array)
 
     def read(self):
         if self._array is None:

@@ -9,7 +9,7 @@ SUPPORTED_COMPRESSIONS = ["png", "jpeg"]
 
 def compress_array(array: np.ndarray, compression: str) -> bytes:
     if compression in SUPPORTED_COMPRESSIONS:
-        img = Image.fromarray(array.astype("uint8"), "RGB")
+        img = Image.fromarray(array.astype("uint8"))
         out = BytesIO()
         img.save(out, compression)
         out.seek(0)
