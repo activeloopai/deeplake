@@ -318,28 +318,32 @@ class ReadOnlyModeError(Exception):
         super().__init__("Modification when in read-only mode is not supported!")
 
 
-class InvalidTransformOutput(Exception):
+class TransformError(Exception):
+    pass
+
+
+class InvalidTransformOutputError(TransformError):
     def __init__(self):
         super().__init__(
             "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
         )
 
 
-class InvalidInputDataException(Exception):
-    def __init__(self, message):
+class InvalidInputDataError(TransformError):
+    def __init__(self):
         super().__init__(
-            f"The data_in to transform is invalid. It should support {message} operation."
+            f"The data_in to transform is invalid. It should be a sequence that supports __getitem__ and __len__."
         )
 
 
-class UnsupportedSchedulerException(Exception):
+class UnsupportedSchedulerError(TransformError):
     def __init__(self, scheduler):
         super().__init__(
-            f"Hub Transform currently doesn't support {scheduler} scheduler."
+            f"Hub transform currently doesn't support {scheduler} scheduler."
         )
 
 
-class TensorMismatchException(Exception):
+class TensorMismatchError(TransformError):
     def __init__(self, tensors, output_keys):
         super().__init__(
             f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "

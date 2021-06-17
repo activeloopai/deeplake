@@ -1,5 +1,5 @@
-from hub.util.exceptions import InvalidTransformOutput
-from typing import Any, Callable, Dict, List, Optional, Set
+from hub.util.exceptions import InvalidTransformOutputError
+from typing import Any, Callable, Dict, List, Sequence, Set, Tuple
 from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
@@ -7,14 +7,18 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import CHUNK_MAX_SIZE, CHUNK_MIN_TARGET
 
 
-def transform_sample(sample: Any, fn_list: List[Callable], arg_list):
+def transform_sample(
+    sample: Any,
+    fn_list: Sequence[Callable],
+    kwarg_list: List[dict],
+) -> List[dict]:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
     """
     result = sample
     for index in range(len(fn_list)):
         fn = fn_list[index]
-        kwargs = arg_list[index]
+        kwargs = kwarg_list[index]
         if isinstance(result, (list, tuple)) and index != 0:
             result = [fn(data, **kwargs) for data in result]
         else:
@@ -24,7 +28,7 @@ def transform_sample(sample: Any, fn_list: List[Callable], arg_list):
     return result if isinstance(result, list) else [result]
 
 
-def _unwrap(ls):
+def _unwrap(ls: List) -> List:
     """If there is any list then unwrap it into its elements"""
     items = []
     for r in ls:
@@ -36,19 +40,19 @@ def _unwrap(ls):
 
 
 def verify_transform_output(output):
+    """Checks whether the output of a transform is valid."""
     if isinstance(output, (list, tuple)):
         for item in output:
             if not isinstance(item, dict):
-                print(item)
-                raise InvalidTransformOutput
+                raise InvalidTransformOutputError
     else:
         if not isinstance(output, dict):
-            raise InvalidTransformOutput
+            raise InvalidTransformOutputError
 
 
-def get_first_chunk(index_meta: IndexMeta):
-    chunk_name = None
-    chunk_size = None
+def get_first_chunk(index_meta: IndexMeta) -> Tuple[str, int]:
+    chunk_name = ""
+    chunk_size = 0
 
     if len(index_meta.entries) > 0 and len(index_meta.entries[0]["chunk_names"]) > 0:
         chunk_name = index_meta.entries[0]["chunk_names"][0]
@@ -71,8 +75,8 @@ def merge_corner_chunks(
     index_meta: IndexMeta,
     tensor: str,
     storage: StorageProvider,
-    last_chunk_name: Optional[str] = None,
-    last_chunk_size: Optional[int] = None,
+    last_chunk_name: str = "",
+    last_chunk_size: int = 0,
 ):
     first_chunk_name, first_chunk_size = get_first_chunk(index_meta)
     if (
@@ -140,8 +144,8 @@ def merge_index_metas(
     for tensor in tensors:
         # if dataset exists, we can append to it. prerequisite for appending is in transfrom/transform.py (commented out assertion)
         index_meta = IndexMeta.load(tensor, storage)
-        last_chunk_name: Optional[str] = None
-        last_chunk_size: Optional[int] = None
+        last_chunk_name = ""
+        last_chunk_size = 0
 
         for all_index_meta in all_workers_index_meta:
             current_meta = all_index_meta[tensor]

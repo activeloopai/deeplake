@@ -1,8 +1,9 @@
+from hub.core.storage.provider import StorageProvider
 from hub.core.compute.provider import ComputeProvider
 from hub.util.exceptions import (
-    InvalidInputDataException,
-    TensorMismatchException,
-    UnsupportedSchedulerException,
+    InvalidInputDataError,
+    TensorMismatchError,
+    UnsupportedSchedulerError,
 )
 from hub.core.compute import ThreadProvider, ProcessProvider
 from hub.util.transform import merge_index_metas, merge_tensor_metas, transform_sample
@@ -14,16 +15,16 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.tensor import append_tensor
 from hub.api.dataset import Dataset
 from hub.constants import MB
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 from itertools import repeat
 import math
 
 
 def transform(
-    data_in,
-    pipeline: List[Callable],
+    data_in: Sequence[Any],
+    pipeline: Sequence[Callable],
     ds_out: Dataset,
-    pipeline_kwargs: Optional[List[Dict]] = None,
+    pipeline_kwargs: Optional[Sequence[Dict]] = None,
     scheduler: str = "threaded",
     workers: int = 1,
 ):
@@ -53,10 +54,8 @@ def transform(
     """
     ds_out.flush()
 
-    if not hasattr(data_in, "__getitem__"):
-        raise InvalidInputDataException("__getitem__")
-    if not hasattr(data_in, "__len__"):
-        raise InvalidInputDataException("__len__")
+    if not isinstance(data_in, Sequence):
+        raise InvalidInputDataError
 
     # TODO: this check doesn't work currently. Will work once AL-1092 is merged and can be uncommented.
     # for tensor in tensors:
@@ -69,13 +68,13 @@ def transform(
     elif scheduler == "processed":
         compute = ProcessProvider(workers)
     else:
-        raise UnsupportedSchedulerException(scheduler)
+        raise UnsupportedSchedulerError(scheduler)
 
     base_storage = remove_all_cache(ds_out.storage)
     tensors = set(ds_out.meta.tensors)
 
     pipeline_kwargs = pipeline_kwargs or []
-    pipeline_kwargs = pipeline_kwargs[0 : len(pipeline)]
+    pipeline_kwargs = list(pipeline_kwargs[0 : len(pipeline)])
     pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))
 
     store(data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs)
@@ -107,7 +106,7 @@ def store_shard(transform_input: Tuple):
         results = transform_sample(sample, pipeline, pipeline_kwargs)
         for result in results:
             if set(result.keys()) != tensors:
-                raise TensorMismatchException(list(tensors), list(result.keys()))
+                raise TensorMismatchError(list(tensors), list(result.keys()))
             for key, value in result.items():
                 append_tensor(
                     value,
@@ -123,7 +122,15 @@ def store_shard(transform_input: Tuple):
     return all_index_meta, all_tensor_meta
 
 
-def store(data_in, storage, tensors, compute, workers, pipeline, pipeline_kwargs):
+def store(
+    data_in,
+    storage: StorageProvider,
+    tensors: Set[str],
+    compute: ComputeProvider,
+    workers: int,
+    pipeline: Sequence[Callable],
+    pipeline_kwargs: List[Dict],
+):
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
 

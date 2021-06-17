@@ -93,7 +93,7 @@ def write_bytes(
     # TODO pass CHUNK_MIN, CHUNK_MAX and read from tensor_meta instead of using constants
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
-    chunk_names = []
+    chunk_names: List[str] = []
 
     if _chunk_has_space(last_chunk):
         last_chunk_size = len(last_chunk)
@@ -114,7 +114,7 @@ def write_bytes(
     while len(content) > 0:
         end_byte = min(len(content), CHUNK_MAX_SIZE)
 
-        chunk_content = content[:end_byte]
+        chunk_content = content[:end_byte]  # type: ignore
         _write_chunk(chunk_content, storage, chunk_names, key)
 
         content = content[end_byte:]
