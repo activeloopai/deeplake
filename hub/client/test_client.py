@@ -5,7 +5,7 @@ import pytest
 from hub.client.client import HubBackendClient
 from hub.client.utils import (
     write_token,
-    get_auth_header,
+    read_token,
     remove_token,
     has_hub_testing_creds,
 )
@@ -16,7 +16,7 @@ def test_client_requests():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     hub_client = HubBackendClient()
-
+    print(username, password)
     hub_client.request_auth_token(username, password)
     with pytest.raises(Exception):
         # request will fail as username already exists
@@ -25,6 +25,6 @@ def test_client_requests():
 
 def test_client_utils():
     write_token("abcdefgh")
-    assert get_auth_header() == "Bearer abcdefgh"
+    assert read_token() == "abcdefgh"
     remove_token()
-    assert get_auth_header() is None
+    assert read_token() is None
