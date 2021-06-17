@@ -142,7 +142,7 @@ def merge_tensor_metas(
         except KeyError:
             pass
 
-        tensor_meta.copy_to(storage)
+        TensorMeta.copy(tensor, tensor_meta, storage)
 
 
 def merge_index_metas(
@@ -189,4 +189,4 @@ def merge_index_metas(
         except KeyError:
             pass
 
-        index_meta.copy_to(storage)
+        IndexMeta.copy(tensor, index_meta, storage)

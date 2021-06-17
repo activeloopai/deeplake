@@ -48,6 +48,16 @@ class IndexMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return IndexMeta(get_index_meta_key(key), storage)
 
+    @staticmethod
+    def copy(
+        key: str,
+        src_meta: Meta,
+        dst_storage: StorageProvider,
+    ):
+        src_dict = src_meta.to_dict()
+        new_tensor_meta = IndexMeta.create(key, dst_storage)
+        return new_tensor_meta.from_dict(src_dict)
+
     def add_entry(
         self,
         chunk_names: List[str],
