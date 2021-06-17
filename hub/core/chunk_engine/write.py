@@ -80,11 +80,12 @@ def write_symbolic_samples(
         if not isinstance(sample, SymbolicSample):
             raise Exception()  # TODO
 
-        # TODO: call `check_batch_is_compatible` but per sample not per batch
-
         # un-symbolizes this and populates meta data # TODO: make more obvious
         # TODO: make sure `sample.numpy()` raises a user-friendly error
-        sample.numpy()
+        array = sample.numpy()
+
+        # TODO: call `check_batch_is_compatible` but per sample not per batch
+        tensor_meta.check_batch_is_compatible(np.expand_dims(array, axis=0))
 
         write_bytes(
             sample.raw_bytes(),

@@ -52,16 +52,31 @@ class Tensor:
         Accepts a sequence of numpy arrays or a single batched numpy array.
 
         Example:
-            >>> len(image)
-            0
-            >>> image.extend(np.zeros((100, 28, 28, 1)))
-            >>> len(image)
-            100
+            numpy input:
+                >>> len(tensor)
+                0
+                >>> tensor.extend(np.zeros((100, 28, 28, 1)))
+                >>> len(tensor)
+                10
+
+            file input:
+                >>> len(tensor)
+                0
+                >>> tensor.extend([
+                        hub.load("path/to/image1"),
+                        hub.load("path/to/image2),
+                    ])
+                >>> len(tensor)
+                2
+
 
         Args:
             array: The data to add to the tensor.
                 The length should be equal to the number of samples to add.
         """
+
+        # TODO: note that if you use `hub.load` the data will not be re-compressed
+
         if isinstance(array, np.ndarray):
             extend_tensor(array, self.key, storage=self.storage)
         else:
@@ -74,18 +89,25 @@ class Tensor:
     ):
         """Appends a sample to the end of a tensor.
 
-        Example:
-            >>> len(image)
-            0
-            >>> image.append(np.zeros((28, 28, 1)))
-            >>> len(image)
-            1
+        Examples:
+            numpy input:
+                >>> len(tensor)
+                0
+                >>> tensor.append(np.zeros((28, 28, 1)))
+                >>> len(tensor)
+                1
 
-            >>> image.append(hub.read("/path/to/image"))
+            file input:
+                >>> len(tensor)
+                0
+                >>> tensor.append(hub.load("path/to/file"))
+                >>> len(tensor)
+                1
 
         Args:
             sample (np.ndarray, Dict): The data to add to the tensor.
         """
+
         append_tensor(sample, self.key, storage=self.storage, batched=False)
 
     @property

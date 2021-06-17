@@ -12,7 +12,7 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 @parametrize_all_dataset_storages
-def test_read(ds: Dataset):
+def test_load_compressed_samples(ds: Dataset):
     # TODO: make test fixtures for these paths
     path = get_dummy_data_path("compressed_images")
     cat_path = os.path.join(path, "cat.jpeg")
@@ -20,13 +20,14 @@ def test_read(ds: Dataset):
 
     images = ds.create_tensor("images", htype="image")
 
-    images.append(hub.symbolic_load(cat_path))
-    images.append(hub.symbolic_load(flower_path))
+    # TODO: test symbolic load + load in isolation
+    images.append(hub.load(cat_path))
+    images.append(hub.load(flower_path))
 
     images.extend(
         [
-            hub.symbolic_load(flower_path),
-            hub.symbolic_load(cat_path),
+            hub.load(flower_path),
+            hub.load(cat_path),
         ]
     )
 

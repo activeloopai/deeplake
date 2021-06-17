@@ -69,13 +69,9 @@ class SymbolicSample:
     # TODO: __str__
 
 
-def symbolic_load(path: Union[str, pathlib.Path]) -> SymbolicSample:
+def load(path: Union[str, pathlib.Path]) -> SymbolicSample:
+    # TODO: mention that you can do `.numpy()` on this output to make it extremely easy to use
     return SymbolicSample(path)
-
-
-def load(path: Union[str, pathlib.Path]) -> np.ndarray:
-    sample = symbolic_load(path)
-    return sample.numpy()
 
 
 # def get_png_channels(color_type: int) -> int:
