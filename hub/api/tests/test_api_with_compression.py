@@ -1,3 +1,4 @@
+from hub.api.tensor import Tensor
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 import os
@@ -13,15 +14,18 @@ def _get_compression_for_sample(ds: Dataset, tensor_name: str, idx: int) -> str:
     return IndexMeta.load(tensor_name, ds.storage).entries[idx]["compression"]
 
 
-@parametrize_all_dataset_storages
-def test_load_compressed_samples(ds: Dataset):
+def _dummy_paths():
     # TODO: make test fixtures for these paths
     path = get_dummy_data_path("compressed_images")
     cat_path = os.path.join(path, "cat.jpeg")
     flower_path = os.path.join(path, "flower.png")
+    return cat_path, flower_path
+
+
+def _populate_compressed_samples(ds):
+    cat_path, flower_path = _dummy_paths()
 
     images = ds.create_tensor("images", htype="image")
-
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
 
@@ -35,6 +39,13 @@ def test_load_compressed_samples(ds: Dataset):
             hub.load(cat_path),
         ]
     )
+
+    return images
+
+
+@parametrize_all_dataset_storages
+def test_populate_compressed_samples(ds: Dataset):
+    images = _populate_compressed_samples(ds)
 
     # TODO: better way to check a sample's compression (in API)
     # TODO: also, maybe we should check if these bytes are ACTUALLY compressed. right now technically all of these compressions could just be identites
@@ -51,3 +62,25 @@ def test_load_compressed_samples(ds: Dataset):
     assert images.shape == (5, None, None, None)
     assert images.shape_interval.lower == (5, 100, 100, 3)
     assert images.shape_interval.upper == (5, 900, 900, 4)
+
+
+@parametrize_all_dataset_storages
+def test_iterate_compressed_samples(ds: Dataset):
+    images = _populate_compressed_samples(ds)
+
+    expected_shapes = [
+        (900, 900, 3),
+        (513, 464, 4),
+        (100, 100, 4),
+        (513, 464, 4),
+        (900, 900, 3),
+    ]
+
+    assert len(images) == len(expected_shapes)
+    for image, expected_shape in zip(images, expected_shapes):
+        x = image.numpy()
+
+        assert (
+            type(x) == np.ndarray
+        ), "Check is necessary in case a `PIL` object is returned instead of an array."
+        assert x.shape == expected_shape
