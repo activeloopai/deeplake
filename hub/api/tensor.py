@@ -8,7 +8,6 @@ import numpy as np
 
 from hub.core.tensor import (
     append_tensor,
-    create_tensor,
     extend_tensor,
     read_samples_from_tensor,
     tensor_exists,
@@ -48,9 +47,9 @@ class Tensor:
         if not tensor_exists(self.key, self.storage):
             raise TensorDoesNotExistError(self.key)
 
-    def extend(self, array: Union[np.ndarray, Sequence[np.ndarray]]):
-        """Extends a tensor by appending multiple elements from a sequence.
-        Accepts a sequence of numpy arrays or a single batched numpy array.
+    def extend(self, samples: Union[np.ndarray, Sequence, Sequence[Sample]]):
+        """Extends the end of a tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
+        or a sequence of `hub.load` outputs, which can be used to load files. See examples down below.
 
         Example:
             numpy input:
@@ -72,24 +71,22 @@ class Tensor:
 
 
         Args:
-            array: The data to add to the tensor.
+            samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
         """
 
-        # TODO: note that if you use `hub.load` the data will not be re-compressed
-        # TODO: rename `array` to `samples` + update docstring to mention `Sample`
-
-        if isinstance(array, np.ndarray):
-            extend_tensor(array, self.key, storage=self.storage)
+        if isinstance(samples, np.ndarray):
+            extend_tensor(samples, self.key, storage=self.storage)
         else:
-            for sample in array:
+            for sample in samples:
                 self.append(sample)
 
     def append(
         self,
-        sample: Union[np.ndarray, float, int, Sample],
+        sample: Union[np.ndarray, float, int, Sequence, Sample],
     ):
-        """Appends a sample to the end of a tensor.
+        """Appends a single sample to the end of a tensor. Can be an array, scalar value, or the return value from `hub.load`,
+        which can be used to load files. See examples down below.
 
         Examples:
             numpy input:

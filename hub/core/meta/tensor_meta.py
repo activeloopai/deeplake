@@ -8,7 +8,7 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_HTYPE
+from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_HTYPE, UNCOMPRESSED
 from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
@@ -54,6 +54,7 @@ class TensorMeta(Meta):
         Raises:
             TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
             TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+            NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
 
         Returns:
             TensorMeta: Tensor meta object.
@@ -64,6 +65,9 @@ class TensorMeta(Meta):
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(htype_overwrite)
+
+        if required_meta["chunk_compression"] != UNCOMPRESSED:
+            raise NotImplementedError("Chunk compression has not been implemented yet.")
 
         return TensorMeta(
             get_tensor_meta_key(key), storage, required_meta=required_meta

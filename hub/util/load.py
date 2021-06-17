@@ -1,14 +1,14 @@
-from hub.util.compress import compress_array, decompress_array
+from hub.util.compress import compress_array
 from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple
 from hub.util.exceptions import (
     HubAutoUnsupportedFileExtensionError,
     SampleCorruptedError,
-    ImageReadError,
 )
+
 from PIL import Image  # type: ignore
 
 
@@ -122,5 +122,29 @@ class Sample:
 
 
 def load(path: str) -> Sample:
-    # TODO: mention that you can do `.numpy()` on this output to make it extremely easy to use
+    """Utility that loads data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
+
+    Note:
+        No data is actually loaded until you try to read a property of the returned `Sample`. This is useful for passing along to
+            `tensor.append` and `tensor.extend`.
+
+    Examples:
+        >>> sample = hub.load("path/to/cat.jpeg")
+        >>> type(sample.array)
+        <class 'numpy.ndarray'>
+        >>> sample.compression
+        'jpeg'
+
+    Supported File Types:
+        image: png, jpeg, and all others supported by `PIL`: https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#fully-supported-formats
+
+    Future Supported File Types:
+        video
+        text
+        audio
+
+    Returns:
+        Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
+    """
+
     return Sample(path)
