@@ -1,10 +1,31 @@
+from hub.api.dataset import Dataset
 import numpy as np
 
 from hub.integrations.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
 
 
-# TODO: separate test with compression
+@requires_torch
+def test_pytorch_with_compression(local_ds: Dataset):
+    import torch
+
+    images = local_ds.create_tensor("images", htype="image")
+    # TODO: chunk-wise compression
+    labels = local_ds.create_tensor("labels", htype="class_label")
+
+    assert images.meta.sample_compression == "png"
+
+    images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
+    labels.extend(np.ones((16, 1), dtype="uint32"))
+
+    ptds = local_ds.pytorch(workers=2)
+    dl = torch.utils.data.DataLoader(ptds, batch_size=1, num_workers=0)
+
+    for batch in dl:
+        X = batch["images"].numpy()
+        T = batch["labels"].numpy()
+        assert X.shape == (1, 100, 100, 3)
+        assert T.shape == (1, 16)
 
 
 @requires_torch
@@ -69,6 +90,7 @@ def test_pytorch_small_old(local_ds):
 def test_pytorch_large_old(local_ds):
     import torch
 
+    # don't need to test with compression because it uses the API (which is tested for iteration + compression)
     local_ds.create_tensor("image")
 
     arr = np.array(

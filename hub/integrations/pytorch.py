@@ -30,6 +30,9 @@ def _apply_transform(transform: Callable, sample: Dict):
 
 def _read_and_store_chunk(chunk_name: str, shared_memory_name: str, key: str):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
+
+    # TODO: modify to support chunk-wise decompression
+
     remove_shared_memory_from_resource_tracker()
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = _hub_storage_provider[chunk_path]
@@ -186,6 +189,9 @@ class TorchDataset:
         shape = index_entry["shape"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
+
+        # TODO: modify to support sample-wise decompression
+
         if isinstance(combined_bytes, memoryview):
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
             combined_bytes.release()
