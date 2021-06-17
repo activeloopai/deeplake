@@ -10,7 +10,6 @@ from hub.core.chunk_engine.read import sample_from_index_entry
 from hub.core.chunk_engine.write import write_samples
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
-from hub.util.dataset import get_compressor
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     ImageReadError,
@@ -160,7 +159,6 @@ def extend_tensor(
 
     write_samples(samples, key, storage, tensor_meta, index_meta)
 
-    # else:
     # raise ValueError  # TODO exceptions
 
 

@@ -7,7 +7,6 @@ from uuid import uuid1
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
-from hub.util.dataset import get_compressor
 
 from .chunker import generate_chunks
 
@@ -74,6 +73,7 @@ def write_bytes(
             to call `IndexMeta.add_entry`.
     """
 
+    """
     compression = extra_sample_meta.get("compression", False)
     if not compression and tensor_meta.default_compression is not None:
         compression = tensor_meta.default_compression
@@ -81,6 +81,8 @@ def write_bytes(
         compressor = get_compressor(compression)
         if compressor:
             b = compressor.encode(b)
+    """
+    raise NotImplementedError("need compression")  # TODO look above
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
@@ -155,7 +157,6 @@ def _get_last_chunk(
         last_chunk_key = get_chunk_key(key, last_chunk_name)
         last_chunk = memoryview(storage[last_chunk_key])
         return last_chunk_name, last_chunk
-    return "", memoryview(bytes())
 
 
 def _random_chunk_name() -> str:

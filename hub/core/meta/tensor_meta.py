@@ -1,4 +1,3 @@
-from hub.core import compression
 from typing import Any, Callable, List, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
@@ -59,14 +58,10 @@ class TensorMeta(Meta):
             TensorMeta: Tensor meta object.
         """
 
-        # make sure `default_compression` is set
-        compression_val = ""
         if "default_compression" in kwargs:
-            compression_val = kwargs["default_compression"]
-        htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
-        if compression_val != "":
-            _set_compression(htype_overwrite, compression_val)
+            raise NotImplementedError()  # TODO:
 
+        htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
         _validate_htype_overwrites(htype, htype_overwrite)
 
         required_meta = _required_meta_from_htype(htype)

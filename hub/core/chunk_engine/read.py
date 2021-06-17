@@ -2,13 +2,10 @@ import warnings
 import os
 from typing import Optional
 import numpy as np
-from hub.core import compression
 
 import numpy as np
 
 from hub.core.typing import StorageProvider
-from hub.core.compression import BaseImgCodec
-from hub.util.dataset import get_compressor
 
 
 def sample_from_index_entry(
@@ -83,13 +80,7 @@ def array_from_buffer(
 
     partial_b = b[start_byte:end_byte]
 
-    # decompress if applicable
-    compressor = get_compressor(compression)
-    if compressor is not None:
-        if isinstance(compressor, BaseImgCodec):
-            partial_b = compressor.decode_single_image(partial_b)
-        else:
-            partial_b = compressor.decode(partial_b)
+    raise NotImplementedError()  # TODO
 
     array = np.frombuffer(partial_b, dtype=dtype)
 
