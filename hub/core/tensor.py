@@ -1,3 +1,4 @@
+from hub.util.load import SymbolicSample
 from hub.constants import DEFAULT_HTYPE, DEFAULT_COMPRESSION
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
@@ -6,7 +7,7 @@ from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_array, write_bytes
+from hub.core.chunk_engine.write import write_array, write_bytes, write_symbolic_samples
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
 from hub.util.dataset import get_compressor
@@ -99,34 +100,23 @@ def append_tensor(
         UnsupportedInputType: If provided isn't np.ndarray or .read() result.
         TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
+
+    # TODO: update docstring with types
     if isinstance(sample, (np.ndarray, int, float)):
         # append is guaranteed to NOT have a batch axis
         array = np.expand_dims(sample, axis=0)
         extend_tensor(array, key, storage, **kwargs)
-    elif isinstance(sample, dict):
-        if not tensor_exists(key, storage):
-            raise TensorDoesNotExistError(key)
-        tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
-        shape = sample["shape"]
-        index_meta_entry = {}
-        index_meta_entry["shape"] = shape
-        index_meta_entry["compression"] = sample["compression"]
-        write_bytes(
-            sample["bytes"],
-            key,
-            storage,
-            tensor_meta,
-            index_meta=index_meta,
-            extra_sample_meta=index_meta_entry,
-        )
-        tensor_meta._update_shape_interval(shape)
-        tensor_meta.length += shape[0]
 
     else:
-        raise TensorUnsupportedSampleType()
+        extend_tensor([sample], key, storage, **kwargs)
 
 
-def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
+def extend_tensor(
+    samples: Union[np.ndarray, List[SymbolicSample]],
+    key: str,
+    storage: StorageProvider,
+    **kwargs,
+):
     """Extend an existing tensor with an array. This array will be chunked and sent to `storage`.
 
     For more on chunking, see the `generate_chunks` method.
@@ -145,19 +135,28 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
             `create_tensor(...)`.
     """
 
-    if len(array.shape) < 1:
-        raise ValueError(
-            f"An array with shape={array.shape} cannot be used to extend because it's shape length is < 1."
-        )
-
+    # TODO: update docstring
+    # TODO: support list of `SymbolicSamples`
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
     tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
-    # extend is guaranteed to have a batch axis
-    tensor_meta.check_batch_is_compatible(array)
 
-    write_array(array, key, storage, tensor_meta, index_meta)
+    # extend is guaranteed to have a batch axis
+
+    if isinstance(samples, np.ndarray):
+        if len(samples.shape) < 1:
+            raise ValueError(
+                f"An array with shape={samples.shape} cannot be used to extend because it's shape length is < 1."
+            )
+        tensor_meta.check_batch_is_compatible(samples)  # TODO: move into `write_array` and don't do batch-wise, do sample-wise
+        write_array(samples, key, storage, tensor_meta, index_meta)
+
+    elif isinstance(samples, list):
+        write_symbolic_samples(samples, key, storage, tensor_meta, index_meta)
+
+    else:
+        raise ValueError  # TODO exceptions
 
 
 def read_samples_from_tensor(

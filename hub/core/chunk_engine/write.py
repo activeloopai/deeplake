@@ -1,8 +1,9 @@
+from hub.util.load import SymbolicSample
 from hub.core.compression.base import BaseImgCodec, BaseNumCodec
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
 from hub.core.meta.index_meta import IndexMeta
-from typing import List, Tuple, Union, Dict
+from typing import List, Sequence, Tuple, Union, Dict
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
@@ -57,14 +58,48 @@ def write_array(
             )
 
         tensor_meta.update_with_sample(sample)
-
-    tensor_meta.length += num_samples
+        tensor_meta.length += 1
 
 
 def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
     """Simply adds an entry to `index_meta` that symbolizes an empty array."""
 
     index_meta.add_entry(chunk_names=[], start_byte=0, end_byte=0, **extra_sample_meta)
+
+
+def write_symbolic_samples(
+    samples: Sequence[SymbolicSample],
+    key: str,
+    storage: StorageProvider,
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
+):
+    # TODO: docstring + change all other docstrings to `sequence`
+
+    for sample in samples:
+        if not isinstance(sample, SymbolicSample):
+            raise Exception()  # TODO
+
+        # TODO: call `check_batch_is_compatible` but per sample not per batch
+
+        # un-symbolizes this and populates meta data # TODO: make more obvious
+        # TODO: make sure `sample.numpy()` raises a user-friendly error
+        sample.numpy()
+
+        write_bytes(
+            sample.raw_bytes(),
+            key,
+            storage,
+            tensor_meta,
+            index_meta=index_meta,
+            extra_sample_meta={
+                "shape": sample.shape,
+                "compression": sample.compression,
+            },
+        )
+
+        tensor_meta._update_shape_interval(sample.shape)
+        tensor_meta.length += 1
 
 
 def write_bytes(
