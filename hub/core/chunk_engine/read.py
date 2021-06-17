@@ -44,7 +44,7 @@ def sample_from_index_entry(
     end_byte = last_b_len + index_entry["end_byte"]
 
     mv = memoryview(buffer)[start_byte:end_byte]
-    compression = index_entry["compression"]
+    compression = index_entry.get("compression", UNCOMPRESSED)
 
     if compression == UNCOMPRESSED:
         # TODO: chunk-wise compression

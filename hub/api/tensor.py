@@ -1,6 +1,5 @@
 from hub.util.load import Sample
-from hub.constants import DEFAULT_HTYPE
-from typing import List, Sequence, Union, Iterable, Optional, Tuple, Dict
+from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
 from hub.core.meta.tensor_meta import TensorMeta
 

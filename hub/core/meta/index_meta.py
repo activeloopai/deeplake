@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from typing import Dict, List, Tuple
 from hub.util.callbacks import CallbackList
 from hub.util.keys import get_index_meta_key
@@ -19,10 +20,13 @@ def _create_entry(
         "chunk_names": chunk_names,
         "start_byte": start_byte,
         "end_byte": end_byte,
-        "compression": compression,
         "dtype": dtype,
         "shape": shape,
     }
+
+    if compression != UNCOMPRESSED:
+        entry["compression"] = compression
+
     return entry
 
 
