@@ -18,7 +18,8 @@ from hub.util.exceptions import (
     UnexpectedStatusCodeException,
     InvalidTokenException,
 )
- 
+
+
 def write_token(token: str):
     """Writes the auth token to the token file."""
     if not token:
@@ -28,6 +29,7 @@ def write_token(token: str):
     with open(TOKEN_FILE_PATH, "w") as f:
         f.write(token)
 
+
 def read_token():
     """Returns the token. Searches for the token first in token file and then in enviroment variables."""
     token = None
@@ -36,8 +38,9 @@ def read_token():
             token = f.read()
     else:
         token = os.environ.get(HUB_AUTH_TOKEN)
-        
+
     return token
+
 
 def remove_token():
     """Deletes the token file"""

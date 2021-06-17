@@ -27,16 +27,16 @@ class HubBackendClient:
         self.auth_header = None
         self.token = token or self.get_token()
         self.auth_header = f"Bearer {token}"
-            
+
     def get_token(self):
         """Returns a token"""
         token = read_token()
         if token is None:
             token = self.request_auth_token(username="public", password="")
             write_token(token)
-            
+
         return token
-    
+
     def request(
         self,
         method: str,
@@ -177,7 +177,7 @@ class HubBackendClient:
                 "repository": repo,
                 "public": public,
                 "rewrite": True,
-                "meta": meta
+                "meta": meta,
             },
             endpoint=self.endpoint(),
         )
@@ -187,10 +187,8 @@ class HubBackendClient:
                 f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
             )
             if public is False:
-                logger.info(
-                    "The dataset is private so make sure you are logged in!"
-                )
-                    
+                logger.info("The dataset is private so make sure you are logged in!")
+
     def delete_dataset_entry(self, username, dataset_name):
         tag = f"{username}/{dataset_name}"
         suffix = f"{DATASET_SUFFIX}/{tag}"

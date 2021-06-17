@@ -9,6 +9,7 @@ from hub.util.exceptions import TensorMetaMismatchError
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
+
 def test_persist_local(local_storage):
     if local_storage is None:
         pytest.skip()
@@ -283,20 +284,23 @@ def test_dtype_mismatch(memory_ds: Dataset):
 def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
+
 # TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented
+
+
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    
+
     ds = Dataset("hub://testingacc/hub2ds2", token=token)
     ds.create_tensor("image")
-    
+
     for i in range(10):
         ds.image.append(i * np.ones((100, 100)))
-        
+
     token = ds.token
     del ds
     ds = Dataset("hub://testingacc/hub2ds2", token=token)

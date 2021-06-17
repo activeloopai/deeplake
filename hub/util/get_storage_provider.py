@@ -72,7 +72,9 @@ def storage_provider_from_path(
     return storage
 
 
-def storage_provider_from_hub_path(path: str, read_only: bool = False, token: str = None):
+def storage_provider_from_hub_path(
+    path: str, read_only: bool = False, token: str = None
+):
     check_hub_path(path)
     tag = path[6:]
     org_id, ds_name = tag.split("/")
