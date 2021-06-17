@@ -1,13 +1,7 @@
-from hub.constants import DEFAULT_COMPRESSION
-from hub.api.tensor import Tensor
 from hub.core.meta.index_meta import IndexMeta
-from hub.core.chunk_engine.write import write_array
 import os
 from hub.tests.common import get_dummy_data_path
-from hub.util.dataset import get_compressor
-from PIL import Image
 import numpy as np
-import pytest
 
 import hub
 from hub import Dataset
@@ -29,7 +23,6 @@ def test_load_compressed_samples(ds: Dataset):
 
     assert images.meta.default_compression == "PNG"
 
-    # TODO: test symbolic load + load in isolation
     images.append(hub.load(cat_path))
     images.append(hub.load(flower_path))
     images.append(np.ones((100, 100, 4), dtype="uint8"))

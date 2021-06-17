@@ -1,4 +1,4 @@
-from hub.util.load import SymbolicSample
+from hub.util.load import Sample
 from hub.constants import DEFAULT_HTYPE, DEFAULT_COMPRESSION
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_array, write_bytes, write_symbolic_samples
+from hub.core.chunk_engine.write import write_samples
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
 from hub.util.dataset import get_compressor
@@ -112,7 +112,7 @@ def append_tensor(
 
 
 def extend_tensor(
-    samples: Union[np.ndarray, List[SymbolicSample]],
+    samples: Union[np.ndarray, List[Sample]],
     key: str,
     storage: StorageProvider,
     **kwargs,
@@ -136,7 +136,7 @@ def extend_tensor(
     """
 
     # TODO: update docstring
-    # TODO: support list of `SymbolicSamples`
+    # TODO: support list of `Samples`
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
@@ -156,13 +156,11 @@ def extend_tensor(
 
         # since numpy arrays are always uncompressed, always use the `default_compression`
         samples = [
-            SymbolicSample(
-                array=samples[i], compression=tensor_meta.default_compression
-            )
+            Sample(array=samples[i], compression=tensor_meta.default_compression)
             for i in range(len(samples))
         ]
 
-    write_symbolic_samples(samples, key, storage, tensor_meta, index_meta)
+    write_samples(samples, key, storage, tensor_meta, index_meta)
 
     # else:
     # raise ValueError  # TODO exceptions

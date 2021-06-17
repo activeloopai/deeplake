@@ -16,7 +16,7 @@ IMAGE_SUFFIXES: List[str] = [".jpeg", ".jpg", ".png"]
 SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 
-class SymbolicSample:
+class Sample:
     def __init__(
         self, path: str = None, array: np.ndarray = None, compression: str = None
     ):
@@ -45,8 +45,8 @@ class SymbolicSample:
             self._compression = compression
 
     @property
-    def was_read(self):
-        return self._array is not None
+    def is_symbolic(self):
+        return self._array is None
 
     @property
     def array(self) -> np.ndarray:
@@ -103,12 +103,12 @@ class SymbolicSample:
             raise HubAutoUnsupportedFileExtensionError(self._suffix, SUPPORTED_SUFFIXES)
 
     def __str__(self):
-        if self.was_read is None:
-            return f"SymbolicSample(was_read=False, path={self.path})"
+        if self.is_symbolic:
+            return f"Sample(is_symbolic=True, path={self.path})"
 
-        return f"SymbolicSample(was_read=True, shape={self.shape}, compression='{self.compression}', dtype='{self.dtype}' path={self.path})"
+        return f"Sample(is_symbolic=False, shape={self.shape}, compression='{self.compression}', dtype='{self.dtype}' path={self.path})"
 
 
-def load(path: Union[str, pathlib.Path]) -> SymbolicSample:
+def load(path: Union[str, pathlib.Path]) -> Sample:
     # TODO: mention that you can do `.numpy()` on this output to make it extremely easy to use
-    return SymbolicSample(path)
+    return Sample(path)
