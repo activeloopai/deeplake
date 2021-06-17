@@ -1,3 +1,4 @@
+from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import re
 import numpy as np
 import pathlib
@@ -16,9 +17,32 @@ SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 
 class SymbolicSample:
-    def __init__(self, path: str):
-        self.path = pathlib.Path(path)
-        self._array = None
+    def __init__(
+        self, path: str = None, array: np.ndarray = None, compression: str = None
+    ):
+        if (path is None) == (array is None):
+            raise ValueError("Must pass either `path` or `array`.")
+
+        if path is not None:
+            self.path = pathlib.Path(path)
+            self._array = None
+            if compression:
+                # TODO: maybe this should be possible? this may help make code more concise
+                raise ValueError(
+                    "Should not pass `compression` with a `path`."
+                )  # TODO: better message
+
+        if array is not None:
+            self.path = None
+            self._array = array
+            if not compression:
+                # TODO: maybe this should be possible? this may help make code more concise
+                raise ValueError(
+                    "Should pass `compression` when passing `array`."
+                )  # TODO: better message
+
+            # TODO: validate compression?
+            self._compression = compression
 
     @property
     def was_read(self):
@@ -46,8 +70,13 @@ class SymbolicSample:
         return self._compression
 
     def raw_bytes(self) -> bytes:
-        with open(self.path, "rb") as image_file:
-            return image_file.read()
+        if self.path is None:
+            # TODO: get tobytes from meta
+            return row_wise_to_bytes(self._array)
+
+        else:
+            with open(self.path, "rb") as image_file:
+                return image_file.read()
 
     def read(self):
         if self._array is None:
@@ -67,7 +96,7 @@ class SymbolicSample:
                     # TODO: elaborate on why it corrupted
                     raise SampleCorruptedError(self.path)
 
-                # TODO: set meta values
+                # TODO: validate compression?
                 self._compression = img.format
                 return self._array
 

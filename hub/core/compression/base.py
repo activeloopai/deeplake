@@ -56,7 +56,9 @@ class BaseImgCodec(ABC, Codec):
         Returns:
             Encoded dictionary of images and metadata.
         """
+
         append_one = False
+
         if self.single_channel and arr.shape[-1] == 1:
             arr = np.reshape(arr, arr.shape[:-1])
             append_one = True
@@ -64,8 +66,10 @@ class BaseImgCodec(ABC, Codec):
             shape_dims = 2
         else:
             shape_dims = 3
+
         if len(arr.shape) < shape_dims:
             raise InvalidImageDimensions(len(arr.shape), shape_dims)
+
         if len(arr.shape) == shape_dims:
             return MSGPACK.encode(
                 [

@@ -1,9 +1,10 @@
+from re import L
 from typing import Dict
 from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_HTYPE
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},
-    "image": {"dtype": "uint8"},
+    "image": {"dtype": "uint8", "default_compression": "PNG"},
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
@@ -18,4 +19,8 @@ COMMON_CONFIGS = {
 }
 
 for config in HTYPE_CONFIGURATIONS.values():
-    config.update(COMMON_CONFIGS)
+    for key, v in COMMON_CONFIGS.items():
+
+        # only update if not specified explicitly
+        if key not in config:
+            config[key] = v

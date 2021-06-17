@@ -14,7 +14,7 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError, TensorUnsupportedSampleType
+from hub.util.exceptions import TensorDoesNotExistError
 from hub.core.index import Index
 
 

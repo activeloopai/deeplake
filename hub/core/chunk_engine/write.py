@@ -76,6 +76,8 @@ def write_symbolic_samples(
 ):
     # TODO: docstring + change all other docstrings to `sequence`
 
+    # TODO: this should be merged into 1 function with `write_array`
+
     for sample in samples:
         if not isinstance(sample, SymbolicSample):
             raise Exception()  # TODO
