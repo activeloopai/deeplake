@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from hub.util.load import Sample
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
@@ -33,11 +34,13 @@ def write_samples(
         # TODO: call `check_batch_is_compatible` but per sample not per batch (update the function to check samples)
         tensor_meta.check_batch_is_compatible(np.expand_dims(sample.array, axis=0))
 
-        # TODO: uncompressed buffer
-        compressed_buffer = sample.compressed_bytes()
+        if sample.compression == UNCOMPRESSED:
+            buffer = sample.uncompressed_bytes()
+        else:
+            buffer = sample.compressed_bytes()
 
         write_bytes(
-            memoryview(compressed_buffer),
+            memoryview(buffer),
             key,
             storage,
             tensor_meta,
