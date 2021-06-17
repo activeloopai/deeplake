@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
 
@@ -22,6 +23,20 @@ def test_persist_local(local_storage):
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
+
+
+def test_dtype(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
+
+    assert tensor.meta.dtype == None
+    assert dtyped_tensor.meta.dtype == "uint8"
+
+    tensor.append(np.ones((10, 10), dtype="float32"))
+    dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
+
+    assert tensor.meta.dtype == "float32"
+    assert dtyped_tensor.meta.dtype == "uint8"
 
 
 def test_persist_with_local(local_storage):
@@ -155,6 +170,9 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
+    assert tensor.meta.sample_compression == UNCOMPRESSED
+    assert tensor.meta.chunk_compression == UNCOMPRESSED
+
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
     assert tensor.shape_interval.upper == (16, 25, 50, 2)
@@ -255,20 +273,6 @@ def test_shape_property(memory_ds):
     assert fixed.shape_interval.lower == (22, 28, 28)
     assert fixed.shape_interval.upper == (22, 28, 28)
     assert not fixed.is_dynamic
-
-
-def test_dtype(memory_ds: Dataset):
-    tensor = memory_ds.create_tensor("tensor")
-    dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
-
-    assert tensor.meta.dtype == None
-    assert dtyped_tensor.meta.dtype == "uint8"
-
-    tensor.append(np.ones((10, 10), dtype="float32"))
-    dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
-
-    assert tensor.meta.dtype == "float32"
-    assert dtyped_tensor.meta.dtype == "uint8"
 
 
 @pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
