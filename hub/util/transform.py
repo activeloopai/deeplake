@@ -141,7 +141,7 @@ def merge_tensor_metas(
             del storage[tensor_meta_key]
         except KeyError:
             pass
-        
+
         tensor_meta.copy_to(storage)
 
 

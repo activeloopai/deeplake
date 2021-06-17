@@ -1,6 +1,7 @@
 from hub.api.dataset import Dataset
 from hub.core.transform.transform import transform  # type: ignore
 import numpy as np
+from hub.core.tests.common import parametrize_all_dataset_storages_and_caches
 
 
 def fn1(i, mul=1, copy=1):
@@ -24,7 +25,8 @@ def fn3(i, mul=1, copy=1):
     return [d for _ in range(copy)]
 
 
-def test_transform_hub_dataset(local_storage):
+@parametrize_all_dataset_storages_and_caches
+def test_transform_hub_dataset(ds):
     with Dataset("./test/transform_hub_in") as data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
@@ -32,7 +34,7 @@ def test_transform_hub_dataset(local_storage):
             data_in.image.append(i * np.ones((100, 100)))
             data_in.label.append(i * np.ones((1,)))
     data_in = Dataset("./test/transform_hub_in")
-    ds_out = Dataset(storage=local_storage)
+    ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(data_in, [fn2], ds_out)
@@ -48,9 +50,10 @@ def test_transform_hub_dataset(local_storage):
     ds_out.delete()
 
 
-def test_chain_transform(local_storage):
+@parametrize_all_dataset_storages_and_caches
+def test_chain_transform(ds):
     ls = [i for i in range(100)]
-    ds_out = Dataset(storage=local_storage)
+    ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(
@@ -72,9 +75,10 @@ def test_chain_transform(local_storage):
     ds_out.delete()
 
 
-def test_large_chain_transform(local_storage):
+@parametrize_all_dataset_storages_and_caches
+def test_large_chain_transform(ds):
     ls = [i for i in range(10)]
-    ds_out = Dataset(storage=local_storage)
+    ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(
@@ -93,4 +97,3 @@ def test_large_chain_transform(local_storage):
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((13,))
             )
-    ds_out.delete()
