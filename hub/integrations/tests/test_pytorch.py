@@ -13,8 +13,6 @@ def test_pytorch_small(local_ds):
 
     local_ds.create_tensor("image")
 
-    assert local_ds.image.meta.sample_compression == "png"
-
     local_ds.image.extend(
         np.array([i * np.ones((300, 300)) for i in range(256)], dtype="uint8")
     )
