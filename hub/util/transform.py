@@ -1,6 +1,6 @@
 from hub.api.dataset import Dataset
 from hub.util.exceptions import InvalidTransformOutputError
-from typing import Any, Callable, Dict, List, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
@@ -59,15 +59,18 @@ def verify_transform_output(output):
             raise InvalidTransformOutputError
 
 
-def get_first_chunk(index_meta: IndexMeta) -> Tuple[str, int]:
+def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
     chunk_name = ""
     chunk_size = 0
 
-    if len(index_meta.entries) > 0 and len(index_meta.entries[0]["chunk_names"]) > 0:
-        chunk_name = index_meta.entries[0]["chunk_names"][0]
+    if (
+        len(index_meta["entries"]) > 0
+        and len(index_meta["entries"][0]["chunk_names"]) > 0
+    ):
+        chunk_name = index_meta["entries"][0]["chunk_names"][0]
         chunk_size = 0
 
-        for entry in index_meta.entries:
+        for entry in index_meta["entries"]:
             if entry["chunk_names"] == [chunk_name]:
                 chunk_size = entry["end_byte"]
             elif (
@@ -83,7 +86,7 @@ def get_first_chunk(index_meta: IndexMeta) -> Tuple[str, int]:
 def merge_corner_chunks(
     tensor: str,
     storage: StorageProvider,
-    index_meta: IndexMeta,
+    current_meta: Dict,
     first_chunk_name: str = "",
     first_chunk_size: int = 0,
     last_chunk_name: str = "",
@@ -105,17 +108,17 @@ def merge_corner_chunks(
 
         offset = last_chunk_size
 
-        for i in range(len(index_meta.entries)):
-            if index_meta.entries[i]["chunk_names"] == [first_chunk_name]:
-                index_meta.entries[i]["chunk_names"] = [last_chunk_name]
-                index_meta.entries[i]["start_byte"] += offset
-                index_meta.entries[i]["end_byte"] += offset
+        for i in range(len(current_meta["entries"])):
+            if current_meta["entries"][i]["chunk_names"] == [first_chunk_name]:
+                current_meta["entries"][i]["chunk_names"] = [last_chunk_name]
+                current_meta["entries"][i]["start_byte"] += offset
+                current_meta["entries"][i]["end_byte"] += offset
             else:
                 break
 
 
 def merge_tensor_metas(
-    all_workers_tensor_meta: List[Dict[str, TensorMeta]],
+    all_workers_tensor_meta: List[Dict[str, dict]],
     storage: StorageProvider,
     tensors: Set[str],
 ):
@@ -124,32 +127,24 @@ def merge_tensor_metas(
 
         for all_tensor_meta in all_workers_tensor_meta:
             current_meta = all_tensor_meta[tensor]
+            # will be None if 0 outputs from worker
             if tensor_meta.dtype is None:
-                tensor_meta = current_meta
-            else:
-                # will be None if 0 outputs from worker
-                if current_meta.dtype is not None:
-                    assert tensor_meta.dtype == current_meta.dtype
+                tensor_meta.dtype = current_meta["dtype"]
+                tensor_meta.max_shape = current_meta["max_shape"]
+                tensor_meta.min_shape = current_meta["min_shape"]
+            if current_meta["dtype"] is not None:
+                assert tensor_meta.dtype == current_meta["dtype"]
+                # TODO we can support this once we have ragged tensor support
+                assert len(tensor_meta.max_shape) == len(current_meta["max_shape"])
+                assert len(tensor_meta.min_shape) == len(current_meta["min_shape"])
 
-                    # TODO we can support this once we have ragged tensor support
-                    assert len(tensor_meta.max_shape) == len(current_meta.max_shape)
-                    assert len(tensor_meta.min_shape) == len(current_meta.min_shape)
-
-                    tensor_meta._update_shape_interval(tuple(current_meta.max_shape))
-                    tensor_meta._update_shape_interval(tuple(current_meta.min_shape))
-                    tensor_meta.length += current_meta.length
-
-        tensor_meta_key = get_tensor_meta_key(tensor)
-        try:
-            del storage[tensor_meta_key]
-        except KeyError:
-            pass
-
-        TensorMeta.copy(tensor, tensor_meta, storage)
+                tensor_meta._update_shape_interval(tuple(current_meta["max_shape"]))
+                tensor_meta._update_shape_interval(tuple(current_meta["min_shape"]))
+                tensor_meta.length += current_meta["length"]
 
 
 def merge_index_metas(
-    all_workers_index_meta: List[Dict[str, IndexMeta]],
+    all_workers_index_meta: List[Dict[str, Dict]],
     storage: StorageProvider,
     tensors: Set[str],
 ):
@@ -163,22 +158,19 @@ def merge_index_metas(
 
         for all_index_meta in all_workers_index_meta:
             current_meta = all_index_meta[tensor]
-            first_chunk_name, first_chunk_size = get_first_chunk(index_meta)
+            first_chunk_name, first_chunk_size = get_first_chunk(current_meta)
             if first_chunk_name and last_chunk_name:
                 merge_corner_chunks(
                     tensor,
                     storage,
-                    index_meta,
+                    current_meta,
                     first_chunk_name,
                     first_chunk_size,
                     last_chunk_name,
                     last_chunk_size,
                 )
 
-            if index_meta is None:
-                index_meta = current_meta
-            else:
-                index_meta.entries.extend(current_meta.entries)
+            index_meta.entries.extend(current_meta["entries"])
 
             # if there was atleast one chunk before
             if (
@@ -188,18 +180,9 @@ def merge_index_metas(
                 last_chunk_name = index_meta.entries[-1]["chunk_names"][-1]
                 last_chunk_size = index_meta.entries[-1]["end_byte"]
 
-        index_meta_key = get_index_meta_key(tensor)
-
-        try:
-            del storage[index_meta_key]
-        except KeyError:
-            pass
-
-        IndexMeta.copy(tensor, index_meta, storage)
-
 
 def equalize_pipeline_kwargs(
-    pipeline_kwargs: Sequence[dict], pipeline: Sequence[Callable]
+    pipeline_kwargs: Optional[Sequence[Dict]], pipeline: Sequence[Callable]
 ) -> List[Dict]:
     """Makes the number of pipeline_kkwargs equal to number of functions in pipeline."""
     pipeline_kwargs = pipeline_kwargs or []
