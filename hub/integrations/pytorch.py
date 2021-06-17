@@ -185,8 +185,9 @@ class TorchDataset:
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
-        dtype = self.all_tensor_metas[key].dtype
         shape = index_entry["shape"]
+        dtype = index_entry["dtype"]
+        # cast_dtype = self.all_tensor_metas[key].dtype  # TODO: cast into this dtype
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
 
@@ -197,6 +198,7 @@ class TorchDataset:
             combined_bytes.release()
         else:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+
         return arr
 
     def _get_data_from_chunks(
