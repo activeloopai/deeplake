@@ -70,6 +70,8 @@ class Sample:
         return self._compression.lower()
 
     def compressed_bytes(self) -> bytes:
+        # TODO: docstring
+
         if self.compression == UNCOMPRESSED:
             raise Exception("Sample is not compressed.")  # TODO:
 
@@ -80,6 +82,8 @@ class Sample:
             return f.read()
 
     def uncompressed_bytes(self) -> bytes:
+        # TODO: docstring
+
         # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
         return row_wise_to_bytes(self.array)
 

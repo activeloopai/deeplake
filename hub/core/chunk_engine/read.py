@@ -14,7 +14,6 @@ def sample_from_index_entry(
     key: str,
     storage: StorageProvider,
     index_entry: dict,
-    dtype: str,
 ) -> np.ndarray:
     """Get the un-chunked sample from a single `index_meta` entry.
 
@@ -22,7 +21,6 @@ def sample_from_index_entry(
         key (str): Key relative to `storage` where this instance.
         storage (StorageProvider): Storage of the sample.
         index_entry (dict): Index metadata of sample with `chunks_names`, `start_byte` and `end_byte` keys.
-        dtype (str): Data type of the sample.
 
     Returns:
         Numpy array from the bytes of the sample.
@@ -30,6 +28,7 @@ def sample_from_index_entry(
 
     chunk_names = index_entry["chunk_names"]
     shape = index_entry["shape"]
+    dtype = index_entry["dtype"]
 
     # sample has no data
     if len(chunk_names) <= 0:

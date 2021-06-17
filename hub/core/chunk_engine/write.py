@@ -48,6 +48,7 @@ def write_samples(
             extra_sample_meta={
                 "shape": sample.shape,
                 "compression": sample.compression,
+                "dtype": sample.dtype,
             },
         )
 

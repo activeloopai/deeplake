@@ -208,7 +208,10 @@ def read_samples_from_tensor(
         last_shape = index_entries[i - 1]["shape"]
         if not aslist and shape != last_shape:
             raise DynamicTensorNumpyError(key, index)
-        array = sample_from_index_entry(key, storage, index_entry, tensor_meta.dtype)
+        array = sample_from_index_entry(key, storage, index_entry)
+
+        # TODO: convert sample into index_meta.dtype?
+
         samples.append(array)
     if aslist:
         if index.values[0].subscriptable():
