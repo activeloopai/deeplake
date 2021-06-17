@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 
 from PIL import Image  # type: ignore
@@ -18,7 +19,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise Exception()  # TODO
 
 
-def decompress_array(buffer: memoryview, compression: str) -> np.ndarray:
+def decompress_array(buffer: Union[bytes, memoryview], compression: str) -> np.ndarray:
     if compression in SUPPORTED_COMPRESSIONS:
         # TODO: check if compression is actually the format (right now `compression` is useless)
         img = Image.open(BytesIO(buffer))
