@@ -31,7 +31,7 @@ def sample_from_index_entry(
 
     chunk_names = index_entry["chunk_names"]
     shape = index_entry["shape"]
-    compressor = get_compressor(index_entry["compression"])
+
     # sample has no data
     if len(chunk_names) <= 0:
         return np.zeros(shape, dtype=dtype)
@@ -48,17 +48,17 @@ def sample_from_index_entry(
     return array_from_buffer(
         memoryview(b),
         dtype,
-        compressor,
-        shape,
-        start_byte,
-        end_byte,
+        index_entry["compression"],
+        shape=shape,
+        start_byte=start_byte,
+        end_byte=end_byte,
     )
 
 
 def array_from_buffer(
     b: memoryview,
     dtype: str,
-    compressor: Union[BaseImgCodec, BaseNumCodec, None],
+    compression: str,
     shape: tuple = None,
     start_byte: int = 0,
     end_byte: Optional[int] = None,
@@ -69,7 +69,7 @@ def array_from_buffer(
     Args:
         b (memoryview): Bytes that should be decompressed and converted to array.
         dtype (str): Data type of the sample.
-        compressor (BaseImgCodec/BaseNumCodec/None): Compressor applied on the sample.
+        compression (str): Compression type this sample was encoded with.
         shape (tuple): Array shape from index entry.
         start_byte (int): Get only bytes starting from start_byte.
         end_byte (int, optional): Get only bytes up to end_byte.
@@ -82,12 +82,16 @@ def array_from_buffer(
     """
 
     partial_b = b[start_byte:end_byte]
+
+    # decompress if applicable
+    compressor = get_compressor(compression)
     if compressor is not None:
         if isinstance(compressor, BaseImgCodec):
             partial_b = compressor.decode_single_image(partial_b)
             array = partial_b
         else:
             partial_b = compressor.decode(partial_b)
+
     array = np.frombuffer(partial_b, dtype=dtype)
     if shape is not None:
         array = array.reshape(shape)
