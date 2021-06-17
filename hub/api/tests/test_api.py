@@ -289,7 +289,7 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    hub.client.config.DEV = True
+
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
     id = str(uuid.uuid1())
