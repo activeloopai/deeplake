@@ -5,7 +5,7 @@ from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_COMPRESSION, DEFAULT_HTYPE
 # TODO: how do we allow the user to keep their data uncompressed?
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},
-    "image": {"dtype": "uint8", "default_compression": "PNG"},
+    "image": {"dtype": "uint8", "default_compression": "png"},
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
