@@ -1,4 +1,5 @@
 import os
+import pathlib
 from typing import Tuple
 from uuid import uuid1
 
@@ -9,6 +10,7 @@ from hub.constants import KB, MB
 
 SESSION_ID = str(uuid1())
 
+_THIS_FILE = pathlib.Path(__file__).parent.absolute()
 TENSOR_KEY = "tensor"
 
 SHAPE_PARAM = "shape"
@@ -42,6 +44,10 @@ def current_test_name() -> str:
     test_name = full_name.split("::")[1]
     output = os.path.join(test_file, test_name)
     return output
+
+
+def get_dummy_data_path(subpath: str = ""):
+    return os.path.join(_THIS_FILE, "dummy_data/", subpath)
 
 
 def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:

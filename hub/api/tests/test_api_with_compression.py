@@ -1,6 +1,6 @@
 from hub.core.chunk_engine.write import write_array
 import os
-from hub.api.tests.common import get_dummy_data_path
+from hub.tests.common import get_dummy_data_path
 from hub.util.dataset import get_compressor
 from PIL import Image
 import numpy as np
