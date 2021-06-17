@@ -27,7 +27,10 @@ def get_storage_provider(
 
 
 def storage_provider_from_path(
-    path: str, creds: Optional[dict], read_only: bool = False, token: str = None
+    path: str,
+    creds: Optional[dict],
+    read_only: bool = False,
+    token: Optional[str] = None,
 ):
     """Construct a StorageProvider given a path.
 
@@ -36,7 +39,7 @@ def storage_provider_from_path(
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
-
+        token (str): token for authentication into activeloop
     Returns:
         If given a valid S3 path i.e starts with s3:// returns the S3Provider and mode. (credentials should either be in creds or the environment)
         If given a path starting with mem://return the MemoryProvider and mode.

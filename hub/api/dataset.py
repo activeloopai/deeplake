@@ -1,5 +1,4 @@
 from hub.htypes import DEFAULT_HTYPE
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -10,8 +9,6 @@ from hub.constants import (
     MB,
 )
 from hub.core.dataset import dataset_exists
-from hub.core.storage.lru_cache import LRUCache
-from hub.core.tensor import tensor_exists
 
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.tensor import create_tensor, tensor_exists
@@ -240,7 +237,7 @@ class Dataset:
         return dataset_to_pytorch(self, transform, workers=workers)
 
     def _get_total_meta(self):
-        """ Returns tensor metas all together """
+        """Returns tensor metas all together"""
         return {
             tensor_key: tensor_value.meta
             for tensor_key, tensor_value in self.tensors.items()
@@ -321,6 +318,7 @@ class Dataset:
 
     @property
     def token(self):
+        """Get attached token of the dataset"""
         if self._token is None:
             self._token = self.client.get_token()
         return self._token
