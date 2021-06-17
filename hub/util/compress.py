@@ -20,6 +20,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
 def decompress_array(buffer: memoryview, compression: str) -> np.ndarray:
     if compression in SUPPORTED_COMPRESSIONS:
+        # TODO: check if compression is actually the format (right now `compression` is useless)
         img = Image.open(BytesIO(buffer))
         return np.array(img)
     else:

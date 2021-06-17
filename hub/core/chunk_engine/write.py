@@ -45,7 +45,7 @@ def write_samples(
             storage,
             tensor_meta,
             index_meta=index_meta,
-            extra_sample_meta={
+            extra_sample_meta={  # TODO: convert to kwargs
                 "shape": sample.shape,
                 "compression": sample.compression,
                 "dtype": sample.dtype,

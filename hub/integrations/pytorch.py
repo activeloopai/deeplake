@@ -1,3 +1,5 @@
+from hub.util.compress import decompress_array
+from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
@@ -181,6 +183,11 @@ class TorchDataset:
 
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
+
+        # TODO: this function should be located in core (sample_from_index_entry doesn't work because prefetch cache)
+        # TODO: i think this can be done by creating a `PrefetchCache` like how we have `LRUCache` then all of this code
+        # TODO: will be hanlded in there
+
         index_entry = self.all_index_metas[key].entries[index]
 
         start_byte = index_entry["start_byte"]
@@ -188,16 +195,16 @@ class TorchDataset:
         shape = index_entry["shape"]
         dtype = index_entry["dtype"]
         # cast_dtype = self.all_tensor_metas[key].dtype  # TODO: cast into this dtype
+        sample_compression = index_entry["compression"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-
-        # TODO: modify to support sample-wise decompression
+        if sample_compression == UNCOMPRESSED:
+            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+        else:
+            arr = decompress_array(combined_bytes, sample_compression)
 
         if isinstance(combined_bytes, memoryview):
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
             combined_bytes.release()
-        else:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
 
         return arr
 

@@ -9,9 +9,9 @@ def _create_entry(
     chunk_names: List[str],
     start_byte: int,
     end_byte: int,
-    shape: Tuple[int] = None,
-    dtype: str = None,
-    compression: str = None,
+    shape: Tuple[int],
+    dtype: str,
+    compression: str,
 ) -> dict:
     # TODO: replace with `SampleMeta` class
 
@@ -19,13 +19,10 @@ def _create_entry(
         "chunk_names": chunk_names,
         "start_byte": start_byte,
         "end_byte": end_byte,
+        "compression": compression,
+        "dtype": dtype,
+        "shape": shape,
     }
-    # TODO: make these non-optional
-    if shape is not None:
-        entry["shape"] = shape
-    if dtype is not None:
-        entry["dtype"] = dtype
-    entry["compression"] = compression
     return entry
 
 
@@ -62,9 +59,9 @@ class IndexMeta(Meta):
         chunk_names: List[str],
         start_byte: int,
         end_byte: int,
-        shape: Tuple[int] = None,
-        dtype: str = None,
-        compression: str = None,
+        shape: Tuple[int],
+        dtype: str,
+        compression: str,
     ):
         self.entries.append(
             _create_entry(chunk_names, start_byte, end_byte, shape, dtype, compression)

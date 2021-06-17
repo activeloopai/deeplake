@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
 
@@ -11,6 +12,7 @@ def test_tensorflow_with_compression(local_ds: Dataset):
     labels = local_ds.create_tensor("labels", htype="class_label")
 
     assert images.meta.sample_compression == "png"
+    assert labels.meta.sample_compression == UNCOMPRESSED
 
     images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
     labels.extend(np.ones((16, 1), dtype="int32"))
