@@ -134,7 +134,7 @@ class Dataset:
         htype: Optional[str] = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
         dtype: str = None,
-        default_compression: Optional[str] = ...,
+        default_compression: str = None,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
