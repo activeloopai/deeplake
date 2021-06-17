@@ -1,9 +1,7 @@
 from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
-import re
 import numpy as np
 import pathlib
-import exiftool  # type: ignore
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from hub.util.exceptions import (
     HubAutoUnsupportedFileExtensionError,
