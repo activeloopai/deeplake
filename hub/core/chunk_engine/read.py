@@ -44,9 +44,9 @@ def sample_from_index_entry(
     end_byte = last_b_len + index_entry["end_byte"]
 
     mv = memoryview(buffer)[start_byte:end_byte]
-    compression = index_entry.get("compression", UNCOMPRESSED)
+    sample_compression = index_entry.get("compression", UNCOMPRESSED)
 
-    if compression == UNCOMPRESSED:
+    if sample_compression == UNCOMPRESSED:
         # TODO: chunk-wise compression
 
         return array_from_buffer(
@@ -63,24 +63,7 @@ def array_from_buffer(
     dtype: str,
     shape: tuple = None,
 ) -> np.ndarray:
-    """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all
-    bytes are used.
-
-    Args:
-        b (memoryview): Bytes that should be decompressed and converted to array.
-        dtype (str): Data type of the sample.
-        compression (str): Compression type this sample was encoded with.
-        shape (tuple): Array shape from index entry.
-        start_byte (int): Get only bytes starting from start_byte.
-        end_byte (int, optional): Get only bytes up to end_byte.
-
-    Returns:
-        Numpy array from the bytes of the sample.
-
-    Raises:
-        ArrayShapeInfoNotFound: If no info about sample shape is in meta.
-    """
-    # TODO update docstring
+    """Reconstruct a sample from a buffer (memoryview)."""
 
     array = np.frombuffer(b, dtype=dtype)
 

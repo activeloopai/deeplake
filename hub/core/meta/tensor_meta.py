@@ -77,14 +77,14 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    def check_batch_is_compatible(self, array: np.ndarray):
-        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a batch of samples.
+    def check_array_sample_is_compatible(self, array: np.ndarray):
+        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.
 
         Note:
             If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
 
         Args:
-            array (np.ndarray): Batched array to check compatibility with.
+            array (np.ndarray): Array representing a sample to check compatibility with.
 
         Raises:
             TensorMetaMismatchError: Dtype for array must be equal to this meta.
@@ -94,18 +94,16 @@ class TensorMeta(Meta):
         if self.dtype and self.dtype != array.dtype.name:
             raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
 
-        sample_shape = array.shape[1:]
-
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(sample_shape)
+            actual_shape_len = len(array.shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
                     "Sample shape length is expected to be {}, actual length is {}.".format(
                         expected_shape_len, actual_shape_len
                     ),
-                    sample_shape,
+                    array.shape,
                 )
 
     def update_with_sample(self, array: np.ndarray):

@@ -25,14 +25,13 @@ def write_samples(
     tensor_meta: TensorMeta,
     index_meta: IndexMeta,
 ):
-    # TODO: docstring + change all other docstrings to `sequence`
+    """Write a list of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed."""
 
     for sample in samples:
         if not isinstance(sample, Sample):
             raise Exception()  # TODO
 
-        # TODO: call `check_batch_is_compatible` but per sample not per batch (update the function to check samples)
-        tensor_meta.check_batch_is_compatible(np.expand_dims(sample.array, axis=0))
+        tensor_meta.check_array_sample_is_compatible(sample.array)
 
         if sample.compression == UNCOMPRESSED:
             buffer = sample.uncompressed_bytes()
@@ -78,16 +77,6 @@ def write_bytes(
         extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
-    """
-
-    """
-    compression = extra_sample_meta.get("compression", False)
-    if not compression and tensor_meta.default_compression is not None:
-        compression = tensor_meta.default_compression
-        extra_sample_meta["compression"] = compression
-        compressor = get_compressor(compression)
-        if compressor:
-            b = compressor.encode(b)
     """
 
     if len(b) <= 0:
