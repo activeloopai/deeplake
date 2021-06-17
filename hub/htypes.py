@@ -10,6 +10,12 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "uint32",
         "class_names": [],
     },
+    "bbox": {"dtype": "float32"},
+    "video": {"dtype": "uint8"},
+    "binary_mask": {
+        "dtype": "bool"
+    },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
+    "segment_mask": {"dtype": "uint32"},
 }
 
 # these configs are added to every `htype`
