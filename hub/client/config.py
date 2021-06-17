@@ -1,6 +1,7 @@
 import os
 
 TOKEN_FILE_PATH = os.path.expanduser("~/.activeloop/token")
+REPORTING_CONFIG_FILE_PATH = os.path.expanduser("~/.activeloop/reporting_config.json")
 
 HUB_REST_ENDPOINT = "https://app.activeloop.ai"
 HUB_REST_ENDPOINT_DEV = "https://app.dev.activeloop.ai"

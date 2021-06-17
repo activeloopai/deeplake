@@ -16,6 +16,7 @@ from hub.core.tensor import create_tensor, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
+from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     InvalidKeyTypeError,
@@ -112,6 +113,10 @@ class Dataset:
                     self.org_id, self.ds_name, self.meta.to_dict(), public=public
                 )
 
+        hub_reporter.feature_report(
+            feature_name="Dataset", parameters={"Path": str(self.path)}
+        )
+
     def __enter__(self):
         self.storage.autoflush = False
         return self
@@ -145,6 +150,7 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    @hub_reporter.record_call
     def create_tensor(
         self,
         name: str,
@@ -220,6 +226,19 @@ class Dataset:
             self.storage.disable_readonly()
         self._mode = new_mode
 
+    @property
+    def mode(self):
+        return self._mode
+
+    @mode.setter
+    def mode(self, new_mode):
+        if new_mode == "r":
+            self.storage.enable_readonly()
+        else:
+            self.storage.disable_readonly()
+        self._mode = new_mode
+
+    @hub_reporter.record_call
     def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
         """Converts the dataset into a pytorch compatible format.
 
