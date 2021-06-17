@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 import os
 from hub.tests.common import get_dummy_data_path
@@ -21,7 +22,8 @@ def test_load_compressed_samples(ds: Dataset):
 
     images = ds.create_tensor("images", htype="image")
 
-    assert images.meta.default_compression == "png"
+    assert images.meta.sample_compression == "png"
+    assert images.meta.chunk_compression == UNCOMPRESSED
 
     images.append(hub.load(cat_path))
     images.append(hub.load(flower_path))

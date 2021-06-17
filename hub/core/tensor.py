@@ -1,5 +1,5 @@
 from hub.util.load import Sample
-from hub.constants import DEFAULT_HTYPE, DEFAULT_COMPRESSION
+from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
@@ -32,8 +32,9 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
 def create_tensor(
     key: str,
     storage: StorageProvider,
-    htype: Optional[str] = DEFAULT_HTYPE,
-    default_compression: Optional[str] = None,
+    htype: str = DEFAULT_HTYPE,
+    sample_compression: str = None,
+    chunk_compression: str = None,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -53,9 +54,16 @@ def create_tensor(
 
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
+
     TensorMeta.create(
-        key, storage, htype=htype, default_compression=default_compression, **kwargs
+        key,
+        storage,
+        htype=htype,
+        sample_compression=sample_compression,
+        chunk_compression=chunk_compression,
+        **kwargs,
     )
+
     IndexMeta.create(key, storage)
 
 
@@ -151,9 +159,9 @@ def extend_tensor(
             )
 
         # TODO: may need to optimize this?
-        # since numpy arrays are always uncompressed, always use the `default_compression`
+        # since numpy arrays are always uncompressed, always use the `sample_compression`
         samples = [
-            Sample(array=samples[i], compression=tensor_meta.default_compression)
+            Sample(array=samples[i], compression=tensor_meta.sample_compression)
             for i in range(len(samples))
         ]
 

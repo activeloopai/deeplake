@@ -5,7 +5,6 @@ import numpy as np
 
 from hub.api.tensor import Tensor
 from hub.constants import (
-    DEFAULT_COMPRESSION,
     DEFAULT_MEMORY_CACHE_SIZE,
     DEFAULT_LOCAL_CACHE_SIZE,
     MB,
@@ -134,7 +133,8 @@ class Dataset:
         htype: Optional[str] = DEFAULT_HTYPE,
         chunk_size: Optional[int] = None,
         dtype: str = None,
-        default_compression: str = None,
+        sample_compression: str = None,
+        chunk_compression: str = None,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
@@ -172,7 +172,8 @@ class Dataset:
             htype=htype,
             chunk_size=chunk_size,
             dtype=dtype,
-            default_compression=default_compression,
+            sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)

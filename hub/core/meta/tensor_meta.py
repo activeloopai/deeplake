@@ -29,7 +29,8 @@ class TensorMeta(Meta):
     max_shape: List[int]
     chunk_size: int
     length: int
-    default_compression: str
+    sample_compression: str
+    chunk_compression: str
 
     @staticmethod
     def create(
@@ -137,12 +138,6 @@ class TensorMeta(Meta):
             self.max_shape[i] = max(dim, self.max_shape[i])
 
 
-def _set_compression(htype_overwrite: dict, compression: Union[str, None]) -> dict:
-    if isinstance(compression, str) or compression is None:
-        htype_overwrite.update({"default_compression": compression})
-    return htype_overwrite.pop("default_compression")
-
-
 def _required_meta_from_htype(htype: str) -> dict:
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
@@ -154,7 +149,8 @@ def _required_meta_from_htype(htype: str) -> dict:
         "min_shape": [],
         "max_shape": [],
         "length": 0,
-        "default_compression": defaults["default_compression"],
+        "sample_compression": defaults["sample_compression"],
+        "chunk_compression": defaults["chunk_compression"],
     }
 
     required_meta = _remove_none_values_from_dict(required_meta)
