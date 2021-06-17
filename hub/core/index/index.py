@@ -64,6 +64,17 @@ def slice_at_int(s: slice, i: int):
     return (s.start or 0) + i * (s.step or 1)
 
 
+def slice_length(s: slice, parent_length: int) -> int:
+    """Returns the length of a slice given the length of its parent."""
+    start, stop, step = s.indices(parent_length)
+    return max(0, (stop - start + (step - (1 if step > 0 else -1))) // step)
+
+
+def tuple_length(t: Tuple[int], l: int) -> int:
+    """Returns the length of a tuple of indexes given the length of its parent."""
+    return sum(1 for _ in filter(lambda i: i < l, t))
+
+
 @dataclass
 class IndexEntry:
     value: IndexValue = slice(None)
@@ -145,6 +156,15 @@ class IndexEntry:
             and self.value.stop == None
             and ((self.value.step or 1) == 1)
         )
+
+    def length(self, parent_length: int) -> int:
+        """Returns the length of an IndexEntry given the length of the parent it is indexing."""
+        if not self.subscriptable():
+            return 1
+        elif isinstance(self.value, slice):
+            return slice_length(self.value, parent_length)
+        elif isinstance(self.value, tuple):
+            return tuple_length(self.value, parent_length)
 
 
 class Index:
@@ -274,8 +294,12 @@ class Index:
         return array[index_values]
 
     def is_trivial(self):
-        """Checks if an index is equivalent to the trivial slice `[:]`, aka slice(None)."""
+        """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
+
+    def length(self, parent_length: int):
+        """Returns the primary length of an Index given the length of the parent it is indexing."""
+        return self.values[0].length(parent_length)
 
     def __str__(self):
         values = [entry.value for entry in self.values]

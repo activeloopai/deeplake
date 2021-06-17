@@ -141,8 +141,9 @@ class Tensor:
         return self.shape_interval.is_dynamic
 
     def __len__(self):
-        """Returns the length of the primary axis of a tensor."""
-        return self.meta.length
+        """Returns the length of the primary axis of a tensor.
+        Accounts for indexing into the tensor object."""
+        return self.index.length(self.meta.length)
 
     def __getitem__(
         self,
