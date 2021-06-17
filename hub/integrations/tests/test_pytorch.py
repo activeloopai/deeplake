@@ -8,8 +8,13 @@ from hub.util.check_installation import requires_torch
 def test_pytorch_small(local_ds):
     import torch
 
-    local_ds.create_tensor("image")
-    local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+    local_ds.create_tensor("image", htype="image")
+
+    assert local_ds.image.meta.sample_compression == "png"
+
+    local_ds.image.extend(
+        np.array([i * np.ones((300, 300)) for i in range(256)], dtype="uint8")
+    )
     local_ds.create_tensor("image2")
     local_ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
     local_ds.flush()
@@ -63,7 +68,9 @@ def test_pytorch_small_old(local_ds):
 def test_pytorch_large_old(local_ds):
     import torch
 
-    local_ds.create_tensor("image")
+    local_ds.create_tensor("image", htype="image")  # uses compression
+    assert local_ds.image.meta.sample_compression == "png"
+
     arr = np.array(
         [
             np.ones((4096, 4096)),
@@ -71,6 +78,7 @@ def test_pytorch_large_old(local_ds):
             3 * np.ones((4096, 4096)),
             4 * np.ones((4096, 4096)),
         ],
+        dtype="uint8",
     )
     local_ds.image.extend(arr)
     local_ds.create_tensor("classlabel", htype="class_label")

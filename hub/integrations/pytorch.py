@@ -6,14 +6,12 @@ import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union
 from typing import Any, Callable, List, Optional, Set, Dict
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
 )
-from hub.util.dataset import get_compressor
 from pathos.pools import ProcessPool  # type: ignore
 from hub.core.storage import MemoryProvider
 
@@ -178,28 +176,21 @@ class TorchDataset:
             index += 1
         return chunk_names
 
-    def _decompress_combined_bytes(
-        self, key: str, combined_bytes: memoryview, index_entry: Dict
-    ):
-        """Decompress bytes of joined chunks."""
-        dtype = self.all_tensor_metas[key].dtype
-        shape = index_entry["shape"]
-        compressor = get_compressor(index_entry["compression"])
-        arr_bytes = compressor.decode(combined_bytes)
-        arr = np.frombuffer(arr_bytes, dtype=dtype).reshape(shape)
-        return arr
-
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
         index_entry = self.all_index_metas[key].entries[index]
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
+        dtype = self.all_tensor_metas[key].dtype
+        shape = index_entry["shape"]
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-        arr = self._decompress_combined_bytes(key, combined_bytes, index_entry)
         if isinstance(combined_bytes, memoryview):
+            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
             combined_bytes.release()
+        else:
+            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         return arr
 
     def _get_data_from_chunks(
