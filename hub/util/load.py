@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import re
 import numpy as np
@@ -18,7 +19,10 @@ SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 class Sample:
     def __init__(
-        self, path: str = None, array: np.ndarray = None, compression: str = None
+        self,
+        path: str = None,
+        array: np.ndarray = None,
+        compression: str = UNCOMPRESSED,
     ):
         if (path is None) == (array is None):
             raise ValueError("Must pass either `path` or `array`.")
@@ -26,7 +30,7 @@ class Sample:
         if path is not None:
             self.path = pathlib.Path(path)
             self._array = None
-            if compression:
+            if compression != UNCOMPRESSED:
                 # TODO: maybe this should be possible? this may help make code more concise
                 raise ValueError(
                     "Should not pass `compression` with a `path`."
@@ -35,11 +39,6 @@ class Sample:
         if array is not None:
             self.path = None
             self._array = array
-            if not compression:
-                # TODO: maybe this should be possible? this may help make code more concise
-                raise ValueError(
-                    "Should pass `compression` when passing `array`."
-                )  # TODO: better message
 
             # TODO: validate compression?
             self._compression = compression
@@ -67,7 +66,7 @@ class Sample:
     def compression(self) -> str:
         # TODO: raise exception if `read` wasn't called
         self.read()
-        return self._compression
+        return self._compression.lower()
 
     def raw_bytes(self) -> bytes:
         if self.path is None:

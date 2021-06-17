@@ -58,9 +58,6 @@ class TensorMeta(Meta):
             TensorMeta: Tensor meta object.
         """
 
-        if "default_compression" in kwargs:
-            raise NotImplementedError()  # TODO:
-
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
         _validate_htype_overwrites(htype, htype_overwrite)
 

@@ -21,7 +21,7 @@ def test_load_compressed_samples(ds: Dataset):
 
     images = ds.create_tensor("images", htype="image")
 
-    assert images.meta.default_compression == "PNG"
+    assert images.meta.default_compression == "png"
 
     images.append(hub.load(cat_path))
     images.append(hub.load(flower_path))
@@ -36,11 +36,11 @@ def test_load_compressed_samples(ds: Dataset):
 
     # TODO: better way to check a sample's compression (in API)
     # TODO: also, maybe we should check if these bytes are ACTUALLY compressed. right now technically all of these compressions could just be identites
-    assert _get_compression_for_sample(ds, "images", 0) == "JPEG"
-    assert _get_compression_for_sample(ds, "images", 1) == "PNG"
+    assert _get_compression_for_sample(ds, "images", 0) == "jpeg"
+    assert _get_compression_for_sample(ds, "images", 1) == "png"
     assert (
-        _get_compression_for_sample(ds, "images", 2) == "PNG"
-    ), "The default compression for `image` htypes is 'PNG'"
+        _get_compression_for_sample(ds, "images", 2) == "png"
+    ), "The default compression for `image` htypes is 'png'"
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)

@@ -1,3 +1,5 @@
+from hub.constants import UNCOMPRESSED
+from hub.util.compress import decompress_array
 import warnings
 import os
 from typing import Optional
@@ -42,23 +44,29 @@ def sample_from_index_entry(
     start_byte = index_entry["start_byte"]
     end_byte = last_b_len + index_entry["end_byte"]
 
-    return array_from_buffer(
-        memoryview(b),
-        dtype,
-        index_entry["compression"],
-        shape=shape,
-        start_byte=start_byte,
-        end_byte=end_byte,
-    )
+    b = memoryview(b)[start_byte:end_byte]
+    compression = index_entry["compression"]
+
+    if compression == UNCOMPRESSED:
+        # TODO: chunk-wise compression
+
+        raise NotImplementedError("TODO uncompressed data")
+
+        return array_from_buffer(
+            b,
+            dtype,
+            shape=shape,
+            start_byte=start_byte,
+            end_byte=end_byte,
+        )
+
+    return decompress_array(b, compression)
 
 
 def array_from_buffer(
     b: memoryview,
     dtype: str,
-    compression: str,
     shape: tuple = None,
-    start_byte: int = 0,
-    end_byte: Optional[int] = None,
 ) -> np.ndarray:
     """Reconstruct a sample from bytearray (memoryview) only using the bytes `b[start_byte:end_byte]`. By default all
     bytes are used.
@@ -77,10 +85,7 @@ def array_from_buffer(
     Raises:
         ArrayShapeInfoNotFound: If no info about sample shape is in meta.
     """
-
-    partial_b = b[start_byte:end_byte]
-
-    raise NotImplementedError()  # TODO
+    # TODO update docstring
 
     array = np.frombuffer(partial_b, dtype=dtype)
 

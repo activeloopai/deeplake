@@ -34,7 +34,7 @@ def write_samples(
         tensor_meta.check_batch_is_compatible(np.expand_dims(sample.array, axis=0))
 
         write_bytes(
-            sample.raw_bytes(),
+            sample.raw_bytes(),  # TODO: make it more obvious this returns compressed / uncompressed bytes
             key,
             storage,
             tensor_meta,
@@ -82,7 +82,6 @@ def write_bytes(
         if compressor:
             b = compressor.encode(b)
     """
-    raise NotImplementedError("need compression")  # TODO look above
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
@@ -157,6 +156,7 @@ def _get_last_chunk(
         last_chunk_key = get_chunk_key(key, last_chunk_name)
         last_chunk = memoryview(storage[last_chunk_key])
         return last_chunk_name, last_chunk
+    return "", memoryview(bytes())
 
 
 def _random_chunk_name() -> str:

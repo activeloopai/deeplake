@@ -18,7 +18,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise Exception()  # TODO
 
 
-def decompress_array(buffer: bytes, compression: str) -> np.ndarray:
+def decompress_array(buffer: memoryview, compression: str) -> np.ndarray:
     if compression in SUPPORTED_COMPRESSIONS:
         img = Image.open(BytesIO(buffer))
         return np.array(img)
