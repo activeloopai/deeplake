@@ -28,6 +28,8 @@ class HubBackendClient:
         self.auth_header = None
         if token is None:
             self.token = self.get_token()
+        else:
+            self.token = None
         self.auth_header = f"Bearer {self.token}"
 
     def get_token(self):
