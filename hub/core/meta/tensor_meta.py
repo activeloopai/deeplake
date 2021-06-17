@@ -71,16 +71,6 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    @staticmethod
-    def copy(
-        key: str,
-        src_meta: Meta,
-        dst_storage: StorageProvider,
-    ):
-        src_dict = src_meta.to_dict()
-        new_tensor_meta = TensorMeta.create(key, dst_storage)
-        return new_tensor_meta.from_dict(src_dict)
-
     def check_batch_is_compatible(self, array: np.ndarray):
         """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a batch of samples.
 

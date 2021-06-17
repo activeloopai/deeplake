@@ -88,6 +88,13 @@ class Meta:
         self._required_keys = list(meta.keys())
         return self
 
+    def copy_to(
+        self,
+        destination_storage: StorageProvider,
+    ):
+        new_tensor_meta = self.__class__().create(self.key, destination_storage)
+        return new_tensor_meta.from_dict(self.to_dict())
+
     def _write(self):
         self.storage[self.key] = bytes(json.dumps(self.to_dict()), "utf8")
 

@@ -32,8 +32,8 @@ def transform(
     """Initializes a new or existing dataset.
 
     Args:
-        data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
-        pipeline (List[Callable]): A list of functions to apply to each element of data_in to generate output dataset.
+        data_in (Sequence[Any]): Input sequence passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
+        pipeline (Sequence[Callable]): A Sequence of functions to apply to each element of data_in to generate output dataset.
             The output of each function should either be a dictionary or a list/tuple of dictionaries.
             The last function has added restriction that keys in the output of each sample should be same as the tensors present in the ds_out object.
         ds_out (Dataset): The dataset object to which the transform will get written.
