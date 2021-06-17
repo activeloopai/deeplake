@@ -16,7 +16,7 @@ def test_pytorch_with_compression(local_ds: Dataset):
     assert images.meta.sample_compression == "png"
 
     images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
-    labels.extend(np.ones((16, 1), dtype="uint32"))
+    labels.extend(np.ones((16, 1), dtype="int32"))
 
     ptds = local_ds.pytorch(workers=2)
     dl = torch.utils.data.DataLoader(ptds, batch_size=1, num_workers=0)
@@ -25,7 +25,7 @@ def test_pytorch_with_compression(local_ds: Dataset):
         X = batch["images"].numpy()
         T = batch["labels"].numpy()
         assert X.shape == (1, 100, 100, 3)
-        assert T.shape == (1, 16)
+        assert T.shape == (1, 1)
 
 
 @requires_torch

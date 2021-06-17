@@ -13,7 +13,7 @@ def test_tensorflow_with_compression(local_ds: Dataset):
     assert images.meta.sample_compression == "png"
 
     images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
-    labels.extend(np.ones((16, 1), dtype="uint32"))
+    labels.extend(np.ones((16, 1), dtype="int32"))
 
     for batch in local_ds.tensorflow():
         # converting tf Tensors to numpy
