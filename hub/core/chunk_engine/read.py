@@ -50,14 +50,10 @@ def sample_from_index_entry(
     if compression == UNCOMPRESSED:
         # TODO: chunk-wise compression
 
-        raise NotImplementedError("TODO uncompressed data")
-
         return array_from_buffer(
             b,
             dtype,
             shape=shape,
-            start_byte=start_byte,
-            end_byte=end_byte,
         )
 
     return decompress_array(b, compression)
@@ -87,7 +83,7 @@ def array_from_buffer(
     """
     # TODO update docstring
 
-    array = np.frombuffer(partial_b, dtype=dtype)
+    array = np.frombuffer(b, dtype=dtype)
 
     if shape is not None:
         array = array.reshape(shape)

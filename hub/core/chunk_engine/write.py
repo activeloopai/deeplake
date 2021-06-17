@@ -45,7 +45,7 @@ def write_samples(
             },
         )
 
-        tensor_meta._update_shape_interval(sample.shape)
+        tensor_meta.update_with_sample(sample.array)
         tensor_meta.length += 1
 
 
@@ -82,6 +82,9 @@ def write_bytes(
         if compressor:
             b = compressor.encode(b)
     """
+
+    if len(b) <= 0:
+        return write_empty_sample(index_meta, extra_sample_meta)
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
