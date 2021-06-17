@@ -254,6 +254,17 @@ def test_length_slices(memory_ds):
     assert len(ds[1:10:2]) == 5
     assert len(ds[[0, 1, 5, 9]]) == 4
 
+    assert len(ds.data) == 11
+    assert len(ds.data[0]) == 1
+    assert len(ds.data[0:1]) == 1
+    assert len(ds.data[0:0]) == 0
+    assert len(ds.data[1:10]) == 9
+    assert len(ds.data[1:7:2]) == 3
+    assert len(ds.data[1:8:2]) == 4
+    assert len(ds.data[1:9:2]) == 4
+    assert len(ds.data[1:10:2]) == 5
+    assert len(ds.data[[0, 1, 5, 9]]) == 4
+
 
 def test_shape_property(memory_ds):
     fixed = memory_ds.create_tensor("fixed_tensor")
