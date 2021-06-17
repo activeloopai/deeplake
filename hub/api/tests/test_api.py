@@ -183,6 +183,25 @@ def test_scalar_samples(ds: Dataset):
     expected = np.array([5, 10, -99, 10, 1, 4, 1])
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
+    assert tensor.numpy(aslist=True) == expected.tolist()
+
+
+@parametrize_all_dataset_storages
+def test_sequence_samples(ds: Dataset):
+    tensor = ds.create_tensor("arrays")
+
+    tensor.append([1, 2, 3])
+    tensor.extend([[4, 5, 6]])
+
+    assert len(tensor) == 2
+
+    expected = np.array([[1, 2, 3], [4, 5, 6]])
+    np.testing.assert_array_equal(tensor.numpy(), expected)
+
+    assert type(tensor.numpy(aslist=True)) == list
+    np.testing.assert_array_equal(tensor.numpy(aslist=True)[0], np.array([1, 2, 3]))
+    np.testing.assert_array_equal(tensor.numpy(aslist=True)[1], np.array([4, 5, 6]))
+
 
 @parametrize_all_dataset_storages
 def test_iterate_dataset(ds):

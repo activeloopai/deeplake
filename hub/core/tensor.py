@@ -167,10 +167,14 @@ def read_samples_from_tensor(
         array = sample_from_index_entry(key, storage, index_entry, tensor_meta.dtype)
         samples.append(array)
 
-    if aslist:
-        if index.values[0].subscriptable():
-            return samples
-        else:
-            return samples[0]
+    samples = index.apply(samples)
 
-    return index.apply(np.array(samples))
+    if aslist and all(map(np.isscalar, samples)):
+        samples = list(arr.item() for arr in samples)
+
+    samples = index.apply_squeeze(samples)
+
+    if aslist:
+        return samples
+    else:
+        return np.array(samples)
