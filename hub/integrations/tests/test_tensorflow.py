@@ -6,8 +6,8 @@ from hub.util.check_installation import requires_tensorflow
 
 @requires_tensorflow
 def test_tensorflow_with_compression(local_ds: Dataset):
+    # TODO: when chunk-wise compression is done, `labels` should be compressed using lz4, so this test needs to be updated
     images = local_ds.create_tensor("images", htype="image")
-    # TODO: chunk-wise compression
     labels = local_ds.create_tensor("labels", htype="class_label")
 
     assert images.meta.sample_compression == "png"
@@ -19,8 +19,8 @@ def test_tensorflow_with_compression(local_ds: Dataset):
         # converting tf Tensors to numpy
         X = batch["images"].numpy()
         T = batch["labels"].numpy()
-        assert X.shape == (1, 100, 100, 3)
-        assert T.shape == (1, 16)
+        assert X.shape == (100, 100, 3)
+        assert T.shape == (1,)
 
 
 @requires_tensorflow
