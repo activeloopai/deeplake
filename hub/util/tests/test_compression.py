@@ -1,9 +1,6 @@
 import numpy as np
-from numpy.core.fromnumeric import compress
 import pytest
 from hub.util.compress import SUPPORTED_COMPRESSIONS, compress_array, decompress_array
-import os
-from hub.tests.common import get_dummy_data_path
 
 
 parametrize_compressions = pytest.mark.parametrize(
