@@ -1,7 +1,7 @@
 from hub.api.dataset import Dataset
 from hub.core.transform.transform import transform  # type: ignore
 import numpy as np
-from hub.core.tests.common import parametrize_all_dataset_storages_and_caches
+from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 def fn1(i, mul=1, copy=1):
@@ -25,7 +25,7 @@ def fn3(i, mul=1, copy=1):
     return [d for _ in range(copy)]
 
 
-@parametrize_all_dataset_storages_and_caches
+@parametrize_all_dataset_storages
 def test_transform_hub_dataset(ds):
     with Dataset("./test/transform_hub_in") as data_in:
         data_in.create_tensor("image")
@@ -50,7 +50,7 @@ def test_transform_hub_dataset(ds):
     ds_out.delete()
 
 
-@parametrize_all_dataset_storages_and_caches
+@parametrize_all_dataset_storages
 def test_chain_transform(ds):
     ls = [i for i in range(100)]
     ds_out = ds
@@ -75,7 +75,7 @@ def test_chain_transform(ds):
     ds_out.delete()
 
 
-@parametrize_all_dataset_storages_and_caches
+@parametrize_all_dataset_storages
 def test_large_chain_transform(ds):
     ls = [i for i in range(10)]
     ds_out = ds

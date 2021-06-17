@@ -21,7 +21,7 @@ import math
 
 
 def transform(
-    data_in: Sequence[Any],
+    data_in,
     pipeline: Sequence[Callable],
     ds_out: Dataset,
     pipeline_kwargs: Optional[Sequence[Dict]] = None,
@@ -32,7 +32,7 @@ def transform(
     """Initializes a new or existing dataset.
 
     Args:
-        data_in (Sequence[Any]): Input sequence passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
+        data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
         pipeline (Sequence[Callable]): A Sequence of functions to apply to each element of data_in to generate output dataset.
             The output of each function should either be a dictionary or a list/tuple of dictionaries.
             The last function has added restriction that keys in the output of each sample should be same as the tensors present in the ds_out object.
@@ -54,8 +54,10 @@ def transform(
     """
     ds_out.flush()
 
-    if not isinstance(data_in, Sequence):
-        raise InvalidInputDataError
+    if not hasattr(data_in, "__getitem__"):
+        raise InvalidInputDataError("__getitem__")
+    if not hasattr(data_in, "__len__"):
+        raise InvalidInputDataError("__len__")
 
     # TODO: this check doesn't work currently. Will work once AL-1092 is merged and can be uncommented.
     # for tensor in tensors:

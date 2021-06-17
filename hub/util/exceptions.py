@@ -330,9 +330,9 @@ class InvalidTransformOutputError(TransformError):
 
 
 class InvalidInputDataError(TransformError):
-    def __init__(self):
+    def __init__(self, message):
         super().__init__(
-            f"The data_in to transform is invalid. It should be a sequence that supports __getitem__ and __len__."
+            f"The data_in to transform is invalid. It should support {message} operation."
         )
 
 
