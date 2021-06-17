@@ -108,6 +108,9 @@ class Sample:
 
         return f"Sample(is_symbolic=False, shape={self.shape}, compression='{self.compression}', dtype='{self.dtype}' path={self.path})"
 
+    def __repr__(self):
+        return str(self)
+
 
 def load(path: Union[str, pathlib.Path]) -> Sample:
     # TODO: mention that you can do `.numpy()` on this output to make it extremely easy to use

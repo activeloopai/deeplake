@@ -88,7 +88,6 @@ def array_from_buffer(
     if compressor is not None:
         if isinstance(compressor, BaseImgCodec):
             partial_b = compressor.decode_single_image(partial_b)
-            array = partial_b
         else:
             partial_b = compressor.decode(partial_b)
 

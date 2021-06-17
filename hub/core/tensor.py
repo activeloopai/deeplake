@@ -146,14 +146,12 @@ def extend_tensor(
 
     if isinstance(samples, np.ndarray):
         if len(samples.shape) < 1:
+            # TODO: add xfail test for this error (one may exist please check idk if it does)
             raise ValueError(
                 f"An array with shape={samples.shape} cannot be used to extend because it's shape length is < 1."
             )
-        """
-        tensor_meta.check_batch_is_compatible(samples)  # TODO: move into `write_array` and don't do batch-wise, do sample-wise
-        write_array(samples, key, storage, tensor_meta, index_meta)
-        """
 
+        # TODO: may need to optimize this?
         # since numpy arrays are always uncompressed, always use the `default_compression`
         samples = [
             Sample(array=samples[i], compression=tensor_meta.default_compression)

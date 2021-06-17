@@ -10,54 +10,6 @@ from hub.util.keys import get_chunk_key
 from hub.util.dataset import get_compressor
 
 from .chunker import generate_chunks
-from .flatten import row_wise_to_bytes
-
-
-# def write_array(
-#     array: np.ndarray,
-#     key: str,
-#     storage: StorageProvider,
-#     tensor_meta: TensorMeta,
-#     index_meta: IndexMeta,
-# ):
-#     """Chunk and write an array to storage, also updates `index_meta`/`tensor_meta`. The provided array is treated as a batch of samples.
-#
-#     Args:
-#         array (np.ndarray): Batched array to be chunked/written.
-#         key (str): Key for where the index_meta and tensor_meta are located in `storage` relative to it's root.
-#             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
-#             stored.
-#         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
-#         tensor_meta (TensorMeta): TensorMeta object that will be written to.
-#         index_meta (IndexMeta): IndexMeta object that will be written to.
-#     """
-#
-#     # TODO: get the tobytes function from meta
-#     tobytes = row_wise_to_bytes
-#     num_samples = len(array)
-#
-#     for i in range(num_samples):
-#         sample = array[i]
-#         extra_sample_meta = {"shape": sample.shape}
-#
-#         if 0 in sample.shape:
-#             write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
-#
-#         else:
-#             # TODO: we may want to call `tobytes` on `array` and call memoryview on that. this may depend on the access patterns we
-#             # choose to optimize for.
-#             b = memoryview(tobytes(sample))
-#             write_bytes(
-#                 b,
-#                 key,
-#                 storage,
-#                 tensor_meta,
-#                 index_meta,
-#                 extra_sample_meta=extra_sample_meta,  # TODO: use kwargs
-#             )
-#
-#         tensor_meta.update_with_sample(sample)
-#         tensor_meta.length += 1
 
 
 def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
@@ -75,13 +27,11 @@ def write_samples(
 ):
     # TODO: docstring + change all other docstrings to `sequence`
 
-    # TODO: this should be merged into 1 function with `write_array`
-
     for sample in samples:
         if not isinstance(sample, Sample):
             raise Exception()  # TODO
 
-        # TODO: call `check_batch_is_compatible` but per sample not per batch
+        # TODO: call `check_batch_is_compatible` but per sample not per batch (update the function to check samples)
         tensor_meta.check_batch_is_compatible(np.expand_dims(sample.array, axis=0))
 
         write_bytes(
