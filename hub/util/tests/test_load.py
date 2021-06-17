@@ -20,7 +20,7 @@ def test_load():
     assert (
         not cat.is_symbolic
     ), "If any properties are read, this Sample is not symbolic"
-    assert cat.compression == "JPEG"
+    assert cat.compression == "jpeg"
     assert cat.dtype == "uint8"
     assert cat.array.shape == (900, 900, 3)
 
@@ -28,7 +28,7 @@ def test_load():
     assert (
         not flower.is_symbolic
     ), "If any properties are read, this Sample is not symbolic"
-    assert flower.compression == "PNG"
+    assert flower.compression == "png"
     assert flower.dtype == "uint8"
     assert flower.array.shape == (513, 464, 4)
 
