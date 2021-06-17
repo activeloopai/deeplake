@@ -22,7 +22,7 @@
    </br> 
     <a href="https://join.slack.com/t/hubdb/shared_invite/zt-ivhsj8sz-GWv9c5FLBDVw8vn~sxRKqQ">
   <img src="https://user-images.githubusercontent.com/13848158/97266254-9532b000-1841-11eb-8b06-ed73e99c2e5f.png" height="35" /> </a>
-    <a href="https://docs.activeloop.ai/en/latest/?utm_source=github&utm_medium=readme&utm_campaign=button">
+    <a href="https://docsv1.activeloop.ai/en/latest/">
   <img src="https://i.ibb.co/YBTCcJc/output-onlinepngtools.png" height="35" /></a>
 
 ---
@@ -187,7 +187,7 @@ Also, if you need a publicly available dataset that you cannot find in the Hub, 
 
 ## Documentation
 
-For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme).
+For more advanced data pipelines like uploading large datasets or applying many transformations, please refer to our [documentation](https://docsv1.activeloop.ai/en/latest/).
 
 ## Tutorial Notebooks
 
