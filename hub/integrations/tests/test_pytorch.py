@@ -4,11 +4,14 @@ from hub.integrations.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
 
 
+# TODO: separate test with compression
+
+
 @requires_torch
 def test_pytorch_small(local_ds):
     import torch
 
-    local_ds.create_tensor("image", htype="image")
+    local_ds.create_tensor("image")
 
     assert local_ds.image.meta.sample_compression == "png"
 
@@ -68,8 +71,7 @@ def test_pytorch_small_old(local_ds):
 def test_pytorch_large_old(local_ds):
     import torch
 
-    local_ds.create_tensor("image", htype="image")  # uses compression
-    assert local_ds.image.meta.sample_compression == "png"
+    local_ds.create_tensor("image")
 
     arr = np.array(
         [
@@ -81,7 +83,7 @@ def test_pytorch_large_old(local_ds):
         dtype="uint8",
     )
     local_ds.image.extend(arr)
-    local_ds.create_tensor("classlabel", htype="class_label")
+    local_ds.create_tensor("classlabel")
     local_ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint32"))
     local_ds.flush()
 

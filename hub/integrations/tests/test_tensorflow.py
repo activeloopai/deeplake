@@ -3,6 +3,9 @@ import numpy as np
 from hub.util.check_installation import requires_tensorflow
 
 
+# TODO: separate test with compression
+
+
 @requires_tensorflow
 def test_tensorflow_small(local_ds):
     local_ds.create_tensor("image")
