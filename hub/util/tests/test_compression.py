@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
-from hub.util.compress import SUPPORTED_COMPRESSIONS, compress_array, decompress_array
+from hub.util.compress import compress_array, decompress_array
 
 
-parametrize_compressions = pytest.mark.parametrize(
-    "compression", SUPPORTED_COMPRESSIONS
-)
+parametrize_compressions = pytest.mark.parametrize("compression", ["jpeg", "png"])
 
 
 @parametrize_compressions
@@ -23,5 +21,5 @@ def test_array(compression):
         array.tobytes()
     ), "Compressed buffer should be smaller than uncompressed buffer."
 
-    decompressed_array = decompress_array(compressed_buffer, compression)
+    decompressed_array = decompress_array(compressed_buffer)
     np.testing.assert_array_equal(array, decompressed_array)

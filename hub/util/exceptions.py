@@ -230,10 +230,15 @@ class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
-class InvalidCompressor(Exception):
-    def __init__(self, available_compressors):
+class CompressionError(Exception):
+    pass
+
+
+class SampleDecompressionError(CompressionError):
+    def __init__(self):
         super().__init__(
-            f"Compressor is not supported. Supported compressions: {available_compressors}"
+            "Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format.",
+            "Only `PIL` compatible decompressions may be used as `sample_compression` at this time."
         )
 
 

@@ -55,7 +55,7 @@ def sample_from_index_entry(
             shape=shape,
         )
 
-    return decompress_array(mv, compression)
+    return decompress_array(mv)
 
 
 def array_from_buffer(
