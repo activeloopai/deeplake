@@ -7,6 +7,7 @@ import botocore  # type: ignore
 
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
+import hub
 
 
 class S3Provider(StorageProvider):
@@ -20,6 +21,7 @@ class S3Provider(StorageProvider):
         aws_session_token: Optional[str] = None,
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
+        token: Optional[str] = None,
         max_pool_connections: int = 50,
         client=None,
     ):
@@ -43,6 +45,7 @@ class S3Provider(StorageProvider):
                 If this value is not set, the default value of 10 is used.
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
+            token (optional): required for activeloop authentication
         """
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
@@ -52,7 +55,6 @@ class S3Provider(StorageProvider):
         root = root.replace("s3://", "")
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
-
         self.client_config = botocore.config.Config(
             max_pool_connections=max_pool_connections,
         )
@@ -223,7 +225,7 @@ class S3Provider(StorageProvider):
         This would only happen for datasets stored on Hub storage for which temporary 12 hour credentials are generated.
         """
         if self.expiration and float(self.expiration) < time.time():
-            client = HubBackendClient()
+            client = HubBackendClient(token)
             org_id, ds_name = self.tag.split("/")
 
             if hasattr(self, "read_only") and self.read_only:

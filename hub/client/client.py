@@ -3,26 +3,40 @@ import requests
 from typing import Optional
 from hub.util.exceptions import LoginException
 from hub.util.get_property import get_property
-from hub.client.utils import get_auth_header, check_response_status, write_token
+from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
+    HUB_REST_ENDPOINT_LOCAL,
+    HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
     GET_DATASET_CREDENTIALS_SUFFIX,
+    CREATE_DATASET_SUFFIX,
+    DATASET_SUFFIX,
+    UPDATE_SUFFIX,
 )
+from hub.client.log import logger
+import hub
 
 
 class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
-    def __init__(self):
+    def __init__(self, token: Optional[str] = None):
         self.version = get_property("__version__", "hub")
-        self.auth_header = get_auth_header()
-        if not self.auth_header:
+        self.auth_header = None
+        self.token = token or self.get_token()
+        self.auth_header = f"Bearer {token}"
+
+    def get_token(self):
+        """Returns a token"""
+        token = read_token()
+        if token is None:
             token = self.request_auth_token(username="public", password="")
             write_token(token)
-            self.auth_header = f"Bearer {token}"
+
+        return token
 
     def request(
         self,
@@ -62,32 +76,35 @@ class HubBackendClient:
         data = data or {}
         files = files or {}
         json = json or {}
-        endpoint = endpoint or HUB_REST_ENDPOINT
+        endpoint = endpoint or self.endpoint()
         endpoint = endpoint.strip("/")
         relative_url = relative_url.strip("/")
         request_url = f"{endpoint}/{relative_url}"
         headers = headers or {}
         headers["hub-cli-version"] = self.version
         headers["Authorization"] = self.auth_header
-        try:
-            response = requests.request(
-                method,
-                request_url,
-                params=params,
-                data=data,
-                json=json,
-                headers=headers,
-                files=files,
-                timeout=timeout,
-            )
-        except requests.exceptions.ConnectionError as e:
-            sys.exit("Connection error. Please retry or check your internet connection")
-        except requests.exceptions.Timeout as e:
-            sys.exit(
-                "Connection timeout. Please retry or check your internet connection"
-            )
+
+        response = requests.request(
+            method,
+            request_url,
+            params=params,
+            data=data,
+            json=json,
+            headers=headers,
+            files=files,
+            timeout=timeout,
+        )
+
         check_response_status(response)
         return response
+
+    def endpoint(self):
+        if hub.client.config.LOCAL:
+            return HUB_REST_ENDPOINT_LOCAL
+        if hub.client.config.DEV:
+            return HUB_REST_ENDPOINT_DEV
+
+        return HUB_REST_ENDPOINT
 
     def request_auth_token(self, username: str, password: str):
         """Sends a request to backend to retrieve auth token.
@@ -142,7 +159,7 @@ class HubBackendClient:
         response = self.request(
             "GET",
             relative_url,
-            endpoint=HUB_REST_ENDPOINT,
+            endpoint=self.endpoint(),
             params={"mode": mode},
         ).json()
         full_url = response.get("path")
@@ -150,3 +167,36 @@ class HubBackendClient:
         mode = response["mode"]
         expiration = creds["expiration"]
         return full_url, creds, mode, expiration
+
+    def create_dataset_entry(self, username, dataset_name, meta, public=True):
+        tag = f"{username}/{dataset_name}"
+        repo = f"protected/{username}"
+
+        response = self.request(
+            "POST",
+            CREATE_DATASET_SUFFIX,
+            json={
+                "tag": tag,
+                "repository": repo,
+                "public": public,
+                "rewrite": True,
+                "meta": meta,
+            },
+            endpoint=self.endpoint(),
+        )
+
+        if response.status_code == 200:
+            logger.info(
+                f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
+            )
+            if public is False:
+                logger.info("The dataset is private so make sure you are logged in!")
+
+    def delete_dataset_entry(self, username, dataset_name):
+        tag = f"{username}/{dataset_name}"
+        suffix = f"{DATASET_SUFFIX}/{tag}"
+        self.request(
+            "DELETE",
+            suffix,
+            endpoint=self.endpoint(),
+        ).json()

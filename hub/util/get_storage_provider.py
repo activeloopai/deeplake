@@ -14,11 +14,12 @@ def get_storage_provider(
     storage: Optional[StorageProvider] = None,
     read_only: bool = False,
     creds: Optional[dict] = None,
+    token: Optional[str] = None,
 ):
     if path is not None and storage is not None:
         raise ImproperDatasetInitialization
     elif path is not None:
-        return storage_provider_from_path(path, creds, read_only)
+        return storage_provider_from_path(path, creds, read_only, token)
     elif storage is not None:
         if read_only:
             storage.enable_readonly()
@@ -26,7 +27,10 @@ def get_storage_provider(
 
 
 def storage_provider_from_path(
-    path: str, creds: Optional[dict], read_only: bool = False
+    path: str,
+    creds: Optional[dict],
+    read_only: bool = False,
+    token: Optional[str] = None,
 ):
     """Construct a StorageProvider given a path.
 
@@ -35,6 +39,7 @@ def storage_provider_from_path(
         creds (dict): A dictionary containing credentials used to access the dataset at the url.
             This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
         read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+        token (str): token for authentication into activeloop
 
     Returns:
         If given a valid S3 path i.e starts with s3:// returns the S3Provider and mode. (credentials should either be in creds or the environment)
@@ -50,16 +55,16 @@ def storage_provider_from_path(
     if path.startswith("s3://"):
         key = creds.get("aws_access_key_id")
         secret = creds.get("aws_secret_access_key")
-        token = creds.get("aws_session_token")
+        session_token = creds.get("aws_session_token")
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
         storage: StorageProvider = S3Provider(
-            path, key, secret, token, endpoint_url, region
+            path, key, secret, session_token, endpoint_url, region, token=token
         )
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
-        storage = storage_provider_from_hub_path(path, read_only)
+        storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
@@ -71,11 +76,13 @@ def storage_provider_from_path(
     return storage
 
 
-def storage_provider_from_hub_path(path: str, read_only: bool = False):
+def storage_provider_from_hub_path(
+    path: str, read_only: bool = False, token: str = None
+):
     check_hub_path(path)
     tag = path[6:]
     org_id, ds_name = tag.split("/")
-    client = HubBackendClient()
+    client = HubBackendClient(token=token)
 
     mode = "r" if read_only else None
 

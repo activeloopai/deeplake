@@ -1,5 +1,4 @@
 from hub.htypes import DEFAULT_HTYPE
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -10,8 +9,10 @@ from hub.constants import (
     MB,
 )
 from hub.core.dataset import dataset_exists
+
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.tensor import create_tensor, tensor_exists
+
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
@@ -23,6 +24,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 from hub.util.get_storage_provider import get_storage_provider
+from hub.client.client import HubBackendClient
 from hub.util.path import get_path_from_storage
 
 
@@ -36,6 +38,8 @@ class Dataset:
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
         storage: Optional[StorageProvider] = None,
+        public: Optional[bool] = True,
+        token: Optional[str] = None,
     ):
         """Initializes a new or existing dataset.
 
@@ -54,7 +58,9 @@ class Dataset:
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
             storage (StorageProvider, optional): The storage provider used to access the dataset.
-                Use this if you want to specify the storage provider object manually instead of using a path to generate it.
+                Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
+            public (bool, optional): Applied only if storage is Hub cloud storage. Defines if the dataset will have public access.
+            token (str, optional): Get token for activeloop
 
         Raises:
             ValueError: If an existing local path is given, it must be a directory.
@@ -66,7 +72,7 @@ class Dataset:
         """
         if creds is None:
             creds = {}
-        base_storage = get_storage_provider(path, storage, read_only, creds)
+        base_storage = get_storage_provider(path, storage, read_only, creds, token)
 
         # done instead of directly assigning read_only as backend might return return read_only permissions
         if hasattr(base_storage, "read_only") and base_storage.read_only:
@@ -85,6 +91,13 @@ class Dataset:
         self.index = index
 
         self.tensors: Dict[str, Tensor] = {}
+
+        self.client = HubBackendClient(token=token)
+        self._token = token
+
+        if self.path.startswith("hub://"):
+            split_path = self.path.split("/")
+            self.org_id, self.ds_name = split_path[2], split_path[3]
         if dataset_exists(self.storage):
             self.meta = DatasetMeta.load(self.storage)
             for tensor_name in self.meta.tensors:
@@ -93,6 +106,11 @@ class Dataset:
             raise PathNotEmptyException
         else:
             self.meta = DatasetMeta.create(self.storage)
+            self.flush()
+            if self.path.startswith("hub://"):
+                self.client.create_dataset_entry(
+                    self.org_id, self.ds_name, self.meta.to_dict(), public=public
+                )
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -218,6 +236,13 @@ class Dataset:
         """
         return dataset_to_pytorch(self, transform, workers=workers)
 
+    def _get_total_meta(self):
+        """Returns tensor metas all together"""
+        return {
+            tensor_key: tensor_value.meta
+            for tensor_key, tensor_value in self.tensors.items()
+        }
+
     def tensorflow(self):
         """Converts the dataset into a pytorch compatible format.
 
@@ -249,6 +274,8 @@ class Dataset:
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
         self.storage.clear()
+        if self.path.startswith("hub://"):
+            self.client.delete_dataset_entry(self.org_id, self.ds_name)
 
     @staticmethod
     def from_path(path: str):
@@ -288,3 +315,10 @@ class Dataset:
             index_str = ""
 
         return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
+
+    @property
+    def token(self):
+        """Get attached token of the dataset"""
+        if self._token is None:
+            self._token = self.client.get_token()
+        return self._token
