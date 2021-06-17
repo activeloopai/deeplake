@@ -33,8 +33,11 @@ def write_samples(
         # TODO: call `check_batch_is_compatible` but per sample not per batch (update the function to check samples)
         tensor_meta.check_batch_is_compatible(np.expand_dims(sample.array, axis=0))
 
+        # TODO: make it more obvious this returns compressed / uncompressed bytes
+        buffer = sample.raw_bytes()
+
         write_bytes(
-            sample.raw_bytes(),  # TODO: make it more obvious this returns compressed / uncompressed bytes
+            memoryview(buffer),
             key,
             storage,
             tensor_meta,

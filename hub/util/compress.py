@@ -1,6 +1,6 @@
 import numpy as np
 
-from PIL import Image
+from PIL import Image  # type: ignore
 from io import BytesIO
 
 

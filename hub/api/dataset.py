@@ -130,8 +130,8 @@ class Dataset:
     def create_tensor(
         self,
         name: str,
-        htype: Optional[str] = DEFAULT_HTYPE,
-        chunk_size: Optional[int] = None,
+        htype: str = DEFAULT_HTYPE,
+        chunk_size: int = None,
         dtype: str = None,
         sample_compression: str = None,
         chunk_compression: str = None,

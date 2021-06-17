@@ -4,7 +4,7 @@ import re
 import numpy as np
 import pathlib
 import exiftool  # type: ignore
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 from hub.util.exceptions import (
     HubAutoUnsupportedFileExtensionError,
     SampleCorruptedError,
@@ -18,6 +18,8 @@ SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 
 class Sample:
+    path: Optional[pathlib.Path]
+
     def __init__(
         self,
         path: str = None,
@@ -44,23 +46,23 @@ class Sample:
             self._compression = compression
 
     @property
-    def is_symbolic(self):
+    def is_symbolic(self) -> bool:
         return self._array is None
 
     @property
     def array(self) -> np.ndarray:
         self.read()
-        return self._array
+        return self._array  # type: ignore
 
     @property
     def shape(self) -> Tuple[int, ...]:
         self.read()
-        return self._array.shape
+        return self._array.shape  # type: ignore
 
     @property
     def dtype(self) -> str:
         self.read()
-        return self._array.dtype.name
+        return self._array.dtype.name  # type: ignore
 
     @property
     def compression(self) -> str:
@@ -111,6 +113,6 @@ class Sample:
         return str(self)
 
 
-def load(path: Union[str, pathlib.Path]) -> Sample:
+def load(path: str) -> Sample:
     # TODO: mention that you can do `.numpy()` on this output to make it extremely easy to use
     return Sample(path)
