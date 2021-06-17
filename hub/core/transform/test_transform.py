@@ -20,7 +20,7 @@ def fn2(sample, mul=1, copy=1):
 
 def fn3(i, mul=1, copy=1):
     d = {}
-    d["image"] = np.ones((4310, 2187)) * i * mul
+    d["image"] = np.ones((1310, 2087)) * i * mul
     d["label"] = np.ones((13,)) * i * mul
     return [d for _ in range(copy)]
 
@@ -47,7 +47,6 @@ def test_transform_hub_dataset(ds):
         np.testing.assert_array_equal(
             ds_out[index].label.numpy(), index * np.ones((1,))
         )
-    ds_out.delete()
 
 
 @parametrize_all_dataset_storages
@@ -72,12 +71,11 @@ def test_chain_transform(ds):
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
-    ds_out.delete()
 
 
 @parametrize_all_dataset_storages
 def test_large_chain_transform(ds):
-    ls = [i for i in range(10)]
+    ls = [i for i in range(2)]
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -86,13 +84,13 @@ def test_large_chain_transform(ds):
         [fn3, fn2],
         ds_out,
         workers=3,
-        pipeline_kwargs=[{"mul": 5, "copy": 2}, {"mul": 3, "copy": 3}],
+        pipeline_kwargs=[{"mul": 5, "copy": 2}, {"mul": 3, "copy": 2}],
     )
-    assert len(ds_out) == 60
-    for i in range(10):
-        for index in range(6 * i, 6 * i + 6):
+    assert len(ds_out) == 8
+    for i in range(2):
+        for index in range(4 * i, 4 * i + 4):
             np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((4310, 2187))
+                ds_out[index].image.numpy(), 15 * i * np.ones((1310, 2087))
             )
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((13,))

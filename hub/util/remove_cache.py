@@ -12,7 +12,7 @@ def remove_memory_cache(storage: StorageProvider):
     return storage
 
 
-def remove_all_cache(storage: StorageProvider):
+def get_base_storage(storage: StorageProvider):
     """Removes all layers of caching and returns the underlying storage."""
     while isinstance(storage, LRUCache):
         storage = storage.next_storage

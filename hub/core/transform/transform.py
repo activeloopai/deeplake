@@ -6,9 +6,15 @@ from hub.util.exceptions import (
     UnsupportedSchedulerError,
 )
 from hub.core.compute import ThreadProvider, ProcessProvider
-from hub.util.transform import merge_index_metas, merge_tensor_metas, transform_sample
+from hub.util.transform import (
+    equalize_pipeline_kwargs,
+    load_updated_meta,
+    merge_index_metas,
+    merge_tensor_metas,
+    transform_sample,
+)
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.util.remove_cache import remove_all_cache
+from hub.util.remove_cache import get_base_storage
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.storage.memory import MemoryProvider
 from hub.core.meta.index_meta import IndexMeta
@@ -72,16 +78,13 @@ def transform(
     else:
         raise UnsupportedSchedulerError(scheduler)
 
-    base_storage = remove_all_cache(ds_out.storage)
+    base_storage = get_base_storage(ds_out.storage)
     tensors = set(ds_out.meta.tensors)
 
-    pipeline_kwargs = pipeline_kwargs or []
-    pipeline_kwargs = list(pipeline_kwargs[0 : len(pipeline)])
-    pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))
+    pipeline_kwargs = equalize_pipeline_kwargs(pipeline_kwargs, pipeline)
 
     store(data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs)
-    ds_out.clear_cache()
-    ds_out._load_meta()
+    load_updated_meta(ds_out)
 
 
 def store_shard(transform_input: Tuple):

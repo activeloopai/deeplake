@@ -1,3 +1,4 @@
+from hub.api.dataset import Dataset
 from hub.util.exceptions import InvalidTransformOutputError
 from typing import Any, Callable, Dict, List, Sequence, Set, Tuple
 from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
@@ -190,3 +191,19 @@ def merge_index_metas(
             pass
 
         IndexMeta.copy(tensor, index_meta, storage)
+
+
+def equalize_pipeline_kwargs(
+    pipeline_kwargs: Sequence[dict], pipeline: Sequence[Callable]
+) -> List[Dict]:
+    """Makes the number of pipeline_kkwargs equal to number of functions in pipeline."""
+    pipeline_kwargs = pipeline_kwargs or []
+    pipeline_kwargs = list(pipeline_kwargs[0 : len(pipeline)])
+    pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))
+    return pipeline_kwargs
+
+
+def load_updated_meta(ds_out: Dataset):
+    """Clears the dataset's cache which may contain outdated meta file and loads updated meta after transform."""
+    ds_out.clear_cache()
+    ds_out._load_meta()
