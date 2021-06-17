@@ -17,7 +17,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "chunk_compression": UNCOMPRESSED,
     },
     "class_label": {
-        "dtype": "uint32",
+        "dtype": "int32",
         "class_names": [],
     },
 }
