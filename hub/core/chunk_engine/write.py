@@ -2,7 +2,7 @@ from hub.constants import CHUNK_MAX_SIZE, CHUNK_MIN_TARGET
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
 from hub.core.meta.index_meta import IndexMeta
-from typing import List, Tuple
+from typing import List, Optional, Tuple, Union
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
@@ -91,36 +91,33 @@ def write_bytes(
             to call `IndexMeta.add_entry`.
     """
     # TODO pass CHUNK_MIN, CHUNK_MAX and read from tensor_meta instead of using constants
-
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
     chunk_names = []
 
-    if (
-        len(last_chunk) > 0 and len(last_chunk) < CHUNK_MIN_TARGET
-    ):  # last chunk exists and has space
+    if _chunk_has_space(last_chunk):
         last_chunk_size = len(last_chunk)
-        num_chunks_b = _get_chunk_count(len(content))
-        extra_bytes_in_last_chunk = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
-        num_chunks_after_combining = _get_chunk_count(len(content) + last_chunk_size)
+        chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
 
-        if num_chunks_after_combining == num_chunks_b:  # combine if count is same
+        extra_bytes = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
+        combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
+
+        if combined_chunk_ct == chunk_ct_content:  # combine if count is same
             start_byte = index_meta.entries[-1]["end_byte"]
-            chunk_names.append(last_chunk_name)
-            last_chunk = bytearray(last_chunk) + content[0:extra_bytes_in_last_chunk]  # type: ignore
-            chunk_key = get_chunk_key(key, last_chunk_name)
-            storage[chunk_key] = last_chunk
-            end_byte = len(last_chunk)
-            content = content[extra_bytes_in_last_chunk:]
+            end_byte = start_byte + extra_bytes
+
+            chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
+            _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
+
+            content = content[extra_bytes:]
 
     while len(content) > 0:
-        chunk_name = _generate_chunk_name()
-        chunk_names.append(chunk_name)
-        chunk_key = get_chunk_key(key, chunk_name)
-        chunk_size = min(len(content), CHUNK_MAX_SIZE)
-        storage[chunk_key] = content[0:chunk_size]
-        end_byte = chunk_size
-        content = content[chunk_size:]
+        end_byte = min(len(content), CHUNK_MAX_SIZE)
+
+        chunk_content = content[:end_byte]
+        _write_chunk(chunk_content, storage, chunk_names, key)
+
+        content = content[end_byte:]
 
     index_meta.add_entry(
         chunk_names=chunk_names,
@@ -158,6 +155,24 @@ def _generate_chunk_name() -> str:
     return str(uuid1())
 
 
-def _get_chunk_count(size):
-    """Returns the minimum number of chunks in which data of given size can be fit."""
+def _min_chunk_ct_for_data_size(size: int) -> int:
+    """Calculates the minimum number of chunks in which data of given size can be fit."""
     return ceil(size / CHUNK_MAX_SIZE)
+
+
+def _chunk_has_space(chunk: memoryview) -> bool:
+    """Returns whether the given chunk has space to take in more data."""
+    return len(chunk) > 0 and len(chunk) < CHUNK_MIN_TARGET
+
+
+def _write_chunk(
+    content: Union[memoryview, bytearray],
+    storage: StorageProvider,
+    chunk_names: List[str],
+    key: str,
+    chunk_name: Optional[str] = None,
+):
+    chunk_name = chunk_name or _generate_chunk_name()
+    chunk_names.append(chunk_name)
+    chunk_key = get_chunk_key(key, chunk_name)
+    storage[chunk_key] = content

@@ -1,5 +1,5 @@
 from hub.api.dataset import Dataset
-from hub.core.transform.transform import transform
+from hub.core.transform.transform import transform  # type: ignore
 import numpy as np
 
 

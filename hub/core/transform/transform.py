@@ -18,8 +18,6 @@ from typing import Callable, Dict, List, Optional, Tuple
 from itertools import repeat
 import math
 
-# TODO Ensure that all outputs have the same schema
-
 
 def transform(
     data_in,
@@ -33,31 +31,18 @@ def transform(
     """Initializes a new or existing dataset.
 
     Args:
-        data_in: The input iterable passed to the transform to generate output dataset. Can be a Hub dataset.
-            Should support slicing using __getitem__ and __len__.
+        data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
         pipeline (List[Callable]): A list of functions to apply to each element of data_in to generate output dataset.
-            The output of each function (including the last one) should either be a dictionary or a list/tuple of dictionaries.
-            The output of last function has the added restriction that the keys in the output dictionaries of each sample should
-            be exactly the same as the tensors present in the ds_out object.
-        ds_out (Dataset): The dataset object used to which the transformation will get written.
-            This should have all the keys being generated in the output already present before being passed.
-            The initial state of the dataset can be:-
-            1. Empty i.e. all tensors are created but there are no samples. In this case all samples are simply added to the dataset.
-            After transform is complete, ds_out has x samples in each tensor, where x is the number of outputs generated on applying pipeline on data_in.
-            2. All tensors are populated, but all have sampe length, say n. In this case all samples are simply appended to the dataset.
-            After transform is complete, ds_out has n + x samples in each tensor, where x is the number of outputs generated on applying pipeline on data_in.
-            3. All tensors are populated, but don't have the same length. This case is NOT supported.
+            The output of each function should either be a dictionary or a list/tuple of dictionaries.
+            The last function has added restriction that keys in the output of each sample should be same as the tensors present in the ds_out object.
+        ds_out (Dataset): The dataset object to which the transform will get written.
+            Should have all keys being generated in output already present as tensors. It's initial state should be either:-
+            - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+            - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
         pipeline_kwargs (List[dict], optional): A list containing extra arguments to be passed to the pipeline functions.
-            If this is None no extra arguments are passed to the pipeline functions.
-            If this contains exactly the same number of kwargs as number of functions in pipeline, corresponding kwargs are applied to each function.
-            If this contains less kwargs than the number of functions, only the starting functions upto the length of pipeline_kwargs get kwargs.
-            If this contains more kwargs than the number of functions, the extra kwargs are ignore.
-            Tip: If you want to apply kwargs to non-continuos functions, then use empty dictionaries in the middle.
-            For example:- transform(data_in, [fn1, fn2, fn3], ds_out, [{"a":5, "b":6}, {}, {"c":11, "s":7}]), only applies kwargs to fn1 and fn3.
-        scheduler (str): The scheduler to be used to compute the transformation.
-            Currently can be one of:-
-            threaded: Uses multithreading to perform the transform. Best applicable for I/O intensive transforms.
-            processed: Uses multiprocessing to perform the transform. Best applicable for CPU intensive transforms. Currently doesn't work with S3 or Hub cloud datasets.
+            If more kwargs than functions in pipeline, extra kwargs are ignored, if less kwargs, they are matched to only the starting functions.
+            To use on non-continuous functions fill empty dict. Eg. pipeline=[fn1,fn2,fn3], kwargs=[{"a":5},{},{"c":1,"s":7}], only applies to fn1 and fn3.
+        scheduler (str): The scheduler to be used to compute the transformation. Currently can be one of 'threaded' and 'processed'.
         workers (int): The number of workers to use for performing the transform. Defaults to 1.
 
     Raises:
