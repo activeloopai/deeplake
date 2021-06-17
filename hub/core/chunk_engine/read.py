@@ -1,13 +1,13 @@
+import warnings
 import os
-from typing import List, Optional, Union
+from typing import Optional
 import numpy as np
 from hub.core import compression
 
 import numpy as np
 
 from hub.core.typing import StorageProvider
-from hub.core.compression import BaseImgCodec, BaseNumCodec
-from hub.util.exceptions import ArrayShapeInfoNotFound
+from hub.core.compression import BaseImgCodec
 from hub.util.dataset import get_compressor
 
 
@@ -93,8 +93,12 @@ def array_from_buffer(
             partial_b = compressor.decode(partial_b)
 
     array = np.frombuffer(partial_b, dtype=dtype)
+
     if shape is not None:
         array = array.reshape(shape)
     else:
-        raise ArrayShapeInfoNotFound()
+        warnings.warn(
+            "Could not find `shape` for a sample. It was missing from the IndexMeta entry. The array is being returned flat."
+        )
+
     return array
