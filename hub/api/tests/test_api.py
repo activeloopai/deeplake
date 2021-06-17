@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-
+import uuid
 import hub
 import os
 from hub.api.dataset import Dataset
@@ -284,18 +284,15 @@ def test_dtype_mismatch(memory_ds: Dataset):
 def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
-
-# TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented
-
-
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    hub.client.config.DEV = True
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-
-    ds = Dataset("hub://testingacc/hub2ds2", token=token)
+    id = str(uuid.uuid1())
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
     ds.create_tensor("image")
 
     for i in range(10):
@@ -303,7 +300,7 @@ def test_hub_cloud_dataset():
 
     token = ds.token
     del ds
-    ds = Dataset("hub://testingacc/hub2ds2", token=token)
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
     for i in range(10):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 

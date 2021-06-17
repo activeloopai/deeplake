@@ -7,6 +7,7 @@ from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
     HUB_REST_ENDPOINT_LOCAL,
+    HUB_REST_ENDPOINT_DEV,
     GET_TOKEN_SUFFIX,
     REGISTER_USER_SUFFIX,
     DEFAULT_REQUEST_TIMEOUT,
@@ -98,10 +99,12 @@ class HubBackendClient:
         return response
 
     def endpoint(self):
-        endpoint = (
-            HUB_REST_ENDPOINT_LOCAL if hub.client.config.LOCAL else HUB_REST_ENDPOINT
-        )
-        return endpoint
+        if hub.client.config.LOCAL:
+            return HUB_REST_ENDPOINT_LOCAL
+        if hub.client.config.DEV:
+            return HUB_REST_ENDPOINT_DEV
+
+        return HUB_REST_ENDPOINT
 
     def request_auth_token(self, username: str, password: str):
         """Sends a request to backend to retrieve auth token.
