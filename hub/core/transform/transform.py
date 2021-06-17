@@ -89,9 +89,13 @@ def transform(
     base_storage = remove_all_cache(ds_out.storage)
     tensors = set(ds_out.meta.tensors)
 
-    # TODO handle kwargs properly
-    pipeline_kwargs = [{} for _ in range(len(pipeline))]
+    pipeline_kwargs = pipeline_kwargs or []
+    pipeline_kwargs = pipeline_kwargs[0 : len(pipeline)]
+    pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))
+
     store(data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs)
+    ds_out.clear_cache()
+    ds_out._load_meta()
 
 
 def store_shard(transform_input: Tuple):

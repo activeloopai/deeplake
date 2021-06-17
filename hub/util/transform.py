@@ -19,14 +19,27 @@ def transform_sample(sample: Any, fn_list: List[Callable], arg_list):
             result = [fn(data, **kwargs) for data in result]
         else:
             result = fn(result, **kwargs)
+        result = _unwrap(result)
         verify_transform_output(result)
     return result if isinstance(result, list) else [result]
+
+
+def _unwrap(ls):
+    """If there is any list then unwrap it into its elements"""
+    items = []
+    for r in ls:
+        if isinstance(r, dict):
+            items.append(r)
+        else:
+            items.extend(r)
+    return items
 
 
 def verify_transform_output(output):
     if isinstance(output, (list, tuple)):
         for item in output:
             if not isinstance(item, dict):
+                print(item)
                 raise InvalidTransformOutput
     else:
         if not isinstance(output, dict):

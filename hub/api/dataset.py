@@ -85,14 +85,7 @@ class Dataset:
         self.index = index
 
         self.tensors: Dict[str, Tensor] = {}
-        if dataset_exists(self.storage):
-            self.meta = DatasetMeta.load(self.storage)
-            for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
-        elif len(self.storage) > 0:
-            raise PathNotEmptyException
-        else:
-            self.meta = DatasetMeta.create(self.storage)
+        self._load_meta()
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -189,6 +182,16 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def _load_meta(self):
+        if dataset_exists(self.storage):
+            self.meta = DatasetMeta.load(self.storage)
+            for tensor_name in self.meta.tensors:
+                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+        elif len(self.storage) > 0:
+            raise PathNotEmptyException
+        else:
+            self.meta = DatasetMeta.create(self.storage)
 
     @property
     def mode(self):

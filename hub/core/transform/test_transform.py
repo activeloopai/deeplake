@@ -1,0 +1,96 @@
+from hub.api.dataset import Dataset
+from hub.core.transform.transform import transform
+import numpy as np
+
+
+def fn1(i, mul=1, copy=1):
+    d = {}
+    d["image"] = np.ones((337, 200)) * i * mul
+    d["label"] = np.ones((1,)) * i * mul
+    return [d for _ in range(copy)]
+
+
+def fn2(sample, mul=1, copy=1):
+    d = {}
+    d["image"] = sample["image"] * mul
+    d["label"] = sample["label"] * mul
+    return [d for _ in range(copy)]
+
+
+def fn3(i, mul=1, copy=1):
+    d = {}
+    d["image"] = np.ones((4310, 2187)) * i * mul
+    d["label"] = np.ones((13,)) * i * mul
+    return [d for _ in range(copy)]
+
+
+def test_transform_hub_dataset(local_storage):
+    with Dataset("./test/transform_hub_in") as data_in:
+        data_in.create_tensor("image")
+        data_in.create_tensor("label")
+        for i in range(100):
+            data_in.image.append(i * np.ones((100, 100)))
+            data_in.label.append(i * np.ones((1,)))
+    data_in = Dataset("./test/transform_hub_in")
+    ds_out = Dataset(storage=local_storage)
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    transform(data_in, [fn2], ds_out)
+    data_in.delete()
+    assert len(ds_out) == 100
+    for index in range(100):
+        np.testing.assert_array_equal(
+            ds_out[index].image.numpy(), index * np.ones((100, 100))
+        )
+        np.testing.assert_array_equal(
+            ds_out[index].label.numpy(), index * np.ones((1,))
+        )
+    ds_out.delete()
+
+
+def test_chain_transform(local_storage):
+    ls = [i for i in range(100)]
+    ds_out = Dataset(storage=local_storage)
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    transform(
+        ls,
+        [fn1, fn2],
+        ds_out,
+        workers=1,
+        pipeline_kwargs=[{"mul": 5, "copy": 2}, {"mul": 3, "copy": 3}],
+    )
+    assert len(ds_out) == 600
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
+            )
+    ds_out.delete()
+
+
+def test_large_chain_transform(local_storage):
+    ls = [i for i in range(10)]
+    ds_out = Dataset(storage=local_storage)
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    transform(
+        ls,
+        [fn3, fn2],
+        ds_out,
+        workers=3,
+        pipeline_kwargs=[{"mul": 5, "copy": 2}, {"mul": 3, "copy": 3}],
+    )
+    assert len(ds_out) == 60
+    for i in range(10):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np.ones((4310, 2187))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np.ones((13,))
+            )
+    ds_out.delete()
