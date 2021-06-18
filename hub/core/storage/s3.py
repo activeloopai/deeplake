@@ -1,10 +1,10 @@
-from hub.client.client import HubBackendClient
-import posixpath
-from typing import Optional
 import time
 import boto3
 import botocore  # type: ignore
-
+import posixpath
+from typing import Optional
+from botocore.session import ComponentLocator
+from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 
@@ -21,7 +21,6 @@ class S3Provider(StorageProvider):
         endpoint_url: Optional[str] = None,
         aws_region: Optional[str] = None,
         max_pool_connections: int = 50,
-        client=None,
     ):
         """Initializes the S3Provider
 
@@ -44,39 +43,17 @@ class S3Provider(StorageProvider):
             client (optional): boto3.client object. If this is passed, the other arguments except root are ignored and
                 this is used as the client while making requests.
         """
+        self.root = root
+        self.aws_access_key_id = aws_access_key_id
+        self.aws_secret_access_key = aws_secret_access_key
+        self.aws_session_token = aws_session_token
         self.aws_region: Optional[str] = aws_region
         self.endpoint_url: Optional[str] = endpoint_url
+        self.max_pool_connections = max_pool_connections
         self.expiration: Optional[str] = None
-        self.root = root
+        self.tag: Optional[str] = None
 
-        root = root.replace("s3://", "")
-        self.bucket = root.split("/")[0]
-        self.path = "/".join(root.split("/")[1:])
-
-        self.client_config = botocore.config.Config(
-            max_pool_connections=max_pool_connections,
-        )
-
-        self.client = client or boto3.client(
-            "s3",
-            aws_access_key_id=aws_access_key_id,
-            aws_secret_access_key=aws_secret_access_key,
-            aws_session_token=aws_session_token,
-            config=self.client_config,
-            endpoint_url=self.endpoint_url,
-            region_name=self.aws_region,
-        )
-        self.resource = None
-        if client is None:
-            self.resource = boto3.resource(
-                "s3",
-                aws_access_key_id=aws_access_key_id,
-                aws_secret_access_key=aws_secret_access_key,
-                aws_session_token=aws_session_token,
-                config=self.client_config,
-                endpoint_url=self.endpoint_url,
-                region_name=self.aws_region,
-            )
+        self._initialize_s3_parameters()
 
     def __setitem__(self, path, content):
         """Sets the object present at the path with the value
@@ -207,6 +184,28 @@ class S3Provider(StorageProvider):
         else:
             super().clear()
 
+    def __getstate__(self):
+        state = {}
+        state["root"] = self.root
+        state["aws_access_key_id"] = self.aws_access_key_id
+        state["aws_secret_access_key"] = self.aws_secret_access_key
+        state["aws_session_token"] = self.aws_session_token
+        state["aws_region"] = self.aws_region
+        state["endpoint_url"] = self.endpoint_url
+        state["max_pool_connections"] = self.max_pool_connections
+        state["expiration"] = self.expiration
+        state["tag"] = self.tag
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self._initialize_s3_parameters()
+
+    def _set_bucket_and_path(self):
+        root = self.root.replace("s3://", "")
+        self.bucket = root.split("/")[0]
+        self.path = "/".join(root.split("/")[1:])
+
     def _set_hub_creds_info(self, tag: str, expiration: str):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
@@ -215,8 +214,20 @@ class S3Provider(StorageProvider):
             tag (str): The Hub tag of the dataset in the format username/dataset_name.
             expiration (str): The time at which the credentials expire.
         """
-        self.tag: Optional[str] = tag
+        self.tag = tag
         self.expiration = expiration
+
+    def _initialize_s3_parameters(self):
+        self._set_bucket_and_path()
+
+        self.client_config = botocore.config.Config(
+            max_pool_connections=self.max_pool_connections,
+        )
+
+        if self.aws_access_key_id is None and self.aws_secret_access_key is None:
+            self._locate_and_load_creds()
+
+        self._set_s3_client_and_resource()
 
     def _check_update_creds(self):
         """If the client has an expiration time, check if creds are expired and fetch new ones.
@@ -234,21 +245,51 @@ class S3Provider(StorageProvider):
                 org_id, ds_name, mode
             )
             self.expiration = expiration
-            self.client = boto3.client(
-                "s3",
-                aws_access_key_id=creds["access_key"],
-                aws_secret_access_key=creds["secret_key"],
-                aws_session_token=creds["session_token"],
-                config=self.client_config,
-                endpoint_url=self.endpoint_url,
-                region_name=self.aws_region,
+            self._set_s3_client_and_resource(
+                creds.get("aws_access_key_id"),
+                creds.get("aws_secret_access_key"),
+                creds.get("aws_session_token"),
             )
-            self.resource = boto3.resource(
-                "s3",
-                aws_access_key_id=creds["access_key"],
-                aws_secret_access_key=creds["secret_key"],
-                aws_session_token=creds["session_token"],
-                config=self.client_config,
-                endpoint_url=self.endpoint_url,
-                region_name=self.aws_region,
-            )
+
+    def _locate_and_load_creds(self):
+        session = boto3._get_default_session()._session
+        component_locator = ComponentLocator()
+        component_locator.lazy_register_component(
+            "credential_provider", session._create_credential_resolver
+        )
+        credentials = component_locator.get_component(
+            "credential_provider"
+        ).load_credentials()
+        self.aws_access_key_id = credentials.access_key
+        self.aws_secret_access_key = credentials.secret_key
+        self.aws_session_token = credentials.token
+        self.aws_region = session._resolve_region_name(
+            self.aws_region, self.client_config
+        )
+
+    def _set_s3_client_and_resource(
+        self, aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None
+    ):
+        key = aws_access_key_id or self.aws_access_key_id
+        secret = aws_secret_access_key or self.aws_secret_access_key
+        token = aws_session_token or self.aws_session_token
+
+        self.client = boto3.client(
+            "s3",
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            aws_session_token=token,
+            config=self.client_config,
+            endpoint_url=self.endpoint_url,
+            region_name=self.aws_region,
+        )
+
+        self.resource = boto3.resource(
+            "s3",
+            aws_access_key_id=key,
+            aws_secret_access_key=secret,
+            aws_session_token=token,
+            config=self.client_config,
+            endpoint_url=self.endpoint_url,
+            region_name=self.aws_region,
+        )
