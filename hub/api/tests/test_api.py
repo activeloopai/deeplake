@@ -193,16 +193,38 @@ def test_empty_samples(ds: Dataset):
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
+    assert tensor.meta.dtype == None
 
+    # first sample sets dtype
     tensor.append(5)
+    assert tensor.meta.dtype == "int64"
+
+    with pytest.raises(TensorMetaMismatchError):
+        tensor.append(5.1)
+
     tensor.append(10)
     tensor.append(-99)
+    tensor.append(np.int64(4))
+
+    with pytest.raises(TensorMetaMismatchError):
+        tensor.append(np.int32(4))
+
+    with pytest.raises(TensorMetaMismatchError):
+        tensor.append(np.float32(4))
+
+    with pytest.raises(TensorMetaMismatchError):
+        tensor.append(np.uint8(3))
+
     tensor.extend([10, 1, 4])
     tensor.extend([1])
+    tensor.extend(np.array([1, 2, 3], dtype="int64"))
 
-    assert len(tensor) == 7
+    with pytest.raises(TensorMetaMismatchError):
+        tensor.extend(np.array([4, 5, 33], dtype="int32"))
 
-    expected = np.array([5, 10, -99, 10, 1, 4, 1])
+    assert len(tensor) == 11
+
+    expected = np.array([5, 10, -99, 4, 10, 1, 4, 1, 1, 2, 3])
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
 
