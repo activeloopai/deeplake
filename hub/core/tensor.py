@@ -151,8 +151,8 @@ def extend_tensor(
                 f"An array with shape={samples.shape} cannot be used to extend because it's shape length is < 1."
             )
 
-        # TODO: may need to optimize this?
-        samples = [Sample(array=samples[i]) for i in range(len(samples))]
+    # TODO: need to optimize this
+    samples = [Sample(array=samples[i]) for i in range(len(samples))]
 
     write_samples(samples, key, storage, tensor_meta, index_meta)
 

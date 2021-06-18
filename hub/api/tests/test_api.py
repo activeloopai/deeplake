@@ -185,27 +185,27 @@ def test_scalar_samples(ds: Dataset):
     tensor.append(5)
     assert tensor.meta.dtype == "int64"
 
-    with pytest.raises(TensorMetaMismatchError):
+    with pytest.raises(TensorDtypeMismatchError):
         tensor.append(5.1)
 
     tensor.append(10)
     tensor.append(-99)
     tensor.append(np.int64(4))
 
-    with pytest.raises(TensorMetaMismatchError):
+    with pytest.raises(TensorDtypeMismatchError):
         tensor.append(np.int32(4))
 
-    with pytest.raises(TensorMetaMismatchError):
+    with pytest.raises(TensorDtypeMismatchError):
         tensor.append(np.float32(4))
 
-    with pytest.raises(TensorMetaMismatchError):
+    with pytest.raises(TensorDtypeMismatchError):
         tensor.append(np.uint8(3))
 
     tensor.extend([10, 1, 4])
     tensor.extend([1])
     tensor.extend(np.array([1, 2, 3], dtype="int64"))
 
-    with pytest.raises(TensorMetaMismatchError):
+    with pytest.raises(TensorDtypeMismatchError):
         tensor.extend(np.array([4, 5, 33], dtype="int32"))
 
     assert len(tensor) == 11
