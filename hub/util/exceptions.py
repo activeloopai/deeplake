@@ -1,6 +1,6 @@
+from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
-from typing import Any, Sequence
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -330,13 +330,18 @@ class TensorMetaInvalidHtypeOverwriteKey(MetaError):
         )
 
 
-class TensorMetaMismatchError(MetaError):
-    def __init__(self, meta_key: str, expected: Any, actual: Any):
-        super().__init__(
-            "Meta value for {} expected {} but got {}.".format(
-                meta_key, str(expected), str(actual)
-            )
-        )
+class TensorDtypeMismatchError(MetaError):
+    def __init__(self, expected: str, actual: str, htype: str):
+        msg = f"Dtype was expected to be '{expected}' instead it was '{actual}'. If you called `create_tensor` explicitly with `dtype`, your samples should also be of that dtype."
+
+        # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)
+        # TODO: because if the user uses `dtype=np.uint8`, but the `htype` the tensor is created with has it's default dtype set as `uint8` also, then this message is ambiguous
+        htype_dtype = HTYPE_CONFIGURATIONS[htype].get("dtype", None)
+        if htype_dtype is not None and htype_dtype == expected:
+            msg += f" Htype '{htype}' expects samples to have dtype='{htype_dtype}'."
+            super().__init__("")
+
+        super().__init__(msg)
 
 
 class ReadOnlyModeError(Exception):
