@@ -1,4 +1,4 @@
-from hub.constants import UNCOMPRESSED
+from hub.constants import UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
 from hub.core.sample import Sample
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
@@ -39,8 +39,12 @@ def write_samples(
             write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
         else:
 
-            # if `tensor_meta.sample_compression` is UNCOMPRESSED, this buffer is uncompressed
-            buffer = sample.compressed_bytes(tensor_meta.sample_compression)
+            # `UNCOMPRESSED` is prioritized
+            compression = tensor_meta.sample_compression
+            if not USE_UNIFORM_COMPRESSION_PER_SAMPLE and compression != UNCOMPRESSED:
+                compression = sample.compression
+
+            buffer = sample.compressed_bytes(compression)
 
             write_bytes(
                 memoryview(buffer),

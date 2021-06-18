@@ -26,6 +26,7 @@ class Sample:
         if array is not None:
             self.path = None
             self._array = array
+            self._original_compression = UNCOMPRESSED
 
     @property
     def is_symbolic(self) -> bool:

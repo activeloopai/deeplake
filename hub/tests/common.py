@@ -112,4 +112,6 @@ def assert_all_samples_have_expected_compression(
             ), "If the tensor is uncompressed, all samples MUST not be compressed."
         else:
             expected_compression = original_compressions[i]
-            assert actual_compression == expected_compression
+            assert (
+                actual_compression == expected_compression
+            ), f"non-uniform compression mismatch @ i={i}. got {actual_compression}, expected {expected_compression}"
