@@ -25,18 +25,13 @@ def write_samples(
     tensor_meta: TensorMeta,
     index_meta: IndexMeta,
 ):
-    """Write a list of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed."""
+    """Write a sequence of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed."""
 
     for sample in samples:
-        if not isinstance(sample, Sample):
-            raise Exception()  # TODO
-
         tensor_meta.check_array_sample_is_compatible(sample.array)
 
         extra_sample_meta = {  # TODO: convert to kwargs
             "shape": sample.shape,
-            "compression": sample.compression,
-            "dtype": sample.dtype,
         }
 
         if sample.is_empty:
