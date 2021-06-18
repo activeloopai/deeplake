@@ -89,6 +89,9 @@ def write_bytes(
         extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
             `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
             to call `IndexMeta.add_entry`.
+
+    Raises:
+        ValueError: `b` shouldn't be empty.
     """
 
     if len(b) <= 0:

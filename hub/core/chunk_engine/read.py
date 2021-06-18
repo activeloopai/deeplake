@@ -22,6 +22,7 @@ def sample_from_index_entry(
         key (str): Key relative to `storage` where this instance.
         storage (StorageProvider): Storage of the sample.
         index_entry (dict): Index metadata of sample with `chunks_names`, `start_byte` and `end_byte` keys.
+        tensor_meta (TensorMeta): TensorMeta object that will be read from.
 
     Returns:
         Numpy array from the bytes of the sample.

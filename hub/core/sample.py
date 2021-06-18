@@ -1,5 +1,5 @@
 from hub.core.compression import compress_array
-from hub.constants import UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
+from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
@@ -26,6 +26,9 @@ class Sample:
             path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
                 Implicitly makes `self.is_lazy == True`.
             array (np.ndarray): Array that represents a single sample. If `array` is provided, `path` should not be. Implicitly makes `self.is_lazy == False`.
+
+        Raises:
+            ValueError: Cannot create a sample from both a `path` and `array`.
         """
 
         if (path is None) == (array is None):
@@ -82,6 +85,9 @@ class Sample:
 
         Args:
             compression (str): `self.array` will be compressed into this format. If `compression == UNCOMPRESSED`, return `self.uncompressed_bytes()`.
+
+        Returns:
+            bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
         """
 
         # TODO: raise a comprehensive error for unsupported compression types
