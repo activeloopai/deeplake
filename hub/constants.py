@@ -13,7 +13,7 @@ DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
-USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
+USE_UNIFORM_COMPRESSION_PER_SAMPLE = False
 
 SUPPORTED_MODES = ["r", "a"]
 
