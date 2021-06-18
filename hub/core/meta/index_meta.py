@@ -1,6 +1,4 @@
-from hub.constants import UNCOMPRESSED
 from typing import Dict, List, Tuple
-from hub.util.callbacks import CallbackList
 from hub.util.keys import get_index_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta

@@ -193,11 +193,14 @@ class TorchDataset:
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
         shape = index_entry["shape"]
-        dtype = index_entry["dtype"]
-        # cast_dtype = self.all_tensor_metas[key].dtype  # TODO: cast into this dtype
-        sample_compression = index_entry["compression"]
+
+        tensor_meta = self.all_tensor_metas[key]
+        dtype = tensor_meta.dtype
+        sample_compression = tensor_meta.sample_compression
 
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
+
+        # TODO: migrate UNCOMPRESSED check into a single function
         if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         else:
