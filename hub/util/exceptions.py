@@ -238,7 +238,14 @@ class SampleDecompressionError(CompressionError):
     def __init__(self):
         super().__init__(
             "Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format.",
-            "Only `PIL` compatible decompressions may be used as `sample_compression` at this time."
+            "Only `PIL` compatible decompressions may be used as `sample_compression` at this time.",
+        )
+
+
+class SampleIsNotCompressedError(CompressionError):
+    def __init__(self, sample_str: str):
+        super().__init__(
+            f"Cannot gather `compressed_bytes` from '{sample_str}' because it does not represent a compressed sample."
         )
 
 

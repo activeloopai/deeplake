@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 from hub.util.exceptions import (
     HubAutoUnsupportedFileExtensionError,
     SampleCorruptedError,
+    SampleIsNotCompressedError,
 )
 
 from PIL import Image  # type: ignore
@@ -65,15 +66,17 @@ class Sample:
 
     @property
     def compression(self) -> str:
-        # TODO: raise exception if `read` wasn't called
         self.read()
         return self._compression.lower()
 
     def compressed_bytes(self) -> bytes:
-        # TODO: docstring
+        """If `self` represents a compressed sample, this will return the raw compressed bytes."""
+
+        # TODO: compressed bytes should be stripped of all meta -- this meta should be relocated to `IndexMeta`
 
         if self.compression == UNCOMPRESSED:
-            raise Exception("Sample is not compressed.")  # TODO:
+            # TODO: test this gets raised
+            raise SampleIsNotCompressedError(str(self))
 
         if self.path is None:
             return compress_array(self.array, self.compression)
@@ -82,7 +85,7 @@ class Sample:
             return f.read()
 
     def uncompressed_bytes(self) -> bytes:
-        # TODO: docstring
+        """Returns `self.array` as uncompressed bytes."""
 
         # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
         return row_wise_to_bytes(self.array)
@@ -138,10 +141,8 @@ def load(path: str) -> Sample:
     Supported File Types:
         image: png, jpeg, and all others supported by `PIL`: https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#fully-supported-formats
 
-    Future Supported File Types:
-        video
-        text
-        audio
+    Args:
+        path (str): Path to a supported file.
 
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
