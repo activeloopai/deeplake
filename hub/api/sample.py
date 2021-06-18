@@ -52,7 +52,7 @@ class Sample:
         return self._array.dtype.name  # type: ignore
 
     @property
-    def original_compression(self) -> str:
+    def compression(self) -> str:
         self._read()
 
         if self.is_empty:
@@ -79,7 +79,7 @@ class Sample:
             return self.uncompressed_bytes()
 
         # if the sample is already compressed in the requested format, just return the raw bytes
-        if self.path is not None and self.original_compression == compression:
+        if self.path is not None and self.compression == compression:
             with open(self.path, "rb") as f:
                 return f.read()
 

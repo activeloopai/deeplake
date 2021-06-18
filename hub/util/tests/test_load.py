@@ -1,5 +1,4 @@
 import os
-from hub.tests.common import get_dummy_data_path
 import hub
 
 

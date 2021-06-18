@@ -1,3 +1,4 @@
+from hub.constants import UNCOMPRESSED
 from hub.util.exceptions import SampleDecompressionError
 from typing import Union
 import numpy as np
@@ -50,3 +51,14 @@ def decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
         return np.array(img)
     except UnidentifiedImageError:
         raise SampleDecompressionError()
+
+
+def get_actual_compression_from_buffer(buffer: memoryview) -> str:
+    try:
+        bio = BytesIO(buffer)
+        img = Image.open(bio)
+        return img.format.lower()
+
+    # TODO: better way of determining the sample has no compression
+    except UnidentifiedImageError:
+        return UNCOMPRESSED

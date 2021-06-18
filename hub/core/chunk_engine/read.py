@@ -2,7 +2,7 @@ from PIL import Image, UnidentifiedImageError
 from io import BytesIO
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
-from hub.core.compression import decompress_array
+from hub.core.compression import decompress_array, get_actual_compression_from_buffer
 import warnings
 import os
 import numpy as np
@@ -82,19 +82,3 @@ def array_from_buffer(
         )
 
     return array
-
-
-def get_actual_compression_from_index_entry(
-    key: str, storage: StorageProvider, index_entry: dict
-) -> str:
-    """Returns a string identifier for the compression that the sample defined by `index_entry`. Warning: this may be slow."""
-
-    try:
-        buffer = buffer_from_index_entry(key, storage, index_entry)
-        bio = BytesIO(buffer)
-        img = Image.open(bio)
-        return img.format.lower()
-
-    # TODO: better way of determining the sample has no compression
-    except UnidentifiedImageError:
-        return UNCOMPRESSED
