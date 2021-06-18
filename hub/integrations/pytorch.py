@@ -71,8 +71,9 @@ class TorchDataset:
         self.map = ProcessPool(nodes=workers).map
         self.len = len(dataset)
         self.keys = list(dataset.tensors)
-        self.storage = remove_memory_cache(dataset)
-        self.storage_dict = self.storage.__getstate__()
+        self.storage = remove_memory_cache(dataset.storage)
+        if isinstance(storage, S3Provider):
+            self.storage_dict = self.storage.__getstate__()
 
         # contains meta for each Tensor
         self.all_meta: Dict[str, Dict] = self._load_all_meta()

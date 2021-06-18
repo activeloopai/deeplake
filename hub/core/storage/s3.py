@@ -260,12 +260,13 @@ class S3Provider(StorageProvider):
         credentials = component_locator.get_component(
             "credential_provider"
         ).load_credentials()
-        self.aws_access_key_id = credentials.access_key
-        self.aws_secret_access_key = credentials.secret_key
-        self.aws_session_token = credentials.token
-        self.aws_region = session._resolve_region_name(
-            self.aws_region, self.client_config
-        )
+        if credentials is not None:
+            self.aws_access_key_id = credentials.access_key
+            self.aws_secret_access_key = credentials.secret_key
+            self.aws_session_token = credentials.token
+            self.aws_region = session._resolve_region_name(
+                self.aws_region, self.client_config
+            )
 
     def _set_s3_client_and_resource(
         self, aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None
