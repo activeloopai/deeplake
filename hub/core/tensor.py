@@ -3,7 +3,7 @@ from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Sequence, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
@@ -12,12 +12,8 @@ from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
-    ImageReadError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
-    TensorInvalidSampleShapeError,
-    TensorMetaMismatchError,
-    TensorUnsupportedSampleType,
 )
 
 
@@ -120,17 +116,17 @@ def append_tensor(
 
 
 def extend_tensor(
-    samples: Union[np.ndarray, List[Sample]],
+    samples: Union[np.ndarray, Sequence[np.ndarray], Sequence[Sample]],
     key: str,
     storage: StorageProvider,
     **kwargs,
 ):
-    """Extend an existing tensor with an array. This array will be chunked and sent to `storage`.
+    """Extend an existing tensor with an array/sequence of `Sample`s. This array will be chunked and sent to `storage`.
 
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        samples (np.ndarray, Sequence[Sample]): Batch of samples to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
