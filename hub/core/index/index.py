@@ -67,7 +67,10 @@ def slice_at_int(s: slice, i: int):
 def slice_length(s: slice, parent_length: int) -> int:
     """Returns the length of a slice given the length of its parent."""
     start, stop, step = s.indices(parent_length)
-    return max(0, (stop - start + (step - (1 if step > 0 else -1))) // step)
+    step_offset = step - (1 if step > 0 else -1) # Used to ceil/floor depending on step direction
+    slice_length = stop - start
+    total_length = (slice_length + step_offset) // step
+    return max(0, total_length)
 
 
 def tuple_length(t: Tuple[int], l: int) -> int:
