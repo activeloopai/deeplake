@@ -73,7 +73,6 @@ class Sample:
         """
 
         # TODO: raise a comprehensive error for unsupported compression types
-
         compression = compression.lower()
 
         if compression == UNCOMPRESSED:
@@ -81,8 +80,10 @@ class Sample:
 
         # if the sample is already compressed in the requested format, just return the raw bytes
         if self.path is not None and self.compression == compression:
+
             with open(self.path, "rb") as f:
                 return f.read()
+
         return compress_array(self.array, compression)
 
     def uncompressed_bytes(self) -> bytes:

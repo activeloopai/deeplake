@@ -41,10 +41,16 @@ def write_samples(
             write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
         else:
 
-            # `UNCOMPRESSED` is prioritized
-            compression = tensor_meta.sample_compression
-            if not USE_UNIFORM_COMPRESSION_PER_SAMPLE and compression != UNCOMPRESSED:
-                compression = sample.compression
+            # TODO: minify this
+            if USE_UNIFORM_COMPRESSION_PER_SAMPLE:
+                compression = tensor_meta.sample_compression
+            else:
+                if tensor_meta.sample_compression == UNCOMPRESSED:
+                    compression = UNCOMPRESSED
+                else:
+                    compression = sample.compression
+                    if compression == UNCOMPRESSED:
+                        compression = tensor_meta.sample_compression
 
             buffer = sample.compressed_bytes(compression)
 
