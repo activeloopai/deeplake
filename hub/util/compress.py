@@ -1,4 +1,4 @@
-from hub.util.exceptions import SampleDecompressionError
+from hub.util.exceptions import SampleCompressionError, SampleDecompressionError
 from typing import Union
 import numpy as np
 
@@ -20,7 +20,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         bytes: Compressed `array` represented as bytes.
     """
 
-    img = Image.fromarray(array.astype("uint8"))
+    img = Image.fromarray(array)
     out = BytesIO()
     img.save(out, compression)
     out.seek(0)

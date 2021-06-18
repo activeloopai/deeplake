@@ -1,3 +1,4 @@
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
 from hub.util.compress import decompress_array
 import warnings
@@ -14,6 +15,7 @@ def sample_from_index_entry(
     key: str,
     storage: StorageProvider,
     index_entry: dict,
+    tensor_meta: TensorMeta,
 ) -> np.ndarray:
     """Get the un-chunked sample from a single `index_meta` entry.
 
@@ -26,13 +28,29 @@ def sample_from_index_entry(
         Numpy array from the bytes of the sample.
     """
 
+    mv = buffer_from_index_entry(key, storage, index_entry)
+    is_empty = len(mv) <= 0
+
+    if is_empty or tensor_meta.sample_compression == UNCOMPRESSED:
+        # TODO: chunk-wise compression
+
+        return array_from_buffer(
+            mv,
+            tensor_meta.dtype,
+            shape=index_entry["shape"],
+        )
+
+    return decompress_array(mv)
+
+
+def buffer_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict
+) -> memoryview:
     chunk_names = index_entry["chunk_names"]
-    shape = index_entry["shape"]
-    dtype = index_entry["dtype"]
 
     # sample has no data
     if len(chunk_names) <= 0:
-        return np.zeros(shape, dtype=dtype)
+        return memoryview(bytes())
 
     buffer = bytearray()
     for chunk_name in chunk_names:
@@ -43,19 +61,7 @@ def sample_from_index_entry(
     start_byte = index_entry["start_byte"]
     end_byte = last_b_len + index_entry["end_byte"]
 
-    mv = memoryview(buffer)[start_byte:end_byte]
-    sample_compression = index_entry.get("compression", UNCOMPRESSED)
-
-    if sample_compression == UNCOMPRESSED:
-        # TODO: chunk-wise compression
-
-        return array_from_buffer(
-            mv,
-            dtype,
-            shape=shape,
-        )
-
-    return decompress_array(mv)
+    return memoryview(buffer)[start_byte:end_byte]
 
 
 def array_from_buffer(

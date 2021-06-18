@@ -139,15 +139,12 @@ def extend_tensor(
             `create_tensor(...)`.
     """
 
-    # TODO: update docstring
-    # TODO: support list of `Samples`
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
     tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
 
     # extend is guaranteed to have a batch axis
-
     if isinstance(samples, np.ndarray):
         if len(samples.shape) < 1:
             # TODO: add xfail test for this error (one may exist please check idk if it does)
@@ -163,8 +160,6 @@ def extend_tensor(
         ]
 
     write_samples(samples, key, storage, tensor_meta, index_meta)
-
-    # raise ValueError  # TODO exceptions
 
 
 def read_samples_from_tensor(
@@ -201,15 +196,18 @@ def read_samples_from_tensor(
     samples = []
     for i, index_entry in enumerate(index_entries):
         shape = index_entry["shape"]
+
         # check if all samples are the same shape
-        last_shape = index_entries[i - 1]["shape"]
-        if not aslist and shape != last_shape:
-            raise DynamicTensorNumpyError(key, index)
-        array = sample_from_index_entry(key, storage, index_entry)
+        last_entry = index_entries[i - 1]
+        last_shape = last_entry["shape"]
 
-        # TODO: convert sample into index_meta.dtype?
+        if not aslist:
+            if shape != last_shape:
+                raise DynamicTensorNumpyError(key, index, "shape")
 
+        array = sample_from_index_entry(key, storage, index_entry, tensor_meta)
         samples.append(array)
+
     if aslist:
         if index.values[0].subscriptable():
             return samples

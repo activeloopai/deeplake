@@ -31,11 +31,11 @@ class TensorAlreadyExistsError(Exception):
 
 
 class DynamicTensorNumpyError(Exception):
-    def __init__(self, key: str, index):
+    def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
+            "Tensor {} with index = {} is has a dynamic '{}' and cannot be converted into a `np.ndarray`. \
             Try setting the parameter `aslist=True`".format(
-                key, str(index)
+                key, str(index), property_key
             )
         )
 
@@ -240,6 +240,10 @@ class SampleDecompressionError(CompressionError):
             "Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format.",
             "Only `PIL` compatible decompressions may be used as `sample_compression` at this time.",
         )
+
+class SampleCompressionError(CompressionError):
+    def __init__(self, reason: str):
+        super().__init__(f"Could not compress sample. {reason}")
 
 
 class SampleIsNotCompressedError(CompressionError):
