@@ -116,10 +116,10 @@ class Dataset:
         self.storage.autoflush = True
         self.flush()
 
-    # TODO len should consider slice
     def __len__(self):
         """Return the smallest length of tensors"""
-        return min(map(len, self.tensors.values()), default=0)
+        tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
+        return min(tensor_lengths, default=0)
 
     def __getitem__(
         self,
@@ -321,7 +321,7 @@ class Dataset:
     def __str__(self):
         path_str = ""
         if self.path:
-            path_str = f"path={self.path}, "
+            path_str = f"path='{self.path}', "
 
         mode_str = ""
         if self.read_only:

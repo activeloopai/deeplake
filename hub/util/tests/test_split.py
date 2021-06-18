@@ -16,3 +16,8 @@ def test_split(memory_ds):
     assert train.ints.numpy().tolist() == expected_train
     assert test.ints.numpy().tolist() == expected_test
     assert val.ints.numpy().tolist() == expected_val
+
+    assert len(train) == 9
+    assert len(test) == 2
+    assert len(val) == 2
+    assert sum(map(len, (train, test, val))) == 13
