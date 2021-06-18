@@ -26,7 +26,7 @@ def fn3(i, mul=1, copy=1):
 
 
 @parametrize_all_dataset_storages
-def test_transform_hub_dataset(ds):
+def test_single_transform_hub_dataset(ds):
     with Dataset("./test/transform_hub_in") as data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
@@ -50,7 +50,7 @@ def test_transform_hub_dataset(ds):
 
 
 @parametrize_all_dataset_storages
-def test_chain_transform(ds):
+def test_chain_transform_list_small(ds):
     ls = [i for i in range(100)]
     ds_out = ds
     ds_out.create_tensor("image")
@@ -74,7 +74,7 @@ def test_chain_transform(ds):
 
 
 @parametrize_all_dataset_storages
-def test_large_chain_transform(ds):
+def test_chain_transform_list_big(ds):
     ls = [i for i in range(2)]
     ds_out = ds
     ds_out.create_tensor("image")
