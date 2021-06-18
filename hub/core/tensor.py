@@ -133,7 +133,7 @@ def extend_tensor(
             index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
 
     Raises:
-        ValueError: If `array` has <= 1 axes.
+        ValueError: If `samples` cannot be used to extend.
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
     """
@@ -151,7 +151,13 @@ def extend_tensor(
                 f"An array with shape={samples.shape} cannot be used to extend because it's shape length is < 1."
             )
 
-        # TODO: may need to optimize this?
+    if not hasattr(samples, "__len__"):
+        raise ValueError(
+            f"Provided `samples` '{samples}' does not have a `__len__` attribute, and thus cannot be used to extend. Try appending instead."
+        )
+
+    if not isinstance(samples[0], Sample):
+        # TODO: need to optimize this
         samples = [Sample(array=samples[i]) for i in range(len(samples))]
 
     write_samples(samples, key, storage, tensor_meta, index_meta)
