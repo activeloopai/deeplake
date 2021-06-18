@@ -1,3 +1,4 @@
+from hub.api.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
 import numpy as np
@@ -7,30 +8,29 @@ from hub import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-def _populate_compressed_samples(ds, cat_path, flower_path):
+def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
+    for _ in range(count):
+        tensor.append(hub.load(cat_path))
+        tensor.append(hub.load(flower_path))
+        tensor.append(np.ones((100, 100, 4), dtype="uint8"))
+
+        tensor.extend(
+            [
+                hub.load(flower_path),
+                hub.load(cat_path),
+            ]
+        )
+
+
+@parametrize_all_dataset_storages
+def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     images = ds.create_tensor(TENSOR_KEY, htype="image")
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
 
-    images.append(hub.load(cat_path))
-    images.append(hub.load(flower_path))
-    images.append(np.ones((100, 100, 4), dtype="uint8"))
-
-    images.extend(
-        [
-            hub.load(flower_path),
-            hub.load(cat_path),
-        ]
-    )
-
-    return images
-
-
-@parametrize_all_dataset_storages
-def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = _populate_compressed_samples(ds, cat_path, flower_path)
+    _populate_compressed_samples(images, cat_path, flower_path)
     assert_all_samples_have_expected_compression(images)
 
     assert images[0].numpy().shape == (900, 900, 3)
@@ -44,7 +44,14 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
 @parametrize_all_dataset_storages
 def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = _populate_compressed_samples(ds, cat_path, flower_path)
+    images = ds.create_tensor(TENSOR_KEY, htype="image")
+
+    assert images.meta.dtype == "uint8"
+    assert images.meta.sample_compression == "png"
+    assert images.meta.chunk_compression == UNCOMPRESSED
+
+    _populate_compressed_samples(images, cat_path, flower_path)
+
     assert_all_samples_have_expected_compression(images)
 
     expected_shapes = [
