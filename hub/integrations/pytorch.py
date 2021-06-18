@@ -11,7 +11,7 @@ import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict
+from typing import Any, Callable, List, Optional, Set, Dict, Union
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
@@ -29,6 +29,7 @@ from functools import lru_cache
 
 @lru_cache()
 def get_s3_storage(state) -> S3Provider:
+    print("fetching")
     s3 = S3Provider.__new__()
     s3.__setstate__(state)
     return s3
@@ -140,15 +141,17 @@ class TorchDataset:
 
     def _load_all_index_maps(self):
         """Loads index maps for all Tensors into memory"""
-        all_index_maps = {key: read_index_map(key, self.storage) for key in self.keys}
-        return all_index_maps
+        all_index_metas = {
+            key: IndexMeta.load(key, self.storage) for key in self.keys
+        }
+        return all_index_metas
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
         for key in self.keys:
-            tensor_meta = TensorMeta.load(key, _hub_storage_provider)
+            tensor_meta = TensorMeta.load(key, self.storage)
             if tensor_meta.dtype == "uint16":
                 tensor_meta.dtype = "int32"
             elif tensor_meta.dtype in ["uint32", "uint64"]:
