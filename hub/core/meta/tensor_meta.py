@@ -5,7 +5,7 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
-    TensorMetaMismatchError,
+    TensorDtypeMismatchError,
     UnsupportedCompressionError,
 )
 from hub.util.keys import get_tensor_meta_key
@@ -90,12 +90,16 @@ class TensorMeta(Meta):
             array (np.ndarray): Array representing a sample to check compatibility with.
 
         Raises:
-            TensorMetaMismatchError: Dtype for array must be equal to this meta.
+            TensorDtypeMismatchError: Dtype for array must be equal to this meta.
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
         if self.dtype and self.dtype != array.dtype.name:
-            raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
+            raise TensorDtypeMismatchError(
+                self.dtype,
+                array.dtype.name,
+                self.htype,
+            )
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
@@ -177,6 +181,8 @@ def _validate_compression(required_meta: dict):
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
+    """Raises appropriate errors if `htype_overwrite` keys/values are invalid in correspondence to `htype`. May modify `dtype` in `htype_overwrite` if it is a non-str."""
+
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -193,18 +199,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         )
 
     if "dtype" in htype_overwrite:
-        if type(htype_overwrite["dtype"]) != str:
-            # TODO: support np.dtype alongside str
-            raise TensorMetaInvalidHtypeOverwriteValue(
-                "dtype", htype_overwrite["dtype"], "dtype must be of type `str`."
-            )
-
         _raise_if_condition(
             "dtype",
             htype_overwrite,
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
-            "Datatype must be supported by numpy. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
+
+        if type(htype_overwrite["dtype"]) != str:
+            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
 
 def _check_valid_htype(htype: str):

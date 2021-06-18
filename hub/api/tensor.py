@@ -134,6 +134,12 @@ class Tensor:
         return self.shape_interval.astuple()
 
     @property
+    def dtype(self) -> np.dtype:
+        if self.meta.dtype:
+            return np.dtype(self.meta.dtype)
+        return None
+
+    @property
     def shape_interval(self) -> ShapeInterval:
         """Returns a `ShapeInterval` object that describes this tensor's shape more accurately. Length is included.
 
