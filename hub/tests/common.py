@@ -12,7 +12,7 @@ from uuid import uuid1
 import numpy as np
 import pytest
 
-from hub.constants import KB, MB
+from hub.constants import KB, MB, UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
 
 SESSION_ID = str(uuid1())
 
@@ -94,9 +94,12 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
 
 def assert_all_samples_have_expected_compression(tensor: Tensor):
     index_meta = IndexMeta.load(tensor.key, tensor.storage)
-    expected_compression = tensor.meta.sample_compression
 
     for index_entry in index_meta.entries:
         buffer = buffer_from_index_entry(tensor.key, tensor.storage, index_entry)
         actual_compression = get_actual_compression_from_buffer(buffer)
-        assert actual_compression == expected_compression
+
+        if USE_UNIFORM_COMPRESSION_PER_SAMPLE:
+            assert actual_compression == tensor.meta.sample_compression
+        else:
+            assert actual_compression == index_entry.get("compression", UNCOMPRESSED)
