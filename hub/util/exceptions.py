@@ -1,4 +1,5 @@
-from typing import Any, List, Sequence
+from hub.constants import SUPPORTED_COMPRESSIONS
+from typing import Any, List, Sequence, Tuple
 from typing import Any, Sequence
 
 
@@ -234,11 +235,26 @@ class CompressionError(Exception):
     pass
 
 
+class UnsupportedCompressionError(CompressionError):
+    def __init__(self, compression: str):
+        super().__init__(
+            f"Compression '{compression}' is not supported. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+        )
+
+
+class SampleCompressionError(CompressionError):
+    def __init__(
+        self, sample_shape: Tuple[int, ...], compression_format: str, message: str
+    ):
+        super().__init__(
+            f"Could not compress a sample with shape {str(sample_shape)} into '{compression_format}'. Raw error output: '{message}'.",
+        )
+
+
 class SampleDecompressionError(CompressionError):
     def __init__(self):
         super().__init__(
-            "Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format.",
-            "Only `PIL` compatible decompressions may be used as `sample_compression` at this time.",
+            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {SUPPORTED_COMPRESSIONS}."
         )
 
 

@@ -6,9 +6,15 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
     TensorMetaMismatchError,
+    UnsupportedCompressionError,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE, DEFAULT_HTYPE, UNCOMPRESSED
+from hub.constants import (
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_HTYPE,
+    SUPPORTED_COMPRESSIONS,
+    UNCOMPRESSED,
+)
 from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
@@ -65,9 +71,7 @@ class TensorMeta(Meta):
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(htype_overwrite)
-
-        if required_meta["chunk_compression"] != UNCOMPRESSED:
-            raise NotImplementedError("Chunk compression has not been implemented yet.")
+        _validate_compression(required_meta)
 
         return TensorMeta(
             get_tensor_meta_key(key), storage, required_meta=required_meta
@@ -158,6 +162,19 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = _remove_none_values_from_dict(required_meta)
     required_meta.update(defaults)
     return required_meta
+
+
+def _validate_compression(required_meta: dict):
+    chunk_compression = required_meta["chunk_compression"]
+    if chunk_compression != UNCOMPRESSED:
+        raise NotImplementedError("Chunk compression has not been implemented yet.")
+
+    sample_compression = required_meta["sample_compression"]
+    if sample_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(sample_compression)
+
+    if chunk_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(chunk_compression)
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):

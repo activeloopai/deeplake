@@ -1,3 +1,5 @@
+from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionError
+import pytest
 from hub.api.tensor import Tensor
 from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
@@ -90,3 +92,38 @@ def test_uncompressed(ds: Dataset):
     original_compressions = [UNCOMPRESSED] * 4
 
     assert_all_samples_have_expected_compression(images, original_compressions)
+
+
+@pytest.mark.xfail(raises=SampleCompressionError, strict=True)
+@pytest.mark.parametrize(
+    "bad_shape",
+    [
+        # raises TypeError: Cannot handle this data type: (1, 1, 1), |u1
+        (100, 100, 1),
+        # raises OSError: cannot write mode LA as JPEG
+        (100, 100, 2),
+        # raises OSError: cannot write mode RGBA as JPE
+        (100, 100, 4),
+    ],
+)
+def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
+    # jpeg allowed shapes:
+    # ---------------------
+    # (100) works!
+    # (100,) works!
+    # (100, 100) works!
+    # (100, 100, 1) raises   | TypeError: Cannot handle this data type: (1, 1, 1), |u1
+    # (100, 100, 2) raises   | OSError: cannot write mode LA as JPEG
+    # (100, 100, 3) works!
+    # (100, 100, 4) raises   | OSError: cannot write mode RGBA as JPEG
+    # (100, 100, 5) raises   | TypeError: Cannot handle this data type: (1, 1, 5), |u1
+    # (100, 100, 100) raises | TypeError: Cannot handle this data type: (1, 1, 100), |u1
+
+    tensor = memory_ds.create_tensor(TENSOR_KEY, sample_compression="jpeg")
+    tensor.append(np.ones(bad_shape, dtype="uint8"))
+
+
+@pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)
+def test_unsupported_compression(memory_ds: Dataset):
+    memory_ds.create_tensor(TENSOR_KEY, sample_compression="bad_compression")
+    # TODO: same tests but with `dtype`

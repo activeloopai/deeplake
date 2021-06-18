@@ -1,4 +1,9 @@
-from hub.util.exceptions import SampleDecompressionError
+from hub.constants import SUPPORTED_COMPRESSIONS
+from hub.util.exceptions import (
+    SampleCompressionError,
+    SampleDecompressionError,
+    UnsupportedCompressionError,
+)
 from typing import Union
 import numpy as np
 
@@ -16,15 +21,24 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         array (np.ndarray): Array to be compressed.
         compression (str): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
 
+    Raises:
+        UnsupportedCompressionError: If `compression` is unsupported. See `SUPPORTED_COMPRESSIONS`.
+
     Returns:
         bytes: Compressed `array` represented as bytes.
     """
 
-    img = Image.fromarray(array)
-    out = BytesIO()
-    img.save(out, compression)
-    out.seek(0)
-    return out.read()
+    if compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(compression)
+
+    try:
+        img = Image.fromarray(array)
+        out = BytesIO()
+        img.save(out, compression)
+        out.seek(0)
+        return out.read()
+    except (TypeError, OSError) as e:
+        raise SampleCompressionError(array.shape, compression, str(e))
 
 
 def decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:

@@ -11,6 +11,8 @@ UNCOMPRESSED = "uncompressed"
 DEFAULT_SAMPLE_COMPRESSION = UNCOMPRESSED
 DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
 
+SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
+
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
 USE_UNIFORM_COMPRESSION_PER_SAMPLE = False
