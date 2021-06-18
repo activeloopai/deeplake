@@ -6,7 +6,7 @@ import hub
 import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.util.exceptions import TensorDtypeMismatchError
+from hub.util.exceptions import TensorDtypeMismatchError, TensorUnsafeCastError
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
@@ -185,28 +185,13 @@ def test_scalar_samples(ds: Dataset):
     tensor.append(5)
     assert tensor.meta.dtype == "int64"
 
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(5.1)
-
     tensor.append(10)
     tensor.append(-99)
     tensor.append(np.int64(4))
 
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.int32(4))
-
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.float32(4))
-
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.uint8(3))
-
     tensor.extend([10, 1, 4])
     tensor.extend([1])
     tensor.extend(np.array([1, 2, 3], dtype="int64"))
-
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.extend(np.array([4, 5, 33], dtype="int32"))
 
     assert len(tensor) == 11
 
@@ -349,6 +334,31 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == np.float64
     assert py_dtyped_tensor.dtype == np.float64
+
+
+def test_safe_dtype_casting(memory_ds: Dataset):
+    fixed_u8tensor = memory_ds.create_tensor("tensor", dtype="uint8")
+
+    # safe casts
+    fixed_u8tensor.append(255)
+    fixed_u8tensor.append(np.int64(100))
+    fixed_u8tensor.append(np.uint32(5))
+    fixed_u8tensor.append(30)
+    # fixed_u8tensor.append([50, 99, 1, 0])
+
+    # unsafe casts
+    with pytest.raises(TensorUnsafeCastError):
+        fixed_u8tensor.append(256)
+    with pytest.raises(TensorUnsafeCastError):
+        fixed_u8tensor.append(5.0)
+
+    # TODO: kinda safe casts
+
+    assert len(fixed_u8tensor) == 4
+    expected = np.array([255, 100, 5, 30], dtype="uint8")
+    np.testing.assert_array_equal(fixed_u8tensor.numpy(), expected)
+
+    # TODO: dynamic_u8tensor
 
 
 @pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
