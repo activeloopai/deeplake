@@ -1,10 +1,14 @@
+from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
-
+import uuid
 import hub
+import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.util.exceptions import TensorDtypeMismatchError
+from hub.client.client import HubBackendClient
+from hub.client.utils import has_hub_testing_creds
 
 
 def test_persist_local(local_storage):
@@ -88,11 +92,12 @@ def test_stringify(memory_ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
     assert (
-        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
+        str(ds)
+        == "Dataset(path='hub_pytest/test_api/test_stringify', tensors=['image'])"
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path='hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -101,7 +106,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
+    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -154,6 +159,9 @@ def test_empty_samples(ds: Dataset):
 
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
+
+    assert tensor.meta.sample_compression == UNCOMPRESSED
+    assert tensor.meta.chunk_compression == UNCOMPRESSED
 
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
@@ -236,6 +244,39 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
 
 
+def test_length_slices(memory_ds):
+    ds = memory_ds
+    data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    ds.create_tensor("data")
+    ds.data.extend(data)
+
+    assert len(ds) == 11
+    assert len(ds[0]) == 1
+    assert len(ds[0:1]) == 1
+    assert len(ds[0:0]) == 0
+    assert len(ds[1:10]) == 9
+    assert len(ds[1:7:2]) == 3
+    assert len(ds[1:8:2]) == 4
+    assert len(ds[1:9:2]) == 4
+    assert len(ds[1:10:2]) == 5
+    assert len(ds[[0, 1, 5, 9]]) == 4
+
+    assert len(ds.data) == 11
+    assert len(ds.data[0]) == 1
+    assert len(ds.data[0:1]) == 1
+    assert len(ds.data[0:0]) == 0
+    assert len(ds.data[1:10]) == 9
+    assert len(ds.data[1:7:2]) == 3
+    assert len(ds.data[1:8:2]) == 4
+    assert len(ds.data[1:9:2]) == 4
+    assert len(ds.data[1:10:2]) == 5
+    assert len(ds.data[[0, 1, 5, 9]]) == 4
+
+    assert ds.data.shape == (11,)
+    assert ds[0:5].data.shape == (5,)
+    assert ds.data[1:6].shape == (5,)
+
+
 def test_shape_property(memory_ds):
     fixed = memory_ds.create_tensor("fixed_tensor")
     dynamic = memory_ds.create_tensor("dynamic_tensor")
@@ -299,14 +340,24 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-# TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented
-# @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-# def test_hub_cloud_dataset():
-#     username = "testingacc"
-#     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-#     client = HubBackendClient()
-#     token = client.request_auth_token(username, password)
-#     write_token(token)
-#     ds = Dataset("hub://testingacc/hub2ds")
-#     for i in range(10):
-#         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+def test_hub_cloud_dataset():
+    username = "testingacc"
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    id = str(uuid.uuid1())
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    ds.create_tensor("image")
+
+    for i in range(10):
+        ds.image.append(i * np.ones((100, 100)))
+
+    token = ds.token
+    del ds
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    for i in range(10):
+        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+
+    ds.delete()
