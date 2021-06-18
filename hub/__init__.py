@@ -1,4 +1,5 @@
 from .api.dataset import Dataset
+from .api.load import load
 from .core.transform.transform import transform  # type: ignore
 from .util.bugout_reporter import hub_reporter
 

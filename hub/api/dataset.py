@@ -1,4 +1,5 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE
+import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -148,6 +149,8 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         chunk_size: int = None,
         dtype: str = None,
+        sample_compression: str = None,
+        chunk_compression: str = None,
         **kwargs,
     ):
         """Creates a new tensor in a dataset.
@@ -159,9 +162,12 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the size of files (chunks) being created to represent this tensor's samples.
+            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the
+                size of files (chunks) being created to represent this tensor's samples.
                 For more on chunking, check out `hub.core.chunk_engine.chunker`.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
+            sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
+            chunk_compression (str): Optionally override this tensor's `chunk_compression`. Currently not implemented.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -170,7 +176,12 @@ class Dataset:
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            NotImplementedError: If trying to override `chunk_compression`.
         """
+
+        if chunk_compression is not None:
+            # TODO: implement chunk compression + update docstring
+            raise NotImplementedError("Chunk compression is not implemented yet!")
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
@@ -181,6 +192,8 @@ class Dataset:
             htype=htype,
             chunk_size=chunk_size,
             dtype=dtype,
+            sample_compression=sample_compression,
+            chunk_compression=chunk_compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)

@@ -1,23 +1,16 @@
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.index import Index
 import pytest
 
 from typing import Dict, List
 
-import numpy as np
 import pytest
 
-from hub.core.meta.index_meta import IndexMeta
 from hub.core.tensor import (
     append_tensor,
     create_tensor,
     extend_tensor,
-    tensor_exists,
     read_samples_from_tensor,
 )
 from hub.core.typing import StorageProvider
-from hub.tests.common import TENSOR_KEY
-from hub.util.keys import get_chunk_key
 
 STORAGE_FIXTURE_NAME = "storage"
 DATASET_FIXTURE_NAME = "ds"
