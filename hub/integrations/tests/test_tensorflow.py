@@ -18,8 +18,8 @@ def test_tensorflow_with_compression(local_ds: Dataset):
     # make sure data is appropriately compressed
     assert images.meta.sample_compression == "png"
     assert labels.meta.sample_compression == UNCOMPRESSED
-    assert_all_samples_have_expected_compression(images)
-    assert_all_samples_have_expected_compression(labels)
+    assert_all_samples_have_expected_compression(images, ["png"] * 16)
+    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
     for batch in local_ds.tensorflow():
         # converting tf Tensors to numpy

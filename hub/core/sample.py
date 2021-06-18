@@ -1,5 +1,5 @@
 from hub.core.compression import compress_array
-from hub.constants import UNCOMPRESSED
+from hub.constants import UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
@@ -83,7 +83,6 @@ class Sample:
         if self.path is not None and self.compression == compression:
             with open(self.path, "rb") as f:
                 return f.read()
-
         return compress_array(self.array, compression)
 
     def uncompressed_bytes(self) -> bytes:
