@@ -1,4 +1,4 @@
-from hub.api.sample import Sample
+from hub.core.sample import Sample
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
 from hub.core.meta.tensor_meta import TensorMeta

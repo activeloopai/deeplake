@@ -1,5 +1,5 @@
 from .api.dataset import Dataset
-from .api.sample import load
+from .api.load import load
 from .util.bugout_reporter import hub_reporter
 
 __version__ = "2.0a1"

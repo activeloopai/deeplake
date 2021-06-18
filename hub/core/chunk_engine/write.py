@@ -1,5 +1,5 @@
 from hub.constants import UNCOMPRESSED
-from hub.api.sample import Sample
+from hub.core.sample import Sample
 from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
 from hub.core.meta.index_meta import IndexMeta
