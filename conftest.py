@@ -17,7 +17,7 @@ from hub.constants import (
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
 from hub.core.typing import StorageProvider
-from hub.tests.common import SESSION_ID, current_test_name
+from hub.tests.common import SESSION_ID, current_test_name, get_dummy_data_path
 from hub.util.cache_chain import get_cache_chain
 
 MEMORY_OPT = "--memory-skip"
@@ -252,6 +252,18 @@ def s3_ds(s3_storage):
 @pytest.fixture
 def ds(request):
     return _get_dataset(_storage_from_request(request))
+
+
+@pytest.fixture
+def cat_path():
+    path = get_dummy_data_path("compressed_images")
+    return os.path.join(path, "cat.jpeg")
+
+
+@pytest.fixture
+def flower_path():
+    path = get_dummy_data_path("compressed_images")
+    return os.path.join(path, "flower.png")
 
 
 def print_session_id():

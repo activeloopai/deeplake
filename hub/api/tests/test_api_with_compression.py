@@ -2,7 +2,6 @@ from hub.api.tensor import Tensor
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 import os
-from hub.tests.common import get_dummy_data_path
 import numpy as np
 
 import hub
@@ -14,17 +13,7 @@ def _get_compression_for_sample(ds: Dataset, tensor_name: str, idx: int) -> str:
     return IndexMeta.load(tensor_name, ds.storage).entries[idx]["compression"]
 
 
-def _dummy_paths():
-    # TODO: make test fixtures for these paths
-    path = get_dummy_data_path("compressed_images")
-    cat_path = os.path.join(path, "cat.jpeg")
-    flower_path = os.path.join(path, "flower.png")
-    return cat_path, flower_path
-
-
-def _populate_compressed_samples(ds):
-    cat_path, flower_path = _dummy_paths()
-
+def _populate_compressed_samples(ds, cat_path, flower_path):
     images = ds.create_tensor("images", htype="image")
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
@@ -44,8 +33,8 @@ def _populate_compressed_samples(ds):
 
 
 @parametrize_all_dataset_storages
-def test_populate_compressed_samples(ds: Dataset):
-    images = _populate_compressed_samples(ds)
+def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
+    images = _populate_compressed_samples(ds, cat_path, flower_path)
 
     # TODO: better way to check a sample's compression (in API)
     # TODO: also, maybe we should check if these bytes are ACTUALLY compressed. right now technically all of these compressions could just be identites
@@ -65,8 +54,8 @@ def test_populate_compressed_samples(ds: Dataset):
 
 
 @parametrize_all_dataset_storages
-def test_iterate_compressed_samples(ds: Dataset):
-    images = _populate_compressed_samples(ds)
+def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
+    images = _populate_compressed_samples(ds, cat_path, flower_path)
 
     expected_shapes = [
         (900, 900, 3),

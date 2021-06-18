@@ -3,13 +3,7 @@ from hub.tests.common import get_dummy_data_path
 import hub
 
 
-def test_load():
-    # TODO: make test fixtures for these paths
-    path = get_dummy_data_path("compressed_images")
-    cat_path = os.path.join(path, "cat.jpeg")
-    flower_path = os.path.join(path, "flower.png")
-
-    # TODO: hub.load
+def test_load(cat_path, flower_path):
     cat = hub.load(cat_path)
     flower = hub.load(flower_path)
 

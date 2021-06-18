@@ -33,23 +33,31 @@ def write_samples(
 
         tensor_meta.check_array_sample_is_compatible(sample.array)
 
-        if sample.compression == UNCOMPRESSED:
-            buffer = sample.uncompressed_bytes()
-        else:
-            buffer = sample.compressed_bytes()
+        extra_sample_meta = {  # TODO: convert to kwargs
+            "shape": sample.shape,
+            "compression": sample.compression,
+            "dtype": sample.dtype,
+        }
 
-        write_bytes(
-            memoryview(buffer),
-            key,
-            storage,
-            tensor_meta,
-            index_meta=index_meta,
-            extra_sample_meta={  # TODO: convert to kwargs
-                "shape": sample.shape,
-                "compression": sample.compression,
-                "dtype": sample.dtype,
-            },
-        )
+        if sample.is_empty:
+            # if sample is empty, `sample.compression` will always be `UNCOMPRESSED`
+            write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
+        else:
+
+            if sample.compression == UNCOMPRESSED:
+                buffer = sample.uncompressed_bytes()
+
+            else:
+                buffer = sample.compressed_bytes()
+
+            write_bytes(
+                memoryview(buffer),
+                key,
+                storage,
+                tensor_meta,
+                index_meta=index_meta,
+                extra_sample_meta=extra_sample_meta,
+            )
 
         tensor_meta.update_with_sample(sample.array)
         tensor_meta.length += 1
@@ -80,7 +88,9 @@ def write_bytes(
     """
 
     if len(b) <= 0:
-        write_empty_sample(index_meta, extra_sample_meta)
+        raise ValueError(
+            "Empty samples should not be written via `write_bytes`. Please use `write_empty_sample`."
+        )
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
@@ -149,12 +159,13 @@ def _get_last_chunk(
         memoryview: Content of the last chunk. If the last chunk doesn't exist, returns empty memoryview of bytes.
     """
 
-    if len(index_meta.entries) > 0:
-        entry = index_meta.entries[-1]
-        last_chunk_name = entry["chunk_names"][-1]
-        last_chunk_key = get_chunk_key(key, last_chunk_name)
-        last_chunk = memoryview(storage[last_chunk_key])
-        return last_chunk_name, last_chunk
+    for entry in reversed(index_meta.entries):
+        chunk_names = entry["chunk_names"]
+        if len(chunk_names) > 0:
+            last_chunk_name = entry["chunk_names"][-1]
+            last_chunk_key = get_chunk_key(key, last_chunk_name)
+            last_chunk = memoryview(storage[last_chunk_key])
+            return last_chunk_name, last_chunk
     return "", memoryview(bytes())
 
 

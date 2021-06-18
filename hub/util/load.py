@@ -50,6 +50,11 @@ class Sample:
         return self._array is None
 
     @property
+    def is_empty(self) -> bool:
+        self.read()
+        return 0 in self.array.shape
+
+    @property
     def array(self) -> np.ndarray:
         self.read()
         return self._array  # type: ignore
@@ -67,6 +72,10 @@ class Sample:
     @property
     def compression(self) -> str:
         self.read()
+
+        if self.is_empty:
+            return UNCOMPRESSED
+
         return self._compression.lower()
 
     def compressed_bytes(self) -> bytes:
