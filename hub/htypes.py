@@ -1,5 +1,5 @@
 from typing import Dict
-from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.constants import CHUNK_MIN_TARGET
 
 DEFAULT_HTYPE = "generic"
 
@@ -13,7 +13,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 }
 
 # these configs are added to every `htype`
-COMMON_CONFIGS = {"chunk_size": DEFAULT_CHUNK_SIZE, "custom_meta": {}}
+COMMON_CONFIGS = {"chunk_size": CHUNK_MIN_TARGET, "custom_meta": {}}
 
 for config in HTYPE_CONFIGURATIONS.values():
     config.update(COMMON_CONFIGS)
