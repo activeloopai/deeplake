@@ -1,7 +1,7 @@
 import click
 
 from hub import __version__
-from hub.cli.auth import login, logout, register
+from hub.cli.auth import login, logout, register, reporting
 
 
 @click.group()
@@ -15,6 +15,7 @@ def add_auth_commands(cli):
     cli.add_command(login)
     cli.add_command(logout)
     cli.add_command(register)
+    cli.add_command(reporting)
 
 
 add_auth_commands(cli)

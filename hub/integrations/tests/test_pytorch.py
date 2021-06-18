@@ -1,17 +1,16 @@
+from hub.tests.common import assert_all_samples_have_expected_compression
+from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
-from hub.integrations.pytorch_old import dataset_to_pytorch
-import pytest
-from hub.util.check_installation import pytorch_installed
 
-requires_torch = pytest.mark.skipif(
-    not pytorch_installed(), reason="requires pytorch to be installed"
-)
+from hub.integrations.pytorch_old import dataset_to_pytorch
+from hub.util.check_installation import requires_torch
 
 
 @requires_torch
 def test_pytorch_small(local_ds):
     import torch
+
     with local_ds:
         local_ds.create_tensor("image")
         local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
@@ -38,6 +37,7 @@ def test_pytorch_small(local_ds):
 @requires_torch
 def test_pytorch_large(local_ds):
     import torch
+
     with local_ds:
         local_ds.create_tensor("image")
         arr = np.array(
@@ -70,8 +70,36 @@ def test_pytorch_large(local_ds):
 
 
 @requires_torch
+def test_pytorch_with_compression(local_ds: Dataset):
+    import torch
+
+    # TODO: chunk-wise compression for labels (right now they are uncompressed)
+    images = local_ds.create_tensor("images", htype="image")
+    labels = local_ds.create_tensor("labels", htype="class_label")
+
+    images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
+    labels.extend(np.ones((16, 1), dtype="int32"))
+
+    # make sure data is appropriately compressed
+    assert images.meta.sample_compression == "png"
+    assert labels.meta.sample_compression == UNCOMPRESSED
+    assert_all_samples_have_expected_compression(images, ["png"] * 16)
+    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
+
+    ptds = local_ds.pytorch(workers=2)
+    dl = torch.utils.data.DataLoader(ptds, batch_size=1, num_workers=0)
+
+    for batch in dl:
+        X = batch["images"].numpy()
+        T = batch["labels"].numpy()
+        assert X.shape == (1, 100, 100, 3)
+        assert T.shape == (1, 1)
+
+
+@requires_torch
 def test_pytorch_small_old(local_ds):
     import torch
+
     with local_ds:
         local_ds.create_tensor("image")
         local_ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
@@ -79,7 +107,7 @@ def test_pytorch_small_old(local_ds):
         local_ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
@@ -98,31 +126,38 @@ def test_pytorch_small_old(local_ds):
 def test_pytorch_large_old(local_ds):
     import torch
 
-    with local_ds:
-        local_ds.create_tensor("image")
-        arr = np.array(
-            [
-                np.ones((4096, 4096)),
-                2 * np.ones((4096, 4096)),
-                3 * np.ones((4096, 4096)),
-                4 * np.ones((4096, 4096)),
-            ]
-        )
-        local_ds.image.extend(arr)
-        local_ds.create_tensor("classlabel")
-        local_ds.classlabel.extend(np.array([i for i in range(10)]))
+    # don't need to test with compression because it uses the API (which is tested for iteration + compression)
+    local_ds.create_tensor("image")
+
+    arr = np.array(
+        [
+            np.ones((4096, 4096)),
+            2 * np.ones((4096, 4096)),
+            3 * np.ones((4096, 4096)),
+            4 * np.ones((4096, 4096)),
+        ],
+        dtype="uint8",
+    )
+    local_ds.image.extend(arr)
+    local_ds.create_tensor("classlabel")
+    local_ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint32"))
+    local_ds.flush()
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(local_ds, workers=2)
+    ptds = dataset_to_pytorch(local_ds, workers=2, python_version_warning=False)
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
         num_workers=0,
     )
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), (i + 1) * np.ones((1, 4096, 4096))
-        )
-        np.testing.assert_array_equal(
-            batch["classlabel"].numpy(), (i) * np.ones((1, 1))
-        )
+        actual_image = batch["image"].numpy()
+        expected_image = (i + 1) * np.ones((1, 4096, 4096))
+
+        actual_label = batch["classlabel"].numpy()
+        expected_label = (i) * np.ones((1,))
+
+        np.testing.assert_array_equal(actual_image, expected_image)
+        np.testing.assert_array_equal(actual_label, expected_label)
+
+    local_ds.delete()

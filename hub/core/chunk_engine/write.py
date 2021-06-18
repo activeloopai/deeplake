@@ -1,115 +1,195 @@
-from typing import List, Tuple
+from hub.constants import (
+    CHUNK_MAX_SIZE,
+    UNCOMPRESSED,
+    USE_UNIFORM_COMPRESSION_PER_SAMPLE,
+)
+from hub.core.sample import Sample
+from hub.core.meta.tensor_meta import TensorMeta
+import numpy as np
+from hub.core.meta.index_meta import IndexMeta
+from typing import List, Optional, Sequence, Tuple, Dict, Union
 from uuid import uuid1
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
-from .chunker import generate_chunks
+from math import ceil
+
+
+def write_empty_sample(index_meta, extra_sample_meta: dict = {}):
+    """Simply adds an entry to `index_meta` that symbolizes an empty array."""
+
+    index_meta.add_entry(chunk_names=[], start_byte=0, end_byte=0, **extra_sample_meta)
+
+
+def write_samples(
+    samples: Sequence[Sample],
+    key: str,
+    storage: StorageProvider,
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
+):
+    """Write a sequence of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed.
+    This is also where sample-wise compression is handled.
+    """
+
+    for sample in samples:
+        tensor_meta.check_array_sample_is_compatible(sample.array)
+
+        extra_sample_meta = {  # TODO: convert to kwargs
+            "shape": sample.shape,
+        }
+
+        if sample.is_empty:
+            # if sample is empty, `sample.compression` will always be `UNCOMPRESSED`
+            write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
+        else:
+
+            # TODO: minify this
+            if USE_UNIFORM_COMPRESSION_PER_SAMPLE:
+                compression = tensor_meta.sample_compression
+            else:
+                if tensor_meta.sample_compression == UNCOMPRESSED:
+                    compression = UNCOMPRESSED
+                else:
+                    compression = sample.compression
+                    if compression == UNCOMPRESSED:
+                        compression = tensor_meta.sample_compression
+
+            buffer = sample.compressed_bytes(compression)
+
+            write_bytes(
+                memoryview(buffer),
+                key,
+                storage,
+                tensor_meta,
+                index_meta=index_meta,
+                extra_sample_meta=extra_sample_meta,
+            )
+
+        tensor_meta.update_with_sample(sample.array)
+        tensor_meta.length += 1
 
 
 def write_bytes(
-    b: memoryview,
+    content: memoryview,
     key: str,
-    chunk_size: int,
     storage: StorageProvider,
-    index_map: List[dict],
-) -> dict:
-    """Chunk and write bytes to storage and return the index_map entry. The provided bytes are treated as a single
-        sample.
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
+    extra_sample_meta: dict = {},
+):
+    """Chunk and write bytes to storage, also updates `index_meta`/`tensor_meta`. The provided bytes are treated as a single sample.
 
     Args:
-        b (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
-            chunked according
-            to `chunk_size`.
-        key (str): Key for where the index_map, and tensor_meta are located in `storage` relative to it's root.
+        content (memoryview): Bytes (as memoryview) to be chunked/written. considered to be 1 sample and will be
+            chunked according to `tensor_meta.chunk_size` and  `CHUNK_MAX_SIZE`.
+        key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to its root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
-        chunk_size (int): Desired length of each chunk.
-        storage (StorageProvider): StorageProvider for storing the chunks, index_map, and tensor_meta.
-        index_map (list): List of dictionaries that represent each sample. An entry for `index_map` is returned
-            but not appended to `index_map`.
+        storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
+        tensor_meta (TensorMeta): TensorMeta object that will be written to.
+        index_meta (IndexMeta): IndexMeta object that will be written to.
+        extra_sample_meta (dict): By default `chunk_names`, `start_byte`, and `end_byte` are written, however
+            `IndexMeta.add_entry` supports more parameters than this. Anything passed in this dict will also be used
+            to call `IndexMeta.add_entry`.
 
-    Returns:
-        dict: Index map entry (note: it does not get appended to the `index_map` argument). Dictionary keys:
-            chunk_names: Sequential list of names of chunks that were created.
-            start_byte: Start byte for this sample. Will be 0 if no previous chunks exist, otherwise will
-                be set to the length of the last chunk before writing.
-            end_byte: End byte for this sample. Will be equal to the length of the last chunk written to.
+    Raises:
+        ValueError: `b` shouldn't be empty.
     """
+
+    if len(content) <= 0:
+        raise ValueError(
+            "Empty samples should not be written via `write_bytes`. Please use `write_empty_sample`."
+        )
 
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
-    last_chunk_name, last_chunk = _get_last_chunk(key, index_map, storage)
 
-    bllc = 0
-    extend_last_chunk = False
-    if len(index_map) > 0 and len(last_chunk) < chunk_size:
-        bllc = chunk_size - len(last_chunk)
-        # use bytearray for concatenation (fastest method)
-        last_chunk = bytearray(last_chunk)  # type: ignore
-        extend_last_chunk = True
-
-    chunk_generator = generate_chunks(b, chunk_size, bytes_left_in_last_chunk=bllc)
-
-    chunk_names = []
+    # TODO pass CHUNK_MAX and read from tensor_meta instead of using constants
+    last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
-    for chunk in chunk_generator:
-        if extend_last_chunk:
-            chunk_name = last_chunk_name
+    chunk_names: List[str] = []
 
-            last_chunk += chunk  # type: ignore
-            chunk = memoryview(last_chunk)
+    if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
+        last_chunk_size = len(last_chunk)
+        chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
 
-            start_byte = index_map[-1]["end_byte"]
+        extra_bytes = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
+        combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
 
-            if len(chunk) >= chunk_size:
-                extend_last_chunk = False
-        else:
-            chunk_name = _random_chunk_name()
+        if combined_chunk_ct == chunk_ct_content:  # combine if count is same
+            start_byte = index_meta.entries[-1]["end_byte"]
+            end_byte = start_byte + extra_bytes
 
-        end_byte = len(chunk)
+            chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
+            _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
 
-        chunk_key = get_chunk_key(key, chunk_name)
-        storage[chunk_key] = chunk
+            content = content[extra_bytes:]
 
-        chunk_names.append(chunk_name)
+    while len(content) > 0:
+        end_byte = min(len(content), CHUNK_MAX_SIZE)
 
-        last_chunk = memoryview(chunk)
-        last_chunk_name = chunk_name
+        chunk_content = content[:end_byte]  # type: ignore
+        _write_chunk(chunk_content, storage, chunk_names, key)
 
-    # TODO: encode index_map_entry as array instead of dictionary
-    index_map_entry = {
-        "chunk_names": chunk_names,
-        "start_byte": start_byte,
-        "end_byte": end_byte,
-    }
+        content = content[end_byte:]
 
-    return index_map_entry
+    index_meta.add_entry(
+        chunk_names=chunk_names,
+        start_byte=start_byte,
+        end_byte=end_byte,
+        **extra_sample_meta,
+    )
 
 
 def _get_last_chunk(
-    key: str, index_map: List[dict], storage: StorageProvider
+    key: str, storage: StorageProvider, index_meta: IndexMeta
 ) -> Tuple[str, memoryview]:
     """Retrieves the name and memoryview of bytes for the last chunk that was written to. This is helpful for
     filling previous chunks before creating new ones.
 
     Args:
-        key (str): Key for where the chunks are located in `storage` relative to it's root.
-        index_map (list): List of dictionaries that maps each sample to the `chunk_names`, `start_byte`, and `end_byte`.
+        key (str): Key for where the chunks are located in `storage` relative to its root.
         storage (StorageProvider): StorageProvider where the chunks are stored.
+        index_meta (IndexMeta): IndexMeta object that is used to find the last chunk.
 
     Returns:
         str: Name of the last chunk. If the last chunk doesn't exist, returns an empty string.
         memoryview: Content of the last chunk. If the last chunk doesn't exist, returns empty memoryview of bytes.
     """
 
-    if len(index_map) > 0:
-        last_index_map_entry = index_map[-1]
-        last_chunk_name = last_index_map_entry["chunk_names"][-1]
-        last_chunk_key = get_chunk_key(key, last_chunk_name)
-        last_chunk = memoryview(storage[last_chunk_key])
-        return last_chunk_name, last_chunk
+    for entry in reversed(index_meta.entries):
+        chunk_names = entry["chunk_names"]
+        if len(chunk_names) > 0:
+            last_chunk_name = entry["chunk_names"][-1]
+            last_chunk_key = get_chunk_key(key, last_chunk_name)
+            last_chunk = memoryview(storage[last_chunk_key])
+            return last_chunk_name, last_chunk
     return "", memoryview(bytes())
 
 
-def _random_chunk_name() -> str:
+def _generate_chunk_name() -> str:
     return str(uuid1())
+
+
+def _min_chunk_ct_for_data_size(size: int) -> int:
+    """Calculates the minimum number of chunks in which data of given size can be fit."""
+    return ceil(size / CHUNK_MAX_SIZE)
+
+
+def _chunk_has_space(chunk: memoryview, chunk_min_target: int) -> bool:
+    """Returns whether the given chunk has space to take in more data."""
+    return len(chunk) > 0 and len(chunk) < chunk_min_target
+
+
+def _write_chunk(
+    content: Union[memoryview, bytearray],
+    storage: StorageProvider,
+    chunk_names: List[str],
+    key: str,
+    chunk_name: Optional[str] = None,
+):
+    chunk_name = chunk_name or _generate_chunk_name()
+    chunk_names.append(chunk_name)
+    chunk_key = get_chunk_key(key, chunk_name)
+    storage[chunk_key] = content

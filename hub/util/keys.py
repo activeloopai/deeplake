@@ -16,5 +16,5 @@ def get_tensor_meta_key(key: str) -> str:
     return os.path.join(key, constants.TENSOR_META_FILENAME)
 
 
-def get_index_map_key(key: str) -> str:
-    return os.path.join(key, constants.INDEX_MAP_FILENAME)
+def get_index_meta_key(key: str) -> str:
+    return os.path.join(key, constants.INDEX_META_FILENAME)

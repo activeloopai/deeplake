@@ -4,15 +4,14 @@ import numpy as np
 import pytest
 
 from hub.constants import GB
-from hub.core.meta.tensor_meta import default_tensor_meta
 from hub.core.tensor import (
+    append_tensor,
+    extend_tensor,
     read_samples_from_tensor,
-    add_samples_to_tensor,
     create_tensor,
 )
-from hub.core.tests.common import TENSOR_KEY
 from hub.core.typing import StorageProvider
-from hub.tests.common import get_random_array
+from hub.tests.common import TENSOR_KEY, get_random_array
 from hub.tests.common_benchmark import (
     parametrize_benchmark_chunk_sizes,
     parametrize_benchmark_dtypes,
@@ -24,15 +23,15 @@ from hub.tests.common_benchmark import (
 def single_benchmark_write(info, key, arrays, chunk_size, storage, batched):
     actual_key = "%s_%i" % (key, info["iteration"])
 
-    create_tensor(actual_key, storage, default_tensor_meta(chunk_size=chunk_size))
+    create_tensor(
+        actual_key, storage, chunk_size=chunk_size, dtype=arrays[0].dtype.name
+    )
 
     for a_in in arrays:
-        add_samples_to_tensor(
-            array=a_in,
-            key=actual_key,
-            storage=storage,
-            batched=batched,
-        )
+        if batched:
+            extend_tensor(a_in, actual_key, storage)
+        else:
+            append_tensor(a_in, actual_key, storage)
 
     info["iteration"] += 1
 

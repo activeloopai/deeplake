@@ -1,15 +1,17 @@
 from hub.core.storage.s3 import S3Provider
 from hub.core import storage
 from hub.core.storage.provider import StorageProvider
+from hub.core.compression import decompress_array
+from hub.constants import UNCOMPRESSED
+from hub.core.meta.index_meta import IndexMeta
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
-from hub.core.meta.tensor_meta import read_tensor_meta
 import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union
-from hub.core.meta.index_map import read_index_map
+from typing import Any, Callable, List, Optional, Set, Dict
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
@@ -45,6 +47,9 @@ def _read_and_store_chunk(
     storage: Union[StorageProvider, dict],
 ):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
+
+    # TODO: modify to support chunk-wise decompression
+
     remove_shared_memory_from_resource_tracker()
     if isinstance(storage, dict):
         storage = get_s3_storage(storage)
@@ -76,17 +81,17 @@ class TorchDataset:
             self.storage_dict = self.storage.__getstate__()
 
         # contains meta for each Tensor
-        self.all_meta: Dict[str, Dict] = self._load_all_meta()
+        self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
 
-        # contains index_map for each Tensor
-        self.all_index_maps: Dict[str, List] = self._load_all_index_maps()
+        # contains index_meta for each Tensor
+        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_metas()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
         self.all_index_value_maps: Dict[str, Dict[int, Any]] = defaultdict(dict)
 
         # tracks last index that was prefetched in the prefetch cache for each Tensor
-        self.last_index_map: Dict[str, int] = {}
+        self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
         self.processed_samples: List[Dict] = []
@@ -143,12 +148,12 @@ class TorchDataset:
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
         for key in self.keys:
-            meta = read_tensor_meta(key, self.storage)
-            if meta["dtype"] == "uint16":
-                meta["dtype"] = "int32"
-            elif meta["dtype"] in ["uint32", "uint64"]:
-                meta["dtype"] = "int64"
-            all_meta[key] = meta
+            tensor_meta = TensorMeta.load(key, _hub_storage_provider)
+            if tensor_meta.dtype == "uint16":
+                tensor_meta.dtype = "int32"
+            elif tensor_meta.dtype in ["uint32", "uint64"]:
+                tensor_meta.dtype = "int64"
+            all_meta[key] = tensor_meta
         return all_meta
 
     def _prefetch_data(self, key: str, index: int):
@@ -188,28 +193,41 @@ class TorchDataset:
     def _get_chunk_names(self, index: int, key: str):
         """Gets chunk names for elements starting from index to read in parallel"""
         chunk_names: Set[str] = set()
-        index_map = self.all_index_maps[key]
+        index_meta = self.all_index_metas[key]
         while len(chunk_names) < self.workers and index < len(self):
-            chunks = index_map[index]["chunk_names"]
+            chunks = index_meta.entries[index]["chunk_names"]
             chunk_names.update(chunks)
             index += 1
         return chunk_names
 
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
-        index_entry = self.all_index_maps[key][index]
+
+        # TODO: this function should be located in core (sample_from_index_entry doesn't work because prefetch cache)
+        # TODO: i think this can be done by creating a `PrefetchCache` like how we have `LRUCache` then all of this code
+        # TODO: will be hanlded in there
+
+        index_entry = self.all_index_metas[key].entries[index]
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
-        dtype = self.all_meta[key]["dtype"]
         shape = index_entry["shape"]
 
+        tensor_meta = self.all_tensor_metas[key]
+        dtype = tensor_meta.dtype
+        sample_compression = tensor_meta.sample_compression
+
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-        if isinstance(combined_bytes, memoryview):
+
+        # TODO: migrate UNCOMPRESSED check into a single function
+        if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
-            combined_bytes.release()
         else:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+            arr = decompress_array(combined_bytes)
+
+        if isinstance(combined_bytes, memoryview):
+            combined_bytes.release()
+
         return arr
 
     def _get_data_from_chunks(
@@ -233,15 +251,15 @@ class TorchDataset:
         # saves np array for each index in memory
         for i in range(index, len(self)):
             chunks = []
-            index_entry = self.all_index_maps[key][i]
+            index_entry = self.all_index_metas[key].entries[i]
             for chunk_name in index_entry["chunk_names"]:
                 if chunk_name not in chunk_map:
-                    self.last_index_map[key] = i - 1
+                    self.last_index_meta[key] = i - 1
                     return
                 chunks.append(chunk_map[chunk_name])
             self.all_index_value_maps[key][i] = self._np_from_chunk_list(i, key, chunks)
 
-        self.last_index_map[key] = len(self) - 1
+        self.last_index_meta[key] = len(self) - 1
 
     def _process_samples(self):
         """Processes the prefetched values from across tensors into dictionaries.
@@ -249,7 +267,7 @@ class TorchDataset:
         """
         first_index = self.processed_range.stop + 1
         # different no. of samples are fetched for each tensor, take the min and process
-        last_index = min(self.last_index_map[key] for key in self.keys)
+        last_index = min(self.last_index_meta[key] for key in self.keys)
         samples = []
         for i in range(first_index, last_index + 1):
             sample = {key: self.all_index_value_maps[key][i] for key in self.keys}

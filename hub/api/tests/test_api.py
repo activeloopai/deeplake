@@ -1,12 +1,14 @@
-import os
+from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
-
+import uuid
 import hub
+import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.client.utils import has_hub_testing_creds, write_token
+from hub.util.exceptions import TensorDtypeMismatchError
 from hub.client.client import HubBackendClient
+from hub.client.utils import has_hub_testing_creds
 
 
 def test_persist_local(local_storage):
@@ -20,8 +22,7 @@ def test_persist_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -32,7 +33,6 @@ def test_persist_with_local(local_storage):
         pytest.skip()
 
     with Dataset(local_storage.root, local_cache_size=512) as ds:
-
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 4096, 4096)))
 
@@ -42,8 +42,7 @@ def test_persist_with_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -60,8 +59,7 @@ def test_persist_local_clear_cache(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -69,7 +67,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta == {"tensors": [], "version": hub.__version__}
+    assert ds.meta.tensors == []
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -85,7 +83,8 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta == {"tensors": ["image"], "version": hub.__version__}
+    assert ds.meta.tensors == ["image"]
+    assert ds.meta.version == hub.__version__
 
 
 def test_stringify(memory_ds):
@@ -93,11 +92,12 @@ def test_stringify(memory_ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
     assert (
-        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
+        str(ds)
+        == "Dataset(path='hub_pytest/test_api/test_stringify', tensors=['image'])"
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path='hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -106,7 +106,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
+    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -133,12 +133,63 @@ def test_compute_dynamic_tensor(ds):
     expected_list = [*a1, *a2, a3]
     actual_list = image.numpy(aslist=True)
 
+    assert type(actual_list) == list
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
 
-    assert image.shape.lower == (28, 10)
-    assert image.shape.upper == (36, 28)
-    assert image.shape.is_dynamic
+    assert image.shape == (43, None, None)
+    assert image.shape_interval.lower == (43, 28, 10)
+    assert image.shape_interval.upper == (43, 36, 28)
+    assert image.is_dynamic
+
+
+@parametrize_all_dataset_storages
+def test_empty_samples(ds: Dataset):
+    tensor = ds.create_tensor("with_empty")
+
+    a1 = np.arange(25 * 4 * 2).reshape(25, 4, 2)
+    a2 = np.arange(5 * 10 * 50 * 2).reshape(5, 10, 50, 2)
+    a3 = np.arange(0).reshape(0, 0, 2)
+    a4 = np.arange(0).reshape(9, 0, 10, 2)
+
+    tensor.append(a1)
+    tensor.extend(a2)
+    tensor.append(a3)
+    tensor.extend(a4)
+
+    actual_list = tensor.numpy(aslist=True)
+    expected_list = [a1, *a2, a3, *a4]
+
+    assert tensor.meta.sample_compression == UNCOMPRESSED
+    assert tensor.meta.chunk_compression == UNCOMPRESSED
+
+    assert len(tensor) == 16
+    assert tensor.shape_interval.lower == (16, 0, 0, 2)
+    assert tensor.shape_interval.upper == (16, 25, 50, 2)
+
+    for actual, expected in zip(actual_list, expected_list):
+        np.testing.assert_array_equal(actual, expected)
+
+    # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
+    for actual_sample, expected in zip(ds, expected_list):
+        actual = actual_sample.with_empty.numpy()
+        np.testing.assert_array_equal(actual, expected)
+
+
+@parametrize_all_dataset_storages
+def test_scalar_samples(ds: Dataset):
+    tensor = ds.create_tensor("scalars")
+
+    tensor.append(5)
+    tensor.append(10)
+    tensor.append(-99)
+    tensor.extend([10, 1, 4])
+    tensor.extend([1])
+
+    assert len(tensor) == 7
+
+    expected = np.array([5, 10, -99, 10, 1, 4, 1])
+    np.testing.assert_array_equal(tensor.numpy(), expected)
 
 
 @parametrize_all_dataset_storages
@@ -193,30 +244,120 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
 
 
+def test_length_slices(memory_ds):
+    ds = memory_ds
+    data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    ds.create_tensor("data")
+    ds.data.extend(data)
+
+    assert len(ds) == 11
+    assert len(ds[0]) == 1
+    assert len(ds[0:1]) == 1
+    assert len(ds[0:0]) == 0
+    assert len(ds[1:10]) == 9
+    assert len(ds[1:7:2]) == 3
+    assert len(ds[1:8:2]) == 4
+    assert len(ds[1:9:2]) == 4
+    assert len(ds[1:10:2]) == 5
+    assert len(ds[[0, 1, 5, 9]]) == 4
+
+    assert len(ds.data) == 11
+    assert len(ds.data[0]) == 1
+    assert len(ds.data[0:1]) == 1
+    assert len(ds.data[0:0]) == 0
+    assert len(ds.data[1:10]) == 9
+    assert len(ds.data[1:7:2]) == 3
+    assert len(ds.data[1:8:2]) == 4
+    assert len(ds.data[1:9:2]) == 4
+    assert len(ds.data[1:10:2]) == 5
+    assert len(ds.data[[0, 1, 5, 9]]) == 4
+
+    assert ds.data.shape == (11,)
+    assert ds[0:5].data.shape == (5,)
+    assert ds.data[1:6].shape == (5,)
+
+
 def test_shape_property(memory_ds):
     fixed = memory_ds.create_tensor("fixed_tensor")
     dynamic = memory_ds.create_tensor("dynamic_tensor")
 
     # dynamic shape property
-    dynamic.extend(np.ones((32, 28, 28)))
-    dynamic.extend(np.ones((16, 33, 9)))
-    assert dynamic.shape.lower == (28, 9)
-    assert dynamic.shape.upper == (33, 28)
+    dynamic.extend(np.ones((32, 28, 20, 2)))
+    dynamic.extend(np.ones((16, 33, 20, 5)))
+    assert dynamic.shape == (48, None, 20, None)
+    assert dynamic.shape_interval.lower == (48, 28, 20, 2)
+    assert dynamic.shape_interval.upper == (48, 33, 20, 5)
+    assert dynamic.is_dynamic
 
     # fixed shape property
     fixed.extend(np.ones((9, 28, 28)))
     fixed.extend(np.ones((13, 28, 28)))
-    assert fixed.shape.lower == (28, 28)
-    assert fixed.shape.upper == (28, 28)
+    assert fixed.shape == (22, 28, 28)
+    assert fixed.shape_interval.lower == (22, 28, 28)
+    assert fixed.shape_interval.upper == (22, 28, 28)
+    assert not fixed.is_dynamic
+
+
+def test_dtype(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
+    np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float)
+    py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
+
+    # .meta.dtype should always be str or None
+    assert type(tensor.meta.dtype) == type(None)
+    assert type(dtyped_tensor.meta.dtype) == str
+    assert type(np_dtyped_tensor.meta.dtype) == str
+    assert type(py_dtyped_tensor.meta.dtype) == str
+
+    # .dtype should always be np.dtype or None
+    assert type(tensor.dtype) == type(
+        None
+    ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
+
+    tensor.append(np.ones((10, 10), dtype="float32"))
+    dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
+    np_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
+    py_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
+
+    assert tensor.dtype == np.float32
+    assert dtyped_tensor.dtype == np.uint8
+    assert np_dtyped_tensor.dtype == np.float64
+    assert py_dtyped_tensor.dtype == np.float64
+
+
+@pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
+def test_dtype_mismatch(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor", dtype="float16")
+    tensor.append(np.ones(100, dtype="uint8"))
+
+
+@pytest.mark.xfail(raises=TypeError, strict=True)
+def test_fails_on_wrong_tensor_syntax(memory_ds):
+    memory_ds.some_tensor = np.ones((28, 28))
 
 
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    write_token(token)
-    ds = Dataset("hub://testingacc/hub2ds")
+    id = str(uuid.uuid1())
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    ds.create_tensor("image")
+
+    for i in range(10):
+        ds.image.append(i * np.ones((100, 100)))
+
+    token = ds.token
+    del ds
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
     for i in range(10):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+
+    ds.delete()
