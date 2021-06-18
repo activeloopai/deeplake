@@ -5,7 +5,7 @@ from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.constants import CHUNK_MAX_SIZE, CHUNK_MIN_TARGET
+from hub.constants import CHUNK_MAX_SIZE
 
 
 def transform_sample(
@@ -85,6 +85,7 @@ def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
 
 
 def merge_chunks(
+    chunk_min_target: int,
     tensor: str,
     storage: StorageProvider,
     current_meta: Dict,
@@ -97,7 +98,7 @@ def merge_chunks(
     This is done to reduce the number of suboptimal chunks generated.
     """
     if (
-        first_chunk_size < CHUNK_MIN_TARGET
+        first_chunk_size < chunk_min_target
         and first_chunk_size + last_chunk_size <= CHUNK_MAX_SIZE
     ):
         first_chunk_key = get_chunk_key(tensor, first_chunk_name)
@@ -157,14 +158,18 @@ def merge_index_metas(
     """
     for tensor in tensors:
         index_meta = IndexMeta.load(tensor, storage)
+        tensor_meta = TensorMeta.load(tensor, storage)
+
         last_chunk_name = ""
         last_chunk_size = 0
+        chunk_min_target = tensor_meta.chunk_size
 
         for all_index_meta in all_workers_index_meta:
             current_meta = all_index_meta[tensor]
             first_chunk_name, first_chunk_size = get_first_chunk(current_meta)
             if first_chunk_name and last_chunk_name:
                 merge_chunks(
+                    chunk_min_target,
                     tensor,
                     storage,
                     current_meta,

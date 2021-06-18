@@ -1,6 +1,5 @@
 from hub.constants import (
     CHUNK_MAX_SIZE,
-    CHUNK_MIN_TARGET,
     UNCOMPRESSED,
     USE_UNIFORM_COMPRESSION_PER_SAMPLE,
 )
@@ -83,7 +82,7 @@ def write_bytes(
 
     Args:
         content (memoryview): Bytes (as memoryview) to be chunked/written. considered to be 1 sample and will be
-            chunked according to `CHUNK_MIN_TARGET` and  `CHUNK_MAX_SIZE`.
+            chunked according to `tensor_meta.chunk_size` and  `CHUNK_MAX_SIZE`.
         key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to its root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
@@ -106,12 +105,12 @@ def write_bytes(
     # TODO: `_get_last_chunk(...)` is called during an inner loop. memoization here OR having an argument is preferred
     #  for performance
 
-    # TODO pass CHUNK_MIN, CHUNK_MAX and read from tensor_meta instead of using constants
+    # TODO pass CHUNK_MAX and read from tensor_meta instead of using constants
     last_chunk_name, last_chunk = _get_last_chunk(key, storage, index_meta)
     start_byte = 0
     chunk_names: List[str] = []
 
-    if _chunk_has_space(last_chunk):
+    if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
         last_chunk_size = len(last_chunk)
         chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
 
@@ -178,9 +177,9 @@ def _min_chunk_ct_for_data_size(size: int) -> int:
     return ceil(size / CHUNK_MAX_SIZE)
 
 
-def _chunk_has_space(chunk: memoryview) -> bool:
+def _chunk_has_space(chunk: memoryview, chunk_min_target: int) -> bool:
     """Returns whether the given chunk has space to take in more data."""
-    return len(chunk) > 0 and len(chunk) < CHUNK_MIN_TARGET
+    return len(chunk) > 0 and len(chunk) < chunk_min_target
 
 
 def _write_chunk(

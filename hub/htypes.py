@@ -5,7 +5,7 @@ from hub.constants import (
     DEFAULT_HTYPE,
     DEFAULT_SAMPLE_COMPRESSION,
     UNCOMPRESSED,
-    CHUNK_MIN_TARGET,
+    DEFAULT_CHUNK_MIN_TARGET,
 )
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
@@ -23,7 +23,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
-    "chunk_size": CHUNK_MIN_TARGET,
+    "chunk_size": DEFAULT_CHUNK_MIN_TARGET,
     "custom_meta": {},
     "chunk_compression": DEFAULT_CHUNK_COMPRESSION,
     "sample_compression": DEFAULT_SAMPLE_COMPRESSION,
