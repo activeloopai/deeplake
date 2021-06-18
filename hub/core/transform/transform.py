@@ -32,7 +32,13 @@ def transform(
     workers: int = 1,
 ):
 
-    """Initializes a new or existing dataset.
+    """Transforms the data_in to produce an output dataset ds_out using one or more workers.
+    Useful for generating new datasets or converting datasets from one format to another efficiently.
+
+    Eg.
+    transform(["xyz.png", "abc.png"], [load_img, mirror], ds, workers=5) # loads images, mirrors them and stores them in ds which is a Hub dataset.
+    transform(["xyz.png", "abc.png"], [load_img, rotate], ds, [{"grayscale":True}, {"angle":30}]) # applies grayscale arg to load_img and angle to rotate
+
 
     Args:
         data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
