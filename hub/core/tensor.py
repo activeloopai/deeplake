@@ -105,7 +105,6 @@ def append_tensor(
         TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
 
-    # TODO: update docstring with types
     if isinstance(sample, (np.ndarray, int, float)):
         # append is guaranteed to NOT have a batch axis
         array = np.expand_dims(sample, axis=0)
