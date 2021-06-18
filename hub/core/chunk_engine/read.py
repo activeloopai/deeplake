@@ -1,7 +1,6 @@
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
 from hub.core.compression import decompress_array
-import warnings
 import os
 import numpy as np
 
@@ -75,9 +74,5 @@ def array_from_buffer(
 
     if shape is not None:
         array = array.reshape(shape)
-    else:
-        warnings.warn(
-            "Could not find `shape` for a sample. It was missing from the IndexMeta entry. The array is being returned flat."
-        )
 
     return array

@@ -34,10 +34,7 @@ class TensorAlreadyExistsError(Exception):
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            "Tensor {} with index = {} is has a dynamic '{}' and cannot be converted into a `np.ndarray`. \
-            Try setting the parameter `aslist=True`".format(
-                key, str(index), property_key
-            )
+            f"Tensor {key} with index = {str(index)} is has a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
