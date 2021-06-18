@@ -241,16 +241,10 @@ class SampleDecompressionError(CompressionError):
             "Only `PIL` compatible decompressions may be used as `sample_compression` at this time.",
         )
 
+
 class SampleCompressionError(CompressionError):
     def __init__(self, reason: str):
         super().__init__(f"Could not compress sample. {reason}")
-
-
-class SampleIsNotCompressedError(CompressionError):
-    def __init__(self, sample_str: str):
-        super().__init__(
-            f"Cannot gather `compressed_bytes` from '{sample_str}' because it does not represent a compressed sample."
-        )
 
 
 class InvalidImageDimensions(Exception):

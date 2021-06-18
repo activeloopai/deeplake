@@ -153,11 +153,7 @@ def extend_tensor(
             )
 
         # TODO: may need to optimize this?
-        # since numpy arrays are always uncompressed, always use the `sample_compression`
-        samples = [
-            Sample(array=samples[i], compression=tensor_meta.sample_compression)
-            for i in range(len(samples))
-        ]
+        samples = [Sample(array=samples[i]) for i in range(len(samples))]
 
     write_samples(samples, key, storage, tensor_meta, index_meta)
 

@@ -39,11 +39,8 @@ def write_samples(
             write_empty_sample(index_meta, extra_sample_meta=extra_sample_meta)
         else:
 
-            if sample.compression == UNCOMPRESSED:
-                buffer = sample.uncompressed_bytes()
-
-            else:
-                buffer = sample.compressed_bytes()
+            # if `tensor_meta.sample_compression` is UNCOMPRESSED, this buffer is uncompressed
+            buffer = sample.compressed_bytes(tensor_meta.sample_compression)
 
             write_bytes(
                 memoryview(buffer),

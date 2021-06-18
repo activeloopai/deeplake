@@ -24,7 +24,6 @@ class Sample:
         self,
         path: str = None,
         array: np.ndarray = None,
-        compression: str = UNCOMPRESSED,
     ):
         if (path is None) == (array is None):
             raise ValueError("Must pass either `path` or `array`.")
@@ -32,18 +31,10 @@ class Sample:
         if path is not None:
             self.path = pathlib.Path(path)
             self._array = None
-            if compression != UNCOMPRESSED:
-                # TODO: maybe this should be possible? this may help make code more concise
-                raise ValueError(
-                    "Should not pass `compression` with a `path`."
-                )  # TODO: better message
 
         if array is not None:
             self.path = None
             self._array = array
-
-            # TODO: validate compression?
-            self._compression = compression
 
     @property
     def is_symbolic(self) -> bool:
@@ -70,28 +61,38 @@ class Sample:
         return self._array.dtype.name  # type: ignore
 
     @property
-    def compression(self) -> str:
+    def original_compression(self) -> str:
         self.read()
 
         if self.is_empty:
             return UNCOMPRESSED
 
-        return self._compression.lower()
+        return self._original_compression.lower()
 
-    def compressed_bytes(self) -> bytes:
-        """If `self` represents a compressed sample, this will return the raw compressed bytes."""
+    def compressed_bytes(self, compression: str) -> bytes:
+        """Returns this sample as compressed bytes.
 
-        # TODO: compressed bytes should be stripped of all meta -- this meta should be relocated to `IndexMeta`
+        Note:
+            If this sample is pointing to a path and the requested `compression` is the same as it's stored in, the data is
+                returned without re-compressing.
 
-        if self.compression == UNCOMPRESSED:
-            # TODO: test this gets raised
-            raise SampleIsNotCompressedError(str(self))
+        Args:
+            compression (str): `self.array` will be compressed into this format. If `compression == UNCOMPRESSED`, return `self.uncompressed_bytes()`.
+        """
 
-        if self.path is None:
-            return compress_array(self.array, self.compression)
+        # TODO: raise a comprehensive error for unsupported compression types
 
-        with open(self.path, "rb") as f:
-            return f.read()
+        compression = compression.lower()
+
+        if compression == UNCOMPRESSED:
+            return self.uncompressed_bytes()
+
+        # if the sample is already compressed in the requested format, just return the raw bytes
+        if self.path is not None and self.original_compression == compression:
+            with open(self.path, "rb") as f:
+                return f.read()
+
+        return compress_array(self.array, compression)
 
     def uncompressed_bytes(self) -> bytes:
         """Returns `self.array` as uncompressed bytes."""
@@ -118,7 +119,7 @@ class Sample:
                     raise SampleCorruptedError(self.path)
 
                 # TODO: validate compression?
-                self._compression = img.format
+                self._original_compression = img.format.lower()
                 return self._array
 
             raise HubAutoUnsupportedFileExtensionError(self._suffix, SUPPORTED_SUFFIXES)
