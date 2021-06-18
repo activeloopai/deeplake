@@ -23,6 +23,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
     Raises:
         UnsupportedCompressionError: If `compression` is unsupported. See `SUPPORTED_COMPRESSIONS`.
+        SampleCompressionError: If there was a problem compressing `array`.
 
     Returns:
         bytes: Compressed `array` represented as bytes.
