@@ -18,8 +18,9 @@ SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
 USE_UNIFORM_COMPRESSION_PER_SAMPLE = False
 
 SUPPORTED_MODES = ["r", "a"]
+CHUNK_MAX_SIZE = 32 * MB  # chunks won't ever be bigger than this
+CHUNK_MIN_TARGET = 16 * MB  # some chunks might be smaller than this
 
-DEFAULT_CHUNK_SIZE = 16 * MB
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 

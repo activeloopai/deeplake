@@ -106,11 +106,12 @@ def test_stringify(memory_ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4)))
     assert (
-        str(ds) == "Dataset(path=hub_pytest/test_api/test_stringify, tensors=['image'])"
+        str(ds)
+        == "Dataset(path='hub_pytest/test_api/test_stringify', tensors=['image'])"
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path=hub_pytest/test_api/test_stringify, index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path='hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -119,7 +120,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
+    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -255,6 +256,39 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0], data[:, :][0][(0, 1, 2), 0])
     _check_tensor(ds.data[0][(0, 1, 2), 0][1], data[0][(0, 1, 2), 0][1])
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
+
+
+def test_length_slices(memory_ds):
+    ds = memory_ds
+    data = np.array([1, 2, 3, 9, 8, 7, 100, 99, 98, 99, 101])
+    ds.create_tensor("data")
+    ds.data.extend(data)
+
+    assert len(ds) == 11
+    assert len(ds[0]) == 1
+    assert len(ds[0:1]) == 1
+    assert len(ds[0:0]) == 0
+    assert len(ds[1:10]) == 9
+    assert len(ds[1:7:2]) == 3
+    assert len(ds[1:8:2]) == 4
+    assert len(ds[1:9:2]) == 4
+    assert len(ds[1:10:2]) == 5
+    assert len(ds[[0, 1, 5, 9]]) == 4
+
+    assert len(ds.data) == 11
+    assert len(ds.data[0]) == 1
+    assert len(ds.data[0:1]) == 1
+    assert len(ds.data[0:0]) == 0
+    assert len(ds.data[1:10]) == 9
+    assert len(ds.data[1:7:2]) == 3
+    assert len(ds.data[1:8:2]) == 4
+    assert len(ds.data[1:9:2]) == 4
+    assert len(ds.data[1:10:2]) == 5
+    assert len(ds.data[[0, 1, 5, 9]]) == 4
+
+    assert ds.data.shape == (11,)
+    assert ds[0:5].data.shape == (5,)
+    assert ds.data[1:6].shape == (5,)
 
 
 def test_shape_property(memory_ds):

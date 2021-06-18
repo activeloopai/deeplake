@@ -10,7 +10,6 @@ from hub.util.exceptions import (
 )
 from hub.util.keys import get_tensor_meta_key
 from hub.constants import (
-    DEFAULT_CHUNK_SIZE,
     DEFAULT_HTYPE,
     SUPPORTED_COMPRESSIONS,
     UNCOMPRESSED,
@@ -151,7 +150,7 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
-        "chunk_size": DEFAULT_CHUNK_SIZE,
+        "chunk_size": defaults["chunk_size"],
         "min_shape": [],
         "max_shape": [],
         "length": 0,

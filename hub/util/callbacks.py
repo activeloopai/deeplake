@@ -89,9 +89,9 @@ def convert_from_callback_objects(value):
     """
 
     if isinstance(value, CallbackDict):
-        new_value = dict(value)
+        new_value = {k: convert_from_callback_objects(v) for k, v in value.items()}
     elif isinstance(value, CallbackList):
-        new_value = list(value)
+        new_value = [convert_from_callback_objects(item) for item in value]
     else:
         new_value = value
 
