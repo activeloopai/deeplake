@@ -16,6 +16,18 @@ class Sample:
         path: str = None,
         array: np.ndarray = None,
     ):
+        """Represents a single sample for a tensor. Provides all important meta information in one place.
+
+        Note:
+            If `self.is_lazy` is True, this `Sample` doesn't actually have have any data loaded. To read this data,
+                simply try to read one of it's properties (such as `self.array`, `self.shape`, etc.).
+
+        Args:
+            path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
+                Implicitly makes `self.is_lazy == True`.
+            array (np.ndarray): Array that represents a single sample. If `array` is provided, `path` should not be. Implicitly makes `self.is_lazy == False`.
+        """
+
         if (path is None) == (array is None):
             raise ValueError("Must pass either `path` or `array`.")
 
@@ -29,7 +41,7 @@ class Sample:
             self._original_compression = UNCOMPRESSED
 
     @property
-    def is_symbolic(self) -> bool:
+    def is_lazy(self) -> bool:
         return self._array is None
 
     @property
@@ -108,10 +120,10 @@ class Sample:
         return self._array
 
     def __str__(self):
-        if self.is_symbolic:
-            return f"Sample(is_symbolic=True, path={self.path})"
+        if self.is_lazy:
+            return f"Sample(is_lazy=True, path={self.path})"
 
-        return f"Sample(is_symbolic=False, shape={self.shape}, compression='{self.compression}', dtype='{self.dtype}' path={self.path})"
+        return f"Sample(is_lazy=False, shape={self.shape}, compression='{self.compression}', dtype='{self.dtype}' path={self.path})"
 
     def __repr__(self):
         return str(self)

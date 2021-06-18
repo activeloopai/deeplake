@@ -3,7 +3,7 @@ from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
-from typing import Dict, List, Sequence, Tuple, Union, Optional
+from typing import Sequence, Tuple, Union, Optional
 
 import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
@@ -81,7 +81,7 @@ def _get_metas_from_kwargs(
 
 
 def append_tensor(
-    sample: Optional[Union[np.ndarray, Dict, float, int]],
+    sample: Optional[Union[np.ndarray, Sample, float, int]],
     key: str,
     storage: StorageProvider,
     **kwargs,
@@ -91,7 +91,7 @@ def append_tensor(
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        sample (Union[np.ndarray, Dict, float, int]): Array to be chunked/written. This array will be considered as 1 sample.
+        sample (Union[np.ndarray, Sample, float, int]): Data to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
@@ -163,7 +163,7 @@ def read_samples_from_tensor(
     storage: StorageProvider,
     index: Index = Index(),
     aslist: bool = False,
-) -> Union[np.ndarray, List[np.ndarray]]:
+) -> Union[np.ndarray, Sequence[np.ndarray]]:
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
