@@ -4,7 +4,7 @@ from hub.util.exceptions import (
     UnsupportedSchedulerError,
 )
 from hub.util.transform import (
-    equalize_pipeline_kwargs,
+    pad_or_shrink_kwargs,
     load_updated_meta,
     merge_index_metas,
     merge_tensor_metas,
@@ -78,7 +78,7 @@ def transform(
     base_storage = get_base_storage(ds_out.storage)
     tensors = set(ds_out.meta.tensors)
 
-    pipeline_kwargs = equalize_pipeline_kwargs(pipeline_kwargs, pipeline)
+    pipeline_kwargs = pad_or_shrink_kwargs(pipeline_kwargs, pipeline)
 
     run_pipeline(
         data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs

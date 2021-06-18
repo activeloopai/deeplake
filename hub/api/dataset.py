@@ -68,7 +68,7 @@ class Dataset:
             creds = {}
         base_storage = get_storage_provider(path, storage, read_only, creds)
 
-        # done instead of directly assigning read_only as backend might return return read_only permissions
+        # done instead of directly assigning read_only as backend might return read_only permissions
         if hasattr(base_storage, "read_only") and base_storage.read_only:
             self.read_only = True
         else:

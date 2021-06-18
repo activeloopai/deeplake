@@ -32,13 +32,13 @@ def transform_sample(
             result = [fn(data, **kwargs) for data in result]
         else:
             result = fn(result, **kwargs)
-        result = _unwrap(result)
+        result = flatten_list_of_list(result)
         verify_transform_output(result)
     return result if isinstance(result, list) else [result]
 
 
-def _unwrap(ls: List) -> List:
-    """If there is any list then unwrap it into its elements"""
+def flatten_list_of_list(ls: List) -> List:
+    """Flattens list of list into 1D list"""
     items = []
     for r in ls:
         if isinstance(r, dict):
@@ -60,6 +60,7 @@ def verify_transform_output(output):
 
 
 def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
+    """Finds the name and size of the first chunk in the index_meta."""
     chunk_name = ""
     chunk_size = 0
 
@@ -83,7 +84,7 @@ def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
     return chunk_name, chunk_size
 
 
-def merge_corner_chunks(
+def merge_chunks(
     tensor: str,
     storage: StorageProvider,
     current_meta: Dict,
@@ -92,6 +93,9 @@ def merge_corner_chunks(
     last_chunk_name: str = "",
     last_chunk_size: int = 0,
 ):
+    """Merges 2 chunks which are the last chunk of worker n and first chunk of worker n+1 into a single one if possible.
+    This is done to reduce the number of suboptimal chunks generated.
+    """
     if (
         first_chunk_size < CHUNK_MIN_TARGET
         and first_chunk_size + last_chunk_size <= CHUNK_MAX_SIZE
@@ -160,7 +164,7 @@ def merge_index_metas(
             current_meta = all_index_meta[tensor]
             first_chunk_name, first_chunk_size = get_first_chunk(current_meta)
             if first_chunk_name and last_chunk_name:
-                merge_corner_chunks(
+                merge_chunks(
                     tensor,
                     storage,
                     current_meta,
@@ -181,10 +185,10 @@ def merge_index_metas(
                 last_chunk_size = index_meta.entries[-1]["end_byte"]
 
 
-def equalize_pipeline_kwargs(
+def pad_or_shrink_kwargs(
     pipeline_kwargs: Optional[Sequence[Dict]], pipeline: Sequence[Callable]
 ) -> List[Dict]:
-    """Makes the number of pipeline_kkwargs equal to number of functions in pipeline."""
+    """Makes the number of pipeline_kwargs equal to number of functions in pipeline."""
     pipeline_kwargs = pipeline_kwargs or []
     pipeline_kwargs = list(pipeline_kwargs[0 : len(pipeline)])
     pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))

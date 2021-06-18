@@ -78,9 +78,8 @@ def write_bytes(
     """Chunk and write bytes to storage, also updates `index_meta`/`tensor_meta`. The provided bytes are treated as a single sample.
 
     Args:
-        content (memoryview): Bytes (as memoryview) to be chunked/written. `b` is considered to be 1 sample and will be
-            chunked according to `chunk_size`.
-        key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to it's root.
+        content (memoryview): Bytes (as memoryview) to be chunked/written. Considered to be a single sample.
+        key (str): Key for where the index_meta, and tensor_meta are located in `storage` relative to its root.
             A subdirectory is created under this `key` (defined in `constants.py`), which is where the chunks will be
             stored.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and tensor_meta.
@@ -134,7 +133,7 @@ def _get_last_chunk(
     filling previous chunks before creating new ones.
 
     Args:
-        key (str): Key for where the chunks are located in `storage` relative to it's root.
+        key (str): Key for where the chunks are located in `storage` relative to its root.
         storage (StorageProvider): StorageProvider where the chunks are stored.
         index_meta (IndexMeta): IndexMeta object that is used to find the last chunk.
 

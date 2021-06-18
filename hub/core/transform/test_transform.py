@@ -1,5 +1,5 @@
 from hub.api.dataset import Dataset
-from hub.core.transform.transform import transform  # type: ignore
+from hub import transform  # type: ignore
 import numpy as np
 from hub.core.tests.common import parametrize_all_dataset_storages
 
