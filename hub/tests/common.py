@@ -1,3 +1,6 @@
+from hub.core.chunk_engine.read import get_actual_compression_from_index_entry
+from hub.core.meta.index_meta import IndexMeta
+from hub.api.tensor import Tensor
 import os
 import pathlib
 from typing import Tuple
@@ -84,3 +87,16 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
     array = get_random_array(shape, dtype)
     assert array.shape == shape
     assert array.dtype == dtype
+
+
+def assert_all_samples_have_expected_compression(tensor: Tensor):
+    storage = tensor.storage
+
+    index_meta = IndexMeta.load(tensor.key, storage)
+    expected_compression = tensor.meta.sample_compression
+
+    for index_entry in index_meta.entries:
+        actual_compression = get_actual_compression_from_index_entry(
+            tensor.key, storage, index_entry
+        )
+        assert actual_compression == expected_compression

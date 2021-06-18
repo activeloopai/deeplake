@@ -1,3 +1,4 @@
+from hub.tests.common import assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
@@ -14,11 +15,14 @@ def test_pytorch_with_compression(local_ds: Dataset):
     images = local_ds.create_tensor("images", htype="image")
     labels = local_ds.create_tensor("labels", htype="class_label")
 
-    assert images.meta.sample_compression == "png"
-    assert labels.meta.sample_compression == UNCOMPRESSED
-
     images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
     labels.extend(np.ones((16, 1), dtype="int32"))
+
+    # make sure data is appropriately compressed
+    assert images.meta.sample_compression == "png"
+    assert labels.meta.sample_compression == UNCOMPRESSED
+    assert_all_samples_have_expected_compression(images)
+    assert_all_samples_have_expected_compression(labels)
 
     ptds = local_ds.pytorch(workers=2)
     dl = torch.utils.data.DataLoader(ptds, batch_size=1, num_workers=0)
