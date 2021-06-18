@@ -316,3 +316,36 @@ class TensorMetaMismatchError(MetaError):
 class ReadOnlyModeError(Exception):
     def __init__(self):
         super().__init__("Modification when in read-only mode is not supported!")
+
+
+class TransformError(Exception):
+    pass
+
+
+class InvalidTransformOutputError(TransformError):
+    def __init__(self):
+        super().__init__(
+            "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
+        )
+
+
+class InvalidInputDataError(TransformError):
+    def __init__(self, message):
+        super().__init__(
+            f"The data_in to transform is invalid. It should support {message} operation."
+        )
+
+
+class UnsupportedSchedulerError(TransformError):
+    def __init__(self, scheduler):
+        super().__init__(
+            f"Hub transform currently doesn't support {scheduler} scheduler."
+        )
+
+
+class TensorMismatchError(TransformError):
+    def __init__(self, tensors, output_keys):
+        super().__init__(
+            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
+            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
+        )

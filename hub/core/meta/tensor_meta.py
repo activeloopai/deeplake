@@ -8,7 +8,7 @@ from hub.util.exceptions import (
     TensorMetaMismatchError,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE
+from hub.constants import CHUNK_MIN_TARGET
 from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
@@ -140,7 +140,7 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
-        "chunk_size": DEFAULT_CHUNK_SIZE,
+        "chunk_size": CHUNK_MIN_TARGET,
         "min_shape": [],
         "max_shape": [],
         "length": 0,
