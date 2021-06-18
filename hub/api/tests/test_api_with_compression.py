@@ -1,10 +1,5 @@
-from hub.core.chunk_engine.read import (
-    get_actual_compression_from_index_entry,
-)
 from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
-from hub.api.tensor import Tensor
 from hub.constants import UNCOMPRESSED
-from hub.core.meta.index_meta import IndexMeta
 import numpy as np
 
 import hub

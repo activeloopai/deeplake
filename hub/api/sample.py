@@ -4,17 +4,8 @@ from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
 from typing import List, Optional, Tuple
-from hub.util.exceptions import (
-    HubAutoUnsupportedFileExtensionError,
-    SampleCorruptedError,
-    SampleIsNotCompressedError,
-)
 
 from PIL import Image  # type: ignore
-
-
-IMAGE_SUFFIXES: List[str] = [".jpeg", ".jpg", ".png"]
-SUPPORTED_SUFFIXES: List[str] = IMAGE_SUFFIXES
 
 
 class Sample:
@@ -42,27 +33,27 @@ class Sample:
 
     @property
     def is_empty(self) -> bool:
-        self.read()
+        self._read()
         return 0 in self.array.shape
 
     @property
     def array(self) -> np.ndarray:
-        self.read()
+        self._read()
         return self._array  # type: ignore
 
     @property
     def shape(self) -> Tuple[int, ...]:
-        self.read()
+        self._read()
         return self._array.shape  # type: ignore
 
     @property
     def dtype(self) -> str:
-        self.read()
+        self._read()
         return self._array.dtype.name  # type: ignore
 
     @property
     def original_compression(self) -> str:
-        self.read()
+        self._read()
 
         if self.is_empty:
             return UNCOMPRESSED
@@ -100,29 +91,20 @@ class Sample:
         # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
         return row_wise_to_bytes(self.array)
 
-    def read(self):
-        if self._array is None:
-            # TODO: explain this
-            if self._array is not None:
-                return self._array
+    def _read(self):
+        """If this sample hasn't been already read into memory, do so. This is required for properties to be accessible."""
 
-            suffix = self.path.suffix.lower()
+        # "cache"
+        if self._array is not None:
+            return self._array
 
-            if suffix in IMAGE_SUFFIXES:
-                img = Image.open(self.path)
+        # TODO: raise a comprehensive error for unsupported compression types
 
-                # TODO: mention in docstring that if this loads correctly, the meta is assumed to be valid
-                try:
-                    self._array = np.array(img)
-                except:
-                    # TODO: elaborate on why it corrupted
-                    raise SampleCorruptedError(self.path)
-
-                # TODO: validate compression?
-                self._original_compression = img.format.lower()
-                return self._array
-
-            raise HubAutoUnsupportedFileExtensionError(self._suffix, SUPPORTED_SUFFIXES)
+        # path will definitely not be `None` because of `__init__`
+        img = Image.open(self.path)
+        self._array = np.array(img)
+        self._original_compression = img.format.lower()
+        return self._array
 
     def __str__(self):
         if self.is_symbolic:
