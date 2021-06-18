@@ -1,4 +1,4 @@
-from hub.util.compress import decompress_array
+from hub.core.compression import decompress_array
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
@@ -204,7 +204,7 @@ class TorchDataset:
         if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         else:
-            arr = decompress_array(combined_bytes, sample_compression)
+            arr = decompress_array(combined_bytes)
 
         if isinstance(combined_bytes, memoryview):
             combined_bytes.release()

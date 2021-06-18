@@ -1,16 +1,9 @@
-from io import BytesIO
-from hub.constants import UNCOMPRESSED
-from PIL import Image, UnidentifiedImageError
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.index import Index
 import pytest
 
 from typing import Dict, List
 
-import numpy as np
 import pytest
 
-from hub.core.meta.index_meta import IndexMeta
 from hub.core.tensor import (
     append_tensor,
     create_tensor,

@@ -1,4 +1,4 @@
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 from hub.core.chunk_engine.read import (
     buffer_from_index_entry,
