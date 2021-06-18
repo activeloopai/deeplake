@@ -1,8 +1,6 @@
-from PIL import Image, UnidentifiedImageError
-from io import BytesIO
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
-from hub.core.compression import decompress_array, get_actual_compression_from_buffer
+from hub.core.compression import decompress_array
 import warnings
 import os
 import numpy as np

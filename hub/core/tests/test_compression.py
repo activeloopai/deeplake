@@ -1,5 +1,7 @@
-from hub.core.chunk_engine.read import get_actual_compression_from_buffer
-from hub.tests.common import assert_all_samples_have_expected_compression
+from hub.tests.common import (
+    assert_all_samples_have_expected_compression,
+    get_actual_compression_from_buffer,
+)
 import numpy as np
 import pytest
 from hub.core.compression import compress_array, decompress_array
@@ -8,12 +10,6 @@ from hub.core.compression import compress_array, decompress_array
 parametrize_compressions = pytest.mark.parametrize(
     "compression", ["jpeg", "png"]
 )  # TODO: extend to be all pillow types we want to focus on
-
-
-@parametrize_compressions
-def test_file(compression):
-    # TODO
-    pass
 
 
 @parametrize_compressions

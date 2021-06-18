@@ -1,4 +1,5 @@
-from hub.core.compression import get_actual_compression_from_buffer
+from PIL import Image, UnidentifiedImageError
+from io import BytesIO
 from hub.core.chunk_engine.read import (
     buffer_from_index_entry,
 )
@@ -90,6 +91,19 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
     array = get_random_array(shape, dtype)
     assert array.shape == shape
     assert array.dtype == dtype
+
+
+def get_actual_compression_from_buffer(buffer: memoryview) -> str:
+    """Helpful for checking if actual compression matches expected."""
+
+    try:
+        bio = BytesIO(buffer)
+        img = Image.open(bio)
+        return img.format.lower()
+
+    # TODO: better way of determining the sample has no compression
+    except UnidentifiedImageError:
+        return UNCOMPRESSED
 
 
 def assert_all_samples_have_expected_compression(
