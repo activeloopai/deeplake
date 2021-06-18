@@ -10,6 +10,9 @@ DEFAULT_HTYPE = "generic"
 UNCOMPRESSED = "uncompressed"
 DEFAULT_SAMPLE_COMPRESSION = UNCOMPRESSED
 DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
+
+# If `True`, all samples in the same tensor must have the same compression.
+# otherwise compression type can differ.
 USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
 
 SUPPORTED_MODES = ["r", "a"]

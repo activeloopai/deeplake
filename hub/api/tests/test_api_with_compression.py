@@ -9,10 +9,17 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
+    original_compressions = []
+
     for _ in range(count):
         tensor.append(hub.load(cat_path))
+        original_compressions.append("jpeg")
+
         tensor.append(hub.load(flower_path))
+        original_compressions.append("png")
+
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
+        original_compressions.append(tensor.meta.sample_compression)
 
         tensor.extend(
             [
@@ -20,6 +27,9 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
                 hub.load(cat_path),
             ]
         )
+        original_compressions.extend(["png", "jpeg"])
+
+    return original_compressions
 
 
 @parametrize_all_dataset_storages
@@ -30,8 +40,8 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
 
-    _populate_compressed_samples(images, cat_path, flower_path)
-    assert_all_samples_have_expected_compression(images)
+    original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
+    assert_all_samples_have_expected_compression(images, original_compressions)
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)
@@ -50,9 +60,8 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
 
-    _populate_compressed_samples(images, cat_path, flower_path)
-
-    assert_all_samples_have_expected_compression(images)
+    original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
+    assert_all_samples_have_expected_compression(images, original_compressions)
 
     expected_shapes = [
         (900, 900, 3),
@@ -70,3 +79,14 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
             type(x) == np.ndarray
         ), "Check is necessary in case a `PIL` object is returned instead of an array."
         assert x.shape == expected_shape
+
+
+@parametrize_all_dataset_storages
+def test_uncompressed(ds: Dataset):
+    images = ds.create_tensor(TENSOR_KEY, sample_compression=UNCOMPRESSED)
+
+    images.append(np.ones((100, 100, 100)))
+    images.extend(np.ones((3, 101, 2, 1)))
+    original_compressions = [UNCOMPRESSED] * 4
+
+    assert_all_samples_have_expected_compression(images, original_compressions)

@@ -6,7 +6,7 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Tuple
+from typing import Sequence, Tuple
 from uuid import uuid1
 
 import numpy as np
@@ -92,14 +92,24 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
     assert array.dtype == dtype
 
 
-def assert_all_samples_have_expected_compression(tensor: Tensor):
+def assert_all_samples_have_expected_compression(
+    tensor: Tensor, original_compressions: Sequence[str]
+):
+    """If `USE_UNIFORM_COMPRESSION_PER_SAMPLE`, `original_compressions` is used as expected compressions."""
+
     index_meta = IndexMeta.load(tensor.key, tensor.storage)
 
-    for index_entry in index_meta.entries:
+    assert len(index_meta.entries) == len(original_compressions)
+    for i, index_entry in enumerate(index_meta.entries):
         buffer = buffer_from_index_entry(tensor.key, tensor.storage, index_entry)
         actual_compression = get_actual_compression_from_buffer(buffer)
 
         if USE_UNIFORM_COMPRESSION_PER_SAMPLE:
             assert actual_compression == tensor.meta.sample_compression
+        elif tensor.meta.sample_compression == UNCOMPRESSED:
+            assert (
+                actual_compression == UNCOMPRESSED
+            ), "If the tensor is uncompressed, all samples MUST not be compressed."
         else:
-            assert actual_compression == index_entry.get("compression", UNCOMPRESSED)
+            expected_compression = original_compressions[i]
+            assert actual_compression == expected_compression
