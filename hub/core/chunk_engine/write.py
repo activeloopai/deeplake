@@ -25,7 +25,9 @@ def write_samples(
     tensor_meta: TensorMeta,
     index_meta: IndexMeta,
 ):
-    """Write a sequence of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed."""
+    """Write a sequence of `Sample`s to `storage` under `key`. Updates `tensor_meta` and `index_meta` as needed.
+    This is also where sample-wise compression is handled.
+    """
 
     for sample in samples:
         tensor_meta.check_array_sample_is_compatible(sample.array)
