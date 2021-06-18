@@ -1,4 +1,4 @@
-from hub.util.exceptions import SampleCompressionError, SampleDecompressionError
+from hub.util.exceptions import SampleDecompressionError
 from typing import Union
 import numpy as np
 

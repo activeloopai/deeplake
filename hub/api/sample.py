@@ -1,4 +1,4 @@
-from hub.util.compress import compress_array
+from hub.core.compression import compress_array
 from hub.constants import UNCOMPRESSED
 from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np

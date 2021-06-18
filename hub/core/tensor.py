@@ -1,4 +1,4 @@
-from hub.util.load import Sample
+from hub.api.sample import Sample
 from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta

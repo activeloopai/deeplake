@@ -1,9 +1,11 @@
 import numpy as np
 import pytest
-from hub.util.compress import compress_array, decompress_array
+from hub.core.compression import compress_array, decompress_array
 
 
-parametrize_compressions = pytest.mark.parametrize("compression", ["jpeg", "png"])
+parametrize_compressions = pytest.mark.parametrize(
+    "compression", ["jpeg", "png"]
+)  # TODO: extend to be all pillow types we want to focus on
 
 
 @parametrize_compressions
@@ -14,6 +16,7 @@ def test_file(compression):
 
 @parametrize_compressions
 def test_array(compression):
+    # TODO: check dtypes and no information loss
     array = np.zeros((100, 100, 3), dtype="uint8")  # TODO: handle non-uint8
     compressed_buffer = compress_array(array, compression)
 

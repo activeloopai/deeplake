@@ -1,31 +1,15 @@
-from hub.core.storage.provider import StorageProvider
-from PIL import Image
-from io import BytesIO
-from hub.core.chunk_engine.read import buffer_from_index_entry
+from hub.core.chunk_engine.read import (
+    get_actual_compression_from_index_entry,
+)
 from hub.tests.common import TENSOR_KEY
-from hub.core.meta import index_meta
-from hub.core.meta.tensor_meta import TensorMeta
 from hub.api.tensor import Tensor
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
-import os
 import numpy as np
 
 import hub
 from hub import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
-
-
-# TODO: move into util
-def get_actual_compression_from_index_entry(
-    key: str, storage: StorageProvider, index_entry: dict
-) -> str:
-    """Returns a string identifier for the compression that the sample defined by `index_entry`. Warning: this may be slow."""
-
-    buffer = buffer_from_index_entry(key, storage, index_entry)
-    bio = BytesIO(buffer)
-    img = Image.open(bio)
-    return img.format.lower()
 
 
 def _assert_all_same_compression(tensor: Tensor):

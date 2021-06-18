@@ -1,9 +1,10 @@
+from PIL import Image
+from io import BytesIO
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
-from hub.util.compress import decompress_array
+from hub.core.compression import decompress_array
 import warnings
 import os
-from typing import Optional
 import numpy as np
 
 import numpy as np
@@ -81,3 +82,14 @@ def array_from_buffer(
         )
 
     return array
+
+
+def get_actual_compression_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict
+) -> str:
+    """Returns a string identifier for the compression that the sample defined by `index_entry`. Warning: this may be slow."""
+
+    buffer = buffer_from_index_entry(key, storage, index_entry)
+    bio = BytesIO(buffer)
+    img = Image.open(bio)
+    return img.format.lower()
