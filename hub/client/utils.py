@@ -30,14 +30,16 @@ def write_token(token: str):
         f.write(token)
 
 
-def get_auth_header():
-    """Returns the auth header. Searches for the token first in token file and then in enviroment variables."""
+def read_token():
+    """Returns the token. Searches for the token first in token file and then in enviroment variables."""
+    token = None
     if os.path.exists(TOKEN_FILE_PATH):
         with open(TOKEN_FILE_PATH) as f:
             token = f.read()
     else:
         token = os.environ.get(HUB_AUTH_TOKEN)
-    return f"Bearer {token}" if token else None
+
+    return token
 
 
 def remove_token():

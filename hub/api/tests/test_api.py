@@ -1,10 +1,13 @@
 import numpy as np
 import pytest
-
+import uuid
 import hub
+import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.util.exceptions import TensorMetaMismatchError
+from hub.client.client import HubBackendClient
+from hub.client.utils import has_hub_testing_creds
 
 
 def test_persist_local(local_storage):
@@ -18,8 +21,7 @@ def test_persist_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -39,8 +41,7 @@ def test_persist_with_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -57,8 +58,7 @@ def test_persist_local_clear_cache(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape.lower == (4096, 4096)
-    assert ds_new.image.shape.upper == (4096, 4096)
+    assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
     ds.delete()
@@ -135,9 +135,10 @@ def test_compute_dynamic_tensor(ds):
     for expected, actual in zip(expected_list, actual_list):
         np.testing.assert_array_equal(expected, actual)
 
-    assert image.shape.lower == (28, 10)
-    assert image.shape.upper == (36, 28)
-    assert image.shape.is_dynamic
+    assert image.shape == (43, None, None)
+    assert image.shape_interval.lower == (43, 28, 10)
+    assert image.shape_interval.upper == (43, 36, 28)
+    assert image.is_dynamic
 
 
 @parametrize_all_dataset_storages
@@ -157,10 +158,10 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.shape.lower == (0, 0, 2)
-    assert tensor.shape.upper == (25, 50, 2)
-
     assert len(tensor) == 16
+    assert tensor.shape_interval.lower == (16, 0, 0, 2)
+    assert tensor.shape_interval.upper == (16, 25, 50, 2)
+
     for actual, expected in zip(actual_list, expected_list):
         np.testing.assert_array_equal(actual, expected)
 
@@ -243,16 +244,20 @@ def test_shape_property(memory_ds):
     dynamic = memory_ds.create_tensor("dynamic_tensor")
 
     # dynamic shape property
-    dynamic.extend(np.ones((32, 28, 28)))
-    dynamic.extend(np.ones((16, 33, 9)))
-    assert dynamic.shape.lower == (28, 9)
-    assert dynamic.shape.upper == (33, 28)
+    dynamic.extend(np.ones((32, 28, 20, 2)))
+    dynamic.extend(np.ones((16, 33, 20, 5)))
+    assert dynamic.shape == (48, None, 20, None)
+    assert dynamic.shape_interval.lower == (48, 28, 20, 2)
+    assert dynamic.shape_interval.upper == (48, 33, 20, 5)
+    assert dynamic.is_dynamic
 
     # fixed shape property
     fixed.extend(np.ones((9, 28, 28)))
     fixed.extend(np.ones((13, 28, 28)))
-    assert fixed.shape.lower == (28, 28)
-    assert fixed.shape.upper == (28, 28)
+    assert fixed.shape == (22, 28, 28)
+    assert fixed.shape_interval.lower == (22, 28, 28)
+    assert fixed.shape_interval.upper == (22, 28, 28)
+    assert not fixed.is_dynamic
 
 
 def test_dtype(memory_ds: Dataset):
@@ -280,14 +285,24 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-# TODO: since `index.json` was renamed to `index_meta.json` in PR #943, this dataset needs to be reuploaded and then this test can be uncommented
-# @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-# def test_hub_cloud_dataset():
-#     username = "testingacc"
-#     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-#     client = HubBackendClient()
-#     token = client.request_auth_token(username, password)
-#     write_token(token)
-#     ds = Dataset("hub://testingacc/hub2ds")
-#     for i in range(10):
-#         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
+def test_hub_cloud_dataset():
+    username = "testingacc"
+    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+
+    client = HubBackendClient()
+    token = client.request_auth_token(username, password)
+    id = str(uuid.uuid1())
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    ds.create_tensor("image")
+
+    for i in range(10):
+        ds.image.append(i * np.ones((100, 100)))
+
+    token = ds.token
+    del ds
+    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    for i in range(10):
+        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+
+    ds.delete()
