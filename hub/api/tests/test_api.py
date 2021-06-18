@@ -102,7 +102,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path={local_ds.path}, tensors=[])"
+    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
 @parametrize_all_dataset_storages
@@ -264,6 +264,10 @@ def test_length_slices(memory_ds):
     assert len(ds.data[1:9:2]) == 4
     assert len(ds.data[1:10:2]) == 5
     assert len(ds.data[[0, 1, 5, 9]]) == 4
+
+    assert ds.data.shape == (11,)
+    assert ds[0:5].data.shape == (5,)
+    assert ds.data[1:6].shape == (5,)
 
 
 def test_shape_property(memory_ds):
