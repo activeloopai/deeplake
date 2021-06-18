@@ -1,3 +1,6 @@
+from hub.core.storage.s3 import S3Provider
+from hub.core import storage
+from hub.core.storage.provider import StorageProvider
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
 from hub.core.meta.tensor_meta import read_tensor_meta
@@ -5,7 +8,7 @@ import os
 import numpy as np
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict
+from typing import Any, Callable, List, Optional, Set, Dict, Union
 from hub.core.meta.index_map import read_index_map
 from hub.util.exceptions import ModuleNotInstalledException
 from hub.util.shared_memory import (
@@ -13,14 +16,21 @@ from hub.util.shared_memory import (
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
-from hub.core.storage import MemoryProvider
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
 except ModuleNotFoundError:
     pass
 
-_hub_storage_provider = MemoryProvider()
+from functools import lru_cache
+
+
+@lru_cache()
+def get_s3_storage(state) -> S3Provider:
+    s3 = S3Provider.__new__()
+    s3.__setstate__(state)
+    return s3
+
 
 # TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
 def _apply_transform(transform: Callable, sample: Dict):
@@ -28,11 +38,18 @@ def _apply_transform(transform: Callable, sample: Dict):
     return transform(sample) if transform else sample
 
 
-def _read_and_store_chunk(chunk_name: str, shared_memory_name: str, key: str):
+def _read_and_store_chunk(
+    chunk_name: str,
+    shared_memory_name: str,
+    key: str,
+    storage: Union[StorageProvider, dict],
+):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
     remove_shared_memory_from_resource_tracker()
+    if isinstance(storage, dict):
+        storage = get_s3_storage(storage)
     chunk_path = os.path.join(key, "chunks", chunk_name)
-    chunk_bytes = _hub_storage_provider[chunk_path]
+    chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
     shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
@@ -48,13 +65,14 @@ def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
 
 class TorchDataset:
     def __init__(self, dataset, transform: Callable = None, workers: int = 1):
-        self.dataset = dataset
         self._set_globals()
         self.transform: Optional[Callable] = transform
         self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
         self.len = len(dataset)
-        self.keys = list(self.dataset.tensors)
+        self.keys = list(dataset.tensors)
+        self.storage = remove_memory_cache(dataset)
+        self.storage_dict = self.storage.__getstate__()
 
         # contains meta for each Tensor
         self.all_meta: Dict[str, Dict] = self._load_all_meta()
@@ -114,18 +132,9 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-        # global to pass to processes, not possible to serialize and send
-        global _hub_storage_provider
-
-        # TODO boto3.client isn't safe for multiprocessing https://github.com/boto/boto3/pull/2848/files
-        # could it be working here as we're only reading data?
-        _hub_storage_provider = remove_memory_cache(self.dataset.storage)
-
     def _load_all_index_maps(self):
         """Loads index maps for all Tensors into memory"""
-        all_index_maps = {
-            key: read_index_map(key, _hub_storage_provider) for key in self.keys
-        }
+        all_index_maps = {key: read_index_map(key, self.storage) for key in self.keys}
         return all_index_maps
 
     def _load_all_meta(self):
@@ -133,7 +142,7 @@ class TorchDataset:
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
         for key in self.keys:
-            meta = read_tensor_meta(key, _hub_storage_provider)
+            meta = read_tensor_meta(key, self.storage)
             if meta["dtype"] == "uint16":
                 meta["dtype"] = "int32"
             elif meta["dtype"] in ["uint32", "uint64"]:
@@ -150,8 +159,17 @@ class TorchDataset:
         chunk_names = list(self._get_chunk_names(index, key))
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
         clear_shared_memory(shared_memory_names)
+
+        storage: Union[S3Provider, Dict] = self.storage
+        if isinstance(storage, S3Provider):
+            storage = self.storage_dict
+
         chunk_sizes: List[int] = self.map(
-            _read_and_store_chunk, chunk_names, shared_memory_names, repeat(key)
+            _read_and_store_chunk,
+            chunk_names,
+            shared_memory_names,
+            repeat(key),
+            repeat(storage),
         )
         self._get_data_from_chunks(
             index, key, chunk_names, shared_memory_names, chunk_sizes
