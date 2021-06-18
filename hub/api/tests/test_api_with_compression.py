@@ -1,3 +1,10 @@
+from hub.core.storage.provider import StorageProvider
+from PIL import Image
+from io import BytesIO
+from hub.core.chunk_engine.read import buffer_from_index_entry
+from hub.tests.common import TENSOR_KEY
+from hub.core.meta import index_meta
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.api.tensor import Tensor
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
@@ -9,12 +16,34 @@ from hub import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
-def _get_compression_for_sample(ds: Dataset, tensor_name: str, idx: int) -> str:
-    return IndexMeta.load(tensor_name, ds.storage).entries[idx]["compression"]
+# TODO: move into util
+def get_actual_compression_from_index_entry(
+    key: str, storage: StorageProvider, index_entry: dict
+) -> str:
+    """Returns a string identifier for the compression that the sample defined by `index_entry`. Warning: this may be slow."""
+
+    buffer = buffer_from_index_entry(key, storage, index_entry)
+    bio = BytesIO(buffer)
+    img = Image.open(bio)
+    return img.format.lower()
+
+
+def _assert_all_same_compression(tensor: Tensor):
+    storage = tensor.storage
+
+    index_meta = IndexMeta.load(TENSOR_KEY, storage)
+    expected_compression = tensor.meta.sample_compression
+
+    for index_entry in index_meta.entries:
+        actual_compression = get_actual_compression_from_index_entry(
+            TENSOR_KEY, storage, index_entry
+        )
+        assert actual_compression == expected_compression
 
 
 def _populate_compressed_samples(ds, cat_path, flower_path):
-    images = ds.create_tensor("images", htype="image")
+    images = ds.create_tensor(TENSOR_KEY, htype="image")
+
     assert images.meta.sample_compression == "png"
     assert images.meta.chunk_compression == UNCOMPRESSED
 
@@ -35,14 +64,7 @@ def _populate_compressed_samples(ds, cat_path, flower_path):
 @parametrize_all_dataset_storages
 def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     images = _populate_compressed_samples(ds, cat_path, flower_path)
-
-    # TODO: better way to check a sample's compression (in API)
-    # TODO: also, maybe we should check if these bytes are ACTUALLY compressed. right now technically all of these compressions could just be identites
-    assert _get_compression_for_sample(ds, "images", 0) == "jpeg"
-    assert _get_compression_for_sample(ds, "images", 1) == "png"
-    assert (
-        _get_compression_for_sample(ds, "images", 2) == "png"
-    ), "The default compression for `image` htypes is 'png'"
+    _assert_all_same_compression(images)
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)
@@ -56,6 +78,7 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 @parametrize_all_dataset_storages
 def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
     images = _populate_compressed_samples(ds, cat_path, flower_path)
+    _assert_all_same_compression(images)
 
     expected_shapes = [
         (900, 900, 3),
@@ -73,3 +96,13 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
             type(x) == np.ndarray
         ), "Check is necessary in case a `PIL` object is returned instead of an array."
         assert x.shape == expected_shape
+
+
+# TODO: uncomment this -- it should raise a good error
+# @parametrize_all_dataset_storages
+# def test_something(ds: Dataset):
+#     tensor = ds.create_tensor(TENSOR_KEY, htype="image", dtype="float64")
+#     a = np.random.uniform(size=(100, 100))
+#     tensor.append(a)
+#     np.testing.assert_array_equal(a, tensor.numpy())
+#
