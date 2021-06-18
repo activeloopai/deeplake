@@ -175,9 +175,8 @@ class Dataset:
                 size of files (chunks) being created to represent this tensor's samples.
                 For more on chunking, check out `hub.core.chunk_engine.chunker`.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
-            default_compression (str): Optionally override this tensor's `default_compression`.
-                If a sample is already compressed during ingestion (when using the `hub.util.load.read` method),
-                this `default_compression` is ignored. However if a sample is added that is uncompressed, `default_compression` will be used.
+            sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
+            chunk_compression (str): Optionally override this tensor's `chunk_compression`. Currently not implemented.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -186,7 +185,12 @@ class Dataset:
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            NotImplementedError: If trying to override `chunk_compression`.
         """
+
+        if chunk_compression is not None:
+            # TODO: implement chunk compression + update docstring
+            raise NotImplementedError("Chunk compression is not implemented yet!")
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
