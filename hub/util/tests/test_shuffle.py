@@ -11,3 +11,5 @@ def test_shuffle(memory_ds):
     ds = shuffle(ds)
     expected = [[2], [8], [4], [9], [1], [6], [7], [3], [0], [5]]
     assert ds.ints.numpy().tolist() == expected
+
+    assert ds.ints[0].numpy() == 2

@@ -5,4 +5,4 @@ def shuffle(ds):
     """Returns a shuffled wrapper of a given Dataset."""
     idxs = np.arange(len(ds))
     np.random.shuffle(idxs)
-    return ds[list(idxs)]
+    return ds[idxs.tolist()]
