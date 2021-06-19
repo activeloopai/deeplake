@@ -309,17 +309,22 @@ class Index:
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, array: np.ndarray):
-        """Applies an Index to a batched ndarray with the same number of samples
+    def apply(self, samples: List[np.ndarray]):
+        """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
         index_values = tuple(item.value for item in self.values[1:])
-        if not self.values[0].subscriptable():
-            array = array[0]  # remove unit batch axis
-        else:
-            index_values = (slice(None),) + index_values
+        samples = list(arr[index_values] for arr in samples)
+        return samples
 
-        return array[index_values]
+    def apply_squeeze(self, samples: List[np.ndarray]):
+        """Applies the primary axis of an Index to a list of ndarray samples.
+        Will either return the list as given, or return the first sample.
+        """
+        if self.values[0].subscriptable():
+            return samples
+        else:
+            return samples[0]
 
     def is_trivial(self):
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
