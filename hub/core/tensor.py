@@ -1,5 +1,6 @@
+import warnings
 from hub.core.sample import Sample
-from hub.constants import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE, UNCOMPRESSED
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
@@ -13,6 +14,7 @@ from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     DynamicTensorNumpyError,
     TensorAlreadyExistsError,
+    TensorUnsafeCastError,
     TensorDoesNotExistError,
 )
 
@@ -105,13 +107,35 @@ def append_tensor(
         TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
 
+    tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
+
     if isinstance(sample, (np.ndarray, int, float)):
         # append is guaranteed to NOT have a batch axis
+        sample = _cast_and_warn_if_applicable(
+            np.asarray(sample),
+            tensor_meta.dtype,
+            compression=tensor_meta.sample_compression,
+        )
+
         array = np.expand_dims(sample, axis=0)
-        extend_tensor(array, key, storage, **kwargs)
+        extend_tensor(
+            array,
+            key,
+            storage,
+            tensor_meta=tensor_meta,
+            index_meta=index_meta,
+            **kwargs,
+        )
 
     else:
-        extend_tensor([sample], key, storage, **kwargs)
+        extend_tensor(
+            [sample],
+            key,
+            storage,
+            tensor_meta=tensor_meta,
+            index_meta=index_meta,
+            **kwargs,
+        )
 
 
 def extend_tensor(
@@ -216,3 +240,21 @@ def read_samples_from_tensor(
             return samples[0]
 
     return index.apply(np.array(samples))
+
+
+def _cast_and_warn_if_applicable(
+    array: np.ndarray, to_dtype: Optional[str], compression: str
+) -> np.ndarray:
+    if to_dtype is None:
+        return array
+
+    if np.can_cast(array, to_dtype, casting="safe"):
+        return array.astype(to_dtype)
+
+    if np.can_cast(array, to_dtype, casting="same_kind"):
+        warnings.warn(
+            f"Sample with shape={array.shape} and dtype='{array.dtype.name}' was casted into '{to_dtype}'. There may be imprecision as a result. If this is a concern, you should explicitly cast data yourself."
+        )
+        return array.astype(to_dtype)
+
+    raise TensorUnsafeCastError(array.shape, array.dtype.name, to_dtype)

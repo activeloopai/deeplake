@@ -344,6 +344,13 @@ class TensorDtypeMismatchError(MetaError):
         super().__init__(msg)
 
 
+class TensorUnsafeCastError(Exception):
+    def __init__(self, shape: Tuple[int, ...], _from: str, to: str):
+        super().__init__(
+            f"Could not cast sample with shape {str(shape)} from dtype '{_from}' -> '{to}'."
+        )
+
+
 class ReadOnlyModeError(Exception):
     def __init__(self):
         super().__init__("Modification when in read-only mode is not supported!")

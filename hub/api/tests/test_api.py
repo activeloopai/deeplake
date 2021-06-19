@@ -185,7 +185,12 @@ def test_scalar_samples(ds: Dataset):
     tensor.append(255)
     tensor.extend([10, 1, 4])
     tensor.extend([1])
-    tensor.append(np.int64(4))
+
+    # potential information loss cast
+    with pytest.warns(UserWarning):
+        tensor.append(np.uint32(4))
+    with pytest.warns(UserWarning):
+        tensor.append(np.uint32(300))
 
     # unsafe cast
     with pytest.raises(TensorUnsafeCastError):
