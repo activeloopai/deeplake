@@ -15,7 +15,7 @@ SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
-USE_UNIFORM_COMPRESSION_PER_SAMPLE = False
+USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
 
 SUPPORTED_MODES = ["r", "a"]
 CHUNK_MAX_SIZE = (
