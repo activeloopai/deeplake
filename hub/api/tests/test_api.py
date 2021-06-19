@@ -178,24 +178,38 @@ def test_empty_samples(ds: Dataset):
 
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
-    tensor = ds.create_tensor("scalars")
-    assert tensor.meta.dtype == None
+    tensor = ds.create_tensor("scalars", dtype=np.uint8)
+    assert tensor.meta.dtype == "uint8"
 
-    # first sample sets dtype
-    tensor.append(5)
-    assert tensor.meta.dtype == "int64"
-
-    tensor.append(10)
-    tensor.append(-99)
-    tensor.append(np.int64(4))
-
+    # safe cast
+    tensor.append(255)
     tensor.extend([10, 1, 4])
     tensor.extend([1])
-    tensor.extend(np.array([1, 2, 3], dtype="int64"))
+    tensor.append(np.int64(4))
 
-    assert len(tensor) == 11
+    # unsafe cast
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.extend([5, 1, 256])
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(np.int32(256))
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(np.float32(5))
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(256)
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(-1)
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(np.int32(-1))
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.append(5.0)
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.extend(np.array([1, 2, 3], dtype=np.uint32))
+    with pytest.raises(TensorUnsafeCastError):
+        tensor.extend([1, 2, 3, 5.0])
 
-    expected = np.array([5, 10, -99, 4, 10, 1, 4, 1, 1, 2, 3])
+    assert len(tensor) == 6
+
+    expected = np.array([255, 10, 1, 4, 1, 4], dtype=np.uint8)
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
 
@@ -334,31 +348,6 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == np.float64
     assert py_dtyped_tensor.dtype == np.float64
-
-
-def test_safe_dtype_casting(memory_ds: Dataset):
-    fixed_u8tensor = memory_ds.create_tensor("tensor", dtype="uint8")
-
-    # safe casts
-    fixed_u8tensor.append(255)
-    fixed_u8tensor.append(np.int64(100))
-    fixed_u8tensor.append(np.uint32(5))
-    fixed_u8tensor.append(30)
-    # fixed_u8tensor.append([50, 99, 1, 0])
-
-    # unsafe casts
-    with pytest.raises(TensorUnsafeCastError):
-        fixed_u8tensor.append(256)
-    with pytest.raises(TensorUnsafeCastError):
-        fixed_u8tensor.append(5.0)
-
-    # TODO: kinda safe casts
-
-    assert len(fixed_u8tensor) == 4
-    expected = np.array([255, 100, 5, 30], dtype="uint8")
-    np.testing.assert_array_equal(fixed_u8tensor.numpy(), expected)
-
-    # TODO: dynamic_u8tensor
 
 
 @pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
