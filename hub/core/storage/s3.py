@@ -187,20 +187,31 @@ class S3Provider(StorageProvider):
             super().clear()
 
     def __getstate__(self):
-        state = {}
-        state["root"] = self.root
-        state["aws_access_key_id"] = self.aws_access_key_id
-        state["aws_secret_access_key"] = self.aws_secret_access_key
-        state["aws_session_token"] = self.aws_session_token
-        state["aws_region"] = self.aws_region
-        state["endpoint_url"] = self.endpoint_url
-        state["max_pool_connections"] = self.max_pool_connections
-        state["expiration"] = self.expiration
-        state["tag"] = self.tag
-        return state
+        return (
+            self.root,
+            self.aws_access_key_id,
+            self.aws_secret_access_key,
+            self.aws_session_token,
+            self.aws_region,
+            self.endpoint_url,
+            self.max_pool_connections,
+            self.expiration,
+            self.tag,
+            self.token,
+        )
 
     def __setstate__(self, state):
-        self.__dict__ = state
+        self.root = state[0]
+        self.aws_access_key_id = state[1]
+        self.aws_secret_access_key = state[2]
+        self.aws_session_token = state[3]
+        self.aws_region = state[4]
+        self.endpoint_url = state[5]
+        self.max_pool_connections = state[6]
+        self.expiration = state[7]
+        self.tag = state[8]
+        self.token = state[9]
+
         self._initialize_s3_parameters()
 
     def _set_bucket_and_path(self):

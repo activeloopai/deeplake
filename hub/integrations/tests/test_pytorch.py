@@ -61,12 +61,14 @@ def test_pytorch_large(local_ds):
         num_workers=0,
     )
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), (i + 1) * np.ones((1, 4096, 4096))
-        )
-        np.testing.assert_array_equal(
-            batch["classlabel"].numpy(), (i) * np.ones((1, 1))
-        )
+        actual_image = batch["image"].numpy()
+        expected_image = (i + 1) * np.ones((1, 4096, 4096))
+
+        actual_label = batch["classlabel"].numpy()
+        expected_label = (i) * np.ones((1,))
+
+        np.testing.assert_array_equal(actual_image, expected_image)
+        np.testing.assert_array_equal(actual_label, expected_label)
 
 
 @requires_torch

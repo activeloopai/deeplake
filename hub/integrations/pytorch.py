@@ -1,5 +1,4 @@
 from hub.core.storage.s3 import S3Provider
-from hub.core import storage
 from hub.core.storage.provider import StorageProvider
 from hub.core.compression import decompress_array
 from hub.constants import UNCOMPRESSED
@@ -29,8 +28,8 @@ from functools import lru_cache
 
 @lru_cache()
 def get_s3_storage(state) -> S3Provider:
-    print("fetching")
-    s3 = S3Provider.__new__()
+    """Ensures that s3 clients aren't initialized over and over again in the same process"""
+    s3 = S3Provider.__new__(S3Provider)
     s3.__setstate__(state)
     return s3
 
@@ -52,7 +51,7 @@ def _read_and_store_chunk(
     # TODO: modify to support chunk-wise decompression
 
     remove_shared_memory_from_resource_tracker()
-    if isinstance(storage, dict):
+    if isinstance(storage, tuple):
         storage = get_s3_storage(storage)
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
@@ -78,14 +77,14 @@ class TorchDataset:
         self.len = len(dataset)
         self.keys = list(dataset.tensors)
         self.storage = remove_memory_cache(dataset.storage)
-        if isinstance(storage, S3Provider):
-            self.storage_dict = self.storage.__getstate__()
+        if isinstance(self.storage, S3Provider):
+            self.storage_tuple = self.storage.__getstate__()
 
         # contains meta for each Tensor
         self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
 
         # contains index_meta for each Tensor
-        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_metas()
+        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_meta()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
@@ -139,11 +138,9 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-    def _load_all_index_maps(self):
-        """Loads index maps for all Tensors into memory"""
-        all_index_metas = {
-            key: IndexMeta.load(key, self.storage) for key in self.keys
-        }
+    def _load_all_index_meta(self):
+        """Loads index metas for all Tensors into memory"""
+        all_index_metas = {key: IndexMeta.load(key, self.storage) for key in self.keys}
         return all_index_metas
 
     def _load_all_meta(self):
@@ -169,9 +166,11 @@ class TorchDataset:
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
         clear_shared_memory(shared_memory_names)
 
+        # will be passing in storage provider to each process
         storage: Union[S3Provider, Dict] = self.storage
+        # s3 provider is not sent as storage provider but instead sent as a tuple containing it's state
         if isinstance(storage, S3Provider):
-            storage = self.storage_dict
+            storage = self.storage_tuple
 
         chunk_sizes: List[int] = self.map(
             _read_and_store_chunk,
