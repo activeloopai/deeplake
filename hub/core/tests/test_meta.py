@@ -1,4 +1,4 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.util.exceptions import (

@@ -26,8 +26,11 @@ class HubBackendClient:
     def __init__(self, token: Optional[str] = None):
         self.version = get_property("__version__", "hub")
         self.auth_header = None
-        self.token = token or self.get_token()
-        self.auth_header = f"Bearer {token}"
+        if token is None:
+            self.token = self.get_token()
+        else:
+            self.token = token
+        self.auth_header = f"Bearer {self.token}"
 
     def get_token(self):
         """Returns a token"""
