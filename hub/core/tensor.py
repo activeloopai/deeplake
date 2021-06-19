@@ -105,11 +105,10 @@ def append_tensor(
         TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
 
-    if isinstance(sample, (np.ndarray, int, float)):
+    if isinstance(sample, (np.ndarray, int, float, list)):
         # append is guaranteed to NOT have a batch axis
         array = np.expand_dims(sample, axis=0)
         extend_tensor(array, key, storage, **kwargs)
-
     else:
         extend_tensor([sample], key, storage, **kwargs)
 
