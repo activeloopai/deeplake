@@ -21,8 +21,6 @@ setup(
     name=project_name,
     version=get_property("__version__", project_name),
     description="Activeloop Hub",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
     author="activeloop.ai",
     author_email="support@activeloop.ai",
     packages=find_packages(),
