@@ -1,5 +1,6 @@
-from typing import Any, List, Sequence
-from typing import Any, Sequence
+from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.constants import SUPPORTED_COMPRESSIONS
+from typing import Any, List, Sequence, Tuple
 
 
 class ChunkSizeTooSmallError(Exception):
@@ -31,12 +32,9 @@ class TensorAlreadyExistsError(Exception):
 
 
 class DynamicTensorNumpyError(Exception):
-    def __init__(self, key: str, index):
+    def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            "Tensor {} with index = {} is dynamically shaped and cannot be converted into a `np.ndarray`. \
-            Try setting the parameter `aslist=True`".format(
-                key, str(index)
-            )
+            f"Tensor {key} with index = {str(index)} is has a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -230,10 +228,30 @@ class S3ListError(Exception):
     """Catchall for all errors encountered while retrieving a list of objects present in S3"""
 
 
-class InvalidCompressor(Exception):
-    def __init__(self, available_compressors):
+class CompressionError(Exception):
+    pass
+
+
+class UnsupportedCompressionError(CompressionError):
+    def __init__(self, compression: str):
         super().__init__(
-            f"Compressor is not supported. Supported compressions: {available_compressors}"
+            f"Compression '{compression}' is not supported. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+        )
+
+
+class SampleCompressionError(CompressionError):
+    def __init__(
+        self, sample_shape: Tuple[int, ...], compression_format: str, message: str
+    ):
+        super().__init__(
+            f"Could not compress a sample with shape {str(sample_shape)} into '{compression_format}'. Raw error output: '{message}'.",
+        )
+
+
+class SampleDecompressionError(CompressionError):
+    def __init__(self):
+        super().__init__(
+            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {SUPPORTED_COMPRESSIONS}."
         )
 
 
@@ -242,6 +260,14 @@ class InvalidImageDimensions(Exception):
         super().__init__(
             f"The shape length {actual_dims} of the given array should "
             f"be greater than the number of expected dimensions {expected_dims}"
+        )
+
+
+class TensorUnsupportedSampleType(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            f"Unable to append sample. Please specify numpy array, sequence of numpy arrays"
+            "or resulting dictionary from .read() to be added to the tensor"
         )
 
 
@@ -304,15 +330,53 @@ class TensorMetaInvalidHtypeOverwriteKey(MetaError):
         )
 
 
-class TensorMetaMismatchError(MetaError):
-    def __init__(self, meta_key: str, expected: Any, actual: Any):
-        super().__init__(
-            "Meta value for {} expected {} but got {}.".format(
-                meta_key, str(expected), str(actual)
-            )
-        )
+class TensorDtypeMismatchError(MetaError):
+    def __init__(self, expected: str, actual: str, htype: str):
+        msg = f"Dtype was expected to be '{expected}' instead it was '{actual}'. If you called `create_tensor` explicitly with `dtype`, your samples should also be of that dtype."
+
+        # TODO: we may want to raise this error at the API level to determine if the user explicitly overwrote the `dtype` or not. (to make this error message more precise)
+        # TODO: because if the user uses `dtype=np.uint8`, but the `htype` the tensor is created with has it's default dtype set as `uint8` also, then this message is ambiguous
+        htype_dtype = HTYPE_CONFIGURATIONS[htype].get("dtype", None)
+        if htype_dtype is not None and htype_dtype == expected:
+            msg += f" Htype '{htype}' expects samples to have dtype='{htype_dtype}'."
+            super().__init__("")
+
+        super().__init__(msg)
 
 
 class ReadOnlyModeError(Exception):
     def __init__(self):
         super().__init__("Modification when in read-only mode is not supported!")
+
+
+class TransformError(Exception):
+    pass
+
+
+class InvalidTransformOutputError(TransformError):
+    def __init__(self):
+        super().__init__(
+            "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
+        )
+
+
+class InvalidInputDataError(TransformError):
+    def __init__(self, message):
+        super().__init__(
+            f"The data_in to transform is invalid. It should support {message} operation."
+        )
+
+
+class UnsupportedSchedulerError(TransformError):
+    def __init__(self, scheduler):
+        super().__init__(
+            f"Hub transform currently doesn't support {scheduler} scheduler."
+        )
+
+
+class TensorMismatchError(TransformError):
+    def __init__(self, tensors, output_keys):
+        super().__init__(
+            f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
+            f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
+        )

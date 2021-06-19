@@ -1,12 +1,13 @@
-from hub.htypes import DEFAULT_HTYPE
+from hub.core.sample import Sample
+from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.index import Index
-from typing import List, Tuple, Union
-import numpy as np
+from typing import Sequence, Tuple, Union, Optional
 
+import numpy as np
 from hub.core.chunk_engine.read import sample_from_index_entry
-from hub.core.chunk_engine.write import write_array
+from hub.core.chunk_engine.write import write_samples
 from hub.util.keys import get_index_meta_key, get_tensor_meta_key
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
@@ -28,6 +29,8 @@ def create_tensor(
     key: str,
     storage: StorageProvider,
     htype: str = DEFAULT_HTYPE,
+    sample_compression: str = None,
+    chunk_compression: str = None,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -36,6 +39,9 @@ def create_tensor(
         key (str): Key for where the chunks, index_meta, and tensor_meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
+        sample_compression (str): If a sample is not already compressed (using `hub.load`), the sample will be compressed with `sample_compression`.
+            May be `UNCOMPRESSED`, in which case samples are uncompressed before stored.
+        chunk_compression (str): Chunk-wise compression has not been implemented yet. # TODO
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -46,7 +52,15 @@ def create_tensor(
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    TensorMeta.create(key, storage, htype=htype, **kwargs)
+    TensorMeta.create(
+        key,
+        storage,
+        htype=htype,
+        sample_compression=sample_compression,
+        chunk_compression=chunk_compression,
+        **kwargs,
+    )
+
     IndexMeta.create(key, storage)
 
 
@@ -66,13 +80,18 @@ def _get_metas_from_kwargs(
     return tensor_meta, index_meta
 
 
-def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
+def append_tensor(
+    sample: Optional[Union[np.ndarray, Sample, float, int]],
+    key: str,
+    storage: StorageProvider,
+    **kwargs,
+):
     """Append to an existing tensor with an array. This array will be chunked and sent to `storage`.
 
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        sample (Union[np.ndarray, Sample, float, int]): Data to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
@@ -82,20 +101,31 @@ def append_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
+        UnsupportedInputType: If provided isn't np.ndarray or .read() result.
+        TensorUnsupportedSampleType: If type of the sample is not supportes.
     """
 
-    # append is guaranteed to NOT have a batch axis
-    array = np.expand_dims(array, axis=0)
-    extend_tensor(array, key, storage, **kwargs)
+    if isinstance(sample, (np.ndarray, int, float)):
+        # append is guaranteed to NOT have a batch axis
+        array = np.expand_dims(sample, axis=0)
+        extend_tensor(array, key, storage, **kwargs)
+
+    else:
+        extend_tensor([sample], key, storage, **kwargs)
 
 
-def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwargs):
-    """Extend an existing tensor with an array. This array will be chunked and sent to `storage`.
+def extend_tensor(
+    samples: Union[np.ndarray, Sequence[np.ndarray], Sequence[Sample]],
+    key: str,
+    storage: StorageProvider,
+    **kwargs,
+):
+    """Extend an existing tensor with an array/sequence of `Sample`s. This array will be chunked and sent to `storage`.
 
     For more on chunking, see the `generate_chunks` method.
 
     Args:
-        array (np.ndarray): Array to be chunked/written. This array will be considered as 1 sample.
+        samples (np.ndarray, Sequence[Sample]): Batch of samples to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
         **kwargs:
@@ -108,20 +138,23 @@ def extend_tensor(array: np.ndarray, key: str, storage: StorageProvider, **kwarg
             `create_tensor(...)`.
     """
 
-    if len(array.shape) < 1:
-        raise ValueError(
-            f"An array with shape={array.shape} cannot be used to extend because it's shape length is < 1."
-        )
-
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
 
     tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
 
     # extend is guaranteed to have a batch axis
-    tensor_meta.check_batch_is_compatible(array)
+    if isinstance(samples, np.ndarray):
+        if len(samples.shape) < 1:
+            # TODO: add xfail test for this error (one may exist please check idk if it does)
+            raise ValueError(
+                f"An array with shape={samples.shape} cannot be used to extend because it's shape length is < 1."
+            )
 
-    write_array(array, key, storage, tensor_meta, index_meta)
+        # TODO: may need to optimize this?
+        samples = [Sample(array=samples[i]) for i in range(len(samples))]
+
+    write_samples(samples, key, storage, tensor_meta, index_meta)
 
 
 def read_samples_from_tensor(
@@ -129,7 +162,7 @@ def read_samples_from_tensor(
     storage: StorageProvider,
     index: Index = Index(),
     aslist: bool = False,
-) -> Union[np.ndarray, List[np.ndarray]]:
+) -> Union[np.ndarray, Sequence[np.ndarray]]:
     """Read (and unpack) samples from a tensor as an np.ndarray.
 
     Args:
@@ -160,17 +193,24 @@ def read_samples_from_tensor(
         shape = index_entry["shape"]
 
         # check if all samples are the same shape
-        last_shape = index_entries[i - 1]["shape"]
-        if not aslist and shape != last_shape:
-            raise DynamicTensorNumpyError(key, index)
+        last_entry = index_entries[i - 1]
+        last_shape = last_entry["shape"]
 
-        array = sample_from_index_entry(key, storage, index_entry, tensor_meta.dtype)
+        if not aslist:
+            if shape != last_shape:
+                raise DynamicTensorNumpyError(key, index, "shape")
+
+        array = sample_from_index_entry(key, storage, index_entry, tensor_meta)
         samples.append(array)
 
-    if aslist:
-        if index.values[0].subscriptable():
-            return samples
-        else:
-            return samples[0]
+    samples = index.apply(samples)
 
-    return index.apply(np.array(samples))
+    if aslist and all(map(np.isscalar, samples)):
+        samples = list(arr.item() for arr in samples)
+
+    samples = index.apply_squeeze(samples)
+
+    if aslist:
+        return samples
+    else:
+        return np.array(samples)

@@ -64,6 +64,22 @@ def slice_at_int(s: slice, i: int):
     return (s.start or 0) + i * (s.step or 1)
 
 
+def slice_length(s: slice, parent_length: int) -> int:
+    """Returns the length of a slice given the length of its parent."""
+    start, stop, step = s.indices(parent_length)
+    step_offset = step - (
+        1 if step > 0 else -1
+    )  # Used to ceil/floor depending on step direction
+    slice_length = stop - start
+    total_length = (slice_length + step_offset) // step
+    return max(0, total_length)
+
+
+def tuple_length(t: Tuple[int], l: int) -> int:
+    """Returns the length of a tuple of indexes given the length of its parent."""
+    return sum(1 for _ in filter(lambda i: i < l, t))
+
+
 @dataclass
 class IndexEntry:
     value: IndexValue = slice(None)
@@ -145,6 +161,38 @@ class IndexEntry:
             and self.value.stop == None
             and ((self.value.step or 1) == 1)
         )
+
+    def length(self, parent_length: int) -> int:
+        """Returns the length of an IndexEntry given the length of the parent it is indexing.
+
+        Examples:
+            >>> IndexEntry(slice(5, 10)).length(100)
+            5
+            >>> len(list(range(100))[5:10])
+            5
+            >>> IndexEntry(slice(5, 100)).length(50)
+            45
+            >>> len(list(range(50))[5:100])
+            45
+            >>> IndexEntry(0).length(10)
+            1
+
+        Args:
+            parent_length (int): The length of the target that this IndexEntry is indexing.
+
+        Returns:
+            int: The length of the index if it were applied to a parent of the given length.
+        """
+        if parent_length == 0:
+            return 0
+        elif not self.subscriptable():
+            return 1
+        elif isinstance(self.value, slice):
+            return slice_length(self.value, parent_length)
+        elif isinstance(self.value, tuple):
+            return tuple_length(self.value, parent_length)
+        else:
+            return 0
 
 
 class Index:
@@ -261,21 +309,31 @@ class Index:
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, array: np.ndarray):
-        """Applies an Index to a batched ndarray with the same number of samples
+    def apply(self, samples: List[np.ndarray]):
+        """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
         index_values = tuple(item.value for item in self.values[1:])
-        if not self.values[0].subscriptable():
-            array = array[0]  # remove unit batch axis
-        else:
-            index_values = (slice(None),) + index_values
+        samples = list(arr[index_values] for arr in samples)
+        return samples
 
-        return array[index_values]
+    def apply_squeeze(self, samples: List[np.ndarray]):
+        """Applies the primary axis of an Index to a list of ndarray samples.
+        Will either return the list as given, or return the first sample.
+        """
+        if self.values[0].subscriptable():
+            return samples
+        else:
+            return samples[0]
 
     def is_trivial(self):
-        """Checks if an index is equivalent to the trivial slice `[:]`, aka slice(None)."""
+        """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
+
+    def length(self, parent_length: int):
+        """Returns the primary length of an Index given the length of the parent it is indexing.
+        See: IndexEntry.length"""
+        return self.values[0].length(parent_length)
 
     def __str__(self):
         values = [entry.value for entry in self.values]

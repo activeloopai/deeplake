@@ -1,3 +1,5 @@
+from hub.core.compression import decompress_array
+from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
@@ -30,6 +32,9 @@ def _apply_transform(transform: Callable, sample: Dict):
 
 def _read_and_store_chunk(chunk_name: str, shared_memory_name: str, key: str):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
+
+    # TODO: modify to support chunk-wise decompression
+
     remove_shared_memory_from_resource_tracker()
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = _hub_storage_provider[chunk_path]
@@ -178,19 +183,32 @@ class TorchDataset:
 
     def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
         """Takes a list of chunks and returns a numpy array from it"""
+
+        # TODO: this function should be located in core (sample_from_index_entry doesn't work because prefetch cache)
+        # TODO: i think this can be done by creating a `PrefetchCache` like how we have `LRUCache` then all of this code
+        # TODO: will be hanlded in there
+
         index_entry = self.all_index_metas[key].entries[index]
 
         start_byte = index_entry["start_byte"]
         end_byte = index_entry["end_byte"]
-        dtype = self.all_tensor_metas[key].dtype
         shape = index_entry["shape"]
 
+        tensor_meta = self.all_tensor_metas[key]
+        dtype = tensor_meta.dtype
+        sample_compression = tensor_meta.sample_compression
+
         combined_bytes = join_chunks(chunks, start_byte, end_byte)
-        if isinstance(combined_bytes, memoryview):
+
+        # TODO: migrate UNCOMPRESSED check into a single function
+        if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
-            combined_bytes.release()
         else:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
+            arr = decompress_array(combined_bytes)
+
+        if isinstance(combined_bytes, memoryview):
+            combined_bytes.release()
+
         return arr
 
     def _get_data_from_chunks(

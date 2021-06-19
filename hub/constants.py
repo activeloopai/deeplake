@@ -6,9 +6,23 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
-SUPPORTED_MODES = ["r", "a"]
+DEFAULT_HTYPE = "generic"
+UNCOMPRESSED = "uncompressed"
+DEFAULT_SAMPLE_COMPRESSION = UNCOMPRESSED
+DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
 
-DEFAULT_CHUNK_SIZE = 16 * MB
+SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
+
+# If `True`  compression format has to be the same between samples in the same tensor.
+# If `False` compression format can   be different between samples in the same tensor.
+USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
+
+SUPPORTED_MODES = ["r", "a"]
+CHUNK_MAX_SIZE = (
+    32 * MB
+)  # chunks won't ever be bigger than this  # TODO: make custom for user
+DEFAULT_CHUNK_MIN_TARGET = 16 * MB  # some chunks might be smaller than this
+
 MIN_FIRST_CACHE_SIZE = 32 * MB
 MIN_SECOND_CACHE_SIZE = 160 * MB
 

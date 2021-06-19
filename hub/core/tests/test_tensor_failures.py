@@ -15,11 +15,11 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     TensorInvalidSampleShapeError,
     TensorMetaInvalidHtypeOverwriteValue,
-    TensorMetaMismatchError,
+    TensorDtypeMismatchError,
 )
 
 
-@pytest.mark.xfail(raises=TensorMetaMismatchError, strict=True)
+@pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
 def test_dtype_mismatch(memory_storage):
     a1 = np.array([1, 2, 3, 5.3], dtype=float)
     a2 = np.array([0, 1, 1, 0], dtype=bool)

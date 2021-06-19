@@ -1,15 +1,20 @@
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
-    TensorMetaMismatchError,
+    TensorDtypeMismatchError,
+    UnsupportedCompressionError,
 )
 from hub.util.keys import get_tensor_meta_key
-from hub.constants import DEFAULT_CHUNK_SIZE
-from hub.htypes import DEFAULT_HTYPE, HTYPE_CONFIGURATIONS
+from hub.constants import (
+    DEFAULT_HTYPE,
+    SUPPORTED_COMPRESSIONS,
+    UNCOMPRESSED,
+)
+from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.meta import Meta
 
@@ -29,6 +34,8 @@ class TensorMeta(Meta):
     max_shape: List[int]
     chunk_size: int
     length: int
+    sample_compression: str
+    chunk_compression: str
 
     @staticmethod
     def create(
@@ -52,6 +59,7 @@ class TensorMeta(Meta):
         Raises:
             TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
             TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+            NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
 
         Returns:
             TensorMeta: Tensor meta object.
@@ -62,6 +70,7 @@ class TensorMeta(Meta):
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(htype_overwrite)
+        _validate_compression(required_meta)
 
         return TensorMeta(
             get_tensor_meta_key(key), storage, required_meta=required_meta
@@ -71,35 +80,37 @@ class TensorMeta(Meta):
     def load(key: str, storage: StorageProvider):
         return TensorMeta(get_tensor_meta_key(key), storage)
 
-    def check_batch_is_compatible(self, array: np.ndarray):
-        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a batch of samples.
+    def check_array_sample_is_compatible(self, array: np.ndarray):
+        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.
 
         Note:
             If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
 
         Args:
-            array (np.ndarray): Batched array to check compatibility with.
+            array (np.ndarray): Array representing a sample to check compatibility with.
 
         Raises:
-            TensorMetaMismatchError: Dtype for array must be equal to this meta.
+            TensorDtypeMismatchError: Dtype for array must be equal to this meta.
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
         if self.dtype and self.dtype != array.dtype.name:
-            raise TensorMetaMismatchError("dtype", self.dtype, array.dtype.name)
-
-        sample_shape = array.shape[1:]
+            raise TensorDtypeMismatchError(
+                self.dtype,
+                array.dtype.name,
+                self.htype,
+            )
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(sample_shape)
+            actual_shape_len = len(array.shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
                     "Sample shape length is expected to be {}, actual length is {}.".format(
                         expected_shape_len, actual_shape_len
                     ),
-                    sample_shape,
+                    array.shape,
                 )
 
     def update_with_sample(self, array: np.ndarray):
@@ -128,6 +139,9 @@ class TensorMeta(Meta):
             self._update_shape_interval(shape)
 
     def _update_shape_interval(self, shape: Tuple[int, ...]):
+        if self.length <= 0:
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
@@ -140,10 +154,12 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
-        "chunk_size": DEFAULT_CHUNK_SIZE,
+        "chunk_size": defaults["chunk_size"],
         "min_shape": [],
         "max_shape": [],
         "length": 0,
+        "sample_compression": defaults["sample_compression"],
+        "chunk_compression": defaults["chunk_compression"],
     }
 
     required_meta = _remove_none_values_from_dict(required_meta)
@@ -151,7 +167,22 @@ def _required_meta_from_htype(htype: str) -> dict:
     return required_meta
 
 
+def _validate_compression(required_meta: dict):
+    chunk_compression = required_meta["chunk_compression"]
+    if chunk_compression != UNCOMPRESSED:
+        raise NotImplementedError("Chunk compression has not been implemented yet.")
+
+    sample_compression = required_meta["sample_compression"]
+    if sample_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(sample_compression)
+
+    if chunk_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(chunk_compression)
+
+
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
+    """Raises appropriate errors if `htype_overwrite` keys/values are invalid in correspondence to `htype`. May modify `dtype` in `htype_overwrite` if it is a non-str."""
+
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -168,18 +199,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         )
 
     if "dtype" in htype_overwrite:
-        if type(htype_overwrite["dtype"]) != str:
-            # TODO: support np.dtype alongside str
-            raise TensorMetaInvalidHtypeOverwriteValue(
-                "dtype", htype_overwrite["dtype"], "dtype must be of type `str`."
-            )
-
         _raise_if_condition(
             "dtype",
             htype_overwrite,
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
-            "Datatype must be supported by numpy. List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
+            "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
+
+        if type(htype_overwrite["dtype"]) != str:
+            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
 
 def _check_valid_htype(htype: str):
