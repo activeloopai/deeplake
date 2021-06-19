@@ -298,6 +298,23 @@ def test_shape_property(memory_ds):
     assert not fixed.is_dynamic
 
 
+def test_htype(memory_ds: Dataset):
+    image = memory_ds.create_tensor("image", htype="image")
+    bbox = memory_ds.create_tensor("bbox", htype="bbox")
+    label = memory_ds.create_tensor("label", htype="class_label")
+    video = memory_ds.create_tensor("video", htype="video")
+    bin_mask = memory_ds.create_tensor("bin_mask", htype="binary_mask")
+    segment_mask = memory_ds.create_tensor("segment_mask", htype="segment_mask")
+
+    image.append(np.ones((28, 28, 3), dtype=np.uint8))
+    bbox.append(np.array([1.0, 1.0, 0.0, 0.5], dtype=np.float32))
+    # label.append(5)
+    label.append(np.array(5, dtype=np.int32))
+    video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
+    bin_mask.append(np.zeros((28, 28), dtype=np.bool))
+    segment_mask.append(np.ones((28, 28), dtype=np.int32))
+
+
 def test_dtype(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
     dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
