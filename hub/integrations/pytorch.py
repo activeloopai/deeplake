@@ -11,7 +11,7 @@ import numpy as np
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union
-from hub.util.exceptions import ModuleNotInstalledException
+from hub.util.exceptions import DatasetUnsupportedPytorch, ModuleNotInstalledException
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
@@ -27,7 +27,7 @@ from functools import lru_cache
 
 
 @lru_cache()
-def get_s3_storage(state) -> S3Provider:
+def get_s3_storage(state: tuple) -> S3Provider:
     """Ensures that s3 clients aren't initialized over and over again in the same process"""
     s3 = S3Provider.__new__(S3Provider)
     s3.__setstate__(state)
@@ -52,7 +52,8 @@ def _read_and_store_chunk(
 
     remove_shared_memory_from_resource_tracker()
     if isinstance(storage, tuple):
-        storage = get_s3_storage(storage)
+        state: tuple = storage
+        storage = get_s3_storage(state)
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
@@ -74,14 +75,27 @@ class TorchDataset:
         self.transform: Optional[Callable] = transform
         self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
-        self.len = len(dataset)
+        self.length = len(dataset)
         self.keys = list(dataset.tensors)
         self.storage = remove_memory_cache(dataset.storage)
+
         if isinstance(self.storage, S3Provider):
-            self.storage_tuple = self.storage.__getstate__()
+            self.storage_state_tuple = self.storage.__getstate__()
 
         # contains meta for each Tensor
         self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
+        index_value = dataset.index.values[0].value
+        if not isinstance(index_value, slice):
+            raise DatasetUnsupportedPytorch(
+                "Only full dataset or dataset indexed using slices can be converted to pytorch."
+            )
+
+        if index_value.step not in [None, 1]:
+            raise DatasetUnsupportedPytorch(
+                "The step of the Dataset object is not None or 1"
+            )
+
+        self.index_offset = index_value.start or 0
 
         # contains index_meta for each Tensor
         self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_meta()
@@ -106,21 +120,22 @@ class TorchDataset:
         self.last_chunk_num_generated = -1
 
     def __len__(self):
-        return self.len
+        return self.length
 
     def __getitem__(self, index: int):
         for key in self.keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
-
         # processed cache miss, process more samples
         if index > self.processed_range.stop:
             self._process_samples()
         sample = self.processed_samples[index - self.processed_range.start]
+
         if index == len(self) - 1:  # clean up at the end
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
+
         return sample
 
     def __iter__(self):
@@ -170,7 +185,7 @@ class TorchDataset:
         storage: Union[S3Provider, Dict] = self.storage
         # s3 provider is not sent as storage provider but instead sent as a tuple containing it's state
         if isinstance(storage, S3Provider):
-            storage = self.storage_tuple
+            storage = self.storage_state_tuple
 
         chunk_sizes: List[int] = self.map(
             _read_and_store_chunk,
@@ -197,7 +212,8 @@ class TorchDataset:
         chunk_names: Set[str] = set()
         index_meta = self.all_index_metas[key]
         while len(chunk_names) < self.workers and index < len(self):
-            chunks = index_meta.entries[index]["chunk_names"]
+            actual_index = self.index_offset + index
+            chunks = index_meta.entries[actual_index]["chunk_names"]
             chunk_names.update(chunks)
             index += 1
         return chunk_names
@@ -253,13 +269,16 @@ class TorchDataset:
         # saves np array for each index in memory
         for i in range(index, len(self)):
             chunks = []
-            index_entry = self.all_index_metas[key].entries[i]
+            actual_index = self.index_offset + i
+            index_entry = self.all_index_metas[key].entries[actual_index]
             for chunk_name in index_entry["chunk_names"]:
                 if chunk_name not in chunk_map:
                     self.last_index_meta[key] = i - 1
                     return
                 chunks.append(chunk_map[chunk_name])
-            self.all_index_value_maps[key][i] = self._np_from_chunk_list(i, key, chunks)
+            self.all_index_value_maps[key][i] = self._np_from_chunk_list(
+                actual_index, key, chunks
+            )
 
         self.last_index_meta[key] = len(self) - 1
 

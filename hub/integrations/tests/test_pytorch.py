@@ -33,6 +33,63 @@ def test_pytorch_small(local_ds):
             batch["image2"].numpy(), i * np.ones((1, 100, 100))
         )
 
+    sub_ds = local_ds[50:]
+
+    sub_ptds = sub_ds.pytorch(workers=2)
+
+    # always use num_workers=0, when using hub workers
+    sub_dl = torch.utils.data.DataLoader(
+        sub_ptds,
+        batch_size=1,
+        num_workers=0,
+    )
+
+    for i, batch in enumerate(sub_dl):
+        np.testing.assert_array_equal(
+            batch["image"].numpy(), (50 + i) * np.ones((1, 300, 300))
+        )
+        np.testing.assert_array_equal(
+            batch["image2"].numpy(), (50 + i) * np.ones((1, 100, 100))
+        )
+
+    sub_ds2 = local_ds[30:100]
+
+    sub_ptds2 = sub_ds2.pytorch(workers=2)
+
+    # always use num_workers=0, when using hub workers
+    sub_dl2 = torch.utils.data.DataLoader(
+        sub_ptds2,
+        batch_size=1,
+        num_workers=0,
+    )
+
+    for i, batch in enumerate(sub_dl2):
+        np.testing.assert_array_equal(
+            batch["image"].numpy(), (30 + i) * np.ones((1, 300, 300))
+        )
+        np.testing.assert_array_equal(
+            batch["image2"].numpy(), (30 + i) * np.ones((1, 100, 100))
+        )
+
+    sub_ds3 = local_ds[:100]
+
+    sub_ptds3 = sub_ds3.pytorch(workers=2)
+
+    # always use num_workers=0, when using hub workers
+    sub_dl3 = torch.utils.data.DataLoader(
+        sub_ptds3,
+        batch_size=1,
+        num_workers=0,
+    )
+
+    for i, batch in enumerate(sub_dl3):
+        np.testing.assert_array_equal(
+            batch["image"].numpy(), (i) * np.ones((1, 300, 300))
+        )
+        np.testing.assert_array_equal(
+            batch["image2"].numpy(), (i) * np.ones((1, 100, 100))
+        )
+
 
 @requires_torch
 def test_pytorch_large(local_ds):
