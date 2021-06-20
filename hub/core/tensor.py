@@ -152,7 +152,7 @@ def extend_tensor(
             )
 
     if not hasattr(samples, "__len__"):
-        raise ValueError(
+        raise TypeError(
             f"Provided `samples` '{samples}' does not have a `__len__` attribute, and thus cannot be used to extend. Try appending instead."
         )
 
