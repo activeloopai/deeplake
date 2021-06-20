@@ -59,13 +59,14 @@ def _read_and_store_chunk(
     chunk_size = len(chunk_bytes)
     shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
-    # needs to be done as some OS allocate extra space
+    # needs to be done as some OS (like macOS) allocate extra space
     shm.buf[0:chunk_size] = chunk_bytes
     shm.close()
     return chunk_size
 
 
 def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+    dataset.flush()
     return TorchDataset(dataset, transform, workers)
 
 
