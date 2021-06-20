@@ -12,7 +12,7 @@ from hub.core.tensor import (
     tensor_exists,
 )
 from hub.core.typing import StorageProvider
-from hub.util.exceptions import TensorDoesNotExistError
+from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
 from hub.core.index import Index
 
 
@@ -192,6 +192,8 @@ class Tensor:
         self,
         item: Union[int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index],
     ):
+        if not isinstance(item, (int, slice, list, tuple, Index)):
+            raise InvalidKeyTypeError(item)
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
