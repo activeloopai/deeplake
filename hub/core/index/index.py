@@ -1,5 +1,4 @@
 from typing import Union, List, Tuple, Iterable, Optional, TypeVar
-from dataclasses import dataclass
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
@@ -80,9 +79,9 @@ def tuple_length(t: Tuple[int], l: int) -> int:
     return sum(1 for _ in filter(lambda i: i < l, t))
 
 
-@dataclass
 class IndexEntry:
-    value: IndexValue = slice(None)
+    def __init__(self, value: IndexValue = slice(None)):
+        self.value = value
 
     def __getitem__(self, item: IndexValue):
         """Combines the given `item` and this IndexEntry.
