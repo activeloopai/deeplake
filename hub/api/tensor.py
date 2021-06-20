@@ -47,7 +47,7 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
     def extend(self, samples: Union[np.ndarray, Sequence, Sequence[Sample]]):
-        """Extends the end of a tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
+        """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.load` outputs, which can be used to load files. See examples down below.
 
         Example:
@@ -84,7 +84,7 @@ class Tensor:
         self,
         sample: Union[np.ndarray, float, int, Sequence, Sample],
     ):
-        """Appends a single sample to the end of a tensor. Can be an array, scalar value, or the return value from `hub.load`,
+        """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.load`,
         which can be used to load files. See examples down below.
 
         Examples:
@@ -171,7 +171,7 @@ class Tensor:
         return self.shape_interval.is_dynamic
 
     def __len__(self):
-        """Returns the length of the primary axis of a tensor.
+        """Returns the length of the primary axis of the tensor.
         Accounts for indexing into the tensor object.
 
         Examples:
@@ -204,7 +204,7 @@ class Tensor:
             yield self[i]
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
-        """Computes the contents of a tensor in numpy format.
+        """Computes the contents of the tensor in numpy format.
 
         Args:
             aslist (bool): If True, a list of np.ndarrays will be returned. Helpful for dynamic tensors.
