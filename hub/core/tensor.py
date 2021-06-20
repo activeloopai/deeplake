@@ -134,6 +134,7 @@ def extend_tensor(
 
     Raises:
         ValueError: If `samples` cannot be used to extend.
+        TypeError: If `samples` doesn't have a `__len__` property.
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
             `create_tensor(...)`.
     """
