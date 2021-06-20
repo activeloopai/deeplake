@@ -227,3 +227,5 @@ class Tensor:
         if self.index.is_trivial():
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
+
+    __repr__ = __str__

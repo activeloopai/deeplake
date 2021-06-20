@@ -346,6 +346,8 @@ class Dataset:
 
         return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
 
+    __repr__ = __str__
+
     @property
     def token(self):
         """Get attached token of the dataset"""
