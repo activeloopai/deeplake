@@ -30,16 +30,17 @@ def sample_from_index_entry(
     mv = buffer_from_index_entry(key, storage, index_entry)
     is_empty = len(mv) <= 0
 
+    shape = index_entry["shape"]
     if is_empty or tensor_meta.sample_compression == UNCOMPRESSED:
         # TODO: chunk-wise compression
 
         return array_from_buffer(
             mv,
             tensor_meta.dtype,
-            shape=index_entry["shape"],
+            shape=shape,
         )
 
-    return decompress_array(mv)
+    return decompress_array(mv, shape=shape)
 
 
 def buffer_from_index_entry(
