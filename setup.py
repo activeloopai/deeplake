@@ -20,6 +20,7 @@ with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
 
 init_file = os.path.join(project_name, "__init__.py")
 
+
 def get_property(prop):
     result = re.search(
         # find variable with name `prop` in the __init__.py file
