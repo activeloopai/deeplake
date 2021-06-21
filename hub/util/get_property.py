@@ -6,7 +6,7 @@ import hub
 
 def get_property(prop, project):
     """
-    Get a property from the `project_name/__init__.py` file.
+    Get a property from the `project/__init__.py` file.
 
     Example:
         `get_property("__version__", "hub")`,

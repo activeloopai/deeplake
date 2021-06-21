@@ -1,5 +1,5 @@
-from hub.util.get_property import get_property
 import os
+import re
 
 from setuptools import find_packages, setup
 
@@ -17,9 +17,21 @@ with open(os.path.join(this_directory, "requirements/tests.txt")) as f:
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
+
+init_file = os.path.join(project_name, "__init__.py")
+
+def get_property(prop):
+    result = re.search(
+        # find variable with name `prop` in the __init__.py file
+        r'{}\s*=\s*[\'"]([^\'"]*)[\'"]'.format(prop),
+        open(init_file).read(),
+    )
+    return result.group(1)
+
+
 setup(
     name=project_name,
-    version=get_property("__version__", project_name),
+    version=get_property("__version__"),
     description="Activeloop Hub",
     author="activeloop.ai",
     author_email="support@activeloop.ai",
