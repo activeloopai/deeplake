@@ -380,3 +380,10 @@ class TensorMismatchError(TransformError):
             f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
             f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
         )
+
+
+class DatasetUnsupportedPytorch(Exception):
+    def __init__(self, reason):
+        super().__init__(
+            f"The Dataset object passed to Pytorch is incompatible. Reason: {reason}"
+        )
