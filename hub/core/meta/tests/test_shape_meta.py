@@ -1,4 +1,6 @@
 from typing import Sequence, Tuple
+
+from numpy.core.fromnumeric import shape
 from hub.core.storage.provider import StorageProvider
 import pytest
 import numpy as np
@@ -19,7 +21,6 @@ def _add_shapes_and_assert_expected(
             shape_meta_encoder[i], expected_shapes[i - start_num_samples]
         )
 
-    # TODO: custom raise error
     with pytest.raises(IndexError):
         shape_meta_encoder[end_num_samples]
 
@@ -47,6 +48,43 @@ def test_first_add(memory_storage: StorageProvider):
             (30, 45, 2),
             (30, 45, 2),
             (30, 45, 3),
+        ],
+    )
+
+
+def test_empty(memory_storage: StorageProvider):
+    shape_meta_encoder = ShapeMetaEncoder(memory_storage)
+    _add_shapes_and_assert_expected(shape_meta_encoder, [])
+    _add_shapes_and_assert_expected(shape_meta_encoder, [(28, 28), (28, 28)])
+    _add_shapes_and_assert_expected(shape_meta_encoder, [])
+    _add_shapes_and_assert_expected(shape_meta_encoder, [(28, 28), (28, 28)])
+
+
+def test_scalars(memory_storage: StorageProvider):
+    shape_meta_encoder = ShapeMetaEncoder(memory_storage)
+    _add_shapes_and_assert_expected(
+        shape_meta_encoder,
+        [
+            (0,),
+            (8,),
+            (8,),
+            (6,),
+            (8,),
+            (8,),
+            (8,),
+        ],
+    )
+
+    _add_shapes_and_assert_expected(
+        shape_meta_encoder,
+        [
+            (8,),
+            (8,),
+            (8,),
+            (7,),
+            (8,),
+            (8,),
+            (8,),
         ],
     )
 

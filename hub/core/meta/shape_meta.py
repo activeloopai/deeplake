@@ -22,6 +22,11 @@ class ShapeMetaEncoder:
             raise NotImplementedError()
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
+        if self.num_samples == 0:
+            raise IndexError(
+                f"Index {sample_index} is out of bounds for an empty shape meta."
+            )
+
         shape_index = np.searchsorted(self._encoded_shapes[:, -1], sample_index)
         return self._encoded_shapes[shape_index, :-1]
 
@@ -35,11 +40,15 @@ class ShapeMetaEncoder:
         self,
         shapes: Sequence[Tuple[int]],
     ):
+        if len(shapes) == 0:
+            return
+
+        shape_entries = []
         last_shape_entry = None
         if self.num_samples != 0:
             last_shape_entry = list(self._encoded_shapes[-1])
+            shape_entries = [list(self._encoded_shapes[-1])]
 
-        shape_entries = []
         for i, shape in enumerate(shapes):
             if last_shape_entry is not None:
                 if len(shape) != len(last_shape_entry[:-1]):
@@ -56,8 +65,7 @@ class ShapeMetaEncoder:
         shape_entries = np.array(shape_entries, dtype=SHAPE_META_DTYPE)
         if self.num_samples == 0:
             self._encoded_shapes = shape_entries
-
         else:
             self._encoded_shapes = np.concatenate(
-                [self._encoded_shapes, shape_entries], axis=0
+                [self._encoded_shapes[:-1], shape_entries], axis=0
             )
