@@ -11,7 +11,7 @@ def _add_shapes_and_assert_expected(
     shape_meta_encoder: ShapeMetaEncoder, expected_shapes: Sequence[Tuple[int]]
 ):
     start_num_samples = shape_meta_encoder.num_samples
-    shape_meta_encoder.add_shapes(expected_shapes)
+    shape_meta_encoder.extend(expected_shapes)
     end_num_samples = shape_meta_encoder.num_samples
 
     assert end_num_samples - start_num_samples == len(expected_shapes)

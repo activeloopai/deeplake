@@ -36,7 +36,7 @@ class ShapeMetaEncoder:
             return 0
         return int(self._encoded_shapes[-1, -1] + 1)
 
-    def add_shapes(
+    def extend(
         self,
         shapes: Sequence[Tuple[int]],
     ):
