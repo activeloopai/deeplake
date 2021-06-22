@@ -137,11 +137,12 @@ def test_pytorch_with_compression(ds: Dataset):
     import torch
 
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
-    images = ds.create_tensor("images", htype="image")
-    labels = ds.create_tensor("labels", htype="class_label")
+    with ds:
+        images = ds.create_tensor("images", htype="image")
+        labels = ds.create_tensor("labels", htype="class_label")
 
-    images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
-    labels.extend(np.ones((16, 1), dtype="int32"))
+        images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
+        labels.extend(np.ones((16, 1), dtype="int32"))
 
     # make sure data is appropriately compressed
     assert images.meta.sample_compression == "png"
@@ -192,21 +193,20 @@ def test_pytorch_large_old(ds):
     import torch
 
     # don't need to test with compression because it uses the API (which is tested for iteration + compression)
-    ds.create_tensor("image")
-
-    arr = np.array(
-        [
-            np.ones((4096, 4096)),
-            2 * np.ones((4096, 4096)),
-            3 * np.ones((4096, 4096)),
-            4 * np.ones((4096, 4096)),
-        ],
-        dtype="uint8",
-    )
-    ds.image.extend(arr)
-    ds.create_tensor("classlabel")
-    ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint32"))
-    ds.flush()
+    with ds:
+        ds.create_tensor("image")
+        arr = np.array(
+            [
+                np.ones((4096, 4096)),
+                2 * np.ones((4096, 4096)),
+                3 * np.ones((4096, 4096)),
+                4 * np.ones((4096, 4096)),
+            ],
+            dtype="uint8",
+        )
+        ds.image.extend(arr)
+        ds.create_tensor("classlabel")
+        ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint32"))
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     ptds = dataset_to_pytorch(ds, workers=2, python_version_warning=False)
