@@ -44,7 +44,7 @@ def _read_and_store_chunk(
     chunk_name: str,
     shared_memory_name: str,
     key: str,
-    storage: Union[StorageProvider, dict],
+    storage: Union[StorageProvider, tuple],
 ):
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
 

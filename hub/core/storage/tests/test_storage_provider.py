@@ -2,6 +2,7 @@ import pytest
 
 from hub.constants import MB
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
+import pickle
 
 KEY = "file"
 
@@ -120,3 +121,15 @@ def test_storage_provider(storage):
 def test_cache(storage):
     check_storage_provider(storage)
     check_cache(storage)
+
+
+@parametrize_all_storages
+def test_pickling(storage):
+    FILE_1 = f"{KEY}_1"
+    storage[FILE_1] = b"hello world"
+    assert storage[FILE_1] == b"hello world"
+    pickle_file = open("storage_pickle", "wb")
+    pickle.dump(storage, pickle_file)
+    pickle_file = open("storage_pickle", "rb")
+    unpickled_storage = pickle.load(pickle_file)
+    assert unpickled_storage[FILE_1] == b"hello world"
