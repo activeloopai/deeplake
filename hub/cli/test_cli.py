@@ -18,10 +18,9 @@ def test_cli_auth():
     assert result.exit_code == 0
     assert (
         result.output
-        == "Login to Activeloop Hub using your credentials.\nIf you don't have an account, register by using 'activeloop register' command or by going to "
-        f"{HUB_REST_ENDPOINT}/register.\n\nSuccessfully logged in to Activeloop Hub.\n"
+        == "Successfully logged in to Activeloop Hub.\n"
     )
 
     result = runner.invoke(logout)
     assert result.exit_code == 0
-    assert result.output == "Logged out of Hub.\n"
+    assert result.output == "Logged out of Activeloop Hub.\n"
