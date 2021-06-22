@@ -15,24 +15,25 @@ from hub.util.exceptions import AuthenticationException
 
 
 @click.command()
-@click.option("--username", "-u", default=None, help="Your Activeloop username")
-@click.option("--password", "-p", default=None, help="Your Activeloop password")
+@click.option("--username", "-u", default=None, help="Your Activeloop Username")
+@click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    click.echo("Login to Activeloop Hub using your credentials.")
-    click.echo(
-        "If you don't have an account, register by using 'activeloop register' command or by going to "
-        f"{HUB_REST_ENDPOINT}/register."
-    )
-    username = username or click.prompt("Username")
+    if username is None:
+        click.echo("Login to Activeloop Hub using your credentials.")
+        click.echo(
+            "If you don't have an account, register by using the 'activeloop register' command or by going to "
+            f"{HUB_REST_ENDPOINT}/register."
+        )
+        username = click.prompt("Username")
+        password = click.prompt("Password", hide_input=True)
     username = username.strip()
-    password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
         client = HubBackendClient()
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo("\nSuccessfully logged in to Activeloop Hub.")
+        click.echo("Successfully logged in to Activeloop Hub.")
         reporting_config = get_reporting_config()
         if reporting_config.get("username") != username:
             save_reporting_config(True, username=username)
@@ -46,7 +47,7 @@ def login(username: str, password: str):
 def logout():
     """Log out of Activeloop"""
     remove_token()
-    click.echo("Logged out of Hub.")
+    click.echo("Logged out of Activeloop Hub.")
 
 
 # TODO: Add how to enable/disable reporting to docs
@@ -64,17 +65,21 @@ def reporting(on):
 
 
 @click.command()
-@click.option("--username", "-u", default=None, help="Your Activeloop username")
-@click.option("--email", "-e", default=None, help="Your email")
-@click.option("--password", "-p", default=None, help="Your Activeloop password")
+@click.option("--username", "-u", default=None, help="Your Activeloop Username")
+@click.option("--email", "-e", default=None, help="Your Email")
+@click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def register(username: str, email: str, password: str):
     """Create a new Activeloop user account"""
-    click.echo("Enter your details. Your password must be atleast 6 characters long.")
-    username = username or click.prompt("Username")
+    # If any/all argument values are None, we request the user to enter credentials
+    if all([username, email, password]) == False:
+        click.echo(
+            "Enter your details. Your password must be atleast 6 characters long."
+        )
+        username = click.prompt("Username")
+        email = click.prompt("Email")
+        password = click.prompt("Password", hide_input=True)
     username = username.strip()
-    email = email or click.prompt("Email")
     email = email.strip()
-    password = password or click.prompt("Password", hide_input=True)
     password = password.strip()
     try:
         client = HubBackendClient()
