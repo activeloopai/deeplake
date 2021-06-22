@@ -1,6 +1,6 @@
-from hub.util.adjacency import calculate_adjacent_runs
+from hub.core import sample
 from hub.constants import SHAPE_META_FILENAME
-from typing import Sequence, Tuple
+from typing import Tuple
 from hub.core.storage.provider import StorageProvider
 import numpy as np
 
@@ -13,7 +13,6 @@ class ShapeMetaEncoder:
         self.storage = storage
         self.key = SHAPE_META_FILENAME
         self._encoded_shapes = None
-        # TODO: `num_samples`: bottom right corner of `self._encoded_shapes` will be = the length of the tensor MINUS 1***** (no longer need to store in tensor_meta.length)
         self.load_shapes()
 
     def load_shapes(self):
@@ -27,8 +26,11 @@ class ShapeMetaEncoder:
                 f"Index {sample_index} is out of bounds for an empty shape meta."
             )
 
+        if sample_index < 0:
+            sample_index = (self.num_samples) + sample_index
+
         shape_index = np.searchsorted(self._encoded_shapes[:, -1], sample_index)
-        return self._encoded_shapes[shape_index, :-1]
+        return tuple(self._encoded_shapes[shape_index, :-1])
 
     @property
     def num_samples(self) -> int:
@@ -36,36 +38,37 @@ class ShapeMetaEncoder:
             return 0
         return int(self._encoded_shapes[-1, -1] + 1)
 
-    def extend(
+    def add_shape(
         self,
-        shapes: Sequence[Tuple[int]],
+        shape: Tuple[int],
+        count: int,
     ):
-        if len(shapes) == 0:
-            return
+        if count <= 0:
+            raise ValueError(f"Shape `count` should be > 0. Got {count}.")
 
-        shape_entries = []
-        last_shape_entry = None
         if self.num_samples != 0:
-            last_shape_entry = list(self._encoded_shapes[-1])
-            shape_entries = [list(self._encoded_shapes[-1])]
+            last_shape = self[-1]
 
-        for i, shape in enumerate(shapes):
-            if last_shape_entry is not None:
-                if len(shape) != len(last_shape_entry[:-1]):
-                    raise ValueError(
-                        f"All sample shapes in a tensor must have the same len(shape)."
-                    )
+            if len(shape) != len(last_shape):
+                raise ValueError(
+                    f"All sample shapes in a tensor must have the same len(shape). Expected: {len(last_shape)} got: {len(shape)}."
+                )
 
-            if last_shape_entry is None or last_shape_entry[:-1] != list(shape):
-                shape_entries.append(list(shape) + [i + self.num_samples])
-                last_shape_entry = shape_entries[-1]
+            if shape == last_shape:
+                # increment last shape's index by `count`
+                self._encoded_shapes[-1, -1] += count
+
             else:
-                shape_entries[-1][-1] = i + self.num_samples
+                last_shape_index = self._encoded_shapes[-1, -1]
+                shape_entry = np.array(
+                    [[*shape, last_shape_index + count]], dtype=SHAPE_META_DTYPE
+                )
 
-        shape_entries = np.array(shape_entries, dtype=SHAPE_META_DTYPE)
-        if self.num_samples == 0:
-            self._encoded_shapes = shape_entries
+                self._encoded_shapes = np.concatenate(
+                    [self._encoded_shapes, shape_entry], axis=0
+                )
+
         else:
-            self._encoded_shapes = np.concatenate(
-                [self._encoded_shapes[:-1], shape_entries], axis=0
+            self._encoded_shapes = np.array(
+                [[*shape, count - 1]], dtype=SHAPE_META_DTYPE
             )
