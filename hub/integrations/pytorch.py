@@ -77,7 +77,6 @@ class TorchDataset:
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
         self.storage = remove_memory_cache(dataset.storage)
-
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
