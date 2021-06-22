@@ -51,16 +51,13 @@ def test_first_add(memory_storage: StorageProvider):
     )
 
 
-"""
-def test_first_add(memory_storage: StorageProvider):
+def test_failures(memory_storage: StorageProvider):
     shape_meta_encoder = ShapeMetaEncoder(memory_storage)
 
-    _add_shapes_and_assert_expected(
-        shape_meta_encoder,
-        [8, 8, 8, 8, 8, 8, 8, 8, (8,), 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
-    )
+    _add_shapes_and_assert_expected(shape_meta_encoder, [(8, 1, 1)])
 
-    # with pytest.raises(Exception):  # TODO: exceptions.py
-    # TODO: THIS SHOULD FAIL:
-    _add_shapes_and_assert_expected([(8, 1)])
-"""
+    with pytest.raises(ValueError):
+        _add_shapes_and_assert_expected(shape_meta_encoder, [(8, 2, 1), (8, 1)])
+
+    with pytest.raises(ValueError):
+        _add_shapes_and_assert_expected(shape_meta_encoder, [(8, 1)])

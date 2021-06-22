@@ -36,11 +36,17 @@ class ShapeMetaEncoder:
         shapes: Sequence[Tuple[int]],
     ):
         last_shape_entry = None
-        if self._encoded_shapes is not None:
-            last_shape_entry = self._encoded_shapes[-1, :-1]
+        if self.num_samples != 0:
+            last_shape_entry = list(self._encoded_shapes[-1])
 
         shape_entries = []
         for i, shape in enumerate(shapes):
+            if last_shape_entry is not None:
+                if len(shape) != len(last_shape_entry[:-1]):
+                    raise ValueError(
+                        f"All sample shapes in a tensor must have the same len(shape)."
+                    )
+
             if last_shape_entry is None or last_shape_entry[:-1] != list(shape):
                 shape_entries.append(list(shape) + [i + self.num_samples])
                 last_shape_entry = shape_entries[-1]
@@ -48,7 +54,7 @@ class ShapeMetaEncoder:
                 shape_entries[-1][-1] = i + self.num_samples
 
         shape_entries = np.array(shape_entries, dtype=SHAPE_META_DTYPE)
-        if self._encoded_shapes is None:
+        if self.num_samples == 0:
             self._encoded_shapes = shape_entries
 
         else:
