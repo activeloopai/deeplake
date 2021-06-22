@@ -1,3 +1,7 @@
+from hub.util.remove_cache import remove_memory_cache
+import pytest
+from hub.util.exceptions import DatasetUnsupportedPytorch
+from hub.core.storage.memory import MemoryProvider
 from hub.tests.common import assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
@@ -19,6 +23,10 @@ def test_pytorch_small(ds):
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
+    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ptds = ds.pytorch(workers=2)
+        return
     ptds = ds.pytorch(workers=2)
 
     # always use num_workers=0, when using hub workers
@@ -112,6 +120,11 @@ def test_pytorch_large(ds):
         ds.create_tensor("classlabel")
         ds.classlabel.extend(np.array([i for i in range(10)]))
 
+    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ptds = ds.pytorch(workers=2)
+        return
+
     ptds = ds.pytorch(workers=2)
 
     # always use num_workers=0, when using hub workers
@@ -150,6 +163,10 @@ def test_pytorch_with_compression(ds: Dataset):
     assert_all_samples_have_expected_compression(images, ["png"] * 16)
     assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
+    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ptds = ds.pytorch(workers=2)
+        return
     ptds = ds.pytorch(workers=2)
     dl = torch.utils.data.DataLoader(ptds, batch_size=1, num_workers=0)
 

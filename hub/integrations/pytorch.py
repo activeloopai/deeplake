@@ -1,5 +1,4 @@
-from hub.core.storage.s3 import S3Provider
-from hub.core.storage.provider import StorageProvider
+from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
 from hub.core.compression import decompress_array
 from hub.constants import UNCOMPRESSED
 from hub.core.meta.index_meta import IndexMeta
@@ -49,7 +48,6 @@ def _read_and_store_chunk(
     """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
 
     # TODO: modify to support chunk-wise decompression
-
     remove_shared_memory_from_resource_tracker()
     if isinstance(storage, tuple):
         state: tuple = storage
@@ -72,7 +70,7 @@ def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
 
 class TorchDataset:
     def __init__(self, dataset, transform: Callable = None, workers: int = 1):
-        self._set_globals()
+        self._import_torch()
         self.transform: Optional[Callable] = transform
         self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
@@ -80,12 +78,18 @@ class TorchDataset:
         self.keys = list(dataset.tensors)
         self.storage = remove_memory_cache(dataset.storage)
 
-        if isinstance(self.storage, S3Provider):
+        if isinstance(self.storage, MemoryProvider):
+            raise DatasetUnsupportedPytorch(
+                "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
+            )
+
+        elif isinstance(self.storage, S3Provider):
             self.storage_state_tuple = self.storage.__getstate__()
 
         # contains meta for each Tensor
         self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
         index_value = dataset.index.values[0].value
+
         if not isinstance(index_value, slice):
             raise DatasetUnsupportedPytorch(
                 "Only full dataset or dataset indexed using slices can be converted to pytorch."
@@ -144,8 +148,7 @@ class TorchDataset:
             yield self[index]
 
     # helper functions
-    def _set_globals(self):
-        """Sets the global values for storage provider and a few plugins"""
+    def _import_torch(self):
         global torch
         try:
             import torch
