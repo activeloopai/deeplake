@@ -20,8 +20,6 @@ from hub.util.exceptions import AuthenticationException
 def login(username: str, password: str):
     """Log in to Activeloop"""
     if not username:
-        # Setting all other arguments to None as username not provided
-        password = None
         click.echo("Login to Activeloop Hub using your credentials.")
         click.echo(
             "If you don't have an account, register by using the 'activeloop register' command or by going to "
@@ -76,11 +74,8 @@ def reporting(on):
 @click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def register(username: str, email: str, password: str):
     """Create a new Activeloop user account"""
-    # If any/all argument values are None, request the user to enter credentials
     click.echo("Thank you for registering for an Activeloop account!")
     if not username:
-        password = None
-        email = None
         click.echo(
             "Enter your details. Your password must be atleast 6 characters long."
         )
