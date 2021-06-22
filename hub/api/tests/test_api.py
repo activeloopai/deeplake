@@ -422,3 +422,7 @@ def test_hub_cloud_dataset():
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
     ds.delete()
+
+
+def test_version(local_ds):
+    assert local_ds.version == hub.__version__
