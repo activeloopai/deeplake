@@ -51,6 +51,13 @@ def test_tuples():
     np.testing.assert_array_equal(elems, [(10, 10), (10, 11)])
 
 
+def test_single_tuple():
+    L = [(99, 99)]
+    counts, elems = calculate_adjacent_runs(L)
+    np.testing.assert_array_equal(counts, [1])
+    np.testing.assert_array_equal(elems, [(99, 99)])
+
+
 def test_empty():
     L = []
     counts, elems = calculate_adjacent_runs(L)
