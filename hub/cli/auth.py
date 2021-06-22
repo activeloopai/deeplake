@@ -19,8 +19,9 @@ from hub.util.exceptions import AuthenticationException
 @click.option("--password", "-p", default=None, help="Your Activeloop Password")
 def login(username: str, password: str):
     """Log in to Activeloop"""
-    # If any/all argument values are None, request the user to enter credentials
-    if all([username, password]) == False:
+    if not username:
+        # Setting all other arguments to None as username not provided
+        password = None
         click.echo("Login to Activeloop Hub using your credentials.")
         click.echo(
             "If you don't have an account, register by using the 'activeloop register' command or by going to "
@@ -28,6 +29,10 @@ def login(username: str, password: str):
         )
         username = click.prompt("Username")
         password = click.prompt("Password", hide_input=True)
+    if not password:
+        password = click.prompt(
+            f"Please enter password for user {username}", hide_input=True
+        )
     username = username.strip()
     password = password.strip()
     try:
@@ -39,9 +44,9 @@ def login(username: str, password: str):
         if reporting_config.get("username") != username:
             save_reporting_config(True, username=username)
     except AuthenticationException:
-        raise SystemExit("\nLogin failed. Check username and password.")
+        raise SystemExit("Login failed. Check username and password.")
     except Exception as e:
-        raise SystemExit(f"\nUnable to login: {e}")
+        raise SystemExit(f"Unable to login: {e}")
 
 
 @click.command()
@@ -72,13 +77,25 @@ def reporting(on):
 def register(username: str, email: str, password: str):
     """Create a new Activeloop user account"""
     # If any/all argument values are None, request the user to enter credentials
-    if all([username, email, password]) == False:
+    click.echo("Thank you for registering for an Activeloop account!")
+    if not username:
+        password = None
+        email = None
         click.echo(
             "Enter your details. Your password must be atleast 6 characters long."
         )
         username = click.prompt("Username")
         email = click.prompt("Email")
         password = click.prompt("Password", hide_input=True)
+    if not password:
+        password = click.prompt(
+            f"Please enter the password you would like to associate with {username}",
+            hide_input=True,
+        )
+    if not email:
+        email = click.prompt(
+            f"Please enter the Email Address you would like to associate with {username}"
+        )
     username = username.strip()
     email = email.strip()
     password = password.strip()
@@ -88,7 +105,7 @@ def register(username: str, email: str, password: str):
         token = client.request_auth_token(username, password)
         write_token(token)
         click.echo(
-            f"\nSuccessfully registered and logged in to Activeloop Hub as {username}."
+            f"Successfully registered and logged in to Activeloop Hub as {username}."
         )
         consent_message = textwrap.dedent(
             """
@@ -99,10 +116,10 @@ def register(username: str, email: str, password: str):
                 https://www.activeloop.ai/privacy/
             If you would like to opt out of reporting crashes and system information,
             run the following command:
-                $ hub reporting --off
+                $ activeloop reporting --off
             """
         )
         click.echo(consent_message)
         save_reporting_config(True, username=username)
     except Exception as e:
-        raise SystemExit(f"\nUnable to register new user: {e}")
+        raise SystemExit(f"Unable to register new user: {e}")
