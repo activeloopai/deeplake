@@ -56,14 +56,14 @@ class Tensor:
                 0
                 >>> tensor.extend(np.zeros((100, 28, 28, 1)))
                 >>> len(tensor)
-                10
+                100
 
             file input:
                 >>> len(tensor)
                 0
                 >>> tensor.extend([
                         hub.load("path/to/image1"),
-                        hub.load("path/to/image2),
+                        hub.load("path/to/image2"),
                     ])
                 >>> len(tensor)
                 2
