@@ -110,10 +110,9 @@ def test_pytorch_large(ds):
         ds.create_tensor("image")
         arr = np.array(
             [
-                np.ones((4096, 4096)),
-                2 * np.ones((4096, 4096)),
-                3 * np.ones((4096, 4096)),
-                4 * np.ones((4096, 4096)),
+                np.ones((2200, 2200)),
+                2 * np.ones((2200, 2200)),
+                3 * np.ones((2200, 2200)),
             ]
         )
         ds.image.extend(arr)
@@ -135,7 +134,7 @@ def test_pytorch_large(ds):
     )
     for i, batch in enumerate(dl):
         actual_image = batch["image"].numpy()
-        expected_image = (i + 1) * np.ones((1, 4096, 4096))
+        expected_image = (i + 1) * np.ones((1, 2200, 2200))
 
         actual_label = batch["classlabel"].numpy()
         expected_label = (i) * np.ones((1,))
@@ -214,10 +213,9 @@ def test_pytorch_large_old(ds):
         ds.create_tensor("image")
         arr = np.array(
             [
-                np.ones((4096, 4096)),
-                2 * np.ones((4096, 4096)),
-                3 * np.ones((4096, 4096)),
-                4 * np.ones((4096, 4096)),
+                np.ones((2200, 2200)),
+                2 * np.ones((2200, 2200)),
+                3 * np.ones((2200, 2200)),
             ],
             dtype="uint8",
         )
@@ -234,7 +232,7 @@ def test_pytorch_large_old(ds):
     )
     for i, batch in enumerate(dl):
         actual_image = batch["image"].numpy()
-        expected_image = (i + 1) * np.ones((1, 4096, 4096))
+        expected_image = (i + 1) * np.ones((1, 2200, 2200))
 
         actual_label = batch["classlabel"].numpy()
         expected_label = (i) * np.ones((1,))
