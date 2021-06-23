@@ -9,7 +9,7 @@ SHAPE_ENCODING_DTYPE = np.uint64
 class ShapeEncoder:
     def __init__(self, storage: StorageProvider):
         self.storage = storage
-        self._encoded_shapes = None
+        self._encoded = None
         self.load_shapes()
 
     def load_shapes(self):
@@ -20,20 +20,20 @@ class ShapeEncoder:
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:
             raise IndexError(
-                f"Index {sample_index} is out of bounds for an empty shape meta."
+                f"Index {sample_index} is out of bounds for an empty shape encoding."
             )
 
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        shape_index = np.searchsorted(self._encoded_shapes[:, -1], sample_index)
-        return tuple(self._encoded_shapes[shape_index, :-1])
+        idx = np.searchsorted(self._encoded[:, -1], sample_index)
+        return tuple(self._encoded[idx, :-1])
 
     @property
     def num_samples(self) -> int:
-        if self._encoded_shapes is None:
+        if self._encoded is None:
             return 0
-        return int(self._encoded_shapes[-1, -1] + 1)
+        return int(self._encoded[-1, -1] + 1)
 
     def add_shape(
         self,
@@ -53,19 +53,15 @@ class ShapeEncoder:
 
             if shape == last_shape:
                 # increment last shape's index by `count`
-                self._encoded_shapes[-1, -1] += count
+                self._encoded[-1, -1] += count
 
             else:
-                last_shape_index = self._encoded_shapes[-1, -1]
+                last_shape_index = self._encoded[-1, -1]
                 shape_entry = np.array(
                     [[*shape, last_shape_index + count]], dtype=SHAPE_ENCODING_DTYPE
                 )
 
-                self._encoded_shapes = np.concatenate(
-                    [self._encoded_shapes, shape_entry], axis=0
-                )
+                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
 
         else:
-            self._encoded_shapes = np.array(
-                [[*shape, count - 1]], dtype=SHAPE_ENCODING_DTYPE
-            )
+            self._encoded = np.array([[*shape, count - 1]], dtype=SHAPE_ENCODING_DTYPE)
