@@ -4,7 +4,7 @@ import numpy as np
 from hub.core.storage.provider import StorageProvider
 from hub.core._chunk_engine import ChunkEngine
 
-from hub.constants import MB, KB
+from hub.constants import B, MB, KB
 
 
 KEY = "chunks"
@@ -23,44 +23,81 @@ def test_scalars(memory_storage: StorageProvider):
     assert engine.num_chunks == 1
 
 
-def test_fixed_arrays(memory_storage: StorageProvider):
+def test_arrays(memory_storage: StorageProvider):
     engine = ChunkEngine(
         KEY,
         memory_storage,
         None,
-        min_chunk_size_target=10 * KB,
-        max_chunk_size=100 * KB,
+        min_chunk_size_target=1 * KB,
+        max_chunk_size=5 * KB,
     )
 
-    a1 = np.arange(10 * 28 * 28 * 3, dtype=np.int32).reshape(10, 28, 28, 3)
+    a1 = np.arange(3 * 10 * 10 * 3, dtype=np.int32).reshape(3, 10, 10, 3)
+    assert a1.nbytes > engine.min_chunk_size_target
+    assert a1.nbytes < engine.max_chunk_size
+    assert a1.nbytes * 2 > engine.max_chunk_size
     a1_copy = deepcopy(a1)
 
-    # add approximately 95KB
     engine.extend(a1)
-    engine.append(a1[2])
+    engine.append(a1[0])
     engine.append(a1[-1])
 
-    np.testing.assert_array_equal(a1_copy, engine.get_sample(Index(slice(0, 10))))
-    np.testing.assert_array_equal(a1_copy[2], engine.get_sample(Index(10)))
+    np.testing.assert_array_equal(a1_copy, engine.get_sample(Index(slice(0, 3))))
+    np.testing.assert_array_equal(a1_copy[2], engine.get_sample(Index(3)))
     np.testing.assert_array_equal(a1_copy[-1], engine.get_sample(Index(-1)))
 
+    assert engine.num_samples == 5
     assert engine.num_chunks == 1
-    assert engine.num_samples == 12
 
-    # add approximately 94KB (requires 2 chunks)
+    a2 = np.arange(3 * 9 * 11 * 4, dtype=np.int32).reshape(3, 9, 11, 4)
+    assert a2.nbytes > engine.min_chunk_size_target
+    assert a2.nbytes < engine.max_chunk_size
+    assert a2.nbytes * 2 > engine.max_chunk_size
+    a2_copy = deepcopy(a2)
+
+    # requires 2 chunks to do this
+    engine.extend(a2)
+
+    np.testing.assert_array_equal(a2_copy, engine.get_sample(Index(3, 6)))
+
+    assert engine.num_samples == 8
+    assert engine.num_chunks == 2
+
+
+def test_large_arrays(memory_storage: StorageProvider):
+    engine = ChunkEngine(
+        KEY,
+        memory_storage,
+        None,
+        min_chunk_size_target=1 * KB,
+        max_chunk_size=5 * KB,
+    )
+
+    a1 = np.arange(10 * 10 * 10 * 3, dtype=np.int32).reshape(10, 10, 10, 3)
+    assert a1.nbytes > engine.max_chunk_size * 2 + engine.min_chunk_size_target
+    assert a1.nbytes < engine.max_chunk_size * 3
+    assert a1.nbytes * 2 > engine.max_chunk_size
+    a1_copy = deepcopy(a1)
+
     engine.extend(a1)
 
-    np.testing.assert_array_equal(a1_copy[-1], engine.get_sample(Index(-1)))
+    np.testing.assert_array_equal(a1_copy, engine.get_sample(Index(slice(0, 10))))
 
-    assert engine.num_chunks == 2
-    assert engine.num_samples == 22
+    assert engine.num_samples == 10
+    assert engine.num_chunks == 3
 
+    a2 = np.arange(10 * 9 * 10 * 4, dtype=np.int32).reshape(10, 9, 10, 4)
+    assert a2.nbytes > engine.max_chunk_size * 2 + engine.min_chunk_size_target
+    assert a2.nbytes < engine.max_chunk_size * 3
+    assert a2.nbytes * 2 > engine.max_chunk_size
+    a2_copy = deepcopy(a2)
 
-def test_dynamic_arrays(memory_storage: StorageProvider):
-    # TODO: dynamic samples that fit multiple in 1 chunk
+    engine.extend(a2)
 
-    # TODO: dynamic samples that are too large for 1 chunk
-    pass
+    np.testing.assert_array_equal(a2_copy, engine.get_sample(Index(slice(10, 20))))
+
+    assert engine.num_samples == 20
+    assert engine.num_chunks == 6
 
 
 def test_calculate_bytes():
@@ -71,4 +108,5 @@ def test_calculate_bytes():
 
 def test_failures(memory_storage: StorageProvider):
     # TODO: index error and stuff
+    # TODO: test that a dynamic tensor's len(shape) must be equal
     pass
