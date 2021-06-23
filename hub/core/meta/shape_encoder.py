@@ -1,4 +1,3 @@
-from hub.core import sample
 from hub.constants import SHAPE_META_FILENAME
 from typing import Tuple
 from hub.core.storage.provider import StorageProvider
@@ -8,7 +7,7 @@ import numpy as np
 SHAPE_META_DTYPE = np.uint64
 
 
-class ShapeMetaEncoder:
+class ShapeEncoder:
     def __init__(self, storage: StorageProvider):
         self.storage = storage
         self.key = SHAPE_META_FILENAME

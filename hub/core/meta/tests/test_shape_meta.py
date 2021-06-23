@@ -3,11 +3,11 @@ from typing import Sequence, Tuple
 from hub.core.storage.provider import StorageProvider
 import pytest
 import numpy as np
-from hub.core.meta.shape_meta import ShapeMetaEncoder
+from hub.core.meta.shape_encoder import ShapeEncoder
 
 
 def test_fixed(memory_storage: StorageProvider):
-    enc = ShapeMetaEncoder(memory_storage)
+    enc = ShapeEncoder(memory_storage)
 
     enc.add_shape((28, 28, 3), 1000)
     enc.add_shape((28, 28, 3), 1000)
@@ -26,7 +26,7 @@ def test_fixed(memory_storage: StorageProvider):
 
 
 def test_dynamic(memory_storage: StorageProvider):
-    enc = ShapeMetaEncoder(memory_storage)
+    enc = ShapeEncoder(memory_storage)
 
     enc.add_shape((28, 28, 3), 1000)
     enc.add_shape((28, 28, 3), 1000)
@@ -45,7 +45,7 @@ def test_dynamic(memory_storage: StorageProvider):
 
 
 def test_empty(memory_storage: StorageProvider):
-    enc = ShapeMetaEncoder(memory_storage)
+    enc = ShapeEncoder(memory_storage)
 
     with pytest.raises(ValueError):
         enc.add_shape((5,), 0)
@@ -67,7 +67,7 @@ def test_empty(memory_storage: StorageProvider):
 
 
 def test_scalars(memory_storage: StorageProvider):
-    enc = ShapeMetaEncoder(memory_storage)
+    enc = ShapeEncoder(memory_storage)
 
     assert enc.num_samples == 0
 
@@ -93,7 +93,7 @@ def test_scalars(memory_storage: StorageProvider):
 
 
 def test_failures(memory_storage: StorageProvider):
-    enc = ShapeMetaEncoder(memory_storage)
+    enc = ShapeEncoder(memory_storage)
 
     with pytest.raises(ValueError):
         enc.add_shape((5,), 0)
