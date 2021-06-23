@@ -153,7 +153,7 @@ class Dataset:
         chunk_compression: str = None,
         **kwargs,
     ):
-        """Creates a new tensor in a dataset.
+        """Creates a new tensor in the dataset.
 
         Args:
             name (str): The name of the tensor to be created.
@@ -274,7 +274,10 @@ class Dataset:
         }
 
     def tensorflow(self):
-        """Converts the dataset into a pytorch compatible format.
+        """Converts the dataset into a tensorflow compatible format.
+
+        See:
+            https://www.tensorflow.org/api_docs/python/tf/data/Dataset
 
         Returns:
             tf.data.Dataset object that can be used for tensorflow training.

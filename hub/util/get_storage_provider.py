@@ -42,10 +42,10 @@ def storage_provider_from_path(
         token (str): token for authentication into activeloop
 
     Returns:
-        If given a valid S3 path i.e starts with s3:// returns the S3Provider and mode. (credentials should either be in creds or the environment)
-        If given a path starting with mem://return the MemoryProvider and mode.
-        If given a valid local path, return the LocalProvider and mode.
-
+        If given a path starting with s3://  returns the S3Provider.
+        If given a path starting with mem:// returns the MemoryProvider.
+        If given a path starting with hub:// returns the underlying cloud Provider.
+        If given a valid local path, returns the LocalProvider.
 
     Raises:
         ValueError: If the given path is a local path to a file.
