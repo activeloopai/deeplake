@@ -40,32 +40,40 @@ class ChunkNameEncoder:
         # TODO: return actual chunk name (with delimited range)
         return _chunk_name_from_id(id)
 
-    def add_samples_to_chunk(
-        self, count: int, extend_previous: bool
-    ) -> CHUNK_NAME_ENCODING_DTYPE:
-        if count <= 0:
-            raise ValueError(f"Sample `count` should be > 0. Got {count}.")
+    def extend_chunk(self, count: int):
+        _validate_count(count)
 
         if self.num_samples == 0:
-            if extend_previous:
-                raise Exception(
-                    "Cannot extend the previous chunk because it doesn't exist."
-                )  # TODO: exceptions.py
+            raise Exception(
+                "Cannot extend the previous chunk because it doesn't exist."
+            )
 
+        self._encoded[-1, -1] += count
+
+        # TODO: check if previous chunk can be combined
+
+    def append_chunk(self, count: int):
+        _validate_count(count)
+
+        if self.num_samples == 0:
             id = _generate_chunk_id()
             self._encoded = np.array(
                 [[id, 1, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
         else:
-            if extend_previous:
-                self._encoded[-1, -1] += count
-            else:
-                id = _generate_chunk_id()
+            id = _generate_chunk_id()
 
-                # TODO: check if we can use the previous chunk name (and add the delimited range)
-                last_index = self.num_samples - 1
+            # TODO: check if we can use the previous chunk name (and add the delimited range)
+            last_index = self.num_samples - 1
 
-                new_entry = np.array(
-                    [[id, 1, last_index + count]], dtype=CHUNK_NAME_ENCODING_DTYPE
-                )
-                self._encoded = np.concatenate([self._encoded, new_entry])
+            new_entry = np.array(
+                [[id, 1, last_index + count]], dtype=CHUNK_NAME_ENCODING_DTYPE
+            )
+            self._encoded = np.concatenate([self._encoded, new_entry])
+
+        # TODO: check if previous chunk can be combined
+
+
+def _validate_count(count: int):
+    if count <= 0:
+        raise ValueError(f"Sample `count` should be > 0. Got {count}.")

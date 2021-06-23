@@ -7,20 +7,20 @@ from hub.core.storage.provider import StorageProvider
 def test_trivial():
     enc = ChunkNameEncoder()
 
-    enc.add_samples_to_chunk(10, False)
+    enc.append_chunk(10)
 
     id1 = enc[0]
     assert enc[9] == id1
 
-    enc.add_samples_to_chunk(10, True)
-    enc.add_samples_to_chunk(9, True)
-    enc.add_samples_to_chunk(1, True)
+    enc.extend_chunk(10)
+    enc.extend_chunk(9)
+    enc.extend_chunk(1)
 
     # new chunks
-    enc.add_samples_to_chunk(1, False)
-    enc.add_samples_to_chunk(5, False)
+    enc.append_chunk(1)
+    enc.append_chunk(5)
 
-    enc.add_samples_to_chunk(1, True)
+    enc.extend_chunk(1)
 
     id2 = enc[30]
     id3 = enc[31]
@@ -56,18 +56,18 @@ def test_failures():
 
     # cannot extend previous if no samples exist
     with pytest.raises(Exception):  # TODO: exceptions.py
-        enc.add_samples_to_chunk(0, True)
+        enc.extend_chunk(0)
 
     with pytest.raises(IndexError):
         enc[-1]
 
-    enc.add_samples_to_chunk(10, False)
+    enc.append_chunk(10)
 
     with pytest.raises(ValueError):
-        enc.add_samples_to_chunk(0, True)
+        enc.extend_chunk(0)
 
     with pytest.raises(ValueError):
-        enc.add_samples_to_chunk(0, False)
+        enc.append_chunk(0)
 
     with pytest.raises(IndexError):
         enc[10]
