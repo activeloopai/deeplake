@@ -44,6 +44,9 @@ class ChunkEngine:
 
     def extend(self, array: np.ndarray):
         # TODO: implement this!
+
+        self.tensor_meta.check_compatibility(array.shape[1:], array.dtype)
+
         tensor.extend_tensor(
             array, self.key, self.storage, self.tensor_meta, self.index_meta
         )

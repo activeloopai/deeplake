@@ -33,7 +33,7 @@ def write_samples(
     """
 
     for sample in samples:
-        tensor_meta.check_array_sample_is_compatible(sample.array)
+        tensor_meta.check_compatibility(sample.shape, sample.dtype)
 
         extra_sample_meta = {  # TODO: convert to kwargs
             "shape": sample.shape,
