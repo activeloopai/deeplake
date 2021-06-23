@@ -6,6 +6,16 @@ CHUNK_ID_BITS = 64
 CHUNK_NAME_ENCODING_DTYPE = np.uint64
 
 
+# entry structure:
+# [chunk_id, num_chunks, num_samples_per_chunk, last_index]
+
+# index definitions:
+CHUNK_ID_INDEX = 0
+NUM_CHUNKS_INDEX = 1
+NUM_SAMPLES_INDEX = 2
+LAST_INDEX_INDEX = 3
+
+
 def _generate_chunk_id() -> CHUNK_NAME_ENCODING_DTYPE:
     return CHUNK_NAME_ENCODING_DTYPE(uuid4().int >> CHUNK_ID_BITS)
 
@@ -22,7 +32,7 @@ class ChunkNameEncoder:
     def num_samples(self) -> int:
         if self._encoded is None:
             return 0
-        return int(self._encoded[-1, -1] + 1)
+        return int(self._encoded[-1, LAST_INDEX_INDEX] + 1)
 
     def get_chunk_id(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
         """Returns the chunk name corresponding to `sample_index`."""
@@ -35,8 +45,8 @@ class ChunkNameEncoder:
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        idx = np.searchsorted(self._encoded[:, -1], sample_index)
-        id = self._encoded[idx, 0]
+        idx = np.searchsorted(self._encoded[:, LAST_INDEX_INDEX], sample_index)
+        id = self._encoded[idx, CHUNK_ID_INDEX]
         # TODO: return actual chunk name (with delimited range)
         return _chunk_name_from_id(id)
 
@@ -48,7 +58,9 @@ class ChunkNameEncoder:
                 "Cannot extend the previous chunk because it doesn't exist."
             )
 
-        self._encoded[-1, -1] += count
+        last_entry = self._encoded[-1]
+        last_entry[LAST_INDEX_INDEX] += count
+        last_entry[NUM_SAMPLES_INDEX] += count
 
         # TODO: check if previous chunk can be combined
 
@@ -58,7 +70,7 @@ class ChunkNameEncoder:
         if self.num_samples == 0:
             id = _generate_chunk_id()
             self._encoded = np.array(
-                [[id, 1, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
+                [[id, 1, count, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
         else:
             id = _generate_chunk_id()
@@ -67,7 +79,7 @@ class ChunkNameEncoder:
             last_index = self.num_samples - 1
 
             new_entry = np.array(
-                [[id, 1, last_index + count]], dtype=CHUNK_NAME_ENCODING_DTYPE
+                [[id, 1, count, last_index + count]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
             self._encoded = np.concatenate([self._encoded, new_entry])
 

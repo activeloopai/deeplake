@@ -92,7 +92,7 @@ def test_failures():
         enc.extend_chunk(0)
 
     with pytest.raises(IndexError):
-        enc[-1]
+        enc.get_chunk_id(-1)
 
     enc.append_chunk(10)
 
