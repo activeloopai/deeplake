@@ -7,15 +7,7 @@ SHAPE_ENCODING_DTYPE = np.uint64
 
 
 class ShapeEncoder:
-    def __init__(self, storage: StorageProvider):
-        self.storage = storage
-        self._encoded = None
-        self.load_shapes()
-
-    def load_shapes(self):
-        if self.key in self.storage:
-            # TODO: read/parse from storage
-            raise NotImplementedError()
+    _encoded = None
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:

@@ -3,8 +3,8 @@ import pytest
 from hub.core.meta.encode.shape import ShapeEncoder
 
 
-def test_fixed(memory_storage: StorageProvider):
-    enc = ShapeEncoder(memory_storage)
+def test_fixed():
+    enc = ShapeEncoder()
 
     enc.add_shape((28, 28, 3), 1000)
     enc.add_shape((28, 28, 3), 1000)
@@ -22,8 +22,8 @@ def test_fixed(memory_storage: StorageProvider):
     assert enc[-1] == (28, 28, 3)
 
 
-def test_dynamic(memory_storage: StorageProvider):
-    enc = ShapeEncoder(memory_storage)
+def test_dynamic():
+    enc = ShapeEncoder()
 
     enc.add_shape((28, 28, 3), 1000)
     enc.add_shape((28, 28, 3), 1000)
@@ -41,8 +41,8 @@ def test_dynamic(memory_storage: StorageProvider):
     assert enc[-1] == (28, 28, 3)
 
 
-def test_empty(memory_storage: StorageProvider):
-    enc = ShapeEncoder(memory_storage)
+def test_empty():
+    enc = ShapeEncoder()
 
     with pytest.raises(ValueError):
         enc.add_shape((5,), 0)
@@ -63,8 +63,8 @@ def test_empty(memory_storage: StorageProvider):
         enc[-1]
 
 
-def test_scalars(memory_storage: StorageProvider):
-    enc = ShapeEncoder(memory_storage)
+def test_scalars():
+    enc = ShapeEncoder()
 
     assert enc.num_samples == 0
 
@@ -89,8 +89,8 @@ def test_scalars(memory_storage: StorageProvider):
         enc[526]
 
 
-def test_failures(memory_storage: StorageProvider):
-    enc = ShapeEncoder(memory_storage)
+def test_failures():
+    enc = ShapeEncoder()
 
     with pytest.raises(ValueError):
         enc.add_shape((5,), 0)
