@@ -24,7 +24,7 @@ class ChunkNameEncoder:
             return 0
         return int(self._encoded[-1, -1] + 1)
 
-    def __getitem__(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
+    def get_chunk_id(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
         """Returns the chunk name corresponding to `sample_index`."""
 
         if self.num_samples == 0:
