@@ -1,10 +1,14 @@
+from hub.core.chunk import Chunk
+from math import ceil
 from hub.core.meta.index_meta import IndexMeta
+from hub.core.meta.encode.chunk_name import ChunkNameEncoder
 from hub.core.index.index import Index
-from typing import Tuple
+from typing import List, Tuple
 import numpy as np
 from hub.core.typing import StorageProvider
 from hub.core.meta.tensor_meta import TensorMeta
 from hub import constants
+from hub.core.chunk_engine.flatten import row_wise_to_bytes
 
 import hub.core.tensor as tensor
 
@@ -14,23 +18,26 @@ class ChunkEngine:
         self,
         key: str,
         storage: StorageProvider,
-        min_chunk_size_target=constants.DEFAULT_CHUNK_MIN_TARGET,
-        max_chunk_size=constants.DEFAULT_CHUNK_MAX_SIZE,
+        min_chunk_size_target: int = constants.DEFAULT_CHUNK_MIN_TARGET,
+        max_chunk_size: int = constants.DEFAULT_CHUNK_MAX_SIZE,
         create_tensor: bool = False,
     ):
         self.key = key
         self.storage = storage
+        self.cached_chunks = []
 
         self.min_chunk_size_target = min_chunk_size_target
         self.max_chunk_size = max_chunk_size
 
-        self._chunks = {}
-
         # TODO: remove this block!!!!!
         if create_tensor:
             tensor.create_tensor(self.key, self.storage)
+
         self.tensor_meta = TensorMeta.load(self.key, self.storage)
         self.index_meta = IndexMeta.load(self.key, self.storage)
+
+        # TODO: load if already exists
+        self._chunk_names_encoder = ChunkNameEncoder()
 
     @property
     def num_chunks(self):
@@ -45,11 +52,73 @@ class ChunkEngine:
     def extend(self, array: np.ndarray):
         # TODO: implement this!
 
-        self.tensor_meta.check_compatibility(array.shape[1:], array.dtype)
+        sample_count = array.shape[0]
+        sample_shape = array.shape[1:]
 
-        tensor.extend_tensor(
-            array, self.key, self.storage, self.tensor_meta, self.index_meta
-        )
+        self.tensor_meta.check_compatibility(sample_shape, array.dtype)
+
+        # TODO: replace with space filling curves to optimize access patterns
+        # TODO: space filling curves will break the logic below because row_wise_to_bytes is C ordered
+        data_buffer = row_wise_to_bytes(array)
+
+        last_chunk = self.get_last_chunk()
+        extend_previous = last_chunk is not None and last_chunk.has_space
+
+        if extend_previous:
+            last_chunk_size = len(last_chunk)
+            min_chunks_required = self.min_chunks_required_for_num_bytes(
+                len(data_buffer)
+            )
+
+            extra_bytes = min(len(data_buffer), self.max_chunk_size - last_chunk_size)
+            combined_min_chunks_required = self.min_chunks_required_for_num_bytes(
+                len(data_buffer) + last_chunk_size
+            )
+
+            # combine if count is same
+            if combined_min_chunks_required == min_chunks_required:
+                last_chunk.extend(data_buffer[0:extra_bytes], sample_count)
+                data_buffer = data_buffer[extra_bytes:]
+
+        else:
+            new_chunk = Chunk(self.min_chunk_size_target, self.max_chunk_size)
+            self.cached_chunks.append(new_chunk)
+
+            # TODO: add data to new chunk
+
+        """
+        if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
+            last_chunk_size = len(last_chunk)
+            chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
+
+            extra_bytes = min(len(content), DEFAULT_CHUNK_MAX_SIZE - last_chunk_size)
+            combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
+
+            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
+                start_byte = index_meta.entries[-1]["end_byte"]
+                end_byte = start_byte + extra_bytes
+
+                chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
+                _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
+
+                content = content[extra_bytes:]
+
+        while len(content) > 0:
+            end_byte = min(len(content), DEFAULT_CHUNK_MAX_SIZE)
+
+            chunk_content = content[:end_byte]  # type: ignore
+            _write_chunk(chunk_content, storage, chunk_names, key)
+
+            content = content[end_byte:]
+
+            # TODO: turn bool arg into 2 methods instead of 1
+            # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
+            self._chunk_names_encoder.add_samples_to_chunk(sample_count, extend_previous)
+
+            # tensor.extend_tensor(
+            # array, self.key, self.storage, self.tensor_meta, self.index_meta
+            # )
+        """
 
     def append(self, array: np.ndarray):
         # TODO: implement this!
@@ -63,6 +132,13 @@ class ChunkEngine:
             self.key, self.storage, index, aslist=aslist
         )
 
+    def get_last_chunk(self) -> Chunk:
+        raise NotImplementedError()  # TODO
+
     @staticmethod
     def calculate_bytes(shape: Tuple[int], dtype: np.dtype):
         return np.prod(shape) * dtype().itemsize
+
+    def min_chunks_required_for_num_bytes(self, num_bytes: int) -> int:
+        """Calculates the minimum number of chunks in which data of given size can be fit."""
+        return ceil(num_bytes / self.max_chunk_size)
