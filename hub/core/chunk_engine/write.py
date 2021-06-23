@@ -1,5 +1,5 @@
 from hub.constants import (
-    CHUNK_MAX_SIZE,
+    DEFAULT_CHUNK_MAX_SIZE,
     UNCOMPRESSED,
     USE_UNIFORM_COMPRESSION_PER_SAMPLE,
 )
@@ -114,7 +114,7 @@ def write_bytes(
         last_chunk_size = len(last_chunk)
         chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
 
-        extra_bytes = min(len(content), CHUNK_MAX_SIZE - last_chunk_size)
+        extra_bytes = min(len(content), DEFAULT_CHUNK_MAX_SIZE - last_chunk_size)
         combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
 
         if combined_chunk_ct == chunk_ct_content:  # combine if count is same
@@ -127,7 +127,7 @@ def write_bytes(
             content = content[extra_bytes:]
 
     while len(content) > 0:
-        end_byte = min(len(content), CHUNK_MAX_SIZE)
+        end_byte = min(len(content), DEFAULT_CHUNK_MAX_SIZE)
 
         chunk_content = content[:end_byte]  # type: ignore
         _write_chunk(chunk_content, storage, chunk_names, key)
@@ -174,7 +174,7 @@ def _generate_chunk_name() -> str:
 
 def _min_chunk_ct_for_data_size(size: int) -> int:
     """Calculates the minimum number of chunks in which data of given size can be fit."""
-    return ceil(size / CHUNK_MAX_SIZE)
+    return ceil(size / DEFAULT_CHUNK_MAX_SIZE)
 
 
 def _chunk_has_space(chunk: memoryview, chunk_min_target: int) -> bool:

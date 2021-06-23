@@ -64,27 +64,12 @@ def create_tensor(
     IndexMeta.create(key, storage)
 
 
-def _get_metas_from_kwargs(
-    key: str, storage: StorageProvider, **kwargs
-) -> Tuple[TensorMeta, IndexMeta]:
-    if "tensor_meta" in kwargs:
-        tensor_meta = kwargs["tensor_meta"]
-    else:
-        tensor_meta = TensorMeta.load(key, storage)
-
-    if "index_meta" in kwargs:
-        index_meta = kwargs["index_meta"]
-    else:
-        index_meta = IndexMeta.load(key, storage)
-
-    return tensor_meta, index_meta
-
-
 def append_tensor(
     sample: Optional[Union[np.ndarray, Sample, float, int]],
     key: str,
     storage: StorageProvider,
-    **kwargs,
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
 ):
     """Append to an existing tensor with an array. This array will be chunked and sent to `storage`.
 
@@ -94,9 +79,8 @@ def append_tensor(
         sample (Union[np.ndarray, Sample, float, int]): Data to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
-        **kwargs:
-            tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-            index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+        tensor_meta (TensorMeta): Provide a `TensorMeta` that will be read from/written to.
+        index_meta (IndexMeta): Provide an `IndexMeta` that will be read from/written to.
 
     Raises:
         TensorDoesNotExistError: If a tensor at `key` does not exist. A tensor must be created first using
@@ -108,16 +92,17 @@ def append_tensor(
     if isinstance(sample, (np.ndarray, int, float, list)):
         # append is guaranteed to NOT have a batch axis
         array = np.expand_dims(sample, axis=0)
-        extend_tensor(array, key, storage, **kwargs)
+        extend_tensor(array, key, storage, tensor_meta, index_meta)
     else:
-        extend_tensor([sample], key, storage, **kwargs)
+        extend_tensor([sample], key, storage, tensor_meta, index_meta)
 
 
 def extend_tensor(
     samples: Union[np.ndarray, Sequence[np.ndarray], Sequence[Sample]],
     key: str,
     storage: StorageProvider,
-    **kwargs,
+    tensor_meta: TensorMeta,
+    index_meta: IndexMeta,
 ):
     """Extend an existing tensor with an array/sequence of `Sample`s. This array will be chunked and sent to `storage`.
 
@@ -127,9 +112,8 @@ def extend_tensor(
         samples (np.ndarray, Sequence[Sample]): Batch of samples to be chunked/written.
         key (str): Key for where the chunks, index_meta, and meta will be located in `storage` relative to it's root.
         storage (StorageProvider): StorageProvider for storing the chunks, index_meta, and meta.
-        **kwargs:
-            tensor_meta (TensorMeta): Optionally provide a `TensorMeta`. If not provided, it will be loaded from `storage`.
-            index_meta (IndexMeta): Optionally provide an `IndexMeta`. If not provided, it will be loaded from `storage`.
+        tensor_meta (TensorMeta): Provide a `TensorMeta` that will be read from/written to.
+        index_meta (IndexMeta): Provide an `IndexMeta` that will be read from/written to.
 
     Raises:
         ValueError: If `samples` cannot be used to extend.
@@ -140,8 +124,6 @@ def extend_tensor(
 
     if not tensor_exists(key, storage):
         raise TensorDoesNotExistError(key)
-
-    tensor_meta, index_meta = _get_metas_from_kwargs(key, storage, **kwargs)
 
     # extend is guaranteed to have a batch axis
     if isinstance(samples, np.ndarray):

@@ -5,7 +5,7 @@ from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.constants import CHUNK_MAX_SIZE
+from hub.constants import DEFAULT_CHUNK_MAX_SIZE
 
 
 def transform_sample(
@@ -77,7 +77,7 @@ def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
             elif (
                 len(entry["chunk_names"]) > 1 and entry["chunk_names"][0] == chunk_name
             ):
-                chunk_size = CHUNK_MAX_SIZE
+                chunk_size = DEFAULT_CHUNK_MAX_SIZE
             else:
                 break
 
@@ -99,7 +99,7 @@ def merge_chunks(
     """
     if (
         first_chunk_size < chunk_min_target
-        and first_chunk_size + last_chunk_size <= CHUNK_MAX_SIZE
+        and first_chunk_size + last_chunk_size <= DEFAULT_CHUNK_MAX_SIZE
     ):
         first_chunk_key = get_chunk_key(tensor, first_chunk_name)
         last_chunk_key = get_chunk_key(tensor, last_chunk_name)
