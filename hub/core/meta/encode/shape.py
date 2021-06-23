@@ -1,16 +1,14 @@
-from hub.constants import SHAPE_META_FILENAME
 from typing import Tuple
 from hub.core.storage.provider import StorageProvider
 import numpy as np
 
 
-SHAPE_META_DTYPE = np.uint64
+SHAPE_ENCODING_DTYPE = np.uint64
 
 
 class ShapeEncoder:
     def __init__(self, storage: StorageProvider):
         self.storage = storage
-        self.key = SHAPE_META_FILENAME
         self._encoded_shapes = None
         self.load_shapes()
 
@@ -60,7 +58,7 @@ class ShapeEncoder:
             else:
                 last_shape_index = self._encoded_shapes[-1, -1]
                 shape_entry = np.array(
-                    [[*shape, last_shape_index + count]], dtype=SHAPE_META_DTYPE
+                    [[*shape, last_shape_index + count]], dtype=SHAPE_ENCODING_DTYPE
                 )
 
                 self._encoded_shapes = np.concatenate(
@@ -69,5 +67,5 @@ class ShapeEncoder:
 
         else:
             self._encoded_shapes = np.array(
-                [[*shape, count - 1]], dtype=SHAPE_META_DTYPE
+                [[*shape, count - 1]], dtype=SHAPE_ENCODING_DTYPE
             )

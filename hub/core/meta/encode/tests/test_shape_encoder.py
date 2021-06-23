@@ -1,9 +1,6 @@
-from typing import Sequence, Tuple
-
 from hub.core.storage.provider import StorageProvider
 import pytest
-import numpy as np
-from hub.core.meta.shape_encoder import ShapeEncoder
+from hub.core.meta.encode.shape import ShapeEncoder
 
 
 def test_fixed(memory_storage: StorageProvider):
