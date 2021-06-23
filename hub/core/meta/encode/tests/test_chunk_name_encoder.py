@@ -38,17 +38,50 @@ def test_trivial():
     assert len(enc._encoded) == 3
 
 
-# TODO:
-# def test_delimeted():
-#     enc = ChunkNameEncoder()
-#
-#     id1 = enc.add_samples_to_chunk(10, False)
-#     id2 = enc.add_samples_to_chunk(10, False)
-#
-#     assert id1 == id2
-#
-#     assert enc.num_samples == 20
-#     assert len(enc._encoded) == 1  # should be 1 because id1 and id2 can be combined
+def test_auto_combine():
+    enc = ChunkNameEncoder()
+
+    # these can all be squeezed into 1 chunk id
+    enc.append_chunk(10)
+    enc.append_chunk(10)
+    enc.append_chunk(10)
+    enc.append_chunk(5)
+
+    # cannot combine yet
+    assert enc[30] != enc[20]
+
+    # now can combine
+    enc.extend_chunk(5)
+
+    assert enc[0] == enc[10]
+    assert enc[10] == enc[20]
+    assert enc[30] == enc[35]
+    assert enc[0] == enc[35]
+
+    assert enc.num_samples == 40
+
+    # should be 1 because chunks with the same counts can be combined
+    assert len(enc._encoded) == 1
+
+    enc.append_chunk(9)
+
+    # cannot combine
+    assert len(enc._encoded) == 2
+
+    enc.append_chunk(10)
+
+    # cannot combine
+    assert len(enc._encoded) == 3
+
+    enc.append_chunk(3)
+
+    # cannot combine
+    assert len(enc._encoded) == 4
+
+    enc.extend_chunk(7)
+
+    # now can combine
+    assert len(enc._encoded) == 3
 
 
 def test_failures():
