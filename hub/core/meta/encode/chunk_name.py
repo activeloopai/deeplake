@@ -1,3 +1,4 @@
+from re import I
 import numpy as np
 from uuid import uuid4
 
@@ -27,6 +28,13 @@ def _chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
 class ChunkNameEncoder:
     def __init__(self):
         self._encoded = None
+        self._last_was_finalized = False
+
+    @property
+    def num_ids(self) -> int:
+        if self._encoded is None:
+            return 0
+        return len(self._encoded)
 
     @property
     def num_samples(self) -> int:
@@ -62,6 +70,8 @@ class ChunkNameEncoder:
         last_entry[LAST_INDEX_INDEX] += count
         last_entry[NUM_SAMPLES_INDEX] += count
 
+        self._last_was_finalized = False
+
         # TODO: check if previous chunk can be combined
 
     def append_chunk(self, count: int):
@@ -73,6 +83,9 @@ class ChunkNameEncoder:
                 [[id, 1, count, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
         else:
+            if not self._last_was_finalized:
+                self.finalize_last_chunk()
+
             id = _generate_chunk_id()
 
             # TODO: check if we can use the previous chunk name (and add the delimited range)
@@ -83,7 +96,34 @@ class ChunkNameEncoder:
             )
             self._encoded = np.concatenate([self._encoded, new_entry])
 
+        self._last_was_finalized = False
+
         # TODO: check if previous chunk can be combined
+
+    def finalize_last_chunk(self):
+        # TODO: docstring that explains what this does
+
+        if self.num_ids == 0:
+            # TODO: exceptions.py (and test)
+            raise Exception("Cannot finalize last chunk because it doesn't exist.")
+
+        if self._last_was_finalized:
+            # TODO: exceptions.py (and test)
+            raise Exception("The last chunk was already finalized...")
+
+        # can only combine if at least 2 unique chunk_ids exist
+        if self.num_ids >= 2:
+            last_entry = self._encoded[-2]
+            current_entry = self._encoded[-1]
+
+            can_combine = (
+                current_entry[NUM_SAMPLES_INDEX] == last_entry[NUM_SAMPLES_INDEX]
+            )
+
+            if can_combine:
+                last_entry[LAST_INDEX_INDEX] = current_entry[LAST_INDEX_INDEX]
+                self._encoded = self._encoded[:-1]
+                self._last_was_finalized = True
 
 
 def _validate_count(count: int):

@@ -52,6 +52,7 @@ def test_auto_combine():
 
     # now can combine
     enc.extend_chunk(5)
+    enc.finalize_last_chunk()
 
     assert enc.get_chunk_id(0) == enc.get_chunk_id(10)
     assert enc.get_chunk_id(10) == enc.get_chunk_id(20)
@@ -79,6 +80,7 @@ def test_auto_combine():
     assert len(enc._encoded) == 4
 
     enc.extend_chunk(7)
+    enc.finalize_last_chunk()
 
     # now can combine
     assert len(enc._encoded) == 3
