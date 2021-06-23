@@ -11,7 +11,7 @@ KEY = "chunks"
 
 
 def test_scalars(memory_storage: StorageProvider):
-    engine = ChunkEngine(KEY, memory_storage)
+    engine = ChunkEngine(KEY, memory_storage, create_tensor=True)
 
     engine.extend(np.arange(1000))
     engine.append(1000)
@@ -29,6 +29,7 @@ def test_arrays(memory_storage: StorageProvider):
         memory_storage,
         min_chunk_size_target=1 * KB,
         max_chunk_size=5 * KB,
+        create_tensor=True,
     )
 
     a1 = np.arange(3 * 10 * 10 * 3, dtype=np.int32).reshape(3, 10, 10, 3)
@@ -69,6 +70,7 @@ def test_large_arrays(memory_storage: StorageProvider):
         memory_storage,
         min_chunk_size_target=1 * KB,
         max_chunk_size=5 * KB,
+        create_tensor=True,
     )
 
     a1 = np.arange(10 * 10 * 10 * 3, dtype=np.int32).reshape(10, 10, 10, 3)

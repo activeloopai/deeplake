@@ -16,6 +16,7 @@ class ChunkEngine:
         storage: StorageProvider,
         min_chunk_size_target=constants.DEFAULT_CHUNK_MIN_TARGET,
         max_chunk_size=constants.DEFAULT_CHUNK_MAX_SIZE,
+        create_tensor: bool = False,
     ):
         self.key = key
         self.storage = storage
@@ -25,8 +26,9 @@ class ChunkEngine:
 
         self._chunks = {}
 
-        # TODO: remove this!!!!!
-        tensor.create_tensor(self.key, self.storage)
+        # TODO: remove this block!!!!!
+        if create_tensor:
+            tensor.create_tensor(self.key, self.storage)
         self.tensor_meta = TensorMeta.load(self.key, self.storage)
         self.index_meta = IndexMeta.load(self.key, self.storage)
 
