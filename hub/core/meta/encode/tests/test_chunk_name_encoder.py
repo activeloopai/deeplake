@@ -52,7 +52,7 @@ def test_auto_combine():
 
     # now can combine
     enc.extend_chunk(5)
-    enc.finalize_last_chunk()
+    enc.try_combining_last_two_chunks()
 
     assert enc.get_chunk_id(0) == enc.get_chunk_id(10)
     assert enc.get_chunk_id(10) == enc.get_chunk_id(20)
@@ -80,7 +80,7 @@ def test_auto_combine():
     assert len(enc._encoded) == 4
 
     enc.extend_chunk(7)
-    enc.finalize_last_chunk()
+    enc.try_combining_last_two_chunks()
 
     # now can combine
     assert len(enc._encoded) == 3
@@ -88,6 +88,9 @@ def test_auto_combine():
 
 def test_failures():
     enc = ChunkNameEncoder()
+
+    with pytest.raises(Exception):  # TODO: exceptions.py
+        enc.try_combining_last_two_chunks()
 
     # cannot extend previous if no samples exist
     with pytest.raises(Exception):  # TODO: exceptions.py

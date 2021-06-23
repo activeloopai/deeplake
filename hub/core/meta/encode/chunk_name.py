@@ -70,8 +70,6 @@ class ChunkNameEncoder:
         last_entry[LAST_INDEX_INDEX] += count
         last_entry[NUM_SAMPLES_INDEX] += count
 
-        self._last_was_finalized = False
-
         # TODO: check if previous chunk can be combined
 
     def append_chunk(self, count: int):
@@ -83,8 +81,7 @@ class ChunkNameEncoder:
                 [[id, 1, count, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
         else:
-            if not self._last_was_finalized:
-                self.finalize_last_chunk()
+            self.try_combining_last_two_chunks()
 
             id = _generate_chunk_id()
 
@@ -96,20 +93,14 @@ class ChunkNameEncoder:
             )
             self._encoded = np.concatenate([self._encoded, new_entry])
 
-        self._last_was_finalized = False
-
         # TODO: check if previous chunk can be combined
 
-    def finalize_last_chunk(self):
+    def try_combining_last_two_chunks(self):
         # TODO: docstring that explains what this does
 
         if self.num_ids == 0:
-            # TODO: exceptions.py (and test)
+            # TODO: exceptions.py
             raise Exception("Cannot finalize last chunk because it doesn't exist.")
-
-        if self._last_was_finalized:
-            # TODO: exceptions.py (and test)
-            raise Exception("The last chunk was already finalized...")
 
         # can only combine if at least 2 unique chunk_ids exist
         if self.num_ids >= 2:
@@ -123,7 +114,6 @@ class ChunkNameEncoder:
             if can_combine:
                 last_entry[LAST_INDEX_INDEX] = current_entry[LAST_INDEX_INDEX]
                 self._encoded = self._encoded[:-1]
-                self._last_was_finalized = True
 
 
 def _validate_count(count: int):
