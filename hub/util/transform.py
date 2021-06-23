@@ -15,12 +15,10 @@ def transform_sample(
 ) -> List[dict]:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
-
     Args:
         sample: The sample on which the pipeline of functions is to be applied.
         pipeline: The Sequence of functions to apply on the sample.
         kwarg_list: A list of kwargs to be used with functions in the pipeline.
-
     Returns:
         List[Dict]: Containing a dictionary of all the output samples generated.
     """
@@ -133,16 +131,16 @@ def merge_tensor_metas(
         for all_tensor_meta in all_workers_tensor_meta:
             current_meta = all_tensor_meta[tensor]
             # will be None if 0 outputs from worker
-            if tensor_meta.dtype is None:
+            if tensor_meta.max_shape == [] or tensor_meta.dtype is None:
                 tensor_meta.dtype = current_meta["dtype"]
                 tensor_meta.max_shape = current_meta["max_shape"]
                 tensor_meta.min_shape = current_meta["min_shape"]
-            if current_meta["dtype"] is not None:
+                tensor_meta.length += current_meta["length"]
+            elif current_meta["min_shape"] != []:
                 assert tensor_meta.dtype == current_meta["dtype"]
                 # TODO we can support this once we have ragged tensor support
                 assert len(tensor_meta.max_shape) == len(current_meta["max_shape"])
                 assert len(tensor_meta.min_shape) == len(current_meta["min_shape"])
-
                 tensor_meta._update_shape_interval(tuple(current_meta["max_shape"]))
                 tensor_meta._update_shape_interval(tuple(current_meta["min_shape"]))
                 tensor_meta.length += current_meta["length"]
