@@ -20,7 +20,7 @@ from hub.util.exceptions import AuthenticationException
 def login(username: str, password: str):
     """Log in to Activeloop"""
     if not username:
-        click.echo("Login to Activeloop Hub using your credentials.")
+        click.echo("Login to Activeloop using your credentials.")
         click.echo(
             "If you don't have an account, register by using the 'activeloop register' command or by going to "
             f"{HUB_REST_ENDPOINT}/register."
@@ -37,7 +37,7 @@ def login(username: str, password: str):
         client = HubBackendClient()
         token = client.request_auth_token(username, password)
         write_token(token)
-        click.echo("Successfully logged in to Activeloop Hub.")
+        click.echo("Successfully logged in to Activeloop.")
         reporting_config = get_reporting_config()
         if reporting_config.get("username") != username:
             save_reporting_config(True, username=username)
@@ -51,7 +51,7 @@ def login(username: str, password: str):
 def logout():
     """Log out of Activeloop"""
     remove_token()
-    click.echo("Logged out of Activeloop Hub.")
+    click.echo("Logged out of Activeloop.")
 
 
 # TODO: Add how to enable/disable reporting to docs
@@ -100,7 +100,7 @@ def register(username: str, email: str, password: str):
         token = client.request_auth_token(username, password)
         write_token(token)
         click.echo(
-            f"Successfully registered and logged in to Activeloop Hub as {username}."
+            f"Successfully registered and logged in to Activeloop as {username}."
         )
         consent_message = textwrap.dedent(
             """
