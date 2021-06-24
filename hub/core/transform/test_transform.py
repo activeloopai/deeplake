@@ -25,7 +25,7 @@ def fn3(i, mul=1, copy=1):
     return [d for _ in range(copy)]
 
 
-def test_transform_on_ds(data_in: Dataset, ds_out: Dataset):
+def check_transform_on_ds(data_in: Dataset, ds_out: Dataset):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(data_in, [fn2], ds_out)
@@ -49,7 +49,7 @@ def test_single_transform_hub_dataset(ds):
             data_in.image.append(i * np.ones((100, 100)))
             data_in.label.append(i * np.ones((1,)))
     data_in = Dataset("./test/transform_hub_in_generic")
-    test_transform_on_ds(data_in, ds)
+    check_transform_on_ds(data_in, ds)
 
 
 @parametrize_all_dataset_storages
@@ -61,7 +61,7 @@ def test_transform_htypes(ds):
             data_in.image.append(i * np.ones((100, 100), dtype="uint8"))
             data_in.label.append(i * np.ones((1,), dtype="int32"))
     data_in = Dataset("./test/transform_hub_in_htypes")
-    test_transform_on_ds(data_in, ds)
+    check_transform_on_ds(data_in, ds)
 
 
 @parametrize_all_dataset_storages
