@@ -16,8 +16,6 @@ from hub.util.shared_memory import (
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
-import pickle
-import time
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
@@ -33,32 +31,6 @@ def get_s3_storage(state: tuple) -> S3Provider:
     s3 = S3Provider.__new__(S3Provider)
     s3.__setstate__(state)
     return s3
-
-
-def _apply_transform(transform: Callable, index: int, sample_size):
-    """Applies the transform function on a single sample"""
-    remove_shared_memory_from_resource_tracker()
-    shared_memory_in = SharedMemory(name=f"sp_{index}")
-    sample = pickle.loads(shared_memory_in.buf[: sample_size])
-    shared_memory_in.close()
-    shared_memory_in.unlink()
-    
-    transformed_sample = transform(sample)
-    pickled_sample = pickle.dumps(transformed_sample, protocol=pickle.HIGHEST_PROTOCOL)
-    sample_size = len(pickled_sample)
-
-    # handles case where shared memory exists already (possibly due to previous pytorch run being interrupted)
-    try:
-        shared_memory_out = SharedMemory(create=True, size=sample_size, name=f"tr_{index}")
-    except:
-        shared_memory_out = SharedMemory(name=f"tr_{index}")
-        shared_memory_out.unlink()
-        shared_memory_out = SharedMemory(create=True, size=sample_size, name=f"tr_{index}")
-
-    # needs to be sliced as some OS (like macOS) allocate extra space
-    shared_memory_out.buf[:sample_size] = pickled_sample  # type: ignore
-    shared_memory_out.close()
-    return sample_size
 
 
 def _read_and_store_chunk(
@@ -163,11 +135,15 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
-        return sample
+        return self._apply_transform(sample)
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
+
+    def _apply_transform(self, sample: Dict):
+        """Used to apply transform to a single sample"""
+        return self.transform(sample) if self.transform else sample
 
     # helper functions
     def _import_torch(self):
@@ -319,48 +295,7 @@ class TorchDataset:
         for i in range(first_index, last_index + 1):
             sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
             samples.append(sample)
-
-        indexes = list(range(first_index, last_index + 1))
-
-        if self.transform:
-            start = time.time()
-            sample_sizes = []
-            for index, sample in zip(indexes, samples):
-                a = time.time()
-                pickled_sample = pickle.dumps(sample, protocol=pickle.HIGHEST_PROTOCOL)
-                sample_size = len(pickled_sample)
-                b = time.time()
-                print(f"{b-a=}")
-                try:
-                    shared_memory_out = SharedMemory(create=True, size=sample_size, name=f"sp_{index}")
-                except:
-                    shared_memory_out = SharedMemory(name=f"sp_{index}")
-                    shared_memory_out.unlink()
-                    shared_memory_out = SharedMemory(create=True, size=sample_size, name=f"sp_{index}")
-                shared_memory_out.buf[:sample_size] = pickled_sample
-                c = time.time()
-                print(f"{c-b=}")
-                sample_sizes.append(sample_size)
-            apply_start = time.time()
-            print(f"First loop time for {len(samples)} samples:", apply_start - start)
-            size_list = self.map(
-                _apply_transform, repeat(self.transform), indexes, sample_sizes
-            )
-            apply_end = time.time()
-            print(f"Apply time for {len(samples)} samples:", apply_end - apply_start)
-            self.processed_samples = []
-            for i, index in enumerate(indexes):
-                shared_memory = SharedMemory(name=f"tr_{index}")
-                current_sample = pickle.loads(shared_memory.buf[: size_list[i]])
-                self.processed_samples.append(current_sample)
-                shared_memory.close()
-                shared_memory.unlink()
-            end = time.time()
-            print(f"Second loop time for {len(samples)} samples:", end - apply_end)
-            print(f"Transform time for {len(samples)} samples:", end-start)
-
-        else:
-            self.processed_samples = samples
+        self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
     def _all_shared_memory_clean_up(self):
