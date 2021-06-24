@@ -33,7 +33,7 @@ workflows:
           name: "Windows Complex Test"
           e: win64
           unix-like: false
-          optional: true
+          plugins: true
           context:
             - test
             - azure
