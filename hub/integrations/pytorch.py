@@ -44,7 +44,7 @@ def _apply_transform(transform: Callable, index: int, sample_size):
     shared_memory_in.unlink()
     
     transformed_sample = transform(sample)
-    pickled_sample = pickle.dumps(transformed_sample)
+    pickled_sample = pickle.dumps(transformed_sample, protocol=pickle.HIGHEST_PROTOCOL)
     sample_size = len(pickled_sample)
 
     # handles case where shared memory exists already (possibly due to previous pytorch run being interrupted)
@@ -327,7 +327,7 @@ class TorchDataset:
             sample_sizes = []
             for index, sample in zip(indexes, samples):
                 a = time.time()
-                pickled_sample = pickle.dumps(sample)
+                pickled_sample = pickle.dumps(sample, protocol=pickle.HIGHEST_PROTOCOL)
                 sample_size = len(pickled_sample)
                 b = time.time()
                 print(f"{b-a=}")
@@ -337,8 +337,8 @@ class TorchDataset:
                     shared_memory_out = SharedMemory(name=f"sp_{index}")
                     shared_memory_out.unlink()
                     shared_memory_out = SharedMemory(create=True, size=sample_size, name=f"sp_{index}")
-                c = time.time()
                 shared_memory_out.buf[:sample_size] = pickled_sample
+                c = time.time()
                 print(f"{c-b=}")
                 sample_sizes.append(sample_size)
             apply_start = time.time()
