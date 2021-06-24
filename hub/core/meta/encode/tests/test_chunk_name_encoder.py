@@ -9,6 +9,8 @@ def test_trivial():
 
     enc.append_chunk(10)
 
+    assert not enc.try_combining_last_two_chunks()
+
     id1 = enc.get_chunk_id(0)
     assert enc.get_chunk_id(9) == id1
 
@@ -34,6 +36,8 @@ def test_trivial():
     assert enc.get_chunk_id(35) == id3
     assert enc.get_chunk_id(36) == id3
 
+    assert not enc.try_combining_last_two_chunks()
+
     assert enc.num_samples == 37
     assert len(enc._encoded) == 3
 
@@ -52,7 +56,8 @@ def test_auto_combine():
 
     # now can combine
     enc.extend_chunk(5)
-    enc.try_combining_last_two_chunks()
+    assert enc.try_combining_last_two_chunks()
+    assert not enc.try_combining_last_two_chunks()  # cannot combine twice in a row
 
     assert enc.get_chunk_id(0) == enc.get_chunk_id(10)
     assert enc.get_chunk_id(10) == enc.get_chunk_id(20)
@@ -80,9 +85,9 @@ def test_auto_combine():
     assert len(enc._encoded) == 4
 
     enc.extend_chunk(7)
-    enc.try_combining_last_two_chunks()
+    assert enc.try_combining_last_two_chunks()
+    assert not enc.try_combining_last_two_chunks()  # cannot combine twice in a row
 
-    # now can combine
     assert len(enc._encoded) == 3
 
 

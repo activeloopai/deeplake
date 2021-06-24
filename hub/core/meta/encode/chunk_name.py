@@ -28,7 +28,6 @@ def _chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
 class ChunkNameEncoder:
     def __init__(self):
         self._encoded = None
-        self._last_was_finalized = False
 
     @property
     def num_ids(self) -> int:
@@ -95,7 +94,7 @@ class ChunkNameEncoder:
 
         # TODO: check if previous chunk can be combined
 
-    def try_combining_last_two_chunks(self):
+    def try_combining_last_two_chunks(self) -> bool:
         # TODO: docstring that explains what this does
 
         if self.num_ids == 0:
@@ -114,6 +113,9 @@ class ChunkNameEncoder:
             if can_combine:
                 last_entry[LAST_INDEX_INDEX] = current_entry[LAST_INDEX_INDEX]
                 self._encoded = self._encoded[:-1]
+                return True
+
+        return False
 
 
 def _validate_count(count: int):
