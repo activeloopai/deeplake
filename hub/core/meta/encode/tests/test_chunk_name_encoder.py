@@ -29,9 +29,6 @@ def test_trivial():
     id2 = enc.get_chunk_names(30)
     id3 = enc.get_chunk_names(31)
 
-    assert len(id2) == 1
-    assert len(id3) == 1
-
     assert id1 != id2
     assert id2 != id3
     assert id1 != id3
@@ -46,6 +43,10 @@ def test_trivial():
     assert enc.num_samples == 37
     assert len(enc._encoded) == 3
 
+    # make sure the length of all returned chunk names = 1
+    for i in range(0, 37):
+        assert len(enc.get_chunk_names(i)) == 1
+
     _assert_valid_encodings(enc)
 
 
@@ -53,17 +54,15 @@ def test_multi_chunks_per_sample():
     # TODO:
     enc = ChunkNameEncoder()
 
-    # idx=0-5 samples fit in chunk 0
-    # idx=6 sample fits in chunk 0, chunk 1, chunk 2, and chunk 3
-    # idx=7-10 samples fit in chunk 3
-
+    # idx=0:5 samples fit in chunk 0
+    # idx=5 sample fits in chunk 0, chunk 1, chunk 2, and chunk 3
     enc.append_chunk(1)
     enc.extend_chunk(5, connected_to_next=True)
     enc.append_chunk(0, connected_to_next=True)  # continuation of the 6th sample
     enc.append_chunk(0, connected_to_next=True)  # continuation of the 6th sample
     enc.append_chunk(0, connected_to_next=False)  # end of the 6th sample
 
-    enc.extend_chunk(3)  # first sample of this batch is part of previous chunk
+    enc.extend_chunk(3)  # these samples are part of the last chunk
 
     enc.append_chunk(10_000)
     enc.extend_chunk(10)
@@ -71,8 +70,16 @@ def test_multi_chunks_per_sample():
     assert len(enc.get_chunk_names(0)) == 1
     assert len(enc.get_chunk_names(4)) == 1
     assert enc.get_chunk_names(0) == enc.get_chunk_names(4)
-    assert len(enc.get_chunk_names(5)) == 4
+    s5_chunks = enc.get_chunk_names(5)
+    assert len(s5_chunks) == 4
+    assert len(set(s5_chunks)) == len(s5_chunks)
+
     assert len(enc.get_chunk_names(6)) == 1
+    assert len(enc.get_chunk_names(7)) == 1
+    assert len(enc.get_chunk_names(8)) == 1
+
+    assert s5_chunks[-1] == enc.get_chunk_names(6)[0]
+    assert s5_chunks[-1] == enc.get_chunk_names(6)[0]
 
     assert enc.num_samples == 10_019
 

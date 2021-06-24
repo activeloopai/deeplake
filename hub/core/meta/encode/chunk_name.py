@@ -21,7 +21,7 @@ def _generate_chunk_id() -> CHUNK_NAME_ENCODING_DTYPE:
 
 
 def _chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
-    return hex(id)
+    return hex(id)[2:]
 
 
 class ChunkNameEncoder:
@@ -53,10 +53,18 @@ class ChunkNameEncoder:
             sample_index = (self.num_samples) + sample_index
 
         idx = np.searchsorted(self._encoded[:, LAST_INDEX_INDEX], sample_index)
-        id = self._encoded[idx, CHUNK_ID_INDEX]
+        names = [_chunk_name_from_id(self._encoded[idx, CHUNK_ID_INDEX])]
 
-        # TODO: return multiple ids
-        return (_chunk_name_from_id(id),)
+        # if accessing last index, check connectivity!
+        while (
+            self._encoded[idx, LAST_INDEX_INDEX] == sample_index
+            and self._connectivity[idx]
+        ):
+            idx += 1
+            name = _chunk_name_from_id(self._encoded[idx, CHUNK_ID_INDEX])
+            names.append(name)
+
+        return tuple(names)
 
     def extend_chunk(self, num_samples: int, connected_to_next: bool = False):
         if num_samples <= 0:
