@@ -35,7 +35,7 @@ class Dataset:
         self,
         path: Optional[str] = None,
         read_only: bool = False,
-        index: Index = Index(),
+        index: Index = None,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -91,7 +91,7 @@ class Dataset:
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
         self.storage.autoflush = True
-        self.index = index
+        self.index = index or Index()
 
         self.tensors: Dict[str, Tensor] = {}
 
