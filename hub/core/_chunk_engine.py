@@ -24,7 +24,7 @@ class ChunkEngine:
     ):
         self.key = key
         self.storage = storage
-        self.cached_chunks = []
+        self.cached_chunks: List[Chunk] = []
 
         self.min_chunk_size_target = min_chunk_size_target
         self.max_chunk_size = max_chunk_size
@@ -50,10 +50,9 @@ class ChunkEngine:
         return self.tensor_meta.length
 
     def extend(self, array: np.ndarray):
-        # TODO: implement this!
-
         sample_count = array.shape[0]
         sample_shape = array.shape[1:]
+        bytes_per_sample = array.nbytes // sample_count
 
         self.tensor_meta.check_compatibility(sample_shape, array.dtype)
 
@@ -78,7 +77,11 @@ class ChunkEngine:
             # combine if count is same
             if combined_min_chunks_required == min_chunks_required:
                 last_chunk.extend(data_buffer[0:extra_bytes])
+
                 # TODO: update `last_chunk`'s shape / byte positions encoding
+                # TODO: factor in `bytes_per_sample`
+                last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
+
                 data_buffer = data_buffer[extra_bytes:]
 
         # each iteration of this loop will create a new chunk
@@ -96,7 +99,12 @@ class ChunkEngine:
             storage[chunk_key] = content
             """
 
-            new_chunk.extend(data_buffer[:end_byte])
+            chunk_bytes = data_buffer[:end_byte]
+            new_chunk.extend(chunk_bytes)
+            samples_added_to_chunk = max(1, len(chunk_bytes) // bytes_per_sample)
+
+            new_chunk._shape_encoder.add_shape(sample_shape, samples_added_to_chunk)
+
             # TODO: update `new_chunk`'s shape / byte positions encoding
 
             data_buffer = data_buffer[end_byte:]
@@ -113,7 +121,9 @@ class ChunkEngine:
 
             self.cached_chunks.append(new_chunk)
 
+        print(bytes_per_sample)
         print(self.cached_chunks)
+        print(self.cached_chunks[0]._shape_encoder.num_samples)
 
         """
         if _chunk_has_space(last_chunk, tensor_meta.chunk_size):

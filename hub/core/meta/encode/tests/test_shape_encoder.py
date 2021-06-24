@@ -10,6 +10,7 @@ def test_trivial():
     assert enc[1] == (28, 28, 3)
 
     assert enc.num_samples == 4
+    assert len(enc._encoded) == 1
 
 
 def test_fixed():

@@ -25,20 +25,10 @@ class Chunk:
 
         buffer_length = len(buffer)
 
-        # if buffer_length % num_samples != 0:
-        #     # TODO: exceptions.py
-        #     raise Exception(
-        #         f"Buffer length must be divisible by `num_samples`. {buffer_length} % {num_samples} != 0"
-        #     )
-
         if buffer_length + len(self._data) > self.max_size:
             raise Exception("Buffer overflow")  # TODO: exceptions.py
 
-        # num_bytes_per_sample = buffer_length // num_samples
         self._data.extend(buffer)
-        # self._byte_positions_encoder.add_byte_position(
-        # num_bytes_per_sample, num_samples
-        # )
 
     def __str__(self):
         return f"Chunk(nbytes={len(self._data)})"
