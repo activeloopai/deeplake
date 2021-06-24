@@ -21,9 +21,6 @@ def test_scalars(memory_storage: StorageProvider):
     expected = np.arange(1002)
     np.testing.assert_array_equal(actual, expected)
 
-    for i in range(1002):
-        assert engine.get_samples(Index(i)) == i
-
     assert engine.num_chunks == 1
 
 
@@ -31,12 +28,12 @@ def test_arrays(memory_storage: StorageProvider):
     engine = ChunkEngine(
         KEY,
         memory_storage,
-        min_chunk_size_target=1 * KB,
+        min_chunk_size_target=4 * KB,
         max_chunk_size=5 * KB,
         create_tensor=True,
     )
 
-    a1 = np.arange(3 * 10 * 10 * 3, dtype=np.int32).reshape(3, 10, 10, 3)
+    a1 = np.arange(3 * 11 * 11 * 3, dtype=np.int32).reshape(3, 11, 11, 3)
     assert a1.nbytes > engine.min_chunk_size_target
     assert a1.nbytes < engine.max_chunk_size
     assert a1.nbytes * 2 > engine.max_chunk_size
@@ -47,7 +44,7 @@ def test_arrays(memory_storage: StorageProvider):
     engine.append(a1[-1])
 
     assert engine.num_samples == 5
-    assert engine.num_chunks == 1
+    assert engine.num_chunks == 2
 
     a2 = np.arange(3 * 9 * 11 * 4, dtype=np.int32).reshape(3, 9, 11, 4)
     assert a2.nbytes > engine.min_chunk_size_target
@@ -55,7 +52,7 @@ def test_arrays(memory_storage: StorageProvider):
     assert a2.nbytes * 2 > engine.max_chunk_size
     a2_copy = deepcopy(a2)
 
-    # requires 2 chunks to do this
+    # requires 3 chunks to do this
     engine.extend(a2)
 
     actual_samples = engine.get_samples(Index(), aslist=True)
@@ -65,7 +62,7 @@ def test_arrays(memory_storage: StorageProvider):
         np.testing.assert_array_equal(actual_sample, expected_sample)
 
     assert engine.num_samples == 8
-    assert engine.num_chunks == 2
+    assert engine.num_chunks == 3
 
 
 def test_large_arrays(memory_storage: StorageProvider):
