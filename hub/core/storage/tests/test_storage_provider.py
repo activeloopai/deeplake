@@ -1,5 +1,6 @@
 import pytest
 
+import os
 from hub.constants import MB
 from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 import pickle
@@ -133,3 +134,4 @@ def test_pickling(storage):
     pickle_file = open("storage_pickle", "rb")
     unpickled_storage = pickle.load(pickle_file)
     assert unpickled_storage[FILE_1] == b"hello world"
+    os.remove("storage_pickle")
