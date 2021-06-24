@@ -97,15 +97,26 @@ class ChunkEngine:
                     last_chunk, bytes_written_so_far, bytes_per_sample, len(chunk_bytes)
                 )
 
-                bytes_written_so_far += len(chunk_bytes)
                 data_buffer = data_buffer[extra_bytes:]
-                samples_added_to_chunk = ceil(len(chunk_bytes) / bytes_per_sample)
+                bytes_written_so_far += len(chunk_bytes)
 
+                # can be 0, in that case it is only partial
+                full_samples_added_to_chunk = len(chunk_bytes) // bytes_per_sample
+
+                # cannot be 0
+                full_and_partial_samples_added_to_chunk = ceil(
+                    len(chunk_bytes) / bytes_per_sample
+                )
+
+                # TODO: this code can probably be moved into Chunk
                 last_chunk._shape_encoder.add_shape(
-                    sample_shape, samples_added_to_chunk
+                    sample_shape, full_and_partial_samples_added_to_chunk
+                )
+                last_chunk._byte_positions_encoder.add_byte_position(
+                    bytes_per_sample, full_and_partial_samples_added_to_chunk
                 )
                 chunk_name = self._chunk_names_encoder.extend_chunk(
-                    samples_added_to_chunk, connected_to_next=connected_to_next
+                    full_samples_added_to_chunk, connected_to_next=connected_to_next
                 )
 
                 chunk_key = get_chunk_key(self.key, chunk_name)
@@ -175,7 +186,10 @@ class ChunkEngine:
 
         # TODO: maybe this can be more efficient?
         samples = []
-        for global_sample_index in index.values[0].indices(self.num_samples):
+
+        # TODO: indexing here doesn't work...
+        # for global_sample_index in index.values[0].indices(self.num_samples):
+        for global_sample_index in range(self.num_samples):
             chunk_names = self._chunk_names_encoder.get_chunk_names(global_sample_index)
             sample_bytes = bytearray()
 
@@ -192,7 +206,6 @@ class ChunkEngine:
             )
 
             samples.append(a)
-            print(a)
 
         if aslist:
             return samples
@@ -210,7 +223,7 @@ class ChunkEngine:
         chunk = self.storage[chunk_key]
         if type(chunk) == bytes:
             return Chunk.frombuffer(chunk)
-        return
+        return chunk
 
     @staticmethod
     def calculate_bytes(shape: Tuple[int], dtype: np.dtype):
