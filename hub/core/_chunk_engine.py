@@ -13,6 +13,18 @@ from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import hub.core.tensor as tensor
 
 
+def _should_chunk_be_connected_to_next(
+    chunk: Chunk,
+    bytes_written_so_far: int,
+    bytes_per_sample: int,
+    bytes_written_to_chunk: int,
+) -> bool:
+    # can only say this chunk is connected to next if it is full
+    if chunk.has_space:
+        return False
+    return (bytes_written_so_far + bytes_written_to_chunk) % bytes_per_sample == 0
+
+
 class ChunkEngine:
     def __init__(
         self,
@@ -52,9 +64,10 @@ class ChunkEngine:
     def extend(self, array: np.ndarray):
         sample_count = array.shape[0]
         sample_shape = array.shape[1:]
+        sample_dtype = array.dtype
         bytes_per_sample = array.nbytes // sample_count
 
-        self.tensor_meta.check_compatibility(sample_shape, array.dtype)
+        self.tensor_meta.check_compatibility(sample_shape, sample_dtype)
 
         # TODO: replace with space filling curves to optimize access patterns
         # TODO: space filling curves will break the logic below because row_wise_to_bytes is C ordered
@@ -62,6 +75,7 @@ class ChunkEngine:
 
         last_chunk = self.get_last_chunk()
         extend_previous = last_chunk is not None and last_chunk.has_space
+        bytes_written_so_far = 0
 
         if extend_previous:
             last_chunk_size = len(last_chunk)
@@ -76,18 +90,28 @@ class ChunkEngine:
 
             # combine if count is same
             if combined_min_chunks_required == min_chunks_required:
-                last_chunk.extend(data_buffer[0:extra_bytes])
-
                 # TODO: update `last_chunk`'s shape / byte positions encoding
-                # TODO: factor in `bytes_per_sample`
-                last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
+                chunk_bytes = data_buffer[0:extra_bytes]
+
+                last_chunk.extend(chunk_bytes)
+                connected_to_next = _should_chunk_be_connected_to_next(
+                    last_chunk, bytes_written_so_far, bytes_per_sample, len(chunk_bytes)
+                )
 
                 data_buffer = data_buffer[extra_bytes:]
+                bytes_written_so_far += len(chunk_bytes)
+                samples_added_to_chunk = max(1, len(chunk_bytes) // bytes_per_sample)
+
+                last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
+                self._chunk_names_encoder.extend_chunk(
+                    samples_added_to_chunk, connected_to_next=connected_to_next
+                )
 
         # each iteration of this loop will create a new chunk
         while len(data_buffer) > 0:
             new_chunk = Chunk(self.min_chunk_size_target, self.max_chunk_size)
             end_byte = min(len(data_buffer), self.max_chunk_size)
+            chunk_bytes = data_buffer[:end_byte]
 
             # chunk_content = content[:end_byte]  # type: ignore
             # _write_chunk(chunk_content, storage, chunk_names, key)
@@ -99,15 +123,21 @@ class ChunkEngine:
             storage[chunk_key] = content
             """
 
-            chunk_bytes = data_buffer[:end_byte]
+            # TODO: update `new_chunk`'s shape / byte positions encoding
+
             new_chunk.extend(chunk_bytes)
+            connected_to_next = _should_chunk_be_connected_to_next(
+                new_chunk, bytes_written_so_far, bytes_per_sample, len(chunk_bytes)
+            )
+
+            data_buffer = data_buffer[end_byte:]
+            bytes_written_so_far += len(chunk_bytes)
             samples_added_to_chunk = max(1, len(chunk_bytes) // bytes_per_sample)
 
             new_chunk._shape_encoder.add_shape(sample_shape, samples_added_to_chunk)
-
-            # TODO: update `new_chunk`'s shape / byte positions encoding
-
-            data_buffer = data_buffer[end_byte:]
+            self._chunk_names_encoder.append_chunk(
+                samples_added_to_chunk, connected_to_next=connected_to_next
+            )
 
             # TODO: turn bool arg into 2 methods instead of 1
             # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
@@ -124,6 +154,9 @@ class ChunkEngine:
         print(bytes_per_sample)
         print(self.cached_chunks)
         print(self.cached_chunks[0]._shape_encoder.num_samples)
+
+        self.tensor_meta.length += sample_count
+        self.tensor_meta.update_with_sample(sample_shape, sample_dtype)
 
         """
         if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
