@@ -7,6 +7,7 @@ def test_trivial():
     enc = ShapeEncoder()
 
     enc.add_shape((28, 28, 3), 4)
+    assert enc[1] == (28, 28, 3)
 
     assert enc.num_samples == 4
 
