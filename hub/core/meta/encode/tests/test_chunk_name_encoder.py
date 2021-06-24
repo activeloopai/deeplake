@@ -9,20 +9,26 @@ def _assert_valid_encodings(enc: ChunkNameEncoder):
 def test_trivial():
     enc = ChunkNameEncoder()
 
-    enc.append_chunk(10)
+    name1 = enc.append_chunk(10)
 
     # assert not enc.try_combining_last_two_chunks()
 
     id1 = enc.get_chunk_names(0)
     assert enc.get_chunk_names(9) == id1
 
-    enc.extend_chunk(10)
-    enc.extend_chunk(9)
-    enc.extend_chunk(1)
+    name2 = enc.extend_chunk(10)
+    name3 = enc.extend_chunk(9)
+    name4 = enc.extend_chunk(1)
+
+    assert name1 == name2
+    assert name1 == name3
+    assert name1 == name4
 
     # new chunks
-    enc.append_chunk(1)
+    name5 = enc.append_chunk(1)
     enc.append_chunk(5)
+
+    assert name5 != name1
 
     enc.extend_chunk(1)
 

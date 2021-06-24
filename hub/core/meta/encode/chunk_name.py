@@ -66,7 +66,7 @@ class ChunkNameEncoder:
 
         return tuple(names)
 
-    def extend_chunk(self, num_samples: int, connected_to_next: bool = False):
+    def extend_chunk(self, num_samples: int, connected_to_next: bool = False) -> str:
         if num_samples <= 0:
             raise ValueError(
                 f"When extending, `num_samples` should be > 0. Got {num_samples}."
@@ -88,7 +88,9 @@ class ChunkNameEncoder:
         last_entry[NUM_SAMPLES_INDEX] += num_samples
         self._connectivity[-1] = connected_to_next
 
-    def append_chunk(self, num_samples: int, connected_to_next: bool = False):
+        return _chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
+
+    def append_chunk(self, num_samples: int, connected_to_next: bool = False) -> str:
         if num_samples < 0:
             raise ValueError(
                 f"When appending, `num_samples` should be >= 0. Got {num_samples}."
@@ -122,6 +124,9 @@ class ChunkNameEncoder:
             self._connectivity = np.concatenate(
                 [self._connectivity, [connected_to_next]]
             )
+
+        last_entry = self._encoded[-1]
+        return _chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
 
 
 def _validate_num_samples(num_samples: int):
