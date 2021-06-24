@@ -16,6 +16,7 @@ from hub.util.shared_memory import (
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
+import pickle
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
@@ -33,10 +34,24 @@ def get_s3_storage(state: tuple) -> S3Provider:
     return s3
 
 
-# TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
-def _apply_transform(transform: Callable, sample: Dict):
-    """Used to apply transforms to a single sample"""
-    return transform(sample) if transform else sample
+def _apply_transform(transform: Callable, sample: Dict, index: int):
+    """Applies the transform function on a single sample"""
+    remove_shared_memory_from_resource_tracker()
+    transformed_sample = transform(sample)
+    data = pickle.dumps(transformed_sample)
+    size = len(data)
+
+    # handle case where shared memory exists already (possibly due to previous pytorch run being interrupted)
+    try:
+        shm = SharedMemory(create=True, size=size, name=f"tr_{index}")
+    except:
+        shm = SharedMemory(name=f"tr_{index}")
+        shm.unlink()
+        shm = SharedMemory(create=True, size=size, name=f"tr_{index}")
+
+    shm.buf[:size] = data  # type: ignore
+    shm.close()
+    return size
 
 
 def _read_and_store_chunk(
@@ -298,10 +313,19 @@ class TorchDataset:
             sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
             samples.append(sample)
 
+        indexes = list(range(first_index, last_index + 1))
+
         if self.transform:
-            self.processed_samples = self.map(
-                _apply_transform, repeat(self.transform), samples
+            size_list = self.map(
+                _apply_transform, repeat(self.transform), samples, indexes
             )
+            self.processed_samples = []
+            for i, index in enumerate(indexes):
+                shm = SharedMemory(name=f"tr_{index}")
+                current_sample = pickle.loads(shm.buf[0 : size_list[i]])
+                self.processed_samples.append(current_sample)
+                shm.close()
+                shm.unlink()
         else:
             self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
