@@ -3,6 +3,14 @@ import pytest
 from hub.core.meta.encode.shape import ShapeEncoder
 
 
+def test_trivial():
+    enc = ShapeEncoder()
+
+    enc.add_shape((28, 28, 3), 4)
+
+    assert enc.num_samples == 4
+
+
 def test_fixed():
     enc = ShapeEncoder()
 
