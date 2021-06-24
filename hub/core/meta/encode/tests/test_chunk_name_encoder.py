@@ -71,6 +71,10 @@ def test_failures():
         enc.get_chunk_id(-1)
 
     enc.append_chunk(10)
+    enc.extend_chunk(10, connected_to_next=True)
+
+    with pytest.raises(Exception):
+        enc.extend_chunk(1)  # cannot extend because already connected to next
 
     with pytest.raises(ValueError):
         enc.extend_chunk(0)  # not allowed
@@ -80,8 +84,15 @@ def test_failures():
 
     enc.append_chunk(0)  # this is allowed
 
+    enc.append_chunk(0, connected_to_next=True)
+
+    with pytest.raises(Exception):
+        enc.extend_chunk(1)
+
     with pytest.raises(ValueError):
         enc.append_chunk(-1)
 
+    enc.append_chunk(0, connected_to_next=False)  # end this sample
+
     with pytest.raises(IndexError):
-        enc.get_chunk_id(10)
+        enc.get_chunk_id(20)
