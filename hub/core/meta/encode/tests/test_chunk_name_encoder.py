@@ -11,7 +11,7 @@ def test_trivial():
 
     name1 = enc.append_chunk(10)
 
-    # assert not enc.try_combining_last_two_chunks()
+    assert enc.num_chunks == 1
 
     id1 = enc.get_chunk_names(0)
     assert enc.get_chunk_names(9) == id1
@@ -20,6 +20,8 @@ def test_trivial():
     name3 = enc.extend_chunk(9)
     name4 = enc.extend_chunk(1)
 
+    assert enc.num_chunks == 1
+
     assert name1 == name2
     assert name1 == name3
     assert name1 == name4
@@ -27,6 +29,8 @@ def test_trivial():
     # new chunks
     name5 = enc.append_chunk(1)
     enc.append_chunk(5)
+
+    assert enc.num_chunks == 3
 
     assert name5 != name1
 
@@ -44,10 +48,8 @@ def test_trivial():
     assert enc.get_chunk_names(35) == id3
     assert enc.get_chunk_names(36) == id3
 
-    # assert not enc.try_combining_last_two_chunks()
-
     assert enc.num_samples == 37
-    assert len(enc._encoded) == 3
+    assert enc.num_chunks == 3
 
     # make sure the length of all returned chunk names = 1
     for i in range(0, 37):
@@ -60,6 +62,8 @@ def test_multi_chunks_per_sample():
     # TODO:
     enc = ChunkNameEncoder()
 
+    assert enc.num_chunks == 0
+
     # idx=0:5 samples fit in chunk 0
     # idx=5 sample fits in chunk 0, chunk 1, chunk 2, and chunk 3
     enc.append_chunk(1)
@@ -68,10 +72,16 @@ def test_multi_chunks_per_sample():
     enc.append_chunk(0, connected_to_next=True)  # continuation of the 6th sample
     enc.append_chunk(0, connected_to_next=False)  # end of the 6th sample
 
+    assert enc.num_chunks == 4
+
     enc.extend_chunk(3)  # these samples are part of the last chunk
+
+    assert enc.num_chunks == 4
 
     enc.append_chunk(10_000)
     enc.extend_chunk(10)
+
+    assert enc.num_chunks == 5
 
     assert len(enc.get_chunk_names(0)) == 1
     assert len(enc.get_chunk_names(4)) == 1
@@ -93,6 +103,8 @@ def test_multi_chunks_per_sample():
     enc.append_chunk(1, connected_to_next=True)
     enc.append_chunk(0, connected_to_next=False)
 
+    assert enc.num_chunks == 7
+
     assert enc.num_samples == 10_020
     assert len(enc.get_chunk_names(10_019)) == 2
 
@@ -102,6 +114,8 @@ def test_multi_chunks_per_sample():
     enc.append_chunk(0, connected_to_next=True)
     enc.append_chunk(0, connected_to_next=True)
     enc.append_chunk(0, connected_to_next=False)
+
+    assert enc.num_chunks == 12
 
     assert len(enc.get_chunk_names(10_020)) == 5
     assert enc.num_samples == 10_021
@@ -154,5 +168,7 @@ def test_failures():
 
     with pytest.raises(IndexError):
         enc.get_chunk_names(21)
+
+    assert enc.num_chunks == 5
 
     _assert_valid_encodings(enc)
