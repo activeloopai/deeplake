@@ -27,6 +27,7 @@ from hub.util.exceptions import (
 )
 from hub.util.get_storage_provider import get_storage_provider
 from hub.client.client import HubBackendClient
+from hub.client.log import logger
 from hub.util.path import get_path_from_storage
 
 
@@ -220,6 +221,7 @@ class Dataset:
 
     def _load_meta(self):
         if dataset_exists(self.storage):
+            logger.info(f"Hub Dataset {self.path} successfully loaded.")
             self.meta = DatasetMeta.load(self.storage)
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
@@ -309,6 +311,7 @@ class Dataset:
         self.storage.clear()
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
+            logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     @staticmethod
     def from_path(path: str):

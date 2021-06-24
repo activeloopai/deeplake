@@ -2,7 +2,6 @@ import sys
 import requests
 from typing import Optional
 from hub.util.exceptions import LoginException
-from hub.util.get_property import get_property
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -24,7 +23,7 @@ class HubBackendClient:
     """Communicates with Activeloop Backend"""
 
     def __init__(self, token: Optional[str] = None):
-        self.version = get_property("__version__", "hub")
+        self.version = hub.__version__
         self.auth_header = None
         if token is None:
             self.token = self.get_token()
@@ -190,7 +189,8 @@ class HubBackendClient:
 
         if response.status_code == 200:
             logger.info(
-                f"Your dataset is available at {self.endpoint()}/datasets/explore?tag={tag}"
+                "Your Hub dataset has been successfully created!"
+                + f"\nIt is available at {self.endpoint()}/datasets/explore?tag={tag}"
             )
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
