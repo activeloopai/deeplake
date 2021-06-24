@@ -277,7 +277,8 @@ jobs:
           steps:
             - report:
                 unix-like: << parameters.unix-like >>
-      - slack-status
+      - slack-status:
+          condition: << parameters.unix-like >>
   deploy:
     executor: linux
     environment:
