@@ -14,8 +14,12 @@ class Chunk:
         self._data = bytearray()
 
     @property
+    def num_data_bytes(self):
+        return len(self._data)
+
+    @property
     def has_space(self):
-        return len(self._data) < self.min_size_target
+        return self.num_data_bytes < self.min_size_target
 
     def extend(self, buffer: bytes):
         # TODO: encode start byte / end byte

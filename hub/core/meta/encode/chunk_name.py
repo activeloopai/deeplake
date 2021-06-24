@@ -1,4 +1,5 @@
 from re import I
+from typing import Tuple
 import numpy as np
 from uuid import uuid4
 
@@ -41,7 +42,10 @@ class ChunkNameEncoder:
             return 0
         return int(self._encoded[-1, LAST_INDEX_INDEX] + 1)
 
-    def get_chunk_names(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
+    def get_name_for_chunk(self, idx) -> str:
+        return _chunk_name_from_id(self._encoded[:, CHUNK_ID_INDEX][idx])
+
+    def get_chunk_names(self, sample_index: int) -> Tuple[str]:
         """Returns the chunk names that correspond to `sample_index`."""
 
         if self.num_samples == 0:

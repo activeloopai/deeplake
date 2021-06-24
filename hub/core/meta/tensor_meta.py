@@ -115,7 +115,7 @@ class TensorMeta(Meta):
                     shape,
                 )
 
-    def update_with_sample(self, array: np.ndarray):
+    def update_with_sample(self, shape: Tuple[int], dtype: Union[str, np.dtype]):
         """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
 
         Note:
@@ -128,11 +128,11 @@ class TensorMeta(Meta):
 
         """`array` is assumed to have a batch axis."""
 
-        shape = array.shape
+        dtype = np.dtype(dtype)
 
         if self.length <= 0:
             if not self.dtype:
-                self.dtype = str(array.dtype)
+                self.dtype = str(dtype)
 
             self.min_shape = list(shape)
             self.max_shape = list(shape)

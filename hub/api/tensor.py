@@ -185,7 +185,9 @@ class Tensor:
         Returns:
             int: The current length of this tensor.
         """
-        return self.index.length(self.meta.length)
+
+        num_samples = self.chunk_engine.num_samples
+        return self.index.length(num_samples)
 
     def __getitem__(
         self,
@@ -217,9 +219,7 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
 
-        return read_samples_from_tensor(
-            self.key, self.storage, index=self.index, aslist=aslist
-        )
+        return self.chunk_engine.get_sample(self.index, aslist=aslist)
 
     def __str__(self):
         index_str = f", index={self.index}"

@@ -1,9 +1,10 @@
+from hub.util.keys import get_chunk_key
 from hub.core.chunk import Chunk
 from math import ceil
 from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.encode.chunk_name import ChunkNameEncoder
 from hub.core.index.index import Index
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 import numpy as np
 from hub.core.typing import StorageProvider
 from hub.core.meta.tensor_meta import TensorMeta
@@ -36,7 +37,7 @@ class ChunkEngine:
     ):
         self.key = key
         self.storage = storage
-        self.cached_chunks: List[Chunk] = []
+        self.cached_chunks: Dict[str, Chunk] = {}
 
         self.min_chunk_size_target = min_chunk_size_target
         self.max_chunk_size = max_chunk_size
@@ -78,7 +79,7 @@ class ChunkEngine:
         bytes_written_so_far = 0
 
         if extend_previous:
-            last_chunk_size = len(last_chunk)
+            last_chunk_size = last_chunk.num_data_bytes
             min_chunks_required = self.min_chunks_required_for_num_bytes(
                 len(data_buffer)
             )
@@ -98,9 +99,9 @@ class ChunkEngine:
                     last_chunk, bytes_written_so_far, bytes_per_sample, len(chunk_bytes)
                 )
 
-                data_buffer = data_buffer[extra_bytes:]
                 bytes_written_so_far += len(chunk_bytes)
-                samples_added_to_chunk = max(1, len(chunk_bytes) // bytes_per_sample)
+                data_buffer = data_buffer[extra_bytes:]
+                samples_added_to_chunk = ceil(len(chunk_bytes) / bytes_per_sample)
 
                 last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
                 self._chunk_names_encoder.extend_chunk(
@@ -132,84 +133,36 @@ class ChunkEngine:
 
             data_buffer = data_buffer[end_byte:]
             bytes_written_so_far += len(chunk_bytes)
-            samples_added_to_chunk = max(1, len(chunk_bytes) // bytes_per_sample)
+            # can be 0, in that case it is only partial
+            samples_added_to_chunk = len(chunk_bytes) // bytes_per_sample
 
             new_chunk._shape_encoder.add_shape(sample_shape, samples_added_to_chunk)
-            self._chunk_names_encoder.append_chunk(
+            chunk_name = self._chunk_names_encoder.append_chunk(
                 samples_added_to_chunk, connected_to_next=connected_to_next
             )
 
-            # TODO: turn bool arg into 2 methods instead of 1
             # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
-            # self._chunk_names_encoder.add_samples_to_chunk(
-            # sample_count, extend_previous
-            # )
 
-            # tensor.extend_tensor(
-            # array, self.key, self.storage, self.tensor_meta, self.index_meta
-            # )
+            self.cached_chunks[chunk_name] = new_chunk
 
-            self.cached_chunks.append(new_chunk)
-
-        print(bytes_per_sample)
-        print(self.cached_chunks)
-        print(self.cached_chunks[0]._shape_encoder.num_samples)
-
-        self.tensor_meta.length += sample_count
         self.tensor_meta.update_with_sample(sample_shape, sample_dtype)
-
-        """
-        if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
-            last_chunk_size = len(last_chunk)
-            chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
-
-            extra_bytes = min(len(content), DEFAULT_CHUNK_MAX_SIZE - last_chunk_size)
-            combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
-
-            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
-                start_byte = index_meta.entries[-1]["end_byte"]
-                end_byte = start_byte + extra_bytes
-
-                chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
-                _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
-
-                content = content[extra_bytes:]
-
-        while len(content) > 0:
-            end_byte = min(len(content), DEFAULT_CHUNK_MAX_SIZE)
-
-            chunk_content = content[:end_byte]  # type: ignore
-            _write_chunk(chunk_content, storage, chunk_names, key)
-
-            content = content[end_byte:]
-
-            # TODO: turn bool arg into 2 methods instead of 1
-            # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
-            self._chunk_names_encoder.add_samples_to_chunk(sample_count, extend_previous)
-
-            # tensor.extend_tensor(
-            # array, self.key, self.storage, self.tensor_meta, self.index_meta
-            # )
-        """
+        self.tensor_meta.length += sample_count
 
     def append(self, array: np.ndarray):
-        # TODO: implement this!
-        tensor.append_tensor(
-            array, self.key, self.storage, self.tensor_meta, self.index_meta
-        )
+        self.extend(np.expand_dims(array, 0))
 
     def get_sample(self, index: Index, aslist: bool = False):
         # TODO: implement this!
-        return tensor.read_samples_from_tensor(
-            self.key, self.storage, index, aslist=aslist
-        )
+
+        raise NotImplementedError()
 
     def get_last_chunk(self) -> Chunk:
         if len(self.cached_chunks) == 0:
             # TODO: read from storage
             return None
 
-        return self.cached_chunks[-1]
+        last_chunk_name = self._chunk_names_encoder.get_name_for_chunk(-1)
+        return self.cached_chunks[last_chunk_name]
 
     @staticmethod
     def calculate_bytes(shape: Tuple[int], dtype: np.dtype):
