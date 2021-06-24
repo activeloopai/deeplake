@@ -27,7 +27,7 @@ class Chunk:
 
     def get_sample_bytes(self, sample_index: int):
         sb, eb = self._byte_positions_encoder.get_byte_position(sample_index)
-        return self._data[sb, eb]
+        return self._data[sb:eb]
 
     def get_sample_shape(self, sample_index: int):
         return self._shape_encoder[sample_index]

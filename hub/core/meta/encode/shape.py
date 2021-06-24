@@ -4,6 +4,7 @@ import numpy as np
 
 
 SHAPE_ENCODING_DTYPE = np.uint64
+LAST_INDEX_INDEX = -1
 
 
 class ShapeEncoder:
@@ -54,10 +55,10 @@ class ShapeEncoder:
 
             if shape == last_shape:
                 # increment last shape's index by `count`
-                self._encoded[-1, -1] += count
+                self._encoded[-1, LAST_INDEX_INDEX] += count
 
             else:
-                last_shape_index = self._encoded[-1, -1]
+                last_shape_index = self._encoded[-1, LAST_INDEX_INDEX]
                 shape_entry = np.array(
                     [[*shape, last_shape_index + count]], dtype=SHAPE_ENCODING_DTYPE
                 )

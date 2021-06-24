@@ -17,8 +17,12 @@ def test_scalars(memory_storage: StorageProvider):
     engine.append(1000)
     engine.append(1001)
 
+    actual = engine.get_samples(Index(slice(0, 1000)))
+    expected = np.arange(1002)
+    np.testing.assert_array_equal(actual, expected)
+
     for i in range(1002):
-        assert engine.get_sample(Index(i)) == i
+        assert engine.get_samples(Index(i)) == i
 
     assert engine.num_chunks == 1
 
@@ -54,7 +58,7 @@ def test_arrays(memory_storage: StorageProvider):
     # requires 2 chunks to do this
     engine.extend(a2)
 
-    actual_samples = engine.get_sample(Index(), aslist=True)
+    actual_samples = engine.get_samples(Index(), aslist=True)
     expected_samples = [*a1_copy, a1_copy[0], a1_copy[-1], *a2_copy]
 
     for actual_sample, expected_sample in zip(actual_samples, expected_samples):
@@ -81,7 +85,7 @@ def test_large_arrays(memory_storage: StorageProvider):
 
     engine.extend(a1)
 
-    np.testing.assert_array_equal(a1_copy, engine.get_sample(Index(slice(0, 10))))
+    np.testing.assert_array_equal(a1_copy, engine.get_samples(Index(slice(0, 10))))
 
     assert engine.num_samples == 10
     assert engine.num_chunks == 3
@@ -94,7 +98,7 @@ def test_large_arrays(memory_storage: StorageProvider):
 
     engine.extend(a2)
 
-    np.testing.assert_array_equal(a2_copy, engine.get_sample(Index(slice(10, 20))))
+    np.testing.assert_array_equal(a2_copy, engine.get_samples(Index(slice(10, 20))))
 
     assert engine.num_samples == 20
     assert engine.num_chunks == 6

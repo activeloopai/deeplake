@@ -101,7 +101,9 @@ class ChunkEngine:
                 data_buffer = data_buffer[extra_bytes:]
                 samples_added_to_chunk = ceil(len(chunk_bytes) / bytes_per_sample)
 
-                last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
+                last_chunk._shape_encoder.add_shape(
+                    sample_shape, samples_added_to_chunk
+                )
                 chunk_name = self._chunk_names_encoder.extend_chunk(
                     samples_added_to_chunk, connected_to_next=connected_to_next
                 )
@@ -134,12 +136,23 @@ class ChunkEngine:
 
             data_buffer = data_buffer[end_byte:]
             bytes_written_so_far += len(chunk_bytes)
-            # can be 0, in that case it is only partial
-            samples_added_to_chunk = len(chunk_bytes) // bytes_per_sample
 
-            new_chunk._shape_encoder.add_shape(sample_shape, samples_added_to_chunk)
+            # can be 0, in that case it is only partial
+            full_samples_added_to_chunk = len(chunk_bytes) // bytes_per_sample
+
+            # cannot be 0
+            full_and_partial_samples_added_to_chunk = ceil(
+                len(chunk_bytes) / bytes_per_sample
+            )
+
+            new_chunk._shape_encoder.add_shape(
+                sample_shape, full_and_partial_samples_added_to_chunk
+            )
+            new_chunk._byte_positions_encoder.add_byte_position(
+                bytes_per_sample, full_and_partial_samples_added_to_chunk
+            )
             chunk_name = self._chunk_names_encoder.append_chunk(
-                samples_added_to_chunk, connected_to_next=connected_to_next
+                full_samples_added_to_chunk, connected_to_next=connected_to_next
             )
 
             # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
@@ -157,25 +170,35 @@ class ChunkEngine:
     def append(self, array: np.ndarray):
         self.extend(np.expand_dims(array, 0))
 
-    def get_sample(self, index: Index, aslist: bool = False):
+    def get_samples(self, index: Index, aslist: bool = False):
         # TODO: implement this!
 
         # TODO: maybe this can be more efficient?
         samples = []
-        for i in index.values[0].indices(self.num_samples):
-            chunk_names = self._chunk_names_encoder.get_chunk_names(i)
+        for global_sample_index in index.values[0].indices(self.num_samples):
+            chunk_names = self._chunk_names_encoder.get_chunk_names(global_sample_index)
             sample_bytes = bytearray()
 
             for chunk_name in chunk_names:
                 chunk_key = get_chunk_key(self.key, chunk_name)
                 chunk = self.storage[chunk_key]
-                sample_bytes += chunk.get_sample_bytes(i)
-                sample_shape = chunk.get_sample_shape(i)
 
-            sample_shape = self
-            np.frombuffer(sample_bytes, dtype=self.tensor_meta.dtype).reshape(shape)
+                local_sample_index = global_sample_index  # TODO
+                sample_bytes += chunk.get_sample_bytes(local_sample_index)
+                sample_shape = chunk.get_sample_shape(local_sample_index)
 
-        raise NotImplementedError()
+            a = np.frombuffer(sample_bytes, dtype=self.tensor_meta.dtype).reshape(
+                sample_shape
+            )
+
+            samples.append(a)
+            print(a)
+
+        if aslist:
+            return samples
+
+        # TODO: if dynamic array catch this error early
+        return np.array(samples)
 
     def get_last_chunk(self) -> Chunk:
         if self.num_chunks == 0:
