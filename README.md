@@ -68,12 +68,12 @@ Hub is written in 100% python and can be quickly installed using pip.
 ```sh
 pip3 install hub
 ```
-Accessing datasets in Hub requires a single line of code. Run this snippet to get the first thousand images in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
+Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
 from hub import Dataset
 
-mnist = Dataset("activeloop/mnist")
-mnist_np = mnist["image"][0:1000].numpy()
+mnist = Dataset("hub://activeloop/mnist_train")
+mnist_np = mnist.image[0].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
