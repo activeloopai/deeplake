@@ -13,8 +13,7 @@ CHUNK_NAME_ENCODING_DTYPE = np.uint64
 
 # index definitions:
 CHUNK_ID_INDEX = 0
-NUM_SAMPLES_INDEX = 1
-LAST_INDEX_INDEX = 2
+LAST_INDEX_INDEX = 1
 
 
 def _generate_chunk_id() -> CHUNK_NAME_ENCODING_DTYPE:
@@ -89,7 +88,6 @@ class ChunkNameEncoder:
 
         last_entry = self._encoded[-1]
         last_entry[LAST_INDEX_INDEX] += num_samples
-        last_entry[NUM_SAMPLES_INDEX] += num_samples
         self._connectivity[-1] = connected_to_next
 
         return _chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
@@ -106,7 +104,7 @@ class ChunkNameEncoder:
 
             id = _generate_chunk_id()
             self._encoded = np.array(
-                [[id, num_samples, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
+                [[id, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
             self._connectivity = np.array([connected_to_next], dtype=bool)
         else:
@@ -121,7 +119,7 @@ class ChunkNameEncoder:
             last_index = self.num_samples - 1
 
             new_entry = np.array(
-                [[id, num_samples, last_index + num_samples]],
+                [[id, last_index + num_samples]],
                 dtype=CHUNK_NAME_ENCODING_DTYPE,
             )
             self._encoded = np.concatenate([self._encoded, new_entry])
