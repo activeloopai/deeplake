@@ -245,7 +245,7 @@ class TorchDataset:
         if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         else:
-            arr = decompress_array(combined_bytes)
+            arr = decompress_array(combined_bytes, shape=shape)
 
         if isinstance(combined_bytes, memoryview):
             combined_bytes.release()

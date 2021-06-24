@@ -90,7 +90,6 @@ class Sample:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
         """
 
-        # TODO: raise a comprehensive error for unsupported compression types
         compression = compression.lower()
 
         if compression == UNCOMPRESSED:
