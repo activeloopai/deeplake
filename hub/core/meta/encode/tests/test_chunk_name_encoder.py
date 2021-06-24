@@ -1,7 +1,5 @@
 import pytest
-import numpy as np
 from hub.core.meta.encode.chunk_name import ChunkNameEncoder
-from hub.core.storage.provider import StorageProvider
 
 
 def test_trivial():
@@ -9,7 +7,7 @@ def test_trivial():
 
     enc.append_chunk(10)
 
-    assert not enc.try_combining_last_two_chunks()
+    # assert not enc.try_combining_last_two_chunks()
 
     id1 = enc.get_chunk_id(0)
     assert enc.get_chunk_id(9) == id1
@@ -36,66 +34,34 @@ def test_trivial():
     assert enc.get_chunk_id(35) == id3
     assert enc.get_chunk_id(36) == id3
 
-    assert not enc.try_combining_last_two_chunks()
+    # assert not enc.try_combining_last_two_chunks()
 
     assert enc.num_samples == 37
     assert len(enc._encoded) == 3
 
 
-def test_auto_combine():
+def test_multi_chunks_per_sample():
+    # TODO:
     enc = ChunkNameEncoder()
 
-    # these can all be squeezed into 1 chunk id
-    enc.append_chunk(10)
-    enc.append_chunk(10)
-    enc.append_chunk(10)
-    enc.append_chunk(5)
+    # idx=0-5 samples fit in chunk 0
+    # idx=6 sample fits in chunk 0, chunk 1, chunk 2, and chunk 3
+    # idx=7-10 samples fit in chunk 3
 
-    # cannot combine yet
-    assert enc.get_chunk_id(30) != enc.get_chunk_id(20)
+    enc.append_chunk(1)
+    enc.extend_chunk(5, connected_to_next=True)
+    enc.append_chunk(0)  # continuation of the 6th sample
+    enc.append_chunk(0)  # continuation of the 6th sample
+    enc.append_chunk(0)  # continuation of the 6th sample
 
-    # now can combine
-    enc.extend_chunk(5)
-    assert enc.try_combining_last_two_chunks()
-    assert not enc.try_combining_last_two_chunks()  # cannot combine twice in a row
+    enc.extend_chunk(3)
 
-    assert enc.get_chunk_id(0) == enc.get_chunk_id(10)
-    assert enc.get_chunk_id(10) == enc.get_chunk_id(20)
-    assert enc.get_chunk_id(30) == enc.get_chunk_id(35)
-    assert enc.get_chunk_id(0) == enc.get_chunk_id(35)
-
-    assert enc.num_samples == 40
-
-    # should be 1 because chunks with the same counts can be combined
-    assert len(enc._encoded) == 1
-
-    enc.append_chunk(9)
-
-    # cannot combine
-    assert len(enc._encoded) == 2
-
-    enc.append_chunk(10)
-
-    # cannot combine
-    assert len(enc._encoded) == 3
-
-    enc.append_chunk(3)
-
-    # cannot combine
-    assert len(enc._encoded) == 4
-
-    enc.extend_chunk(7)
-    assert enc.try_combining_last_two_chunks()
-    assert not enc.try_combining_last_two_chunks()  # cannot combine twice in a row
-
-    assert len(enc._encoded) == 3
+    enc.append_chunk(10_000)
+    enc.extend_chunk(10)
 
 
 def test_failures():
     enc = ChunkNameEncoder()
-
-    with pytest.raises(Exception):  # TODO: exceptions.py
-        enc.try_combining_last_two_chunks()
 
     # cannot extend previous if no samples exist
     with pytest.raises(Exception):  # TODO: exceptions.py
@@ -107,10 +73,15 @@ def test_failures():
     enc.append_chunk(10)
 
     with pytest.raises(ValueError):
-        enc.extend_chunk(0)
+        enc.extend_chunk(0)  # not allowed
 
     with pytest.raises(ValueError):
-        enc.append_chunk(0)
+        enc.extend_chunk(-1)
+
+    enc.append_chunk(0)  # this is allowed
+
+    with pytest.raises(ValueError):
+        enc.append_chunk(-1)
 
     with pytest.raises(IndexError):
         enc.get_chunk_id(10)

@@ -12,9 +12,8 @@ CHUNK_NAME_ENCODING_DTYPE = np.uint64
 
 # index definitions:
 CHUNK_ID_INDEX = 0
-NUM_CHUNKS_INDEX = 1
-NUM_SAMPLES_INDEX = 2
-LAST_INDEX_INDEX = 3
+NUM_SAMPLES_INDEX = 1
+LAST_INDEX_INDEX = 2
 
 
 def _generate_chunk_id() -> CHUNK_NAME_ENCODING_DTYPE:
@@ -28,6 +27,7 @@ def _chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
 class ChunkNameEncoder:
     def __init__(self):
         self._encoded = None
+        self._connectivity = None
 
     @property
     def num_ids(self) -> int:
@@ -54,33 +54,46 @@ class ChunkNameEncoder:
 
         idx = np.searchsorted(self._encoded[:, LAST_INDEX_INDEX], sample_index)
         id = self._encoded[idx, CHUNK_ID_INDEX]
-        # TODO: return actual chunk name (with delimited range)
+        # TODO: return multiple ids
         return _chunk_name_from_id(id)
 
-    def extend_chunk(self, count: int):
-        _validate_count(count)
+    def extend_chunk(self, num_samples: int, connected_to_next: bool = False):
+        if num_samples <= 0:
+            raise ValueError(
+                f"When extending, `num_samples` should be > 0. Got {num_samples}."
+            )
 
         if self.num_samples == 0:
             raise Exception(
                 "Cannot extend the previous chunk because it doesn't exist."
             )
 
+        if self._connectivity[-1] == 1:
+            # TODO: custom exception
+            raise Exception(
+                "Cannot extend a chunk that is already marked as `connected_to_next`."
+            )
+
         last_entry = self._encoded[-1]
-        last_entry[LAST_INDEX_INDEX] += count
-        last_entry[NUM_SAMPLES_INDEX] += count
+        last_entry[LAST_INDEX_INDEX] += num_samples
+        last_entry[NUM_SAMPLES_INDEX] += num_samples
+        self._connectivity[-1] = connected_to_next
 
-        # TODO: check if previous chunk can be combined
-
-    def append_chunk(self, count: int):
-        _validate_count(count)
+    def append_chunk(self, num_samples: int, connected_to_next: bool = False):
+        if num_samples < 0:
+            raise ValueError(
+                f"When appending, `num_samples` should be >= 0. Got {num_samples}."
+            )
 
         if self.num_samples == 0:
             id = _generate_chunk_id()
             self._encoded = np.array(
-                [[id, 1, count, count - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
+                [[id, num_samples, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
+            self._connectivity = np.array([connected_to_next], dtype=bool)
         else:
-            self.try_combining_last_two_chunks()
+            # TODO: maybe return True if combined sucessfully?
+            # self.try_combining_last_two_chunks()
 
             id = _generate_chunk_id()
 
@@ -88,36 +101,15 @@ class ChunkNameEncoder:
             last_index = self.num_samples - 1
 
             new_entry = np.array(
-                [[id, 1, count, last_index + count]], dtype=CHUNK_NAME_ENCODING_DTYPE
+                [[id, num_samples, last_index + num_samples]],
+                dtype=CHUNK_NAME_ENCODING_DTYPE,
             )
             self._encoded = np.concatenate([self._encoded, new_entry])
-
-        # TODO: check if previous chunk can be combined
-
-    def try_combining_last_two_chunks(self) -> bool:
-        # TODO: docstring that explains what this does
-
-        if self.num_ids == 0:
-            # TODO: exceptions.py
-            raise Exception("Cannot finalize last chunk because it doesn't exist.")
-
-        # can only combine if at least 2 unique chunk_ids exist
-        if self.num_ids >= 2:
-            last_entry = self._encoded[-2]
-            current_entry = self._encoded[-1]
-
-            can_combine = (
-                current_entry[NUM_SAMPLES_INDEX] == last_entry[NUM_SAMPLES_INDEX]
+            self._connectivity = np.concatenate(
+                [self._connectivity, [connected_to_next]]
             )
 
-            if can_combine:
-                last_entry[LAST_INDEX_INDEX] = current_entry[LAST_INDEX_INDEX]
-                self._encoded = self._encoded[:-1]
-                return True
 
-        return False
-
-
-def _validate_count(count: int):
-    if count <= 0:
-        raise ValueError(f"Sample `count` should be > 0. Got {count}.")
+def _validate_num_samples(num_samples: int):
+    if num_samples <= 0:
+        raise ValueError(f"`num_count` should be > 0. Got {num_samples}.")
