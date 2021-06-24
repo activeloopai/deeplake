@@ -70,10 +70,29 @@ def test_multi_chunks_per_sample():
 
     assert len(enc.get_chunk_names(0)) == 1
     assert len(enc.get_chunk_names(4)) == 1
+    assert enc.get_chunk_names(0) == enc.get_chunk_names(4)
     assert len(enc.get_chunk_names(5)) == 4
     assert len(enc.get_chunk_names(6)) == 1
 
     assert enc.num_samples == 10_019
+
+    # sample takes up 2 chunks
+    enc.append_chunk(1, connected_to_next=True)
+    enc.append_chunk(0, connected_to_next=False)
+
+    assert enc.num_samples == 10_020
+    assert len(enc.get_chunk_names(10_019)) == 2
+
+    # sample takes up 5 chunks
+    enc.append_chunk(1, connected_to_next=True)
+    enc.append_chunk(0, connected_to_next=True)
+    enc.append_chunk(0, connected_to_next=True)
+    enc.append_chunk(0, connected_to_next=True)
+    enc.append_chunk(0, connected_to_next=False)
+
+    assert len(enc.get_chunk_names(10_020)) == 5
+    assert enc.num_samples == 10_021
+
     _assert_valid_encodings(enc)
 
 
