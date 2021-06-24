@@ -41,8 +41,8 @@ class ChunkNameEncoder:
             return 0
         return int(self._encoded[-1, LAST_INDEX_INDEX] + 1)
 
-    def get_chunk_id(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
-        """Returns the chunk name corresponding to `sample_index`."""
+    def get_chunk_names(self, sample_index: int) -> CHUNK_NAME_ENCODING_DTYPE:
+        """Returns the chunk names that correspond to `sample_index`."""
 
         if self.num_samples == 0:
             raise IndexError(
@@ -54,8 +54,9 @@ class ChunkNameEncoder:
 
         idx = np.searchsorted(self._encoded[:, LAST_INDEX_INDEX], sample_index)
         id = self._encoded[idx, CHUNK_ID_INDEX]
+
         # TODO: return multiple ids
-        return _chunk_name_from_id(id)
+        return (_chunk_name_from_id(id),)
 
     def extend_chunk(self, num_samples: int, connected_to_next: bool = False):
         if num_samples <= 0:
@@ -86,14 +87,19 @@ class ChunkNameEncoder:
             )
 
         if self.num_samples == 0:
+            if num_samples == 0:
+                raise Exception("First num samples cannot be 0.")  # TODO: exceptions.py
+
             id = _generate_chunk_id()
             self._encoded = np.array(
                 [[id, num_samples, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
             )
             self._connectivity = np.array([connected_to_next], dtype=bool)
         else:
-            # TODO: maybe return True if combined sucessfully?
-            # self.try_combining_last_two_chunks()
+            if num_samples == 0 and self._connectivity[-1] == 0:
+                raise Exception(
+                    "num_samples cannot be 0 unless the previous chunk was connected to next."
+                )  # TODO: exceptions.py
 
             id = _generate_chunk_id()
 
