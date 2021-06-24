@@ -38,20 +38,21 @@ def _apply_transform(transform: Callable, sample: Dict, index: int):
     """Applies the transform function on a single sample"""
     remove_shared_memory_from_resource_tracker()
     transformed_sample = transform(sample)
-    data = pickle.dumps(transformed_sample)
-    size = len(data)
+    pickled_sample = pickle.dumps(transformed_sample)
+    sample_size = len(pickled_sample)
 
-    # handle case where shared memory exists already (possibly due to previous pytorch run being interrupted)
+    # handles case where shared memory exists already (possibly due to previous pytorch run being interrupted)
     try:
-        shm = SharedMemory(create=True, size=size, name=f"tr_{index}")
+        shared_memory = SharedMemory(create=True, size=sample_size, name=f"tr_{index}")
     except:
-        shm = SharedMemory(name=f"tr_{index}")
-        shm.unlink()
-        shm = SharedMemory(create=True, size=size, name=f"tr_{index}")
+        shared_memory = SharedMemory(name=f"tr_{index}")
+        shared_memory.unlink()
+        shared_memory = SharedMemory(create=True, size=sample_size, name=f"tr_{index}")
 
-    shm.buf[:size] = data  # type: ignore
-    shm.close()
-    return size
+    # needs to be sliced as some OS (like macOS) allocate extra space
+    shared_memory.buf[:sample_size] = pickled_sample  # type: ignore
+    shared_memory.close()
+    return sample_size
 
 
 def _read_and_store_chunk(
@@ -70,11 +71,11 @@ def _read_and_store_chunk(
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
-    shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
+    shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
-    # needs to be done as some OS (like macOS) allocate extra space
-    shm.buf[0:chunk_size] = chunk_bytes
-    shm.close()
+    # needs to be sliced as some OS (like macOS) allocate extra space
+    shared_memory.buf[:chunk_size] = chunk_bytes
+    shared_memory.close()
     return chunk_size
 
 
@@ -321,11 +322,11 @@ class TorchDataset:
             )
             self.processed_samples = []
             for i, index in enumerate(indexes):
-                shm = SharedMemory(name=f"tr_{index}")
-                current_sample = pickle.loads(shm.buf[0 : size_list[i]])
+                shared_memory = SharedMemory(name=f"tr_{index}")
+                current_sample = pickle.loads(shared_memory.buf[: size_list[i]])
                 self.processed_samples.append(current_sample)
-                shm.close()
-                shm.unlink()
+                shared_memory.close()
+                shared_memory.unlink()
         else:
             self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
