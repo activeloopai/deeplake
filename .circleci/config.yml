@@ -29,6 +29,14 @@ workflows:
           context:
             - test
             - azure
+      - test:
+          name: "Windows Complex Test"
+          e: win64
+          unix-like: false
+          optional: true
+          context:
+            - test
+            - azure
   test-and-deploy:
     jobs:
       - test:
