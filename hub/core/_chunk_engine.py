@@ -77,14 +77,43 @@ class ChunkEngine:
 
             # combine if count is same
             if combined_min_chunks_required == min_chunks_required:
-                last_chunk.extend(data_buffer[0:extra_bytes], sample_count)
+                last_chunk.extend(data_buffer[0:extra_bytes])
+                # TODO: update `last_chunk`'s shape / byte positions encoding
                 data_buffer = data_buffer[extra_bytes:]
 
-        else:
+        # each iteration of this loop will create a new chunk
+        while len(data_buffer) > 0:
             new_chunk = Chunk(self.min_chunk_size_target, self.max_chunk_size)
+            end_byte = min(len(data_buffer), self.max_chunk_size)
+
+            # chunk_content = content[:end_byte]  # type: ignore
+            # _write_chunk(chunk_content, storage, chunk_names, key)
+
+            """ inside _write_chunk:
+            chunk_name = chunk_name or _generate_chunk_name()
+            chunk_names.append(chunk_name)
+            chunk_key = get_chunk_key(key, chunk_name)
+            storage[chunk_key] = content
+            """
+
+            new_chunk.extend(data_buffer[:end_byte])
+            # TODO: update `new_chunk`'s shape / byte positions encoding
+
+            data_buffer = data_buffer[end_byte:]
+
+            # TODO: turn bool arg into 2 methods instead of 1
+            # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
+            # self._chunk_names_encoder.add_samples_to_chunk(
+            # sample_count, extend_previous
+            # )
+
+            # tensor.extend_tensor(
+            # array, self.key, self.storage, self.tensor_meta, self.index_meta
+            # )
+
             self.cached_chunks.append(new_chunk)
 
-            # TODO: add data to new chunk
+        print(self.cached_chunks)
 
         """
         if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
@@ -133,7 +162,11 @@ class ChunkEngine:
         )
 
     def get_last_chunk(self) -> Chunk:
-        raise NotImplementedError()  # TODO
+        if len(self.cached_chunks) == 0:
+            # TODO: read from storage
+            return None
+
+        return self.cached_chunks[-1]
 
     @staticmethod
     def calculate_bytes(shape: Tuple[int], dtype: np.dtype):
