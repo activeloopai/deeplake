@@ -4,7 +4,7 @@ import numpy as np
 from hub.core.storage.provider import StorageProvider
 from hub.core._chunk_engine import ChunkEngine
 
-from hub.constants import B, MB, KB
+from hub.constants import KB
 
 
 KEY = "chunks"
@@ -20,7 +20,7 @@ def test_scalars(memory_storage: StorageProvider):
     for i in range(1002):
         assert engine.get_sample(Index(i)) == i
 
-    # assert engine.num_chunks == 1  # TODO: uncomment me!
+    assert engine.num_chunks == 1
 
 
 def test_arrays(memory_storage: StorageProvider):
@@ -43,7 +43,7 @@ def test_arrays(memory_storage: StorageProvider):
     engine.append(a1[-1])
 
     assert engine.num_samples == 5
-    # assert engine.num_chunks == 1  # TODO: uncomment me!
+    assert engine.num_chunks == 1
 
     a2 = np.arange(3 * 9 * 11 * 4, dtype=np.int32).reshape(3, 9, 11, 4)
     assert a2.nbytes > engine.min_chunk_size_target
@@ -61,7 +61,7 @@ def test_arrays(memory_storage: StorageProvider):
         np.testing.assert_array_equal(actual_sample, expected_sample)
 
     assert engine.num_samples == 8
-    # assert engine.num_chunks == 2  # TODO: uncomment me!
+    assert engine.num_chunks == 2
 
 
 def test_large_arrays(memory_storage: StorageProvider):
@@ -84,7 +84,7 @@ def test_large_arrays(memory_storage: StorageProvider):
     np.testing.assert_array_equal(a1_copy, engine.get_sample(Index(slice(0, 10))))
 
     assert engine.num_samples == 10
-    # assert engine.num_chunks == 3   # TODO: uncomment me!
+    assert engine.num_chunks == 3
 
     a2 = np.arange(10 * 9 * 10 * 4, dtype=np.int32).reshape(10, 9, 10, 4)
     assert a2.nbytes > engine.max_chunk_size * 2 + engine.min_chunk_size_target
@@ -97,7 +97,7 @@ def test_large_arrays(memory_storage: StorageProvider):
     np.testing.assert_array_equal(a2_copy, engine.get_sample(Index(slice(10, 20))))
 
     assert engine.num_samples == 20
-    # assert engine.num_chunks == 6   # TODO: uncomment me!
+    assert engine.num_chunks == 6
 
 
 def test_calculate_bytes():

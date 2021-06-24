@@ -1,4 +1,4 @@
-from hub.util.keys import get_chunk_key
+from hub.util.keys import get_chunk_index_meta_key, get_chunk_key
 from hub.core.chunk import Chunk
 from math import ceil
 from hub.core.meta.index_meta import IndexMeta
@@ -37,7 +37,6 @@ class ChunkEngine:
     ):
         self.key = key
         self.storage = storage
-        self.cached_chunks: Dict[str, Chunk] = {}
 
         self.min_chunk_size_target = min_chunk_size_target
         self.max_chunk_size = max_chunk_size
@@ -54,8 +53,7 @@ class ChunkEngine:
 
     @property
     def num_chunks(self):
-        # TODO: implement this!
-        raise NotImplementedError()
+        return self._chunk_names_encoder.num_chunks
 
     @property
     def num_samples(self):
@@ -104,9 +102,12 @@ class ChunkEngine:
                 samples_added_to_chunk = ceil(len(chunk_bytes) / bytes_per_sample)
 
                 last_chunk._shape_encoder.add_shape(sample_shape, sample_count)
-                self._chunk_names_encoder.extend_chunk(
+                chunk_name = self._chunk_names_encoder.extend_chunk(
                     samples_added_to_chunk, connected_to_next=connected_to_next
                 )
+
+                chunk_key = get_chunk_key(self.key, chunk_name)
+                self.storage[chunk_key] = last_chunk
 
         # each iteration of this loop will create a new chunk
         while len(data_buffer) > 0:
@@ -143,10 +144,15 @@ class ChunkEngine:
 
             # TODO: somehow extract name from self._chunk_names_encoder and assign / update `Chunk` instances with it
 
-            self.cached_chunks[chunk_name] = new_chunk
+            chunk_key = get_chunk_key(self.key, chunk_name)
+            self.storage[chunk_key] = new_chunk
 
         self.tensor_meta.update_with_sample(sample_shape, sample_dtype)
         self.tensor_meta.length += sample_count
+
+        self.storage[
+            get_chunk_index_meta_key(self.key)
+        ] = self._chunk_names_encoder.tobytes()
 
     def append(self, array: np.ndarray):
         self.extend(np.expand_dims(array, 0))
@@ -154,15 +160,34 @@ class ChunkEngine:
     def get_sample(self, index: Index, aslist: bool = False):
         # TODO: implement this!
 
+        # TODO: maybe this can be more efficient?
+        samples = []
+        for i in index.values[0].indices(self.num_samples):
+            chunk_names = self._chunk_names_encoder.get_chunk_names(i)
+            sample_bytes = bytearray()
+
+            for chunk_name in chunk_names:
+                chunk_key = get_chunk_key(self.key, chunk_name)
+                chunk = self.storage[chunk_key]
+                sample_bytes += chunk.get_sample_bytes(i)
+                sample_shape = chunk.get_sample_shape(i)
+
+            sample_shape = self
+            np.frombuffer(sample_bytes, dtype=self.tensor_meta.dtype).reshape(shape)
+
         raise NotImplementedError()
 
     def get_last_chunk(self) -> Chunk:
-        if len(self.cached_chunks) == 0:
-            # TODO: read from storage
+        if self.num_chunks == 0:
             return None
 
-        last_chunk_name = self._chunk_names_encoder.get_name_for_chunk(-1)
-        return self.cached_chunks[last_chunk_name]
+        chunk_name = self._chunk_names_encoder.get_name_for_chunk(-1)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+
+        chunk = self.storage[chunk_key]
+        if type(chunk) == bytes:
+            return Chunk.frombuffer(chunk)
+        return
 
     @staticmethod
     def calculate_bytes(shape: Tuple[int], dtype: np.dtype):

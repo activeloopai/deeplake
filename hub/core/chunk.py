@@ -13,6 +13,29 @@ class Chunk:
 
         self._data = bytearray()
 
+    def __len__(self):
+        """Returns the length of this chunk's bytes after calling `tobytes`."""
+        shape_nbytes = self._shape_encoder.nbytes
+        positions_nbytes = self._byte_positions_encoder.nbytes
+        return shape_nbytes + 1 + positions_nbytes + 1 + len(self._data)
+
+    def tobytes(self):
+        shape_bytes = self._shape_encoder.tobytes()
+        positions_bytes = self._byte_positions_encoder.tobytes()
+        # TODO: this may copy a lot of bytes
+        return shape_bytes + b"\x00" + positions_bytes + b"\x00" + self._data
+
+    def get_sample_bytes(self, sample_index: int):
+        sb, eb = self._byte_positions_encoder.get_byte_position(sample_index)
+        return self._data[sb, eb]
+
+    def get_sample_shape(self, sample_index: int):
+        return self._shape_encoder[sample_index]
+
+    @staticmethod
+    def frombuffer(self):
+        raise NotImplementedError()
+
     @property
     def num_data_bytes(self):
         return len(self._data)

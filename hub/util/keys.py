@@ -12,9 +12,14 @@ def get_dataset_meta_key() -> str:
     return constants.DATASET_META_FILENAME
 
 
+def get_chunk_index_meta_key(key: str) -> str:
+    return os.path.join(key, constants.CHUNK_INDEX_META_FILENAME)
+
+
 def get_tensor_meta_key(key: str) -> str:
     return os.path.join(key, constants.TENSOR_META_FILENAME)
 
 
 def get_index_meta_key(key: str) -> str:
+    # TODO: remove this!
     return os.path.join(key, constants.INDEX_META_FILENAME)

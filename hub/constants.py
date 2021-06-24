@@ -35,6 +35,7 @@ CHUNKS_FOLDER = "chunks"
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
 INDEX_META_FILENAME = "index_meta.json"
+CHUNK_INDEX_META_FILENAME = "chunk_index_meta.npz"
 META_ENCODING = "utf8"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"

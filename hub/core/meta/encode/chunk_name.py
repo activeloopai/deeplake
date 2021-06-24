@@ -1,4 +1,4 @@
-from re import I
+from io import BytesIO
 from typing import Tuple
 import numpy as np
 from uuid import uuid4
@@ -29,8 +29,13 @@ class ChunkNameEncoder:
         self._encoded = None
         self._connectivity = None
 
+    def tobytes(self) -> memoryview:
+        bio = BytesIO()
+        np.savez(bio, names=self._encoded, connectivity=self._connectivity)
+        return bio.getbuffer()
+
     @property
-    def num_ids(self) -> int:
+    def num_chunks(self) -> int:
         if self._encoded is None:
             return 0
         return len(self._encoded)

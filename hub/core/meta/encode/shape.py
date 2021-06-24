@@ -22,6 +22,15 @@ class ShapeEncoder:
         return tuple(self._encoded[idx, :-1])
 
     @property
+    def nbytes(self):
+        if self._encoded is None:
+            return 0
+        return self._encoded.nbytes
+
+    def tobytes(self) -> bytes:
+        return self._encoded.tobytes()
+
+    @property
     def num_samples(self) -> int:
         if self._encoded is None:
             return 0
