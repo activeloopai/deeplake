@@ -16,8 +16,8 @@ def test_cli_auth():
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     result = runner.invoke(login, f"-u {username} -p {password}")
     assert result.exit_code == 0
-    assert result.output == "Successfully logged in to Activeloop Hub.\n"
+    assert result.output == "Successfully logged in to Activeloop.\n"
 
     result = runner.invoke(logout)
     assert result.exit_code == 0
-    assert result.output == "Logged out of Activeloop Hub.\n"
+    assert result.output == "Logged out of Activeloop.\n"
