@@ -204,3 +204,6 @@ nested_seq
 benchmarks/hub_data
 benchmarks/torch_data
 .benchmarks/
+
+# API docs
+api_docs/
