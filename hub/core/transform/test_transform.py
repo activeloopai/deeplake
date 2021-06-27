@@ -30,8 +30,8 @@ def test_single_transform_hub_dataset(ds):
     with Dataset("./test/transform_hub_in") as data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")
-        for i in range(100):
-            data_in.image.append(i * np.ones((100, 100)))
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i)))
             data_in.label.append(i * np.ones((1,)))
     data_in = Dataset("./test/transform_hub_in")
     ds_out = ds
@@ -39,14 +39,17 @@ def test_single_transform_hub_dataset(ds):
     ds_out.create_tensor("label")
     transform(data_in, [fn2], ds_out)
     data_in.delete()
-    assert len(ds_out) == 100
-    for index in range(100):
+    assert len(ds_out) == 99
+    for index in range(1, 100):
         np.testing.assert_array_equal(
-            ds_out[index].image.numpy(), index * np.ones((100, 100))
+            ds_out[index - 1].image.numpy(), index * np.ones((index, index))
         )
         np.testing.assert_array_equal(
-            ds_out[index].label.numpy(), index * np.ones((1,))
+            ds_out[index - 1].label.numpy(), index * np.ones((1,))
         )
+
+    assert ds_out.image.shape_interval.lower == (99, 1, 1)
+    assert ds_out.image.shape_interval.upper == (99, 100, 100)
 
 
 @parametrize_all_dataset_storages
