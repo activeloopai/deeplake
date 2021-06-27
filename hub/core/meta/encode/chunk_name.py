@@ -24,6 +24,10 @@ def _chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
     return hex(id)[2:]
 
 
+def _chunk_id_from_name(name: str) -> CHUNK_NAME_ENCODING_DTYPE:
+    return int("0x" + name, 16)
+
+
 class ChunkNameEncoder:
     def __init__(self):
         self._encoded = None
@@ -49,7 +53,23 @@ class ChunkNameEncoder:
     def get_name_for_chunk(self, idx) -> str:
         return _chunk_name_from_id(self._encoded[:, CHUNK_ID_INDEX][idx])
 
-    def get_chunk_names(self, sample_index: int) -> Tuple[str]:
+    def get_local_sample_index(self, global_sample_index: int, chunk_index: int):
+        # TODO: explain what's going on here
+
+        if global_sample_index < 0:
+            raise Exception()  # TODO
+
+        if chunk_index == 0:
+            return global_sample_index
+
+        last_entry = self._encoded[chunk_index - 1]
+        last_index = last_entry[LAST_INDEX_INDEX]
+
+        return int(global_sample_index - last_index)
+
+    def get_chunk_names(
+        self, sample_index: int, return_indices: bool = False
+    ) -> Tuple[str]:
         """Returns the chunk names that correspond to `sample_index`."""
 
         if self.num_samples == 0:
@@ -62,6 +82,7 @@ class ChunkNameEncoder:
 
         idx = np.searchsorted(self._encoded[:, LAST_INDEX_INDEX], sample_index)
         names = [_chunk_name_from_id(self._encoded[idx, CHUNK_ID_INDEX])]
+        indices = [idx]
 
         # if accessing last index, check connectivity!
         while (
@@ -71,6 +92,10 @@ class ChunkNameEncoder:
             idx += 1
             name = _chunk_name_from_id(self._encoded[idx, CHUNK_ID_INDEX])
             names.append(name)
+            indices.append(idx)
+
+        if return_indices:
+            return tuple(names), indices
 
         return tuple(names)
 

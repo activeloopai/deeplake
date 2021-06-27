@@ -113,7 +113,7 @@ class ChunkEngine:
                     sample_shape, full_and_partial_samples_added_to_chunk
                 )
                 last_chunk._byte_positions_encoder.add_byte_position(
-                    bytes_per_sample, full_and_partial_samples_added_to_chunk
+                    extra_bytes, full_and_partial_samples_added_to_chunk
                 )
                 chunk_name = self._chunk_names_encoder.extend_chunk(
                     full_samples_added_to_chunk, connected_to_next=connected_to_next
@@ -190,17 +190,25 @@ class ChunkEngine:
         # TODO: indexing here doesn't work...
         # for global_sample_index in index.values[0].indices(self.num_samples):
         for global_sample_index in range(self.num_samples):
-            chunk_names = self._chunk_names_encoder.get_chunk_names(global_sample_index)
+            chunk_names, chunk_indices = self._chunk_names_encoder.get_chunk_names(
+                global_sample_index, return_indices=True
+            )
+
             sample_bytes = bytearray()
 
-            for chunk_name in chunk_names:
+            for chunk_name, chunk_index in zip(chunk_names, chunk_indices):
                 chunk_key = get_chunk_key(self.key, chunk_name)
                 chunk = self.storage[chunk_key]
 
-                local_sample_index = global_sample_index  # TODO
+                local_sample_index = self._chunk_names_encoder.get_local_sample_index(
+                    global_sample_index, chunk_index
+                )
                 sample_bytes += chunk.get_sample_bytes(local_sample_index)
                 sample_shape = chunk.get_sample_shape(local_sample_index)
+                print(local_sample_index)
+                print(chunk._byte_positions_encoder._encoded)
 
+            print("composing sample from", chunk_names, chunk_indices)
             a = np.frombuffer(sample_bytes, dtype=self.tensor_meta.dtype).reshape(
                 sample_shape
             )

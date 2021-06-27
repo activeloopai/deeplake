@@ -39,6 +39,23 @@ def test_trivial():
         enc.get_byte_position(1232)
 
 
+def test_non_uniform():
+    enc = BytePositionsEncoder()
+
+    assert enc.num_samples == 0
+
+    enc.add_byte_position(4960, 1)
+    enc.add_byte_position(4961, 1)
+    enc.add_byte_position(41, 1)
+
+    assert enc.num_samples == 3
+    assert len(enc._encoded) == 3
+
+    assert enc.get_byte_position(0) == (0, 4960)
+    assert enc.get_byte_position(1) == (4960, 4960 + 4961)
+    assert enc.get_byte_position(2) == (4960 + 4961, 4960 + 4961 + 41)
+
+
 def test_failures():
     enc = BytePositionsEncoder()
 

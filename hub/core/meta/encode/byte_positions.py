@@ -51,12 +51,11 @@ class BytePositionsEncoder:
         if num_samples <= 0:
             raise ValueError(f"`num_samples` should be > 0. Got {num_samples}.")
 
-        if num_bytes < 1:
+        if num_bytes <= 0:
             raise ValueError(f"`num_bytes` must be > 0. Got {num_bytes}.")
 
         if self.num_samples != 0:
             last_entry = self._encoded[-1]
-            last_sb = last_entry[START_BYTE_INDEX]
             last_nb = last_entry[NUM_BYTES_INDEX]
 
             if last_nb == num_bytes:

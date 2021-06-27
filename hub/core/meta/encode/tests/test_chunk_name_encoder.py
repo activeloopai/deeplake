@@ -1,5 +1,10 @@
 import pytest
-from hub.core.meta.encode.chunk_name import ChunkNameEncoder
+from hub.core.meta.encode.chunk_name import (
+    ChunkNameEncoder,
+    _generate_chunk_id,
+    _chunk_name_from_id,
+    _chunk_id_from_name,
+)
 
 
 def _assert_valid_encodings(enc: ChunkNameEncoder):
@@ -172,3 +177,10 @@ def test_failures():
     assert enc.num_chunks == 5
 
     _assert_valid_encodings(enc)
+
+
+def test_ids():
+    id = _generate_chunk_id()
+    name = _chunk_name_from_id(id)
+    out_id = _chunk_id_from_name(name)
+    assert id == out_id
