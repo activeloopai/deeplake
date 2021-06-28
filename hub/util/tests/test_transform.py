@@ -46,4 +46,3 @@ def test_merge_tensor_metas(ds):
     assert ds.id.meta.max_shape == [11]
     assert ds.image.meta.sample_compression == "png"
     assert ds.image.meta.length == 2
-    ds.delete()
