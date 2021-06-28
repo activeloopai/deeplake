@@ -354,9 +354,9 @@ class TransformError(Exception):
 
 
 class InvalidTransformOutputError(TransformError):
-    def __init__(self):
+    def __init__(self, item):
         super().__init__(
-            "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
+            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
         )
 
 

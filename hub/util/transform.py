@@ -32,7 +32,8 @@ def transform_sample(
             result = [fn(data, **kwargs) for data in result]
         else:
             result = fn(result, **kwargs)
-        result = flatten_list_of_list(result)
+        if isinstance(result, list):
+            result = flatten_list_of_list(result)
         verify_transform_output(result)
     return result if isinstance(result, list) else [result]
 
@@ -53,10 +54,9 @@ def verify_transform_output(output):
     if isinstance(output, (list, tuple)):
         for item in output:
             if not isinstance(item, dict):
-                raise InvalidTransformOutputError
-    else:
-        if not isinstance(output, dict):
-            raise InvalidTransformOutputError
+                raise InvalidTransformOutputError(item)
+    elif not isinstance(output, dict):
+        raise InvalidTransformOutputError
 
 
 def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
