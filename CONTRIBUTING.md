@@ -138,5 +138,5 @@ API docs are hosted at: https://api-docs.activeloop.ai/
 
 Run the below command to generate API documentation:
 ```
-  pdoc3 --html --output-dir api_docs hub
+  pdoc3 --html --output-dir api_docs --template-dir pdoc/templates hub
 ```

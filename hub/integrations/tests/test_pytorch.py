@@ -150,6 +150,41 @@ def test_pytorch_large(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
+def test_pytorch_transform(ds):
+    import torch
+
+    with ds:
+        ds.create_tensor("image")
+        ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+        ds.create_tensor("image2")
+        ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
+
+    def to_tuple(sample):
+        return sample["image"], sample["image2"]
+
+    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ptds = ds.pytorch(workers=2)
+        return
+
+    ptds = ds.pytorch(workers=2, transform=to_tuple)
+    dl = torch.utils.data.DataLoader(
+        ptds,
+        batch_size=1,
+        num_workers=0,
+    )
+
+    for i, batch in enumerate(dl):
+        actual_image = batch[0].numpy()
+        expected_image = i * np.ones((1, 300, 300))
+        actual_image2 = batch[1].numpy()
+        expected_image2 = i * np.ones((1, 100, 100))
+        np.testing.assert_array_equal(actual_image, expected_image)
+        np.testing.assert_array_equal(actual_image2, expected_image2)
+
+
+@requires_torch
+@parametrize_all_dataset_storages
 def test_pytorch_with_compression(ds: Dataset):
     import torch
 

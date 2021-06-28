@@ -1,3 +1,16 @@
+"""
+"htype" is the class of a tensor: image, bounding box, generic tensor, etc.
+
+These are used when creating a new tensor as follows:
+```
+>>> ds.create_tensor(some_data, htype="image")
+```
+
+Specifying an htype allows the [activeloop platform](https://app.activeloop.ai/)
+to know how to best visualize your tensor. 
+They are also used to inform default compression modes and data types.
+"""
+
 from re import L
 from typing import Dict
 from hub.constants import (
