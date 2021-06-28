@@ -145,6 +145,7 @@ def merge_tensor_metas(
                 tensor_meta.length += current_meta["length"]
                 tensor_meta._update_shape_interval(tuple(current_meta["max_shape"]))
                 tensor_meta._update_shape_interval(tuple(current_meta["min_shape"]))
+        tensor_meta.length += 0
 
 
 def merge_index_metas(
