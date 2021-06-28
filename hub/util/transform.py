@@ -1,6 +1,6 @@
 from hub.api.dataset import Dataset
 from hub.util.exceptions import InvalidTransformOutputError
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.index_meta import IndexMeta
@@ -189,14 +189,18 @@ def merge_index_metas(
                 last_chunk_size = index_meta.entries[-1]["end_byte"]
 
 
-def pad_or_shrink_kwargs(
-    pipeline_kwargs: Optional[Sequence[Dict]], pipeline: Sequence[Callable]
-) -> List[Dict]:
-    """Makes the number of pipeline_kwargs equal to number of functions in pipeline."""
-    pipeline_kwargs = pipeline_kwargs or []
-    pipeline_kwargs = list(pipeline_kwargs[0 : len(pipeline)])
-    pipeline_kwargs += [{}] * (len(pipeline) - len(pipeline_kwargs))
-    return pipeline_kwargs
+def pipeline_to_list(
+    pipeline: Union[Callable, Sequence[Callable]],
+    kwargs: Optional[Union[Dict, Sequence[Dict]]] = None,
+) -> Tuple[List[Callable], List[Dict]]:
+    """Converts pipeline and kwargs to lists. Also makes the length of both lists equal to length of pipleine."""
+    kwargs = kwargs or []
+    kwargs = list(kwargs) if isinstance(kwargs, Sequence) else [kwargs]
+    pipeline = list(pipeline) if isinstance(pipeline, Sequence) else [pipeline]
+
+    kwargs = list(kwargs[: len(pipeline)])
+    kwargs += [dict()] * (len(pipeline) - len(kwargs))
+    return pipeline, kwargs
 
 
 def load_updated_meta(ds_out: Dataset):

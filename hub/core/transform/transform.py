@@ -5,13 +5,13 @@ from hub.util.exceptions import (
     UnsupportedSchedulerError,
 )
 from hub.util.transform import (
-    pad_or_shrink_kwargs,
+    pipeline_to_list,
     load_updated_meta,
     merge_index_metas,
     merge_tensor_metas,
     transform_sample,
 )
-from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 from hub.util.remove_cache import get_base_storage
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider
 from hub.core.compute import ThreadProvider, ProcessProvider, ComputeProvider
@@ -26,9 +26,9 @@ import math
 
 def transform(
     data_in,
-    pipeline: Sequence[Callable],
+    pipeline: Union[Callable, Sequence[Callable]],
     ds_out: Dataset,
-    pipeline_kwargs: Optional[Sequence[Dict]] = None,
+    pipeline_kwargs: Optional[Union[Dict, Sequence[Dict]]] = None,
     scheduler: str = "threaded",
     workers: int = 1,
 ):
@@ -37,20 +37,21 @@ def transform(
     Useful for generating new datasets or converting datasets from one format to another efficiently.
 
     Eg.
+    transform(["xyz.png", "abc.png"], load_img, ds, workers=2, scheduler="processed") # single function in pipleline
     transform(["xyz.png", "abc.png"], [load_img, mirror], ds, workers=5) # loads images, mirrors them and stores them in ds which is a Hub dataset.
     transform(["xyz.png", "abc.png"], [load_img, rotate], ds, [{"grayscale":True}, {"angle":30}]) # applies grayscale arg to load_img and angle to rotate
 
 
     Args:
         data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
-        pipeline (Sequence[Callable]): A Sequence of functions to apply to each element of data_in to generate output dataset.
+        pipeline (Union[Callabel, Sequence[Callable]]): A single function or a sequence of functions to apply to each element of data_in to generate output dataset.
             The output of each function should either be a dictionary or a list/tuple of dictionaries.
             The last function has added restriction that keys in the output of each sample should be same as the tensors present in the ds_out object.
         ds_out (Dataset): The dataset object to which the transform will get written.
             Should have all keys being generated in output already present as tensors. It's initial state should be either:-
             - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
             - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
-        pipeline_kwargs (List[dict], optional): A list containing extra arguments to be passed to the pipeline functions.
+        pipeline_kwargs (Union[Dict, Sequence[Dict]], optional): A single dictionary or a sequence of dictionaries containing extra arguments to be passed to the pipeline functions.
             If more kwargs than functions in pipeline, extra kwargs are ignored, if less kwargs, they are matched to only the starting functions.
             To use on non-continuous functions fill empty dict. Eg. pipeline=[fn1,fn2,fn3], kwargs=[{"a":5},{},{"c":1,"s":7}], only applies to fn1 and fn3.
         scheduler (str): The scheduler to be used to compute the transformation. Currently can be one of 'threaded' and 'processed'.
@@ -89,7 +90,7 @@ def transform(
 
     base_storage = get_base_storage(ds_out.storage)
 
-    pipeline_kwargs = pad_or_shrink_kwargs(pipeline_kwargs, pipeline)
+    pipeline, pipeline_kwargs = pipeline_to_list(pipeline, pipeline_kwargs)
 
     run_pipeline(
         data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs
