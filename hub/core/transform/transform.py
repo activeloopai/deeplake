@@ -68,6 +68,10 @@ def transform(
     """
     if isinstance(data_in, Dataset):
         data_in.flush()
+        data_in_base_storage = get_base_storage(data_in.storage)
+        data_in = Dataset(
+            storage=data_in_base_storage, memory_cache_size=0, local_cache_size=0
+        )
     ds_out.flush()
 
     if not hasattr(data_in, "__getitem__"):
