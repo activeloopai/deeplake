@@ -162,7 +162,7 @@ def test_pytorch_transform(ds):
     def to_tuple(sample):
         return sample["image"], sample["image2"]
 
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return
