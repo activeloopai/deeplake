@@ -38,12 +38,6 @@ def get_s3_storage(state: tuple) -> S3Provider:
     return s3
 
 
-# TODO make this use shared memory to make on the fly transforms faster. Currently using transform slows us down by 10x
-def _apply_transform(transform: Callable, sample: Dict):
-    """Used to apply transforms to a single sample"""
-    return transform(sample) if transform else sample
-
-
 def _read_and_store_chunk(
     chunk_name: str,
     shared_memory_name: str,
@@ -60,11 +54,11 @@ def _read_and_store_chunk(
     chunk_path = os.path.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
-    shm = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
+    shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
-    # needs to be done as some OS (like macOS) allocate extra space
-    shm.buf[0:chunk_size] = chunk_bytes
-    shm.close()
+    # needs to be sliced as some OS (like macOS) allocate extra space
+    shared_memory.buf[:chunk_size] = chunk_bytes
+    shared_memory.close()
     return chunk_size
 
 
@@ -153,7 +147,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         tuple_mode = self.tuple_fields is not None
-        keys = self.tuple_fields if tuple_mode else self.keys
+        keys = self.tuple_fields if tuple_mode and not self.transform else self.keys
         for key in keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -167,6 +161,7 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
+        sample = self._apply_transform(sample)
         if tuple_mode:
             sample = tuple(sample[k] for k in keys)
         return sample
@@ -174,6 +169,10 @@ class TorchDataset:
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
+
+    def _apply_transform(self, sample: Dict):
+        """Used to apply transform to a single sample"""
+        return self.transform(sample) if self.transform else sample
 
     # helper functions
     def _import_torch(self):
@@ -232,7 +231,7 @@ class TorchDataset:
         self.all_shared_memory_names[key] = shared_memory_names
 
     def _generate_shared_memory_names(self, chunk_names: List[str]):
-        """Generates a name for every chunk_name as chunknames very large and fail on MacOS"""
+        """Generates a name for every chunk_name as chunknames are very large and fail on MacOS"""
         ls = []
         for _ in chunk_names:
             self.last_chunk_num_generated += 1
@@ -273,7 +272,7 @@ class TorchDataset:
         if sample_compression == UNCOMPRESSED:
             arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
         else:
-            arr = decompress_array(combined_bytes)
+            arr = decompress_array(combined_bytes, shape=shape)
 
         if isinstance(combined_bytes, memoryview):
             combined_bytes.release()
@@ -325,13 +324,7 @@ class TorchDataset:
         for i in range(first_index, last_index + 1):
             sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
             samples.append(sample)
-
-        if self.transform:
-            self.processed_samples = self.map(
-                _apply_transform, repeat(self.transform), samples
-            )
-        else:
-            self.processed_samples = samples
+        self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
     def _all_shared_memory_clean_up(self):

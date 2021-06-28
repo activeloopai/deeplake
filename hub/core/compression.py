@@ -4,11 +4,20 @@ from hub.util.exceptions import (
     SampleDecompressionError,
     UnsupportedCompressionError,
 )
-from typing import Union
+from typing import Union, Tuple
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
+
+
+def to_image(array: np.ndarray) -> Image:
+    shape = array.shape
+    if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
+        # convert (X,Y,1) grayscale to (X,Y) for pillow compatibility
+        return Image.fromarray(array.squeeze(axis=2))
+
+    return Image.fromarray(array)
 
 
 def compress_array(array: np.ndarray, compression: str) -> bytes:
@@ -33,7 +42,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise UnsupportedCompressionError(compression)
 
     try:
-        img = Image.fromarray(array)
+        img = to_image(array)
         out = BytesIO()
         img.save(out, compression)
         out.seek(0)
@@ -42,7 +51,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise SampleCompressionError(array.shape, compression, str(e))
 
 
-def decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
+def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
@@ -52,6 +61,7 @@ def decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
     Args:
         buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`.
+        shape (Tuple[int]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
 
     Raises:
         SampleDecompressionError: Right now only buffers compatible with `PIL` will be decompressed.
@@ -62,6 +72,6 @@ def decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
 
     try:
         img = Image.open(BytesIO(buffer))
-        return np.array(img)
+        return np.array(img).reshape(shape)
     except UnidentifiedImageError:
         raise SampleDecompressionError()

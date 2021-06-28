@@ -98,8 +98,6 @@ def test_uncompressed(ds: Dataset):
 @pytest.mark.parametrize(
     "bad_shape",
     [
-        # raises TypeError: Cannot handle this data type: (1, 1, 1), |u1
-        (100, 100, 1),
         # raises OSError: cannot write mode LA as JPEG
         (100, 100, 2),
         # raises OSError: cannot write mode RGBA as JPE
@@ -112,7 +110,7 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
     # (100) works!
     # (100,) works!
     # (100, 100) works!
-    # (100, 100, 1) raises   | TypeError: Cannot handle this data type: (1, 1, 1), |u1
+    # (100, 100, 1) works!
     # (100, 100, 2) raises   | OSError: cannot write mode LA as JPEG
     # (100, 100, 3) works!
     # (100, 100, 4) raises   | OSError: cannot write mode RGBA as JPEG

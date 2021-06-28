@@ -57,7 +57,11 @@ class TorchDataset:
         tuple_mode = self.tuple_fields is not None
         sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
-        keys = self.tuple_fields if tuple_mode else self.dataset.tensors
+        keys = (
+            self.tuple_fields
+            if tuple_mode and not self.transform
+            else self.dataset.tensors
+        )
         for key in self.dataset.tensors:
             item = self.dataset[key][index].numpy()
             if item.dtype == "uint16":
