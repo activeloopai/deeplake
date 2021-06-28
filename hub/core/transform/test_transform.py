@@ -8,21 +8,19 @@ def fn1(i, mul=1, copy=1):
     d = {}
     d["image"] = np.ones((337, 200)) * i * mul
     d["label"] = np.ones((1,)) * i * mul
-    return [d for _ in range(copy)]
+    return d if copy == 1 else [d for _ in range(copy)]
 
 
 def fn2(sample, mul=1, copy=1):
-    d = {}
-    d["image"] = sample["image"] * mul
-    d["label"] = sample["label"] * mul
-    return [d for _ in range(copy)]
+    d = {"image": sample["image"] * mul, "label": sample["label"] * mul}
+    return d if copy == 1 else [d for _ in range(copy)]
 
 
 def fn3(i, mul=1, copy=1):
     d = {}
     d["image"] = np.ones((1310, 2087)) * i * mul
     d["label"] = np.ones((13,)) * i * mul
-    return [d for _ in range(copy)]
+    return d if copy == 1 else [d for _ in range(copy)]
 
 
 @parametrize_all_dataset_storages
@@ -37,15 +35,15 @@ def test_single_transform_hub_dataset(ds):
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    transform(data_in, [fn2], ds_out, workers=5)
+    transform(data_in, fn2, ds_out, pipeline_kwargs={"copy": 1, "mul": 2}, workers=5)
     data_in.delete()
     assert len(ds_out) == 99
     for index in range(1, 100):
         np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), index * np.ones((index, index))
+            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
         )
         np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), index * np.ones((1,))
+            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
         )
 
     assert ds_out.image.shape_interval.lower == (99, 1, 1)
