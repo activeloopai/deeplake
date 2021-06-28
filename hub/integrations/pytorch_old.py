@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Callable, Union, List, Optional, Dict, Tuple
 import warnings
 from hub.util.exceptions import ModuleNotInstalledException, TensorDoesNotExistError
 
@@ -47,7 +47,7 @@ class TorchDataset:
                 if field not in dataset.tensors:
                     raise TensorDoesNotExistError(field)
 
-    def _apply_transform(self, sample: dict):
+    def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
 
     def __len__(self):
@@ -57,11 +57,7 @@ class TorchDataset:
         tuple_mode = self.tuple_fields is not None
         sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
-        keys: List[str] = (
-            self.tuple_fields
-            if tuple_mode and not self.transform
-            else self.dataset.tensors
-        )
+        keys: List[str] = self.tuple_fields if tuple_mode else self.dataset.tensors
         for key in keys:
             item = self.dataset[key][index].numpy()
             if item.dtype == "uint16":
@@ -69,10 +65,11 @@ class TorchDataset:
             elif item.dtype in ["uint32", "uint64"]:
                 item = item.astype("int64")
             sample[key] = item
-        sample = self._apply_transform(sample)
+
         if tuple_mode:
             sample = tuple(sample[k] for k in keys)
-        return sample
+
+        return self._apply_transform(sample)
 
     def __iter__(self):
         for index in range(len(self)):

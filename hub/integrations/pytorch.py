@@ -10,7 +10,7 @@ import numpy as np
 import warnings
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union
+from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
@@ -147,7 +147,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         tuple_mode = self.tuple_fields is not None
-        keys: List[str] = self.tuple_fields if tuple_mode and not self.transform else self.keys  # type: ignore
+        keys: List[str] = self.tuple_fields if tuple_mode else self.keys  # type: ignore
         for key in keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -161,16 +161,18 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
-        sample = self._apply_transform(sample)
         if tuple_mode:
             sample = tuple(sample[k] for k in keys)
+
+        sample = self._apply_transform(sample)
+
         return sample
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
 
-    def _apply_transform(self, sample: Dict):
+    def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
         return self.transform(sample) if self.transform else sample
 
