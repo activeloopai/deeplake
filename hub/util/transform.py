@@ -142,10 +142,9 @@ def merge_tensor_metas(
                 # TODO we can support this once we have ragged tensor support
                 assert len(tensor_meta.max_shape) == len(current_meta["max_shape"])
                 assert len(tensor_meta.min_shape) == len(current_meta["min_shape"])
-
+                tensor_meta.length += current_meta["length"]
                 tensor_meta._update_shape_interval(tuple(current_meta["max_shape"]))
                 tensor_meta._update_shape_interval(tuple(current_meta["min_shape"]))
-                tensor_meta.length += current_meta["length"]
 
 
 def merge_index_metas(

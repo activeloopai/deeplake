@@ -37,7 +37,7 @@ def test_single_transform_hub_dataset(ds):
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
-    transform(data_in, [fn2], ds_out)
+    transform(data_in, [fn2], ds_out, workers=5)
     data_in.delete()
     assert len(ds_out) == 99
     for index in range(1, 100):
@@ -49,7 +49,7 @@ def test_single_transform_hub_dataset(ds):
         )
 
     assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 100, 100)
+    assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
 
 @parametrize_all_dataset_storages

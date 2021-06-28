@@ -1,5 +1,6 @@
 from hub.util.exceptions import (
     InvalidInputDataError,
+    InvalidOutputDatasetError,
     TensorMismatchError,
     UnsupportedSchedulerError,
 )
@@ -56,11 +57,15 @@ def transform(
         workers (int): The number of workers to use for performing the transform. Defaults to 1.
 
     Raises:
-        InvalidInputDataError: If ds_in passed to transform is invalid. It should support __getitem__ and __len__ operations.
-        TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.
+        InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations.
+        InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length.
+        TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
         UnsupportedSchedulerError: If the scheduler passed is not recognized.
         InvalidTransformOutputError: If the output of any step in a transformation isn't dictionary or a list/tuple of dictionaries.
+
     """
+    if isinstance(data_in, Dataset):
+        data_in.flush()
     ds_out.flush()
 
     if not hasattr(data_in, "__getitem__"):
@@ -68,9 +73,10 @@ def transform(
     if not hasattr(data_in, "__len__"):
         raise InvalidInputDataError("__len__")
 
-    # TODO: this check doesn't work currently. Will work once AL-1092 is merged and can be uncommented.
-    # for tensor in tensors:
-    #     assert len(ds_out[tensor]) == len(ds_out)
+    tensors = set(ds_out.meta.tensors)
+    for tensor in tensors:
+        if len(ds_out[tensor]) != len(ds_out):
+            raise InvalidOutputDatasetError
 
     workers = max(workers, 1)
 
@@ -82,7 +88,6 @@ def transform(
         raise UnsupportedSchedulerError(scheduler)
 
     base_storage = get_base_storage(ds_out.storage)
-    tensors = set(ds_out.meta.tensors)
 
     pipeline_kwargs = pad_or_shrink_kwargs(pipeline_kwargs, pipeline)
 
@@ -94,7 +99,7 @@ def transform(
 
 def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
-    data_shard, size, storage, tensors, pipeline, pipeline_kwargs = transform_input
+    data_shard, storage, tensors, pipeline, pipeline_kwargs = transform_input
 
     # storing the metas in memory to merge later
     all_index_meta = {key: IndexMeta.create(key, MemoryProvider()) for key in tensors}
@@ -103,8 +108,7 @@ def store_shard(transform_input: Tuple):
     # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
     storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
 
-    # will be simply range(len(data_shard)) after AL 1092
-    for i in range(min(len(data_shard), size)):
+    for i in range(len(data_shard)):
         sample = data_shard[i]
         if isinstance(sample, Dataset):
             sample_dict = {}
@@ -146,17 +150,10 @@ def run_pipeline(
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
 
-    # TODO: hacky way to get around improper length of hub dataset slices, can be removed once AL-1092 gets done
-    size_list = [shard_size for _ in range(workers)]
-    extra = shard_size * workers - len(data_in)
-    if size_list:
-        size_list[-1] -= extra
-
     all_workers_metas = compute.map(
         store_shard,
         zip(
             shards,
-            size_list,
             repeat(storage),
             repeat(tensors),
             repeat(pipeline),
