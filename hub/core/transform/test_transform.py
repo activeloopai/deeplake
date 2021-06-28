@@ -1,3 +1,7 @@
+from hub.util.exceptions import MemoryDatasetNotSupportedError
+import pytest
+from hub.core.storage.memory import MemoryProvider
+from hub.util.remove_cache import remove_memory_cache
 from hub.api.dataset import Dataset
 from hub import transform  # type: ignore
 import numpy as np
@@ -104,11 +108,16 @@ def test_chain_transform_list_small_processed(ds):
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
+    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(MemoryDatasetNotSupportedError):
+            transform(ls, fn1, ds_out, scheduler="processed")
+        return
+
     transform(
         ls,
         [fn1, fn2],
         ds_out,
-        workers=1,
+        workers=3,
         pipeline_kwargs=[{"mul": 5, "copy": 2}, {"mul": 3, "copy": 3}],
         scheduler="processed",
     )

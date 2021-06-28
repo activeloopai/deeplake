@@ -389,6 +389,13 @@ class InvalidOutputDatasetError(TransformError):
         )
 
 
+class MemoryDatasetNotSupportedError(TransformError):
+    def __init__(self, scheduler):
+        super().__init__(
+            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+        )
+
+
 class DatasetUnsupportedPytorch(Exception):
     def __init__(self, reason):
         super().__init__(

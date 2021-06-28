@@ -1,6 +1,7 @@
 from hub.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
+    MemoryDatasetNotSupportedError,
     TensorMismatchError,
     UnsupportedSchedulerError,
 )
@@ -89,6 +90,8 @@ def transform(
         raise UnsupportedSchedulerError(scheduler)
 
     base_storage = get_base_storage(ds_out.storage)
+    if isinstance(base_storage, MemoryProvider) and scheduler != "threaded":
+        raise MemoryDatasetNotSupportedError(scheduler)
 
     pipeline, pipeline_kwargs = pipeline_to_list(pipeline, pipeline_kwargs)
 
