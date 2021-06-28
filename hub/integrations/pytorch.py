@@ -163,7 +163,7 @@ class TorchDataset:
 
         sample = self._apply_transform(sample)
         if tuple_mode:
-            sample = tuple(sample[k] for k in keys)  
+            sample = tuple(sample[k] for k in keys)
         return sample
 
     def __iter__(self):
