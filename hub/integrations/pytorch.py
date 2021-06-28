@@ -7,10 +7,15 @@ from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
 import os
 import numpy as np
+import warnings
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union
-from hub.util.exceptions import DatasetUnsupportedPytorch, ModuleNotInstalledException
+from hub.util.exceptions import (
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+    TensorDoesNotExistError,
+)
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
@@ -63,19 +68,38 @@ def _read_and_store_chunk(
     return chunk_size
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+def dataset_to_pytorch(
+    dataset,
+    transform: Optional[Callable] = None,
+    workers: int = 1,
+    tuple_fields: Optional[List] = None,
+):
     dataset.flush()
-    return TorchDataset(dataset, transform, workers)
+    return TorchDataset(dataset, transform, workers, tuple_fields)
 
 
 class TorchDataset:
-    def __init__(self, dataset, transform: Callable = None, workers: int = 1):
+    def __init__(
+        self,
+        dataset,
+        transform: Optional[Callable] = None,
+        workers: int = 1,
+        tuple_fields: Optional[List[str]] = None,
+    ):
         self._import_torch()
         self.transform: Optional[Callable] = transform
         self.workers: int = workers
+        self.tuple_fields = tuple_fields
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
+        if tuple_fields is not None:
+            for field in tuple_fields:
+                if field not in self.keys:
+                    raise TensorDoesNotExistError(field)
+            unused_tensors = [k for k in self.keys if k not in tuple_fields]
+            if unused_tensors:
+                warnings.warn("Unused tensors: %s." % (", ".join(unused_tensors)))
         self.storage = remove_memory_cache(dataset.storage)
 
         if isinstance(self.storage, MemoryProvider):
@@ -128,7 +152,9 @@ class TorchDataset:
         return self.length
 
     def __getitem__(self, index: int):
-        for key in self.keys:
+        tuple_mode = self.tuple_fields is not None
+        keys = self.tuple_fields if tuple_mode else self.keys
+        for key in keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
@@ -141,6 +167,8 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
+        if tuple_mode:
+            sample = tuple(sample[k] for k in keys)
         return sample
 
     def __iter__(self):

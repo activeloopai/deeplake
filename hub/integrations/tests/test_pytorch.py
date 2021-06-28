@@ -14,7 +14,8 @@ from hub.core.tests.common import parametrize_all_dataset_storages
 
 @requires_torch
 @parametrize_all_dataset_storages
-def test_pytorch_small(ds):
+@pytest.mark.parametrize("tuple_mode", [True, False])
+def test_pytorch_small(ds, tuple_mode):
     import torch
 
     with ds:
@@ -27,7 +28,8 @@ def test_pytorch_small(ds):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return
-    ptds = ds.pytorch(workers=2)
+    tuple_fields = ["image", "image2"] if tuple_mode else None
+    ptds = ds.pytorch(workers=2, tuple_fields=tuple_fields)
 
     # always use num_workers=0, when using hub workers
     dl = torch.utils.data.DataLoader(
@@ -36,16 +38,17 @@ def test_pytorch_small(ds):
         num_workers=0,
     )
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 300, 300))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 100, 100))
-        )
+        if tuple_mode:
+            image, image2 = batch
+        else:
+            image = batch["image"]
+            image2 = batch["image2"]
+        np.testing.assert_array_equal(image.numpy(), i * np.ones((1, 300, 300)))
+        np.testing.assert_array_equal(image2.numpy(), i * np.ones((1, 100, 100)))
 
     sub_ds = ds[50:]
 
-    sub_ptds = sub_ds.pytorch(workers=2)
+    sub_ptds = sub_ds.pytorch(workers=2, tuple_fields=tuple_fields)
 
     # always use num_workers=0, when using hub workers
     sub_dl = torch.utils.data.DataLoader(
@@ -55,12 +58,13 @@ def test_pytorch_small(ds):
     )
 
     for i, batch in enumerate(sub_dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), (50 + i) * np.ones((1, 300, 300))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), (50 + i) * np.ones((1, 100, 100))
-        )
+        if tuple_mode:
+            image, image2 = batch
+        else:
+            image = batch["image"]
+            image2 = batch["image2"]
+        np.testing.assert_array_equal(image.numpy(), (50 + i) * np.ones((1, 300, 300)))
+        np.testing.assert_array_equal(image2.numpy(), (50 + i) * np.ones((1, 100, 100)))
 
     sub_ds2 = ds[30:100]
 
@@ -178,7 +182,8 @@ def test_pytorch_with_compression(ds: Dataset):
 
 @requires_torch
 @parametrize_all_dataset_storages
-def test_pytorch_small_old(ds):
+@pytest.mark.parametrize("tuple_mode", [True, False])
+def test_pytorch_small_old(ds, tuple_mode):
     import torch
 
     with ds:
@@ -188,19 +193,23 @@ def test_pytorch_small_old(ds):
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(ds, workers=2, python_version_warning=False)
+    tuple_fields = ["image", "image2"] if tuple_mode else None
+    ptds = dataset_to_pytorch(
+        ds, workers=2, tuple_fields=tuple_fields, python_version_warning=False
+    )
     dl = torch.utils.data.DataLoader(
         ptds,
         batch_size=1,
         num_workers=0,
     )
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 300, 300))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 100, 100))
-        )
+        if tuple_mode:
+            image, image2 = batch
+        else:
+            image = batch["image"]
+            image2 = batch["image2"]
+        np.testing.assert_array_equal(image.numpy(), i * np.ones((1, 300, 300)))
+        np.testing.assert_array_equal(image2.numpy(), i * np.ones((1, 100, 100)))
 
 
 @requires_torch

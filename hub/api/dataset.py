@@ -250,7 +250,12 @@ class Dataset:
         return self._mode
 
     @hub_reporter.record_call
-    def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
+    def pytorch(
+        self,
+        transform: Optional[Callable] = None,
+        workers: int = 1,
+        tuple_fields: Optional[List[str]] = None,
+    ):
         """Converts the dataset into a pytorch compatible format.
 
         Note:
@@ -260,11 +265,14 @@ class Dataset:
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample
             workers (int): The number of workers to use for fetching data in parallel.
+            tuple_fields (List, optional): If given, each sample will be a tuple in the specified order.
 
         Returns:
             A dataset object that can be passed to torch.utils.data.DataLoader
         """
-        return dataset_to_pytorch(self, transform, workers=workers)
+        return dataset_to_pytorch(
+            self, transform, workers=workers, tuple_fields=tuple_fields
+        )
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""
