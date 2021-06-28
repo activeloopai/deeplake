@@ -46,6 +46,9 @@ class TorchDataset:
             for field in self.tuple_fields:  # type: ignore
                 if field not in dataset.tensors:
                     raise TensorDoesNotExistError(field)
+            unused_tensors = [k for k in dataset.tensors if k not in tuple_fields]
+            if unused_tensors:
+                warnings.warn("Unused tensors: %s." % (", ".join(unused_tensors)))
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
