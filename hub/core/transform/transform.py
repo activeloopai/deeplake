@@ -115,6 +115,11 @@ def store_shard(transform_input: Tuple):
 
     # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
     storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
+    if isinstance(data_shard, Dataset):
+        data_shard_base_storage = get_base_storage(data_shard.storage)
+        data_shard = Dataset(
+            storage=data_shard_base_storage, memory_cache_size=32 * MB
+        )
 
     for i in range(len(data_shard)):
         sample = data_shard[i]
