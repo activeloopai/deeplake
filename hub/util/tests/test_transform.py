@@ -21,7 +21,6 @@ def test_merge_tensor_metas(ds):
         "chunk_compression": "uncompressed",
         "dtype": "int64",
         "custom_meta": {},
-        "version": "2.0a3",
     }
 
     image_dict = {
@@ -34,7 +33,6 @@ def test_merge_tensor_metas(ds):
         "chunk_compression": "uncompressed",
         "dtype": "uint8",
         "custom_meta": {},
-        "version": "2.0a3",
     }
     all_workers_metas = [{"id": id_dict, "image": image_dict}]
     new_id_dict = id_dict.copy()

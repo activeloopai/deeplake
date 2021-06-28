@@ -130,13 +130,13 @@ def merge_tensor_metas(
 
         for all_tensor_meta in all_workers_tensor_meta:
             current_meta = all_tensor_meta[tensor]
-            # will be None if 0 outputs from worker
-            if tensor_meta.max_shape == [] or tensor_meta.dtype is None:
+            if len(tensor_meta.max_shape) == 0 or tensor_meta.dtype is None:
                 tensor_meta.dtype = current_meta["dtype"]
                 tensor_meta.max_shape = current_meta["max_shape"]
                 tensor_meta.min_shape = current_meta["min_shape"]
                 tensor_meta.length += current_meta["length"]
-            elif current_meta["min_shape"] != []:
+            # len of min_shape will be 0 if 0 outputs from worker
+            elif len(current_meta["min_shape"]) != 0:
                 assert tensor_meta.dtype == current_meta["dtype"]
                 # TODO we can support this once we have ragged tensor support
                 assert len(tensor_meta.max_shape) == len(current_meta["max_shape"])

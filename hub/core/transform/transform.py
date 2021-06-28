@@ -94,25 +94,25 @@ def store_shard(transform_input: Tuple):
         data_shard,
         size,
         storage,
-        tensors,
         tensor_metas,
         pipeline,
         pipeline_kwargs,
     ) = transform_input
 
+    tensors = tensor_metas.keys()
     # storing the metas in memory to merge later
     all_index_meta = {key: IndexMeta.create(key, MemoryProvider()) for key in tensors}
-    all_tensor_meta = {key: TensorMeta.create(key, MemoryProvider()) for key in tensors}
-
-    # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
-    storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
-
+    all_tensor_meta = {}
     for tensor in tensors:
+        all_tensor_meta[tensor] = TensorMeta.create(tensor, MemoryProvider())
         all_tensor_meta[tensor].htype = tensor_metas[tensor].htype
         all_tensor_meta[tensor].dtype = tensor_metas[tensor].dtype
         all_tensor_meta[tensor].sample_compression = tensor_metas[
             tensor
         ].sample_compression
+
+    # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
+    storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
 
     # will be simply range(len(data_shard)) after AL 1092
     for i in range(min(len(data_shard), size)):
@@ -170,7 +170,6 @@ def run_pipeline(
             shards,
             size_list,
             repeat(storage),
-            repeat(tensors),
             repeat(init_tensor_metas),
             repeat(pipeline),
             repeat(pipeline_kwargs),
