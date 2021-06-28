@@ -43,7 +43,7 @@ class TorchDataset:
         self.transform = transform
         self.tuple_fields = tuple_fields
         if tuple_fields is not None:
-            for field in self.tuple_fields:
+            for field in self.tuple_fields:  # type: ignore
                 if field not in dataset.tensors:
                     raise TensorDoesNotExistError(field)
 
@@ -57,12 +57,12 @@ class TorchDataset:
         tuple_mode = self.tuple_fields is not None
         sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
-        keys = (
+        keys: List[str] = (
             self.tuple_fields
             if tuple_mode and not self.transform
             else self.dataset.tensors
         )
-        for key in self.dataset.tensors:
+        for key in keys:
             item = self.dataset[key][index].numpy()
             if item.dtype == "uint16":
                 item = item.astype("int32")

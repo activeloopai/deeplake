@@ -86,7 +86,7 @@ class TorchDataset:
         self.tuple_fields = tuple_fields
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
-        self.keys = list(dataset.tensors)
+        self.keys: List[str] = list(dataset.tensors)
         if tuple_fields is not None:
             for field in tuple_fields:
                 if field not in self.keys:
@@ -147,7 +147,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         tuple_mode = self.tuple_fields is not None
-        keys = self.tuple_fields if tuple_mode and not self.transform else self.keys
+        keys: List[str] = self.tuple_fields if tuple_mode and not self.transform else self.keys  # type: ignore
         for key in keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -163,7 +163,7 @@ class TorchDataset:
 
         sample = self._apply_transform(sample)
         if tuple_mode:
-            sample = tuple(sample[k] for k in keys)
+            sample = tuple(sample[k] for k in keys)  
         return sample
 
     def __iter__(self):
