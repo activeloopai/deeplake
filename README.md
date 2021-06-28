@@ -1,3 +1,6 @@
+### We're are sunsetting Hub 1.0. 
+### Hub 2.0, an easier-to-use and highly-performant replacement is available in the [release/2.0](https://github.com/activeloopai/Hub/tree/release/2.0) branch. Please contact us through our [Slack Community](http://slack.activeloop.ai/) if you'd like to become an Alpha Tester
+
 <img src="https://static.scarf.sh/a.png?x-pxid=96869414-64a7-4e7b-82b2-a15aec2d19d5" />
 <p align="center">
   <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/Use_Hub_in_a_CVPR_challenge_and_win_up_to_$1000_(read_more).png" height="35" /></a>
