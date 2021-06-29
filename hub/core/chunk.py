@@ -27,9 +27,11 @@ class Chunk:
         out.seek(0)
         return out.read()
 
-    def extend(
-        self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]
-    ) -> Tuple:
+    @property
+    def num_samples(self):
+        raise NotImplementedError
+
+    def extend(self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]):
         raise NotImplementedError
 
     def numpy(self):
