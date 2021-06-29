@@ -42,7 +42,7 @@ def test_tensorflow_small(local_ds):
         # converting tf Tensors to numpy
         np.testing.assert_array_equal(batch["image"].numpy(), i * np.ones((300, 300)))
         np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((100, 100)))
-    local_ds.delete()
+    del local_ds
 
 
 @requires_tensorflow
@@ -68,4 +68,4 @@ def test_tensorflow_large(local_ds):
             batch["image"].numpy(), (i + 1) * np.ones((4096, 4096))
         )
         np.testing.assert_array_equal(batch["classlabel"].numpy(), (i) * np.ones((1,)))
-    local_ds.delete()
+    del local_ds

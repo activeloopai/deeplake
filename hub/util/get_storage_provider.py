@@ -66,6 +66,7 @@ def storage_provider_from_path(
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
+        path = os.path.expanduser(path)
         if not os.path.exists(path) or os.path.isdir(path):
             storage = LocalProvider(path)
         else:

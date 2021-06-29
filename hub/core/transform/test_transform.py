@@ -38,7 +38,7 @@ def test_single_transform_hub_dataset(ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(data_in, [fn2], ds_out)
-    data_in.delete()
+    del data_in
     assert len(ds_out) == 100
     for index in range(100):
         np.testing.assert_array_equal(

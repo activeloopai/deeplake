@@ -304,14 +304,22 @@ class Dataset:
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
-    def delete(self):
+    def __del__(self):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
-        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+        This is an IRREVERSIBLE operation. Deleted data is not recoverable.
         """
         self.storage.clear()
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
             logger.info(f"Hub Dataset {self.path} successfully deleted.")
+
+    @staticmethod
+    def delete(path: str):
+        """Deletes the dataset at a given path, if it exists.
+        This is an IRREVERSIBLE operation. Deleted data is not recoverable.
+        """
+        ds = Dataset(path, memory_cache_size=0, local_cache_size=0)
+        del ds
 
     @staticmethod
     def from_path(path: str):

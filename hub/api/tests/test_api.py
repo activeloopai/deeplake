@@ -25,7 +25,7 @@ def test_persist_local(local_storage):
     assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
-    ds.delete()
+    del ds
 
 
 def test_persist_with_local(local_storage):
@@ -45,7 +45,7 @@ def test_persist_with_local(local_storage):
     assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
-    ds.delete()
+    del ds
 
 
 def test_persist_local_clear_cache(local_storage):
@@ -62,7 +62,7 @@ def test_persist_local_clear_cache(local_storage):
     assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
-    ds.delete()
+    del ds
 
 
 @parametrize_all_dataset_storages
@@ -421,4 +421,4 @@ def test_hub_cloud_dataset():
     for i in range(10):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
-    ds.delete()
+    del ds
