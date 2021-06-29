@@ -5,8 +5,8 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
-import os
 import numpy as np
+import posixpath
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union
@@ -46,7 +46,7 @@ def _read_and_store_chunk(
     if isinstance(storage, tuple):
         state: tuple = storage
         storage = get_s3_storage(state)
-    chunk_path = os.path.join(key, "chunks", chunk_name)
+    chunk_path = posixpath.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
     shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
@@ -71,7 +71,6 @@ class TorchDataset:
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
         self.storage = remove_memory_cache(dataset.storage)
-
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
