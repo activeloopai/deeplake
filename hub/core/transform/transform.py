@@ -104,23 +104,25 @@ def transform(
 def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
     data_shard, storage, tensor_metas, pipeline, pipeline_kwargs = transform_input
-
     tensors = tensor_metas.keys()
+
     # storing the metas in memory to merge later
-    all_index_meta = {key: IndexMeta.create(key, MemoryProvider()) for key in tensors}
+    all_index_meta = {}
     all_tensor_meta = {}
     for tensor in tensors:
-        all_tensor_meta[tensor] = TensorMeta.create(tensor, MemoryProvider())
-        all_tensor_meta[tensor].htype = tensor_metas[tensor].htype
-        all_tensor_meta[tensor].dtype = tensor_metas[tensor].dtype
-        all_tensor_meta[tensor].sample_compression = tensor_metas[
-            tensor
-        ].sample_compression
+        index_meta = IndexMeta.create(tensor, MemoryProvider())
+        all_index_meta[tensor] = index_meta
+
+        tensor_meta = TensorMeta.create(tensor, MemoryProvider())
+        tensor_meta.htype = tensor_metas[tensor]["htype"]
+        tensor_meta.dtype = tensor_metas[tensor]["dtype"]
+        tensor_meta.sample_compression = tensor_metas[tensor]["sample_compression"]
+        all_tensor_meta[tensor] = tensor_meta
 
     # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
     storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
 
-    # TODO separate cache for data_in if it's a Dataset
+    # TODO separate cache for data_shard if it's a Dataset
 
     for i in range(len(data_shard)):
         sample = data_shard[i]
@@ -161,13 +163,7 @@ def run_pipeline(
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
 
-    # TODO: hacky way to get around improper length of hub dataset slices, can be removed once AL-1092 gets done
-    size_list = [shard_size for _ in range(workers)]
-    extra = shard_size * workers - len(data_in)
-    if size_list:
-        size_list[-1] -= extra
-
-    init_tensor_metas = {tensor: TensorMeta.load(tensor, storage) for tensor in tensors}
+    init_tensor_metas = {t: TensorMeta.load(t, storage).to_dict() for t in tensors}
     all_workers_metas = compute.map(
         store_shard,
         zip(

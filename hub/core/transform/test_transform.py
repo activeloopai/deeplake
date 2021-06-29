@@ -59,8 +59,8 @@ def test_single_transform_hub_dataset_htypes(ds):
     with Dataset("./test/transform_hub_in_htypes") as data_in:
         data_in.create_tensor("image", htype="image")
         data_in.create_tensor("label", htype="class_label")
-        for i in range(100):
-            data_in.image.append(i * np.ones((100, 100), dtype="uint8"))
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
             data_in.label.append(i * np.ones((1,), dtype="int32"))
     data_in = Dataset("./test/transform_hub_in_htypes")
     ds_out = ds
