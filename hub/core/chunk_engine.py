@@ -1,5 +1,6 @@
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
-from hub.util.keys import get_chunk_key
+from hub.util.keys import get_chunk_key, get_tensor_meta_key
 import numpy as np
 
 from hub.core.storage.lru_cache import LRUCache
@@ -19,6 +20,11 @@ class ChunkEngine:
 
         # TODO: load if it already exists
         self.index_chunk_encoder = ChunkNameEncoder()
+
+    @property
+    def tensor_meta(self):
+        tensor_meta_key = get_tensor_meta_key(self.key)
+        return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
     def extend(self, array: np.array):
         if len(array.shape) < 2:
