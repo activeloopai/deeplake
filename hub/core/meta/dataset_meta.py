@@ -7,3 +7,5 @@ from hub.util.keys import get_dataset_meta_key
 class DatasetMeta(Meta):
     def __init__(self):
         self.tensors = []
+
+        super().__init__()

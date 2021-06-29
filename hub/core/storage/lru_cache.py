@@ -43,7 +43,11 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         for key in self.dirty_keys:
-            self.next_storage[key] = self.cache_storage[key]
+            value = self.cache_storage[key]
+            if isinstance(value, Cachable):
+                self.next_storage[key] = value.tobytes()
+            else:
+                self.next_storage[key] = value
         self.dirty_keys.clear()
         self.next_storage.flush()
 

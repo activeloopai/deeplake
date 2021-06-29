@@ -37,10 +37,8 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
 
-    @staticmethod
-    def create(
-        key: str,
-        storage: StorageProvider,
+    def __init__(
+        self,
         htype: str = DEFAULT_HTYPE,
         **kwargs,
     ):
@@ -72,13 +70,9 @@ class TensorMeta(Meta):
         required_meta.update(htype_overwrite)
         _validate_compression(required_meta)
 
-        return TensorMeta(
-            get_tensor_meta_key(key), storage, required_meta=required_meta
-        )
+        self.__dict__.update(required_meta)
 
-    @staticmethod
-    def load(key: str, storage: StorageProvider):
-        return TensorMeta(get_tensor_meta_key(key), storage)
+        super().__init__()
 
     def check_array_sample_is_compatible(self, array: np.ndarray):
         """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.

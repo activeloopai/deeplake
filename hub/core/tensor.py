@@ -42,11 +42,12 @@ def create_tensor(
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    TensorMeta.create(
-        key,
-        storage,
+    meta_key = get_tensor_meta_key(key)
+    meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
         chunk_compression=chunk_compression,
         **kwargs,
     )
+
+    storage[meta_key] = meta
