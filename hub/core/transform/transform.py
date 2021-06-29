@@ -64,7 +64,7 @@ def transform(
         TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
         UnsupportedSchedulerError: If the scheduler passed is not recognized.
         InvalidTransformOutputError: If the output of any step in a transformation isn't dictionary or a list/tuple of dictionaries.
-
+        MemoryDatasetNotSupportedError: If ds_out is a Hub dataset with memory as underlying storage and the scheduler is not threaded.
     """
     if isinstance(data_in, Dataset):
         data_in.flush()
