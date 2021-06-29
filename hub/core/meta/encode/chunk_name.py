@@ -50,6 +50,10 @@ class ChunkNameEncoder:
             return 0
         return int(self._encoded[-1, LAST_INDEX_INDEX] + 1)
 
+    @property
+    def last_chunk_name(self) -> str:
+        return self.get_name_for_chunk(-1)
+
     def get_name_for_chunk(self, idx) -> str:
         return _chunk_name_from_id(self._encoded[:, CHUNK_ID_INDEX][idx])
 
@@ -99,7 +103,9 @@ class ChunkNameEncoder:
 
         return tuple(names)
 
-    def extend_chunk(self, num_samples: int, connected_to_next: bool = False) -> str:
+    def attach_samples_to_last_chunk(
+        self, num_samples: int, connected_to_next: bool = False
+    ) -> str:
         if num_samples <= 0:
             raise ValueError(
                 f"When extending, `num_samples` should be > 0. Got {num_samples}."
@@ -122,7 +128,9 @@ class ChunkNameEncoder:
 
         return _chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
 
-    def append_chunk(self, num_samples: int, connected_to_next: bool = False) -> str:
+    def attach_samples_to_new_chunk(
+        self, num_samples: int, connected_to_next: bool = False
+    ) -> str:
         if num_samples < 0:
             raise ValueError(
                 f"When appending, `num_samples` should be >= 0. Got {num_samples}."

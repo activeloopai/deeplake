@@ -1,3 +1,4 @@
+import pytest
 from copy import deepcopy
 import numpy as np
 
@@ -11,11 +12,12 @@ def _assert_buffer_recomposition(chunk: Chunk):
     assert chunk_buffer == frombuffer_chunk.tobytes()
 
 
-def test_single_chunk():
-    chunk = Chunk(max_data_bytes=10 * KB)
+@pytest.mark.parametrize(["max_data_bytes"], [8 * KB, 10 * KB])
+def test_single_chunk(max_data_bytes: int):
+    chunk = Chunk(max_data_bytes=max_data_bytes)
 
     num_samples = 1
-    shape = (100, 100, 3)
+    shape = (28, 28)
     a = np.ones((num_samples, *shape), dtype=np.int64)
     a_copy = deepcopy(a)
     a_buffer = a.tobytes()
@@ -25,12 +27,14 @@ def test_single_chunk():
 
     assert len(new_chunks) == 0
     assert chunk.num_samples == 1
+    assert chunk.has_space
 
     _assert_buffer_recomposition(chunk)
 
 
-def test_scalars():
-    chunk = Chunk(max_data_bytes=8 * KB)
+@pytest.mark.parametrize(["max_data_bytes"], [8 * KB, 9 * KB])
+def test_scalars(max_data_bytes: int):
+    chunk = Chunk(max_data_bytes=max_data_bytes)
 
     a = np.ones(1000)
 
@@ -38,6 +42,7 @@ def test_scalars():
 
     assert len(new_chunks) == 4
     assert chunk.num_samples == 1000
+    assert not chunk.has_space
 
     np.testing.assert_array_equal(chunk.numpy(), a)
 

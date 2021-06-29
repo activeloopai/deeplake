@@ -31,7 +31,13 @@ class Chunk:
     def num_samples(self):
         raise NotImplementedError
 
-    def extend(self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]):
+    @property
+    def has_space(self):
+        raise NotImplementedError
+
+    def extend(
+        self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]
+    ) -> Tuple:
         raise NotImplementedError
 
     def numpy(self):

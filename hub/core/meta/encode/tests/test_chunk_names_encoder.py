@@ -14,16 +14,16 @@ def _assert_valid_encodings(enc: ChunkNameEncoder):
 def test_trivial():
     enc = ChunkNameEncoder()
 
-    name1 = enc.append_chunk(10)
+    name1 = enc.attach_samples_to_new_chunk(10)
 
     assert enc.num_chunks == 1
 
     id1 = enc.get_chunk_names(0)
     assert enc.get_chunk_names(9) == id1
 
-    name2 = enc.extend_chunk(10)
-    name3 = enc.extend_chunk(9)
-    name4 = enc.extend_chunk(1)
+    name2 = enc.attach_samples_to_last_chunk(10)
+    name3 = enc.attach_samples_to_last_chunk(9)
+    name4 = enc.attach_samples_to_last_chunk(1)
 
     assert enc.num_chunks == 1
 
@@ -32,14 +32,14 @@ def test_trivial():
     assert name1 == name4
 
     # new chunks
-    name5 = enc.append_chunk(1)
-    enc.append_chunk(5)
+    name5 = enc.attach_samples_to_new_chunk(1)
+    enc.attach_samples_to_new_chunk(5)
 
     assert enc.num_chunks == 3
 
     assert name5 != name1
 
-    enc.extend_chunk(1)
+    enc.attach_samples_to_last_chunk(1)
 
     id2 = enc.get_chunk_names(30)
     id3 = enc.get_chunk_names(31)
@@ -71,20 +71,24 @@ def test_multi_chunks_per_sample():
 
     # idx=0:5 samples fit in chunk 0
     # idx=5 sample fits in chunk 0, chunk 1, chunk 2, and chunk 3
-    enc.append_chunk(1)
-    enc.extend_chunk(5, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=True)  # continuation of the 6th sample
-    enc.append_chunk(0, connected_to_next=True)  # continuation of the 6th sample
-    enc.append_chunk(0, connected_to_next=False)  # end of the 6th sample
+    enc.attach_samples_to_new_chunk(1)
+    enc.attach_samples_to_last_chunk(5, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(
+        0, connected_to_next=True
+    )  # continuation of the 6th sample
+    enc.attach_samples_to_new_chunk(
+        0, connected_to_next=True
+    )  # continuation of the 6th sample
+    enc.attach_samples_to_new_chunk(0, connected_to_next=False)  # end of the 6th sample
 
     assert enc.num_chunks == 4
 
-    enc.extend_chunk(3)  # these samples are part of the last chunk
+    enc.attach_samples_to_last_chunk(3)  # these samples are part of the last chunk
 
     assert enc.num_chunks == 4
 
-    enc.append_chunk(10_000)
-    enc.extend_chunk(10)
+    enc.attach_samples_to_new_chunk(10_000)
+    enc.attach_samples_to_last_chunk(10)
 
     assert enc.num_chunks == 5
 
@@ -105,8 +109,8 @@ def test_multi_chunks_per_sample():
     assert enc.num_samples == 10_019
 
     # sample takes up 2 chunks
-    enc.append_chunk(1, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=False)
+    enc.attach_samples_to_new_chunk(1, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=False)
 
     assert enc.num_chunks == 7
 
@@ -114,11 +118,11 @@ def test_multi_chunks_per_sample():
     assert len(enc.get_chunk_names(10_019)) == 2
 
     # sample takes up 5 chunks
-    enc.append_chunk(1, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=False)
+    enc.attach_samples_to_new_chunk(1, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=False)
 
     assert enc.num_chunks == 12
 
@@ -133,43 +137,45 @@ def test_failures():
 
     with pytest.raises(Exception):
         # fails because no previous chunk exists
-        enc.append_chunk(0)
+        enc.attach_samples_to_new_chunk(0)
 
     # cannot extend previous if no samples exist
     with pytest.raises(Exception):  # TODO: exceptions.py
-        enc.extend_chunk(1)
+        enc.attach_samples_to_last_chunk(1)
 
     with pytest.raises(IndexError):
         enc.get_chunk_names(-1)
 
-    enc.append_chunk(10)
-    enc.extend_chunk(10, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(10)
+    enc.attach_samples_to_last_chunk(10, connected_to_next=True)
 
     with pytest.raises(Exception):
-        enc.extend_chunk(1)  # cannot extend because already connected to next
+        enc.attach_samples_to_last_chunk(
+            1
+        )  # cannot extend because already connected to next
 
     with pytest.raises(ValueError):
-        enc.extend_chunk(0)  # not allowed
+        enc.attach_samples_to_last_chunk(0)  # not allowed
 
     with pytest.raises(ValueError):
-        enc.extend_chunk(-1)
+        enc.attach_samples_to_last_chunk(-1)
 
-    enc.append_chunk(0)  # this is allowed
+    enc.attach_samples_to_new_chunk(0)  # this is allowed
 
-    enc.append_chunk(1, connected_to_next=True)
-    enc.append_chunk(0, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(1, connected_to_next=True)
+    enc.attach_samples_to_new_chunk(0, connected_to_next=True)
 
     with pytest.raises(Exception):
-        enc.extend_chunk(1)
+        enc.attach_samples_to_last_chunk(1)
 
     with pytest.raises(ValueError):
-        enc.append_chunk(-1)
+        enc.attach_samples_to_new_chunk(-1)
 
-    enc.append_chunk(0, connected_to_next=False)  # end this sample
+    enc.attach_samples_to_new_chunk(0, connected_to_next=False)  # end this sample
 
     with pytest.raises(Exception):
         # fails because previous chunk is not connected to next
-        enc.append_chunk(0)
+        enc.attach_samples_to_new_chunk(0)
 
     with pytest.raises(IndexError):
         enc.get_chunk_names(21)
