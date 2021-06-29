@@ -10,13 +10,13 @@ from hub.constants import (
     DEFAULT_LOCAL_CACHE_SIZE,
     MB,
 )
-from hub.core.dataset import dataset_exists
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
+from hub.util.keys import get_dataset_meta_key
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -220,15 +220,25 @@ class Dataset:
             yield self[i]
 
     def _load_meta(self):
-        if dataset_exists(self.storage):
+        meta_key = get_dataset_meta_key()
+
+        if meta_key in self.storage:
+            # dataset exists
+
             logger.info(f"Hub Dataset {self.path} successfully loaded.")
-            self.meta = DatasetMeta.load(self.storage)
+            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
+            # dataset does not exist, but the path was not empty
+
             raise PathNotEmptyException
         else:
-            self.meta = DatasetMeta.create(self.storage)
+            # dataset does not exist
+
+            self.meta = DatasetMeta()
+            self.storage[meta_key] = self.meta
+
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(

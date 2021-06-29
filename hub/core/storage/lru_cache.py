@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from typing import Set
+from hub.core.storage.cachable import Cachable
+from typing import Callable, Set
 
 from hub.core.storage.provider import StorageProvider
 
@@ -45,6 +46,21 @@ class LRUCache(StorageProvider):
             self.next_storage[key] = self.cache_storage[key]
         self.dirty_keys.clear()
         self.next_storage.flush()
+
+    def get_cachable(self, path: str, expected_class):
+        item = self[path]
+
+        if isinstance(item, Cachable):
+            if type(item) != expected_class:
+                raise ValueError(
+                    f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
+                )
+            return item
+
+        if isinstance(item, bytes):
+            return expected_class.frombuffer(item)
+
+        raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
