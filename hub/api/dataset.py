@@ -1,3 +1,4 @@
+from hub.core.tensor import create_tensor, tensor_exists
 from hub.constants import DEFAULT_HTYPE
 import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
@@ -12,7 +13,6 @@ from hub.constants import (
 from hub.core.dataset import dataset_exists
 
 from hub.core.meta.dataset_meta import DatasetMeta
-from hub.core.tensor import create_tensor, tensor_exists
 
 from hub.core.typing import StorageProvider
 from hub.core.index import Index

@@ -1,7 +1,7 @@
 from copy import deepcopy
 import numpy as np
 
-from hub.core.chunk import Chunk
+from hub.core.chunk import Chunk, chunk_from_buffer
 from hub.constants import KB
 
 
@@ -15,7 +15,7 @@ def test_single_chunk():
     a_buffer = a.tobytes()
 
     new_chunks = chunk.extend(a_buffer, num_samples, shape)
-    np.testing.assert_array_equal(chunk[0], a_copy)  # TODO: chunk.__eq__
+    np.testing.assert_array_equal(chunk.numpy(), a_copy)
 
     assert len(new_chunks) == 0
     assert chunk.num_samples_including_partial == 1
@@ -45,7 +45,7 @@ def test_multi_chunk_small_samples():
     assert new_chunks[1].num_samples_including_partial == 2
     assert new_chunks[2].num_samples_including_partial == 1
 
-    np.testing.assert_array_equal(chunk[0:5], a_copy)
+    np.testing.assert_array_equal(chunk.numpy(), a_copy)
 
 
 def test_scalars():
@@ -62,4 +62,4 @@ def test_scalars():
     assert new_chunks[2].num_samples_including_partial == 1000
     assert new_chunks[3].num_samples_including_partial == 1000
 
-    np.testing.assert_array_equal(chunk[0:5000], a)
+    np.testing.assert_array_equal(chunk.numpy(), a)

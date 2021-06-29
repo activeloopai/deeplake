@@ -1,6 +1,5 @@
 from hub.core.compression import compress_array
 from hub.constants import UNCOMPRESSED
-from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
 from typing import List, Optional, Tuple
@@ -106,8 +105,7 @@ class Sample:
     def uncompressed_bytes(self) -> bytes:
         """Returns `self.array` as uncompressed bytes."""
 
-        # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
-        return row_wise_to_bytes(self.array)
+        return self.array.tobytes()
 
     def _read(self):
         """If this sample hasn't been already read into memory, do so. This is required for properties to be accessible."""

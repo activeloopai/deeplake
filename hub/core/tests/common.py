@@ -4,12 +4,6 @@ from typing import Dict, List
 
 import pytest
 
-from hub.core.tensor import (
-    append_tensor,
-    create_tensor,
-    extend_tensor,
-    read_samples_from_tensor,
-)
 from hub.core.typing import StorageProvider
 
 STORAGE_FIXTURE_NAME = "storage"
@@ -51,19 +45,3 @@ parametrize_all_dataset_storages_and_caches = pytest.mark.parametrize(
     ALL_PROVIDERS + ALL_CACHES,  # type: ignore
     indirect=True,
 )
-
-
-def benchmark_write(key, arrays, chunk_size, storage, batched):
-    # TODO: refactor benchmarks
-
-    create_tensor(key, storage, chunk_size=chunk_size)
-
-    for a_in in arrays:
-        if batched:
-            extend_tensor(a_in, key, storage)
-        else:
-            append_tensor(a_in, key, storage)
-
-
-def benchmark_read(key: str, storage: StorageProvider):
-    read_samples_from_tensor(key, storage)

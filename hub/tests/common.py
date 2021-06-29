@@ -1,8 +1,5 @@
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
-from hub.core.chunk_engine.read import (
-    buffer_from_index_entry,
-)
 from hub.core.meta.index_meta import IndexMeta
 from hub.api.tensor import Tensor
 import os
