@@ -267,7 +267,7 @@ class Dataset:
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample
             workers (int): The number of workers to use for fetching data in parallel.
-            tuple_fields (List, optional): If given, each sample will be a tuple in the specified order.
+            tuple_fields (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tuple_fields=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
 
         Returns:
             A dataset object that can be passed to torch.utils.data.DataLoader
