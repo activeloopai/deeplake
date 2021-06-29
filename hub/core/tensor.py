@@ -1,3 +1,5 @@
+import os
+
 from hub.core.sample import Sample
 from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
@@ -108,6 +110,17 @@ def append_tensor(
     if isinstance(sample, (np.ndarray, int, float, list)):
         # append is guaranteed to NOT have a batch axis
         array = np.expand_dims(sample, axis=0)
+        if os.name == "nt" and array.dtype == "int32":
+            # long int in win64 is 32 bits, cast to int64 to match linux behavior.
+            def has_int(ls: list):
+                for x in ls:
+                    if isinstance(x, int) or isinstance(x, list) and has_int(x):
+                        return True
+                return False
+
+            if isinstance(sample, int) or isinstance(sample, list) and has_int(sample):
+                array = np.cast["int64"](array)
+
         extend_tensor(array, key, storage, **kwargs)
     else:
         extend_tensor([sample], key, storage, **kwargs)

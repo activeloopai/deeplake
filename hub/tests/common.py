@@ -11,6 +11,7 @@ from typing import Sequence, Tuple
 from uuid import uuid1
 
 import numpy as np
+import posixpath
 import pytest
 
 from hub.constants import KB, MB, UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
@@ -49,12 +50,12 @@ def current_test_name() -> str:
     full_name = os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]  # type: ignore
     test_file = full_name.split("::")[0].split("/")[-1].split(".py")[0]
     test_name = full_name.split("::")[1]
-    output = os.path.join(test_file, test_name)
+    output = posixpath.join(test_file, test_name)
     return output
 
 
 def get_dummy_data_path(subpath: str = ""):
-    return os.path.join(_THIS_FILE, "dummy_data/", subpath)
+    return os.path.join(_THIS_FILE, "dummy_data" + os.sep, subpath)
 
 
 def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:

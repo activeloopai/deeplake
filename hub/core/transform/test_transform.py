@@ -6,6 +6,7 @@ from hub.api.dataset import Dataset
 from hub import transform  # type: ignore
 import numpy as np
 from hub.core.tests.common import parametrize_all_dataset_storages
+from click.testing import CliRunner
 
 
 def fn1(i, mul=1, copy=1):

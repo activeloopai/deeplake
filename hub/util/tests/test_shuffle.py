@@ -5,7 +5,7 @@ from hub.util import shuffle
 def test_shuffle(memory_ds):
     ds = memory_ds
     ds.create_tensor("ints", dtype="int64")
-    ds.ints.extend(np.arange(10).reshape((10, 1)))
+    ds.ints.extend(np.arange(10, dtype="int64").reshape((10, 1)))
 
     np.random.seed(0)
     ds = shuffle(ds)
