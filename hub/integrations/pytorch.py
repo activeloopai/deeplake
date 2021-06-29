@@ -91,7 +91,7 @@ class TorchDataset:
             self.tuple_mode = False
         else:
             for field in tuple_fields:
-                if field not in self.keys:
+                if field not in dataset.tensors:
                     raise TensorDoesNotExistError(field)
             self.keys = tuple_fields
             self.tuple_mode = True
