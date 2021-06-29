@@ -1,4 +1,4 @@
-### We're are sunsetting Hub 1.0. 
+### We are sunsetting Hub 1.0. 
 ### Hub 2.0, an easier-to-use and highly-performant replacement is available in the [release/2.0](https://github.com/activeloopai/Hub/tree/release/2.0) branch. Please contact us through our [Slack Community](http://slack.activeloop.ai/) if you'd like to be granted early access to Hub 2.0.
 
 <img src="https://static.scarf.sh/a.png?x-pxid=96869414-64a7-4e7b-82b2-a15aec2d19d5" />
