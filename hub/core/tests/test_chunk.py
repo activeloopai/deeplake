@@ -12,7 +12,7 @@ def _assert_buffer_recomposition(chunk: Chunk):
     assert chunk_buffer == frombuffer_chunk.tobytes()
 
 
-@pytest.mark.parametrize(["max_data_bytes"], [8 * KB, 10 * KB])
+@pytest.mark.parametrize("max_data_bytes", [8 * KB, 10 * KB])
 def test_single_chunk(max_data_bytes: int):
     chunk = Chunk(max_data_bytes=max_data_bytes)
 
@@ -32,7 +32,7 @@ def test_single_chunk(max_data_bytes: int):
     _assert_buffer_recomposition(chunk)
 
 
-@pytest.mark.parametrize(["max_data_bytes"], [8 * KB, 9 * KB])
+@pytest.mark.parametrize("max_data_bytes", [8 * KB, 9 * KB])
 def test_scalars(max_data_bytes: int):
     chunk = Chunk(max_data_bytes=max_data_bytes)
 
