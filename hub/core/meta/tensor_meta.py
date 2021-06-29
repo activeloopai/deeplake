@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, List, Sequence, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -74,7 +74,7 @@ class TensorMeta(Meta):
 
         super().__init__()
 
-    def check_array_sample_is_compatible(self, array: np.ndarray):
+    def check_compatibility(self, shape: Sequence[int], dtype):
         """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.
 
         Note:
@@ -88,26 +88,28 @@ class TensorMeta(Meta):
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
-        if self.dtype and self.dtype != array.dtype.name:
+        dtype = np.dtype(dtype)
+
+        if self.dtype and self.dtype != dtype.name:
             raise TensorDtypeMismatchError(
                 self.dtype,
-                array.dtype.name,
+                dtype.name,
                 self.htype,
             )
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(array.shape)
+            actual_shape_len = len(shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
                     "Sample shape length is expected to be {}, actual length is {}.".format(
                         expected_shape_len, actual_shape_len
                     ),
-                    array.shape,
+                    shape,
                 )
 
-    def update_with_sample(self, array: np.ndarray):
+    def update(self, shape: Sequence[int], dtype, num_samples: int):
         """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
 
         Note:
@@ -120,17 +122,24 @@ class TensorMeta(Meta):
 
         """`array` is assumed to have a batch axis."""
 
-        shape = array.shape
+        if num_samples <= 0:
+            raise ValueError(
+                f"Can only update tensor meta when the number of samples is > 0. Got: '{num_samples}'"
+            )
+
+        dtype = np.dtype(dtype)
 
         if self.length <= 0:
             if not self.dtype:
-                self.dtype = str(array.dtype)
+                self.dtype = str(dtype)
 
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
             # update meta subsequent times
             self._update_shape_interval(shape)
+
+        self.length += num_samples
 
     def _update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:

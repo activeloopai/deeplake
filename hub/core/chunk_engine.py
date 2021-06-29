@@ -22,6 +22,18 @@ class ChunkEngine:
         self.index_chunk_encoder = ChunkNameEncoder()
 
     @property
+    def num_chunks(self):
+        return self.index_chunk_encoder.num_chunks
+
+    @property
+    def last_chunk(self):
+        if self.num_chunks == 0:
+            return None
+
+        last_chunk_name = self.index_chunk_encoder.get_name_for_chunk(-1)
+        return self.cache.get_cachable(last_chunk_name, Chunk)
+
+    @property
     def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
@@ -32,14 +44,20 @@ class ChunkEngine:
                 f"Extending requires arrays to have a minimum dimensionality of 2 (`len(shape)`). Got {len(array.shape)}."
             )
 
-        chunk = Chunk()
-
-        buffer = array.tobytes()
+        sample_dtype = array.dtype
         num_samples = array.shape[0]
         sample_shape = array.shape[1:]
+
+        self.tensor_meta.check_compatibility(sample_shape, sample_dtype)
+
+        buffer = array.tobytes()
+
+        # TODO: we don't always want to create a new chunk (self.last_chunk)
+        chunk = Chunk()
         extra_chunks = chunk.extend(buffer, num_samples, sample_shape)
 
         self.register_new_chunks(chunk, *extra_chunks)
+        self.tensor_meta.update(sample_shape, sample_dtype, num_samples)
 
         raise NotImplementedError
 

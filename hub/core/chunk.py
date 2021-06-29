@@ -30,12 +30,21 @@ class Chunk(Cachable):
         raise NotImplementedError
 
     @property
+    def num_data_bytes(self):
+        return len(self.data)
+
+    @property
     def has_space(self):
-        raise NotImplementedError
+        return self.num_data_bytes < self.min_data_bytes_target
 
     def extend(
         self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]
     ) -> Tuple:
+
+        if self.has_space:
+            # TODO
+            pass
+
         _validate_buffer(buffer, num_samples)
 
         num_bytes_per_sample = len(buffer) // num_samples
