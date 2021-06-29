@@ -1,6 +1,6 @@
 import os
+import posixpath
 import logging
-
 import pytest
 
 # Disable crash reporting before running tests
@@ -128,11 +128,11 @@ def _get_storage_provider(
 
     if info["use_id"]:
         if info["is_id_prefix"]:
-            path = os.path.join(SESSION_ID, path)
+            path = posixpath.join(SESSION_ID, path)
         else:
-            path = os.path.join(path, SESSION_ID)
+            path = posixpath.join(path, SESSION_ID)
 
-    root = os.path.join(root, path)
+    root = posixpath.join(root, path)
     return info["class"](root)
 
 

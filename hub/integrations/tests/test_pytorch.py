@@ -1,3 +1,5 @@
+import sys
+
 from hub.util.remove_cache import remove_memory_cache
 import pytest
 from hub.util.exceptions import DatasetUnsupportedPytorch
@@ -12,6 +14,9 @@ from hub.util.check_installation import requires_torch
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
+PY38 = sys.version_info >= (3, 8)
+
+
 @requires_torch
 @parametrize_all_dataset_storages
 @pytest.mark.parametrize("tuple_mode", [True, False])
@@ -24,7 +29,7 @@ def test_pytorch_small(ds, tuple_mode):
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return
@@ -123,7 +128,7 @@ def test_pytorch_large(ds):
         ds.create_tensor("classlabel")
         ds.classlabel.extend(np.array([i for i in range(10)]))
 
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return
@@ -161,7 +166,7 @@ def test_pytorch_transform(ds):
     def to_tuple(sample):
         return sample["image"], sample["image2"]
 
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return
@@ -201,7 +206,7 @@ def test_pytorch_with_compression(ds: Dataset):
     assert_all_samples_have_expected_compression(images, ["png"] * 16)
     assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
-    if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(workers=2)
         return

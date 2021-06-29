@@ -1,12 +1,11 @@
+import posixpath
+
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import UNCOMPRESSED
 from hub.core.compression import decompress_array
-import os
-import numpy as np
-
-import numpy as np
-
 from hub.core.typing import StorageProvider
+
+import numpy as np
 
 
 def sample_from_index_entry(
@@ -54,7 +53,7 @@ def buffer_from_index_entry(
 
     buffer = bytearray()
     for chunk_name in chunk_names:
-        chunk_key = os.path.join(key, "chunks", chunk_name)
+        chunk_key = posixpath.join(key, "chunks", chunk_name)
         last_b_len = len(buffer)
         buffer.extend(storage[chunk_key])
 

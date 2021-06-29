@@ -41,14 +41,16 @@ class TorchDataset:
 
         self.dataset = dataset
         self.transform = transform
-        self.tuple_fields = tuple_fields
-        if tuple_fields is not None:
-            for field in self.tuple_fields:  # type: ignore
+        self.keys: List[str]
+        if tuple_fields is None:
+            self.keys = list(dataset.tensors)
+            self.tuple_mode = False
+        else:
+            for field in tuple_fields:  # type: ignore
                 if field not in dataset.tensors:
                     raise TensorDoesNotExistError(field)
-            unused_tensors = [k for k in dataset.tensors if k not in tuple_fields]
-            if unused_tensors:
-                warnings.warn("Unused tensors: %s." % (", ".join(unused_tensors)))
+            self.keys = tuple_fields
+            self.tuple_mode = True
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -57,11 +59,9 @@ class TorchDataset:
         return len(self.dataset)
 
     def __getitem__(self, index):
-        tuple_mode = self.tuple_fields is not None
         sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
-        keys: List[str] = self.tuple_fields if tuple_mode else self.dataset.tensors
-        for key in keys:
+        for key in self.keys:
             item = self.dataset[key][index].numpy()
             if item.dtype == "uint16":
                 item = item.astype("int32")
@@ -69,8 +69,8 @@ class TorchDataset:
                 item = item.astype("int64")
             sample[key] = item
 
-        if tuple_mode:
-            sample = tuple(sample[k] for k in keys)
+        if self.tuple_mode:
+            sample = tuple(sample[k] for k in self.keys)
 
         return self._apply_transform(sample)
 

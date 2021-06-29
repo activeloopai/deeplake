@@ -5,9 +5,8 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
-import os
 import numpy as np
-import warnings
+import posixpath
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
@@ -51,7 +50,7 @@ def _read_and_store_chunk(
     if isinstance(storage, tuple):
         state: tuple = storage
         storage = get_s3_storage(state)
-    chunk_path = os.path.join(key, "chunks", chunk_name)
+    chunk_path = posixpath.join(key, "chunks", chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
     shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
@@ -83,19 +82,21 @@ class TorchDataset:
         self._import_torch()
         self.transform: Optional[Callable] = transform
         self.workers: int = workers
-        self.tuple_fields = tuple_fields
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
-        self.keys: List[str] = list(dataset.tensors)
-        if tuple_fields is not None:
+
+        self.keys: List[str]
+        if tuple_fields is None:
+            self.keys = list(dataset.tensors)
+            self.tuple_mode = False
+        else:
             for field in tuple_fields:
                 if field not in self.keys:
                     raise TensorDoesNotExistError(field)
-            unused_tensors = [k for k in self.keys if k not in tuple_fields]
-            if unused_tensors:
-                warnings.warn("Unused tensors: %s." % (", ".join(unused_tensors)))
-        self.storage = remove_memory_cache(dataset.storage)
+            self.keys = tuple_fields
+            self.tuple_mode = True
 
+        self.storage = remove_memory_cache(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
@@ -146,9 +147,7 @@ class TorchDataset:
         return self.length
 
     def __getitem__(self, index: int):
-        tuple_mode = self.tuple_fields is not None
-        keys: List[str] = self.tuple_fields if tuple_mode else self.keys  # type: ignore
-        for key in keys:
+        for key in self.keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
@@ -161,8 +160,8 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
-        if tuple_mode:
-            sample = tuple(sample[k] for k in keys)
+        if self.tuple_mode:
+            sample = tuple(sample[k] for k in self.keys)
 
         sample = self._apply_transform(sample)
 

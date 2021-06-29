@@ -2,6 +2,7 @@ from hub.api.dataset import Dataset
 from hub import transform  # type: ignore
 import numpy as np
 from hub.core.tests.common import parametrize_all_dataset_storages
+from click.testing import CliRunner
 
 
 def fn1(i, mul=1, copy=1):
@@ -27,14 +28,30 @@ def fn3(i, mul=1, copy=1):
 
 @parametrize_all_dataset_storages
 def test_single_transform_hub_dataset(ds):
-    with Dataset("./test/transform_hub_in") as data_in:
-        data_in.create_tensor("image")
-        data_in.create_tensor("label")
-        for i in range(100):
-            data_in.image.append(i * np.ones((100, 100)))
-            data_in.label.append(i * np.ones((1,)))
-    data_in = Dataset("./test/transform_hub_in")
-    ds_out = ds
+    with CliRunner().isolated_filesystem():
+        with Dataset("./test/transform_hub_in") as data_in:
+            data_in.create_tensor("image")
+            data_in.create_tensor("label")
+            for i in range(100):
+                data_in.image.append(i * np.ones((100, 100)))
+                data_in.label.append(i * np.ones((1,)))
+        data_in = Dataset("./test/transform_hub_in")
+        ds_out = ds
+        ds_out.create_tensor("image")
+        ds_out.create_tensor("label")
+        transform(data_in, [fn2], ds_out)
+        data_in.delete()
+        assert len(ds_out) == 100
+        for index in range(100):
+            np.testing.assert_array_equal(
+                ds_out[index].image.numpy(), index * np.ones((100, 100))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index].label.numpy(), index * np.ones((1,))
+            )
+
+
+def check_transform_on_ds(data_in: Dataset, ds_out: Dataset):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     transform(data_in, [fn2], ds_out)
@@ -47,6 +64,30 @@ def test_single_transform_hub_dataset(ds):
         np.testing.assert_array_equal(
             ds_out[index].label.numpy(), index * np.ones((1,))
         )
+
+
+@parametrize_all_dataset_storages
+def test_single_transform_hub_dataset_2(ds):
+    with Dataset("./test/transform_hub_in_generic") as data_in:
+        data_in.create_tensor("image")
+        data_in.create_tensor("label")
+        for i in range(100):
+            data_in.image.append(i * np.ones((100, 100)))
+            data_in.label.append(i * np.ones((1,)))
+    data_in = Dataset("./test/transform_hub_in_generic")
+    check_transform_on_ds(data_in, ds)
+
+
+@parametrize_all_dataset_storages
+def test_transform_htypes(ds):
+    with Dataset("./test/transform_hub_in_htypes") as data_in:
+        data_in.create_tensor("image", htype="image")
+        data_in.create_tensor("label", htype="class_label")
+        for i in range(100):
+            data_in.image.append(i * np.ones((100, 100), dtype="uint8"))
+            data_in.label.append(i * np.ones((1,), dtype="int32"))
+    data_in = Dataset("./test/transform_hub_in_htypes")
+    check_transform_on_ds(data_in, ds)
 
 
 @parametrize_all_dataset_storages

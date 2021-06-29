@@ -5,7 +5,7 @@ from hub.util import split
 def test_split(memory_ds):
     ds = memory_ds
     ds.create_tensor("ints", dtype="int64")
-    ds.ints.extend(np.arange(13).reshape((13, 1)))
+    ds.ints.extend(np.arange(13, dtype="int64").reshape((13, 1)))
 
     train, test, val = split(ds, [0.7, 0.2, 0.1])
 
