@@ -217,9 +217,7 @@ class Tensor:
             A numpy array containing the data represented by this tensor.
         """
 
-        return read_samples_from_tensor(
-            self.key, self.storage, index=self.index, aslist=aslist
-        )
+        return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):
         index_str = f", index={self.index}"

@@ -15,7 +15,6 @@ from hub.util.remove_cache import get_base_storage
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider
 from hub.core.compute import ThreadProvider, ProcessProvider, ComputeProvider
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.index_meta import IndexMeta
 from hub.constants import MB
 from itertools import repeat
 from hub import Dataset

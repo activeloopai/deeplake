@@ -2,13 +2,13 @@ import pytest
 from copy import deepcopy
 import numpy as np
 
-from hub.core.chunk import Chunk, chunk_from_buffer
+from hub.core.chunk import Chunk
 from hub.constants import KB
 
 
 def _assert_buffer_recomposition(chunk: Chunk):
     chunk_buffer = chunk.tobytes()
-    frombuffer_chunk = chunk_from_buffer(chunk_buffer)
+    frombuffer_chunk = Chunk.frombuffer(chunk_buffer)
     assert chunk_buffer == frombuffer_chunk.tobytes()
 
 

@@ -1,5 +1,5 @@
+from hub.core.index.index import Index
 from hub.util.keys import get_chunk_key
-from typing import Tuple
 import numpy as np
 
 from hub.core.storage.lru_cache import LRUCache
@@ -51,3 +51,6 @@ class ChunkEngine:
             chunk_key = get_chunk_key(self.key, chunk_name)
 
             self.cache[chunk_key] = chunk
+
+    def numpy(self, index: Index, aslist: bool = False):
+        raise NotImplementedError

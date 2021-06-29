@@ -1,6 +1,5 @@
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
-from hub.core.meta.index_meta import IndexMeta
 from hub.api.tensor import Tensor
 import os
 import pathlib
