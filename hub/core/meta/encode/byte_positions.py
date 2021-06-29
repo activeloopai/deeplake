@@ -47,18 +47,18 @@ class BytePositionsEncoder:
             return 0
         return self._encoded.nbytes
 
-    def add_byte_position(self, num_bytes: int, num_samples: int):
+    def add_byte_position(self, num_bytes_per_sample: int, num_samples: int):
         if num_samples <= 0:
             raise ValueError(f"`num_samples` should be > 0. Got {num_samples}.")
 
-        if num_bytes <= 0:
-            raise ValueError(f"`num_bytes` must be > 0. Got {num_bytes}.")
+        if num_bytes_per_sample <= 0:
+            raise ValueError(f"`num_bytes` must be > 0. Got {num_bytes_per_sample}.")
 
         if self.num_samples != 0:
             last_entry = self._encoded[-1]
             last_nb = last_entry[NUM_BYTES_INDEX]
 
-            if last_nb == num_bytes:
+            if last_nb == num_bytes_per_sample:
                 self._encoded[-1, LAST_INDEX_INDEX] += num_samples
 
             else:
@@ -67,14 +67,15 @@ class BytePositionsEncoder:
                 sb = self.num_bytes_encoded_under_row(-1)
 
                 entry = np.array(
-                    [[num_bytes, sb, last_index + num_samples]],
+                    [[num_bytes_per_sample, sb, last_index + num_samples]],
                     dtype=POSITION_ENCODING_DTYPE,
                 )
                 self._encoded = np.concatenate([self._encoded, entry], axis=0)
 
         else:
             self._encoded = np.array(
-                [[num_bytes, 0, num_samples - 1]], dtype=POSITION_ENCODING_DTYPE
+                [[num_bytes_per_sample, 0, num_samples - 1]],
+                dtype=POSITION_ENCODING_DTYPE,
             )
 
     def get_byte_position(self, sample_index: int) -> Tuple[int, int]:
