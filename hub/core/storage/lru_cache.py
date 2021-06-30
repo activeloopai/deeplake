@@ -43,12 +43,7 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         for key in self.dirty_keys:
-            value = self.cache_storage[key]
-            if isinstance(value, Cachable):
-                self.next_storage[key] = value.tobytes()
-            else:
-                self.next_storage[key] = value
-        self.dirty_keys.clear()
+            self._forward(key)
         self.next_storage.flush()
 
     def get_cachable(self, path: str, expected_class):
@@ -109,8 +104,7 @@ class LRUCache(StorageProvider):
             self._insert_in_cache(path, value)
             self.dirty_keys.add(path)
         else:  # larger than cache, directly send to next layer
-            self.dirty_keys.discard(path)
-            self.next_storage[path] = value
+            self._forward_value(path, value)
 
         self.maybe_flush()
 
@@ -182,6 +176,31 @@ class LRUCache(StorageProvider):
         """
         yield from self._list_keys()
 
+    def _forward(self, path, remove=False):
+        """Forward the value at a given path to the next storage, and un-marks its key.
+        If the value at the path is Cachable, it will only be un-dirtied if remove=True.
+        """
+        self._forward_value(path, self.cache_storage[path], remove)
+
+    def _forward_value(self, path, value, remove=False):
+        """Forwards a path-value pair to the next storage, and un-marks its key.
+
+        Args:
+            path (str): the path to the object relative to the root of the provider.
+            value (bytes, Cachable): the value to send to the next storage.
+            remove (bool, optional): cachable values are not un-marked automatically,
+                as they are externally mutable. Set this to True to un-mark them anyway.
+        """
+        cachable = isinstance(value, Cachable)
+
+        if not cachable or remove:
+            self.dirty_keys.discard(path)
+
+        if cachable:
+            self.next_storage[path] = value.tobytes()
+        else:
+            self.next_storage[path] = value
+
     def _free_up_space(self, extra_size: int):
         """Helper function that frees up space the requred space in cache.
             No action is taken if there is sufficient space in the cache.
@@ -196,8 +215,7 @@ class LRUCache(StorageProvider):
         """Helper function that pops the least recently used key, value pair from the cache"""
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
-            self.next_storage[key] = self.cache_storage[key]
-            self.dirty_keys.discard(key)
+            self._forward(key, remove=True)
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
