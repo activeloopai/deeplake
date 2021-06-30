@@ -28,10 +28,16 @@ MIN_SECOND_CACHE_SIZE = 160 * MB
 DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
-CHUNKS_FOLDER = "chunks"
+
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
 META_ENCODING = "utf8"
+
+CHUNKS_FOLDER = "chunks"
+
+ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
+# unsharded naming will help with backwards compatibility
+ENCODED_CHUNK_NAMES_FILENAME = "unsharded.npz"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows

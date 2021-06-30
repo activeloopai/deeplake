@@ -1,7 +1,6 @@
 from hub.core.sample import Sample
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
-from hub.core.meta.tensor_meta import TensorMeta
 
 import numpy as np
 
@@ -185,7 +184,8 @@ class Tensor:
         Returns:
             int: The current length of this tensor.
         """
-        return self.index.length(self.meta.length)
+
+        return self.index.length(self.chunk_engine.num_samples)
 
     def __getitem__(
         self,

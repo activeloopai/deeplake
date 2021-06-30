@@ -27,8 +27,8 @@ class Chunk(Cachable):
         self.next_chunk = None
 
     @property
-    def num_full_and_partial_samples(self):
-        return max(1, self.index_byte_range_encoder.num_samples)
+    def num_samples(self):
+        return self.index_byte_range_encoder.num_samples
 
     @property
     def num_data_bytes(self):
@@ -44,7 +44,7 @@ class Chunk(Cachable):
         num_samples: int,
         sample_shape: Tuple[int],
         _leftover_buffer_from_previous_chunk: bool = False,
-    ) -> Tuple:
+    ) -> Tuple["Chunk"]:
         # TODO: docstring
 
         if self.next_chunk is not None:
@@ -106,7 +106,7 @@ class Chunk(Cachable):
         """Calculates the minimum number of chunks in which data with length of `num_bytes` can be fit."""
         return ceil(num_bytes / self.max_data_bytes)
 
-    def _spawn_child_chunk(self):
+    def _spawn_child_chunk(self) -> "Chunk":
         # TODO: docstring
 
         if self.next_chunk is not None:
@@ -148,7 +148,7 @@ class Chunk(Cachable):
 
         return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
-    def tobytes(self) -> bytes:
+    def tobytes(self) -> memoryview:
         out = BytesIO()
         np.savez(
             out,
@@ -157,7 +157,7 @@ class Chunk(Cachable):
             data=self.data,
         )
         out.seek(0)
-        return out.read()
+        return out.getbuffer()
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

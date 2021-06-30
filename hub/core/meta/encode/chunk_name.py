@@ -1,3 +1,4 @@
+from hub.core.storage.cachable import Cachable
 from io import BytesIO
 from typing import Tuple
 import numpy as np
@@ -28,7 +29,7 @@ def _chunk_id_from_name(name: str) -> CHUNK_NAME_ENCODING_DTYPE:
     return int("0x" + name, 16)
 
 
-class ChunkNameEncoder:
+class ChunkNameEncoder(Cachable):
     def __init__(self):
         self._encoded = None
         self._connectivity = None
@@ -37,6 +38,10 @@ class ChunkNameEncoder:
         bio = BytesIO()
         np.savez(bio, names=self._encoded, connectivity=self._connectivity)
         return bio.getbuffer()
+
+    @classmethod
+    def frombuffer(cls, buffer: bytes):
+        raise NotImplementedError
 
     @property
     def num_chunks(self) -> int:

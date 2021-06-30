@@ -1,6 +1,11 @@
+from hub.core.storage.cachable import Cachable
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
-from hub.util.keys import get_chunk_key, get_tensor_meta_key
+from hub.util.keys import (
+    get_chunk_key,
+    get_encoded_chunk_names_key,
+    get_tensor_meta_key,
+)
 import numpy as np
 
 from hub.core.storage.lru_cache import LRUCache
@@ -10,20 +15,34 @@ from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_name import ChunkNameEncoder
 
 
-class ChunkEngine:
+class ChunkEngine(Cachable):
     def __init__(self, key: str, cache: LRUCache):
         if not isinstance(cache, LRUCache):
             raise ValueError(f"Expected cache to be `LRUCache`. Got '{type(cache)}'.")
 
         self.key = key
         self.cache = cache
+        self._staged_root_chunk = None
 
-        # TODO: load if it already exists
-        self.index_chunk_name_encoder = ChunkNameEncoder()
+    @property
+    def index_chunk_name_encoder(self):
+        key = get_encoded_chunk_names_key(self.key)
+
+        try:
+            enc = self.cache.get_cachable(key, ChunkNameEncoder)
+            return enc
+        except KeyError:
+            enc = ChunkNameEncoder()
+            self.cache[key] = enc
+            return enc
 
     @property
     def num_chunks(self):
         return self.index_chunk_name_encoder.num_chunks
+
+    @property
+    def num_samples(self):
+        return self.index_chunk_name_encoder.num_samples
 
     @property
     def last_chunk(self):
@@ -61,12 +80,12 @@ class ChunkEngine:
         if chunk is None:
             chunk = self._create_root_chunk()
 
-        num_samples_before_extend = chunk.num_full_and_partial_samples
+        chunk_num_samples_before_extend = chunk.num_samples
         child_chunks = chunk.extend(buffer, num_samples, sample_shape)
-        num_samples_after_extend = chunk.num_full_and_partial_samples
+        chunk_num_samples_after_extend = chunk.num_samples
 
         num_new_samples_for_last_chunk = (
-            num_samples_after_extend - num_samples_before_extend
+            chunk_num_samples_after_extend - chunk_num_samples_before_extend
         )
         self.register_new_samples_for_last_chunk(num_new_samples_for_last_chunk)
         self.register_new_chunks(*child_chunks)
@@ -79,25 +98,30 @@ class ChunkEngine:
             raise Exception("You cannot create a root chunk when one already exists.")
 
         chunk = Chunk()
-        self.register_new_chunks(chunk)
+        self._staged_root_chunk = chunk
         return chunk
 
     def register_new_samples_for_last_chunk(self, num_new_samples_for_last_chunk: int):
         if num_new_samples_for_last_chunk == 0:
             return
 
-        chunk = self.last_chunk
-        connected_to_next = chunk.next_chunk is not None
-        self.index_chunk_name_encoder.attach_samples_to_last_chunk(
-            num_new_samples_for_last_chunk, connected_to_next=connected_to_next
-        )
+        if self._staged_root_chunk is not None:
+            chunk = self._staged_root_chunk
+            self.register_new_chunks(chunk)
+
+        else:
+            chunk = self.last_chunk
+            connected_to_next = chunk.next_chunk is not None
+            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
+                num_new_samples_for_last_chunk, connected_to_next=connected_to_next
+            )
 
     def register_new_chunks(self, *chunks: Chunk):
         for chunk in chunks:
             connected_to_next = chunk.next_chunk is not None
 
             self.index_chunk_name_encoder.attach_samples_to_new_chunk(
-                chunk.num_full_and_partial_samples, connected_to_next=connected_to_next
+                chunk.num_samples, connected_to_next=connected_to_next
             )
 
             chunk_name = self.index_chunk_name_encoder.last_chunk_name
@@ -116,7 +140,14 @@ class ChunkEngine:
 
         # TODO: get chunks from cache in parallel
 
-        for global_sample_index in index.values[0].indices(index.length):
-            print(global_sample_index)
+        # TODO: refactor `tensor_meta` such that it doesn't have `length`
+        length = self.num_samples
+        for global_sample_index in index.values[0].indices(length):
+            for chunk_name in self.index_chunk_name_encoder.get_chunk_names(
+                global_sample_index
+            ):
+                chunk_key = self.get_chunk_key(chunk_name)
+                chunk = self.cache.get_cachable(chunk_key, Chunk)
+                print(chunk)
 
         raise NotImplementedError
