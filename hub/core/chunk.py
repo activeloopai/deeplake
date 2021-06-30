@@ -54,6 +54,42 @@ class Chunk(Cachable):
             num_bytes_per_sample, num_samples
         )
 
+        """
+        # extracted chunk engine logic from `hub.core.chunk_engine.write`'s `write_bytes` function
+        # need to implement this in a class factory esque way
+
+        if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
+            last_chunk_size = len(last_chunk)
+            chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
+
+            extra_bytes = min(len(content), DEFAULT_CHUNK_MAX_SIZE - last_chunk_size)
+            combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
+
+            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
+                start_byte = index_meta.entries[-1]["end_byte"]
+                end_byte = start_byte + extra_bytes
+
+                chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
+                _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
+
+                content = content[extra_bytes:]
+
+        while len(content) > 0:
+            end_byte = min(len(content), DEFAULT_CHUNK_MAX_SIZE)
+
+            chunk_content = content[:end_byte]  # type: ignore
+            _write_chunk(chunk_content, storage, chunk_names, key)
+
+            content = content[end_byte:]
+
+        index_meta.add_entry(
+            chunk_names=chunk_names,
+            start_byte=start_byte,
+            end_byte=end_byte,
+            **extra_sample_meta,
+        )
+        """
+
         raise NotImplementedError
 
     def numpy(self):

@@ -19,18 +19,18 @@ class ChunkEngine:
         self.cache = cache
 
         # TODO: load if it already exists
-        self.index_chunk_encoder = ChunkNameEncoder()
+        self.index_chunk_name_encoder = ChunkNameEncoder()
 
     @property
     def num_chunks(self):
-        return self.index_chunk_encoder.num_chunks
+        return self.index_chunk_name_encoder.num_chunks
 
     @property
     def last_chunk(self):
         if self.num_chunks == 0:
             return None
 
-        last_chunk_name = self.index_chunk_encoder.get_name_for_chunk(-1)
+        last_chunk_name = self.index_chunk_name_encoder.get_name_for_chunk(-1)
         return self.cache.get_cachable(last_chunk_name, Chunk)
 
     @property
@@ -68,10 +68,10 @@ class ChunkEngine:
         for chunk in chunks:
             connected_to_next = chunk.next_chunk is not None
 
-            self.index_chunk_encoder.attach_samples_to_last_chunk(
+            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
                 chunk.num_samples, connected_to_next=connected_to_next
             )
-            chunk_name = self.index_chunk_encoder.last_chunk_name
+            chunk_name = self.index_chunk_name_encoder.last_chunk_name
             chunk_key = get_chunk_key(self.key, chunk_name)
 
             self.cache[chunk_key] = chunk

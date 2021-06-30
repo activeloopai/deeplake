@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.cachable import Cachable
-from typing import Callable, Set
+from typing import Callable, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -62,7 +62,9 @@ class LRUCache(StorageProvider):
             return item
 
         if isinstance(item, bytes):
-            return expected_class.frombuffer(item)
+            obj = expected_class.frombuffer(item)
+            self[path] = obj
+            return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
@@ -88,7 +90,7 @@ class LRUCache(StorageProvider):
                 self._insert_in_cache(path, result)
             return result
 
-    def __setitem__(self, path: str, value: bytes):
+    def __setitem__(self, path: str, value: Union[bytes, Cachable]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
