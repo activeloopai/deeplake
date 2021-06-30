@@ -26,7 +26,7 @@ def test_single_chunk(max_data_bytes: int):
     np.testing.assert_array_equal(chunk.numpy(), a_copy)
 
     assert len(new_chunks) == 0
-    assert chunk.num_samples == 1
+    assert chunk.last_sample_index == 1
     assert chunk.has_space
 
     _assert_buffer_recomposition(chunk)
@@ -41,7 +41,7 @@ def test_scalars(max_data_bytes: int):
     new_chunks = chunk.extend(a.tobytes(), 5000, (1,))
 
     assert len(new_chunks) == 4
-    assert chunk.num_samples == 1000
+    assert chunk.last_sample_index == 1000
     assert not chunk.has_space
 
     np.testing.assert_array_equal(chunk.numpy(), a)

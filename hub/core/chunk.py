@@ -27,8 +27,8 @@ class Chunk(Cachable):
         self.next_chunk = None
 
     @property
-    def num_samples(self):
-        raise NotImplementedError
+    def num_full_samples(self):
+        return self.index_byte_range_encoder.num_samples
 
     @property
     def num_data_bytes(self):
@@ -140,8 +140,13 @@ class Chunk(Cachable):
         raise NotImplementedError
 
     def __len__(self):
-        # TODO: this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)
-        raise NotImplementedError
+        # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)
+
+        shape_nbytes = self.index_shape_encoder.nbytes
+        range_nbytes = self.index_byte_range_encoder.nbytes
+        error_bytes = 32  # to account for any extra delimeters/stuff that `np.savez` may create in excess
+
+        return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
     def tobytes(self) -> bytes:
         out = BytesIO()

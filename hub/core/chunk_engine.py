@@ -30,8 +30,9 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return None
 
-        last_chunk_name = self.index_chunk_name_encoder.get_name_for_chunk(-1)
-        return self.cache.get_cachable(last_chunk_name, Chunk)
+        last_chunk_name = self.index_chunk_name_encoder.last_chunk_name
+        last_chunk_key = self.get_chunk_key(last_chunk_name)
+        return self.cache.get_cachable(last_chunk_key, Chunk)
 
     @property
     def tensor_meta(self):
@@ -53,28 +54,50 @@ class ChunkEngine:
         buffer = memoryview(array.tobytes())
 
         # TODO: we don't always want to create a new chunk (self.last_chunk)
-        chunk = Chunk()
-        child_chunks = chunk.extend(buffer, num_samples, sample_shape)
 
-        self.register_new_chunks(chunk, *child_chunks)
+        chunk = self.last_chunk
+        if chunk is None:
+            chunk = self._create_parent_chunk()
+
+        # update tensor meta first because erroneous meta information is better than un-accounted for data.
         self.tensor_meta.update(sample_shape, sample_dtype, num_samples)
 
-        raise NotImplementedError
+        child_chunks = chunk.extend(buffer, num_samples, sample_shape)
+
+        self.register_new_samples_for_last_chunk()
+        self.register_new_chunks(*child_chunks)
 
     def append(self, array: np.array):
         self.extend(np.expand_dims(array, axis=0))
+
+    def _create_parent_chunk(self):
+        chunk = Chunk()
+        self.register_new_chunks(chunk)
+        return chunk
+
+    def register_new_samples_for_last_chunk(self):
+        chunk = self.last_chunk
+        connected_to_next = chunk.next_chunk is not None
+
+        self.index_chunk_name_encoder.attach_samples_to_last_chunk(
+            chunk.num_full_samples, connected_to_next=connected_to_next
+        )
 
     def register_new_chunks(self, *chunks: Chunk):
         for chunk in chunks:
             connected_to_next = chunk.next_chunk is not None
 
-            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
-                chunk.num_samples, connected_to_next=connected_to_next
+            self.index_chunk_name_encoder.attach_samples_to_new_chunk(
+                chunk.num_full_samples, connected_to_next=connected_to_next
             )
-            chunk_name = self.index_chunk_name_encoder.last_chunk_name
-            chunk_key = get_chunk_key(self.key, chunk_name)
 
+            chunk_name = self.index_chunk_name_encoder.last_chunk_name
+            chunk_key = self.get_chunk_key(chunk_name)
             self.cache[chunk_key] = chunk
+
+    def get_chunk_key(self, chunk_name: str):
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        return chunk_key
 
     def numpy(self, index: Index, aslist: bool = False):
         raise NotImplementedError

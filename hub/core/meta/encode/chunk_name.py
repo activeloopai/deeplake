@@ -123,7 +123,7 @@ class ChunkNameEncoder:
             )
 
         last_entry = self._encoded[-1]
-        last_entry[LAST_INDEX_INDEX] += num_samples
+        last_entry[LAST_INDEX_INDEX] += CHUNK_NAME_ENCODING_DTYPE(num_samples)
         self._connectivity[-1] = connected_to_next
 
         return _chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
@@ -137,9 +137,6 @@ class ChunkNameEncoder:
             )
 
         if self.num_samples == 0:
-            if num_samples == 0:
-                raise Exception("First num samples cannot be 0.")  # TODO: exceptions.py
-
             id = _generate_chunk_id()
             self._encoded = np.array(
                 [[id, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
