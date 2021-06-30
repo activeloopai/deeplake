@@ -148,17 +148,13 @@ class ChunkEngine(Cachable):
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            first_chunk_name, first_chunk_index = enc.get_chunk_names(
-                global_sample_index, return_indices=True, first_only=True
-            )
+            first_chunk_name = enc.get_chunk_names(global_sample_index, first_only=True)
 
             chunk_key = self.get_chunk_key(first_chunk_name)
             chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
-            local_sample_index = enc.get_local_sample_index(
-                global_sample_index, first_chunk_index
-            )
+            local_sample_index = enc.get_local_sample_index(global_sample_index)
             print(global_sample_index, local_sample_index)
-            sample = chunk[local_sample_index]
+            sample = chunk.get_sample(local_sample_index, self.tensor_meta.dtype)
 
             if not aslist and last_shape is not None:
                 if sample.shape != last_shape:

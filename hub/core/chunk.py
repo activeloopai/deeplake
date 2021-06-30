@@ -1,6 +1,6 @@
 from hub.core.index.index import Index
 from hub.core.storage.cachable import Cachable
-from typing import List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from io import BytesIO
 from math import ceil
@@ -23,9 +23,13 @@ class Chunk(Cachable):
         self.max_data_bytes = max_data_bytes
         self.min_data_bytes_target = max_data_bytes // 2
 
-        self.data = bytearray()
+        self._data: Union[bytearray, memoryview] = bytearray()
 
         self.next_chunk = None
+
+    @property
+    def memoryview_data(self):
+        return memoryview(self._data)
 
     @property
     def num_samples(self):
@@ -33,7 +37,7 @@ class Chunk(Cachable):
 
     @property
     def num_data_bytes(self):
-        return len(self.data)
+        return len(self._data)
 
     @property
     def has_space(self):
@@ -99,7 +103,7 @@ class Chunk(Cachable):
             incoming_num_bytes, self.max_data_bytes - self.num_data_bytes
         )
         if min_chunks_for_incoming_bytes == min_chunks_for_incoming_and_current_bytes:
-            self.data += incoming_buffer[:incoming_num_bytes_that_will_fit]
+            self._data += incoming_buffer[:incoming_num_bytes_that_will_fit]
 
         return incoming_num_bytes_that_will_fit
 
@@ -116,6 +120,7 @@ class Chunk(Cachable):
 
         chunk = Chunk(self.max_data_bytes)
         self.next_chunk = chunk
+        self._finalize()
         return chunk
 
     def _update_headers(
@@ -131,8 +136,12 @@ class Chunk(Cachable):
             num_bytes_per_sample, num_samples
         )
 
-    def __getitem__(self, sample_index: int) -> np.ndarray:
-        raise NotImplementedError
+    def get_sample(self, sample_index: int, dtype: np.dtype) -> np.ndarray:
+        shape = self.index_shape_encoder[sample_index]
+        sb, eb = self.index_byte_range_encoder.get_byte_position(sample_index)
+        buffer = self.memoryview_data[sb:eb]
+        # TODO: decompress buffer?
+        return np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
     def __eq__(self, o: object) -> bool:
         raise NotImplementedError
@@ -152,7 +161,7 @@ class Chunk(Cachable):
             out,
             index_shape_encoder=self.index_shape_encoder,
             index_byte_range_encoder=self.index_byte_range_encoder,
-            data=self.data,
+            data=self.memoryview_data,
         )
         out.seek(0)
         return out.getbuffer()
@@ -162,6 +171,7 @@ class Chunk(Cachable):
         instance = super().frombuffer(buffer)
 
         # TODO: this should also set `next_chunk`
+        # TODO: if this chunk has `next_chunk`, then we should use a memoryview for `self.data` (self._finalize)
 
         raise NotImplementedError
         return instance
