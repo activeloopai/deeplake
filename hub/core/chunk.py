@@ -48,7 +48,7 @@ class Chunk(Cachable):
         incoming_buffer: memoryview,
         num_samples: int,
         sample_shape: Tuple[int],
-        _leftover_buffer_from_previous_chunk: bool = False,
+        _is_buffer_forwarded: bool = False,
     ) -> Tuple["Chunk"]:
         # TODO: docstring
 
@@ -65,7 +65,7 @@ class Chunk(Cachable):
         incoming_num_bytes = len(incoming_buffer)
 
         # update headers first because erroneous headers are better than un-accounted for data.
-        if not _leftover_buffer_from_previous_chunk:
+        if not _is_buffer_forwarded:
             self._update_headers(incoming_num_bytes, num_samples, sample_shape)
 
         processed_num_bytes = self._fill(incoming_buffer)
@@ -81,7 +81,7 @@ class Chunk(Cachable):
             forwarding_buffer,
             num_samples,
             sample_shape,
-            _leftover_buffer_from_previous_chunk=True,
+            _is_buffer_forwarded=True,
         )
 
         return (child_chunk, *child_chunk_children)
@@ -128,7 +128,7 @@ class Chunk(Cachable):
     ):
         # TODO: docstring
 
-        _validate_incoming_buffer(incoming_num_bytes, num_samples)
+        _validate_incoming_buffer(incoming_num_bytes, num_samples, sample_shape)
 
         num_bytes_per_sample = incoming_num_bytes // num_samples
         self.index_shape_encoder.add_shape(sample_shape, num_samples)
@@ -136,9 +136,9 @@ class Chunk(Cachable):
             num_bytes_per_sample, num_samples
         )
 
-    def get_sample(self, sample_index: int, dtype: np.dtype) -> np.ndarray:
-        shape = self.index_shape_encoder[sample_index]
-        sb, eb = self.index_byte_range_encoder.get_byte_position(sample_index)
+    def get_sample(self, local_sample_index: int, dtype: np.dtype) -> np.ndarray:
+        shape = self.index_shape_encoder[local_sample_index]
+        sb, eb = self.index_byte_range_encoder.get_byte_position(local_sample_index)
         buffer = self.memoryview_data[sb:eb]
         # TODO: decompress buffer?
         return np.frombuffer(buffer, dtype=dtype).reshape(shape)
@@ -180,6 +180,7 @@ class Chunk(Cachable):
 def _validate_incoming_buffer(
     incoming_num_bytes: bytes,
     num_samples: int,
+    sample_shape: Tuple[int],
 ):
     if num_samples <= 0:
         raise ValueError(
@@ -189,4 +190,10 @@ def _validate_incoming_buffer(
     if incoming_num_bytes % num_samples != 0:
         raise ValueError(
             f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
+        )
+
+    total_elements = max(1, np.prod(sample_shape) * num_samples)
+    if incoming_num_bytes % total_elements != 0:
+        raise ValueError(
+            f"Incoming buffer length should be divisible by the total number of elements. If this is not the case, either the shape or num samples is invalid. Shape={str(sample_shape)}, Num samples={num_samples}"
         )

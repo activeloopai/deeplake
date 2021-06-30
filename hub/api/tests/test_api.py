@@ -142,8 +142,8 @@ def test_compute_dynamic_tensor(ds):
     actual_list = image.numpy(aslist=True)
 
     assert type(actual_list) == list
-    for expected, actual in zip(expected_list, actual_list):
-        np.testing.assert_array_equal(expected, actual)
+    for i, (expected, actual) in enumerate(zip(expected_list, actual_list)):
+        np.testing.assert_array_equal(expected, actual, err_msg=f"i={i}")
 
     assert image.shape == (43, None, None)
     assert image.shape_interval.lower == (43, 28, 10)

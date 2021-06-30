@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Union
 from hub.util.exceptions import DynamicTensorNumpyError
 from hub.core.storage.cachable import Cachable
 from hub.core.meta.tensor_meta import TensorMeta
@@ -15,6 +15,9 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_name import ChunkNameEncoder
+
+
+SampleValue = Union[np.ndarray, int, float, bool]
 
 
 class ChunkEngine(Cachable):
@@ -60,10 +63,10 @@ class ChunkEngine(Cachable):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def extend(self, array: np.array):
-        if len(array.shape) < 2:
+    def _extend_array(self, array: np.array):
+        if len(array.shape) < 1:
             raise ValueError(
-                f"Extending requires arrays to have a minimum dimensionality of 2 (`len(shape)`). Got {len(array.shape)}."
+                f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(array.shape)}."
             )
 
         sample_dtype = array.dtype
@@ -92,7 +95,21 @@ class ChunkEngine(Cachable):
         self.register_new_samples_for_last_chunk(num_new_samples_for_last_chunk)
         self.register_new_chunks(*child_chunks)
 
-    def append(self, array: np.array):
+    def extend(self, samples: Sequence[SampleValue]):
+        if isinstance(samples, np.ndarray):
+            self._extend_array(samples)
+        elif isinstance(samples, Sequence):
+            try:
+                array = np.array(samples)
+                self._extend_array(array)
+            except:
+                for sample in samples:
+                    self.append(sample)
+        else:
+            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+
+    def append(self, sample: SampleValue):
+        array = np.array(sample)
         self.extend(np.expand_dims(array, axis=0))
 
     def _create_root_chunk(self):
@@ -110,6 +127,7 @@ class ChunkEngine(Cachable):
         if self._staged_root_chunk is not None:
             chunk = self._staged_root_chunk
             self.register_new_chunks(chunk)
+            self._staged_root_chunk = None
 
         else:
             chunk = self.last_chunk
@@ -135,11 +153,6 @@ class ChunkEngine(Cachable):
         return chunk_key
 
     def numpy(self, index: Index, aslist: bool = False):
-        if len(index.values) > 1:
-            raise ValueError(
-                f"Only indexing on the primary axis is supported currently. Got index: {index}."
-            )
-
         # TODO: get chunks from cache in parallel
 
         length = self.num_samples
@@ -153,7 +166,6 @@ class ChunkEngine(Cachable):
             chunk_key = self.get_chunk_key(first_chunk_name)
             chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
             local_sample_index = enc.get_local_sample_index(global_sample_index)
-            print(global_sample_index, local_sample_index)
             sample = chunk.get_sample(local_sample_index, self.tensor_meta.dtype)
 
             if not aslist and last_shape is not None:
