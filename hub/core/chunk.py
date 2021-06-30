@@ -59,6 +59,7 @@ class Chunk(Cachable):
 
         incoming_num_bytes = len(incoming_buffer)
 
+        # update headers first because erroneous headers are better than un-accounted for data.
         if not _leftover_buffer_from_previous_chunk:
             self._update_headers(incoming_num_bytes, num_samples, sample_shape)
 
@@ -68,46 +69,17 @@ class Chunk(Cachable):
             # this chunk was able to store all incoming bytes!
             return tuple()
 
-        print(self.num_data_bytes)
-        print(len(incoming_buffer))
+        forwarding_buffer = incoming_buffer[processed_num_bytes:]
 
-        """
-        # extracted chunk engine logic from `hub.core.chunk_engine.write`'s `write_bytes` function
-        # need to implement this in a class factory esque way
-
-        if _chunk_has_space(last_chunk, tensor_meta.chunk_size):
-            last_chunk_size = len(last_chunk)
-            chunk_ct_content = _min_chunk_ct_for_data_size(len(content))
-
-            extra_bytes = min(len(content), DEFAULT_CHUNK_MAX_SIZE - last_chunk_size)
-            combined_chunk_ct = _min_chunk_ct_for_data_size(len(content) + last_chunk_size)
-
-            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
-                start_byte = index_meta.entries[-1]["end_byte"]
-                end_byte = start_byte + extra_bytes
-
-                chunk_content = bytearray(last_chunk) + content[0:extra_bytes]
-                _write_chunk(chunk_content, storage, chunk_names, key, last_chunk_name)
-
-                content = content[extra_bytes:]
-
-        while len(content) > 0:
-            end_byte = min(len(content), DEFAULT_CHUNK_MAX_SIZE)
-
-            chunk_content = content[:end_byte]  # type: ignore
-            _write_chunk(chunk_content, storage, chunk_names, key)
-
-            content = content[end_byte:]
-
-        index_meta.add_entry(
-            chunk_names=chunk_names,
-            start_byte=start_byte,
-            end_byte=end_byte,
-            **extra_sample_meta,
+        child_chunk = self._spawn_chunk()
+        child_chunk_children = child_chunk.extend(
+            forwarding_buffer,
+            num_samples,
+            sample_shape,
+            _leftover_buffer_from_previous_chunk=True,
         )
-        """
 
-        raise NotImplementedError
+        return (child_chunk, *child_chunk_children)
 
     def _fill(self, incoming_buffer: memoryview) -> int:
         # TODO: docstring
@@ -126,7 +98,7 @@ class Chunk(Cachable):
             incoming_num_bytes, self.max_data_bytes - self.num_data_bytes
         )
         if min_chunks_for_incoming_bytes == min_chunks_for_incoming_and_current_bytes:
-            self.data += incoming_buffer[incoming_num_bytes_that_will_fit:]
+            self.data += incoming_buffer[:incoming_num_bytes_that_will_fit]
 
         return incoming_num_bytes_that_will_fit
 
