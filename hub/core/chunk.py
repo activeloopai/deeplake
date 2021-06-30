@@ -71,7 +71,7 @@ class Chunk(Cachable):
 
         forwarding_buffer = incoming_buffer[processed_num_bytes:]
 
-        child_chunk = self._spawn_chunk()
+        child_chunk = self._spawn_child_chunk()
         child_chunk_children = child_chunk.extend(
             forwarding_buffer,
             num_samples,
@@ -106,7 +106,7 @@ class Chunk(Cachable):
         """Calculates the minimum number of chunks in which data with length of `num_bytes` can be fit."""
         return ceil(num_bytes / self.max_data_bytes)
 
-    def _spawn_chunk(self):
+    def _spawn_child_chunk(self):
         # TODO: docstring
 
         if self.next_chunk is not None:
