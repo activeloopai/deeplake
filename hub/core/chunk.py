@@ -1,3 +1,4 @@
+from hub.core.index.index import Index
 from hub.core.storage.cachable import Cachable
 from typing import List, Optional, Sequence, Tuple
 import numpy as np
@@ -130,10 +131,7 @@ class Chunk(Cachable):
             num_bytes_per_sample, num_samples
         )
 
-    def numpy(self):
-        raise NotImplementedError
-
-    def __getitem__(self, sample_index: int):
+    def __getitem__(self, sample_index: int) -> np.ndarray:
         raise NotImplementedError
 
     def __eq__(self, o: object) -> bool:

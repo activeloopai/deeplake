@@ -1,3 +1,5 @@
+from typing import Sequence
+from hub.util.exceptions import DynamicTensorNumpyError
 from hub.core.storage.cachable import Cachable
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -140,14 +142,45 @@ class ChunkEngine(Cachable):
 
         # TODO: get chunks from cache in parallel
 
-        # TODO: refactor `tensor_meta` such that it doesn't have `length`
         length = self.num_samples
-        for global_sample_index in index.values[0].indices(length):
-            for chunk_name in self.index_chunk_name_encoder.get_chunk_names(
-                global_sample_index
-            ):
-                chunk_key = self.get_chunk_key(chunk_name)
-                chunk = self.cache.get_cachable(chunk_key, Chunk)
-                print(chunk)
+        enc = self.index_chunk_name_encoder
+        last_shape = None
+        samples = []
 
-        raise NotImplementedError
+        for global_sample_index in index.values[0].indices(length):
+            first_chunk_name, first_chunk_index = enc.get_chunk_names(
+                global_sample_index, return_indices=True, first_only=True
+            )
+
+            chunk_key = self.get_chunk_key(first_chunk_name)
+            chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
+            local_sample_index = enc.get_local_sample_index(
+                global_sample_index, first_chunk_index
+            )
+            print(global_sample_index, local_sample_index)
+            sample = chunk[local_sample_index]
+
+            if not aslist and last_shape is not None:
+                if sample.shape != last_shape:
+                    raise DynamicTensorNumpyError(self.key, index, "shape")
+
+            last_shape = sample.shape
+            samples.append(sample)
+
+        return _format_samples(samples, index, aslist)
+
+
+def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):
+    # TODO: docstring
+
+    samples = index.apply(samples)
+
+    if aslist and all(map(np.isscalar, samples)):
+        samples = list(arr.item() for arr in samples)
+
+    samples = index.apply_squeeze(samples)
+
+    if aslist:
+        return samples
+    else:
+        return np.array(samples)

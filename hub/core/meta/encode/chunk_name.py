@@ -77,9 +77,10 @@ class ChunkNameEncoder(Cachable):
         return int(global_sample_index - last_index)
 
     def get_chunk_names(
-        self, sample_index: int, return_indices: bool = False
-    ) -> Tuple[str]:
+        self, sample_index: int, return_indices: bool = False, first_only: bool = False
+    ):
         """Returns the chunk names that correspond to `sample_index`."""
+        # TODO: docstring
 
         if self.num_samples == 0:
             raise IndexError(
@@ -93,6 +94,12 @@ class ChunkNameEncoder(Cachable):
         names = [_chunk_name_from_id(self._encoded[idx, CHUNK_ID_INDEX])]
         indices = [idx]
 
+        if first_only:
+            if return_indices:
+                return names[0], idx
+
+            return names[0]
+
         # if accessing last index, check connectivity!
         while (
             self._encoded[idx, LAST_INDEX_INDEX] == sample_index
@@ -104,7 +111,7 @@ class ChunkNameEncoder(Cachable):
             indices.append(idx)
 
         if return_indices:
-            return tuple(names), indices
+            return tuple(names), tuple(indices)
 
         return tuple(names)
 
