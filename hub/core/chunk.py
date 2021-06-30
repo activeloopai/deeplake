@@ -1,7 +1,8 @@
 from hub.core.storage.cachable import Cachable
-from typing import List, Tuple
+from typing import List, Optional, Sequence, Tuple
 import numpy as np
 from io import BytesIO
+from math import ceil
 
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -38,21 +39,37 @@ class Chunk(Cachable):
         return self.num_data_bytes < self.min_data_bytes_target
 
     def extend(
-        self, buffer: bytes, num_samples: int, sample_shape: Tuple[int]
+        self,
+        incoming_buffer: memoryview,
+        num_samples: int,
+        sample_shape: Tuple[int],
+        _leftover_buffer_from_previous_chunk: bool = False,
     ) -> Tuple:
+        # TODO: docstring
 
-        if self.has_space:
-            # TODO
-            pass
+        if self.next_chunk is not None:
+            # TODO: exceptions.py
+            raise Exception(
+                "Cannot extend a chunk that is connected to the next chunk."
+            )
 
-        _validate_buffer(buffer, num_samples)
+        if not self.has_space:
+            # TODO: exceptions.py
+            raise Exception("Cannot extend a chunk that has no space left.")
 
-        num_bytes_per_sample = len(buffer) // num_samples
+        incoming_num_bytes = len(incoming_buffer)
 
-        self.index_shape_encoder.add_shape(sample_shape, num_samples)
-        self.index_byte_range_encoder.add_byte_position(
-            num_bytes_per_sample, num_samples
-        )
+        if not _leftover_buffer_from_previous_chunk:
+            self._update_headers(incoming_num_bytes, num_samples, sample_shape)
+
+        processed_num_bytes = self._fill(incoming_buffer)
+
+        if processed_num_bytes >= incoming_num_bytes:
+            # this chunk was able to store all incoming bytes!
+            return tuple()
+
+        print(self.num_data_bytes)
+        print(len(incoming_buffer))
 
         """
         # extracted chunk engine logic from `hub.core.chunk_engine.write`'s `write_bytes` function
@@ -92,6 +109,55 @@ class Chunk(Cachable):
 
         raise NotImplementedError
 
+    def _fill(self, incoming_buffer: memoryview) -> int:
+        # TODO: docstring
+
+        incoming_num_bytes = len(incoming_buffer)
+
+        min_chunks_for_incoming_bytes = self._min_chunks_required_for_num_bytes(
+            incoming_num_bytes
+        )
+        min_chunks_for_incoming_and_current_bytes = (
+            self._min_chunks_required_for_num_bytes(
+                incoming_num_bytes + self.num_data_bytes
+            )
+        )
+        incoming_num_bytes_that_will_fit = min(
+            incoming_num_bytes, self.max_data_bytes - self.num_data_bytes
+        )
+        if min_chunks_for_incoming_bytes == min_chunks_for_incoming_and_current_bytes:
+            self.data += incoming_buffer[incoming_num_bytes_that_will_fit:]
+
+        return incoming_num_bytes_that_will_fit
+
+    def _min_chunks_required_for_num_bytes(self, num_bytes: int) -> int:
+        """Calculates the minimum number of chunks in which data with length of `num_bytes` can be fit."""
+        return ceil(num_bytes / self.max_data_bytes)
+
+    def _spawn_chunk(self):
+        # TODO: docstring
+
+        if self.next_chunk is not None:
+            # TODO: exceptions.py
+            raise Exception("A chunk has already been spawned for this one.")
+
+        chunk = Chunk(self.max_data_bytes)
+        self.next_chunk = chunk
+        return chunk
+
+    def _update_headers(
+        self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
+    ):
+        # TODO: docstring
+
+        _validate_incoming_buffer(incoming_num_bytes, num_samples)
+
+        num_bytes_per_sample = incoming_num_bytes // num_samples
+        self.index_shape_encoder.add_shape(sample_shape, num_samples)
+        self.index_byte_range_encoder.add_byte_position(
+            num_bytes_per_sample, num_samples
+        )
+
     def numpy(self):
         raise NotImplementedError
 
@@ -126,13 +192,16 @@ class Chunk(Cachable):
         return instance
 
 
-def _validate_buffer(buffer: bytes, num_samples: int):
+def _validate_incoming_buffer(
+    incoming_num_bytes: bytes,
+    num_samples: int,
+):
     if num_samples <= 0:
         raise ValueError(
             f"The number of samples a buffer can represent has to be greater than 0. Got {num_samples}"
         )
 
-    if len(buffer) % num_samples != 0:
+    if incoming_num_bytes % num_samples != 0:
         raise ValueError(
-            f"Buffer length should be perfectly divisible by the number of samples it represents. length={len(buffer)}, num_samples={num_samples}"
+            f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
         )

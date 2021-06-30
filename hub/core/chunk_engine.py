@@ -50,13 +50,13 @@ class ChunkEngine:
 
         self.tensor_meta.check_compatibility(sample_shape, sample_dtype)
 
-        buffer = array.tobytes()
+        buffer = memoryview(array.tobytes())
 
         # TODO: we don't always want to create a new chunk (self.last_chunk)
         chunk = Chunk()
-        extra_chunks = chunk.extend(buffer, num_samples, sample_shape)
+        child_chunks = chunk.extend(buffer, num_samples, sample_shape)
 
-        self.register_new_chunks(chunk, *extra_chunks)
+        self.register_new_chunks(chunk, *child_chunks)
         self.tensor_meta.update(sample_shape, sample_dtype, num_samples)
 
         raise NotImplementedError
