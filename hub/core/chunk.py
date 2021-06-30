@@ -27,8 +27,8 @@ class Chunk(Cachable):
         self.next_chunk = None
 
     @property
-    def num_full_samples(self):
-        return self.index_byte_range_encoder.num_samples
+    def num_full_and_partial_samples(self):
+        return max(1, self.index_byte_range_encoder.num_samples)
 
     @property
     def num_data_bytes(self):

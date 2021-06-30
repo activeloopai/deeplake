@@ -61,9 +61,9 @@ class ChunkEngine:
         if chunk is None:
             chunk = self._create_root_chunk()
 
-        num_samples_before_extend = chunk.num_full_samples
+        num_samples_before_extend = chunk.num_full_and_partial_samples
         child_chunks = chunk.extend(buffer, num_samples, sample_shape)
-        num_samples_after_extend = chunk.num_full_samples
+        num_samples_after_extend = chunk.num_full_and_partial_samples
 
         num_new_samples_for_last_chunk = (
             num_samples_after_extend - num_samples_before_extend
@@ -97,7 +97,7 @@ class ChunkEngine:
             connected_to_next = chunk.next_chunk is not None
 
             self.index_chunk_name_encoder.attach_samples_to_new_chunk(
-                chunk.num_full_samples, connected_to_next=connected_to_next
+                chunk.num_full_and_partial_samples, connected_to_next=connected_to_next
             )
 
             chunk_name = self.index_chunk_name_encoder.last_chunk_name
@@ -109,4 +109,14 @@ class ChunkEngine:
         return chunk_key
 
     def numpy(self, index: Index, aslist: bool = False):
+        if len(index.values) > 1:
+            raise ValueError(
+                f"Only indexing on the primary axis is supported currently. Got index: {index}."
+            )
+
+        # TODO: get chunks from cache in parallel
+
+        for global_sample_index in index.values[0].indices(index.length):
+            print(global_sample_index)
+
         raise NotImplementedError

@@ -133,10 +133,15 @@ class ChunkNameEncoder:
     ) -> str:
         if num_samples < 0:
             raise ValueError(
-                f"When appending, `num_samples` should be >= 0. Got {num_samples}."
+                f"When attaching samples to a new chunk, `num_samples` should be >= 0. Got {num_samples}."
             )
 
         if self.num_samples == 0:
+            if num_samples == 0:
+                raise ValueError(
+                    "When attaching samples to the root chunk, incoming num samples cannot be 0."
+                )
+
             id = _generate_chunk_id()
             self._encoded = np.array(
                 [[id, num_samples - 1]], dtype=CHUNK_NAME_ENCODING_DTYPE
