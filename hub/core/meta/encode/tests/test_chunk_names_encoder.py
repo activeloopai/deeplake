@@ -63,7 +63,7 @@ def test_trivial():
     _assert_valid_encodings(enc)
 
 
-def test_multi_chunks_per_sample():
+def assert_multi_chunks_per_sample() -> ChunkNameEncoder:
     # TODO:
     enc = ChunkNameEncoder()
 
@@ -131,6 +131,12 @@ def test_multi_chunks_per_sample():
 
     _assert_valid_encodings(enc)
 
+    return enc
+
+
+def test_multi_chunks_per_sample():
+    assert_multi_chunks_per_sample()
+
 
 def test_failures():
     enc = ChunkNameEncoder()
@@ -183,6 +189,26 @@ def test_failures():
     assert enc.num_chunks == 5
 
     _assert_valid_encodings(enc)
+
+
+def test_local_indexing():
+    enc = assert_multi_chunks_per_sample()
+
+    assert enc.num_samples == 10021
+
+    def _get_local(i: int):
+        return enc.get_local_sample_index(i)
+
+    assert _get_local(0) == 0
+    assert _get_local(5) == 5
+    assert _get_local(6) == 0
+    assert _get_local(7) == 1
+    assert _get_local(8) == 2
+    assert _get_local(9) == 0
+    assert _get_local(10) == 1
+    assert _get_local(10018) == 10009
+    assert _get_local(10019) == 0
+    assert _get_local(10020) == 0
 
 
 def test_ids():

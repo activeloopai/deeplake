@@ -62,8 +62,12 @@ class ChunkNameEncoder(Cachable):
     def get_name_for_chunk(self, idx) -> str:
         return _chunk_name_from_id(self._encoded[:, CHUNK_ID_INDEX][idx])
 
-    def get_local_sample_index(self, global_sample_index: int, chunk_index: int):
+    def get_local_sample_index(self, global_sample_index: int):
         # TODO: explain what's going on here
+
+        _, chunk_index = self.get_chunk_names(
+            global_sample_index, return_indices=True, first_only=True
+        )
 
         if global_sample_index < 0:
             raise Exception()  # TODO
@@ -72,9 +76,9 @@ class ChunkNameEncoder(Cachable):
             return global_sample_index
 
         last_entry = self._encoded[chunk_index - 1]
-        last_index = last_entry[LAST_INDEX_INDEX]
+        last_num_samples = last_entry[LAST_INDEX_INDEX] + 1
 
-        return int(global_sample_index - last_index)
+        return int(global_sample_index - last_num_samples)
 
     def get_chunk_names(
         self, sample_index: int, return_indices: bool = False, first_only: bool = False
