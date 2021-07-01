@@ -11,7 +11,8 @@ LAST_INDEX_INDEX = 2
 
 
 class BytePositionsEncoder:
-    _encoded = None
+    def __init__(self, encoded_byte_positions=None):
+        self._encoded = encoded_byte_positions
 
     @property
     def num_samples(self) -> int:
@@ -37,15 +38,15 @@ class BytePositionsEncoder:
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
-    def tobytes(self) -> bytes:
-        # TODO:
-        return bytes()
-
     @property
     def nbytes(self):
         if self._encoded is None:
             return 0
         return self._encoded.nbytes
+
+    @property
+    def array(self):
+        return self._encoded
 
     def add_byte_position(self, num_bytes_per_sample: int, num_samples: int):
         if num_samples <= 0:
