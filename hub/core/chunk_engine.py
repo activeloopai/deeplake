@@ -24,6 +24,21 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
+def is_uniform_sequence(samples):
+    if len(set(map(type, samples))) != 1:
+        # Cannot vectorize sequence with inconsistent types
+        return False
+    elif any(isinstance(s, np.ndarray) for s in samples):
+        # Numpy arrays will only be vectorized if they have the same shape
+        return len(set(s.shape for s in samples)) == 1
+    elif any(isinstance(s, Sample) for s in samples):
+        # Sample objects will not be vectorized
+        return False
+    else:
+        # Scalar samples can be vectorized
+        return True
+
+
 class ChunkEngine(Cachable):
     def __init__(
         self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
@@ -193,15 +208,11 @@ class ChunkEngine(Cachable):
                 for sample in samples:
                     self.append(sample)
         elif isinstance(samples, Sequence):
-            if any(isinstance(s, Sample) for s in samples):
+            if is_uniform_sequence(samples):
+                self.extend(np.array(samples))
+            else:
                 for sample in samples:
                     self.append(sample)
-            else:
-                try:
-                    self.extend(np.array(samples))
-                except:
-                    for sample in samples:
-                        self.append(sample)
         else:
             raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
 
