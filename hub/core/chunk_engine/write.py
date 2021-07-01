@@ -8,7 +8,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 import numpy as np
 from hub.core.meta.index_meta import IndexMeta
 from typing import List, Optional, Sequence, Tuple, Dict, Union
-from uuid import uuid1
+from uuid import uuid4
 
 from hub.core.typing import StorageProvider
 from hub.util.keys import get_chunk_key
@@ -169,7 +169,7 @@ def _get_last_chunk(
 
 
 def _generate_chunk_name() -> str:
-    return str(uuid1())
+    return str(uuid4())
 
 
 def _min_chunk_ct_for_data_size(size: int) -> int:

@@ -354,9 +354,9 @@ class TransformError(Exception):
 
 
 class InvalidTransformOutputError(TransformError):
-    def __init__(self):
+    def __init__(self, item):
         super().__init__(
-            "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
+            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
         )
 
 
@@ -379,6 +379,20 @@ class TensorMismatchError(TransformError):
         super().__init__(
             f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
             f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
+        )
+
+
+class InvalidOutputDatasetError(TransformError):
+    def __init__(self):
+        super().__init__(
+            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+        )
+
+
+class MemoryDatasetNotSupportedError(TransformError):
+    def __init__(self, scheduler):
+        super().__init__(
+            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
         )
 
 
