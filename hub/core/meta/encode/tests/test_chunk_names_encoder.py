@@ -2,13 +2,13 @@ import pytest
 from hub.core.meta.encode.chunk_name import (
     ChunkNameEncoder,
     _generate_chunk_id,
-    _chunk_name_from_id,
-    _chunk_id_from_name,
+    chunk_name_from_id,
+    chunk_id_from_name,
 )
 
 
 def _assert_valid_encodings(enc: ChunkNameEncoder):
-    assert len(enc._encoded) == len(enc._connectivity)
+    assert len(enc._encoded_ids) == len(enc._encoded_connectivity)
 
 
 def test_trivial():
@@ -213,6 +213,6 @@ def test_local_indexing():
 
 def test_ids():
     id = _generate_chunk_id()
-    name = _chunk_name_from_id(id)
-    out_id = _chunk_id_from_name(name)
+    name = chunk_name_from_id(id)
+    out_id = chunk_id_from_name(name)
     assert id == out_id

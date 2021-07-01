@@ -193,7 +193,7 @@ class LRUCache(StorageProvider):
         """
         cachable = isinstance(value, Cachable)
 
-        if not cachable or remove:
+        if remove:
             self.dirty_keys.discard(path)
 
         if cachable:

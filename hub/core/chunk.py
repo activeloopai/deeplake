@@ -120,7 +120,6 @@ class Chunk(Cachable):
 
         chunk = Chunk(self.max_data_bytes)
         self.next_chunk = chunk
-        self._finalize()
         return chunk
 
     def _update_headers(
@@ -168,13 +167,8 @@ class Chunk(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        instance = super().frombuffer(buffer)
-
         # TODO: this should also set `next_chunk`
-        # TODO: if this chunk has `next_chunk`, then we should use a memoryview for `self.data` (self._finalize)
-
         raise NotImplementedError
-        return instance
 
 
 def _validate_incoming_buffer(

@@ -4,7 +4,7 @@ from hub import constants
 
 
 def get_chunk_key(key: str, chunk_name: str) -> str:
-    return posixpath.join(key, constants.CHUNKS_FOLDER, chunk_name)
+    return posixpath.join(key, constants.CHUNKS_FOLDER, chunk_name + ".npz")
 
 
 def get_dataset_meta_key() -> str:
