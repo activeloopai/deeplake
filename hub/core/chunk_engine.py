@@ -132,7 +132,7 @@ class ChunkEngine(Cachable):
             new_chunk = self._create_new_chunk()
             end_byte = min(len(forwarding_buffer), self.max_chunk_size)
 
-            new_chunk.append(forwarding_buffer[:end_byte])
+            new_chunk.append(forwarding_buffer[:end_byte], self.max_chunk_size)
             forwarding_buffer = forwarding_buffer[end_byte:]
 
             self._synchronize_chunk(new_chunk, connect_with_last=connect_with_last)
