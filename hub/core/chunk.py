@@ -25,19 +25,8 @@ class Chunk(Cachable):
         self.min_data_bytes_target = min_data_bytes_target
 
         self._data: Union[bytearray, memoryview] = bytearray()
-        self.clear_new_byte_count()
 
-    def clear_new_byte_count(self):
-        self.num_new_bytes = 0
-        self.has_new_bytes = False
-
-    def _flag_new_bytes(self, num_new_bytes: int):
-        if self.has_new_bytes:
-            # TODO: exceptions.py
-            raise Exception("Last set of new bytes was not synchronized.")
-
-        self.num_new_bytes += num_new_bytes
-        self.has_new_bytes = True
+        self.num_new_samples = 0
 
     @property
     def memoryview_data(self):
@@ -54,7 +43,7 @@ class Chunk(Cachable):
     def has_space_for(self, num_bytes: int):
         return self.num_data_bytes + num_bytes < self.max_data_bytes
 
-    def extend(
+    def append(
         self,
         incoming_buffer: memoryview,
     ) -> Tuple["Chunk"]:
@@ -68,16 +57,16 @@ class Chunk(Cachable):
                 f"Chunk does not have space for the incoming bytes ({incoming_num_bytes})."
             )
 
-        # note: incoming_num_bytes can be 0 (empty samples)
-        self._flag_new_bytes(incoming_num_bytes)
+        # note: incoming_num_bytes can be 0 (empty sample)
         self._data += incoming_buffer
+        self.num_new_samples += 1
 
     def update_headers(
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
     ):
         # TODO: docstring
 
-        if not self.has_new_bytes:
+        if self.num_new_samples <= 0:
             # TODO: exceptions.py
             raise Exception("Cannot update headers when no new data was added.")
 
@@ -112,6 +101,7 @@ class Chunk(Cachable):
 
         # TODO: for fault tolerance, we should have a chunk store the ID for the next chunk
         # TODO: in case the index chunk meta gets pwned (especially during a potentially failed transform job merge)
+        # TODO: store version in chunk
 
         np.savez(
             out,

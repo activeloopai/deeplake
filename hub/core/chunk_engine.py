@@ -80,7 +80,7 @@ class ChunkEngine(Cachable):
         if self.num_chunks == 0:
             return None
 
-        last_chunk_name = self.chunk_id_encoder.last_chunk_name
+        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
         last_chunk_key = self.get_chunk_key(last_chunk_name)
         return self.cache.get_cachable(last_chunk_key, Chunk)
 
@@ -124,7 +124,7 @@ class ChunkEngine(Cachable):
                 # start_byte = parent_chunk.num_data_bytes
                 # end_byte = start_byte + extra_bytes
 
-                last_chunk.extend(forwarding_buffer[:extra_bytes])
+                last_chunk.append(forwarding_buffer[:extra_bytes])
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
                 self._synchronize_chunk(last_chunk, connect_with_last=False)
 
@@ -135,7 +135,7 @@ class ChunkEngine(Cachable):
             end_byte = min(len(forwarding_buffer), max_data_bytes)
 
             # end_byte = min(len(content), CHUNK_MAX_SIZE)
-            new_chunk.extend(forwarding_buffer[:end_byte])
+            new_chunk.append(forwarding_buffer[:end_byte])
             forwarding_buffer = forwarding_buffer[end_byte:]
 
             self._synchronize_chunk(new_chunk, connect_with_last=connect_with_last)
@@ -162,40 +162,22 @@ class ChunkEngine(Cachable):
     def _synchronize_chunk(self, chunk: Chunk, connect_with_last: bool = False):
         # TODO: docstring
 
-        if not chunk.has_new_bytes:
+        if chunk.num_new_samples <= 0:
             # TODO: exceptions.py
-            raise Exception("This chunk has no new data to be synchronized.")
+            raise Exception("This chunk has no new samples to be synchronized.")
 
-        self.chunk_id_encoder.register_samples(num_samples_in_chunk)
+        num_new_samples = chunk.num_new_samples
         if connect_with_last:
+            # if connected with last, there are no new samples, only a continuation of the previous
+            num_new_samples = 0
             self.chunk_id_encoder.register_connection()
 
-        chunk.clear_new_byte_count()
-        raise NotImplementedError
+        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
+        chunk.num_new_samples = 0
 
     def _create_new_chunk(self):
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         return Chunk(chunk_id, self.max_chunk_size, self.min_chunk_size_target)
-
-    """
-    def register_new_chunks(self, new_chunks: Sequence[Chunk], num_samples: int):
-        has_children = len(new_chunks) > 0
-
-        if parent_chunk == self.last_chunk:
-            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
-                num_samples, has_children
-            )
-        else:
-        self.index_chunk_name_encoder.attach_samples_to_new_chunk(
-            num_samples, has_children
-        )
-
-        for i, child_chunk in enumerate(new_chunks):
-            is_last_child = i == len(new_chunks) - 1
-            self.index_chunk_name_encoder.attach_samples_to_new_chunk(
-                num_samples, not is_last_child
-            )
-    """
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         if isinstance(samples, np.ndarray):

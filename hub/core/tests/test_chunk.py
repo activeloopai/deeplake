@@ -22,7 +22,7 @@ def test_single_chunk(max_data_bytes: int):
     a_copy = deepcopy(a)
     a_buffer = a.tobytes()
 
-    new_chunks = chunk.extend(a_buffer, num_samples, shape)
+    new_chunks = chunk.append(a_buffer, num_samples, shape)
     np.testing.assert_array_equal(chunk.numpy(), a_copy)
 
     assert len(new_chunks) == 0
@@ -38,7 +38,7 @@ def test_scalars(max_data_bytes: int):
 
     a = np.ones(1000)
 
-    new_chunks = chunk.extend(a.tobytes(), 5000, (1,))
+    new_chunks = chunk.append(a.tobytes(), 5000, (1,))
 
     assert len(new_chunks) == 4
     assert chunk.last_sample_index == 1000
