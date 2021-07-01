@@ -6,11 +6,11 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
 from hub.util.keys import (
     get_chunk_key,
-    get_encoded_chunk_names_key,
+    get_chunk_id_encoder_key,
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample
-from hub.constants import UNCOMPRESSED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
 
 import numpy as np
 
@@ -18,47 +18,54 @@ from hub.core.storage.lru_cache import LRUCache
 
 from hub.core.chunk import Chunk
 
-from hub.core.meta.encode.chunk_name import ChunkNameEncoder
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
 class ChunkEngine(Cachable):
-    def __init__(self, key: str, cache: LRUCache):
+    def __init__(
+        self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
+    ):
         if not isinstance(cache, LRUCache):
             raise ValueError(f"Expected cache to be `LRUCache`. Got '{type(cache)}'.")
 
         self.key = key
         self.cache = cache
-        self._staged_root_chunk = None
+
+        if max_chunk_size <= 2:
+            raise ValueError("Max chunk size should be > 2 bytes.")
+
+        self.max_chunk_size = max_chunk_size
+        self.min_chunk_size_target = self.max_chunk_size // 2
 
     @property
-    def index_chunk_name_encoder(self):
-        key = get_encoded_chunk_names_key(self.key)
+    def chunk_id_encoder(self):
+        key = get_chunk_id_encoder_key(self.key)
 
         try:
-            enc = self.cache.get_cachable(key, ChunkNameEncoder)
+            enc = self.cache.get_cachable(key, ChunkIdEncoder)
             return enc
         except KeyError:
-            enc = ChunkNameEncoder()
+            enc = ChunkIdEncoder()
             self.cache[key] = enc
             return enc
 
     @property
     def num_chunks(self):
-        return self.index_chunk_name_encoder.num_chunks
+        return self.chunk_id_encoder.num_chunks
 
     @property
     def num_samples(self):
-        return self.index_chunk_name_encoder.num_samples
+        return self.chunk_id_encoder.num_samples
 
     @property
     def last_chunk(self):
         if self.num_chunks == 0:
             return None
 
-        last_chunk_name = self.index_chunk_name_encoder.last_chunk_name
+        last_chunk_name = self.chunk_id_encoder.last_chunk_name
         last_chunk_key = self.get_chunk_key(last_chunk_name)
         return self.cache.get_cachable(last_chunk_key, Chunk)
 
@@ -67,24 +74,23 @@ class ChunkEngine(Cachable):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _chunk_bytes(
+    def _append_bytes(
         self, incoming_buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype
     ):
-
+        num_samples = 1
         incoming_num_bytes = len(incoming_buffer)
-        _validate_incoming_buffer(incoming_num_bytes, shape)
-        num_samples = shape[0]
-        sample_shape = shape[1:]
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        self.tensor_meta.check_compatibility(sample_shape, dtype)
-        self.tensor_meta.update(sample_shape, dtype, num_samples)
+        self.tensor_meta.check_compatibility(shape, dtype)
+        self.tensor_meta.update(shape, dtype, num_samples)
 
-        parent_chunk = self.last_chunk or Chunk()
-        max_data_bytes = parent_chunk.max_data_bytes
+        last_chunk = self.last_chunk or self._create_new_chunk()
+        max_data_bytes = last_chunk.max_data_bytes
+        last_chunk_extended = False
 
-        if parent_chunk.is_under_min_space:
-            last_chunk_size = parent_chunk.num_data_bytes
+        forwarding_buffer = incoming_buffer
+        if last_chunk.is_under_min_space:
+            last_chunk_size = last_chunk.num_data_bytes
             chunk_ct_content = _min_chunk_ct_for_data_size(
                 max_data_bytes, incoming_num_bytes
             )
@@ -94,26 +100,38 @@ class ChunkEngine(Cachable):
                 max_data_bytes, incoming_num_bytes + last_chunk_size
             )
 
-            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
+            # combine if count is same
+            last_chunk_extended = combined_chunk_ct == chunk_ct_content
+            if last_chunk_extended:
                 # start_byte = index_meta.entries[-1]["end_byte"]
                 # start_byte = parent_chunk.num_data_bytes
                 # end_byte = start_byte + extra_bytes
-                parent_chunk.extend(incoming_buffer[:extra_bytes])
-                forwarding_buffer = incoming_buffer[extra_bytes:]
 
-        children = []
+                last_chunk.extend(forwarding_buffer[:extra_bytes])
+                forwarding_buffer = forwarding_buffer[extra_bytes:]
+                self._synchronize_chunk(last_chunk, connect_with_last=False)
+
+        new_chunks = []
+        connect_with_last = last_chunk_extended
         while len(forwarding_buffer) > 0:
-            child_chunk = Chunk(max_data_bytes=max_data_bytes)
+            new_chunk = self._create_new_chunk()
             end_byte = min(len(forwarding_buffer), max_data_bytes)
 
             # end_byte = min(len(content), CHUNK_MAX_SIZE)
-            child_chunk.extend(forwarding_buffer[:end_byte])
+            new_chunk.extend(forwarding_buffer[:end_byte])
             forwarding_buffer = forwarding_buffer[end_byte:]
 
-            children.append(child_chunk)
+            self._synchronize_chunk(new_chunk, connect_with_last=connect_with_last)
 
-        parent_chunk.update_headers(incoming_num_bytes, num_samples, sample_shape)
-        self.register_chunks(parent_chunk, children)
+            new_chunks.append(new_chunk)
+            connect_with_last = True
+
+        # only the head chunk (the first chunk this sample batch was written to) should have headers
+        head_chunk = last_chunk if last_chunk_extended else new_chunks[0]
+        if not last_chunk_extended:
+            head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
+
+        # TODO: test that all chunks in chunk engine are synchronized (have no new data unaccounted for)
 
         """
         index_meta.add_entry(
@@ -124,23 +142,51 @@ class ChunkEngine(Cachable):
         )
         """
 
-    def register_chunks(self, parent_chunk: Chunk, children_chunks: Sequence[Chunk]):
-        if parent_chunk == self.last_chunk:
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
+    def _synchronize_chunk(self, chunk: Chunk, connect_with_last: bool = False):
+        # TODO: docstring
 
-        for child_chunk in children_chunks:
-            pass
+        if not chunk.has_new_bytes:
+            # TODO: exceptions.py
+            raise Exception("This chunk has no new data to be synchronized.")
 
+        self.chunk_id_encoder.register_samples(num_samples_in_chunk)
+        if connect_with_last:
+            self.chunk_id_encoder.register_connection()
+
+        chunk.clear_new_byte_count()
         raise NotImplementedError
+
+    def _create_new_chunk(self):
+        chunk_id = self.chunk_id_encoder.generate_chunk_id()
+        return Chunk(chunk_id, self.max_chunk_size, self.min_chunk_size_target)
+
+    """
+    def register_new_chunks(self, new_chunks: Sequence[Chunk], num_samples: int):
+        has_children = len(new_chunks) > 0
+
+        if parent_chunk == self.last_chunk:
+            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
+                num_samples, has_children
+            )
+        else:
+        self.index_chunk_name_encoder.attach_samples_to_new_chunk(
+            num_samples, has_children
+        )
+
+        for i, child_chunk in enumerate(new_chunks):
+            is_last_child = i == len(new_chunks) - 1
+            self.index_chunk_name_encoder.attach_samples_to_new_chunk(
+                num_samples, not is_last_child
+            )
+    """
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
             if compression == UNCOMPRESSED:
-                buffer = memoryview(samples.tobytes())
-                self._chunk_bytes(buffer, samples.shape, samples.dtype)
+                for sample in samples:
+                    buffer = memoryview(sample.tobytes())
+                    self._append_bytes(buffer, sample.shape, sample.dtype)
             else:
                 for sample in samples:
                     self.append(sample)
@@ -161,10 +207,9 @@ class ChunkEngine(Cachable):
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
             # might be able to optimize this away
-            shape = (1, *sample.shape)
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
-            self._chunk_bytes(data, shape, sample.dtype)
+            self._append_bytes(data, sample.shape, sample.dtype)
         else:
             return self.append(Sample(array=np.array(sample)))
 
@@ -176,7 +221,7 @@ class ChunkEngine(Cachable):
         # TODO: get chunks from cache in parallel
 
         length = self.num_samples
-        enc = self.index_chunk_name_encoder
+        enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
@@ -222,24 +267,3 @@ def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):
 def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
     """Calculates the minimum number of chunks in which data of given size can be fit."""
     return ceil(size / chunk_max_data_bytes)
-
-
-def _validate_incoming_buffer(
-    incoming_num_bytes: bytes,
-    shape: Tuple[int],
-):
-    if len(shape) < 1:
-        raise ValueError(
-            f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(shape)}."
-        )
-
-    num_samples = shape[0]
-    if num_samples <= 0:
-        raise ValueError(
-            f"The number of samples a buffer can represent has to be greater than 0. Got {num_samples}"
-        )
-
-    if incoming_num_bytes % num_samples != 0:
-        raise ValueError(
-            f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
-        )

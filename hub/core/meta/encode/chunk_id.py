@@ -29,7 +29,7 @@ def chunk_id_from_name(name: str) -> CHUNK_NAME_ENCODING_DTYPE:
     return int("0x" + name, 16)
 
 
-class ChunkNameEncoder(Cachable):
+class ChunkIdEncoder(Cachable):
     def __init__(self):
         self._encoded_ids = None
         self._encoded_connectivity = None

@@ -15,7 +15,7 @@ from re import L
 from typing import Dict
 from hub.constants import (
     DEFAULT_CHUNK_COMPRESSION,
-    DEFAULT_CHUNK_MAX_SIZE,
+    DEFAULT_MAX_CHUNK_SIZE,
     DEFAULT_HTYPE,
     DEFAULT_SAMPLE_COMPRESSION,
     UNCOMPRESSED,
@@ -42,7 +42,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
-    "chunk_size": DEFAULT_CHUNK_MAX_SIZE,
+    "chunk_size": DEFAULT_MAX_CHUNK_SIZE,
     "custom_meta": {},
     "chunk_compression": DEFAULT_CHUNK_COMPRESSION,
     "sample_compression": DEFAULT_SAMPLE_COMPRESSION,

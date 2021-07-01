@@ -214,7 +214,10 @@ class TorchDataset:
         index_meta = self.all_index_metas[key]
         while len(chunk_names) < self.workers and index < len(self):
             actual_index = self.index_offset + index
+
+            # TODO: replace with this -> chunk_engine.chunk_id_encoder.get_chunk_names()
             chunks = index_meta.entries[actual_index]["chunk_names"]
+
             chunk_names.update(chunks)
             index += 1
         return chunk_names

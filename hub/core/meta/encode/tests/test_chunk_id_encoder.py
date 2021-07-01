@@ -1,18 +1,18 @@
 import pytest
-from hub.core.meta.encode.chunk_name import (
-    ChunkNameEncoder,
+from hub.core.meta.encode.chunk_id import (
+    ChunkIdEncoder,
     _generate_chunk_id,
     chunk_name_from_id,
     chunk_id_from_name,
 )
 
 
-def _assert_valid_encodings(enc: ChunkNameEncoder):
+def _assert_valid_encodings(enc: ChunkIdEncoder):
     assert len(enc._encoded_ids) == len(enc._encoded_connectivity)
 
 
 def test_trivial():
-    enc = ChunkNameEncoder()
+    enc = ChunkIdEncoder()
 
     name1 = enc.attach_samples_to_new_chunk(10)
 
@@ -63,9 +63,9 @@ def test_trivial():
     _assert_valid_encodings(enc)
 
 
-def assert_multi_chunks_per_sample() -> ChunkNameEncoder:
+def assert_multi_chunks_per_sample() -> ChunkIdEncoder:
     # TODO:
-    enc = ChunkNameEncoder()
+    enc = ChunkIdEncoder()
 
     assert enc.num_chunks == 0
 
@@ -139,7 +139,7 @@ def test_multi_chunks_per_sample():
 
 
 def test_failures():
-    enc = ChunkNameEncoder()
+    enc = ChunkIdEncoder()
 
     with pytest.raises(Exception):
         # fails because no previous chunk exists

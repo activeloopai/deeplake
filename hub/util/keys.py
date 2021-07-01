@@ -16,7 +16,7 @@ def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 
 
-def get_encoded_chunk_names_key(key: str) -> str:
+def get_chunk_id_encoder_key(key: str) -> str:
     return posixpath.join(
         key,
         constants.ENCODED_CHUNK_NAMES_FOLDER,
