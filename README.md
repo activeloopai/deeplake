@@ -66,7 +66,11 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 ## Getting Started with Hub
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
-pip3 install hub
+pip3 install hub==2.0a7
+
+OR
+
+pip install git+https://github.com/activeloopai/Hub.git@release/2.0
 ```
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
