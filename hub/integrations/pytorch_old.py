@@ -1,7 +1,7 @@
 from typing import Callable, Union, List, Optional, Dict, Tuple
 import warnings
 from hub.util.exceptions import ModuleNotInstalledException, TensorDoesNotExistError
-from collections import OrderedDict
+from hub.util.namedtuple import namedtuple
 
 
 def dataset_to_pytorch(
@@ -17,12 +17,6 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
-
-
-class Tensors(OrderedDict):
-    def __iter__(self):
-        for v in self.values():
-            yield v
 
 
 class TorchDataset:
@@ -56,6 +50,7 @@ class TorchDataset:
             self.keys = tensors
         else:
             self.keys = list(dataset.tensors)
+        self._return_type = namedtuple("Tensors", self.keys)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -63,8 +58,8 @@ class TorchDataset:
     def __len__(self):
         return len(self.dataset)
 
-    def __getitem__(self, index: int) -> Tensors:
-        sample = Tensors()
+    def __getitem__(self, index: int):
+        sample = self._return_type()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.keys:
             item = self.dataset[key][index].numpy()

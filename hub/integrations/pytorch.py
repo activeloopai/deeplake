@@ -5,10 +5,10 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
+from hub.util.namedtuple import namedtuple
 import numpy as np
 import posixpath
 from itertools import repeat
-from collections import defaultdict, OrderedDict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
@@ -71,12 +71,6 @@ def dataset_to_pytorch(
     return TorchDataset(dataset, transform, workers, tensors)
 
 
-class Tensors(OrderedDict):
-    def __iter__(self):
-        for v in self.values():
-            yield v
-
-
 class TorchDataset:
     def __init__(
         self,
@@ -99,6 +93,8 @@ class TorchDataset:
             self.keys = tensors
         else:
             self.keys = list(dataset.tensors)
+
+        self._return_type = namedtuple("Tensors", self.keys)
 
         self.storage = remove_memory_cache(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
@@ -136,7 +132,7 @@ class TorchDataset:
         self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples: List[Tensors] = []
+        self.processed_samples: List[NamedTuple] = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them
@@ -150,7 +146,7 @@ class TorchDataset:
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int) -> Tensors:
+    def __getitem__(self, index: int):
         for key in self.keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -324,7 +320,7 @@ class TorchDataset:
         last_index = min(self.last_index_meta[key] for key in self.keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = Tensors(
+            sample = self._return_type(
                 (key, self.all_index_value_maps[key][i]) for key in self.keys
             )
             samples.append(sample)
