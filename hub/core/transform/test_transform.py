@@ -50,7 +50,7 @@ def test_single_transform_hub_dataset(ds):
                 ds_out[index].label.numpy(), index * np.ones((1,))
             )
 
-            
+
 def check_transform_on_ds(data_in: Dataset, ds_out: Dataset):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
@@ -67,7 +67,7 @@ def check_transform_on_ds(data_in: Dataset, ds_out: Dataset):
 
 
 @parametrize_all_dataset_storages
-def test_single_transform_hub_dataset(ds):
+def test_single_transform_hub_dataset_2(ds):
     with Dataset("./test/transform_hub_in_generic") as data_in:
         data_in.create_tensor("image")
         data_in.create_tensor("label")

@@ -5,12 +5,17 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
+from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 import numpy as np
 import posixpath
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union
-from hub.util.exceptions import DatasetUnsupportedPytorch, ModuleNotInstalledException
+from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Sequence
+from hub.util.exceptions import (
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+    TensorDoesNotExistError,
+)
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
@@ -57,19 +62,41 @@ def _read_and_store_chunk(
     return chunk_size
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+def dataset_to_pytorch(
+    dataset,
+    transform: Optional[Callable] = None,
+    workers: int = 1,
+    tensors: Optional[Sequence[str]] = None,
+):
     dataset.flush()
-    return TorchDataset(dataset, transform, workers)
+    return TorchDataset(dataset, transform, workers, tensors)
 
 
 class TorchDataset:
-    def __init__(self, dataset, transform: Callable = None, workers: int = 1):
+    def __init__(
+        self,
+        dataset,
+        transform: Optional[Callable] = None,
+        workers: int = 1,
+        tensors: Optional[Sequence[str]] = None,
+    ):
         self._import_torch()
-        self.transform: Optional[Callable] = transform
+        self.transform = transform
         self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
-        self.keys = list(dataset.tensors)
+
+        self.tensor_keys: List[str]
+        if tensors is not None:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
+            self.tensor_keys = list(tensors)
+        else:
+            self.tensor_keys = list(dataset.tensors)
+
+        self._return_type = namedtuple("Tensors", self.tensor_keys)
+
         self.storage = remove_memory_cache(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -106,7 +133,7 @@ class TorchDataset:
         self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples: List[Dict] = []
+        self.processed_samples: List = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them
@@ -121,7 +148,7 @@ class TorchDataset:
         return self.length
 
     def __getitem__(self, index: int):
-        for key in self.keys:
+        for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
@@ -134,13 +161,15 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
-        return self._apply_transform(sample)
+        sample = self._apply_transform(sample)
+
+        return sample
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
 
-    def _apply_transform(self, sample: Dict):
+    def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
         return self.transform(sample) if self.transform else sample
 
@@ -156,14 +185,16 @@ class TorchDataset:
 
     def _load_all_index_meta(self):
         """Loads index metas for all Tensors into memory"""
-        all_index_metas = {key: IndexMeta.load(key, self.storage) for key in self.keys}
+        all_index_metas = {
+            key: IndexMeta.load(key, self.storage) for key in self.tensor_keys
+        }
         return all_index_metas
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
-        for key in self.keys:
+        for key in self.tensor_keys:
             tensor_meta = TensorMeta.load(key, self.storage)
             if tensor_meta.dtype == "uint16":
                 tensor_meta.dtype = "int32"
@@ -289,16 +320,18 @@ class TorchDataset:
         """
         first_index = self.processed_range.stop + 1
         # different no. of samples are fetched for each tensor, take the min and process
-        last_index = min(self.last_index_meta[key] for key in self.keys)
+        last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
+            sample = self._return_type(
+                **{key: self.all_index_value_maps[key][i] for key in self.tensor_keys}
+            )
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
     def _all_shared_memory_clean_up(self):
         """Cleans up possibly leaked memory at the end of iteration across Tensors"""
-        for key in self.keys:
+        for key in self.tensor_keys:
             shared_memory_names = self.all_shared_memory_names[key]
             clear_shared_memory(shared_memory_names)
