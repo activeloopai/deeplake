@@ -102,19 +102,18 @@ class ChunkEngine(Cachable):
         self.tensor_meta.update(shape, dtype, num_samples)
 
         last_chunk = self.last_chunk or self._create_new_chunk()
-        max_data_bytes = last_chunk.max_data_bytes
         last_chunk_extended = False
 
         forwarding_buffer = incoming_buffer
-        if last_chunk.is_under_min_space:
+        if last_chunk.is_under_min_space(self.min_chunk_size_target):
             last_chunk_size = last_chunk.num_data_bytes
             chunk_ct_content = _min_chunk_ct_for_data_size(
-                max_data_bytes, incoming_num_bytes
+                self.max_chunk_size, incoming_num_bytes
             )
 
-            extra_bytes = min(incoming_num_bytes, max_data_bytes - last_chunk_size)
+            extra_bytes = min(incoming_num_bytes, self.max_chunk_size - last_chunk_size)
             combined_chunk_ct = _min_chunk_ct_for_data_size(
-                max_data_bytes, incoming_num_bytes + last_chunk_size
+                self.max_chunk_size, incoming_num_bytes + last_chunk_size
             )
 
             # combine if count is same
@@ -123,7 +122,7 @@ class ChunkEngine(Cachable):
                 # start_byte = parent_chunk.num_data_bytes
                 # end_byte = start_byte + extra_bytes
 
-                last_chunk.append(forwarding_buffer[:extra_bytes])
+                last_chunk.append(forwarding_buffer[:extra_bytes], self.max_chunk_size)
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
                 self._synchronize_chunk(last_chunk, connect_with_last=False)
                 last_chunk_extended = True
@@ -132,7 +131,7 @@ class ChunkEngine(Cachable):
         connect_with_last = last_chunk_extended
         while len(forwarding_buffer) > 0:
             new_chunk = self._create_new_chunk()
-            end_byte = min(len(forwarding_buffer), max_data_bytes)
+            end_byte = min(len(forwarding_buffer), self.max_chunk_size)
 
             # end_byte = min(len(content), CHUNK_MAX_SIZE)
             new_chunk.append(forwarding_buffer[:end_byte])
@@ -175,7 +174,7 @@ class ChunkEngine(Cachable):
 
     def _create_new_chunk(self):
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
-        chunk = Chunk(self.max_chunk_size, self.min_chunk_size_target)
+        chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
