@@ -2,7 +2,7 @@ from typing import Iterable, List
 from collections import OrderedDict
 
 
-def namedtuple(T: str, fields: List[str]):
+def subscript_namedtuple(T: str, fields: List[str]):
     """
     Similar to `collections.namedtuple`, but uses subscripting instead of
     dot operator to access fields to allow arbitrary string field names.
@@ -26,7 +26,7 @@ def namedtuple(T: str, fields: List[str]):
     # >>> 3
     """
 
-    class NamedTuple(object):
+    class SubscriptNamedTuple(object):
         # For pytorch dataloader compatibility
         __class__ = tuple  # type: ignore
         _fields = fields
@@ -84,4 +84,4 @@ def namedtuple(T: str, fields: List[str]):
             except Exception:
                 return False
 
-    return NamedTuple
+    return SubscriptNamedTuple

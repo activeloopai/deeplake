@@ -310,7 +310,6 @@ def test_custom_tensor_order(ds):
         )
 
         for i, batch in enumerate(dl):
-            print(batch)
             c1, d1, a1 = batch
             a2 = batch["a"]
             c2 = batch["c"]

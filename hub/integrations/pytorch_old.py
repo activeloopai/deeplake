@@ -1,14 +1,14 @@
-from typing import Callable, Union, List, Optional, Dict, Tuple
+from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
 import warnings
 from hub.util.exceptions import ModuleNotInstalledException, TensorDoesNotExistError
-from hub.util.namedtuple import namedtuple
+from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 
 
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     workers: int = 1,
-    tensors: Optional[List[str]] = None,
+    tensors: Optional[Sequence[str]] = None,
     python_version_warning: bool = True,
 ):
     return TorchDataset(
@@ -24,7 +24,7 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
-        tensors: Optional[List[str]] = None,
+        tensors: Optional[Sequence[str]] = None,
         python_version_warning: bool = True,
     ):
         global torch
@@ -47,7 +47,7 @@ class TorchDataset:
             for t in tensors:
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
-            self.keys = tensors
+            self.keys = list(tensors)
         else:
             self.keys = list(dataset.tensors)
         self._return_type = namedtuple("Tensors", self.keys)

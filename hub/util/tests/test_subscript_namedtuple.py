@@ -1,4 +1,4 @@
-from hub.util.namedtuple import namedtuple
+from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 
 
 def test_namedtuple():

@@ -5,12 +5,12 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import remove_memory_cache
 from hub.util.join_chunks import join_chunks
-from hub.util.namedtuple import namedtuple
+from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 import numpy as np
 import posixpath
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
+from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Sequence
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
@@ -66,7 +66,7 @@ def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     workers: int = 1,
-    tensors: Optional[List] = None,
+    tensors: Optional[Sequence[str]] = None,
 ):
     dataset.flush()
     return TorchDataset(dataset, transform, workers, tensors)
@@ -78,7 +78,7 @@ class TorchDataset:
         dataset,
         transform: Optional[Callable] = None,
         workers: int = 1,
-        tensors: Optional[List[str]] = None,
+        tensors: Optional[Sequence[str]] = None,
     ):
         self._import_torch()
         self.transform = transform
@@ -91,7 +91,7 @@ class TorchDataset:
             for t in tensors:
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
-            self.keys = tensors
+            self.keys = list(tensors)
         else:
             self.keys = list(dataset.tensors)
 
