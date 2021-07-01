@@ -9,6 +9,7 @@ from hub.util.namedtuple import namedtuple
 import numpy as np
 import posixpath
 from itertools import repeat
+from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
@@ -132,7 +133,7 @@ class TorchDataset:
         self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples: List[NamedTuple] = []
+        self.processed_samples: List = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them

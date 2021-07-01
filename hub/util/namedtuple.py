@@ -28,7 +28,7 @@ def namedtuple(T: str, fields: List[str]):
 
     class NamedTuple(object):
         # For pytorch dataloader compatibility
-        __class__ = tuple
+        __class__ = tuple  # type: ignore
         _fields = fields
 
         def __init__(self, *args, **kwargs):
