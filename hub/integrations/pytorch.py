@@ -81,7 +81,7 @@ class TorchDataset:
         tensors: Optional[List[str]] = None,
     ):
         self._import_torch()
-        self.transform: Optional[Callable] = transform
+        self.transform = transform
         self.workers: int = workers
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
