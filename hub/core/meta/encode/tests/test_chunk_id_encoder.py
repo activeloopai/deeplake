@@ -1,9 +1,6 @@
 import pytest
 from hub.core.meta.encode.chunk_id import (
     ChunkIdEncoder,
-    _generate_chunk_id,
-    chunk_name_from_id,
-    chunk_id_from_name,
 )
 
 

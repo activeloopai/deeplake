@@ -77,6 +77,8 @@ class ChunkEngine(Cachable):
     def _append_bytes(
         self, incoming_buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype
     ):
+        # TODO: docstring
+
         num_samples = 1
         incoming_num_bytes = len(incoming_buffer)
 
@@ -226,7 +228,7 @@ class ChunkEngine(Cachable):
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            first_chunk_name = enc.get_chunk_names(global_sample_index, first_only=True)
+            first_chunk_name = enc.__getitem__(global_sample_index, first_only=True)
 
             chunk_key = self.get_chunk_key(first_chunk_name)
             chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
