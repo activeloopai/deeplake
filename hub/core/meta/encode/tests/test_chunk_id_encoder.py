@@ -109,10 +109,6 @@ def test_failures():
 
     enc.generate_chunk_id()
 
-    with pytest.raises(Exception):
-        # cannot generate 2 chunk ids when the one before has no samples
-        enc.generate_chunk_id()
-
     with pytest.raises(IndexError):
         enc[1]
 

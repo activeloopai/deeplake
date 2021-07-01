@@ -17,14 +17,6 @@ CHUNK_ID_INDEX = 0
 LAST_INDEX_INDEX = 1
 
 
-def chunk_name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
-    return hex(id)[2:]
-
-
-def chunk_id_from_name(name: str) -> CHUNK_NAME_ENCODING_DTYPE:
-    return int("0x" + name, 16)
-
-
 class ChunkIdEncoder(Cachable):
     def __init__(self):
         self._encoded_ids = None
@@ -34,6 +26,14 @@ class ChunkIdEncoder(Cachable):
         bio = BytesIO()
         np.savez(bio, ids=self._encoded_ids, connectivity=self._encoded_connectivity)
         return bio.getbuffer()
+
+    @staticmethod
+    def name_from_id(id: CHUNK_NAME_ENCODING_DTYPE) -> str:
+        return hex(id)[2:]
+
+    @staticmethod
+    def id_from_name(name: str) -> CHUNK_NAME_ENCODING_DTYPE:
+        return int("0x" + name, 16)
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
@@ -56,16 +56,13 @@ class ChunkIdEncoder(Cachable):
             return 0
         return int(self._encoded_ids[-1, LAST_INDEX_INDEX] + 1)
 
-    @property
-    def last_chunk_name(self) -> str:
-        return self.get_name_for_chunk(-1)
-
     def generate_chunk_id(self) -> CHUNK_NAME_ENCODING_DTYPE:
         id = CHUNK_NAME_ENCODING_DTYPE(uuid4().int >> CHUNK_ID_BITS)
 
         if self.num_samples == 0:
             self._encoded_ids = np.array([[id, -1]], dtype=CHUNK_NAME_ENCODING_DTYPE)
             self._encoded_connectivity = np.array([False], dtype=bool)
+
         else:
             last_index = self.num_samples - 1
 
@@ -90,11 +87,16 @@ class ChunkIdEncoder(Cachable):
             # TODO: exceptions.py
             raise Exception("Cannot register samples because no chunk ids exist.")
 
-        last_entry = self._encoded_ids[-1]
+        if num_samples == 0 and self.num_chunks < 2:
+            raise Exception(
+                "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
+            )
+
+        current_entry = self._encoded_ids[-1]
 
         # this operation will trigger an overflow for the first addition, so supress the warning
         np.seterr(over="ignore")
-        last_entry[LAST_INDEX_INDEX] += CHUNK_NAME_ENCODING_DTYPE(num_samples)
+        current_entry[LAST_INDEX_INDEX] += CHUNK_NAME_ENCODING_DTYPE(num_samples)
         np.seterr(over="warn")
 
     def register_connection_to_last_chunk_id(self):
@@ -104,12 +106,12 @@ class ChunkIdEncoder(Cachable):
                 "Cannot register connection because at least 2 chunk ids need to exist."
             )
 
-        last_entry = self._encoded_ids[-2]
+        current_entry = self._encoded_ids[-2]
         self._encoded_connectivity[-2] = True
-        return chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
+        return ChunkIdEncoder.name_from_id(current_entry[CHUNK_ID_INDEX])
 
     def get_name_for_chunk(self, idx) -> str:
-        return chunk_name_from_id(self._encoded_ids[:, CHUNK_ID_INDEX][idx])
+        return ChunkIdEncoder.name_from_id(self._encoded_ids[:, CHUNK_ID_INDEX][idx])
 
     def get_local_sample_index(self, global_sample_index: int):
         # TODO: explain what's going on here
@@ -124,8 +126,8 @@ class ChunkIdEncoder(Cachable):
         if chunk_index == 0:
             return global_sample_index
 
-        last_entry = self._encoded_ids[chunk_index - 1]
-        last_num_samples = last_entry[LAST_INDEX_INDEX] + 1
+        current_entry = self._encoded_ids[chunk_index - 1]
+        last_num_samples = current_entry[LAST_INDEX_INDEX] + 1
 
         return int(global_sample_index - last_num_samples)
 
@@ -144,8 +146,6 @@ class ChunkIdEncoder(Cachable):
         ids = [self._encoded_ids[idx, CHUNK_ID_INDEX]]
         indices = [idx]
 
-        print(idx, sample_index, self._encoded_ids)
-
         # if accessing last index, check connectivity!
         while (
             self._encoded_ids[idx, LAST_INDEX_INDEX] == sample_index
@@ -160,8 +160,3 @@ class ChunkIdEncoder(Cachable):
             return tuple(ids), tuple(indices)
 
         return tuple(ids)
-
-
-def _validate_num_samples(num_samples: int):
-    if num_samples <= 0:
-        raise ValueError(f"`num_count` should be > 0. Got {num_samples}.")
