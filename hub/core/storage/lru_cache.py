@@ -42,7 +42,7 @@ class LRUCache(StorageProvider):
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         self.check_readonly()
-        for key in self.dirty_keys:
+        for key in self.dirty_keys.copy():
             self._forward(key)
         self.next_storage.flush()
 
@@ -193,7 +193,7 @@ class LRUCache(StorageProvider):
         """
         cachable = isinstance(value, Cachable)
 
-        if remove:
+        if not cachable or remove:
             self.dirty_keys.discard(path)
 
         if cachable:
