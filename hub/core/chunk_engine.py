@@ -70,12 +70,9 @@ class ChunkEngine(Cachable):
     def _chunk_bytes(
         self, incoming_buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype
     ):
-        if len(shape) < 1:
-            raise ValueError(
-                f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(shape)}."
-            )
 
         incoming_num_bytes = len(incoming_buffer)
+        _validate_incoming_buffer(incoming_num_bytes, shape)
         num_samples = shape[0]
         sample_shape = shape[1:]
 
@@ -225,3 +222,24 @@ def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):
 def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
     """Calculates the minimum number of chunks in which data of given size can be fit."""
     return ceil(size / chunk_max_data_bytes)
+
+
+def _validate_incoming_buffer(
+    incoming_num_bytes: bytes,
+    shape: Tuple[int],
+):
+    if len(shape) < 1:
+        raise ValueError(
+            f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(shape)}."
+        )
+
+    num_samples = shape[0]
+    if num_samples <= 0:
+        raise ValueError(
+            f"The number of samples a buffer can represent has to be greater than 0. Got {num_samples}"
+        )
+
+    if incoming_num_bytes % num_samples != 0:
+        raise ValueError(
+            f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
+        )

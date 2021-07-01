@@ -64,9 +64,6 @@ class Chunk(Cachable):
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
     ):
         # TODO: docstring
-
-        _validate_incoming_buffer(incoming_num_bytes, num_samples)
-
         num_bytes_per_sample = incoming_num_bytes // num_samples
         self.index_shape_encoder.add_shape(sample_shape, num_samples)
         self.index_byte_range_encoder.add_byte_position(
@@ -107,18 +104,3 @@ class Chunk(Cachable):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         raise NotImplementedError
-
-
-def _validate_incoming_buffer(
-    incoming_num_bytes: bytes,
-    num_samples: int,
-):
-    if num_samples <= 0:
-        raise ValueError(
-            f"The number of samples a buffer can represent has to be greater than 0. Got {num_samples}"
-        )
-
-    if incoming_num_bytes % num_samples != 0:
-        raise ValueError(
-            f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
-        )
