@@ -68,6 +68,7 @@ class Chunk(Cachable):
         num_bytes_per_sample = incoming_num_bytes // num_samples
         self.shape_encoder.add_shape(sample_shape, num_samples)
         self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, num_samples)
+        self.num_new_samples = 0
 
     """
     def get_sample(

@@ -118,8 +118,7 @@ class ChunkEngine(Cachable):
             )
 
             # combine if count is same
-            last_chunk_extended = combined_chunk_ct == chunk_ct_content
-            if last_chunk_extended:
+            if combined_chunk_ct == chunk_ct_content:
                 # start_byte = index_meta.entries[-1]["end_byte"]
                 # start_byte = parent_chunk.num_data_bytes
                 # end_byte = start_byte + extra_bytes
@@ -127,6 +126,7 @@ class ChunkEngine(Cachable):
                 last_chunk.append(forwarding_buffer[:extra_bytes])
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
                 self._synchronize_chunk(last_chunk, connect_with_last=False)
+                last_chunk_extended = True
 
         new_chunks = []
         connect_with_last = last_chunk_extended
@@ -143,10 +143,9 @@ class ChunkEngine(Cachable):
             new_chunks.append(new_chunk)
             connect_with_last = True
 
-        # only the head chunk (the first chunk this sample batch was written to) should have headers
+        # only the head chunk (the first chunk this sample was written to) should have it's headers updated
         head_chunk = last_chunk if last_chunk_extended else new_chunks[0]
-        if not last_chunk_extended:
-            head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
+        head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
 
         # TODO: test that all chunks in chunk engine are synchronized (have no new data unaccounted for)
 
@@ -173,7 +172,6 @@ class ChunkEngine(Cachable):
             self.chunk_id_encoder.register_connection()
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
-        chunk.num_new_samples = 0
 
     def _create_new_chunk(self):
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
