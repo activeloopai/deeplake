@@ -9,7 +9,7 @@ LAST_INDEX_INDEX = -1
 
 class ShapeEncoder:
     def __init__(self, encoded_shape=None):
-        self._encoded = None
+        self._encoded = encoded_shape
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:
