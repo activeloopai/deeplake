@@ -20,12 +20,12 @@ def test_trivial():
     assert len(enc._encoded) == 2
     assert enc.num_bytes_encoded_under_row(-1) == 2600
 
-    assert enc.get_byte_position(0) == (0, 8)
-    assert enc.get_byte_position(1) == (8, 16)
-    assert enc.get_byte_position(199) == (1592, 1600)
-    assert enc.get_byte_position(200) == (1600, 1601)
-    assert enc.get_byte_position(201) == (1601, 1602)
-    assert enc.get_byte_position(1199) == (2599, 2600)
+    assert enc[0] == (0, 8)
+    assert enc[1] == (8, 16)
+    assert enc[199] == (1592, 1600)
+    assert enc[200] == (1600, 1601)
+    assert enc[201] == (1601, 1602)
+    assert enc[1199] == (2599, 2600)
 
     enc.add_byte_position(16, 32)
 
@@ -33,10 +33,10 @@ def test_trivial():
     assert len(enc._encoded) == 3
     assert enc.num_bytes_encoded_under_row(-1) == 3112
 
-    assert enc.get_byte_position(1200) == (2600, 2616)
+    assert enc[1200] == (2600, 2616)
 
     with pytest.raises(IndexError):
-        enc.get_byte_position(1232)
+        enc[1232]
 
 
 def test_non_uniform():
@@ -51,9 +51,9 @@ def test_non_uniform():
     assert enc.num_samples == 3
     assert len(enc._encoded) == 3
 
-    assert enc.get_byte_position(0) == (0, 4960)
-    assert enc.get_byte_position(1) == (4960, 4960 + 4961)
-    assert enc.get_byte_position(2) == (4960 + 4961, 4960 + 4961 + 41)
+    assert enc[0] == (0, 4960)
+    assert enc[1] == (4960, 4960 + 4961)
+    assert enc[2] == (4960 + 4961, 4960 + 4961 + 41)
 
 
 def test_failures():

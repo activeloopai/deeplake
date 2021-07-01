@@ -78,7 +78,7 @@ class BytePositionsEncoder:
                 dtype=POSITION_ENCODING_DTYPE,
             )
 
-    def get_byte_position(self, sample_index: int) -> Tuple[int, int]:
+    def __getitem__(self, sample_index: int) -> Tuple[int, int]:
         if self.num_samples == 0:
             raise IndexError(
                 f"Index {sample_index} is out of bounds for an empty byte position encoding."

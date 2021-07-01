@@ -81,7 +81,7 @@ class ChunkEngine(Cachable):
             return None
 
         last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-        last_chunk_key = self.get_chunk_key(last_chunk_name)
+        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
         return self.cache.get_cachable(last_chunk_key, Chunk)
 
     @property
@@ -177,7 +177,11 @@ class ChunkEngine(Cachable):
 
     def _create_new_chunk(self):
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
-        return Chunk(chunk_id, self.max_chunk_size, self.min_chunk_size_target)
+        chunk = Chunk(self.max_chunk_size, self.min_chunk_size_target)
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        self.cache[chunk_key] = chunk
+        return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         if isinstance(samples, np.ndarray):
@@ -208,10 +212,6 @@ class ChunkEngine(Cachable):
         else:
             return self.append(Sample(array=np.array(sample)))
 
-    def get_chunk_key(self, chunk_name: str):
-        chunk_key = get_chunk_key(self.key, chunk_name)
-        return chunk_key
-
     def numpy(self, index: Index, aslist: bool = False):
         # TODO: get chunks from cache in parallel
 
@@ -221,26 +221,59 @@ class ChunkEngine(Cachable):
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            first_chunk_name = enc.__getitem__(global_sample_index, first_only=True)
+            chunk_ids = enc.__getitem__(global_sample_index)
 
-            chunk_key = self.get_chunk_key(first_chunk_name)
-            chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
-            local_sample_index = enc.get_local_sample_index(global_sample_index)
-            default_compress = self.tensor_meta.sample_compression != UNCOMPRESSED
-            sample = chunk.get_sample(
-                local_sample_index,
-                self.tensor_meta.dtype,
-                expect_compressed=default_compress,
-            )
+            for i, chunk_id in enumerate(chunk_ids):
 
-            if not aslist and last_shape is not None:
-                if sample.shape != last_shape:
-                    raise DynamicTensorNumpyError(self.key, index, "shape")
+                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
 
-            last_shape = sample.shape
-            samples.append(sample)
+                chunk_key = get_chunk_key(self.key, chunk_name)
+                chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
+                local_sample_index = enc.get_local_sample_index(global_sample_index)
+                default_compress = self.tensor_meta.sample_compression != UNCOMPRESSED
+
+                # head chunk is the first chunk a sample lives in (has the header information for that sample)
+                is_head_chunk = i == 0
+                if is_head_chunk:
+                    shape = chunk.shape_encoder[local_sample_index]
+                    sb, eb = chunk.byte_positions_encoder[local_sample_index]
+
+                else:
+                    raise NotImplementedError
+
+                print(global_sample_index, local_sample_index)
+
+                """
+                sample = chunk.get_sample(
+                    local_sample_index,
+                    self.tensor_meta.dtype,
+                    expect_compressed=default_compress,
+                )
+                """
+
+                # if not aslist and last_shape is not None:
+                #     if sample.shape != last_shape:
+                #         raise DynamicTensorNumpyError(self.key, index, "shape")
+
+            # last_shape = sample.shape
+            # samples.append(sample)
 
         return _format_samples(samples, index, aslist)
+
+    """
+    # FROM CHUNK CLASS:
+
+    def get_sample(
+        self, local_sample_index: int, dtype: np.dtype, expect_compressed=False
+    ) -> np.ndarray:
+        shape = self.index_shape_encoder[local_sample_index]
+        sb, eb = self.index_byte_range_encoder.get_byte_position(local_sample_index)
+        buffer = self.memoryview_data[sb:eb]
+        if expect_compressed:
+            return decompress_array(buffer, shape)
+        else:
+            return np.frombuffer(buffer, dtype=dtype).reshape(shape)
+    """
 
 
 def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):

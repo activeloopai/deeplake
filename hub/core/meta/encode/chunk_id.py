@@ -116,9 +116,8 @@ class ChunkIdEncoder(Cachable):
     def get_local_sample_index(self, global_sample_index: int):
         # TODO: explain what's going on here
 
-        _, chunk_index = self.__getitem__(
-            global_sample_index, return_indices=True, first_only=True
-        )
+        _, chunk_indices = self.__getitem__(global_sample_index, return_indices=True)
+        chunk_index = chunk_indices[0]
 
         if global_sample_index < 0:
             raise Exception()  # TODO
