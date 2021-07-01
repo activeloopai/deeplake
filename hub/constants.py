@@ -39,6 +39,6 @@ ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
 ENCODED_CHUNK_NAMES_FILENAME = "unsharded"
 
-PYTEST_MEMORY_PROVIDER_BASE_ROOT = "hub_pytest"
+PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"

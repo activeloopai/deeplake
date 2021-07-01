@@ -70,19 +70,6 @@ class Chunk(Cachable):
         self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, num_samples)
         self.num_new_samples = 0
 
-    """
-    def get_sample(
-        self, local_sample_index: int, dtype: np.dtype, expect_compressed=False
-    ) -> np.ndarray:
-        shape = self.index_shape_encoder[local_sample_index]
-        sb, eb = self.index_byte_range_encoder.get_byte_position(local_sample_index)
-        buffer = self.memoryview_data[sb:eb]
-        if expect_compressed:
-            return decompress_array(buffer, shape)
-        else:
-            return np.frombuffer(buffer, dtype=dtype).reshape(shape)
-    """
-
     def __len__(self):
         # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)
 

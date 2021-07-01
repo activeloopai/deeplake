@@ -2,7 +2,6 @@ from hub.core.compression import decompress_array
 from math import ceil
 from typing import Sequence, Union, Tuple
 from hub.util.exceptions import DynamicTensorNumpyError
-from hub.core.storage.cachable import Cachable
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
 from hub.util.keys import (
@@ -40,7 +39,7 @@ def is_uniform_sequence(samples):
         return True
 
 
-class ChunkEngine(Cachable):
+class ChunkEngine:
     def __init__(
         self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
     ):
