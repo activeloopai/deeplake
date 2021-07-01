@@ -1,4 +1,4 @@
-from hub.constants import SUPPORTED_COMPRESSIONS
+from hub.constants import SUPPORTED_COMPRESSIONS, UNCOMPRESSED
 from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
@@ -40,6 +40,9 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
     if compression not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(compression)
+
+    if compression == UNCOMPRESSED:
+        return array.tobytes()
 
     try:
         img = to_image(array)

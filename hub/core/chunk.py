@@ -1,5 +1,6 @@
 from hub.core.index.index import Index
 from hub.core.storage.cachable import Cachable
+from hub.core.compression import decompress_array
 from typing import List, Optional, Sequence, Tuple, Union
 import numpy as np
 from io import BytesIO
@@ -135,12 +136,16 @@ class Chunk(Cachable):
             num_bytes_per_sample, num_samples
         )
 
-    def get_sample(self, local_sample_index: int, dtype: np.dtype) -> np.ndarray:
+    def get_sample(
+        self, local_sample_index: int, dtype: np.dtype, expect_compressed=False
+    ) -> np.ndarray:
         shape = self.index_shape_encoder[local_sample_index]
         sb, eb = self.index_byte_range_encoder.get_byte_position(local_sample_index)
         buffer = self.memoryview_data[sb:eb]
-        # TODO: decompress buffer?
-        return np.frombuffer(buffer, dtype=dtype).reshape(shape)
+        if expect_compressed:
+            return decompress_array(buffer, shape)
+        else:
+            return np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
     def __eq__(self, o: object) -> bool:
         raise NotImplementedError
@@ -186,8 +191,8 @@ def _validate_incoming_buffer(
             f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
         )
 
-    total_elements = max(1, np.prod(sample_shape) * num_samples)
-    if incoming_num_bytes % total_elements != 0:
-        raise ValueError(
-            f"Incoming buffer length should be divisible by the total number of elements. If this is not the case, either the shape or num samples is invalid. Shape={str(sample_shape)}, Num samples={num_samples}"
-        )
+    # total_elements = max(1, np.prod(sample_shape) * num_samples)
+    # if incoming_num_bytes % total_elements != 0:
+    #     raise ValueError(
+    #         f"Incoming buffer length should be divisible by the total number of elements. If this is not the case, either the shape or num samples is invalid. Shape={str(sample_shape)}, Num samples={num_samples}"
+    #     )

@@ -56,7 +56,7 @@ class LRUCache(StorageProvider):
                 )
             return item
 
-        if isinstance(item, bytes):
+        if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
             self[path] = obj
             return obj
