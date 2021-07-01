@@ -322,7 +322,7 @@ class TorchDataset:
         samples = []
         for i in range(first_index, last_index + 1):
             sample = self._return_type(
-                (key, self.all_index_value_maps[key][i]) for key in self.keys
+                **{key: self.all_index_value_maps[key][i] for key in self.keys}
             )
             samples.append(sample)
         self.processed_samples = samples
