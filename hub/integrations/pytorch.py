@@ -8,7 +8,7 @@ from hub.util.join_chunks import join_chunks
 import numpy as np
 import posixpath
 from itertools import repeat
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
@@ -65,10 +65,16 @@ def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     workers: int = 1,
-    tuple_fields: Optional[List] = None,
+    tensors: Optional[List] = None,
 ):
     dataset.flush()
-    return TorchDataset(dataset, transform, workers, tuple_fields)
+    return TorchDataset(dataset, transform, workers, tensors)
+
+
+class Tensors(OrderedDict):
+    def __iter__(self):
+        for v in self.values():
+            yield v
 
 
 class TorchDataset:
@@ -77,7 +83,7 @@ class TorchDataset:
         dataset,
         transform: Optional[Callable] = None,
         workers: int = 1,
-        tuple_fields: Optional[List[str]] = None,
+        tensors: Optional[List[str]] = None,
     ):
         self._import_torch()
         self.transform: Optional[Callable] = transform
@@ -86,15 +92,13 @@ class TorchDataset:
         self.length = len(dataset)
 
         self.keys: List[str]
-        if tuple_fields is None:
-            self.keys = list(dataset.tensors)
-            self.tuple_mode = False
+        if tensors is not None:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
+            self.keys = tensors
         else:
-            for field in tuple_fields:
-                if field not in dataset.tensors:
-                    raise TensorDoesNotExistError(field)
-            self.keys = tuple_fields
-            self.tuple_mode = True
+            self.keys = list(dataset.tensors)
 
         self.storage = remove_memory_cache(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
@@ -132,7 +136,7 @@ class TorchDataset:
         self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples: List[Dict] = []
+        self.processed_samples: List[Tensors] = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them
@@ -146,7 +150,7 @@ class TorchDataset:
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def __getitem__(self, index: int) -> Tensors:
         for key in self.keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -159,9 +163,6 @@ class TorchDataset:
         if index == len(self) - 1:  # clean up at the end
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
-
-        if self.tuple_mode:
-            sample = tuple(sample[k] for k in self.keys)
 
         sample = self._apply_transform(sample)
 
@@ -323,7 +324,9 @@ class TorchDataset:
         last_index = min(self.last_index_meta[key] for key in self.keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
+            sample = Tensors(
+                (key, self.all_index_value_maps[key][i]) for key in self.keys
+            )
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
