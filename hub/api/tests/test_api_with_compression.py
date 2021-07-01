@@ -89,7 +89,7 @@ def test_uncompressed(ds: Dataset):
     images.extend(np.ones((3, 101, 2, 1)))
     ds.clear_cache()
     np.testing.assert_array_equal(images[0].numpy(), np.ones((100, 100, 100)))
-    np.testing.assert_array_equal(images[1].numpy(), np.ones((3, 101, 2, 1)))
+    np.testing.assert_array_equal(images[1:4].numpy(), np.ones((3, 101, 2, 1)))
 
 
 @pytest.mark.xfail(raises=SampleCompressionError, strict=True)
