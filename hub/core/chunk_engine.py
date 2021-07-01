@@ -1,3 +1,4 @@
+from math import ceil
 from typing import Sequence, Union, Tuple
 from hub.util.exceptions import DynamicTensorNumpyError
 from hub.core.storage.cachable import Cachable
@@ -66,12 +67,15 @@ class ChunkEngine(Cachable):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _chunk_bytes(self, buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype):
+    def _chunk_bytes(
+        self, incoming_buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype
+    ):
         if len(shape) < 1:
             raise ValueError(
                 f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(shape)}."
             )
 
+        incoming_num_bytes = len(incoming_buffer)
         num_samples = shape[0]
         sample_shape = shape[1:]
 
@@ -79,12 +83,60 @@ class ChunkEngine(Cachable):
         self.tensor_meta.check_compatibility(sample_shape, dtype)
         self.tensor_meta.update(sample_shape, dtype, num_samples)
 
-        chunk = self.last_chunk
-        if chunk is None:
-            # TODO
+        parent_chunk = self.last_chunk or Chunk()
+        max_data_bytes = parent_chunk.max_data_bytes
+
+        if parent_chunk.is_under_min_space:
+            last_chunk_size = parent_chunk.num_data_bytes
+            chunk_ct_content = _min_chunk_ct_for_data_size(
+                max_data_bytes, incoming_num_bytes
+            )
+
+            extra_bytes = min(incoming_num_bytes, max_data_bytes - last_chunk_size)
+            combined_chunk_ct = _min_chunk_ct_for_data_size(
+                max_data_bytes, incoming_num_bytes + last_chunk_size
+            )
+
+            if combined_chunk_ct == chunk_ct_content:  # combine if count is same
+                # start_byte = index_meta.entries[-1]["end_byte"]
+                # start_byte = parent_chunk.num_data_bytes
+                # end_byte = start_byte + extra_bytes
+                parent_chunk.extend(incoming_buffer[:extra_bytes])
+                forwarding_buffer = incoming_buffer[extra_bytes:]
+
+        children = []
+        while len(forwarding_buffer) > 0:
+            child_chunk = Chunk(max_data_bytes=max_data_bytes)
+            end_byte = min(len(forwarding_buffer), max_data_bytes)
+
+            # end_byte = min(len(content), CHUNK_MAX_SIZE)
+            child_chunk.extend(forwarding_buffer[:end_byte])
+            forwarding_buffer = forwarding_buffer[end_byte:]
+
+            children.append(child_chunk)
+
+        parent_chunk.update_headers(incoming_num_bytes, num_samples, sample_shape)
+        self.register_chunks(parent_chunk, children)
+
+        """
+        index_meta.add_entry(
+            chunk_names=chunk_names,
+            start_byte=start_byte,
+            end_byte=end_byte,
+            **extra_sample_meta,
+        )
+        """
+
+    def register_chunks(self, parent_chunk: Chunk, children_chunks: Sequence[Chunk]):
+        if parent_chunk == self.last_chunk:
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+
+        for child_chunk in children_chunks:
             pass
 
-        # TODO
+        raise NotImplementedError
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         if isinstance(samples, np.ndarray):
@@ -168,3 +220,8 @@ def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):
         return samples
     else:
         return np.array(samples)
+
+
+def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
+    """Calculates the minimum number of chunks in which data of given size can be fit."""
+    return ceil(size / chunk_max_data_bytes)

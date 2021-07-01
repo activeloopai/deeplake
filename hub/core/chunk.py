@@ -48,8 +48,6 @@ class Chunk(Cachable):
     def extend(
         self,
         incoming_buffer: memoryview,
-        num_samples: int,
-        sample_shape: Tuple[int],
     ) -> Tuple["Chunk"]:
         # TODO: docstring
 
@@ -60,11 +58,9 @@ class Chunk(Cachable):
                 f"Chunk does not have space for the incoming bytes ({incoming_num_bytes})."
             )
 
-        # update headers first because erroneous headers are better than un-accounted for data.
-        self._update_headers(incoming_num_bytes, num_samples, sample_shape)
         self._data += incoming_buffer
 
-    def _update_headers(
+    def update_headers(
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
     ):
         # TODO: docstring
@@ -87,9 +83,6 @@ class Chunk(Cachable):
             return decompress_array(buffer, shape)
         else:
             return np.frombuffer(buffer, dtype=dtype).reshape(shape)
-
-    def __eq__(self, o: object) -> bool:
-        raise NotImplementedError
 
     def __len__(self):
         # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)
