@@ -1,3 +1,4 @@
+from hub.core.compression import decompress_array
 from math import ceil
 from typing import Sequence, Union, Tuple
 from hub.util.exceptions import DynamicTensorNumpyError
@@ -119,10 +120,6 @@ class ChunkEngine(Cachable):
 
             # combine if count is same
             if combined_chunk_ct == chunk_ct_content:
-                # start_byte = index_meta.entries[-1]["end_byte"]
-                # start_byte = parent_chunk.num_data_bytes
-                # end_byte = start_byte + extra_bytes
-
                 last_chunk.append(forwarding_buffer[:extra_bytes])
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
                 self._synchronize_chunk(last_chunk, connect_with_last=False)
@@ -130,11 +127,12 @@ class ChunkEngine(Cachable):
 
         new_chunks = []
         connect_with_last = last_chunk_extended
-        while len(forwarding_buffer) > 0:
+
+        # `or not connect_with_last` is necessary to support empty samples that weren't written to the previous chunk
+        while len(forwarding_buffer) > 0 or not connect_with_last:
             new_chunk = self._create_new_chunk()
             end_byte = min(len(forwarding_buffer), max_data_bytes)
 
-            # end_byte = min(len(content), CHUNK_MAX_SIZE)
             new_chunk.append(forwarding_buffer[:end_byte])
             forwarding_buffer = forwarding_buffer[end_byte:]
 
@@ -146,17 +144,6 @@ class ChunkEngine(Cachable):
         # only the head chunk (the first chunk this sample was written to) should have it's headers updated
         head_chunk = last_chunk if last_chunk_extended else new_chunks[0]
         head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
-
-        # TODO: test that all chunks in chunk engine are synchronized (have no new data unaccounted for)
-
-        """
-        index_meta.add_entry(
-            chunk_names=chunk_names,
-            start_byte=start_byte,
-            end_byte=end_byte,
-            **extra_sample_meta,
-        )
-        """
 
     def _synchronize_chunk(self, chunk: Chunk, connect_with_last: bool = False):
         # TODO: docstring
@@ -213,6 +200,11 @@ class ChunkEngine(Cachable):
     def numpy(self, index: Index, aslist: bool = False):
         # TODO: get chunks from cache in parallel
 
+        tensor_meta = self.tensor_meta
+
+        expect_compressed = tensor_meta.sample_compression != UNCOMPRESSED
+        dtype = tensor_meta.dtype
+
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
@@ -221,14 +213,13 @@ class ChunkEngine(Cachable):
         for global_sample_index in index.values[0].indices(length):
             chunk_ids = enc.__getitem__(global_sample_index)
 
+            buffer: Union[bytearray, memoryview] = bytearray()
             for i, chunk_id in enumerate(chunk_ids):
-
                 chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
 
                 chunk_key = get_chunk_key(self.key, chunk_name)
                 chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
                 local_sample_index = enc.get_local_sample_index(global_sample_index)
-                default_compress = self.tensor_meta.sample_compression != UNCOMPRESSED
 
                 # head chunk is the first chunk a sample lives in (has the header information for that sample)
                 is_head_chunk = i == 0
@@ -239,39 +230,27 @@ class ChunkEngine(Cachable):
                 else:
                     raise NotImplementedError
 
-                print(global_sample_index, local_sample_index)
+                # TODO: optimize this to reduce memory copies for samples spanning accross chunks
+                if len(chunk_ids) == 1:
+                    # if sample lives in a single chunk, no need to copy the data
+                    buffer = chunk.memoryview_data
+                else:
+                    buffer += chunk.memoryview_data
 
-                """
-                sample = chunk.get_sample(
-                    local_sample_index,
-                    self.tensor_meta.dtype,
-                    expect_compressed=default_compress,
-                )
-                """
+                if not aslist and last_shape is not None:
+                    if shape != last_shape:
+                        raise DynamicTensorNumpyError(self.key, index, "shape")
 
-                # if not aslist and last_shape is not None:
-                #     if sample.shape != last_shape:
-                #         raise DynamicTensorNumpyError(self.key, index, "shape")
+            buffer = buffer[sb:eb]
+            if expect_compressed:
+                sample = decompress_array(buffer, shape)
+            else:
+                sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+            samples.append(sample)
 
-            # last_shape = sample.shape
-            # samples.append(sample)
+            last_shape = shape
 
         return _format_samples(samples, index, aslist)
-
-    """
-    # FROM CHUNK CLASS:
-
-    def get_sample(
-        self, local_sample_index: int, dtype: np.dtype, expect_compressed=False
-    ) -> np.ndarray:
-        shape = self.index_shape_encoder[local_sample_index]
-        sb, eb = self.index_byte_range_encoder.get_byte_position(local_sample_index)
-        buffer = self.memoryview_data[sb:eb]
-        if expect_compressed:
-            return decompress_array(buffer, shape)
-        else:
-            return np.frombuffer(buffer, dtype=dtype).reshape(shape)
-    """
 
 
 def _format_samples(samples: Sequence[np.array], index: Index, aslist: bool):
