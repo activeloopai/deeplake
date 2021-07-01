@@ -13,73 +13,77 @@ def fn1(i, mul=1, copy=1):
     d = {}
     d["image"] = np.ones((337, 200)) * i * mul
     d["label"] = np.ones((1,)) * i * mul
-    return d if copy == 1 else [d for _ in range(copy)]
+    return d if copy == 1 else [d] * copy
 
 
 def fn2(sample, mul=1, copy=1):
     d = {"image": sample["image"] * mul, "label": sample["label"] * mul}
-    return d if copy == 1 else [d for _ in range(copy)]
+    return d if copy == 1 else [d] * copy
 
 
 def fn3(i, mul=1, copy=1):
     d = {}
     d["image"] = np.ones((1310, 2087)) * i * mul
     d["label"] = np.ones((13,)) * i * mul
-    return d if copy == 1 else [d for _ in range(copy)]
+    return d if copy == 1 else [d] * copy
 
 
 @parametrize_all_dataset_storages
 def test_single_transform_hub_dataset(ds):
-    with Dataset("./test/transform_hub_in_generic") as data_in:
-        data_in.create_tensor("image")
-        data_in.create_tensor("label")
-        for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i)))
-            data_in.label.append(i * np.ones((1,)))
-    data_in = Dataset("./test/transform_hub_in_generic")
-    ds_out = ds
-    ds_out.create_tensor("image")
-    ds_out.create_tensor("label")
-    transform(data_in, fn2, ds_out, pipeline_kwargs={"copy": 1, "mul": 2}, workers=5)
-    data_in.delete()
-    assert len(ds_out) == 99
-    for index in range(1, 100):
-        np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+    with CliRunner().isolated_filesystem():
+        with Dataset("./test/transform_hub_in_generic") as data_in:
+            data_in.create_tensor("image")
+            data_in.create_tensor("label")
+            for i in range(1, 100):
+                data_in.image.append(i * np.ones((i, i)))
+                data_in.label.append(i * np.ones((1,)))
+        data_in = Dataset("./test/transform_hub_in_generic")
+        ds_out = ds
+        ds_out.create_tensor("image")
+        ds_out.create_tensor("label")
+        transform(
+            data_in, fn2, ds_out, pipeline_kwargs={"copy": 1, "mul": 2}, workers=5
         )
-        np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
-        )
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            )
 
-    assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
 
 @parametrize_all_dataset_storages
 def test_single_transform_hub_dataset_htypes(ds):
-    with Dataset("./test/transform_hub_in_htypes") as data_in:
-        data_in.create_tensor("image", htype="image")
-        data_in.create_tensor("label", htype="class_label")
-        for i in range(1, 100):
-            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
-            data_in.label.append(i * np.ones((1,), dtype="int32"))
-    data_in = Dataset("./test/transform_hub_in_htypes")
-    ds_out = ds
-    ds_out.create_tensor("image")
-    ds_out.create_tensor("label")
-    transform(data_in, fn2, ds_out, pipeline_kwargs={"copy": 1, "mul": 2}, workers=5)
-    data_in.delete()
-    assert len(ds_out) == 99
-    for index in range(1, 100):
-        np.testing.assert_array_equal(
-            ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+    with CliRunner().isolated_filesystem():
+        with Dataset("./test/transform_hub_in_htypes") as data_in:
+            data_in.create_tensor("image", htype="image")
+            data_in.create_tensor("label", htype="class_label")
+            for i in range(1, 100):
+                data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+                data_in.label.append(i * np.ones((1,), dtype="int32"))
+        data_in = Dataset("./test/transform_hub_in_htypes")
+        ds_out = ds
+        ds_out.create_tensor("image")
+        ds_out.create_tensor("label")
+        transform(
+            data_in, fn2, ds_out, pipeline_kwargs={"copy": 1, "mul": 2}, workers=5
         )
-        np.testing.assert_array_equal(
-            ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
-        )
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            )
 
-    assert ds_out.image.shape_interval.lower == (99, 1, 1)
-    assert ds_out.image.shape_interval.upper == (99, 99, 99)
+        assert ds_out.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99)
 
 
 @parametrize_all_dataset_storages
@@ -132,7 +136,7 @@ def test_chain_transform_list_big(ds):
 
 @parametrize_all_dataset_storages
 def test_chain_transform_list_small_processed(ds):
-    ls = [i for i in range(100)]
+    ls = list(range(100))
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")

@@ -36,13 +36,15 @@ def transform(
 
     """Transforms the data_in to produce an output dataset ds_out using one or more workers.
     Useful for generating new datasets or converting datasets from one format to another efficiently.
-    Eg.
-    transform(["xyz.png", "abc.png"], load_img, ds, workers=2, scheduler="processed") # single function in pipleline
-    transform(["xyz.png", "abc.png"], [load_img, mirror], ds, workers=5) # loads images, mirrors them and stores them in ds which is a Hub dataset.
-    transform(["xyz.png", "abc.png"], [load_img, rotate], ds, [{"grayscale":True}, {"angle":30}]) # applies grayscale arg to load_img and angle to rotate
+
+    Examples:
+        >>> transform(["xyz.png", "abc.png"], load_img, ds, workers=2, scheduler="processed")  # single function in pipleline
+        >>> transform(["xyz.png", "abc.png"], [load_img, mirror], ds, workers=5)  # loads images, mirrors them and stores them in ds which is a Hub dataset.
+        >>> transform(["xyz.png", "abc.png"], [load_img, rotate], ds, [{"grayscale":True}, {"angle":30}])  # applies grayscale arg to load_img and angle to rotate
+
     Args:
         data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
-        pipeline (Union[Callabel, Sequence[Callable]]): A single function or a sequence of functions to apply to each element of data_in to generate output dataset.
+        pipeline (Union[Callable, Sequence[Callable]]): A single function or a sequence of functions to apply to each element of data_in to generate output dataset.
             The output of each function should either be a dictionary or a list/tuple of dictionaries.
             The last function has added restriction that keys in the output of each sample should be same as the tensors present in the ds_out object.
         ds_out (Dataset): The dataset object to which the transform will get written.
@@ -54,6 +56,7 @@ def transform(
             To use on non-continuous functions fill empty dict. Eg. pipeline=[fn1,fn2,fn3], kwargs=[{"a":5},{},{"c":1,"s":7}], only applies to fn1 and fn3.
         scheduler (str): The scheduler to be used to compute the transformation. Currently can be one of 'threaded' and 'processed'.
         workers (int): The number of workers to use for performing the transform. Defaults to 1.
+
     Raises:
         InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations.
         InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length.
@@ -75,7 +78,7 @@ def transform(
     if not hasattr(data_in, "__len__"):
         raise InvalidInputDataError("__len__")
 
-    tensors = set(ds_out.meta.tensors)
+    tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         if len(ds_out[tensor]) != len(ds_out):
             raise InvalidOutputDatasetError
@@ -104,7 +107,7 @@ def transform(
 def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
     data_shard, storage, tensor_metas, pipeline, pipeline_kwargs = transform_input
-    tensors = tensor_metas.keys()
+    tensors = set(tensor_metas.keys())
 
     # storing the metas in memory to merge later
     all_index_meta = {}
@@ -153,7 +156,7 @@ def store_shard(transform_input: Tuple):
 def run_pipeline(
     data_in,
     storage: StorageProvider,
-    tensors: Set[str],
+    tensors: List[str],
     compute: ComputeProvider,
     workers: int,
     pipeline: Sequence[Callable],
