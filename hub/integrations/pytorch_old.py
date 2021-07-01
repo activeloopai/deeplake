@@ -42,15 +42,15 @@ class TorchDataset:
 
         self.dataset = dataset
         self.transform = transform
-        self.keys: List[str]
+        self.tensor_keys: List[str]
         if tensors is not None:
             for t in tensors:
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
-            self.keys = list(tensors)
+            self.tensor_keys = list(tensors)
         else:
-            self.keys = list(dataset.tensors)
-        self._return_type = namedtuple("Tensors", self.keys)
+            self.tensor_keys = list(dataset.tensors)
+        self._return_type = namedtuple("Tensors", self.tensor_keys)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -61,7 +61,7 @@ class TorchDataset:
     def __getitem__(self, index: int):
         sample = self._return_type()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
-        for key in self.keys:
+        for key in self.tensor_keys:
             item = self.dataset[key][index].numpy()
             if item.dtype == "uint16":
                 item = item.astype("int32")

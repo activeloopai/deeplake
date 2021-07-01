@@ -86,16 +86,16 @@ class TorchDataset:
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
 
-        self.keys: List[str]
+        self.tensor_keys: List[str]
         if tensors is not None:
             for t in tensors:
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
-            self.keys = list(tensors)
+            self.tensor_keys = list(tensors)
         else:
-            self.keys = list(dataset.tensors)
+            self.tensor_keys = list(dataset.tensors)
 
-        self._return_type = namedtuple("Tensors", self.keys)
+        self._return_type = namedtuple("Tensors", self.tensor_keys)
 
         self.storage = remove_memory_cache(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
@@ -148,7 +148,7 @@ class TorchDataset:
         return self.length
 
     def __getitem__(self, index: int):
-        for key in self.keys:
+        for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
@@ -185,14 +185,16 @@ class TorchDataset:
 
     def _load_all_index_meta(self):
         """Loads index metas for all Tensors into memory"""
-        all_index_metas = {key: IndexMeta.load(key, self.storage) for key in self.keys}
+        all_index_metas = {
+            key: IndexMeta.load(key, self.storage) for key in self.tensor_keys
+        }
         return all_index_metas
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
-        for key in self.keys:
+        for key in self.tensor_keys:
             tensor_meta = TensorMeta.load(key, self.storage)
             if tensor_meta.dtype == "uint16":
                 tensor_meta.dtype = "int32"
@@ -318,11 +320,11 @@ class TorchDataset:
         """
         first_index = self.processed_range.stop + 1
         # different no. of samples are fetched for each tensor, take the min and process
-        last_index = min(self.last_index_meta[key] for key in self.keys)
+        last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
             sample = self._return_type(
-                **{key: self.all_index_value_maps[key][i] for key in self.keys}
+                **{key: self.all_index_value_maps[key][i] for key in self.tensor_keys}
             )
             samples.append(sample)
         self.processed_samples = samples
@@ -330,6 +332,6 @@ class TorchDataset:
 
     def _all_shared_memory_clean_up(self):
         """Cleans up possibly leaked memory at the end of iteration across Tensors"""
-        for key in self.keys:
+        for key in self.tensor_keys:
             shared_memory_names = self.all_shared_memory_names[key]
             clear_shared_memory(shared_memory_names)
