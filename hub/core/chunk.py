@@ -26,8 +26,6 @@ class Chunk(Cachable):
 
         self._data: Union[bytearray, memoryview] = bytearray()
 
-        self.next_chunk = None
-
     @property
     def memoryview_data(self):
         return memoryview(self._data)
@@ -41,94 +39,37 @@ class Chunk(Cachable):
         return len(self._data)
 
     @property
-    def has_space(self):
+    def is_under_min_space(self):
         return self.num_data_bytes < self.min_data_bytes_target
+
+    def has_space_for(self, num_bytes: int):
+        return self.num_data_bytes + num_bytes < self.max_data_bytes
 
     def extend(
         self,
         incoming_buffer: memoryview,
         num_samples: int,
         sample_shape: Tuple[int],
-        _is_buffer_forwarded: bool = False,
     ) -> Tuple["Chunk"]:
         # TODO: docstring
 
-        if self.next_chunk is not None:
-            # TODO: exceptions.py
-            raise Exception(
-                "Cannot extend a chunk that is connected to the next chunk."
-            )
-
-        if not self.has_space:
-            # TODO: exceptions.py
-            raise Exception("Cannot extend a chunk that has no space left.")
-
         incoming_num_bytes = len(incoming_buffer)
+
+        if not self.has_space_for(incoming_num_bytes):
+            raise Exception(
+                f"Chunk does not have space for the incoming bytes ({incoming_num_bytes})."
+            )
 
         # update headers first because erroneous headers are better than un-accounted for data.
-        if not _is_buffer_forwarded:
-            self._update_headers(incoming_num_bytes, num_samples, sample_shape)
-
-        processed_num_bytes = self._fill(incoming_buffer)
-
-        if processed_num_bytes >= incoming_num_bytes:
-            # this chunk was able to store all incoming bytes!
-            return tuple()
-
-        forwarding_buffer = incoming_buffer[processed_num_bytes:]
-
-        child_chunk = self._spawn_child_chunk()
-        child_chunk_children = child_chunk.extend(
-            forwarding_buffer,
-            num_samples,
-            sample_shape,
-            _is_buffer_forwarded=True,
-        )
-
-        return (child_chunk, *child_chunk_children)
-
-    def _fill(self, incoming_buffer: memoryview) -> int:
-        # TODO: docstring
-
-        incoming_num_bytes = len(incoming_buffer)
-
-        min_chunks_for_incoming_bytes = self._min_chunks_required_for_num_bytes(
-            incoming_num_bytes
-        )
-        min_chunks_for_incoming_and_current_bytes = (
-            self._min_chunks_required_for_num_bytes(
-                incoming_num_bytes + self.num_data_bytes
-            )
-        )
-        incoming_num_bytes_that_will_fit = min(
-            incoming_num_bytes, self.max_data_bytes - self.num_data_bytes
-        )
-        if min_chunks_for_incoming_bytes == min_chunks_for_incoming_and_current_bytes:
-            self._data += incoming_buffer[:incoming_num_bytes_that_will_fit]
-
-        return incoming_num_bytes_that_will_fit
-
-    def _min_chunks_required_for_num_bytes(self, num_bytes: int) -> int:
-        """Calculates the minimum number of chunks in which data with length of `num_bytes` can be fit."""
-        return ceil(num_bytes / self.max_data_bytes)
-
-    def _spawn_child_chunk(self) -> "Chunk":
-        # TODO: docstring
-
-        if self.next_chunk is not None:
-            # TODO: exceptions.py
-            raise Exception("A chunk has already been spawned for this one.")
-
-        chunk = Chunk(self.max_data_bytes)
-        self.next_chunk = chunk
-        return chunk
+        self._update_headers(incoming_num_bytes, num_samples, sample_shape)
+        self._data += incoming_buffer
 
     def _update_headers(
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
     ):
         # TODO: docstring
 
-        _validate_incoming_buffer(incoming_num_bytes, num_samples, sample_shape)
+        _validate_incoming_buffer(incoming_num_bytes, num_samples)
 
         num_bytes_per_sample = incoming_num_bytes // num_samples
         self.index_shape_encoder.add_shape(sample_shape, num_samples)
@@ -172,14 +113,12 @@ class Chunk(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        # TODO: this should also set `next_chunk`
         raise NotImplementedError
 
 
 def _validate_incoming_buffer(
     incoming_num_bytes: bytes,
     num_samples: int,
-    sample_shape: Tuple[int],
 ):
     if num_samples <= 0:
         raise ValueError(
@@ -190,9 +129,3 @@ def _validate_incoming_buffer(
         raise ValueError(
             f"Incoming buffer length should be perfectly divisible by the number of samples it represents. length={incoming_num_bytes}, num_samples={num_samples}"
         )
-
-    # total_elements = max(1, np.prod(sample_shape) * num_samples)
-    # if incoming_num_bytes % total_elements != 0:
-    #     raise ValueError(
-    #         f"Incoming buffer length should be divisible by the total number of elements. If this is not the case, either the shape or num samples is invalid. Shape={str(sample_shape)}, Num samples={num_samples}"
-    #     )

@@ -66,9 +66,7 @@ class ChunkEngine(Cachable):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _extend_bytes(
-        self, buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype
-    ):
+    def _chunk_bytes(self, buffer: memoryview, shape: Tuple[int, ...], dtype: np.dtype):
         if len(shape) < 1:
             raise ValueError(
                 f"Extending requires arrays to have a minimum dimensionality of 1 (`len(shape)`). Got {len(shape)}."
@@ -77,32 +75,23 @@ class ChunkEngine(Cachable):
         num_samples = shape[0]
         sample_shape = shape[1:]
 
-        self.tensor_meta.check_compatibility(sample_shape, dtype)
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
+        self.tensor_meta.check_compatibility(sample_shape, dtype)
         self.tensor_meta.update(sample_shape, dtype, num_samples)
-
-        # TODO: we don't always want to create a new chunk (self.last_chunk)
 
         chunk = self.last_chunk
         if chunk is None:
-            chunk = self._create_root_chunk()
+            # TODO
+            pass
 
-        chunk_num_samples_before_extend = chunk.num_samples
-        child_chunks = chunk.extend(buffer, num_samples, sample_shape)
-        chunk_num_samples_after_extend = chunk.num_samples
-
-        num_new_samples_for_last_chunk = (
-            chunk_num_samples_after_extend - chunk_num_samples_before_extend
-        )
-        self.register_new_samples_for_last_chunk(num_new_samples_for_last_chunk)
-        self.register_new_chunks(*child_chunks)
+        # TODO
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
             if compression == UNCOMPRESSED:
                 buffer = memoryview(samples.tobytes())
-                self._extend_bytes(buffer, samples.shape, samples.dtype)
+                self._chunk_bytes(buffer, samples.shape, samples.dtype)
             else:
                 for sample in samples:
                     self.append(sample)
@@ -126,45 +115,9 @@ class ChunkEngine(Cachable):
             shape = (1, *sample.shape)
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
-            self._extend_bytes(data, shape, sample.dtype)
+            self._chunk_bytes(data, shape, sample.dtype)
         else:
             return self.append(Sample(array=np.array(sample)))
-
-    def _create_root_chunk(self):
-        if self.last_chunk is not None:
-            raise Exception("You cannot create a root chunk when one already exists.")
-
-        chunk = Chunk()
-        self._staged_root_chunk = chunk
-        return chunk
-
-    def register_new_samples_for_last_chunk(self, num_new_samples_for_last_chunk: int):
-        if num_new_samples_for_last_chunk == 0:
-            return
-
-        if self._staged_root_chunk is not None:
-            chunk = self._staged_root_chunk
-            self.register_new_chunks(chunk)
-            self._staged_root_chunk = None
-
-        else:
-            chunk = self.last_chunk
-            connected_to_next = chunk.next_chunk is not None
-            self.index_chunk_name_encoder.attach_samples_to_last_chunk(
-                num_new_samples_for_last_chunk, connected_to_next=connected_to_next
-            )
-
-    def register_new_chunks(self, *chunks: Chunk):
-        for chunk in chunks:
-            connected_to_next = chunk.next_chunk is not None
-
-            self.index_chunk_name_encoder.attach_samples_to_new_chunk(
-                chunk.num_samples, connected_to_next=connected_to_next
-            )
-
-            chunk_name = self.index_chunk_name_encoder.last_chunk_name
-            chunk_key = self.get_chunk_key(chunk_name)
-            self.cache[chunk_key] = chunk
 
     def get_chunk_key(self, chunk_name: str):
         chunk_key = get_chunk_key(self.key, chunk_name)
