@@ -77,7 +77,6 @@ def assert_multi_chunks_per_sample() -> ChunkIdEncoder:
 
     assert enc.num_chunks == 3
     assert enc.num_samples == 101
-    assert enc.num_chunks == 4
 
     return enc
 

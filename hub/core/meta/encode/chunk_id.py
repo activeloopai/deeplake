@@ -64,7 +64,7 @@ class ChunkIdEncoder(Cachable):
         id = CHUNK_NAME_ENCODING_DTYPE(uuid4().int >> CHUNK_ID_BITS)
 
         if self.num_samples == 0:
-            self._encoded_ids = np.array([[id, 0]], dtype=CHUNK_NAME_ENCODING_DTYPE)
+            self._encoded_ids = np.array([[id, -1]], dtype=CHUNK_NAME_ENCODING_DTYPE)
             self._encoded_connectivity = np.array([False], dtype=bool)
         else:
             last_index = self.num_samples - 1
@@ -81,18 +81,32 @@ class ChunkIdEncoder(Cachable):
         return id
 
     def register_samples_to_last_chunk_id(self, num_samples: int):
-        if num_samples <= 0:
+        if num_samples < 0:
             raise ValueError(
-                f"When extending, `num_samples` should be > 0. Got {num_samples}."
+                f"Cannot register negative num samples. Got: {num_samples}"
             )
 
         if self.num_samples == 0:
-            raise Exception(
-                "Cannot extend the previous chunk because it doesn't exist."
-            )
+            # TODO: exceptions.py
+            raise Exception("Cannot register samples because no chunk ids exist.")
 
         last_entry = self._encoded_ids[-1]
+
+        # this operation will trigger an overflow for the first addition, so supress the warning
+        np.seterr(over="ignore")
         last_entry[LAST_INDEX_INDEX] += CHUNK_NAME_ENCODING_DTYPE(num_samples)
+        np.seterr(over="warn")
+
+    def register_connection_to_last_chunk_id(self):
+        if self.num_chunks < 2:
+            # TODO: exceptions.py
+            raise Exception(
+                "Cannot register connection because at least 2 chunk ids need to exist."
+            )
+
+        last_entry = self._encoded_ids[-2]
+        self._encoded_connectivity[-2] = True
+        return chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
 
     def get_name_for_chunk(self, idx) -> str:
         return chunk_name_from_id(self._encoded_ids[:, CHUNK_ID_INDEX][idx])
@@ -115,10 +129,7 @@ class ChunkIdEncoder(Cachable):
 
         return int(global_sample_index - last_num_samples)
 
-    def __getitem__(
-        self, sample_index: int, return_indices: bool = False, first_only: bool = False
-    ):
-        """Returns the chunk names that correspond to `sample_index`."""
+    def __getitem__(self, sample_index: int, return_indices: bool = False):
         # TODO: docstring
 
         if self.num_samples == 0:
@@ -133,11 +144,7 @@ class ChunkIdEncoder(Cachable):
         ids = [self._encoded_ids[idx, CHUNK_ID_INDEX]]
         indices = [idx]
 
-        if first_only:
-            if return_indices:
-                return ids[0], idx
-
-            return ids[0]
+        print(idx, sample_index, self._encoded_ids)
 
         # if accessing last index, check connectivity!
         while (
@@ -153,20 +160,6 @@ class ChunkIdEncoder(Cachable):
             return tuple(ids), tuple(indices)
 
         return tuple(ids)
-
-    def attach_samples_to_last_chunk(
-        self, num_samples: int, connected_to_next: bool = False
-    ) -> str:
-
-        if self._encoded_connectivity[-1] == 1:
-            # TODO: custom exception
-            raise Exception(
-                "Cannot extend a chunk that is already marked as `connected_to_next`."
-            )
-
-        self._encoded_connectivity[-1] = connected_to_next
-
-        return chunk_name_from_id(last_entry[CHUNK_ID_INDEX])
 
 
 def _validate_num_samples(num_samples: int):
