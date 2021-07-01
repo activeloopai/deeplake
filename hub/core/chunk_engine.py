@@ -154,7 +154,7 @@ class ChunkEngine:
         if connect_with_last:
             # if connected with last, there are no new samples, only a continuation of the previous
             num_new_samples = 0
-            self.chunk_id_encoder.register_connection()
+            self.chunk_id_encoder.register_connection_to_last_chunk_id()
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
 

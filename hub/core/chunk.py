@@ -32,7 +32,7 @@ class Chunk(Cachable):
         return self.num_data_bytes < min_data_bytes_target
 
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
-        return self.num_data_bytes + num_bytes < max_data_bytes
+        return self.num_data_bytes + num_bytes <= max_data_bytes
 
     def append(
         self, incoming_buffer: memoryview, max_data_bytes: int
@@ -44,7 +44,7 @@ class Chunk(Cachable):
         if not self.has_space_for(incoming_num_bytes, max_data_bytes):
             # TODO: exceptions.py
             raise Exception(
-                f"Chunk does not have space for the incoming bytes ({incoming_num_bytes})."
+                f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
 
         # note: incoming_num_bytes can be 0 (empty sample)

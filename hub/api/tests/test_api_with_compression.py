@@ -1,7 +1,7 @@
 from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionError
 import pytest
 from hub.api.tensor import Tensor
-from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
+from hub.tests.common import TENSOR_KEY
 from hub.constants import UNCOMPRESSED
 import numpy as np
 
