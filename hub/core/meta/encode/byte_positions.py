@@ -13,15 +13,17 @@ LAST_INDEX_INDEX = 2
 class BytePositionsEncoder:
     def __init__(self, encoded_byte_positions=None):
         self._encoded = encoded_byte_positions
+        if self._encoded is None:
+            self._encoded = np.array([])
 
     @property
     def num_samples(self) -> int:
-        if self._encoded is None:
+        if len(self._encoded) == 0:
             return 0
         return int(self._encoded[-1, LAST_INDEX_INDEX] + 1)
 
     def num_bytes_encoded_under_row(self, row_index: int) -> int:
-        if self._encoded is None:
+        if len(self._encoded) == 0:
             return 0
 
         if row_index < 0:
@@ -40,7 +42,7 @@ class BytePositionsEncoder:
 
     @property
     def nbytes(self):
-        if self._encoded is None:
+        if len(self._encoded) == 0:
             return 0
         return self._encoded.nbytes
 

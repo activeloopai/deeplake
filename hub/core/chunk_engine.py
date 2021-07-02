@@ -258,9 +258,6 @@ class ChunkEngine:
                     shape = chunk.shapes_encoder[local_sample_index]
                     sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-                else:
-                    raise NotImplementedError
-
                 # TODO: optimize this to reduce memory copies for samples spanning accross chunks
                 if len(chunk_ids) == 1:
                     # if sample lives in a single chunk, no need to copy the data

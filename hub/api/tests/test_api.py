@@ -29,7 +29,6 @@ def test_persist_meta(local_ds):
     local_ds.create_tensor("image")
     local_ds.meta.x = 1
     assert local_ds.meta.x == 1
-    local_ds.flush()
 
     with Dataset(path=local_ds.path) as ds:
         assert ds.meta.x == 1

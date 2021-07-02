@@ -10,6 +10,8 @@ LAST_INDEX_INDEX = -1
 class ShapeEncoder:
     def __init__(self, encoded_shape=None):
         self._encoded = encoded_shape
+        if self._encoded is None:
+            self._encoded = np.array([])
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:
@@ -25,7 +27,7 @@ class ShapeEncoder:
 
     @property
     def nbytes(self):
-        if self._encoded is None:
+        if len(self._encoded) == 0:
             return 0
         return self._encoded.nbytes
 
@@ -35,7 +37,7 @@ class ShapeEncoder:
 
     @property
     def num_samples(self) -> int:
-        if self._encoded is None:
+        if len(self._encoded) == 0:
             return 0
         return int(self._encoded[-1, -1] + 1)
 
