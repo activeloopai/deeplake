@@ -76,7 +76,7 @@ def transform(
         raise UnsupportedSchedulerError(scheduler)
 
     base_storage = get_base_storage(ds_out.storage)
-    tensors = set(ds_out.meta.tensors)
+    tensors = set(ds_out._meta.tensors)
 
     pipeline_kwargs = pad_or_shrink_kwargs(pipeline_kwargs, pipeline)
 

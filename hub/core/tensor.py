@@ -44,10 +44,11 @@ def create_tensor(
 
     meta_key = get_tensor_meta_key(key)
     meta = TensorMeta(
+        meta_key,
+        storage,
         htype=htype,
         sample_compression=sample_compression,
         chunk_compression=chunk_compression,
         **kwargs,
     )
-
-    storage[meta_key] = meta
+    meta.write()

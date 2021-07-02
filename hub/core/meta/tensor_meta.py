@@ -39,29 +39,11 @@ class TensorMeta(Meta):
 
     def __init__(
         self,
+        tensor_meta_key: str,
+        storage: StorageProvider,
         htype: str = DEFAULT_HTYPE,
         **kwargs,
     ):
-        """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
-
-        Note:
-            Tensor metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
-            Auto-populates `required_meta` that `Meta` accepts as an argument.
-
-        Args:
-            key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
-            storage (StorageProvider): Destination of this meta.
-            htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
-
-        Raises:
-            TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
-            TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
-            NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
-
-        Returns:
-            TensorMeta: Tensor meta object.
-        """
 
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
         _validate_htype_overwrites(htype, htype_overwrite)
@@ -72,7 +54,7 @@ class TensorMeta(Meta):
 
         self.__dict__.update(required_meta)
 
-        super().__init__()
+        super().__init__(tensor_meta_key, storage)
 
     def check_compatibility(self, shape: Sequence[int], dtype):
         """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.

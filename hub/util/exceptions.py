@@ -345,8 +345,10 @@ class TensorDtypeMismatchError(MetaError):
 
 
 class ReadOnlyModeError(Exception):
-    def __init__(self):
-        super().__init__("Modification when in read-only mode is not supported!")
+    def __init__(self, custom_message: str = None):
+        if custom_message is None:
+            custom_message = "Modification when in read-only mode is not supported!"
+        super().__init__(custom_message)
 
 
 class TransformError(Exception):

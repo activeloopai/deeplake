@@ -11,22 +11,6 @@ from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
 
-def test_persist_meta(local_ds):
-    local_ds.create_tensor("image")
-    local_ds.meta.x = 1
-    assert local_ds.meta.x == 1
-
-    with Dataset(path=local_ds.path) as ds:
-        assert ds.meta.x == 1
-        ds.meta.x = 2
-        assert ds.meta.x == 2
-        assert local_ds.meta.x == 1
-    assert ds.meta.x == 2
-    local_ds.meta.x == 2
-
-    local_ds.delete()
-
-
 def test_persist_local(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")

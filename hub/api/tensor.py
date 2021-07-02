@@ -102,7 +102,7 @@ class Tensor:
 
     @property
     def meta(self):
-        return self.chunk_engine.tensor_meta
+        return self.chunk_engine.tensor_meta.as_readonly()
 
     @property
     def shape(self) -> Tuple[Optional[int], ...]:
