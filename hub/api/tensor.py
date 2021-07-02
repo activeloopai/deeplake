@@ -6,6 +6,7 @@ import numpy as np
 
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.core.typing import StorageProvider
+from hub.core.storage import LRUCache
 from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
 from hub.core.tensor import tensor_exists
 from hub.core.index import Index
@@ -15,7 +16,7 @@ class Tensor:
     def __init__(
         self,
         key: str,
-        storage: StorageProvider,
+        storage: LRUCache,
         index: Optional[Index] = None,
     ):
         """Initializes a new tensor.
@@ -26,7 +27,7 @@ class Tensor:
 
         Args:
             key (str): The internal identifier for this tensor.
-            storage (StorageProvider): The storage provider for the parent dataset.
+            storage (LRUCache): The storage provider for the parent dataset.
             index: The Index object restricting the view of this tensor.
                 Can be an int, slice, or (used internally) an Index object.
 
@@ -74,7 +75,7 @@ class Tensor:
 
     def append(
         self,
-        sample: Union[np.ndarray, float, int, Sequence, Sample],
+        sample: Union[np.ndarray, float, int, Sample],
     ):
         """Appends a single sample to the end of the tensor. Can be an array, scalar value, or the return value from `hub.load`,
         which can be used to load files. See examples down below.

@@ -8,6 +8,8 @@ from hub.util.exceptions import ReadOnlyModeError
 
 
 class StorageProvider(ABC, MutableMapping):
+    autoflush = False
+
     """An abstract base class for implementing a storage provider.
 
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.

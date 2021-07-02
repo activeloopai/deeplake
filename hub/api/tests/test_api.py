@@ -363,14 +363,14 @@ def test_htype(memory_ds: Dataset):
     # label.append(5)
     label.append(np.array(5, dtype=np.int32))
     video.append(np.ones((10, 28, 28, 3), dtype=np.uint8))
-    bin_mask.append(np.zeros((28, 28), dtype=np.bool))
+    bin_mask.append(np.zeros((28, 28), dtype=np.bool8))
     segment_mask.append(np.ones((28, 28), dtype=np.int32))
 
 
 def test_dtype(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
     dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
-    np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float)
+    np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float64)
     py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
 
     # .meta.dtype should always be str or None
