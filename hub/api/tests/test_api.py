@@ -11,20 +11,6 @@ from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
 
-def test_persist_local(local_storage):
-    ds = Dataset(local_storage.root, local_cache_size=512)
-    ds.create_tensor("image")
-    ds.image.extend(np.ones((4, 4096, 4096)))
-
-    ds_new = Dataset(local_storage.root)
-    assert len(ds_new) == 4
-
-    assert ds_new.image.shape == (4, 4096, 4096)
-
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
-    ds.delete()
-
-
 def test_persist_meta(local_ds):
     local_ds.create_tensor("image")
     local_ds.meta.x = 1
@@ -39,6 +25,20 @@ def test_persist_meta(local_ds):
     local_ds.meta.x == 2
 
     local_ds.delete()
+
+
+def test_persist_local(local_storage):
+    ds = Dataset(local_storage.root, local_cache_size=512)
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
+
+    ds_new = Dataset(local_storage.root)
+    assert len(ds_new) == 4
+
+    assert ds_new.image.shape == (4, 4096, 4096)
+
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    ds.delete()
 
 
 def test_persist_with_local(local_storage):
