@@ -242,7 +242,7 @@ class Dataset:
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.to_dict(), public=self.public
+                    self.org_id, self.ds_name, self.meta.__dict__, public=self.public
                 )
 
     @property
