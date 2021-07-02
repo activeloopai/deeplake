@@ -22,8 +22,6 @@ class Chunk(Cachable):
 
         self._data: Union[bytearray, memoryview] = data or bytearray()
 
-        self.num_new_samples = 0
-
     @property
     def memoryview_data(self):
         return memoryview(self._data)
@@ -57,7 +55,6 @@ class Chunk(Cachable):
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data += incoming_buffer
-        self.num_new_samples += 1
 
     def update_headers(
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
@@ -74,10 +71,6 @@ class Chunk(Cachable):
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
 
-        if self.num_new_samples <= 0:
-            # TODO: exceptions.py
-            raise Exception("Cannot update headers when no new data was added.")
-
         if incoming_num_bytes % num_samples != 0:
             raise ValueError(
                 "Incoming bytes should be divisible by the number of samples to properly update headers."
@@ -86,7 +79,6 @@ class Chunk(Cachable):
         num_bytes_per_sample = incoming_num_bytes // num_samples
         self.shapes_encoder.add_shape(sample_shape, num_samples)
         self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, num_samples)
-        self.num_new_samples = 0
 
     def __len__(self):
         # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)

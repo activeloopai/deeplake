@@ -151,7 +151,7 @@ class ChunkEngine:
             if combined_chunk_ct == chunk_ct_content:
                 last_chunk.append(forwarding_buffer[:extra_bytes], self.max_chunk_size)
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
-                self._synchronize_chunk(last_chunk, connect_with_last=False)
+                self._synchronize_last_chunk(False)
                 last_chunk_extended = True
 
         new_chunks = []
@@ -165,7 +165,7 @@ class ChunkEngine:
             new_chunk.append(forwarding_buffer[:end_byte], self.max_chunk_size)
             forwarding_buffer = forwarding_buffer[end_byte:]
 
-            self._synchronize_chunk(new_chunk, connect_with_last=connect_with_last)
+            self._synchronize_last_chunk(connect_with_last)
 
             new_chunks.append(new_chunk)
             connect_with_last = True
@@ -174,14 +174,10 @@ class ChunkEngine:
         head_chunk = last_chunk if last_chunk_extended else new_chunks[0]
         head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
 
-    def _synchronize_chunk(self, chunk: Chunk, connect_with_last: bool = False):
-        """Registers new samples added to `chunk` in the `chunk_id_encoder` and makes sure connectivity is preserved."""
+    def _synchronize_last_chunk(self, connect_with_last: bool):
+        """Registers new samples added to the last chunk in the `chunk_id_encoder` and makes sure connectivity is preserved."""
 
-        if chunk.num_new_samples <= 0:
-            # TODO: exceptions.py
-            raise Exception("This chunk has no new samples to be synchronized.")
-
-        num_new_samples = chunk.num_new_samples
+        num_new_samples = 1
         if connect_with_last:
             # if connected with last, there are no new samples, only a continuation of the previous
             num_new_samples = 0
