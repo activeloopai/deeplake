@@ -1,3 +1,5 @@
+import numpy as np
+
 __pdoc__ = {
     "core": False,
     "api": False,
@@ -17,6 +19,7 @@ from .util.bugout_reporter import hub_reporter
 __all__ = ["Dataset", "Tensor", "load", "transform", "__version__"]
 
 __version__ = "2.0a7"
+__encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")
 hub_reporter.system_report(publish=True)

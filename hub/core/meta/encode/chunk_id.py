@@ -1,3 +1,4 @@
+import hub
 from hub.core.storage.cachable import Cachable
 from io import BytesIO
 from typing import Tuple
@@ -24,7 +25,12 @@ class ChunkIdEncoder(Cachable):
 
     def tobytes(self) -> memoryview:
         bio = BytesIO()
-        np.savez(bio, ids=self._encoded_ids, connectivity=self._encoded_connectivity)
+        np.savez(
+            bio,
+            version=hub.__encoded_version__,
+            ids=self._encoded_ids,
+            connectivity=self._encoded_connectivity,
+        )
         return bio.getbuffer()
 
     @staticmethod
