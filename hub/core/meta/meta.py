@@ -26,13 +26,20 @@ class Meta:
 
     def write(self, **kwargs):
         self._check_readonly()
-        s = json.dumps({"_version": self._version, **kwargs})
+        s = json.dumps({"version": self._version, **kwargs})
         self._storage[self._key] = s.encode(META_ENCODING)
 
     def load(self):
         self._check_readonly()
         buffer = self._storage[self._key]
-        self.__dict__.update(json.loads(buffer.decode(META_ENCODING)))
+        meta_dict = json.loads(buffer.decode(META_ENCODING))
+
+        # add `_` to all variable names (setting private fields instead of their @properties)
+        for k, v in meta_dict.copy().items():
+            del meta_dict[k]
+            meta_dict[f"_{k}"] = v
+
+        self.__dict__.update(meta_dict)
 
     def as_readonly(self):
         if self._readonly:

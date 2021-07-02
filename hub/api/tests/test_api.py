@@ -22,6 +22,9 @@ def test_persist_local(local_storage):
     assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+
+    assert ds_new.meta.vresion == hub.__version__
+
     ds.delete()
 
 
@@ -39,6 +42,9 @@ def test_persist_with_local(local_storage):
     assert ds_new.image.shape == (4, 4096, 4096)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+
+    assert ds_new.meta.vresion == hub.__version__
+
     ds.delete()
 
 

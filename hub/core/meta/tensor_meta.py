@@ -173,14 +173,14 @@ class TensorMeta(Meta):
 
     def write(self):
         super().write(
-            _htype=self._htype,
-            _dtype=self._dtype,
-            _chunk_size=self._chunk_size,
-            _min_shape=self._min_shape,
-            _max_shape=self._max_shape,
-            _length=self._length,
-            _sample_compression=self._sample_compression,
-            _chunk_compression=self._chunk_compression,
+            htype=self._htype,
+            dtype=self._dtype,
+            chunk_size=self._chunk_size,
+            min_shape=self._min_shape,
+            max_shape=self._max_shape,
+            length=self._length,
+            sample_compression=self._sample_compression,
+            chunk_compression=self._chunk_compression,
         )
 
 

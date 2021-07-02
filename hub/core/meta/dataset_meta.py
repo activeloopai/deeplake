@@ -20,4 +20,4 @@ class DatasetMeta(Meta):
         self.write()
 
     def write(self):
-        super().write(_tensors=self._tensors)
+        super().write(tensors=self._tensors)
