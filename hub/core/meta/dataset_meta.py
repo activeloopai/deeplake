@@ -15,8 +15,9 @@ class DatasetMeta(Meta):
         return tuple(self._tensors)
 
     def add_tensor(self, tensor_name: str):
+        self._check_readonly()
         self._tensors.append(tensor_name)
         self.write()
 
     def write(self):
-        super().write(tensors=self._tensors)
+        super().write(_tensors=self._tensors)

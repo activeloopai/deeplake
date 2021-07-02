@@ -58,7 +58,7 @@ def test_persist_local_clear_cache(local_storage):
 
 @parametrize_all_dataset_storages
 def test_populate_dataset(ds):
-    assert ds.meta.tensors == []
+    assert ds.meta.tensors == tuple()
     ds.create_tensor("image")
     assert len(ds) == 0
     assert len(ds.image) == 0
@@ -74,7 +74,7 @@ def test_populate_dataset(ds):
     ds.image.extend([np.ones((28, 28)), np.ones((28, 28))])
     assert len(ds.image) == 16
 
-    assert ds.meta.tensors == ["image"]
+    assert ds.meta.tensors == ("image",)
     assert ds.meta.version == hub.__version__
 
 
@@ -93,11 +93,11 @@ def test_stringify(memory_ds):
     ds.image.extend(np.ones((4, 4)))
     assert (
         str(ds)
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', tensors=('image',))"
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=('image',))"
     )
     assert str(ds.image) == "Tensor(key='image')"
     assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
@@ -106,7 +106,7 @@ def test_stringify(memory_ds):
 def test_stringify_with_path(local_ds):
     ds = local_ds
     assert local_ds.path
-    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
+    assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=())"
 
 
 @parametrize_all_dataset_storages
@@ -160,6 +160,7 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
+    assert tensor.meta._readonly
     assert tensor.meta.sample_compression == UNCOMPRESSED
     assert tensor.meta.chunk_compression == UNCOMPRESSED
 
@@ -179,6 +180,8 @@ def test_empty_samples(ds: Dataset):
 @parametrize_all_dataset_storages
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
+
+    assert tensor.meta._readonly
     assert tensor.meta.dtype == None
 
     # first sample sets dtype

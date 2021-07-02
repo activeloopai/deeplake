@@ -28,14 +28,14 @@ def _remove_none_values_from_dict(d: dict) -> dict:
 
 
 class TensorMeta(Meta):
-    htype: str
-    dtype: str
-    min_shape: List[int]
-    max_shape: List[int]
-    chunk_size: int
-    length: int
-    sample_compression: str
-    chunk_compression: str
+    _htype: str
+    _dtype: str
+    _min_shape: List[int]
+    _max_shape: List[int]
+    _chunk_size: int
+    _length: int
+    _sample_compression: str
+    _chunk_compression: str
 
     def __init__(
         self,
@@ -45,14 +45,14 @@ class TensorMeta(Meta):
         **kwargs,
     ):
 
-        htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
-        _validate_htype_overwrites(htype, htype_overwrite)
+        kwargs = _remove_none_values_from_dict(kwargs.copy())
+        _validate_htype_overwrites(htype, kwargs)
+        meta_dict = _meta_dict_from_htype(htype)
+        meta_dict.update(kwargs)
 
-        required_meta = _required_meta_from_htype(htype)
-        required_meta.update(htype_overwrite)
-        _validate_compression(required_meta)
-
-        self.__dict__.update(required_meta)
+        for k, v in meta_dict.items():
+            # we want the meta variables to have an `_` so we can protect them with properties
+            setattr(self, f"_{k}", v)
 
         super().__init__(tensor_meta_key, storage)
 
@@ -81,7 +81,7 @@ class TensorMeta(Meta):
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
-            expected_shape_len = len(self.min_shape)
+            expected_shape_len = len(self._min_shape)
             actual_shape_len = len(shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
@@ -103,6 +103,7 @@ class TensorMeta(Meta):
         """
 
         """`array` is assumed to have a batch axis."""
+        self._check_readonly()
 
         if num_samples <= 0:
             raise ValueError(
@@ -113,30 +114,81 @@ class TensorMeta(Meta):
 
         if self.length <= 0:
             if not self.dtype:
-                self.dtype = str(dtype)
+                self._dtype = str(dtype)
 
-            self.min_shape = list(shape)
-            self.max_shape = list(shape)
+            self._min_shape = list(shape)
+            self._max_shape = list(shape)
         else:
             # update meta subsequent times
-            self._update_shape_interval(shape)
+            self._update_shape_interval(shape, write=False)
 
-        self.length += num_samples
+        self.add_length(num_samples, write=False)
+        self.write()
 
-    def _update_shape_interval(self, shape: Tuple[int, ...]):
+    def _update_shape_interval(self, shape: Tuple[int, ...], write: bool = True):
+        self._check_readonly()
         if self.length <= 0:
-            self.min_shape = list(shape)
-            self.max_shape = list(shape)
+            self._min_shape = list(shape)
+            self._max_shape = list(shape)
+
         for i, dim in enumerate(shape):
-            self.min_shape[i] = min(dim, self.min_shape[i])
-            self.max_shape[i] = max(dim, self.max_shape[i])
+            self._min_shape[i] = min(dim, self._min_shape[i])
+            self._max_shape[i] = max(dim, self._max_shape[i])
+
+        if write:
+            self.write()
+
+    @property
+    def htype(self):
+        return self._htype
+
+    @property
+    def length(self):
+        return self._length
+
+    def add_length(self, delta: int, write: bool = True):
+        self._length += delta
+        if write:
+            self.write()
+
+    @property
+    def sample_compression(self):
+        return self._sample_compression
+
+    @property
+    def chunk_compression(self):
+        return self._chunk_compression
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @property
+    def min_shape(self):
+        return tuple(self._min_shape)
+
+    @property
+    def max_shape(self):
+        return tuple(self._max_shape)
+
+    def write(self):
+        super().write(
+            _htype=self._htype,
+            _dtype=self._dtype,
+            _chunk_size=self._chunk_size,
+            _min_shape=self._min_shape,
+            _max_shape=self._max_shape,
+            _length=self._length,
+            _sample_compression=self._sample_compression,
+            _chunk_compression=self._chunk_compression,
+        )
 
 
-def _required_meta_from_htype(htype: str) -> dict:
+def _meta_dict_from_htype(htype: str) -> dict:
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
-    required_meta = {
+    meta_dict = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
         "chunk_size": defaults["chunk_size"],
@@ -147,17 +199,19 @@ def _required_meta_from_htype(htype: str) -> dict:
         "chunk_compression": defaults["chunk_compression"],
     }
 
-    required_meta = _remove_none_values_from_dict(required_meta)
-    required_meta.update(defaults)
-    return required_meta
+    _validate_compression(meta_dict)
+
+    meta_dict = _remove_none_values_from_dict(meta_dict)
+    meta_dict.update(defaults)
+    return meta_dict
 
 
-def _validate_compression(required_meta: dict):
-    chunk_compression = required_meta["chunk_compression"]
+def _validate_compression(meta_dict: dict):
+    chunk_compression = meta_dict["chunk_compression"]
     if chunk_compression != UNCOMPRESSED:
         raise NotImplementedError("Chunk compression has not been implemented yet.")
 
-    sample_compression = required_meta["sample_compression"]
+    sample_compression = meta_dict["sample_compression"]
     if sample_compression not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(sample_compression)
 

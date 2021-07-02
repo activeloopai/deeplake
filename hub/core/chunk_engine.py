@@ -1,7 +1,7 @@
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple
-from hub.util.exceptions import DynamicTensorNumpyError
+from hub.util.exceptions import DynamicTensorNumpyError, TensorDoesNotExistError
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
 from hub.util.keys import (
@@ -63,6 +63,8 @@ class ChunkEngine:
         self.max_chunk_size = max_chunk_size
         self.min_chunk_size_target = self.max_chunk_size // 2
 
+        self._load_meta()
+
     @property
     def chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
@@ -108,10 +110,14 @@ class ChunkEngine:
         last_chunk_key = get_chunk_key(self.key, last_chunk_name)
         return self.cache.get_cachable(last_chunk_key, Chunk)
 
-    @property
-    def tensor_meta(self):
+    def _load_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
-        return self.cache.get_cachable(tensor_meta_key, TensorMeta)
+
+        if tensor_meta_key not in self.cache:
+            raise TensorDoesNotExistError(self.key)
+
+        self.tensor_meta = TensorMeta(tensor_meta_key, self.cache)
+        self.tensor_meta.load()
 
     def _append_bytes(
         self, incoming_buffer: memoryview, shape: Tuple[int], dtype: np.dtype

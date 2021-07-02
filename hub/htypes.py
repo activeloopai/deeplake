@@ -43,7 +43,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
     "chunk_size": DEFAULT_MAX_CHUNK_SIZE,
-    "custom_meta": {},
     "chunk_compression": DEFAULT_CHUNK_COMPRESSION,
     "sample_compression": DEFAULT_SAMPLE_COMPRESSION,
 }
