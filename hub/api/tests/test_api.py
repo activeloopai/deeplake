@@ -94,6 +94,15 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
+def test_larger_data_memory(memory_storage):
+    ds = Dataset(memory_storage.root, local_cache_size=512)
+    ds.create_tensor("image")
+    ds.image.extend(np.ones((4, 4096, 4096)))
+    assert len(ds) == 4
+    assert ds.image.shape == (4, 4096, 4096)
+    np.testing.assert_array_equal(ds.image.numpy(), np.ones((4, 4096, 4096)))
+
+
 def test_stringify(memory_ds):
     ds = memory_ds
     ds.create_tensor("image")
