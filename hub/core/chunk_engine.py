@@ -128,12 +128,12 @@ class ChunkEngine:
         num_samples = 1
         incoming_num_bytes = len(incoming_buffer)
 
+        last_chunk = self.last_chunk or self._create_new_chunk()
+        last_chunk_extended = False
+
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
         self.tensor_meta.check_compatibility(shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
-
-        last_chunk = self.last_chunk or self._create_new_chunk()
-        last_chunk_extended = False
 
         forwarding_buffer = incoming_buffer
         if last_chunk.is_under_min_space(self.min_chunk_size_target):
