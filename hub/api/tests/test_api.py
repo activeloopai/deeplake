@@ -30,7 +30,7 @@ def test_persist_local(local_storage):
 def test_persist_with_local(local_storage):
     with Dataset(local_storage.root, local_cache_size=512) as ds:
         ds.create_tensor("image")
-        ds.image.extend(np.ones((4, 4096, 4096)))
+        ds.image.extend(np.ones((4, 224, 224, 3)))
 
         ds_new = Dataset(local_storage.root)
         assert len(ds_new) == 0  # shouldn't be flushed yet
@@ -38,9 +38,13 @@ def test_persist_with_local(local_storage):
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape == (4, 4096, 4096)
+    engine = ds_new.image.chunk_engine
+    assert engine.chunk_id_encoder.num_samples == ds_new.image.tensor_meta.length
+    assert engine.chunk_id_encoder.num_chunks == 1
 
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    assert ds_new.image.shape == (4, 224, 224, 3)
+
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
     assert ds_new.meta.version == hub.__version__
 
