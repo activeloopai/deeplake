@@ -149,11 +149,6 @@ def test_compute_dynamic_tensor(ds):
     for i, (expected, actual) in enumerate(zip(expected_list, actual_list)):
         np.testing.assert_array_equal(expected, actual, err_msg=f"i={i}")
 
-    # test negative indexing
-    np.testing.assert_array_equal(expected_list[-1], image[-1].numpy())
-    np.testing.assert_array_equal(expected_list[-2], image[-2].numpy())
-    np.testing.assert_array_equal(expected_list[-2:], image[-2:].numpy(aslist=True))
-
     assert image.shape == (43, None, None)
     assert image.shape_interval.lower == (43, 28, 10)
     assert image.shape_interval.upper == (43, 36, 28)
