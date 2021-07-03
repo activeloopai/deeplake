@@ -14,7 +14,7 @@ class BytePositionsEncoder:
     def __init__(self, encoded_byte_positions=None):
         self._encoded = encoded_byte_positions
         if self._encoded is None:
-            self._encoded = np.array([])
+            self._encoded = np.array([], dtype=POSITION_ENCODING_DTYPE)
 
     @property
     def num_samples(self) -> int:

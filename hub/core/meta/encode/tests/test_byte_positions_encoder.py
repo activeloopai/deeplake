@@ -1,9 +1,12 @@
+import numpy as np
 import pytest
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 
 def test_trivial():
     enc = BytePositionsEncoder()
+
+    np.testing.assert_array_equal(enc._encoded, np.array([], dtype=np.uint64))
 
     assert enc.num_samples == 0
 

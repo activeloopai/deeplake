@@ -1,3 +1,4 @@
+import numpy as np
 from hub.core.storage.provider import StorageProvider
 import pytest
 from hub.core.meta.encode.shape import ShapeEncoder
@@ -64,7 +65,7 @@ def test_empty():
         enc.add_shape((100, 100, 3), 0)
 
     assert enc.num_samples == 0
-    assert enc._encoded is None
+    np.testing.assert_array_equal(enc._encoded, np.array([], dtype=np.uint64))
 
     with pytest.raises(IndexError):
         enc[0]

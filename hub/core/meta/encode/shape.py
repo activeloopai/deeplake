@@ -11,7 +11,7 @@ class ShapeEncoder:
     def __init__(self, encoded_shape=None):
         self._encoded = encoded_shape
         if self._encoded is None:
-            self._encoded = np.array([])
+            self._encoded = np.array([], dtype=SHAPE_ENCODING_DTYPE)
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:
