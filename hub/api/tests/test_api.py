@@ -14,16 +14,15 @@ from hub.client.utils import has_hub_testing_creds
 def test_persist_local(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
-    ds.image.extend(np.ones((4, 4096, 4096)))
+    ds.image.extend(np.ones((4, 224, 224, 3)))
 
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape == (4, 4096, 4096)
+    assert ds_new.image.shape == (4, 224, 224, 3)
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
-
-    assert ds_new.meta.vresion == hub.__version__
+    assert ds_new.meta.version == hub.__version__
 
     ds.delete()
 
@@ -43,7 +42,7 @@ def test_persist_with_local(local_storage):
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
 
-    assert ds_new.meta.vresion == hub.__version__
+    assert ds_new.meta.version == hub.__version__
 
     ds.delete()
 
@@ -51,14 +50,14 @@ def test_persist_with_local(local_storage):
 def test_persist_local_clear_cache(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
-    ds.image.extend(np.ones((4, 4096, 4096)))
+    ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
     ds_new = Dataset(local_storage.root)
     assert len(ds_new) == 4
 
-    assert ds_new.image.shape == (4, 4096, 4096)
+    assert ds_new.image.shape == (4, 224, 224, 3)
 
-    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 4096, 4096)))
+    np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
     ds.delete()
 
 
@@ -84,8 +83,9 @@ def test_populate_dataset(ds):
     assert ds.meta.version == hub.__version__
 
 
+@pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_larger_data_memory(memory_storage):
-    ds = Dataset(memory_storage.root, local_cache_size=512)
+    ds = Dataset(memory_storage.root)
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 4096, 4096)))
     assert len(ds) == 4

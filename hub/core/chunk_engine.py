@@ -205,12 +205,30 @@ class ChunkEngine:
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
             if compression == UNCOMPRESSED:
+                buffers = []
+
+                # before adding any data, we need to check all sample sizes
                 for sample in samples:
                     buffer = memoryview(sample.tobytes())
+                    self._check_sample_size(len(buffer))
+                    buffers.append(buffer)
+
+                for buffer in buffers:
                     self._append_bytes(buffer, sample.shape, sample.dtype)
             else:
+                sample_objects = []
+                compression = self.tensor_meta.sample_compression
+
+                # before adding any data, we need to check all sample sizes
                 for sample in samples:
-                    self.append(sample)
+                    sample_object = Sample(array=sample)
+                    sample_objects.append(sample_object)
+                    num_bytes = len(sample_object.compressed_bytes(compression))
+                    self._check_sample_size(num_bytes)
+
+                for sample_object in sample_objects:
+                    self.append(sample_object)
+
         elif isinstance(samples, Sequence):
             if is_uniform_sequence(samples):
                 self.extend(np.array(samples))
@@ -228,6 +246,7 @@ class ChunkEngine:
             # might be able to optimize this away
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
+            self._check_sample_size(len(data))
             self._append_bytes(data, sample.shape, sample.dtype)
         else:
             return self.append(Sample(array=np.array(sample)))
@@ -285,6 +304,15 @@ class ChunkEngine:
             last_shape = shape
 
         return _format_samples(samples, index, aslist)
+
+    def _check_sample_size(self, num_bytes: int):
+        if num_bytes > self.min_chunk_size_target:
+            msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size_target} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
+
+            if self.tensor_meta.sample_compression == UNCOMPRESSED:
+                msg += "\nYour data is actually uncompressed, so setting the `sample_compression` variable in `Datset.create_tensor` could help here!"
+
+            raise NotImplementedError(msg)
 
 
 def _format_samples(
