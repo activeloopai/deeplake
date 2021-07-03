@@ -42,6 +42,10 @@ class Chunk(Cachable):
     ) -> Tuple["Chunk"]:
         """Store `incoming_buffer` in this chunk.
 
+        Args:
+            incoming_buffer (memoryview): Buffer that represents a single sample.
+            max_data_bytes (int): Used to determine if this chunk has space for `incoming_buffer`.
+
         Raises:
             FullChunkError: If `incoming_buffer` is too large.
         """

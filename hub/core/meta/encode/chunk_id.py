@@ -198,7 +198,7 @@ class ChunkIdEncoder(Cachable):
 
         Args:
             sample_index (int): Sample index. May or may not span accross multiple chunks.
-            return_indices (bool, optional): If True, 2 tuples are returned. One with IDs and the other with the indices of those chunk IDs. Defaults to False.
+            return_indices (bool): If True, 2 tuples are returned. One with IDs and the other with the indices of those chunk IDs. Defaults to False.
 
         Raises:
             IndexError: Sample index should be accounted for with `register_samples_to_last_chunk_id`.

@@ -43,7 +43,7 @@ def generate_chain(
     memory_cache_size: int,
     local_cache_size: int,
     path: Optional[str] = None,
-) -> LRUCache:
+) -> StorageProvider:
     """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and
         local caches.
 

@@ -58,7 +58,8 @@ class LRUCache(StorageProvider):
 
         if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
-            self[path] = obj
+            if len(obj) <= self.cache_size:
+                self._insert_in_cache(path, obj)
             return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
@@ -68,7 +69,7 @@ class LRUCache(StorageProvider):
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
 
         Args:
-            path (str): the path relative to the root of the underlying storage.
+            path (str): The path relative to the root of the underlying storage.
 
         Raises:
             KeyError: if an object is not found at the path.
