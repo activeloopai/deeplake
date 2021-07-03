@@ -1,5 +1,4 @@
 import numpy as np
-from hub.core.storage.provider import StorageProvider
 import pytest
 from hub.core.meta.encode.shape import ShapeEncoder
 

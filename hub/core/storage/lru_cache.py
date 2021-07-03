@@ -219,7 +219,7 @@ class LRUCache(StorageProvider):
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
-    def _insert_in_cache(self, path: str, value: bytes):
+    def _insert_in_cache(self, path: str, value: Union[bytes, Cachable]):
         """Helper function that adds a key value pair to the cache.
 
         Args:

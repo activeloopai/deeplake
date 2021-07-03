@@ -1,3 +1,4 @@
+from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
 from io import BytesIO
@@ -99,8 +100,8 @@ class ChunkIdEncoder(Cachable):
 
         Raises:
             ValueError: `num_samples` should be non-negative.
-            Exception: Must call `generate_chunk_id` before registering samples.
-            Exception: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
+            ChunkIdEncoderError: Must call `generate_chunk_id` before registering samples.
+            ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
         if num_samples < 0:
@@ -109,12 +110,12 @@ class ChunkIdEncoder(Cachable):
             )
 
         if self.num_samples == 0:
-            # TODO: exceptions.py
-            raise Exception("Cannot register samples because no chunk ids exist.")
+            raise ChunkIdEncoderError(
+                "Cannot register samples because no chunk IDs exist."
+            )
 
         if num_samples == 0 and self.num_chunks < 2:
-            # TODO: exceptions.py
-            raise Exception(
+            raise ChunkIdEncoderError(
                 "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
             )
 
@@ -129,12 +130,11 @@ class ChunkIdEncoder(Cachable):
         """The last generated chunk ID can be connected to the chunk ID that preceeds it. A connection means that they share a common sample.
 
         Raises:
-            Exception: Connections require at least 2 chunk IDs to exist.
+            ChunkIdEncoderError: Connections require at least 2 chunk IDs to exist.
         """
 
         if self.num_chunks < 2:
-            # TODO: exceptions.py
-            raise Exception(
+            raise ChunkIdEncoderError(
                 "Cannot register connection because at least 2 chunk ids need to exist. See: `generate_chunk_id`"
             )
 
@@ -171,7 +171,7 @@ class ChunkIdEncoder(Cachable):
             global_sample_index (int): Integer index relative to the tensor.
 
         Raises:
-            Exception: [description]
+            NotImplementedError: Doesn't support negative indexing.
 
         Returns:
             int: Integer index relative to the chunk that `global_sample_index` first appears in.
@@ -181,7 +181,7 @@ class ChunkIdEncoder(Cachable):
         chunk_index = chunk_indices[0]
 
         if global_sample_index < 0:
-            raise Exception()  # TODO
+            raise NotImplementedError
 
         if chunk_index == 0:
             return global_sample_index

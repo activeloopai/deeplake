@@ -1,3 +1,4 @@
+# type: ignore
 from hub.core.compression import compress_array
 from hub.constants import UNCOMPRESSED
 import numpy as np

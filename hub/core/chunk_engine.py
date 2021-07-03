@@ -1,7 +1,11 @@
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple
-from hub.util.exceptions import DynamicTensorNumpyError, TensorDoesNotExistError
+from hub.util.exceptions import (
+    CorruptedMetaError,
+    DynamicTensorNumpyError,
+    TensorDoesNotExistError,
+)
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
 from hub.util.keys import (
@@ -68,7 +72,7 @@ class ChunkEngine:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
 
         Raises:
-            Exception: If chunk id encoding was corrupted.
+            CorruptedMetaError: If chunk id encoding was corrupted.
 
         Returns:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
@@ -82,8 +86,7 @@ class ChunkEngine:
             return enc
         except KeyError:
             if self.tensor_meta.length > 0:
-                # TODO: exceptions.py (CorruptedMetaError)
-                raise Exception(
+                raise CorruptedMetaError(
                     "Tensor length is > 0, but could not find the chunk id encoder."
                 )
 

@@ -1,3 +1,4 @@
+from hub.util.exceptions import FullChunkError
 import hub
 from hub.core.storage.cachable import Cachable
 from typing import Sequence, Tuple, Union
@@ -42,14 +43,13 @@ class Chunk(Cachable):
         """Store `incoming_buffer` in this chunk.
 
         Raises:
-            Exception: If `incoming_buffer` is too large.
+            FullChunkError: If `incoming_buffer` is too large.
         """
 
         incoming_num_bytes = len(incoming_buffer)
 
         if not self.has_space_for(incoming_num_bytes, max_data_bytes):
-            # TODO: exceptions.py
-            raise Exception(
+            raise FullChunkError(
                 f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
 

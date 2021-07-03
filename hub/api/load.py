@@ -1,4 +1,4 @@
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 
 
 def load(path: str) -> Sample:

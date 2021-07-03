@@ -3,14 +3,6 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
-class ChunkSizeTooSmallError(Exception):
-    def __init__(
-        self,
-        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
-    ):
-        super().__init__(message)
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -389,3 +381,27 @@ class DatasetUnsupportedPytorch(Exception):
         super().__init__(
             f"The Dataset object passed to Pytorch is incompatible. Reason: {reason}"
         )
+
+
+class CorruptedMetaError(Exception):
+    pass
+
+
+class ChunkEngineError(Exception):
+    pass
+
+
+class FullChunkError(ChunkEngineError):
+    pass
+
+
+class ChunkIdEncoderError(ChunkEngineError):
+    pass
+
+
+class ChunkSizeTooSmallError(ChunkEngineError):
+    def __init__(
+        self,
+        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
+    ):
+        super().__init__(message)
