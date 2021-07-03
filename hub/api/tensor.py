@@ -38,6 +38,10 @@ class Tensor:
         self.key = key
         self.storage = storage
         self.index = index or Index()
+
+        if not tensor_exists(self.key, self.storage):
+            raise TensorDoesNotExistError(self.key)
+
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -98,7 +102,7 @@ class Tensor:
 
     @property
     def meta(self):
-        return self.chunk_engine.tensor_meta.as_readonly()
+        return self.chunk_engine.tensor_meta
 
     @property
     def shape(self) -> Tuple[Optional[int], ...]:

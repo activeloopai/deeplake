@@ -28,43 +28,54 @@ def _remove_none_values_from_dict(d: dict) -> dict:
 
 
 class TensorMeta(Meta):
-    _htype: str
-    _dtype: str
-    _min_shape: List[int]
-    _max_shape: List[int]
-    _chunk_size: int
-    _length: int
-    _sample_compression: str
-    _chunk_compression: str
+    htype: str
+    dtype: str
+    min_shape: List[int]
+    max_shape: List[int]
+    chunk_size: int
+    length: int
+    sample_compression: str
+    chunk_compression: str
 
     def __init__(
         self,
-        tensor_meta_key: str,
-        storage: StorageProvider,
         htype: str = DEFAULT_HTYPE,
         **kwargs,
     ):
+        """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
+        Note:
+            Tensor metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
+            Auto-populates `required_meta` that `Meta` accepts as an argument.
+        Args:
+            key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
+            storage (StorageProvider): Destination of this meta.
+            htype (str): All tensors require an `htype`. This determines the default meta keys/values.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+        Raises:
+            TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
+            TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
+            NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
+        Returns:
+            TensorMeta: Tensor meta object.
+        """
 
-        kwargs = _remove_none_values_from_dict(kwargs.copy())
-        _validate_htype_overwrites(htype, kwargs)
-        meta_dict = _meta_dict_from_htype(htype)
-        meta_dict.update(kwargs)
+        htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
+        _validate_htype_overwrites(htype, htype_overwrite)
 
-        for k, v in meta_dict.items():
-            # we want the meta variables to have an `_` so we can protect them with properties
-            setattr(self, f"_{k}", v)
+        required_meta = _required_meta_from_htype(htype)
+        required_meta.update(htype_overwrite)
+        _validate_compression(required_meta)
 
-        super().__init__(tensor_meta_key, storage)
+        self.__dict__.update(required_meta)
+
+        super().__init__()
 
     def check_compatibility(self, shape: Sequence[int], dtype):
         """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.
-
         Note:
             If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
-
         Args:
             array (np.ndarray): Array representing a sample to check compatibility with.
-
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to this meta.
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
@@ -81,7 +92,7 @@ class TensorMeta(Meta):
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
-            expected_shape_len = len(self._min_shape)
+            expected_shape_len = len(self.min_shape)
             actual_shape_len = len(shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
@@ -93,17 +104,14 @@ class TensorMeta(Meta):
 
     def update(self, shape: Sequence[int], dtype, num_samples: int):
         """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
-
         Note:
             If no samples exist, `min_shape` and `max_shape` are set to this array's shape.
             If samples do exist, `min_shape` and `max_shape` are updated.
-
         Args:
             array (np.ndarray): Unbatched array to update this meta with.
         """
 
         """`array` is assumed to have a batch axis."""
-        self._check_readonly()
 
         if num_samples <= 0:
             raise ValueError(
@@ -114,81 +122,30 @@ class TensorMeta(Meta):
 
         if self.length <= 0:
             if not self.dtype:
-                self._dtype = str(dtype)
+                self.dtype = str(dtype)
 
-            self._min_shape = list(shape)
-            self._max_shape = list(shape)
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
         else:
             # update meta subsequent times
-            self._update_shape_interval(shape, write=False)
+            self._update_shape_interval(shape)
 
-        self.add_length(num_samples, write=False)
-        self.write()
+        self.length += num_samples
 
-    def _update_shape_interval(self, shape: Tuple[int, ...], write: bool = True):
-        self._check_readonly()
+    def _update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:
-            self._min_shape = list(shape)
-            self._max_shape = list(shape)
-
+            self.min_shape = list(shape)
+            self.max_shape = list(shape)
         for i, dim in enumerate(shape):
-            self._min_shape[i] = min(dim, self._min_shape[i])
-            self._max_shape[i] = max(dim, self._max_shape[i])
-
-        if write:
-            self.write()
-
-    @property
-    def htype(self):
-        return self._htype
-
-    @property
-    def length(self):
-        return self._length
-
-    def add_length(self, delta: int, write: bool = True):
-        self._length += delta
-        if write:
-            self.write()
-
-    @property
-    def sample_compression(self):
-        return self._sample_compression
-
-    @property
-    def chunk_compression(self):
-        return self._chunk_compression
-
-    @property
-    def dtype(self):
-        return self._dtype
-
-    @property
-    def min_shape(self):
-        return tuple(self._min_shape)
-
-    @property
-    def max_shape(self):
-        return tuple(self._max_shape)
-
-    def write(self):
-        super().write(
-            htype=self._htype,
-            dtype=self._dtype,
-            chunk_size=self._chunk_size,
-            min_shape=self._min_shape,
-            max_shape=self._max_shape,
-            length=self._length,
-            sample_compression=self._sample_compression,
-            chunk_compression=self._chunk_compression,
-        )
+            self.min_shape[i] = min(dim, self.min_shape[i])
+            self.max_shape[i] = max(dim, self.max_shape[i])
 
 
-def _meta_dict_from_htype(htype: str) -> dict:
+def _required_meta_from_htype(htype: str) -> dict:
     _check_valid_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
-    meta_dict = {
+    required_meta = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
         "chunk_size": defaults["chunk_size"],
@@ -199,19 +156,17 @@ def _meta_dict_from_htype(htype: str) -> dict:
         "chunk_compression": defaults["chunk_compression"],
     }
 
-    _validate_compression(meta_dict)
-
-    meta_dict = _remove_none_values_from_dict(meta_dict)
-    meta_dict.update(defaults)
-    return meta_dict
+    required_meta = _remove_none_values_from_dict(required_meta)
+    required_meta.update(defaults)
+    return required_meta
 
 
-def _validate_compression(meta_dict: dict):
-    chunk_compression = meta_dict["chunk_compression"]
+def _validate_compression(required_meta: dict):
+    chunk_compression = required_meta["chunk_compression"]
     if chunk_compression != UNCOMPRESSED:
         raise NotImplementedError("Chunk compression has not been implemented yet.")
 
-    sample_compression = meta_dict["sample_compression"]
+    sample_compression = required_meta["sample_compression"]
     if sample_compression not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(sample_compression)
 

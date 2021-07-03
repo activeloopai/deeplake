@@ -63,8 +63,6 @@ class ChunkEngine:
         self.max_chunk_size = max_chunk_size
         self.min_chunk_size_target = self.max_chunk_size // 2
 
-        self._load_meta()
-
     @property
     def chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
@@ -110,14 +108,10 @@ class ChunkEngine:
         last_chunk_key = get_chunk_key(self.key, last_chunk_name)
         return self.cache.get_cachable(last_chunk_key, Chunk)
 
-    def _load_meta(self):
+    @property
+    def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
-
-        if tensor_meta_key not in self.cache:
-            raise TensorDoesNotExistError(self.key)
-
-        self.tensor_meta = TensorMeta(tensor_meta_key, self.cache)
-        self.tensor_meta.load()
+        return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
     def _append_bytes(
         self, incoming_buffer: memoryview, shape: Tuple[int], dtype: np.dtype
@@ -238,6 +232,8 @@ class ChunkEngine:
         else:
             raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
 
+        self.cache.maybe_flush()
+
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into the chunking algorithm."""
 
@@ -250,6 +246,8 @@ class ChunkEngine:
             self._append_bytes(data, sample.shape, sample.dtype)
         else:
             return self.append(Sample(array=np.array(sample)))
+
+        self.cache.maybe_flush()
 
     def numpy(
         self, index: Index, aslist: bool = False

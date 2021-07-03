@@ -200,13 +200,9 @@ class Dataset:
         tensor = Tensor(name, self.storage)
 
         self.tensors[name] = tensor
-        self._meta.add_tensor(name)
+        self.meta.tensors.append(name)
 
         return tensor
-
-    @property
-    def meta(self):
-        return self._meta.as_readonly()
 
     __getattr__ = __getitem__
 
@@ -230,11 +226,8 @@ class Dataset:
             # dataset exists
 
             logger.info(f"Hub Dataset {self.path} successfully loaded.")
-
-            self._meta = DatasetMeta(meta_key, self.storage)
-            self._meta.load()
-
-            for tensor_name in self._meta.tensors:
+            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
         elif len(self.storage) > 0:
             # dataset does not exist, but the path was not empty
@@ -243,13 +236,13 @@ class Dataset:
         else:
             # dataset does not exist
 
-            self._meta = DatasetMeta(meta_key, self.storage)
-            self._meta.write()
+            self.meta = DatasetMeta()
+            self.storage[meta_key] = self.meta
 
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self._meta.__dict__, public=self.public
+                    self.org_id, self.ds_name, self.meta.__dict__, public=self.public
                 )
 
     @property
@@ -367,7 +360,7 @@ class Dataset:
         if self.index.is_trivial():
             index_str = ""
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self._meta.tensors})"
+        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
 
     __repr__ = __str__
 
