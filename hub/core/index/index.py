@@ -83,7 +83,19 @@ def slice_at_int(s: slice, i: int):
 
     Returns:
         The index corresponding to the offset into the slice.
+
+    Raises:
+        NotImplementedError: Nontrivial slices should not be indexed with negative integers.
     """
+    if s == slice(None):
+        return i
+
+    if i < 0:
+        raise NotImplementedError(
+            "Subscripting slices with negative integers is not supported."
+        )
+    if s.step and s.step < 0:
+        return i * s.step - 1
     return (s.start or 0) + i * (s.step or 1)
 
 

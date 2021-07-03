@@ -293,6 +293,10 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
     _check_tensor(ds.data[::-1], data[::-1])
     _check_tensor(ds.data[::-3], data[::-3])
+    _check_tensor(ds.data[::-3][4], data[::-3][4])
+    _check_tensor(ds.data[-2:], data[-2:])
+    _check_tensor(ds.data[-6:][3], data[-6:][3])
+    _check_tensor(ds.data[:-6:][3], data[:-6:][3])
 
 
 def test_length_slices(memory_ds):
