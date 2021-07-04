@@ -13,7 +13,7 @@ class ShapeEncoder:
         Requires that all shapes encoded have the same dimensionality (`len(shape)`).
 
         Layout:
-            `encoded_shape` is a 2D array.
+            `_encoded_shapes` is a 2D array.
 
             Rows:
                 The number of rows is equal to the number of unique runs of shapes that exist upon ingestion. See examples below.
@@ -70,7 +70,7 @@ class ShapeEncoder:
                 This is O(log(N)) lookup.
 
             Lookup algorithm:
-                To get a shape for some sample index, you do a binary search over the right-most column. This will give you
+                To get the shape for some sample index, you do a binary search over the right-most column. This will give you
                 the row that corresponds to that sample index (since the right-most column is our "last index" for that shape).
                 Then, you use all elements to the left as your shape!
 

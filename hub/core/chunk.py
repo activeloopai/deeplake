@@ -16,15 +16,36 @@ class Chunk(Cachable):
         encoded_byte_positions: np.ndarray = None,
         data: memoryview = None,
     ):
-        """Blob storage of bytes. Tensors are stored as chunks. Tensor data is split into chunks of roughly the same size."""
+        """Blob storage of bytes. Tensors are stored as chunks. Tensor data is split into chunks of roughly the same size.
+        `ChunkEngine` handles the creation of `Chunk`s and the delegation of samples into them.
 
-        # TODO: explain data layout in a chunk
-        # TODO: elaborate on parameters in docstring
+        Data layout:
+            Every chunk has data and a header.
 
+            Data:
+                All samples this chunk contains are added into `_data` in bytes form directly adjacent to one another, without
+                delimeters.
+
+            Header:
+                All samples this chunk contains need 2 components: shape and byte position.
+                `ShapeEncoder` handles encoding the `start_byte` and `end_byte` for each sample.
+                `BytePositionsEncoder` handles encoding the `shape` for each sample.
+
+            To see how this chunk is composed into bytes, check out `tobytes`.
+            To see how this chunk is constructed from bytes, checkout `frombuffer`.
+
+        Args:
+            encoded_shapes (np.ndarray): Used to construct `ShapeEncoder` if this chunk already exists. Defaults to None.
+            encoded_byte_positions (np.ndarray): Used to construct `BytePositionsEncoder` if this chunk already exists. Defaults to None.
+            data (memoryview, optional): If this chunk already exists, data should be set. Defaults to None.
+        """
+
+        # data
+        self._data: Union[bytearray, memoryview] = data or bytearray()
+
+        # header
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
-
-        self._data: Union[bytearray, memoryview] = data or bytearray()
 
     @property
     def memoryview_data(self):
@@ -66,7 +87,7 @@ class Chunk(Cachable):
     def update_headers(
         self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
     ):
-        """Updates this chunk's header. A chunk may exist without headers, that is up to the `ChunkEngine` to delegate.
+        """Updates this chunk's header. A chunk should NOT exist without headers.
 
         Args:
             incoming_num_bytes (int): Number of bytes this header should account for. Should be divisble by `num_samples`.

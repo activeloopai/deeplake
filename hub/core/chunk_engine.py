@@ -257,10 +257,6 @@ class ChunkEngine:
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            if global_sample_index < 0:
-                # TODO: negative indexing
-                raise NotImplementedError("Negative indexing is not yet supported.")
-
             chunk_id = enc.__getitem__(global_sample_index)
             chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
             chunk_key = get_chunk_key(self.key, chunk_name)
