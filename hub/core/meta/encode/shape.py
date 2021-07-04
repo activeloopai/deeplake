@@ -64,10 +64,15 @@ class ShapeEncoder:
             Best case scenario:
                 The best case scenario is when all samples have the same shape. This means that only 1 row is created.
                 This is O(1) lookup.
-            
+
             Worst case scenario:
-                The worst case scenario is when all samples have different shapes. This means that there are as many rows as there are samples. 
+                The worst case scenario is when all samples have different shapes. This means that there are as many rows as there are samples.
                 This is O(log(N)) lookup.
+
+            Lookup algorithm:
+                To get a shape for some sample index, you do a binary search over the right-most column. This will give you
+                the row that corresponds to that sample index (since the right-most column is our "last index" for that shape).
+                Then, you use all elements to the left as your shape!
 
 
         Args:
