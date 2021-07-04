@@ -16,7 +16,10 @@ class Chunk(Cachable):
         encoded_byte_positions: np.ndarray = None,
         data: memoryview = None,
     ):
-        """Blob storage of bytes."""
+        """Blob storage of bytes. Tensors are stored as chunks. Tensor data is split into chunks of roughly the same size."""
+
+        # TODO: explain data layout in a chunk
+        # TODO: elaborate on parameters in docstring
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
@@ -37,7 +40,7 @@ class Chunk(Cachable):
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
-    def append(
+    def append_sample(
         self, incoming_buffer: memoryview, max_data_bytes: int
     ) -> Tuple["Chunk"]:
         """Store `incoming_buffer` in this chunk.

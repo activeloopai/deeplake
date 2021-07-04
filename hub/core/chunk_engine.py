@@ -58,6 +58,9 @@ class ChunkEngine:
             ValueError: If invalid max chunk size.
         """
 
+        # TODO: elaborate further in docstring (including our encoders)
+        # TODO: add examples
+
         self.key = key
         self.cache = cache
 
@@ -132,12 +135,14 @@ class ChunkEngine:
         incoming_num_bytes = len(incoming_buffer)
 
         last_chunk = self.last_chunk or self._create_new_chunk()
-        last_chunk_extended = False
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
         self.tensor_meta.check_compatibility(shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
+        # TODO: turn into more functions
+
+        last_chunk_extended = False
         forwarding_buffer = incoming_buffer
         if last_chunk.is_under_min_space(self.min_chunk_size_target):
             last_chunk_size = last_chunk.num_data_bytes
@@ -152,41 +157,25 @@ class ChunkEngine:
 
             # combine if count is same
             if combined_chunk_ct == chunk_ct_content:
-                last_chunk.append(forwarding_buffer[:extra_bytes], self.max_chunk_size)
+                last_chunk.append_sample(
+                    forwarding_buffer[:extra_bytes], self.max_chunk_size
+                )
                 forwarding_buffer = forwarding_buffer[extra_bytes:]
-                self._synchronize_last_chunk(False)
+                self._synchronize_last_chunk(num_samples, incoming_num_bytes, shape)
                 last_chunk_extended = True
 
-        new_chunks = []
-        connect_with_last = last_chunk_extended
-
-        # `or not connect_with_last` is necessary to support empty samples that weren't written to the previous chunk
-        while len(forwarding_buffer) > 0 or not connect_with_last:
+        # check if `last_chunk_extended` to handle empty samples
+        if len(forwarding_buffer) > 0 or not last_chunk_extended:
             new_chunk = self._create_new_chunk()
-            end_byte = min(len(forwarding_buffer), self.max_chunk_size)
+            new_chunk.append_sample(forwarding_buffer, self.max_chunk_size)
+            self._synchronize_last_chunk(num_samples, incoming_num_bytes, shape)
 
-            new_chunk.append(forwarding_buffer[:end_byte], self.max_chunk_size)
-            forwarding_buffer = forwarding_buffer[end_byte:]
-
-            self._synchronize_last_chunk(connect_with_last)
-
-            new_chunks.append(new_chunk)
-            connect_with_last = True
-
-        # only the head chunk (the first chunk this sample was written to) should have it's headers updated
-        head_chunk = last_chunk if last_chunk_extended else new_chunks[0]
-        head_chunk.update_headers(incoming_num_bytes, num_samples, shape)
-
-    def _synchronize_last_chunk(self, connect_with_last: bool):
-        """Registers new samples added to the last chunk in the `chunk_id_encoder` and makes sure connectivity is preserved."""
-
-        num_new_samples = 1
-        if connect_with_last:
-            # if connected with last, there are no new samples, only a continuation of the previous
-            num_new_samples = 0
-            self.chunk_id_encoder.register_connection_to_last_chunk_id()
-
+    def _synchronize_last_chunk(
+        self, num_new_samples: int, num_new_bytes: int, shape: Tuple[int]
+    ):
+        # TODO: docstring
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
+        self.last_chunk.update_headers(num_new_bytes, num_new_samples, shape)
 
     def _create_new_chunk(self):
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
@@ -272,32 +261,19 @@ class ChunkEngine:
                 # TODO: negative indexing
                 raise NotImplementedError("Negative indexing is not yet supported.")
 
-            chunk_ids = enc.__getitem__(global_sample_index)
+            chunk_id = enc.__getitem__(global_sample_index)
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_key = get_chunk_key(self.key, chunk_name)
+            chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
 
-            buffer: Union[bytearray, memoryview] = bytearray()
-            for i, chunk_id in enumerate(chunk_ids):
-                chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            buffer = chunk.memoryview_data
+            local_sample_index = enc.get_local_sample_index(global_sample_index)
+            shape = chunk.shapes_encoder[local_sample_index]
+            sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-                chunk_key = get_chunk_key(self.key, chunk_name)
-                chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
-                local_sample_index = enc.get_local_sample_index(global_sample_index)
-
-                # head chunk is the first chunk a sample lives in (has the header information for that sample)
-                is_head_chunk = i == 0
-                if is_head_chunk:
-                    shape = chunk.shapes_encoder[local_sample_index]
-                    sb, eb = chunk.byte_positions_encoder[local_sample_index]
-
-                # TODO: optimize this to reduce memory copies for samples spanning accross chunks
-                if len(chunk_ids) == 1:
-                    # if sample lives in a single chunk, no need to copy the data
-                    buffer = chunk.memoryview_data
-                else:
-                    buffer += chunk.memoryview_data
-
-                if not aslist and last_shape is not None:
-                    if shape != last_shape:
-                        raise DynamicTensorNumpyError(self.key, index, "shape")
+            if not aslist and last_shape is not None:
+                if shape != last_shape:
+                    raise DynamicTensorNumpyError(self.key, index, "shape")
 
             buffer = buffer[sb:eb]
             if expect_compressed:
