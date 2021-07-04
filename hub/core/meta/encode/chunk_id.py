@@ -13,12 +13,58 @@ LAST_INDEX_INDEX = 1
 
 class ChunkIdEncoder(Cachable):
     def __init__(self):
-        """Encodes chunk IDs such that they can be mapped to and from sample indices.
+        """Custom compressor that allows reading of chunk IDs from a sample index without decompressing.
 
-        Note:
-            This map has a time complexity of `O(log(N))`, where `N` is the number of unique chunk IDs in this instance.
-            If this encoder is sharded, the time complexity's `N` is the max number of unique chunk IDs allowed in a single shard
-                at the worst case scenario.
+        Chunk IDs:
+            Chunk IDs are a uint32 value (64-bits) and this class handles generating/encoding them.
+
+        Layout:
+            `_encoded_ids` is a 2D array.
+
+            Rows:
+                The number of rows is equal to the number of chunk IDs this encoder is responsible for.
+
+            Columns:
+                The number of columns is 2.
+                Each row looks like this: [chunk_id, last_index], where `last_index` is the last index that the
+                chunk with `chunk_id` contains.
+
+            Example:
+                >>> enc = ChunkIdEncoder()
+                >>> enc.generate_chunk_id()
+                >>> enc.num_chunks
+                1
+                >>> enc.register_samples_to_last_chunk_id(10)
+                >>> enc.num_samples
+                10
+                >>> enc.register_samples_to_last_chunk_id(10)
+                >>> enc.num_samples
+                20
+                >>> enc.num_chunks
+                1
+                >>> enc.generate_chunk_id()
+                >>> enc.register_samples_to_last_chunk_id(1)
+                >>> enc.num_samples
+                21
+                >>> enc._encoded_ids
+                [[3723322941, 19],
+                 [1893450271, 20]]
+                >>> enc[20]
+                1893450271
+
+            Best case scenario:
+                The best case scenario is when all samples fit within a single chunk. This means the number of rows is 1,
+                providing a O(1) lookup.
+
+            Worst case scenario:
+                The worst case scenario is when only 1 sample fits per chunk. This means the number of rows is equal to the number
+                of samples, providing a O(log(N)) lookup.
+
+            Lookup algorithm:
+                To get the chunk ID for some sample index, you do a binary search over the right-most column. This will give you
+                the row that corresponds to that sample index (since the right-most column is our "last index" for that chunk ID).
+                Then, you get the left-most column and that is your chunk ID!
+
         """
 
         self._encoded_ids = None

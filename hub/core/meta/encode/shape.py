@@ -8,7 +8,7 @@ LAST_INDEX_INDEX = -1
 
 
 class ShapeEncoder:
-    def __init__(self, encoded_shapes=None):
+    def __init__(self, encoded_shapes: np.ndarray = None):
         """Custom compressor that allows reading of shapes from a sample index without decompressing.
         Requires that all shapes encoded have the same dimensionality (`len(shape)`).
 
@@ -76,7 +76,7 @@ class ShapeEncoder:
 
 
         Args:
-            encoded_shape ([type], optional): [description]. Defaults to None.
+            encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
         """
 
         self._encoded_shapes = encoded_shapes
