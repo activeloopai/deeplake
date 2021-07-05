@@ -91,26 +91,35 @@ class ChunkEngine:
         """
 
         key = get_chunk_id_encoder_key(self.key)
+        if not self.chunk_id_encoder_exists:
 
-        try:
-            enc = self.cache.get_cachable(key, ChunkIdEncoder)
-            return enc
-        except KeyError:
-            if self.tensor_meta.length > 0:
+            # 1 because we always update the meta information before writing the samples (to account for potentially corrupted data in the future)
+            if self.tensor_meta.length > 1:
                 raise CorruptedMetaError(
-                    "Tensor length is > 0, but could not find the chunk id encoder."
+                    f"Tensor length is {self.tensor_meta.length}, but could not find the chunk id encoder."
                 )
 
             enc = ChunkIdEncoder()
             self.cache[key] = enc
             return enc
 
+        enc = self.cache.get_cachable(key, ChunkIdEncoder)
+        return enc
+
+    @property
+    def chunk_id_encoder_exists(self) -> bool:
+        return get_chunk_id_encoder_key(self.key) in self.cache
+
     @property
     def num_chunks(self) -> int:
+        if not self.chunk_id_encoder_exists:
+            return 0
         return self.chunk_id_encoder.num_chunks
 
     @property
     def num_samples(self) -> int:
+        if not self.chunk_id_encoder_exists:
+            return 0
         return self.chunk_id_encoder.num_samples
 
     @property
@@ -127,31 +136,48 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _append_bytes(
-        self, incoming_buffer: memoryview, shape: Tuple[int], dtype: np.dtype
-    ):
-        """Treat `incoming_buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
-        determining which chunks contain which parts of `incoming_buffer`.
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
+        """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
+        determining which chunks contain which parts of `buffer`.
 
         Args:
-            incoming_buffer (memoryview): Buffer that represents a single sample that may or may not be compressed.
-            shape (Tuple[int]): Shape for the sample that `incoming_buffer` represents.
-            dtype (np.dtype): Data type for the sample that `incoming_buffer` represents.
+            buffer (memoryview): Buffer that represents a single sample that may or may not be compressed.
+            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+            dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
-        num_samples = 1
-        incoming_num_bytes = len(incoming_buffer)
+        # TODO mention that buffer could be of length 0 (further, we should add a check that the shape should contain a 0 if the length is 0)
 
-        last_chunk = self.last_chunk or self._create_new_chunk()
+        # num samples is always 1 when appending
+        num_samples = 1
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
         self.tensor_meta.check_compatibility(shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
-        # TODO: turn into more functions
+        successfully_appended_to_last_chunk = self._try_appending_to_last_chunk(buffer)
+        if not successfully_appended_to_last_chunk:
+            self._append_to_new_chunk(buffer)
 
-        last_chunk_extended = False
-        forwarding_buffer = incoming_buffer
+        self._synchronize_last_chunk(num_samples, len(buffer), shape)
+
+    def _try_appending_to_last_chunk(self, buffer: memoryview) -> bool:
+        """Will store `buffer` inside of the last chunk if it can.
+        It can be stored in the last chunk if it exists and has space for `buffer`.
+
+        Args:
+            buffer (memoryview): Data to store. This can represent any number of samples.
+
+        Returns:
+            bool: True if `buffer` was successfully written to the last chunk, otherwise False.
+        """
+
+        last_chunk = self.last_chunk
+        if last_chunk is None:
+            return False
+
+        incoming_num_bytes = len(buffer)
+
         if last_chunk.is_under_min_space(self.min_chunk_size_target):
             last_chunk_size = last_chunk.num_data_bytes
             chunk_ct_content = _min_chunk_ct_for_data_size(
@@ -165,18 +191,22 @@ class ChunkEngine:
 
             # combine if count is same
             if combined_chunk_ct == chunk_ct_content:
-                last_chunk.append_sample(
-                    forwarding_buffer[:extra_bytes], self.max_chunk_size
-                )
-                forwarding_buffer = forwarding_buffer[extra_bytes:]
-                self._synchronize_last_chunk(num_samples, incoming_num_bytes, shape)
-                last_chunk_extended = True
+                last_chunk.append_sample(buffer[:extra_bytes], self.max_chunk_size)
+                return True
+
+        return False
+
+    def _append_to_new_chunk(self, buffer: memoryview):
+        """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
+        This should be called if `buffer` could not be added to the last chunk.
+
+        Args:
+            buffer (memoryview): Data to store. This can represent any number of samples.
+        """
 
         # check if `last_chunk_extended` to handle empty samples
-        if len(forwarding_buffer) > 0 or not last_chunk_extended:
-            new_chunk = self._create_new_chunk()
-            new_chunk.append_sample(forwarding_buffer, self.max_chunk_size)
-            self._synchronize_last_chunk(num_samples, incoming_num_bytes, shape)
+        new_chunk = self._create_new_chunk()
+        new_chunk.append_sample(buffer, self.max_chunk_size)
 
     def _synchronize_last_chunk(
         self, num_new_samples: int, num_new_bytes: int, shape: Tuple[int]
