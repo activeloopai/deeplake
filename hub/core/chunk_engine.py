@@ -262,7 +262,7 @@ class ChunkEngine:
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
-        """Formats a batch of `samples` and feeds them into the chunking algorithm."""
+        """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
