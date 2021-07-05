@@ -1,6 +1,6 @@
 from hub.core.compression import decompress_array
 from math import ceil
-from typing import Optional, Sequence, Union, Tuple
+from typing import List, Optional, Sequence, Union, Tuple
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
