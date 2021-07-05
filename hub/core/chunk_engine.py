@@ -54,7 +54,44 @@ class ChunkEngine:
             For more information on the `Chunk` format, check out the `Chunk` class.
 
         ChunkIdEncoder:
-            The `ChunkIdEncoder` is used to keep track of # TODO: finish docstring
+            The `ChunkIdEncoder` bidirectionally maps samples to the chunk IDs they live in. For more information,
+            see `ChunkIdEncoder`'s docstring.
+
+        Example:
+            Given:
+                Sample sizes: [1 * MB, 1 * MB, 14 * MB, 15 * MB, 15 * MB]
+                Min chunk size: 16 * MB
+                Max chunk size: 32 * MB
+
+
+            Basic logic:
+                >>> chunks = []
+                >>> chunks.append(sum([1 * MB, 1 * MB, 14 * MB, 15 * MB]))  # i=(0, 1, 2, 3)
+                >>> chunks[-1]
+                31 * MB
+                >>> chunks.append(sum([15 * MB]))  # i=(4,)
+                >>> chunks[-1]
+                15 * MB
+
+            Samples 0, 1, 2, and 3 can be stored in 1 chunk. sample 4 resides in it's own chunk.
+
+            If more samples come later: sizes = [15 * MB, 1 * MB]
+
+            Basic logic:
+                >>> len(chunks)
+                2
+                >>> chunks[-1]
+                15 * MB
+                >>> chunks[-1] += sum([15 * MB, 1 * MB])  # i=(5, 6)
+                >>> chunks[-1]
+                31 * MB
+                >>> sum(chunks)
+                62 * MB
+                >>> len(chunks)
+                2
+
+            Because our max chunk size is 32 * MB, we try to fit as much data into this size as possible.
+
 
         Args:
             key (str): Tensor key.
@@ -65,17 +102,17 @@ class ChunkEngine:
             ValueError: If invalid max chunk size.
         """
 
-        # TODO: elaborate further in docstring (including our encoders)
-        # TODO: add examples
-
         self.key = key
         self.cache = cache
 
         if max_chunk_size <= 2:
             raise ValueError("Max chunk size should be > 2 bytes.")
 
+        # no chunks may exceed this
         self.max_chunk_size = max_chunk_size
-        self.min_chunk_size_target = self.max_chunk_size // 2
+
+        # only the last chunk may be less than this
+        self.min_chunk_size = self.max_chunk_size // 2
 
     @property
     def chunk_id_encoder(self) -> ChunkIdEncoder:
@@ -141,12 +178,11 @@ class ChunkEngine:
         determining which chunks contain which parts of `buffer`.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample that may or may not be compressed.
+            buffer (memoryview): Buffer that represents a single sample that may or may not be compressed. Can have a
+                length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
-
-        # TODO mention that buffer could be of length 0 (further, we should add a check that the shape should contain a 0 if the length is 0)
 
         # num samples is always 1 when appending
         num_samples = 1
@@ -178,7 +214,7 @@ class ChunkEngine:
 
         incoming_num_bytes = len(buffer)
 
-        if last_chunk.is_under_min_space(self.min_chunk_size_target):
+        if last_chunk.is_under_min_space(self.min_chunk_size):
             last_chunk_size = last_chunk.num_data_bytes
             chunk_ct_content = _min_chunk_ct_for_data_size(
                 self.max_chunk_size, incoming_num_bytes
@@ -341,8 +377,8 @@ class ChunkEngine:
         return sample
 
     def _check_sample_size(self, num_bytes: int):
-        if num_bytes > self.min_chunk_size_target:
-            msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size_target} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
+        if num_bytes > self.min_chunk_size:
+            msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
             if self.tensor_meta.sample_compression == UNCOMPRESSED:
                 msg += "\nYour data is actually uncompressed, so setting the `sample_compression` variable in `Datset.create_tensor` could help here!"
