@@ -380,7 +380,7 @@ class ChunkEngine:
 
 def _format_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
-) -> Union[np.ndarray, Sequence[np.ndarray]]:
+) -> Union[np.ndarray, List[np.ndarray]]:
     """Helper function for preparing `samples` read from the chunk engine in the way the format the user expects."""
 
     samples = index.apply(samples)
