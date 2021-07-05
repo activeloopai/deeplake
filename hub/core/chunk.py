@@ -37,7 +37,7 @@ class Chunk(Cachable):
         Args:
             encoded_shapes (np.ndarray): Used to construct `ShapeEncoder` if this chunk already exists. Defaults to None.
             encoded_byte_positions (np.ndarray): Used to construct `BytePositionsEncoder` if this chunk already exists. Defaults to None.
-            data (memoryview, optional): If this chunk already exists, data should be set. Defaults to None.
+            data (memoryview): If this chunk already exists, data should be set. Defaults to None.
         """
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
@@ -60,19 +60,20 @@ class Chunk(Cachable):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
     def append_sample(
-        self, incoming_buffer: memoryview, max_data_bytes: int
+        self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]
     ) -> Tuple["Chunk"]:
-        """Store `incoming_buffer` in this chunk.
+        """Store `buffer` in this chunk.
 
         Args:
-            incoming_buffer (memoryview): Buffer that represents a single sample.
-            max_data_bytes (int): Used to determine if this chunk has space for `incoming_buffer`.
+            buffer (memoryview): Buffer that represents a single sample.
+            max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
+            shape (Tuple[int]): Shape for the sample that `buffer` represents.
 
         Raises:
-            FullChunkError: If `incoming_buffer` is too large.
+            FullChunkError: If `buffer` is too large.
         """
 
-        incoming_num_bytes = len(incoming_buffer)
+        incoming_num_bytes = len(buffer)
 
         if not self.has_space_for(incoming_num_bytes, max_data_bytes):
             raise FullChunkError(
@@ -80,31 +81,23 @@ class Chunk(Cachable):
             )
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data += incoming_buffer
+        self._data += buffer
+        self.update_headers(incoming_num_bytes, shape)
 
-    def update_headers(
-        self, incoming_num_bytes: int, num_samples: int, sample_shape: Sequence[int]
-    ):
+    def update_headers(self, incoming_num_bytes: int, sample_shape: Sequence[int]):
         """Updates this chunk's header. A chunk should NOT exist without headers.
 
         Args:
-            incoming_num_bytes (int): Number of bytes this header should account for. Should be divisble by `num_samples`.
-            num_samples (int): Number of samples this header should account for.
+            incoming_num_bytes (int): The length of the buffer that was used to
             sample_shape (Sequence[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
 
         Raises:
-            Exception: If trying to update headers when no data was actually added.
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
 
-        if incoming_num_bytes % num_samples != 0:
-            raise ValueError(
-                "Incoming bytes should be divisible by the number of samples to properly update headers."
-            )
-
-        num_bytes_per_sample = incoming_num_bytes // num_samples
-        self.shapes_encoder.add_shape(sample_shape, num_samples)
-        self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, num_samples)
+        num_bytes_per_sample = incoming_num_bytes
+        self.shapes_encoder.add_shape(sample_shape, 1)
+        self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, 1)
 
     def __len__(self):
         # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)

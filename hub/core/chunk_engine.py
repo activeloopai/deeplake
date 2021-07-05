@@ -191,18 +191,21 @@ class ChunkEngine:
         self.tensor_meta.check_compatibility(shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
-        successfully_appended_to_last_chunk = self._try_appending_to_last_chunk(buffer)
-        if not successfully_appended_to_last_chunk:
-            self._append_to_new_chunk(buffer)
+        buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
+        if not buffer_consumed:
+            self._append_to_new_chunk(buffer, shape)
 
-        self._synchronize_last_chunk(num_samples, len(buffer), shape)
+        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
 
-    def _try_appending_to_last_chunk(self, buffer: memoryview) -> bool:
+    def _try_appending_to_last_chunk(
+        self, buffer: memoryview, shape: Tuple[int]
+    ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
         It can be stored in the last chunk if it exists and has space for `buffer`.
 
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
+            shape (Tuple[int]): Shape for the sample that `buffer` represents.
 
         Returns:
             bool: True if `buffer` was successfully written to the last chunk, otherwise False.
@@ -227,37 +230,25 @@ class ChunkEngine:
 
             # combine if count is same
             if combined_chunk_ct == chunk_ct_content:
-                last_chunk.append_sample(buffer[:extra_bytes], self.max_chunk_size)
+                last_chunk.append_sample(
+                    buffer[:extra_bytes], self.max_chunk_size, shape
+                )
                 return True
 
         return False
 
-    def _append_to_new_chunk(self, buffer: memoryview):
+    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
         This should be called if `buffer` could not be added to the last chunk.
 
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
+            shape (Tuple[int]): Shape for the sample that `buffer` represents.
         """
 
         # check if `last_chunk_extended` to handle empty samples
         new_chunk = self._create_new_chunk()
-        new_chunk.append_sample(buffer, self.max_chunk_size)
-
-    def _synchronize_last_chunk(
-        self, num_new_samples: int, num_new_bytes: int, shape: Tuple[int]
-    ):
-        """For the last chunk, registers samples with the chunk ID encoder and updates the headers.
-        This should be called every time new sample(s) get put into the last chunk.
-
-        Args:
-            num_new_samples (int): Samples that have already been added to the last chunk.
-            num_new_bytes (int): The length of the buffer added to the last chunk.
-            shape (Tuple[int]): Shape of the samples (requires all samples to have the same shape for this sync).
-        """
-
-        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
-        self.last_chunk.update_headers(num_new_bytes, num_new_samples, shape)
+        new_chunk.append_sample(buffer, self.max_chunk_size, shape)
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""

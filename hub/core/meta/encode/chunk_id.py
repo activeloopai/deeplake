@@ -219,7 +219,7 @@ class ChunkIdEncoder(Cachable):
 
         Args:
             sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
-            return_chunk_index (bool, optional): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
+            return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
 
         Raises:
             IndexError: If no samples exist or `sample_index` exceeds the available indices.
