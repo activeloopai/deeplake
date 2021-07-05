@@ -1,11 +1,10 @@
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.chunk import Chunk
+from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
-from hub.core.compression import decompress_array
 from hub.constants import UNCOMPRESSED
-from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.util.remove_cache import remove_memory_cache
-from hub.util.join_chunks import join_chunks
-import numpy as np
+from hub.util.remove_cache import get_base_storage
 import posixpath
 from itertools import repeat
 from collections import defaultdict
@@ -70,7 +69,7 @@ class TorchDataset:
         self.map = ProcessPool(nodes=workers).map
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
-        self.storage = remove_memory_cache(dataset.storage)
+        self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
@@ -95,8 +94,8 @@ class TorchDataset:
 
         self.index_offset = index_value.start or 0
 
-        # contains index_meta for each Tensor
-        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_meta()
+        # contains chunk_engine for each Tensor
+        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engine()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
@@ -154,10 +153,9 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-    def _load_all_index_meta(self):
-        """Loads index metas for all Tensors into memory"""
-        all_index_metas = {key: IndexMeta.load(key, self.storage) for key in self.keys}
-        return all_index_metas
+    def _load_all_chunk_engine(self):
+        """Creates chunk engine for all tensors."""
+        return {key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 0)) for key in self.keys}
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
@@ -209,48 +207,23 @@ class TorchDataset:
         return ls
 
     def _get_chunk_names(self, index: int, key: str):
+        # TODO move into core
         """Gets chunk names for elements starting from index to read in parallel"""
         chunk_names: Set[str] = set()
-        index_meta = self.all_index_metas[key]
+        chunk_engine = self.all_chunk_engines[key]
         while len(chunk_names) < self.workers and index < len(self):
             actual_index = self.index_offset + index
-
-            # TODO: replace with this -> chunk_engine.chunk_id_encoder.get_chunk_names()
-            chunks = index_meta.entries[actual_index]["chunk_names"]
-
-            chunk_names.update(chunks)
+            chunks = chunk_engine.chunk_id_encoder.get_name_for_chunk(actual_index)
+            # todo, change to chunk_names.update once chunks returns sequence instead of single string
+            chunk_names.add(chunks)
             index += 1
         return chunk_names
 
-    def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
+    def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
+        chunk_engine = self.all_chunk_engines[key]
+        return chunk_engine.read_sample_from_chunk(int, chunk)
 
-        # TODO: this function should be located in core (sample_from_index_entry doesn't work because prefetch cache)
-        # TODO: i think this can be done by creating a `PrefetchCache` like how we have `LRUCache` then all of this code
-        # TODO: will be hanlded in there
-
-        index_entry = self.all_index_metas[key].entries[index]
-
-        start_byte = index_entry["start_byte"]
-        end_byte = index_entry["end_byte"]
-        shape = index_entry["shape"]
-
-        tensor_meta = self.all_tensor_metas[key]
-        dtype = tensor_meta.dtype
-        sample_compression = tensor_meta.sample_compression
-
-        combined_bytes = join_chunks(chunks, start_byte, end_byte)
-
-        # TODO: migrate UNCOMPRESSED check into a single function
-        if sample_compression == UNCOMPRESSED:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
-        else:
-            arr = decompress_array(combined_bytes, shape=shape)
-
-        if isinstance(combined_bytes, memoryview):
-            combined_bytes.release()
-
-        return arr
 
     def _get_data_from_chunks(
         self,
@@ -268,20 +241,19 @@ class TorchDataset:
             chunk_names, shared_memory_names, chunk_sizes
         ):
             self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:chunk_size]
+            chunk_map[chunk_name] = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
 
         # saves np array for each index in memory
         for i in range(index, len(self)):
-            chunks = []
             actual_index = self.index_offset + i
-            index_entry = self.all_index_metas[key].entries[actual_index]
-            for chunk_name in index_entry["chunk_names"]:
-                if chunk_name not in chunk_map:
-                    self.last_index_meta[key] = i - 1
-                    return
-                chunks.append(chunk_map[chunk_name])
-            self.all_index_value_maps[key][i] = self._np_from_chunk_list(
-                actual_index, key, chunks
+            # TODO change this once it returns list/set of str
+            chunk_name = self.all_chunk_engines[key].chunk_id_encoder.get_name_for_chunk(actual_index)
+            if chunk_name not in chunk_map:
+                self.last_index_meta[key] = i - 1
+                return
+            chunk = chunk_map[chunk_name]
+            self.all_index_value_maps[key][i] = self._numpy_from_chunk(
+                actual_index, key, chunk
             )
 
         self.last_index_meta[key] = len(self) - 1
