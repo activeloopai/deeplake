@@ -49,8 +49,12 @@ class ChunkEngine:
         """Handles creating `Chunk`s and filling them with incoming samples.
 
         Data delegation:
-            All samples must live inside a single chunk. A chunk holds the information required to
-            decompose a given sample  # TODO: finish docstring
+            All samples must live inside a chunk. No chunks may contain partial samples, only 1 chunk per sample.
+            A chunk holds the dynamic information for the samples they contain (like shape and byte ranges).
+            For more information on the `Chunk` format, check out the `Chunk` class.
+
+        ChunkIdEncoder:
+            The `ChunkIdEncoder` is used to keep track of # TODO: finish docstring
 
         Args:
             key (str): Tensor key.
@@ -76,6 +80,7 @@ class ChunkEngine:
     @property
     def chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
+        For more information on what `ChunkIdEncoder` is used for, see the `__init__` docstring.
 
         Raises:
             CorruptedMetaError: If chunk id encoding was corrupted.

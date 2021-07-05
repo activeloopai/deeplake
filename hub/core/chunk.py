@@ -22,14 +22,14 @@ class Chunk(Cachable):
         Data layout:
             Every chunk has data and a header.
 
-            Data:
-                All samples this chunk contains are added into `_data` in bytes form directly adjacent to one another, without
-                delimeters.
-
             Header:
                 All samples this chunk contains need 2 components: shape and byte position.
                 `ShapeEncoder` handles encoding the `start_byte` and `end_byte` for each sample.
                 `BytePositionsEncoder` handles encoding the `shape` for each sample.
+
+            Data:
+                All samples this chunk contains are added into `_data` in bytes form directly adjacent to one another, without
+                delimeters.
 
             To see how this chunk is composed into bytes, check out `tobytes`.
             To see how this chunk is constructed from bytes, checkout `frombuffer`.
@@ -40,12 +40,10 @@ class Chunk(Cachable):
             data (memoryview, optional): If this chunk already exists, data should be set. Defaults to None.
         """
 
-        # data
-        self._data: Union[bytearray, memoryview] = data or bytearray()
-
-        # header
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
+
+        self._data: Union[bytearray, memoryview] = data or bytearray()
 
     @property
     def memoryview_data(self):
