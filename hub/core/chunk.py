@@ -100,7 +100,7 @@ class Chunk(Cachable):
         self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, 1)
 
     def __len__(self):
-        # this should not call `tobytes` because it will be slow. should calculate the amount of bytes this chunk takes up in total. (including headers)
+        """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
 
         shape_nbytes = self.shapes_encoder.nbytes
         range_nbytes = self.byte_positions_encoder.nbytes

@@ -303,7 +303,7 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
-        """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into the chunking algorithm."""
+        """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
@@ -320,7 +320,18 @@ class ChunkEngine:
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
-        """Reads samples from chunks and returns as numpy arrays. If `aslist=True`, returns a sequence of numpy arrays."""
+        """Reads samples from chunks and returns as a numpy array. If `aslist=True`, returns a sequence of numpy arrays.
+
+        Args:
+            index (Index): Represents the samples to read from chunks. See `Index` for more information.
+            aslist (bool): If True, the samples will be returned as a list of numpy arrays. If False, returns a single numpy array. Defaults to False.
+
+        Raises:
+            DynamicTensorNumpyError: If shapes of the samples being read are not all the same.
+
+        Returns:
+            Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
+        """
 
         length = self.num_samples
         enc = self.chunk_id_encoder
@@ -349,9 +360,8 @@ class ChunkEngine:
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        tensor_meta = self.tensor_meta
-        expect_compressed = tensor_meta.sample_compression != UNCOMPRESSED
-        dtype = tensor_meta.dtype
+        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
+        dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
 
