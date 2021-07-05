@@ -101,33 +101,3 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> str:
     # TODO: better way of determining the sample has no compression
     except UnidentifiedImageError:
         return UNCOMPRESSED
-
-
-def assert_all_samples_have_expected_compression(
-    tensor: Tensor, original_compressions: Sequence[str]
-):
-    """If `USE_UNIFORM_COMPRESSION_PER_SAMPLE`, `original_compressions` is used as expected compressions."""
-
-    index_meta = IndexMeta.load(tensor.key, tensor.storage)
-
-    assert len(index_meta.entries) == len(original_compressions)
-    for i, index_entry in enumerate(index_meta.entries):
-        buffer = buffer_from_index_entry(tensor.key, tensor.storage, index_entry)
-        actual_compression = get_actual_compression_from_buffer(buffer)
-
-        if USE_UNIFORM_COMPRESSION_PER_SAMPLE:
-            assert actual_compression == tensor.meta.sample_compression
-        elif tensor.meta.sample_compression == UNCOMPRESSED:
-            assert (
-                actual_compression == UNCOMPRESSED
-            ), "If the tensor is uncompressed, all samples MUST not be compressed."
-        else:
-            expected_compression = original_compressions[i]
-
-            # NOTE: if you're getting a `tga` return type from this assertion fail, this probably means when writing uncompressed samples
-            # they are not being compressed. For example, if you are appending a numpy array (this is an uncompressed sample), this numpy array
-            # should still be compressed if `tensor_meta.sample_compression` is not `UNCOMPRESSED`.
-
-            assert (
-                actual_compression == expected_compression
-            ), f"non-uniform compression mismatch @ i={i}. got '{actual_compression}', expected '{expected_compression}'. If `tga`, check `NOTE` above this assertion."

@@ -201,19 +201,19 @@ class ChunkIdEncoder(Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, chunk_index = self.__getitem__(global_sample_index, return_chunk_index=True)
+        _, chunk_index = self.__getitem__(global_sample_index, return_chunk_index=True)  # type: ignore
 
         if chunk_index == 0:
             return global_sample_index
 
-        current_entry = self._encoded_ids[chunk_index - 1]
+        current_entry = self._encoded_ids[chunk_index - 1]  # type: ignore
         last_num_samples = current_entry[LAST_INDEX_INDEX] + 1
 
         return int(global_sample_index - last_num_samples)
 
     def __getitem__(
         self, sample_index: int, return_chunk_index: bool = False
-    ) -> Tuple[Tuple[np.uint64], Optional[Tuple[int]]]:
+    ) -> Tuple[np.uint64, Optional[int]]:
         """Get the ID for the chunk that `sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 

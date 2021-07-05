@@ -24,7 +24,3 @@ def get_chunk_id_encoder_key(key: str) -> str:
         constants.ENCODED_CHUNK_NAMES_FOLDER,
         constants.ENCODED_CHUNK_NAMES_FILENAME,
     )
-
-
-def get_index_meta_key(key: str) -> str:
-    return posixpath.join(key, constants.INDEX_META_FILENAME)

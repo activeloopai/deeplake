@@ -49,4 +49,4 @@ def create_tensor(
         chunk_compression=chunk_compression,
         **kwargs,
     )
-    storage[meta_key] = meta
+    storage[meta_key] = meta  # type: ignore

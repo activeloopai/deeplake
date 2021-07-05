@@ -79,9 +79,9 @@ class ShapeEncoder:
             encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
         """
 
-        self._encoded_shapes = encoded_shapes
-        if self._encoded_shapes is None:
+        if encoded_shapes is None:
             self._encoded_shapes = np.array([], dtype=SHAPE_ENCODING_DTYPE)
+        self._encoded_shapes: np.ndarray = encoded_shapes  # type: ignore
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:

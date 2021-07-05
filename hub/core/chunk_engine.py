@@ -12,7 +12,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
 )
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
 
 import numpy as np
@@ -393,12 +393,12 @@ def _format_samples(
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Helper function for preparing `samples` read from the chunk engine in the way the format the user expects."""
 
-    samples = index.apply(samples)
+    samples = index.apply(samples)  # type: ignore
 
     if aslist and all(map(np.isscalar, samples)):
         samples = list(arr.item() for arr in samples)
 
-    samples = index.apply_squeeze(samples)
+    samples = index.apply_squeeze(samples)  # type: ignore
 
     if aslist:
         return samples

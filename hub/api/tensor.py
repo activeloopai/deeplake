@@ -1,4 +1,4 @@
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
 

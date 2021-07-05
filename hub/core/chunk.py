@@ -14,7 +14,7 @@ class Chunk(Cachable):
         self,
         encoded_shapes: np.ndarray = None,
         encoded_byte_positions: np.ndarray = None,
-        data: memoryview = None,
+        data: bytearray = None,
     ):
         """Blob storage of bytes. Tensors are stored as chunks. Tensor data is split into chunks of roughly the same size.
         `ChunkEngine` handles the creation of `Chunk`s and the delegation of samples into them.
@@ -36,14 +36,16 @@ class Chunk(Cachable):
 
         Args:
             encoded_shapes (np.ndarray): Used to construct `ShapeEncoder` if this chunk already exists. Defaults to None.
-            encoded_byte_positions (np.ndarray): Used to construct `BytePositionsEncoder` if this chunk already exists. Defaults to None.
-            data (memoryview): If this chunk already exists, data should be set. Defaults to None.
+            encoded_byte_positions (np.ndarray): Used to construct `BytePositionsEncoder` if this chunk already exists.
+                Used by `frombuffer`. Defaults to None.
+            data (bytearray): If this chunk already exists, data should be set.
+                Used by `frombuffer`. Defaults to None.
         """
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: Union[bytearray, memoryview] = data or bytearray()
+        self._data: bytearray = data or bytearray()
 
     @property
     def memoryview_data(self):
@@ -59,9 +61,7 @@ class Chunk(Cachable):
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
-    def append_sample(
-        self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]
-    ) -> Tuple["Chunk"]:
+    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]):
         """Store `buffer` in this chunk.
 
         Args:
@@ -84,12 +84,12 @@ class Chunk(Cachable):
         self._data += buffer
         self.update_headers(incoming_num_bytes, shape)
 
-    def update_headers(self, incoming_num_bytes: int, sample_shape: Sequence[int]):
+    def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
         """Updates this chunk's header. A chunk should NOT exist without headers.
 
         Args:
             incoming_num_bytes (int): The length of the buffer that was used to
-            sample_shape (Sequence[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
+            sample_shape (Tuple[int]): Every sample that `num_samples` symbolizes is considered to have `sample_shape`.
 
         Raises:
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
@@ -128,5 +128,5 @@ class Chunk(Cachable):
     def frombuffer(cls, buffer: bytes):
         bio = BytesIO(buffer)
         npz = np.load(bio)
-
-        return cls(npz["shapes"], npz["byte_positions"], data=npz["data"].tobytes())
+        data = bytearray(npz["data"].tobytes())
+        return cls(npz["shapes"], npz["byte_positions"], data=data)

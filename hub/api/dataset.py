@@ -197,7 +197,7 @@ class Dataset:
             chunk_compression=chunk_compression,
             **kwargs,
         )
-        tensor = Tensor(name, self.storage)
+        tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
         self.meta.tensors.append(name)

@@ -102,7 +102,7 @@ class TensorMeta(Meta):
                     shape,
                 )
 
-    def update(self, shape: Sequence[int], dtype, num_samples: int):
+    def update(self, shape: Tuple[int], dtype, num_samples: int):
         """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
         Note:
             If no samples exist, `min_shape` and `max_shape` are set to this array's shape.

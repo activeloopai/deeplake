@@ -4,7 +4,6 @@ from hub.util.remove_cache import remove_memory_cache
 import pytest
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.tests.common import assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
@@ -195,12 +194,6 @@ def test_pytorch_with_compression(ds: Dataset):
 
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="int32"))
-
-    # make sure data is appropriately compressed
-    assert images.meta.sample_compression == "png"
-    assert labels.meta.sample_compression == UNCOMPRESSED
-    assert_all_samples_have_expected_compression(images, ["png"] * 16)
-    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
     if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
