@@ -28,6 +28,7 @@ SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
 def is_uniform_sequence(samples):
+    """Determines if a sequence of samples has uniform type and shape, allowing it to be vectorized by `ChunkEngine.extend`."""
     if len(set(map(type, samples))) != 1:
         # Cannot vectorize sequence with inconsistent types
         return False
