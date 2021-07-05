@@ -158,7 +158,21 @@ class StorageProvider(ABC, MutableMapping):
         """Delete the contents of the provider."""
 
     def get_cachable(self, path: str, expected_class):
-        # TODO: docstring
+        """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
+        this function will read it back into object form.
+
+        Args:
+            path (str): Path to the stored cachable.
+            expected_class ([type]): The expected subclass of `Cachable`.
+
+        Raises:
+            ValueError: If the incorrect `expected_class` was provided.
+            ValueError: If the type of the data at `path` is invalid.
+
+        Returns:
+            An instance of `expected_class` populated with the data.
+        """
+
         item = self[path]
 
         if isinstance(item, Cachable):

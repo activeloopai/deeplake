@@ -47,7 +47,7 @@ class LRUCache(StorageProvider):
         self.next_storage.flush()
 
     def get_cachable(self, path: str, expected_class):
-        # TODO: docstring
+        """Calls the `StorageProvider` baseclasses `get_cachable` method, and keeps the reference in the cache."""
 
         obj = super().get_cachable(path, expected_class)
 
