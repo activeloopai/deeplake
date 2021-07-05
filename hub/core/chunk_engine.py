@@ -383,14 +383,14 @@ class ChunkEngine:
             msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
             if self.tensor_meta.sample_compression == UNCOMPRESSED:
-                msg += "\nYour data is actually uncompressed, so setting the `sample_compression` variable in `Datset.create_tensor` could help here!"
+                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)
 
 
 def _format_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
-) -> Union[np.ndarray, Sequence[np.ndarray]]:
+) -> Union[np.ndarray, List[np.ndarray]]:
     """Helper function for preparing `samples` read from the chunk engine in the way the format the user expects."""
 
     samples = index.apply(samples)
