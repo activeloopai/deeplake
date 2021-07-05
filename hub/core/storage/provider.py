@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
+from hub.core.storage.cachable import Cachable
 from typing import Optional
 
 from hub.constants import BYTE_PADDING
@@ -155,3 +156,20 @@ class StorageProvider(ABC, MutableMapping):
     @abstractmethod
     def clear(self):
         """Delete the contents of the provider."""
+
+    def get_cachable(self, path: str, expected_class):
+        # TODO: docstring
+        item = self[path]
+
+        if isinstance(item, Cachable):
+            if type(item) != expected_class:
+                raise ValueError(
+                    f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
+                )
+            return item
+
+        if isinstance(item, (bytes, memoryview)):
+            obj = expected_class.frombuffer(item)
+            return obj
+
+        raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
