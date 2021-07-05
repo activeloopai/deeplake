@@ -1,11 +1,10 @@
+from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
-from hub.constants import UNCOMPRESSED
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import get_base_storage
-import posixpath
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union
@@ -45,7 +44,7 @@ def _read_and_store_chunk(
     if isinstance(storage, tuple):
         state: tuple = storage
         storage = get_s3_storage(state)
-    chunk_path = posixpath.join(key, "chunks", chunk_name)
+    chunk_path = get_chunk_key(key, chunk_name)
     chunk_bytes = storage[chunk_path]
     chunk_size = len(chunk_bytes)
     shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
@@ -78,8 +77,6 @@ class TorchDataset:
         elif isinstance(self.storage, S3Provider):
             self.storage_state_tuple = self.storage.__getstate__()
 
-        # contains meta for each Tensor
-        self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
         index_value = dataset.index.values[0].value
 
         if not isinstance(index_value, slice):
@@ -155,7 +152,11 @@ class TorchDataset:
 
     def _load_all_chunk_engine(self):
         """Creates chunk engine for all tensors."""
-        return {key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 0)) for key in self.keys}
+        # creating a cache around base storage to pass to ChunkEngine
+        return {
+            key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 0))
+            for key in self.keys
+        }
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
@@ -213,17 +214,24 @@ class TorchDataset:
         chunk_engine = self.all_chunk_engines[key]
         while len(chunk_names) < self.workers and index < len(self):
             actual_index = self.index_offset + index
-            chunks = chunk_engine.chunk_id_encoder.get_name_for_chunk(actual_index)
+            chunk_id = chunk_engine.chunk_id_encoder[actual_index]
+            chunk = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)
             # todo, change to chunk_names.update once chunks returns sequence instead of single string
-            chunk_names.add(chunks)
+            chunk_names.add(chunk)
             index += 1
         return chunk_names
 
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
         chunk_engine = self.all_chunk_engines[key]
-        return chunk_engine.read_sample_from_chunk(int, chunk)
+        value = chunk_engine.read_sample_from_chunk(index, chunk)
 
+        # typecast if incompatible with pytorch
+        if value.dtype == "uint16":
+            value = value.astype("int32")
+        elif value.dtype == "uint32" or value.dtype == "uint64":
+            value = value.astype("int64")
+        return value
 
     def _get_data_from_chunks(
         self,
@@ -241,13 +249,16 @@ class TorchDataset:
             chunk_names, shared_memory_names, chunk_sizes
         ):
             self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk_map[chunk_name] = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            chunk = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
         for i in range(index, len(self)):
             actual_index = self.index_offset + i
             # TODO change this once it returns list/set of str
-            chunk_name = self.all_chunk_engines[key].chunk_id_encoder.get_name_for_chunk(actual_index)
+            chunk_engine = self.all_chunk_engines[key]
+            chunk_id = chunk_engine.chunk_id_encoder[actual_index]
+            chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)
             if chunk_name not in chunk_map:
                 self.last_index_meta[key] = i - 1
                 return

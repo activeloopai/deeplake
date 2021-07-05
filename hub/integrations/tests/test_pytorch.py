@@ -108,48 +108,6 @@ def test_pytorch_small(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
-def test_pytorch_large(ds):
-    import torch
-
-    with ds:
-        ds.create_tensor("image")
-        arr = np.array(
-            [
-                np.ones((2200, 2200)),
-                2 * np.ones((2200, 2200)),
-                3 * np.ones((2200, 2200)),
-            ]
-        )
-        ds.image.extend(arr)
-        ds.create_tensor("classlabel")
-        ds.classlabel.extend(np.array([i for i in range(10)]))
-
-    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
-        with pytest.raises(DatasetUnsupportedPytorch):
-            ptds = ds.pytorch(workers=2)
-        return
-
-    ptds = ds.pytorch(workers=2)
-
-    # always use num_workers=0, when using hub workers
-    dl = torch.utils.data.DataLoader(
-        ptds,
-        batch_size=1,
-        num_workers=0,
-    )
-    for i, batch in enumerate(dl):
-        actual_image = batch["image"].numpy()
-        expected_image = (i + 1) * np.ones((1, 2200, 2200))
-
-        actual_label = batch["classlabel"].numpy()
-        expected_label = (i) * np.ones((1,))
-
-        np.testing.assert_array_equal(actual_image, expected_image)
-        np.testing.assert_array_equal(actual_label, expected_label)
-
-
-@requires_torch
-@parametrize_all_dataset_storages
 def test_pytorch_transform(ds):
     import torch
 
@@ -194,13 +152,11 @@ def test_pytorch_with_compression(ds: Dataset):
         labels = ds.create_tensor("labels", htype="class_label")
 
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
-        labels.extend(np.ones((16, 1), dtype="int32"))
+        labels.extend(np.ones((16, 1), dtype="uint32"))
 
     # make sure data is appropriately compressed
     assert images.meta.sample_compression == "png"
     assert labels.meta.sample_compression == UNCOMPRESSED
-    assert_all_samples_have_expected_compression(images, ["png"] * 16)
-    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
     if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -214,6 +170,10 @@ def test_pytorch_with_compression(ds: Dataset):
         T = batch["labels"].numpy()
         assert X.shape == (1, 100, 100, 3)
         assert T.shape == (1, 1)
+
+    # TODO this fails right now, should work once the function is updated
+    assert_all_samples_have_expected_compression(images, ["png"] * 16)
+    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
 
 
 @requires_torch
@@ -241,41 +201,3 @@ def test_pytorch_small_old(ds):
         np.testing.assert_array_equal(
             batch["image2"].numpy(), i * np.ones((1, 100, 100))
         )
-
-
-@requires_torch
-@parametrize_all_dataset_storages
-def test_pytorch_large_old(ds):
-    import torch
-
-    # don't need to test with compression because it uses the API (which is tested for iteration + compression)
-    with ds:
-        ds.create_tensor("image")
-        arr = np.array(
-            [
-                np.ones((2200, 2200)),
-                2 * np.ones((2200, 2200)),
-                3 * np.ones((2200, 2200)),
-            ],
-            dtype="uint8",
-        )
-        ds.image.extend(arr)
-        ds.create_tensor("classlabel")
-        ds.classlabel.extend(np.array([i for i in range(10)], dtype="uint32"))
-
-    # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    ptds = dataset_to_pytorch(ds, workers=2, python_version_warning=False)
-    dl = torch.utils.data.DataLoader(
-        ptds,
-        batch_size=1,
-        num_workers=0,
-    )
-    for i, batch in enumerate(dl):
-        actual_image = batch["image"].numpy()
-        expected_image = (i + 1) * np.ones((1, 2200, 2200))
-
-        actual_label = batch["classlabel"].numpy()
-        expected_label = (i) * np.ones((1,))
-
-        np.testing.assert_array_equal(actual_image, expected_image)
-        np.testing.assert_array_equal(actual_label, expected_label)
