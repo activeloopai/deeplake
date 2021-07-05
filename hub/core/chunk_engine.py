@@ -47,7 +47,11 @@ class ChunkEngine:
     def __init__(
         self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
     ):
-        """Handles creating chunks and filling them with incoming samples.
+        """Handles creating `Chunk`s and filling them with incoming samples.
+
+        Data delegation:
+            All samples must live inside a single chunk. A chunk holds the information required to
+            decompose a given sample
 
         Args:
             key (str): Tensor key.
@@ -246,41 +250,48 @@ class ChunkEngine:
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
         """Reads samples from chunks and returns as numpy arrays. If `aslist=True`, returns a sequence of numpy arrays."""
 
-        tensor_meta = self.tensor_meta
-
-        expect_compressed = tensor_meta.sample_compression != UNCOMPRESSED
-        dtype = tensor_meta.dtype
-
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            chunk_id = enc.__getitem__(global_sample_index)
+            chunk_id = enc[global_sample_index]
             chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
             chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk: Chunk = self.cache.get_cachable(chunk_key, Chunk)
-
-            buffer = chunk.memoryview_data
-            local_sample_index = enc.get_local_sample_index(global_sample_index)
-            shape = chunk.shapes_encoder[local_sample_index]
-            sb, eb = chunk.byte_positions_encoder[local_sample_index]
+            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            sample = self.read_sample_from_chunk(global_sample_index, chunk)
+            shape = sample.shape
 
             if not aslist and last_shape is not None:
                 if shape != last_shape:
                     raise DynamicTensorNumpyError(self.key, index, "shape")
 
-            buffer = buffer[sb:eb]
-            if expect_compressed:
-                sample = decompress_array(buffer, shape)
-            else:
-                sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
             samples.append(sample)
-
             last_shape = shape
 
         return _format_samples(samples, index, aslist)
+
+    def read_sample_from_chunk(self, global_sample_index: int, chunk: Chunk):
+        # TODO: docstring
+        tensor_meta = self.tensor_meta
+        expect_compressed = tensor_meta.sample_compression != UNCOMPRESSED
+        dtype = tensor_meta.dtype
+
+        enc = self.chunk_id_encoder
+
+        buffer = chunk.memoryview_data
+        local_sample_index = enc.get_local_sample_index(global_sample_index)
+        shape = chunk.shapes_encoder[local_sample_index]
+        sb, eb = chunk.byte_positions_encoder[local_sample_index]
+
+        buffer = buffer[sb:eb]
+        if expect_compressed:
+            sample = decompress_array(buffer, shape)
+        else:
+            sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+
+        return sample
 
     def _check_sample_size(self, num_bytes: int):
         if num_bytes > self.min_chunk_size_target:
