@@ -4,7 +4,6 @@ from typing import Optional, Sequence, Union, Tuple
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
-    TensorDoesNotExistError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -51,7 +50,7 @@ class ChunkEngine:
 
         Data delegation:
             All samples must live inside a single chunk. A chunk holds the information required to
-            decompose a given sample
+            decompose a given sample  # TODO: finish docstring
 
         Args:
             key (str): Tensor key.
@@ -177,11 +176,21 @@ class ChunkEngine:
     def _synchronize_last_chunk(
         self, num_new_samples: int, num_new_bytes: int, shape: Tuple[int]
     ):
-        # TODO: docstring
+        """For the last chunk, registers samples with the chunk ID encoder and updates the headers.
+        This should be called every time new sample(s) get put into the last chunk.
+
+        Args:
+            num_new_samples (int): Samples that have already been added to the last chunk.
+            num_new_bytes (int): The length of the buffer added to the last chunk.
+            shape (Tuple[int]): Shape of the samples (requires all samples to have the same shape for this sync).
+        """
+
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_new_samples)
         self.last_chunk.update_headers(num_new_bytes, num_new_samples, shape)
 
     def _create_new_chunk(self):
+        """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
+
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
@@ -272,8 +281,11 @@ class ChunkEngine:
 
         return _format_samples(samples, index, aslist)
 
-    def read_sample_from_chunk(self, global_sample_index: int, chunk: Chunk):
-        # TODO: docstring
+    def read_sample_from_chunk(
+        self, global_sample_index: int, chunk: Chunk
+    ) -> np.ndarray:
+        """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
+
         tensor_meta = self.tensor_meta
         expect_compressed = tensor_meta.sample_compression != UNCOMPRESSED
         dtype = tensor_meta.dtype
