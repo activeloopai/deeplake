@@ -96,14 +96,13 @@ class Dataset:
 
         self.tensors: Dict[str, Tensor] = {}
 
-        
         self._token = token
 
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=token)
-            
+
         self.public = public
         self._load_meta()
 
