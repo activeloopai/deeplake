@@ -47,14 +47,37 @@ class LRUCache(StorageProvider):
         self.next_storage.flush()
 
     def get_cachable(self, path: str, expected_class):
-        """Calls the `StorageProvider` baseclasses `get_cachable` method, and keeps the reference in the cache."""
+        """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
+        this function will read it back into object form & keep the object in cache.
 
-        obj = super().get_cachable(path, expected_class)
+        Args:
+            path (str): Path to the stored cachable.
+            expected_class (callable): The expected subclass of `Cachable`.
 
-        if len(obj) <= self.cache_size:
-            self._insert_in_cache(path, obj)
+        Raises:
+            ValueError: If the incorrect `expected_class` was provided.
+            ValueError: If the type of the data at `path` is invalid.
 
-        return obj
+        Returns:
+            An instance of `expected_class` populated with the data.
+        """
+
+        item = self[path]
+
+        if isinstance(item, Cachable):
+            if type(item) != expected_class:
+                raise ValueError(
+                    f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
+                )
+            return item
+
+        if isinstance(item, (bytes, memoryview)):
+            obj = expected_class.frombuffer(item)
+            if len(obj) <= self.cache_size:
+                self._insert_in_cache(path, obj)
+            return obj
+
+        raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
