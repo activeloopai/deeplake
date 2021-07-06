@@ -43,18 +43,22 @@ class TensorMeta(Meta):
         **kwargs,
     ):
         """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
+
         Note:
             Tensor metadata that is automatically synchronized with `storage`. For more details, see the `Meta` class.
             Auto-populates `required_meta` that `Meta` accepts as an argument.
+
         Args:
             key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
             storage (StorageProvider): Destination of this meta.
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+
         Raises:
             TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
             TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
             NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
+
         Returns:
             TensorMeta: Tensor meta object.
         """
@@ -102,7 +106,7 @@ class TensorMeta(Meta):
                     shape,
                 )
 
-    def update(self, shape: Sequence[int], dtype, num_samples: int):
+    def update(self, shape: Tuple[int], dtype, num_samples: int):
         """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
         Note:
             If no samples exist, `min_shape` and `max_shape` are set to this array's shape.
@@ -139,6 +143,10 @@ class TensorMeta(Meta):
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
+
+    def as_dict(self):
+        # TODO: tensor meta as_dict
+        raise NotImplementedError
 
 
 def _required_meta_from_htype(htype: str) -> dict:

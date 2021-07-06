@@ -125,6 +125,7 @@ def test_stringify_with_path(local_ds):
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
+    assert len(ds) == 32
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 

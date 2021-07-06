@@ -4,7 +4,6 @@ from hub.util.remove_cache import remove_memory_cache
 import pytest
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.tests.common import assert_all_samples_have_expected_compression
 from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np

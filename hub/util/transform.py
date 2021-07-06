@@ -1,7 +1,7 @@
 from hub.api.dataset import Dataset
 from hub.util.exceptions import InvalidTransformOutputError
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
-from hub.util.keys import get_chunk_key, get_index_meta_key, get_tensor_meta_key
+from hub.util.keys import get_chunk_key
 from hub.core.storage.provider import StorageProvider
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE

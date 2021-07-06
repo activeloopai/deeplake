@@ -3,6 +3,7 @@ from hub.core.storage.provider import StorageProvider
 import numpy as np
 
 
+# these constants are for accessing the data layout. see the `ShapeEncoder` docstring.
 SHAPE_ENCODING_DTYPE = np.uint64
 LAST_INDEX_INDEX = -1
 
@@ -79,7 +80,7 @@ class ShapeEncoder:
             encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
         """
 
-        self._encoded_shapes = encoded_shapes
+        self._encoded_shapes: np.ndarray = encoded_shapes  # type: ignore
         if self._encoded_shapes is None:
             self._encoded_shapes = np.array([], dtype=SHAPE_ENCODING_DTYPE)
 
@@ -97,8 +98,6 @@ class ShapeEncoder:
 
     @property
     def nbytes(self):
-        if len(self._encoded_shapes) == 0:
-            return 0
         return self._encoded_shapes.nbytes
 
     @property

@@ -1,6 +1,10 @@
+from hub.core.storage.provider import StorageProvider
 import posixpath
 
 from hub import constants
+
+
+"""key methods"""
 
 
 def get_chunk_key(key: str, chunk_name: str) -> str:
@@ -26,5 +30,12 @@ def get_chunk_id_encoder_key(key: str) -> str:
     )
 
 
-def get_index_meta_key(key: str) -> str:
-    return posixpath.join(key, constants.INDEX_META_FILENAME)
+"""existence methods"""
+
+
+def dataset_exists(storage: StorageProvider) -> bool:
+    return get_dataset_meta_key() in storage
+
+
+def tensor_exists(key: str, storage: StorageProvider) -> bool:
+    return get_tensor_meta_key(key) in storage

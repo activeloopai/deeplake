@@ -1,6 +1,5 @@
-from hub.core.tensor import create_tensor, tensor_exists
+from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -16,7 +15,7 @@ from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
-from hub.util.keys import get_dataset_meta_key
+from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -197,7 +196,7 @@ class Dataset:
             chunk_compression=chunk_compression,
             **kwargs,
         )
-        tensor = Tensor(name, self.storage)
+        tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
         self.meta.tensors.append(name)
@@ -222,27 +221,24 @@ class Dataset:
     def _load_meta(self):
         meta_key = get_dataset_meta_key()
 
-        if meta_key in self.storage:
-            # dataset exists
-
+        if dataset_exists(self.storage):
             logger.info(f"Hub Dataset {self.path} successfully loaded.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+
         elif len(self.storage) > 0:
             # dataset does not exist, but the path was not empty
-
             raise PathNotEmptyException
-        else:
-            # dataset does not exist
 
+        else:
             self.meta = DatasetMeta()
             self.storage[meta_key] = self.meta
 
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.__dict__, public=self.public
+                    self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
                 )
 
     @property

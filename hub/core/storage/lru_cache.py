@@ -247,7 +247,7 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         self._free_up_space(len(value))
-        self.cache_storage[path] = value
+        self.cache_storage[path] = value  # type: ignore
         self.cache_used += len(value)
         self.lru_sizes[path] = len(value)
 

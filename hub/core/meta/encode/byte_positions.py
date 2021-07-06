@@ -5,6 +5,7 @@ import numpy as np
 
 POSITION_ENCODING_DTYPE = np.uint64
 
+# these constants are for accessing the data layout. see the `BytePositionsEncoder` docstring.
 NUM_BYTES_INDEX = 0
 START_BYTE_INDEX = 1
 LAST_INDEX_INDEX = 2
