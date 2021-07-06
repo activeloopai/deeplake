@@ -44,8 +44,8 @@ def _read_and_store_chunk(
     if isinstance(storage, tuple):
         state: tuple = storage
         storage = get_s3_storage(state)
-    chunk_path = get_chunk_key(key, chunk_name)
-    chunk_bytes = storage[chunk_path]
+    chunk_key = get_chunk_key(key, chunk_name)
+    chunk_bytes = storage[chunk_key]
     chunk_size = len(chunk_bytes)
     shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
@@ -91,8 +91,8 @@ class TorchDataset:
 
         self.index_offset = index_value.start or 0
 
-        # contains chunk_engine for each Tensor
-        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engine()
+        # mapping of each tensor to corresponding chunk_engine 
+        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
@@ -150,8 +150,9 @@ class TorchDataset:
                 "'torch' should be installed to convert the Dataset into pytorch format"
             )
 
-    def _load_all_chunk_engine(self):
-        """Creates chunk engine for all tensors."""
+    def _load_all_chunk_engines(self):
+        """Loads chunk engine for all tensors."""
+
         # creating a cache around base storage to pass to ChunkEngine
         return {
             key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 0))
