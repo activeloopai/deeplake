@@ -25,7 +25,7 @@
 ## Why use Hub?
 **Data scientists spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. Hub streamlines these tasks so that users can focus on building amazing machine learning models 💻.**
 
-Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and it contains powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
+Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and we're are currently adding powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
 
 Hub is best suited for unstructured datasets such as images, videos, point clouds, or text. It works locally or on any cloud.
 
@@ -36,26 +36,23 @@ Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 
 * Easy dataset creation and hosting on Activeloop Cloud or S3
 * Rapid dataset streaming to any machine
-* Simple dataset integration to PyTorch with no boilerplate code
+* Simple dataset integration to PyTorch and TensorFlow with no boilerplate code
+
+### Coming Soon
+
+* Datasets hosting on Google Cloud and Azure
+* Dataset version control
+* Dataset query using text-based query language
+* Loading of data in random order without having to download the entire dataset
 * Dataset query using custom filter functions without having to download the entire dataset
 * Rapid data processing using transforms on distributed compute
-* Linear data pipelines
+* Data pipelines
 * Rapid [visualization](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) of image datasets via integration with Activeloop Platform
  <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
     </br>
-Visualization of a dataset uploaded to Hub via <a href = "https://app.activeloop.ai/datasets/popular?utm_source=github&utm_medium=readme&utm_campaign=desc">app.activeloop.ai</a>.
-</p>
-
-### Coming Soon
-
-* Datasets hosting on Google Cloud and Azure
-* Datasets integration to TensorFlow
-* Dataset version control
-* Dataset query using text-based query language
-* Loading of data in random order without having to download the entire dataset
-* DAG and continuous pipelines
+Visualization of a dataset uploaded to Hub
 
 ## How does Hub work?
 
