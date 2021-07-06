@@ -21,6 +21,14 @@ def dataset_to_pytorch(
     pin_memory: Optional[bool] = False,
     python_version_warning: bool = True,
 ):
+    global torch
+    try:
+        import torch
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException(
+            "'torch' should be installed to convert the Dataset into pytorch format"
+        )
+
     dataset.flush()
     pytorch_ds = TorchDataset(
         dataset,
@@ -28,6 +36,11 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
+    # TODO add pytorch for num_workers > 1
+    if num_workers > 0:
+        raise NotImplementedError(
+            "Multiproccessed pytorch training is not support for Python version < 3.8. Please set num_workers equal to 0 or upgrade to python 3.8."
+        )
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         num_workers=num_workers,
@@ -46,13 +59,6 @@ class TorchDataset:
         tensors: Optional[Sequence[str]] = None,
         python_version_warning: bool = True,
     ):
-        global torch
-        try:
-            import torch
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException(
-                "'torch' should be installed to convert the Dataset into pytorch format"
-            )
 
         if python_version_warning:
             warnings.warn(
@@ -66,6 +72,7 @@ class TorchDataset:
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
+
         self.transform = transform
         self.tensor_keys: List[str]
         if tensors is not None:
