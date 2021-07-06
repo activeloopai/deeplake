@@ -13,7 +13,7 @@ import posixpath
 username = open("username.txt", "r").read()
 
 
-@parametrize(dataset=datasets, use_transform=[True, False])
+@parametrize(dataset=datasets, use_transform=[False])
 def upload_local(dataset, use_transform):
     ds_local = download(dataset)
     cloud_path = f"hub://{username}/{dataset}"

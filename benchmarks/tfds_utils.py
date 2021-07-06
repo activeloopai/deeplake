@@ -37,9 +37,10 @@ def download(dataset: str) -> hub.Dataset:
     ds = hub.Dataset(hub_path)
     hub.Dataset.delete(ds)
     ds = hub.Dataset(hub_path)
-    for sample in data:
-        for col in sample:
-            if col not in ds.tensors:
-                ds.create_tensor(col)
-            ds[col].append(sample[col])
+    with ds:
+        for sample in data:
+            for col in sample:
+                if col not in ds.tensors:
+                    ds.create_tensor(col)
+                ds[col].append(sample[col])
     return ds
