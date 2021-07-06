@@ -3,6 +3,7 @@ from hub.core.storage.provider import StorageProvider
 import numpy as np
 
 
+# these constants are for accessing the data layout. see the `ShapeEncoder` docstring.
 SHAPE_ENCODING_DTYPE = np.uint64
 LAST_INDEX_INDEX = -1
 

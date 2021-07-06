@@ -14,10 +14,10 @@ class Chunk(Cachable):
         self,
         encoded_shapes: np.ndarray = None,
         encoded_byte_positions: np.ndarray = None,
-        data: bytearray = None,
+        data: memoryview = None,
     ):
-        """Blob storage of bytes. Tensors are stored as chunks. Tensor data is split into chunks of roughly the same size.
-        `ChunkEngine` handles the creation of `Chunk`s and the delegation of samples into them.
+        """Blob storage of bytes. Tensor data is split into chunks of roughly the same size.
+        `ChunkEngine` handles the creation of `Chunk`s and the delegation of samples to them.
 
         Data layout:
             Every chunk has data and a header.
@@ -31,8 +31,7 @@ class Chunk(Cachable):
                 All samples this chunk contains are added into `_data` in bytes form directly adjacent to one another, without
                 delimeters.
 
-            To see how this chunk is composed into bytes, check out `tobytes`.
-            To see how this chunk is constructed from bytes, checkout `frombuffer`.
+            See `tobytes` and `frombytes` for more on how chunks are serialized
 
         Args:
             encoded_shapes (np.ndarray): Used to construct `ShapeEncoder` if this chunk already exists. Defaults to None.
@@ -45,17 +44,21 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: bytearray = data or bytearray()
+        self._data: Union[memoryview, bytearray] = data or bytearray()
 
     @property
     def memoryview_data(self):
+        if isinstance(self._data, memoryview):
+            return self._data
         return memoryview(self._data)
 
     @property
     def num_data_bytes(self):
         return len(self._data)
 
-    def is_under_min_space(self, min_data_bytes_target: int):
+    def is_under_min_space(self, min_data_bytes_target: int) -> bool:
+        """If this chunk's data is less than `min_data_bytes_target`, returns True."""
+
         return self.num_data_bytes < min_data_bytes_target
 
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
@@ -79,6 +82,10 @@ class Chunk(Cachable):
             raise FullChunkError(
                 f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
+
+        # `_data` will be a `memoryview` if `frombuffer` is called.
+        if isinstance(self._data, memoryview):
+            self._data = bytearray(self._data)
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data += buffer
@@ -128,5 +135,5 @@ class Chunk(Cachable):
     def frombuffer(cls, buffer: bytes):
         bio = BytesIO(buffer)
         npz = np.load(bio)
-        data = bytearray(npz["data"].tobytes())
+        data = memoryview(npz["data"].tobytes())
         return cls(npz["shapes"], npz["byte_positions"], data=data)
