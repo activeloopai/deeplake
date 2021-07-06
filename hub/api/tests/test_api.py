@@ -196,8 +196,10 @@ def test_scalar_samples(ds: Dataset):
     assert tensor.meta.dtype == None
 
     # first sample sets dtype
-    tensor.append(5)
-    assert tensor.meta.dtype == "int64"
+    numeric_literal = 5
+    expected_dtype = np.array(numeric_literal).dtype.name  # fix for win32
+    tensor.append(numeric_literal)
+    assert tensor.meta.dtype == expected_dtype
 
     with pytest.raises(TensorDtypeMismatchError):
         tensor.append(5.1)
