@@ -1,6 +1,12 @@
+from hub.core.storage.memory import MemoryProvider
+from hub.util.remove_cache import get_base_storage
 from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
 import warnings
-from hub.util.exceptions import ModuleNotInstalledException, TensorDoesNotExistError
+from hub.util.exceptions import (
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+    TensorDoesNotExistError,
+)
 from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 
 
@@ -54,6 +60,12 @@ class TorchDataset:
             )
 
         self.dataset = dataset
+
+        base_storage = get_base_storage(dataset.storage)
+        if isinstance(base_storage, MemoryProvider):
+            raise DatasetUnsupportedPytorch(
+                "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
+            )
         self.transform = transform
         self.tensor_keys: List[str]
         if tensors is not None:
