@@ -1,3 +1,4 @@
+from hub.constants import MB
 from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
@@ -185,7 +186,7 @@ class TorchDataset:
 
         # creating a cache around base storage to pass to ChunkEngine
         return {
-            key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 0))
+            key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 16 * MB))
             for key in self.keys
         }
 
