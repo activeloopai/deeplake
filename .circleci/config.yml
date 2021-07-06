@@ -194,6 +194,12 @@ commands:
         type: boolean
         default: true
     steps:
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                command: codecov-upload
+                shell: bash.exe
       - when:
           condition: << parameters.unix-like >>
           steps:
