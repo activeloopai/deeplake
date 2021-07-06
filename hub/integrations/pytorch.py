@@ -254,7 +254,7 @@ class TorchDataset:
             value = value.astype("int32")
         elif value.dtype == "uint32" or value.dtype == "uint64":
             value = value.astype("int64")
-        return value
+        return torch.tensor(value)
 
     def _get_data_from_chunks(
         self,
