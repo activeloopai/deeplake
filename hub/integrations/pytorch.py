@@ -36,6 +36,14 @@ def get_s3_storage(state: tuple) -> S3Provider:
     s3.__setstate__(state)
     return s3
 
+def _import_torch():
+    global torch
+    try:
+        import torch
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException(
+            "'torch' should be installed to convert the Dataset into pytorch format"
+        )
 
 def _read_and_store_chunk(
     chunk_name: str,
@@ -64,11 +72,17 @@ def _read_and_store_chunk(
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
-    workers: int = 1,
+    num_workers: int = 1,
     tensors: Optional[Sequence[str]] = None,
+    batch_size: Optional[int] = 1,
+    drop_last: Optional[bool] = False,
+    collate_fn: Optional[Callable] = None,
+    pin_memory: Optional[bool] = False,
 ):
     dataset.flush()
-    return TorchDataset(dataset, transform, workers, tensors)
+    _import_torch()
+    pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
+    return torch.utils.data.DataLoader(pytorch_ds, batch_size=batch_size, drop_last=drop_last, collate_fn=collate_fn, pin_memory=pin_memory)
 
 
 class TorchDataset:
@@ -76,13 +90,12 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
-        workers: int = 1,
+        num_workers: int = 1,
         tensors: Optional[Sequence[str]] = None,
     ):
-        self._import_torch()
         self.transform = transform
-        self.workers: int = workers
-        self.map = ProcessPool(nodes=workers).map
+        self.num_workers: int = num_workers
+        self.map = ProcessPool(nodes=num_workers).map
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
 
@@ -172,15 +185,6 @@ class TorchDataset:
         return self.transform(sample) if self.transform else sample
 
     # helper functions
-    def _import_torch(self):
-        global torch
-        try:
-            import torch
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException(
-                "'torch' should be installed to convert the Dataset into pytorch format"
-            )
-
     def _load_all_chunk_engines(self):
         """Loads chunk engine for all tensors."""
 
@@ -212,7 +216,7 @@ class TorchDataset:
 
         chunk_engine = self.all_chunk_engines[key]
         chunk_names = chunk_engine.get_chunk_names(
-            index + self.index_offset, len(self) + self.index_offset, self.workers
+            index + self.index_offset, len(self) + self.index_offset, self.num_workers
         )
 
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
