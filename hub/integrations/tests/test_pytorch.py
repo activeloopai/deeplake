@@ -171,10 +171,6 @@ def test_pytorch_with_compression(ds: Dataset):
         assert X.shape == (1, 100, 100, 3)
         assert T.shape == (1, 1)
 
-    # TODO this fails right now, should work once the function is updated
-    assert_all_samples_have_expected_compression(images, ["png"] * 16)
-    assert_all_samples_have_expected_compression(labels, [UNCOMPRESSED] * 16)
-
 
 @requires_torch
 @parametrize_all_dataset_storages

@@ -177,7 +177,12 @@ class TorchDataset:
         del self.all_index_value_maps[key]
         old_shared_memory_names = self.all_shared_memory_names[key]
         clear_shared_memory(old_shared_memory_names)
-        chunk_names = list(self._get_chunk_names(index, key))
+
+        chunk_engine = self.all_chunk_engines[key]
+        chunk_names = chunk_engine.get_chunk_names(
+            index + self.index_offset, len(self) + self.index_offset, self.workers
+        )
+
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
         clear_shared_memory(shared_memory_names)
 
@@ -206,20 +211,6 @@ class TorchDataset:
             self.last_chunk_num_generated += 1
             ls.append(f"al_{self.last_chunk_num_generated}")
         return ls
-
-    def _get_chunk_names(self, index: int, key: str):
-        # TODO move into core
-        """Gets chunk names for elements starting from index to read in parallel"""
-        chunk_names: Set[str] = set()
-        chunk_engine = self.all_chunk_engines[key]
-        while len(chunk_names) < self.workers and index < len(self):
-            actual_index = self.index_offset + index
-            chunk_id = chunk_engine.chunk_id_encoder[actual_index]
-            chunk = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)
-            # todo, change to chunk_names.update once chunks returns sequence instead of single string
-            chunk_names.add(chunk)
-            index += 1
-        return chunk_names
 
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
