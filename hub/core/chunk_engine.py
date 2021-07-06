@@ -1,6 +1,6 @@
 from hub.core.compression import decompress_array
 from math import ceil
-from typing import List, Optional, Sequence, Union, Tuple
+from typing import Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
@@ -386,6 +386,32 @@ class ChunkEngine:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)
+
+    def get_chunk_names(
+        self, sample_index: int, last_index: int, target_chunk_count: int
+    ) -> Set[str]:
+        """Fetches a set of chunk names in which data starting from sample_index is contained.
+            This is used by Pytorch integration.
+
+        Args:
+            sample_index: The index starting from which chunk names need to be fetched.
+            last_index: The last index till which chunk names need to be fetched.
+            target_chunk_count: The target number of chunk names required. The actual size of the returned set may be:-
+                a) Less than target_chunk_count: If there are no more chunks to fetch.
+                b) More than target_chunk_count: If the last chunk filling up target_chunk_count is a partial chunk, the remaining chunks are fetched.
+                c) Equal to the target_chunk_count: In all other cases.
+
+        Returns:
+            Set of chunk names.
+        """
+        chunk_names: Set[str] = set()
+        while len(chunk_names) < target_chunk_count and sample_index < last_index:
+            chunk_id = self.chunk_id_encoder[sample_index]
+            chunk = self.chunk_id_encoder.name_from_id(chunk_id)
+            # todo, change to chunk_names.update once chunks returns sequence instead of single string
+            chunk_names.add(chunk)
+            sample_index += 1
+        return chunk_names
 
 
 def _format_samples(

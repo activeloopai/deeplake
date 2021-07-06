@@ -1,18 +1,11 @@
 from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 
-from hub.util.keys import get_tensor_meta_key
+from hub.util.keys import get_tensor_meta_key, tensor_exists
 from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
 )
-
-
-def tensor_exists(key: str, storage: StorageProvider) -> bool:
-    """A tensor exists if at the specified `key` and `storage` there is both a tensor meta file and index map."""
-
-    meta_key = get_tensor_meta_key(key)
-    return meta_key in storage
 
 
 def create_tensor(

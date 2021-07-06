@@ -3,7 +3,7 @@ from io import BytesIO
 from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, List
 from uuid import uuid1
 
 import numpy as np
@@ -101,3 +101,9 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> str:
     # TODO: better way of determining the sample has no compression
     except UnidentifiedImageError:
         return UNCOMPRESSED
+
+
+def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
+    """Assert that two lists of numpy arrays are equal"""
+    for idx, (a1, a2) in enumerate(zip(l1, l2)):
+        np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")

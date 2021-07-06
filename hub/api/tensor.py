@@ -1,3 +1,4 @@
+from hub.util.keys import tensor_exists
 from hub.core.sample import Sample  # type: ignore
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
@@ -5,10 +6,8 @@ from hub.util.shape import ShapeInterval
 import numpy as np
 
 from hub.core.chunk_engine import ChunkEngine, SampleValue
-from hub.core.typing import StorageProvider
 from hub.core.storage import LRUCache
 from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
-from hub.core.tensor import tensor_exists
 from hub.core.index import Index
 
 
@@ -54,14 +53,14 @@ class Tensor:
                 0
                 >>> tensor.extend(np.zeros((100, 28, 28, 1)))
                 >>> len(tensor)
-                10
+                100
 
             file input:
                 >>> len(tensor)
                 0
                 >>> tensor.extend([
                         hub.load("path/to/image1"),
-                        hub.load("path/to/image2),
+                        hub.load("path/to/image2"),
                     ])
                 >>> len(tensor)
                 2

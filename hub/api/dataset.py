@@ -1,6 +1,5 @@
-from hub.core.tensor import create_tensor, tensor_exists
+from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
-import warnings
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -16,7 +15,7 @@ from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
-from hub.util.keys import get_dataset_meta_key
+from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -222,27 +221,24 @@ class Dataset:
     def _load_meta(self):
         meta_key = get_dataset_meta_key()
 
-        if meta_key in self.storage:
-            # dataset exists
-
+        if dataset_exists(self.storage):
             logger.info(f"Hub Dataset {self.path} successfully loaded.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+
         elif len(self.storage) > 0:
             # dataset does not exist, but the path was not empty
-
             raise PathNotEmptyException
-        else:
-            # dataset does not exist
 
+        else:
             self.meta = DatasetMeta()
             self.storage[meta_key] = self.meta
 
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.__dict__, public=self.public
+                    self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
                 )
 
     @property
@@ -262,21 +258,49 @@ class Dataset:
         return self._mode
 
     @hub_reporter.record_call
-    def pytorch(self, transform: Optional[Callable] = None, workers: int = 1):
-        """Converts the dataset into a pytorch compatible format.
+    def pytorch(
+        self,
+        transform: Optional[Callable] = None,
+        num_workers: int = 1,
+        tensors: Optional[List[str]] = None,
+        batch_size: Optional[int] = 1,
+        drop_last: Optional[bool] = False,
+        collate_fn: Optional[Callable] = None,
+        pin_memory: Optional[bool] = False,
+    ):
+        """Converts the dataset into a pytorch Dataloader.
 
         Note:
             Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
-            This spins up it's own workers to fetch data, when using with torch.utils.data.DataLoader, set num_workers = 0 to avoid issues.
+            This spins up it's own workers to fetch data.
 
         Args:
-            transform (Callable, optional) : Transformation function to be applied to each sample
-            workers (int): The number of workers to use for fetching data in parallel.
+            transform (Callable, optional) : Transformation function to be applied to each sample.
+            num_workers (int): The number of workers to use for fetching data in parallel.
+            tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects.
+                For example, if the dataset that has "image" and "label" tensors and `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
+            batch_size (int, optional): Number of samples per batch to load. Default value is 1.
+            drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
+                If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
+                Read torch.utils.data.DataLoader docs for more details.
+            collate_fn (Callable, optional): merges a list of samples to form a mini-batch of Tensor(s). Used when using batched loading from a map-style dataset.
+                Read torch.utils.data.DataLoader docs for more details.
+            pin_memory (bool, optional): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
+                Read torch.utils.data.DataLoader docs for more details.
 
         Returns:
-            A dataset object that can be passed to torch.utils.data.DataLoader
+            A torch.utils.data.DataLoader object.
         """
-        return dataset_to_pytorch(self, transform, workers=workers)
+        return dataset_to_pytorch(
+            self,
+            transform,
+            num_workers=num_workers,
+            tensors=tensors,
+            batch_size=batch_size,
+            drop_last=drop_last,
+            collate_fn=collate_fn,
+            pin_memory=pin_memory,
+        )
 
     def _get_total_meta(self):
         """Returns tensor metas all together"""

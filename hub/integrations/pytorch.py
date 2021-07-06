@@ -1,16 +1,20 @@
+from hub.constants import MB
+from hub.util.keys import get_chunk_key
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.chunk import Chunk
+from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
-from hub.core.compression import decompress_array
-from hub.constants import UNCOMPRESSED
-from hub.core.meta.index_meta import IndexMeta
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.util.remove_cache import remove_memory_cache
-from hub.util.join_chunks import join_chunks
-import numpy as np
-import posixpath
+from hub.util.remove_cache import get_base_storage
+from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 from itertools import repeat
 from collections import defaultdict
-from typing import Any, Callable, List, Optional, Set, Dict, Union
-from hub.util.exceptions import DatasetUnsupportedPytorch, ModuleNotInstalledException
+from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Sequence
+from hub.util.exceptions import (
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+    TensorDoesNotExistError,
+)
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
@@ -33,6 +37,16 @@ def get_s3_storage(state: tuple) -> S3Provider:
     return s3
 
 
+def _import_torch():
+    global torch
+    try:
+        import torch
+    except ModuleNotFoundError:
+        raise ModuleNotInstalledException(
+            "'torch' should be installed to convert the Dataset into pytorch format"
+        )
+
+
 def _read_and_store_chunk(
     chunk_name: str,
     shared_memory_name: str,
@@ -46,8 +60,8 @@ def _read_and_store_chunk(
     if isinstance(storage, tuple):
         state: tuple = storage
         storage = get_s3_storage(state)
-    chunk_path = posixpath.join(key, "chunks", chunk_name)
-    chunk_bytes = storage[chunk_path]
+    chunk_key = get_chunk_key(key, chunk_name)
+    chunk_bytes = storage[chunk_key]
     chunk_size = len(chunk_bytes)
     shared_memory = SharedMemory(create=True, size=chunk_size, name=shared_memory_name)
 
@@ -57,20 +71,54 @@ def _read_and_store_chunk(
     return chunk_size
 
 
-def dataset_to_pytorch(dataset, transform: Callable = None, workers: int = 1):
+def dataset_to_pytorch(
+    dataset,
+    transform: Optional[Callable] = None,
+    num_workers: int = 1,
+    tensors: Optional[Sequence[str]] = None,
+    batch_size: Optional[int] = 1,
+    drop_last: Optional[bool] = False,
+    collate_fn: Optional[Callable] = None,
+    pin_memory: Optional[bool] = False,
+):
     dataset.flush()
-    return TorchDataset(dataset, transform, workers)
+    _import_torch()
+    pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
+    return torch.utils.data.DataLoader(  # type: ignore
+        pytorch_ds,
+        batch_size=batch_size,
+        drop_last=drop_last,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+    )
 
 
 class TorchDataset:
-    def __init__(self, dataset, transform: Callable = None, workers: int = 1):
-        self._import_torch()
-        self.transform: Optional[Callable] = transform
-        self.workers: int = workers
-        self.map = ProcessPool(nodes=workers).map
+    def __init__(
+        self,
+        dataset,
+        transform: Optional[Callable] = None,
+        num_workers: int = 1,
+        tensors: Optional[Sequence[str]] = None,
+    ):
+        self.transform = transform
+        self.num_workers: int = num_workers
+        self.map = ProcessPool(nodes=num_workers).map
         self.length = len(dataset)
         self.keys = list(dataset.tensors)
-        self.storage = remove_memory_cache(dataset.storage)
+
+        self.tensor_keys: List[str]
+        if tensors is not None:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
+            self.tensor_keys = list(tensors)
+        else:
+            self.tensor_keys = list(dataset.tensors)
+
+        self._return_type = namedtuple("Tensors", self.tensor_keys)
+
+        self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
@@ -79,8 +127,6 @@ class TorchDataset:
         elif isinstance(self.storage, S3Provider):
             self.storage_state_tuple = self.storage.__getstate__()
 
-        # contains meta for each Tensor
-        self.all_tensor_metas: Dict[str, TensorMeta] = self._load_all_meta()
         index_value = dataset.index.values[0].value
 
         if not isinstance(index_value, slice):
@@ -95,8 +141,8 @@ class TorchDataset:
 
         self.index_offset = index_value.start or 0
 
-        # contains index_meta for each Tensor
-        self.all_index_metas: Dict[str, IndexMeta] = self._load_all_index_meta()
+        # mapping of each tensor to corresponding chunk_engine
+        self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
 
         # stores index-value map for each Tensor where value is the actual array at the index
         # acts as in memory prefetch cache
@@ -106,7 +152,7 @@ class TorchDataset:
         self.last_index_meta: Dict[str, int] = {}
 
         # in memory processed cache containing all samples generated after prefetching and transforming
-        self.processed_samples: List[Dict] = []
+        self.processed_samples: List = []
         self.processed_range = slice(-1, -1)  # range of processed_samples
 
         # keeps track of names of all shared_memory that have data in them
@@ -121,7 +167,7 @@ class TorchDataset:
         return self.length
 
     def __getitem__(self, index: int):
-        for key in self.keys:
+        for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
                 self._prefetch_data(key, index)
@@ -134,36 +180,33 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
-        return self._apply_transform(sample)
+        sample = self._apply_transform(sample)
+
+        return sample
 
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
 
-    def _apply_transform(self, sample: Dict):
+    def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
         return self.transform(sample) if self.transform else sample
 
     # helper functions
-    def _import_torch(self):
-        global torch
-        try:
-            import torch
-        except ModuleNotFoundError:
-            raise ModuleNotInstalledException(
-                "'torch' should be installed to convert the Dataset into pytorch format"
-            )
+    def _load_all_chunk_engines(self):
+        """Loads chunk engine for all tensors."""
 
-    def _load_all_index_meta(self):
-        """Loads index metas for all Tensors into memory"""
-        all_index_metas = {key: IndexMeta.load(key, self.storage) for key in self.keys}
-        return all_index_metas
+        # creating a cache around base storage to pass to ChunkEngine
+        return {
+            key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 16 * MB))
+            for key in self.keys
+        }
 
     def _load_all_meta(self):
         """Loads meta for all Tensors into memory"""
         all_meta = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
-        for key in self.keys:
+        for key in self.tensor_keys:
             tensor_meta = TensorMeta.load(key, self.storage)
             if tensor_meta.dtype == "uint16":
                 tensor_meta.dtype = "int32"
@@ -178,7 +221,12 @@ class TorchDataset:
         del self.all_index_value_maps[key]
         old_shared_memory_names = self.all_shared_memory_names[key]
         clear_shared_memory(old_shared_memory_names)
-        chunk_names = list(self._get_chunk_names(index, key))
+
+        chunk_engine = self.all_chunk_engines[key]
+        chunk_names = chunk_engine.get_chunk_names(
+            index + self.index_offset, len(self) + self.index_offset, self.num_workers
+        )
+
         shared_memory_names = self._generate_shared_memory_names(chunk_names)
         clear_shared_memory(shared_memory_names)
 
@@ -200,7 +248,7 @@ class TorchDataset:
         )
         self.all_shared_memory_names[key] = shared_memory_names
 
-    def _generate_shared_memory_names(self, chunk_names: List[str]):
+    def _generate_shared_memory_names(self, chunk_names: Set[str]):
         """Generates a name for every chunk_name as chunknames are very large and fail on MacOS"""
         ls = []
         for _ in chunk_names:
@@ -208,55 +256,23 @@ class TorchDataset:
             ls.append(f"al_{self.last_chunk_num_generated}")
         return ls
 
-    def _get_chunk_names(self, index: int, key: str):
-        """Gets chunk names for elements starting from index to read in parallel"""
-        chunk_names: Set[str] = set()
-        index_meta = self.all_index_metas[key]
-        while len(chunk_names) < self.workers and index < len(self):
-            actual_index = self.index_offset + index
-
-            # TODO: replace with this -> chunk_engine.chunk_id_encoder.get_chunk_names()
-            chunks = index_meta.entries[actual_index]["chunk_names"]
-
-            chunk_names.update(chunks)
-            index += 1
-        return chunk_names
-
-    def _np_from_chunk_list(self, index: int, key: str, chunks: List[bytes]):
+    def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
+        chunk_engine = self.all_chunk_engines[key]
+        value = chunk_engine.read_sample_from_chunk(index, chunk)
 
-        # TODO: this function should be located in core (sample_from_index_entry doesn't work because prefetch cache)
-        # TODO: i think this can be done by creating a `PrefetchCache` like how we have `LRUCache` then all of this code
-        # TODO: will be hanlded in there
-
-        index_entry = self.all_index_metas[key].entries[index]
-
-        start_byte = index_entry["start_byte"]
-        end_byte = index_entry["end_byte"]
-        shape = index_entry["shape"]
-
-        tensor_meta = self.all_tensor_metas[key]
-        dtype = tensor_meta.dtype
-        sample_compression = tensor_meta.sample_compression
-
-        combined_bytes = join_chunks(chunks, start_byte, end_byte)
-
-        # TODO: migrate UNCOMPRESSED check into a single function
-        if sample_compression == UNCOMPRESSED:
-            arr = np.frombuffer(combined_bytes, dtype=dtype).reshape(shape)
-        else:
-            arr = decompress_array(combined_bytes, shape=shape)
-
-        if isinstance(combined_bytes, memoryview):
-            combined_bytes.release()
-
-        return arr
+        # typecast if incompatible with pytorch
+        if value.dtype == "uint16":
+            value = value.astype("int32")
+        elif value.dtype == "uint32" or value.dtype == "uint64":
+            value = value.astype("int64")
+        return torch.tensor(value)  # type: ignore
 
     def _get_data_from_chunks(
         self,
         index: int,
         key: str,
-        chunk_names: List[str],
+        chunk_names: Set[str],
         shared_memory_names: List[str],
         chunk_sizes: List[int],
     ):
@@ -268,20 +284,22 @@ class TorchDataset:
             chunk_names, shared_memory_names, chunk_sizes
         ):
             self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk_map[chunk_name] = self.all_shared_memory[key][-1].buf[:chunk_size]
+            chunk = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
         for i in range(index, len(self)):
-            chunks = []
             actual_index = self.index_offset + i
-            index_entry = self.all_index_metas[key].entries[actual_index]
-            for chunk_name in index_entry["chunk_names"]:
-                if chunk_name not in chunk_map:
-                    self.last_index_meta[key] = i - 1
-                    return
-                chunks.append(chunk_map[chunk_name])
-            self.all_index_value_maps[key][i] = self._np_from_chunk_list(
-                actual_index, key, chunks
+            # TODO change this once it returns list/set of str
+            chunk_engine = self.all_chunk_engines[key]
+            chunk_id = chunk_engine.chunk_id_encoder[actual_index]
+            chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)  # type: ignore
+            if chunk_name not in chunk_map:
+                self.last_index_meta[key] = i - 1
+                return
+            chunk = chunk_map[chunk_name]
+            self.all_index_value_maps[key][i] = self._numpy_from_chunk(
+                actual_index, key, chunk
             )
 
         self.last_index_meta[key] = len(self) - 1
@@ -292,16 +310,18 @@ class TorchDataset:
         """
         first_index = self.processed_range.stop + 1
         # different no. of samples are fetched for each tensor, take the min and process
-        last_index = min(self.last_index_meta[key] for key in self.keys)
+        last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = {key: self.all_index_value_maps[key][i] for key in self.keys}
+            sample = self._return_type(
+                **{key: self.all_index_value_maps[key][i] for key in self.tensor_keys}
+            )
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
     def _all_shared_memory_clean_up(self):
         """Cleans up possibly leaked memory at the end of iteration across Tensors"""
-        for key in self.keys:
+        for key in self.tensor_keys:
             shared_memory_names = self.all_shared_memory_names[key]
             clear_shared_memory(shared_memory_names)

@@ -6,6 +6,7 @@ import hub
 import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
+from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
@@ -109,10 +110,10 @@ def test_stringify(memory_ds):
     )
     assert (
         str(ds[1:2])
-        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, 1)]), tensors=['image'])"
+        == "Dataset(path='mem://hub_pytest/test_api/test_stringify', index=Index([slice(1, 2, None)]), tensors=['image'])"
     )
     assert str(ds.image) == "Tensor(key='image')"
-    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, 1)]))"
+    assert str(ds[1:2].image) == "Tensor(key='image', index=Index([slice(1, 2, None)]))"
 
 
 def test_stringify_with_path(local_ds):
@@ -147,8 +148,13 @@ def test_compute_dynamic_tensor(ds):
     actual_list = image.numpy(aslist=True)
 
     assert type(actual_list) == list
-    for i, (expected, actual) in enumerate(zip(expected_list, actual_list)):
-        np.testing.assert_array_equal(expected, actual, err_msg=f"i={i}")
+    assert_array_lists_equal(expected_list, actual_list)
+
+    # test negative indexing
+    np.testing.assert_array_equal(expected_list[-1], image[-1].numpy())
+    np.testing.assert_array_equal(expected_list[-2], image[-2].numpy())
+    assert_array_lists_equal(expected_list[-2:], image[-2:].numpy(aslist=True))
+    assert_array_lists_equal(expected_list[::-3], image[::-3].numpy(aslist=True))
 
     assert image.shape == (43, None, None)
     assert image.shape_interval.lower == (43, 28, 10)
@@ -180,8 +186,7 @@ def test_empty_samples(ds: Dataset):
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
     assert tensor.shape_interval.upper == (16, 25, 50, 2)
 
-    for actual, expected in zip(actual_list, expected_list):
-        np.testing.assert_array_equal(actual, expected)
+    assert_array_lists_equal(actual_list, expected_list)
 
     # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
     for actual_sample, expected in zip(ds, expected_list):
@@ -243,8 +248,7 @@ def test_sequence_samples(ds: Dataset):
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
     assert type(tensor.numpy(aslist=True)) == list
-    np.testing.assert_array_equal(tensor.numpy(aslist=True)[0], np.array([1, 2, 3]))
-    np.testing.assert_array_equal(tensor.numpy(aslist=True)[1], np.array([4, 5, 6]))
+    assert_array_lists_equal(tensor.numpy(aslist=True), expected)
 
 
 @parametrize_all_dataset_storages
@@ -279,11 +283,12 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[10:20], data[10:20])
     _check_tensor(ds.data[5], data[5])
     _check_tensor(ds.data[0][:], data[0][:])
+    _check_tensor(ds.data[-1][:], data[-1][:])
     _check_tensor(ds.data[3, 3], data[3, 3])
     _check_tensor(ds.data[30:40, :, 8:11, 4], data[30:40, :, 8:11, 4])
     _check_tensor(ds.data[16, 4, 5, 1:3], data[16, 4, 5, 1:3])
     _check_tensor(ds[[0, 1, 2, 5, 6, 10, 60]].data, data[[0, 1, 2, 5, 6, 10, 60]])
-    _check_tensor(ds.data[[0, 1, 2, 5, 6, 10, 60]], data[[0, 1, 2, 5, 6, 10, 60]])
+    _check_tensor(ds.data[[0, 1, -2, 5, -6, 10, 60]], data[[0, 1, -2, 5, -6, 10, 60]])
     _check_tensor(ds.data[0][[0, 1, 2, 5, 6, 10, 15]], data[0][[0, 1, 2, 5, 6, 10, 15]])
     _check_tensor(ds.data[[3, 2, 1, 0]][0], data[[3, 2, 1, 0]][0])
     _check_tensor(ds[[3, 2, 1, 0]][0].data, data[[3, 2, 1, 0]][0])
@@ -300,6 +305,12 @@ def test_compute_slices(memory_ds):
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0], data[:, :][0][(0, 1, 2), 0])
     _check_tensor(ds.data[0][(0, 1, 2), 0][1], data[0][(0, 1, 2), 0][1])
     _check_tensor(ds.data[:, :][0][(0, 1, 2), 0][1], data[:, :][0][(0, 1, 2), 0][1])
+    _check_tensor(ds.data[::-1], data[::-1])
+    _check_tensor(ds.data[::-3], data[::-3])
+    _check_tensor(ds.data[::-3][4], data[::-3][4])
+    _check_tensor(ds.data[-2:], data[-2:])
+    _check_tensor(ds.data[-6:][3], data[-6:][3])
+    _check_tensor(ds.data[:-6:][3], data[:-6:][3])
 
 
 def test_length_slices(memory_ds):

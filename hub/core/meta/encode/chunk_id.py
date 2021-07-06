@@ -7,6 +7,7 @@ import numpy as np
 from uuid import uuid4
 
 
+# these constants are for accessing the data layout. see the `ChunkIdEncoder` docstring.
 CHUNK_ID_INDEX = 0
 LAST_INDEX_INDEX = 1
 
@@ -183,6 +184,10 @@ class ChunkIdEncoder(Cachable):
         Example:
             Given: 2 sampes in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
 
+            >>> self.num_samples
+            7
+            >>> self.num_chunks
+            3
             >>> self.get_local_sample_index(0)
             0
             >>> self.get_local_sample_index(1)
