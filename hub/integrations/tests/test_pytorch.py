@@ -1,3 +1,4 @@
+import sys
 from hub.util.remove_cache import get_base_storage
 import pytest
 from hub.util.exceptions import DatasetUnsupportedPytorch
@@ -24,6 +25,12 @@ def test_pytorch_small(ds):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = ds.pytorch(num_workers=2)
         return
+    
+    if sys.version_info < (3, 8):
+        with pytest.raises(NotImplementedError):
+            dl = ds.pytorch(num_workers=2)
+        return
+    
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
     for i, batch in enumerate(dl):
@@ -88,6 +95,11 @@ def test_pytorch_transform(ds):
             dl = ds.pytorch(num_workers=2)
         return
 
+    if sys.version_info < (3, 8):
+        with pytest.raises(NotImplementedError):
+            dl = ds.pytorch(num_workers=2)
+        return
+
     dl = ds.pytorch(num_workers=2, transform=to_tuple, batch_size=1)
 
     for i, batch in enumerate(dl):
@@ -114,6 +126,12 @@ def test_pytorch_with_compression(ds: Dataset):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = ds.pytorch(num_workers=2)
         return
+    
+    if sys.version_info < (3, 8):
+        with pytest.raises(NotImplementedError):
+            dl = ds.pytorch(num_workers=2)
+        return
+    
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
     for batch in dl:
@@ -155,6 +173,7 @@ def test_pytorch_small_old(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
+@pytest.mark.xfail(sys.version_info < (3, 8), raises=NotImplementedError, reason="requires python3.8 or higher")
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -165,6 +184,11 @@ def test_custom_tensor_order(ds):
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             ptds = ds.pytorch(num_workers=2)
+        return
+    
+    if sys.version_info < (3, 8):
+        with pytest.raises(NotImplementedError):
+            dl = ds.pytorch(num_workers=2)
         return
 
     dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
