@@ -1,3 +1,4 @@
+from hub.constants import ENCODING_DTYPE
 from hub.util.exceptions import ChunkIdEncoderError
 import pytest
 from hub.core.meta.encode.chunk_id import (
@@ -83,6 +84,7 @@ def test_ids():
     enc = ChunkIdEncoder()
 
     id = enc.generate_chunk_id()
+    assert id.itemsize == ENCODING_DTYPE(1).itemsize
     name = ChunkIdEncoder.name_from_id(id)
     out_id = ChunkIdEncoder.id_from_name(name)
 

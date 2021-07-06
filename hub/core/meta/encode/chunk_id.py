@@ -1,4 +1,4 @@
-from hub.constants import ENCODING_DTYPE
+from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
@@ -127,7 +127,7 @@ class ChunkIdEncoder(Cachable):
             ENCODING_DTYPE: The random chunk ID.
         """
 
-        id = ENCODING_DTYPE(uuid4().int >> 64)  # `id` is 64 bits after right shift
+        id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
 
         if self.num_samples == 0:
             self._encoded_ids = np.array([[id, -1]], dtype=ENCODING_DTYPE)

@@ -43,6 +43,8 @@ ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 ENCODED_CHUNK_NAMES_FILENAME = f"unsharded.{CHUNK_EXTENSION}"
 
 ENCODING_DTYPE = np.uint32
+# caclulate the number of bytes to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
+UUID_SHIFT_AMOUNT = 128 - ENCODING_DTYPE(1).itemsize
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
