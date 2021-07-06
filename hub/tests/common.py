@@ -7,7 +7,7 @@ from hub.core.meta.index_meta import IndexMeta
 from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, List
 from uuid import uuid1
 
 import numpy as np
@@ -135,3 +135,9 @@ def assert_all_samples_have_expected_compression(
             assert (
                 actual_compression == expected_compression
             ), f"non-uniform compression mismatch @ i={i}. got '{actual_compression}', expected '{expected_compression}'. If `tga`, check `NOTE` above this assertion."
+
+
+def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
+    """Assert that two lists of numpy arrays are equal"""
+    for idx, (a1, a2) in enumerate(zip(l1, l2)):
+        np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
