@@ -138,7 +138,9 @@ def test_pytorch_small_old(ds):
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
-    dl = dataset_to_pytorch(ds, num_workers=2, batch_size=1, python_version_warning=False)
+    dl = dataset_to_pytorch(
+        ds, num_workers=2, batch_size=1, python_version_warning=False
+    )
 
     for i, batch in enumerate(dl):
         np.testing.assert_array_equal(

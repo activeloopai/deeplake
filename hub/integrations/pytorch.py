@@ -36,6 +36,7 @@ def get_s3_storage(state: tuple) -> S3Provider:
     s3.__setstate__(state)
     return s3
 
+
 def _import_torch():
     global torch
     try:
@@ -44,6 +45,7 @@ def _import_torch():
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
+
 
 def _read_and_store_chunk(
     chunk_name: str,
@@ -82,7 +84,13 @@ def dataset_to_pytorch(
     dataset.flush()
     _import_torch()
     pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
-    return torch.utils.data.DataLoader(pytorch_ds, batch_size=batch_size, drop_last=drop_last, collate_fn=collate_fn, pin_memory=pin_memory)
+    return torch.utils.data.DataLoader(  # type: ignore
+        pytorch_ds,
+        batch_size=batch_size,
+        drop_last=drop_last,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+    )
 
 
 class TorchDataset:
@@ -240,7 +248,7 @@ class TorchDataset:
         )
         self.all_shared_memory_names[key] = shared_memory_names
 
-    def _generate_shared_memory_names(self, chunk_names: List[str]):
+    def _generate_shared_memory_names(self, chunk_names: Set[str]):
         """Generates a name for every chunk_name as chunknames are very large and fail on MacOS"""
         ls = []
         for _ in chunk_names:
@@ -258,13 +266,13 @@ class TorchDataset:
             value = value.astype("int32")
         elif value.dtype == "uint32" or value.dtype == "uint64":
             value = value.astype("int64")
-        return torch.tensor(value)
+        return torch.tensor(value)  # type: ignore
 
     def _get_data_from_chunks(
         self,
         index: int,
         key: str,
-        chunk_names: List[str],
+        chunk_names: Set[str],
         shared_memory_names: List[str],
         chunk_sizes: List[int],
     ):
@@ -285,7 +293,7 @@ class TorchDataset:
             # TODO change this once it returns list/set of str
             chunk_engine = self.all_chunk_engines[key]
             chunk_id = chunk_engine.chunk_id_encoder[actual_index]
-            chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)
+            chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)  # type: ignore
             if chunk_name not in chunk_map:
                 self.last_index_meta[key] = i - 1
                 return

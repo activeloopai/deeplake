@@ -9,11 +9,11 @@ def dataset_to_pytorch(
     transform: Optional[Callable] = None,
     num_workers: int = 1,
     tensors: Optional[Sequence[str]] = None,
-    python_version_warning: bool = True,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
+    python_version_warning: bool = True,
 ):
     dataset.flush()
     pytorch_ds = TorchDataset(
@@ -22,8 +22,14 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
-    return torch.utils.data.DataLoader(pytorch_ds, num_workers=num_workers, batch_size=batch_size, drop_last=drop_last, collate_fn=collate_fn, pin_memory=pin_memory)
-
+    return torch.utils.data.DataLoader(  # type: ignore
+        pytorch_ds,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        drop_last=drop_last,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+    )
 
 
 class TorchDataset:
