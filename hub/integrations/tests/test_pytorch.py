@@ -272,3 +272,45 @@ def test_pytorch_large_old(ds):
 
         np.testing.assert_array_equal(actual_image, expected_image)
         np.testing.assert_array_equal(actual_label, expected_label)
+
+
+@requires_torch
+@parametrize_all_dataset_storages
+def test_custom_tensor_order(ds):
+    import torch
+
+    with ds:
+        tensors = ["a", "b", "c", "d"]
+        for t in tensors:
+            ds.create_tensor(t)
+            ds[t].extend(np.random.random((3, 4, 5)))
+
+    if PY38 and isinstance(remove_memory_cache(ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            ptds = ds.pytorch(workers=2)
+        return
+
+    ptds_new = ds.pytorch(workers=2, tensors=["c", "d", "a"])
+    ptds_old = dataset_to_pytorch(
+        ds, workers=2, tensors=["c", "d", "a"], python_version_warning=False
+    )
+    for ptds in [ptds_new, ptds_old]:
+        # always use num_workers=0, when using hub workers
+        dl = torch.utils.data.DataLoader(
+            ptds,
+            batch_size=1,
+            num_workers=0,
+        )
+
+        for i, batch in enumerate(dl):
+            c1, d1, a1 = batch
+            a2 = batch["a"]
+            c2 = batch["c"]
+            d2 = batch["d"]
+            assert "b" not in batch
+            np.testing.assert_array_equal(a1, a2)
+            np.testing.assert_array_equal(c1, c2)
+            np.testing.assert_array_equal(d1, d2)
+            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
