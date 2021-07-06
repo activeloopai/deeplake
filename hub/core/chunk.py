@@ -37,7 +37,7 @@ class Chunk(Cachable):
             encoded_shapes (np.ndarray): Used to construct `ShapeEncoder` if this chunk already exists. Defaults to None.
             encoded_byte_positions (np.ndarray): Used to construct `BytePositionsEncoder` if this chunk already exists.
                 Used by `frombuffer`. Defaults to None.
-            data (bytearray): If this chunk already exists, data should be set.
+            data (memoryview): If this chunk already exists, data should be set.
                 Used by `frombuffer`. Defaults to None.
         """
 

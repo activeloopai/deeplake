@@ -24,6 +24,9 @@ class MergeSlicesCases:
     def case_irregular_steps(self):
         return slice(4, 101, 2), slice(10, 20, 3)
 
+    def case_negative_step(self):
+        return slice(None), slice(None, None, -3)
+
 
 @parametrize_with_cases("first,second", cases=MergeSlicesCases)
 def test_merge_slices(first: slice, second: slice):
