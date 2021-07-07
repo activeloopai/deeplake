@@ -7,7 +7,7 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
-from hub.api.dataset import Dataset
+import hub
 
 
 def dataset_to_pytorch(
@@ -78,7 +78,7 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self.dataset is None:
-            self.dataset = Dataset(storage=self.storage, index=self.index)
+            self.dataset = hub.Dataset(storage=self.storage, index=self.index)
 
     def __len__(self):
         self._init_ds()
