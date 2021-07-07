@@ -28,6 +28,9 @@ def dataset_to_pytorch(
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
+    global Dataset
+    from hub.api.dataset import Dataset
+
 
     dataset.flush()
     pytorch_ds = TorchDataset(
@@ -36,11 +39,7 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
-    # TODO add pytorch for num_workers > 1
-    if num_workers > 0:
-        raise NotImplementedError(
-            "Multiproccessed pytorch training is not support for Python version < 3.8. Please set num_workers equal to 0 or upgrade to python 3.8."
-        )
+    
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         num_workers=num_workers,
@@ -65,10 +64,10 @@ class TorchDataset:
                 "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
             )
 
-        self.dataset = dataset
+        self.dataset = None
 
-        base_storage = get_base_storage(dataset.storage)
-        if isinstance(base_storage, MemoryProvider):
+        self.storage = get_base_storage(dataset.storage)
+        if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
@@ -87,10 +86,19 @@ class TorchDataset:
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
 
+    def _init_ds(self):
+        """
+        For each process, dataset should be independently loaded
+        """
+        if self.dataset is None:
+            self.dataset = Dataset(storage=self.storage)
+
     def __len__(self):
+        self._init_ds()
         return len(self.dataset)
 
     def __getitem__(self, index: int):
+        self._init_ds()
         sample = self._return_type()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
@@ -100,9 +108,8 @@ class TorchDataset:
             elif item.dtype in ["uint32", "uint64"]:
                 item = item.astype("int64")
             sample[key] = item
-
+        
         return self._apply_transform(sample)
-
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]
