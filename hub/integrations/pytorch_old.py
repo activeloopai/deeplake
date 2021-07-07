@@ -66,6 +66,7 @@ class TorchDataset:
         self.dataset = None
 
         self.storage = get_base_storage(dataset.storage)
+        self.index = dataset.index
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
@@ -90,7 +91,7 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self.dataset is None:
-            self.dataset = Dataset(storage=self.storage)
+            self.dataset = Dataset(storage=self.storage, index=self.index)
 
     def __len__(self):
         self._init_ds()
@@ -101,7 +102,7 @@ class TorchDataset:
         sample = self._return_type()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
-            item = self.dataset[key][index].numpy()
+            item = self.dataset[key][index].numpy()  # type: ignore
             if item.dtype == "uint16":
                 item = item.astype("int32")
             elif item.dtype in ["uint32", "uint64"]:
