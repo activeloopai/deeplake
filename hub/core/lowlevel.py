@@ -87,6 +87,8 @@ def encode(
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
     assert max((map(ord, version))) < 128
+    assert shape_info.ndim == 2
+    assert byte_positions.ndim == 2
     version_slice_size = 1 + len(version)
     shape_info_data_size = shape_info.itemsize * shape_info.size
     shape_info_slice_size = 4 + 4 + shape_info_data_size
