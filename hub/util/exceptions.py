@@ -3,14 +3,6 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
-class ChunkSizeTooSmallError(Exception):
-    def __init__(
-        self,
-        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
-    ):
-        super().__init__(message)
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -345,8 +337,10 @@ class TensorDtypeMismatchError(MetaError):
 
 
 class ReadOnlyModeError(Exception):
-    def __init__(self):
-        super().__init__("Modification when in read-only mode is not supported!")
+    def __init__(self, custom_message: str = None):
+        if custom_message is None:
+            custom_message = "Modification when in read-only mode is not supported!"
+        super().__init__(custom_message)
 
 
 class TransformError(Exception):
@@ -354,9 +348,9 @@ class TransformError(Exception):
 
 
 class InvalidTransformOutputError(TransformError):
-    def __init__(self):
+    def __init__(self, item):
         super().__init__(
-            "The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries."
+            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
         )
 
 
@@ -380,3 +374,48 @@ class TensorMismatchError(TransformError):
             f"One or more of the outputs generated during transform contain different tensors than the ones present in the output 'ds_out' provided to transform.\n "
             f"Tensors in ds_out: {tensors}\n Tensors in output sample: {output_keys}"
         )
+
+
+class InvalidOutputDatasetError(TransformError):
+    def __init__(self):
+        super().__init__(
+            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+        )
+
+
+class MemoryDatasetNotSupportedError(TransformError):
+    def __init__(self, scheduler):
+        super().__init__(
+            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+        )
+
+
+class DatasetUnsupportedPytorch(Exception):
+    def __init__(self, reason):
+        super().__init__(
+            f"The Dataset object passed to Pytorch is incompatible. Reason: {reason}"
+        )
+
+
+class CorruptedMetaError(Exception):
+    pass
+
+
+class ChunkEngineError(Exception):
+    pass
+
+
+class FullChunkError(ChunkEngineError):
+    pass
+
+
+class ChunkIdEncoderError(ChunkEngineError):
+    pass
+
+
+class ChunkSizeTooSmallError(ChunkEngineError):
+    def __init__(
+        self,
+        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
+    ):
+        super().__init__(message)

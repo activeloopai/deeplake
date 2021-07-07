@@ -1,11 +1,24 @@
+"""
+"htype" is the class of a tensor: image, bounding box, generic tensor, etc.
+
+These are used when creating a new tensor as follows:
+```
+>>> ds.create_tensor(some_data, htype="image")
+```
+
+Specifying an htype allows the [activeloop platform](https://app.activeloop.ai/)
+to know how to best visualize your tensor. 
+They are also used to inform default compression modes and data types.
+"""
+
 from re import L
 from typing import Dict
 from hub.constants import (
     DEFAULT_CHUNK_COMPRESSION,
+    DEFAULT_MAX_CHUNK_SIZE,
     DEFAULT_HTYPE,
     DEFAULT_SAMPLE_COMPRESSION,
     UNCOMPRESSED,
-    DEFAULT_CHUNK_MIN_TARGET,
 )
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
@@ -16,7 +29,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "chunk_compression": UNCOMPRESSED,
     },
     "class_label": {
-        "dtype": "int32",
+        "dtype": "uint32",
         "class_names": [],
     },
     "bbox": {"dtype": "float32"},
@@ -29,8 +42,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
-    "chunk_size": DEFAULT_CHUNK_MIN_TARGET,
-    "custom_meta": {},
+    "chunk_size": DEFAULT_MAX_CHUNK_SIZE,
     "chunk_compression": DEFAULT_CHUNK_COMPRESSION,
     "sample_compression": DEFAULT_SAMPLE_COMPRESSION,
 }

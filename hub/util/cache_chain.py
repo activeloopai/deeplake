@@ -43,7 +43,7 @@ def generate_chain(
     memory_cache_size: int,
     local_cache_size: int,
     path: Optional[str] = None,
-):
+) -> StorageProvider:
     """Internal function to be used by Dataset, to generate a cache_chain using a base_storage and sizes of memory and
         local caches.
 
@@ -55,8 +55,8 @@ def generate_chain(
             cache is stored.
 
     Returns:
-        StorageProvider: Returns a cache containing the base_storage along with memory and local cache if a positive
-            size has been specified for them.
+        StorageProvider: Returns a cache containing the base_storage along with memory cache,
+            and local cache if a positive size has been specified for it.
     """
 
     if path:
@@ -68,9 +68,11 @@ def generate_chain(
 
     storage_list: List[StorageProvider] = []
     size_list: List[int] = []
-    if memory_cache_size > 0:
-        storage_list.append(MemoryProvider(f"cache/{cached_dataset_name}"))
-        size_list.append(memory_cache_size)
+
+    # Always have a memory cache prefix. Required for support for Cachable objects.
+    storage_list.append(MemoryProvider(f"cache/{cached_dataset_name}"))
+    size_list.append(memory_cache_size)
+
     if local_cache_size > 0:
         storage_list.append(LocalProvider(f"~/.activeloop/cache/{cached_dataset_name}"))
         size_list.append(local_cache_size)

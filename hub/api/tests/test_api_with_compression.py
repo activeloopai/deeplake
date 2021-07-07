@@ -1,7 +1,7 @@
 from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionError
 import pytest
 from hub.api.tensor import Tensor
-from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
+from hub.tests.common import TENSOR_KEY
 from hub.constants import UNCOMPRESSED
 import numpy as np
 
@@ -43,7 +43,6 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.chunk_compression == UNCOMPRESSED
 
     original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
-    assert_all_samples_have_expected_compression(images, original_compressions)
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)
@@ -63,7 +62,6 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.chunk_compression == UNCOMPRESSED
 
     original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
-    assert_all_samples_have_expected_compression(images, original_compressions)
 
     expected_shapes = [
         (900, 900, 3),
@@ -89,17 +87,15 @@ def test_uncompressed(ds: Dataset):
 
     images.append(np.ones((100, 100, 100)))
     images.extend(np.ones((3, 101, 2, 1)))
-    original_compressions = [UNCOMPRESSED] * 4
-
-    assert_all_samples_have_expected_compression(images, original_compressions)
+    ds.clear_cache()
+    np.testing.assert_array_equal(images[0].numpy(), np.ones((100, 100, 100)))
+    np.testing.assert_array_equal(images[1:4].numpy(), np.ones((3, 101, 2, 1)))
 
 
 @pytest.mark.xfail(raises=SampleCompressionError, strict=True)
 @pytest.mark.parametrize(
     "bad_shape",
     [
-        # raises TypeError: Cannot handle this data type: (1, 1, 1), |u1
-        (100, 100, 1),
         # raises OSError: cannot write mode LA as JPEG
         (100, 100, 2),
         # raises OSError: cannot write mode RGBA as JPE
@@ -112,7 +108,7 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
     # (100) works!
     # (100,) works!
     # (100, 100) works!
-    # (100, 100, 1) raises   | TypeError: Cannot handle this data type: (1, 1, 1), |u1
+    # (100, 100, 1) works!
     # (100, 100, 2) raises   | OSError: cannot write mode LA as JPEG
     # (100, 100, 3) works!
     # (100, 100, 4) raises   | OSError: cannot write mode RGBA as JPEG

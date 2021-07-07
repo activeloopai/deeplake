@@ -1,10 +1,12 @@
 import os
-
+import posixpath
+import logging
 import pytest
 
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
+logging.basicConfig(level=logging.ERROR)
 
 from hub.api.dataset import Dataset
 from hub.constants import (
@@ -126,11 +128,11 @@ def _get_storage_provider(
 
     if info["use_id"]:
         if info["is_id_prefix"]:
-            path = os.path.join(SESSION_ID, path)
+            path = posixpath.join(SESSION_ID, path)
         else:
-            path = os.path.join(path, SESSION_ID)
+            path = posixpath.join(path, SESSION_ID)
 
-    root = os.path.join(root, path)
+    root = posixpath.join(root, path)
     return info["class"](root)
 
 
@@ -255,19 +257,13 @@ def ds(request):
 
 
 @pytest.fixture
-def cat_path(request):
-    # paths are only usable in local mode
-    if not _is_opt_true(request, LOCAL_OPT):
-        pytest.skip()
+def cat_path():
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "cat.jpeg")
 
 
 @pytest.fixture
-def flower_path(request):
-    # paths are only usable in local mode
-    if not _is_opt_true(request, LOCAL_OPT):
-        pytest.skip()
+def flower_path():
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "flower.png")
 

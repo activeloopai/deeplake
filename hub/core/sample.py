@@ -1,6 +1,6 @@
+# type: ignore
 from hub.core.compression import compress_array
 from hub.constants import UNCOMPRESSED
-from hub.core.chunk_engine.flatten import row_wise_to_bytes
 import numpy as np
 import pathlib
 from typing import List, Optional, Tuple
@@ -42,6 +42,9 @@ class Sample:
             self.path = None
             self._array = array
             self._original_compression = UNCOMPRESSED
+
+        self._compressed_bytes = None
+        self._uncompressed_bytes = None
 
     @property
     def is_lazy(self) -> bool:
@@ -90,25 +93,31 @@ class Sample:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
         """
 
-        # TODO: raise a comprehensive error for unsupported compression types
         compression = compression.lower()
 
         if compression == UNCOMPRESSED:
             return self.uncompressed_bytes()
 
-        # if the sample is already compressed in the requested format, just return the raw bytes
-        if self.path is not None and self.compression == compression:
+        if self._compressed_bytes is None:
 
-            with open(self.path, "rb") as f:
-                return f.read()
+            # if the sample is already compressed in the requested format, just return the raw bytes
+            if self.path is not None and self.compression == compression:
 
-        return compress_array(self.array, compression)
+                with open(self.path, "rb") as f:
+                    self._compressed_bytes = f.read()
+
+            else:
+                self._compressed_bytes = compress_array(self.array, compression)
+
+        return self._compressed_bytes
 
     def uncompressed_bytes(self) -> bytes:
         """Returns `self.array` as uncompressed bytes."""
 
-        # TODO: get flatten function (row_wise_to_bytes) from tensor_meta
-        return row_wise_to_bytes(self.array)
+        if self._uncompressed_bytes is None:
+            self._uncompressed_bytes = self.array.tobytes()
+
+        return self._uncompressed_bytes
 
     def _read(self):
         """If this sample hasn't been already read into memory, do so. This is required for properties to be accessible."""

@@ -1,8 +1,18 @@
 from typing import Union, List, Tuple, Iterable, Optional, TypeVar
-from dataclasses import dataclass
 import numpy as np
 
 IndexValue = Union[int, slice, Tuple[int]]
+
+
+def has_negatives(s: slice) -> bool:
+    if s.start and s.start < 0:
+        return True
+    elif s.stop and s.stop < 0:
+        return True
+    elif s.step and s.step < 0:
+        return True
+    else:
+        return False
 
 
 def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
@@ -18,7 +28,20 @@ def merge_slices(existing_slice: slice, new_slice: slice) -> slice:
 
     Returns:
         slice: the composition of the given slices
+
+    Raises:
+        NotImplementedError: Composing slices with negative values is not supported.
+            Negative indexing for slices is only supported for the first slice.
     """
+    if existing_slice == slice(None):
+        return new_slice
+    elif new_slice == slice(None):
+        return existing_slice
+
+    if has_negatives(existing_slice) or has_negatives(new_slice):
+        raise NotImplementedError(
+            "Multiple subscripting for slices with negative values is not supported."
+        )
 
     # Combine the steps
     step1 = existing_slice.step if existing_slice.step is not None else 1
@@ -60,7 +83,19 @@ def slice_at_int(s: slice, i: int):
 
     Returns:
         The index corresponding to the offset into the slice.
+
+    Raises:
+        NotImplementedError: Nontrivial slices should not be indexed with negative integers.
     """
+    if s == slice(None):
+        return i
+
+    if i < 0:
+        raise NotImplementedError(
+            "Subscripting slices with negative integers is not supported."
+        )
+    if s.step and s.step < 0:
+        return i * s.step - 1
     return (s.start or 0) + i * (s.step or 1)
 
 
@@ -77,12 +112,12 @@ def slice_length(s: slice, parent_length: int) -> int:
 
 def tuple_length(t: Tuple[int], l: int) -> int:
     """Returns the length of a tuple of indexes given the length of its parent."""
-    return sum(1 for _ in filter(lambda i: i < l, t))
+    return len(t)
 
 
-@dataclass
 class IndexEntry:
-    value: IndexValue = slice(None)
+    def __init__(self, value: IndexValue = slice(None)):
+        self.value = value
 
     def __getitem__(self, item: IndexValue):
         """Combines the given `item` and this IndexEntry.
@@ -140,18 +175,14 @@ class IndexEntry:
 
     def indices(self, length: int):
         """Generates the sequence of integer indices for a target of a given length."""
+        parse_int = lambda i: i if i >= 0 else length + i
+
         if isinstance(self.value, int):
-            yield self.value
+            yield parse_int(self.value)
         elif isinstance(self.value, slice):
-            start = self.value.start or 0
-            stop = min(length, self.value.stop or length)
-            step = self.value.step or 1
-            yield from range(start, stop, step)
+            yield from range(*self.value.indices(length))
         elif isinstance(self.value, tuple):
-            for i in self.value:
-                if i >= length:
-                    break
-                yield i
+            yield from map(parse_int, self.value)
 
     def is_trivial(self):
         """Checks if an IndexEntry represents the entire slice"""
