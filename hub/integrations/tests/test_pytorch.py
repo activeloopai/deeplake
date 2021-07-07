@@ -154,36 +154,3 @@ def test_pytorch_small_old(ds):
         np.testing.assert_array_equal(
             batch["image2"].numpy(), i * np.ones((1, 100, 100))
         )
-
-
-@requires_torch
-@parametrize_all_dataset_storages
-def test_custom_tensor_order(ds):
-    with ds:
-        tensors = ["a", "b", "c", "d"]
-        for t in tensors:
-            ds.create_tensor(t)
-            ds[t].extend(np.random.random((3, 4, 5)))
-
-    if isinstance(get_base_storage(ds.storage), MemoryProvider):
-        with pytest.raises(DatasetUnsupportedPytorch):
-            ptds = ds.pytorch(num_workers=2)
-        return
-
-    dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
-    dl_old = dataset_to_pytorch(
-        ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
-    )
-    for dl in [dl_new, dl_old]:
-        for i, batch in enumerate(dl):
-            c1, d1, a1 = batch
-            a2 = batch["a"]
-            c2 = batch["c"]
-            d2 = batch["d"]
-            assert "b" not in batch
-            np.testing.assert_array_equal(a1, a2)
-            np.testing.assert_array_equal(c1, c2)
-            np.testing.assert_array_equal(d1, d2)
-            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
-            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
-            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
