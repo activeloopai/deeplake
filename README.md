@@ -25,7 +25,7 @@
 ## Why use Hub?
 **Data scientists spend the majority of their time building infrastructure, transferring data, and writing boilerplate code. Hub streamlines these tasks so that users can focus on building amazing machine learning models 💻.**
 
-Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and we're are currently adding powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
+Hub enables users to stream unlimited amounts of data from the cloud to any machine without sacrificing performance compared to local storage 🚀. In addition, Hub connects datasets to PyTorch and TensorFlow with minimal boilerplate code, and we are currently adding powerful tools for dataset version control, building machine learning pipelines, and running distributed workloads.
 
 Hub is best suited for unstructured datasets such as images, videos, point clouds, or text. It works locally or on any cloud.
 
