@@ -1,8 +1,8 @@
-from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
+from hub.util.subscript_namedtuple import create_parametrized_named_tuple
 
 
 def test_namedtuple():
-    T = namedtuple("T", ["a", "b", "c", "d"])
+    T = create_parametrized_named_tuple("T", ["a", "b", "c", "d"])
     t1 = T(1, 2, 3, 4)
     t2 = T(b=2, a=1, d=4, c=3)
     assert t1["a"] == 1
