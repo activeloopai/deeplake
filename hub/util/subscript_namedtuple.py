@@ -3,10 +3,10 @@ from collections import OrderedDict
 
 
 def create_parametrized_named_tuple(T: str, fields: List[str]):
+    global DummySubClass
     class DummySubClass(SubscriptNamedTuple):
         _fields = fields
         _T = T
-
     return DummySubClass
 
 
