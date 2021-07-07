@@ -448,14 +448,14 @@ def test_hub_cloud_dataset():
     ds.create_tensor("label", htype="class_label")
 
     with ds:
-        for i in range(20):
+        for i in range(1000):
             ds.image.append(i * np.ones((100, 100)))
             ds.label.append(np.uint32(i))
 
     token = ds.token
     del ds
     ds = Dataset(uri, token=token)
-    for i in range(20):
+    for i in range(1000):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
         np.testing.assert_array_equal(ds.label[i].numpy(), np.uint32(i))
 
