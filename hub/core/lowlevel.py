@@ -132,9 +132,9 @@ def encode(
 
 
 def decode(
-    buff: Union[bytes, Pointer]
+    buff: Union[bytes, Pointer, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
-    if isinstance(buff, bytes):
+    if not isinstance(buff, Pointer):
         buff = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
         copy = True
     else:
@@ -150,7 +150,7 @@ def decode(
     ptr += len_version
 
     # read shape info
-    shape_info_dtype = np.dtype(hub.core.meta.encode.shape.SHAPE_ENCODING_DTYPE)
+    shape_info_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     shape_info_shape = np.frombuffer(ptr.memoryview[:8], dtype=np.int32)
     ptr += 8
     shape_info_data_size = int(np.prod(shape_info_shape) * shape_info_dtype.itemsize)
@@ -162,9 +162,7 @@ def decode(
     ptr += shape_info_data_size
 
     # read byte positions
-    byte_positions_dtype = np.dtype(
-        hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE
-    )
+    byte_positions_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
     byte_positions_shape = np.frombuffer(ptr.memoryview[:8], dtype=np.int32)
     ptr += 8
     byte_positions_data_size = int(
@@ -185,12 +183,10 @@ def decode(
 
 def test():
     version = hub.__version__
-    shape_info = np.cast[hub.core.meta.encode.shape.SHAPE_ENCODING_DTYPE](
+    shape_info = np.cast[hub.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(17, 63))
     )
-    byte_positions = np.cast[
-        hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE
-    ](np.random.randint(100, size=(31, 79)))
+    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(31, 79)))
     data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
     encoded = bytes(encode(version, shape_info, byte_positions, data))
 

@@ -69,11 +69,11 @@ class Chunk(Cachable):
         Returns:
             Tuple[int, int]: 2D index to be used to access `self._data`.
         """
-
+        assert byte_index < sum(map(len, self._data))
         i = 0
         while len(self._data[i]) <= byte_index:
-            i += 1
             byte_index -= len(self._data[i])
+            i += 1
         return i, byte_index
 
     def view(self, start_byte: int, end_byte: int):
@@ -178,6 +178,5 @@ class Chunk(Cachable):
     def frombuffer(cls, buffer: bytes) -> "Chunk":
         if len(buffer) == 0:
             return cls()
-
         version, shapes, byte_positions, data = decode(buffer)
         return cls(shapes, byte_positions, data=data)
