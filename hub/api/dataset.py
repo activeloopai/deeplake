@@ -4,11 +4,7 @@ from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import (
-    DEFAULT_MEMORY_CACHE_SIZE,
-    DEFAULT_LOCAL_CACHE_SIZE,
-    MB,
-)
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
