@@ -54,6 +54,7 @@ class ImageClassification(UnstructuredDataset):
         self.set_names = self.get_set_names()
         self.class_names = self.get_class_names()
 
+    # TODO: make lazy/memoized property
     def get_set_names(self) -> Tuple[str]:
         # TODO: move outside class
         set_names = set()
@@ -62,6 +63,7 @@ class ImageClassification(UnstructuredDataset):
         set_names = sorted(set_names)  # TODO: lexicographical sorting
         return tuple(set_names)
 
+    # TODO: make lazy/memoized property
     def get_class_names(self) -> Tuple[str]:
         # TODO: move outside class
         class_names = set()
@@ -73,29 +75,29 @@ class ImageClassification(UnstructuredDataset):
     def structure(
         self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
     ):
+        images_tensor_map = {}
+        labels_tensor_map = {}
+
+        use_set_prefix = len(self.set_names) > 1
+
+        for set_name in self.set_names:
+            if not use_set_prefix:
+                set_name = ""
+
+            images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
+            labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
+            images_tensor_map[set_name] = images_tensor_name
+            labels_tensor_map[set_name] = labels_tensor_name
+
+            # TODO: infer sample_compression
+            ds.create_tensor(images_tensor_name, htype="image", **image_tensor_args)
+            ds.create_tensor(
+                labels_tensor_name,
+                htype="class_label",
+                class_names=self.class_names,
+            )
+
         with ds:
-            images_tensor_map = {}
-            labels_tensor_map = {}
-
-            use_set_prefix = len(self.set_names) > 1
-
-            for set_name in self.set_names:
-                if not use_set_prefix:
-                    set_name = ""
-
-                images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
-                labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
-                images_tensor_map[set_name] = images_tensor_name
-                labels_tensor_map[set_name] = labels_tensor_name
-
-                # TODO: infer sample_compression
-                ds.create_tensor(images_tensor_name, htype="image", **image_tensor_args)
-                ds.create_tensor(
-                    labels_tensor_name,
-                    htype="class_label",
-                    class_names=self.class_names,
-                )
-
             paths = self._abs_file_paths
             iterator = tqdm(
                 paths,
