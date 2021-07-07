@@ -6,6 +6,7 @@ def create_parametrized_named_tuple(T: str, fields: List[str]):
     class DummySubClass(SubscriptNamedTuple):
         _fields = fields
         _T = T
+
     return DummySubClass
 
 
@@ -104,6 +105,7 @@ class SubscriptNamedTuple(object):
 class _InitializeParameterized(object):
     """When called with the param value as the only argument, returns an un-initialized instance of the parameterized class.
     Subsequent __setstate__ will be called by pickle."""
+
     def __call__(self, T, fields):
         obj = _InitializeParameterized()
         obj.__class__ = create_parametrized_named_tuple(T, fields)

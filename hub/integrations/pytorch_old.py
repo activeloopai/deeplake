@@ -31,7 +31,6 @@ def dataset_to_pytorch(
     global Dataset
     from hub.api.dataset import Dataset
 
-
     dataset.flush()
     pytorch_ds = TorchDataset(
         dataset,
@@ -39,7 +38,7 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
-    
+
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         num_workers=num_workers,
@@ -108,8 +107,9 @@ class TorchDataset:
             elif item.dtype in ["uint32", "uint64"]:
                 item = item.astype("int64")
             sample[key] = item
-        
+
         return self._apply_transform(sample)
+
     def __iter__(self):
         for index in range(len(self)):
             yield self[index]

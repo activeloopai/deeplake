@@ -117,7 +117,6 @@ def test_pytorch_with_compression(ds: Dataset):
             dl = ds.pytorch(num_workers=2)
         return
 
-
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
     for batch in dl:
