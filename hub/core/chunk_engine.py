@@ -198,6 +198,10 @@ class ChunkEngine:
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
 
+        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
+        self.cache[last_chunk_key] = self.last_chunk
+
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
     ) -> bool:
