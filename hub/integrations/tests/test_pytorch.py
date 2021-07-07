@@ -138,13 +138,13 @@ def test_pytorch_small_old(ds):
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = dataset_to_pytorch(
-                ds, num_workers=0, batch_size=1, python_version_warning=False
+                ds, num_workers=2, batch_size=1, python_version_warning=False
             )
         return
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     dl = dataset_to_pytorch(
-        ds, num_workers=0, batch_size=1, python_version_warning=False
+        ds, num_workers=2, batch_size=1, python_version_warning=False
     )
 
     for i, batch in enumerate(dl):
@@ -172,7 +172,7 @@ def test_custom_tensor_order(ds):
 
     dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
     dl_old = dataset_to_pytorch(
-        ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
+        ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
     )
     for dl in [dl_new, dl_old]:
         for i, batch in enumerate(dl):
