@@ -1,7 +1,7 @@
 from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionError
 import pytest
 from hub.api.tensor import Tensor
-from hub.tests.common import TENSOR_KEY, assert_all_samples_have_expected_compression
+from hub.tests.common import TENSOR_KEY
 from hub.constants import UNCOMPRESSED
 import numpy as np
 
@@ -43,7 +43,6 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.chunk_compression == UNCOMPRESSED
 
     original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
-    assert_all_samples_have_expected_compression(images, original_compressions)
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)
@@ -63,7 +62,6 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.meta.chunk_compression == UNCOMPRESSED
 
     original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
-    assert_all_samples_have_expected_compression(images, original_compressions)
 
     expected_shapes = [
         (900, 900, 3),
@@ -89,9 +87,9 @@ def test_uncompressed(ds: Dataset):
 
     images.append(np.ones((100, 100, 100)))
     images.extend(np.ones((3, 101, 2, 1)))
-    original_compressions = [UNCOMPRESSED] * 4
-
-    assert_all_samples_have_expected_compression(images, original_compressions)
+    ds.clear_cache()
+    np.testing.assert_array_equal(images[0].numpy(), np.ones((100, 100, 100)))
+    np.testing.assert_array_equal(images[1:4].numpy(), np.ones((3, 101, 2, 1)))
 
 
 @pytest.mark.xfail(raises=SampleCompressionError, strict=True)

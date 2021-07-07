@@ -7,12 +7,8 @@ from hub.util.check_installation import tfds_installed, requires_tfds, requires_
 
 @requires_tfds
 def test_from_tfds_to_path(local_storage):
-    if local_storage is None:
-        pytest.skip()
     from hub.util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
 
-    if local_storage is None:
-        pytest.skip()
     hub_ds = from_tfds_to_path(
         tfds_dataset_name="mnist",
         split="test",

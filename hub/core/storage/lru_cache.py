@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from typing import Set
+from hub.core.storage.cachable import Cachable
+from typing import Callable, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -41,17 +42,49 @@ class LRUCache(StorageProvider):
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
         self.check_readonly()
-        for key in self.dirty_keys:
-            self.next_storage[key] = self.cache_storage[key]
-        self.dirty_keys.clear()
+        for key in self.dirty_keys.copy():
+            self._forward(key)
         self.next_storage.flush()
+
+    def get_cachable(self, path: str, expected_class):
+        """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
+        this function will read it back into object form & keep the object in cache.
+
+        Args:
+            path (str): Path to the stored cachable.
+            expected_class (callable): The expected subclass of `Cachable`.
+
+        Raises:
+            ValueError: If the incorrect `expected_class` was provided.
+            ValueError: If the type of the data at `path` is invalid.
+
+        Returns:
+            An instance of `expected_class` populated with the data.
+        """
+
+        item = self[path]
+
+        if isinstance(item, Cachable):
+            if type(item) != expected_class:
+                raise ValueError(
+                    f"'{path}' was expected to have the class '{expected_class.__name__}'. Instead, got: '{type(item)}'."
+                )
+            return item
+
+        if isinstance(item, (bytes, memoryview)):
+            obj = expected_class.frombuffer(item)
+            if len(obj) <= self.cache_size:
+                self._insert_in_cache(path, obj)
+            return obj
+
+        raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
 
     def __getitem__(self, path: str):
         """If item is in cache_storage, retrieves from there and returns.
         If item isn't in cache_storage, retrieves from next storage, stores in cache_storage (if possible) and returns.
 
         Args:
-            path (str): the path relative to the root of the underlying storage.
+            path (str): The path relative to the root of the underlying storage.
 
         Raises:
             KeyError: if an object is not found at the path.
@@ -68,7 +101,7 @@ class LRUCache(StorageProvider):
                 self._insert_in_cache(path, result)
             return result
 
-    def __setitem__(self, path: str, value: bytes):
+    def __setitem__(self, path: str, value: Union[bytes, Cachable]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
 
         Args:
@@ -87,8 +120,7 @@ class LRUCache(StorageProvider):
             self._insert_in_cache(path, value)
             self.dirty_keys.add(path)
         else:  # larger than cache, directly send to next layer
-            self.dirty_keys.discard(path)
-            self.next_storage[path] = value
+            self._forward_value(path, value)
 
         self.maybe_flush()
 
@@ -160,6 +192,31 @@ class LRUCache(StorageProvider):
         """
         yield from self._list_keys()
 
+    def _forward(self, path, remove=False):
+        """Forward the value at a given path to the next storage, and un-marks its key.
+        If the value at the path is Cachable, it will only be un-dirtied if remove=True.
+        """
+        self._forward_value(path, self.cache_storage[path], remove)
+
+    def _forward_value(self, path, value, remove=False):
+        """Forwards a path-value pair to the next storage, and un-marks its key.
+
+        Args:
+            path (str): the path to the object relative to the root of the provider.
+            value (bytes, Cachable): the value to send to the next storage.
+            remove (bool, optional): cachable values are not un-marked automatically,
+                as they are externally mutable. Set this to True to un-mark them anyway.
+        """
+        cachable = isinstance(value, Cachable)
+
+        if not cachable or remove:
+            self.dirty_keys.discard(path)
+
+        if cachable:
+            self.next_storage[path] = value.tobytes()
+        else:
+            self.next_storage[path] = value
+
     def _free_up_space(self, extra_size: int):
         """Helper function that frees up space the requred space in cache.
             No action is taken if there is sufficient space in the cache.
@@ -174,12 +231,11 @@ class LRUCache(StorageProvider):
         """Helper function that pops the least recently used key, value pair from the cache"""
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
-            self.next_storage[key] = self.cache_storage[key]
-            self.dirty_keys.discard(key)
+            self._forward(key, remove=True)
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
-    def _insert_in_cache(self, path: str, value: bytes):
+    def _insert_in_cache(self, path: str, value: Union[bytes, Cachable]):
         """Helper function that adds a key value pair to the cache.
 
         Args:
@@ -191,7 +247,7 @@ class LRUCache(StorageProvider):
         """
         self.check_readonly()
         self._free_up_space(len(value))
-        self.cache_storage[path] = value
+        self.cache_storage[path] = value  # type: ignore
         self.cache_used += len(value)
         self.lru_sizes[path] = len(value)
 

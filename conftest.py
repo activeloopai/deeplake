@@ -257,19 +257,13 @@ def ds(request):
 
 
 @pytest.fixture
-def cat_path(request):
-    # paths are only usable in local mode
-    if not _is_opt_true(request, LOCAL_OPT):
-        pytest.skip()
+def cat_path():
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "cat.jpeg")
 
 
 @pytest.fixture
-def flower_path(request):
-    # paths are only usable in local mode
-    if not _is_opt_true(request, LOCAL_OPT):
-        pytest.skip()
+def flower_path():
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "flower.png")
 

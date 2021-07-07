@@ -3,14 +3,6 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
-class ChunkSizeTooSmallError(Exception):
-    def __init__(
-        self,
-        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
-    ):
-        super().__init__(message)
-
-
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
@@ -345,8 +337,10 @@ class TensorDtypeMismatchError(MetaError):
 
 
 class ReadOnlyModeError(Exception):
-    def __init__(self):
-        super().__init__("Modification when in read-only mode is not supported!")
+    def __init__(self, custom_message: str = None):
+        if custom_message is None:
+            custom_message = "Modification when in read-only mode is not supported!"
+        super().__init__(custom_message)
 
 
 class TransformError(Exception):
@@ -401,3 +395,27 @@ class DatasetUnsupportedPytorch(Exception):
         super().__init__(
             f"The Dataset object passed to Pytorch is incompatible. Reason: {reason}"
         )
+
+
+class CorruptedMetaError(Exception):
+    pass
+
+
+class ChunkEngineError(Exception):
+    pass
+
+
+class FullChunkError(ChunkEngineError):
+    pass
+
+
+class ChunkIdEncoderError(ChunkEngineError):
+    pass
+
+
+class ChunkSizeTooSmallError(ChunkEngineError):
+    def __init__(
+        self,
+        message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
+    ):
+        super().__init__(message)

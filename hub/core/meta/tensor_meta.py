@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, List, Sequence, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -37,10 +37,8 @@ class TensorMeta(Meta):
     sample_compression: str
     chunk_compression: str
 
-    @staticmethod
-    def create(
-        key: str,
-        storage: StorageProvider,
+    def __init__(
+        self,
         htype: str = DEFAULT_HTYPE,
         **kwargs,
     ):
@@ -51,18 +49,8 @@ class TensorMeta(Meta):
             Auto-populates `required_meta` that `Meta` accepts as an argument.
 
         Args:
-            key (str): Key relative to `storage` where this instance will be synchronized to. Will automatically add the tensor meta filename to the end.
-            storage (StorageProvider): Destination of this meta.
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
-
-        Raises:
-            TensorMetaInvalidHtypeOverwriteKey: If **kwargs contains unsupported keys for the provided `htype`.
-            TensorMetaInvalidHtypeOverwriteValue: If **kwargs contains unsupported values for the keys of the provided `htype`.
-            NotImplementedError: Chunk compression has not been implemented! # TODO: chunk compression
-
-        Returns:
-            TensorMeta: Tensor meta object.
         """
 
         htype_overwrite = _remove_none_values_from_dict(dict(kwargs))
@@ -72,71 +60,74 @@ class TensorMeta(Meta):
         required_meta.update(htype_overwrite)
         _validate_compression(required_meta)
 
-        return TensorMeta(
-            get_tensor_meta_key(key), storage, required_meta=required_meta
-        )
+        self.__dict__.update(required_meta)
 
-    @staticmethod
-    def load(key: str, storage: StorageProvider):
-        return TensorMeta(get_tensor_meta_key(key), storage)
+        super().__init__()
 
-    def check_array_sample_is_compatible(self, array: np.ndarray):
-        """Check if this `tensor_meta` is compatible with `array`. The provided `array` is treated as a single sample.
-
-        Note:
-            If no samples exist in the tensor this `tensor_meta` corresponds with, `len(array.shape)` is not checked.
+    def check_compatibility(self, shape: Tuple[int], dtype):
+        """Checks if this tensor meta is compatible with the incoming sample(s) properties.
 
         Args:
-            array (np.ndarray): Array representing a sample to check compatibility with.
+            shape (Tuple[int]): Shape all samples having their compatibility checked. Must be a single-sample shape
+                but can represent multiple.
+            dtype: Datatype for the sample(s).
 
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to this meta.
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
-        if self.dtype and self.dtype != array.dtype.name:
+        dtype = np.dtype(dtype)
+
+        if self.dtype and self.dtype != dtype.name:
             raise TensorDtypeMismatchError(
                 self.dtype,
-                array.dtype.name,
+                dtype.name,
                 self.htype,
             )
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(array.shape)
+            actual_shape_len = len(shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
                     "Sample shape length is expected to be {}, actual length is {}.".format(
                         expected_shape_len, actual_shape_len
                     ),
-                    array.shape,
+                    shape,
                 )
 
-    def update_with_sample(self, array: np.ndarray):
-        """Update this meta with the `array` properties. The provided `array` is treated as a single sample (no batch axis)!
-
-        Note:
-            If no samples exist, `min_shape` and `max_shape` are set to this array's shape.
-            If samples do exist, `min_shape` and `max_shape` are updated.
+    def update(self, shape: Tuple[int], dtype, num_samples: int):
+        """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
 
         Args:
-            array (np.ndarray): Unbatched array to update this meta with.
+            shape (Tuple[int]): [description]
+            dtype ([type]): [description]
+            num_samples (int): [description]
+
+        Raises:
+            ValueError: [description]
         """
 
-        """`array` is assumed to have a batch axis."""
+        if num_samples <= 0:
+            raise ValueError(
+                f"Can only update tensor meta when the number of samples is > 0. Got: '{num_samples}'"
+            )
 
-        shape = array.shape
+        dtype = np.dtype(dtype)
 
         if self.length <= 0:
             if not self.dtype:
-                self.dtype = str(array.dtype)
+                self.dtype = str(dtype)
 
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
             # update meta subsequent times
             self._update_shape_interval(shape)
+
+        self.length += num_samples
 
     def _update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:
@@ -145,6 +136,10 @@ class TensorMeta(Meta):
         for i, dim in enumerate(shape):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
+
+    def as_dict(self):
+        # TODO: tensor meta as_dict
+        raise NotImplementedError
 
 
 def _required_meta_from_htype(htype: str) -> dict:
