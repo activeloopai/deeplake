@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from pathlib import Path
 import os
@@ -118,6 +119,14 @@ class ImageClassification(UnstructuredDataset):
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
+                except Exception as e:
+                    if hasattr(e, "message"):
+                        resason = e.message
+                    else:
+                        reason = "Unknown"
+
+                    warnings.warn(f"[Skipping] Could not upload sample '{file_path}'. Reason: {reason}")
+                    continue
 
                 ds[labels_tensor_map[set_name]].append(label)
 
