@@ -13,8 +13,8 @@ from hub.client.utils import has_hub_testing_creds
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
-MAX_INT_DTYPE = np.array(100).dtype.name
-MAX_FLOAT_DTYPE = np.array(1.1).dtype.name
+MAX_INT_DTYPE = np.int_.__name__
+MAX_FLOAT_DTYPE = np.float_.__name__
 
 
 def test_persist_local(local_storage):
