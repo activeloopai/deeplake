@@ -1,5 +1,5 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-    <img src="https://github.com/activeloopai/Hub/blob/istranic-readme-update/media/hub_logo_compact.png" width="30%"/>
+    <img src="https://github.com/activeloopai/Hub/blob/main/media/hub_logo_compact.png" width="30%"/>
     </br>
     <h2 align="center">Dataset management for deep learning applications
  </h2>
@@ -64,10 +64,6 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
 pip3 install hub
-
-OR
-
-pip install git+https://github.com/activeloopai/Hub.git
 ```
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
