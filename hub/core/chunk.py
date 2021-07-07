@@ -81,7 +81,7 @@ class Chunk(Cachable):
             return self._data[0][start_byte:end_byte]
 
         start2d = self._get_2d_idx(start_byte)
-        end2d = self._get_2d_idx(end_byte)
+        end2d = self._get_2d_idx(end_byte - 1)
 
         # TODO: document this
         # builds a list of memoryviews that contain the pieces we need for the output view
@@ -89,7 +89,7 @@ class Chunk(Cachable):
         byts.append(self._data[start2d[0]][start2d[1] :])
         for i in range(start2d[0] + 1, end2d[0]):
             byts.append(self._data[i])
-        byts.append(self._data[end2d[0]][: end2d[1]])
+        byts.append(self._data[end2d[0]][: end2d[1] + 1])
         buff = malloc(end_byte - start_byte)
         ptr = buff + 0
         for byt in byts:
