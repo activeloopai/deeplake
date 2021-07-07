@@ -67,7 +67,7 @@ pip3 install hub
 
 OR
 
-pip install git+https://github.com/activeloopai/Hub.git@release/2.0
+pip install git+https://github.com/activeloopai/Hub.git
 ```
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
