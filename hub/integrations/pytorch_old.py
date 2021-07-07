@@ -7,14 +7,12 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
-from hub.util.subscript_namedtuple import create_parametrized_named_tuple
 
 
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     num_workers: int = 1,
-    tensors: Optional[Sequence[str]] = None,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
@@ -35,7 +33,6 @@ def dataset_to_pytorch(
     pytorch_ds = TorchDataset(
         dataset,
         transform,
-        tensors,
         python_version_warning=python_version_warning,
     )
 
@@ -54,7 +51,6 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
-        tensors: Optional[Sequence[str]] = None,
         python_version_warning: bool = True,
     ):
 
@@ -73,15 +69,7 @@ class TorchDataset:
             )
 
         self.transform = transform
-        self.tensor_keys: List[str]
-        if tensors is not None:
-            for t in tensors:
-                if t not in dataset.tensors:
-                    raise TensorDoesNotExistError(t)
-            self.tensor_keys = list(tensors)
-        else:
-            self.tensor_keys = list(dataset.tensors)
-        self._return_type = create_parametrized_named_tuple("Tensors", self.tensor_keys)
+        self.tensor_keys = list(dataset.tensors)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -99,7 +87,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         self._init_ds()
-        sample = self._return_type()
+        sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
             item = self.dataset[key][index].numpy()  # type: ignore
