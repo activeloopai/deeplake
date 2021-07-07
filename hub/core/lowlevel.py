@@ -180,7 +180,7 @@ def decode(
         data = memoryview(ptr.bytes)
     else:
         data = ptr.memoryview
-    return version, shape_info, byte_positions, ptr.memoryview
+    return version, shape_info, byte_positions, data
 
 
 def test():
@@ -188,7 +188,9 @@ def test():
     shape_info = np.cast[hub.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(17, 63))
     )
-    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(31, 79)))
+    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](
+        np.random.randint(100, size=(31, 79))
+    )
     data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
     encoded = bytes(encode(version, shape_info, byte_positions, data))
 
