@@ -112,7 +112,6 @@ class Chunk(Cachable):
         shape_nbytes = self.shapes_encoder.nbytes
         range_nbytes = self.byte_positions_encoder.nbytes
         error_bytes = 32  # to account for any extra delimeters/stuff that `np.savez` may create in excess
-
         return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
     def tobytes(self) -> memoryview:
