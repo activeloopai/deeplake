@@ -7,7 +7,7 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
-from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
+from hub.util.subscript_namedtuple import create_parametrized_named_tuple
 
 
 def dataset_to_pytorch(
@@ -81,7 +81,7 @@ class TorchDataset:
             self.tensor_keys = list(tensors)
         else:
             self.tensor_keys = list(dataset.tensors)
-        self._return_type = namedtuple("Tensors", self.tensor_keys)
+        self._return_type = create_parametrized_named_tuple("Tensors", self.tensor_keys)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample

@@ -6,7 +6,7 @@ from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import get_base_storage
-from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
+from hub.util.subscript_namedtuple import create_parametrized_named_tuple
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Sequence
@@ -116,8 +116,7 @@ class TorchDataset:
         else:
             self.tensor_keys = list(dataset.tensors)
 
-        self._return_type = namedtuple("Tensors", self.tensor_keys)
-
+        self._return_type = create_parametrized_named_tuple("Tensors", self.tensor_keys)
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
