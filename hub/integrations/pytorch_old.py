@@ -7,6 +7,7 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
+from hub.api.dataset import Dataset
 
 
 def dataset_to_pytorch(
@@ -26,8 +27,6 @@ def dataset_to_pytorch(
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
-    global Dataset
-    from hub.api.dataset import Dataset
 
     dataset.flush()
     pytorch_ds = TorchDataset(
