@@ -292,7 +292,6 @@ class Dataset:
             self,
             transform,
             num_workers=num_workers,
-            tensors=tensors,
             batch_size=batch_size,
             drop_last=drop_last,
             collate_fn=collate_fn,
