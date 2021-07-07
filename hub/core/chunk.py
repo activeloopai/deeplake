@@ -8,6 +8,8 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
+from hub.core.lowlevel import encode, decode, malloc, _write_pybytes
+
 
 class Chunk(Cachable):
     def __init__(
@@ -44,17 +46,46 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: Union[memoryview, bytearray] = data or bytearray()
+        self._data: List[memoryview] = [] if data is None else [data]
+
+
+
 
     @property
     def memoryview_data(self):
-        if isinstance(self._data, memoryview):
-            return self._data
-        return memoryview(self._data)
+        # deprecated
+        if len(self._data) == 1:
+            return self._data[0]
+        ptr = malloc(sum(map(len,self._data)))
+        for data in self._data:
+            ptr = _write_pybytes(ptr, data)
+        return memoryview(ptr.bytes)
+
+    def _get_2d_idx(self, idx):
+        i = 0
+        while len(self._data[i]) <= idx:
+            i += 1
+            idx -= len(self._data[i])
+        return i, idx
+
+    def view(self, start, end):
+        if len(self._data) == 1:
+            return self._data[0][start: end]
+        start2d = self._get_2d_idx(start)
+        end2d = self._get_2d_idx(end)
+        byts = []
+        byts.append(self._data[start2d[0]][start2d[1]:])
+        for i in range(start2d[0] + 1, end2d[0]):
+            byts.append(self._data[i])
+        byts.append(self._data[end2d[0]][:end2d[1]])
+        ptr = malloc(end - start)
+        for byt in byts:
+            ptr = _write_pybytes(ptr, byt)
+        return memoryview(ptr.bytes)
 
     @property
     def num_data_bytes(self):
-        return len(self._data)
+        return sum(map(len, self._data))
 
     def is_under_min_space(self, min_data_bytes_target: int) -> bool:
         """If this chunk's data is less than `min_data_bytes_target`, returns True."""
@@ -84,11 +115,11 @@ class Chunk(Cachable):
             )
 
         # `_data` will be a `memoryview` if `frombuffer` is called.
-        if isinstance(self._data, memoryview):
-            self._data = bytearray(self._data)
+        # if isinstance(self._data, memoryview):
+        #     self._data = bytearray(self._data)
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data += buffer
+        self._data.append(buffer)
         self.update_headers(incoming_num_bytes, shape)
 
     def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
@@ -116,24 +147,10 @@ class Chunk(Cachable):
         return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
     def tobytes(self) -> memoryview:
-        out = BytesIO()
+        return encode(hub.__version__, self.shapes.encoder.array, self.byte_positions_encoder.array, self._data)
 
-        # TODO: for fault tolerance, we should have a chunk store the ID for the next chunk
-        # TODO: in case the index chunk meta gets pwned (especially during a potentially failed transform job merge)
-
-        np.savez(
-            out,
-            version=hub.__encoded_version__,
-            shapes=self.shapes_encoder.array,
-            byte_positions=self.byte_positions_encoder.array,
-            data=np.frombuffer(self.memoryview_data, dtype=np.uint8),
-        )
-        out.seek(0)
-        return out.getbuffer()
 
     @classmethod
-    def frombuffer(cls, buffer: bytes):
-        bio = BytesIO(buffer)
-        npz = np.load(bio)
-        data = memoryview(npz["data"].tobytes())
-        return cls(npz["shapes"], npz["byte_positions"], data=data)
+    def frombuffer(cls, buffer: bytes) -> "Chunk":
+        version, shapes, byte_positions, data = decode(buffer)
+        return cls(shapes, byte_position, data=data)

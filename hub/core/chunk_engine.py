@@ -365,12 +365,12 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
 
-        buffer = chunk.memoryview_data
+        # buffer = chunk.memoryview_data
         local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-        buffer = buffer[sb:eb]
+        buffer = chunk.view(sb, eb)
         if expect_compressed:
             sample = decompress_array(buffer, shape)
         else:
