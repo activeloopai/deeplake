@@ -109,7 +109,6 @@ class ChunkEngine:
         if max_chunk_size <= 2:
             raise ValueError("Max chunk size should be > 2 bytes.")
 
-        # no chunks may exceed this
         self.max_chunk_size = max_chunk_size
 
         # only the last chunk may be less than this
@@ -179,7 +178,7 @@ class ChunkEngine:
         determining which chunks contain which parts of `buffer`.
 
         Args:
-            buffer (memoryview): Buffer that represents a single sample that may or may not be compressed. Can have a
+            buffer (memoryview): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
             dtype (np.dtype): Data type for the sample that `buffer` represents.

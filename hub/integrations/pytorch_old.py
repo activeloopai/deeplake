@@ -62,7 +62,7 @@ class TorchDataset:
 
         if python_version_warning:
             warnings.warn(
-                "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster Data streaming to Pytorch."
+                "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
             )
 
         self.dataset = dataset
