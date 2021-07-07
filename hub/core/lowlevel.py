@@ -55,6 +55,10 @@ class Pointer(object):
     def bytes(self):
         return bytes(self._c_array)
 
+    @property
+    def bytearray(self):
+        return bytearray(self._c_array)
+
     def __len__(self):
         return self.size
 
@@ -128,7 +132,7 @@ def encode(
 
     assert ptr.size == 0
 
-    return flatbuff.memoryview
+    return flatbuff.bytes
 
 
 def decode(
@@ -180,7 +184,7 @@ def decode(
         data = memoryview(ptr.bytes)
     else:
         data = ptr.memoryview
-    return version, shape_info, byte_positions, ptr.memoryview
+    return version, shape_info, byte_positions, data
 
 
 def test():
