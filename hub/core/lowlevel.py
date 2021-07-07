@@ -135,7 +135,9 @@ def decode(
     buff: Union[bytes, Pointer, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     if not isinstance(buff, Pointer):
-        buff = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
+        ptr = Pointer(c_array=(ctypes.c_byte * len(buff))())
+        _write_pybytes(ptr, buff)
+        buff = ptr
         copy = True
     else:
         copy = False

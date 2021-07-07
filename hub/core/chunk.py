@@ -90,10 +90,10 @@ class Chunk(Cachable):
         for i in range(start2d[0] + 1, end2d[0]):
             byts.append(self._data[i])
         byts.append(self._data[end2d[0]][: end2d[1] + 1])
-        buff = malloc(end_byte - start_byte)
+        buff = malloc(sum(map(len, byts)))
         ptr = buff + 0
         for byt in byts:
-            ptr = _write_pybytes(ptr, byt)
+            ptr = _write_pybytes(ptr, byt.cast("B"))
         return memoryview(buff.bytes)
 
     @property
