@@ -83,6 +83,8 @@ def dataset_to_pytorch(
 ):
     dataset.flush()
     _import_torch()
+    # TODO new pytorch approach doesn't support 0 workers currently
+    num_workers = max(num_workers, 1)
     pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
