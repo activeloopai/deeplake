@@ -221,7 +221,7 @@ class Dataset:
 
     def _load_meta(self):
         if dataset_exists(self.storage):
-            logger.info(f"Hub Dataset {self.path} successfully loaded.")
+            logger.info(f"{self.path} loaded successfully.")
             self.meta = DatasetMeta.load(self.storage)
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
