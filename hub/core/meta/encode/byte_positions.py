@@ -1,9 +1,8 @@
+from hub.constants import ENCODING_DTYPE
 from re import L
 from typing import Tuple
 import numpy as np
 
-
-POSITION_ENCODING_DTYPE = np.uint64
 
 # these constants are for accessing the data layout. see the `BytePositionsEncoder` docstring.
 NUM_BYTES_INDEX = 0
@@ -75,7 +74,7 @@ class BytePositionsEncoder:
 
         self._encoded_byte_positions = encoded_byte_positions
         if self._encoded_byte_positions is None:
-            self._encoded_byte_positions = np.array([], dtype=POSITION_ENCODING_DTYPE)
+            self._encoded_byte_positions = np.array([], dtype=ENCODING_DTYPE)
 
     @property
     def num_samples(self) -> int:
@@ -138,7 +137,7 @@ class BytePositionsEncoder:
 
                 entry = np.array(
                     [[num_bytes_per_sample, sb, last_index + num_samples]],
-                    dtype=POSITION_ENCODING_DTYPE,
+                    dtype=ENCODING_DTYPE,
                 )
                 self._encoded_byte_positions = np.concatenate(
                     [self._encoded_byte_positions, entry], axis=0
@@ -147,7 +146,7 @@ class BytePositionsEncoder:
         else:
             self._encoded_byte_positions = np.array(
                 [[num_bytes_per_sample, 0, num_samples - 1]],
-                dtype=POSITION_ENCODING_DTYPE,
+                dtype=ENCODING_DTYPE,
             )
 
     def __getitem__(self, sample_index: int) -> Tuple[int, int]:

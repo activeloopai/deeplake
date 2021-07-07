@@ -1,3 +1,5 @@
+import numpy as np
+
 BYTE_PADDING = b"\0"
 
 # number of bytes per unit
@@ -39,6 +41,10 @@ CHUNK_EXTENSION = "npz"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
 ENCODED_CHUNK_NAMES_FILENAME = f"unsharded.{CHUNK_EXTENSION}"
+
+ENCODING_DTYPE = np.uint32
+# caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
+UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
