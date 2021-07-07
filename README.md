@@ -63,7 +63,7 @@ Hub also significantly reduces the time to build machine learning workflows, bec
 ## Getting Started with Hub
 Hub is written in 100% python and can be quickly installed using pip.
 ```sh
-pip3 install hub==2.0a7
+pip3 install hub
 
 OR
 
