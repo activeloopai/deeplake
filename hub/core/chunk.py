@@ -1,7 +1,7 @@
 from hub.util.exceptions import FullChunkError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 import numpy as np
 from io import BytesIO
 
@@ -58,27 +58,49 @@ class Chunk(Cachable):
             ptr = _write_pybytes(ptr, data)
         return memoryview(ptr.bytes)
 
-    def _get_2d_idx(self, idx):
-        i = 0
-        while len(self._data[i]) <= idx:
-            i += 1
-            idx -= len(self._data[i])
-        return i, idx
+    def _get_2d_idx(self, byte_index: int) -> Tuple[int, int]:
+        """Converts `byte_index`, which is an index for a flattened stream of bytes, into a 2D index that can
+        be used for a list of byte streams of varying lengths. Used for accessing `self._data`, which is a list
+        of `memoryview`s.
 
-    def view(self, start, end):
+        Args:
+            byte_index (int): Index over a flattened stream of bytes.
+
+        Returns:
+            Tuple[int, int]: 2D index to be used to access `self._data`.
+        """
+
+        i = 0
+        while len(self._data[i]) <= byte_index:
+            i += 1
+            byte_index -= len(self._data[i])
+        return i, byte_index
+
+    def view(self, start_byte: int, end_byte: int):
         if len(self._data) == 1:
-            return self._data[0][start:end]
-        start2d = self._get_2d_idx(start)
-        end2d = self._get_2d_idx(end)
+            return self._data[0][start_byte:end_byte]
+
+        start2d = self._get_2d_idx(start_byte)
+        end2d = self._get_2d_idx(end_byte)
+
+        # TODO: document this
+        # builds a list of memoryviews that contain the pieces we need for the output view
         byts = []
         byts.append(self._data[start2d[0]][start2d[1] :])
         for i in range(start2d[0] + 1, end2d[0]):
             byts.append(self._data[i])
         byts.append(self._data[end2d[0]][: end2d[1]])
-        ptr = malloc(end - start)
+
+        ptr = malloc(end_byte - start_byte)
+
         for byt in byts:
             ptr = _write_pybytes(ptr, byt)
+
         return memoryview(ptr.bytes)
+
+    @property
+    def num_samples(self):
+        return self.shapes_encoder.num_samples
 
     @property
     def num_data_bytes(self):
@@ -139,11 +161,14 @@ class Chunk(Cachable):
 
         shape_nbytes = self.shapes_encoder.nbytes
         range_nbytes = self.byte_positions_encoder.nbytes
-        error_bytes = 32  # to account for any extra delimeters/stuff that `np.savez` may create in excess
+        error_bytes = 32  # TODO: calculate these bytes actually
 
         return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
     def tobytes(self) -> memoryview:
+        if self.num_samples == 0:
+            return memoryview(bytes())
+
         return encode(
             hub.__version__,
             self.shapes_encoder.array,
@@ -153,5 +178,8 @@ class Chunk(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes) -> "Chunk":
+        if len(buffer) == 0:
+            return cls()
+
         version, shapes, byte_positions, data = decode(buffer)
-        return cls(shapes, byte_position, data=data)
+        return cls(shapes, byte_positions, data=data)
