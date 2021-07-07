@@ -47,7 +47,7 @@ Google, Waymo, Red Cross, Omdena, and Rarebase use Hub.
 * Dataset query using custom filter functions without having to download the entire dataset
 * Rapid data processing using transforms on distributed compute
 * Data pipelines
-* Rapid [visualization](http://app.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme) of image datasets via integration with Activeloop Platform
+* Rapid visualization of image datasets via integration with Activeloop Platform
  <p align="center">
     <br>
     <img src="https://raw.githubusercontent.com/activeloopai/Hub/master/docs/visualizer%20gif.gif" width="75%"/>
@@ -73,21 +73,18 @@ Accessing datasets in Hub requires a single line of code. Run this snippet to ge
 ```python
 from hub import Dataset
 
-mnist = Dataset("hub://activeloop/mnist_train")
-mnist_np = mnist.image[0].numpy()
+mnist = Dataset("hub://activeloop/mnist-train")
+mnist_np = mnist.images[0].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
-import torch
 from hub import Dataset
 
 my_dataset = Dataset("s3://bucket_name/dataset_folder")
-my_dataset_pytorch = my_dataset.pytorch(workers=2)
+my_dataloader = my_dataset.pytorch()
 
-train_loader = torch.utils.data.DataLoader(my_dataset_pytorch, batch_size=1, num_workers=0)
-
-for batch in train_loader:
-    print(batch["image"])
+for batch in my_dataloader:
+    print(batch["images"])
 
 ## Training Loop Here ##
 ```
