@@ -12,6 +12,10 @@ from hub.util.check_installation import requires_torch
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
+def to_tuple(sample):
+    return sample["image"], sample["image2"]
+
+
 @requires_torch
 @parametrize_all_dataset_storages
 def test_pytorch_small(ds):
@@ -81,9 +85,6 @@ def test_pytorch_transform(ds):
         ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
-
-    def to_tuple(sample):
-        return sample["image"], sample["image2"]
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
