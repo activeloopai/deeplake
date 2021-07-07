@@ -70,7 +70,7 @@ def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
 
 
 def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
-    ptr2 = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
+    ptr2 = Pointer(c_array=(ctypes.c_byte * len(byts))(*byts))
     memcpy(ptr, ptr2)
     ptr += len(byts)
     return ptr
