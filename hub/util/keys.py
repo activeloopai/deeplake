@@ -4,9 +4,6 @@ import posixpath
 from hub import constants
 
 
-"""key methods"""
-
-
 def get_chunk_key(key: str, chunk_name: str) -> str:
     return posixpath.join(
         key, constants.CHUNKS_FOLDER, f"{chunk_name}.{constants.CHUNK_EXTENSION}"
@@ -28,9 +25,6 @@ def get_chunk_id_encoder_key(key: str) -> str:
         constants.ENCODED_CHUNK_NAMES_FOLDER,
         constants.ENCODED_CHUNK_NAMES_FILENAME,
     )
-
-
-"""existence methods"""
 
 
 def dataset_exists(storage: StorageProvider) -> bool:

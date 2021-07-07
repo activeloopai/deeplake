@@ -1,10 +1,10 @@
+from hub.constants import ENCODING_DTYPE
 from typing import Tuple
 from hub.core.storage.provider import StorageProvider
 import numpy as np
 
 
 # these constants are for accessing the data layout. see the `ShapeEncoder` docstring.
-SHAPE_ENCODING_DTYPE = np.uint64
 LAST_INDEX_INDEX = -1
 
 
@@ -82,7 +82,7 @@ class ShapeEncoder:
 
         self._encoded_shapes: np.ndarray = encoded_shapes  # type: ignore
         if self._encoded_shapes is None:
-            self._encoded_shapes = np.array([], dtype=SHAPE_ENCODING_DTYPE)
+            self._encoded_shapes = np.array([], dtype=ENCODING_DTYPE)
 
     def __getitem__(self, sample_index: int) -> np.ndarray:
         if self.num_samples == 0:
@@ -133,7 +133,7 @@ class ShapeEncoder:
             else:
                 last_shape_index = self._encoded_shapes[-1, LAST_INDEX_INDEX]
                 shape_entry = np.array(
-                    [[*shape, last_shape_index + count]], dtype=SHAPE_ENCODING_DTYPE
+                    [[*shape, last_shape_index + count]], dtype=ENCODING_DTYPE
                 )
 
                 self._encoded_shapes = np.concatenate(
@@ -141,6 +141,4 @@ class ShapeEncoder:
                 )
 
         else:
-            self._encoded_shapes = np.array(
-                [[*shape, count - 1]], dtype=SHAPE_ENCODING_DTYPE
-            )
+            self._encoded_shapes = np.array([[*shape, count - 1]], dtype=ENCODING_DTYPE)

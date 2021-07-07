@@ -12,6 +12,11 @@ from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
 
+# need this for 32-bit and 64-bit systems to have correct tests
+MAX_INT_DTYPE = np.int_.__name__
+MAX_FLOAT_DTYPE = np.float_.__name__
+
+
 def test_persist_local(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
@@ -202,17 +207,17 @@ def test_scalar_samples(ds: Dataset):
 
     # first sample sets dtype
     tensor.append(5)
-    assert tensor.meta.dtype == "int64"
+    assert tensor.meta.dtype == MAX_INT_DTYPE
 
     with pytest.raises(TensorDtypeMismatchError):
         tensor.append(5.1)
 
     tensor.append(10)
     tensor.append(-99)
-    tensor.append(np.int64(4))
+    tensor.append(np.array(4))
 
     with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.int32(4))
+        tensor.append(np.int16(4))
 
     with pytest.raises(TensorDtypeMismatchError):
         tensor.append(np.float32(4))
@@ -222,10 +227,10 @@ def test_scalar_samples(ds: Dataset):
 
     tensor.extend([10, 1, 4])
     tensor.extend([1])
-    tensor.extend(np.array([1, 2, 3], dtype="int64"))
+    tensor.extend(np.array([1, 2, 3], dtype=MAX_INT_DTYPE))
 
     with pytest.raises(TensorDtypeMismatchError):
-        tensor.extend(np.array([4, 5, 33], dtype="int32"))
+        tensor.extend(np.array([4, 5, 33], dtype="int16"))
 
     assert len(tensor) == 11
 
@@ -387,7 +392,9 @@ def test_htype(memory_ds: Dataset):
 def test_dtype(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
     dtyped_tensor = memory_ds.create_tensor("dtyped_tensor", dtype="uint8")
-    np_dtyped_tensor = memory_ds.create_tensor("np_dtyped_tensor", dtype=np.float64)
+    np_dtyped_tensor = memory_ds.create_tensor(
+        "np_dtyped_tensor", dtype=MAX_FLOAT_DTYPE
+    )
     py_dtyped_tensor = memory_ds.create_tensor("py_dtyped_tensor", dtype=float)
 
     # .meta.dtype should always be str or None
@@ -399,20 +406,20 @@ def test_dtype(memory_ds: Dataset):
     # .dtype should always be np.dtype or None
     assert type(tensor.dtype) == type(
         None
-    ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64 may be it's initial type."
+    ), "An htype with a generic `dtype` should start as None... If this check doesn't exist, float64/float32 may be it's initial type."
     assert dtyped_tensor.dtype == np.uint8
-    assert np_dtyped_tensor.dtype == np.float64
-    assert py_dtyped_tensor.dtype == np.float64
+    assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
+    assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
 
     tensor.append(np.ones((10, 10), dtype="float32"))
     dtyped_tensor.append(np.ones((10, 10), dtype="uint8"))
-    np_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
-    py_dtyped_tensor.append(np.ones((10, 10), dtype="float64"))
+    np_dtyped_tensor.append(np.ones((10, 10), dtype=MAX_FLOAT_DTYPE))
+    py_dtyped_tensor.append(np.ones((10, 10), dtype=MAX_FLOAT_DTYPE))
 
     assert tensor.dtype == np.float32
     assert dtyped_tensor.dtype == np.uint8
-    assert np_dtyped_tensor.dtype == np.float64
-    assert py_dtyped_tensor.dtype == np.float64
+    assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
+    assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
 
 
 @pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
