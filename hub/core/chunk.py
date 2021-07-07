@@ -48,15 +48,12 @@ class Chunk(Cachable):
 
         self._data: List[memoryview] = [] if data is None else [data]
 
-
-
-
     @property
     def memoryview_data(self):
         # deprecated
         if len(self._data) == 1:
             return self._data[0]
-        ptr = malloc(sum(map(len,self._data)))
+        ptr = malloc(sum(map(len, self._data)))
         for data in self._data:
             ptr = _write_pybytes(ptr, data)
         return memoryview(ptr.bytes)
@@ -70,14 +67,14 @@ class Chunk(Cachable):
 
     def view(self, start, end):
         if len(self._data) == 1:
-            return self._data[0][start: end]
+            return self._data[0][start:end]
         start2d = self._get_2d_idx(start)
         end2d = self._get_2d_idx(end)
         byts = []
-        byts.append(self._data[start2d[0]][start2d[1]:])
+        byts.append(self._data[start2d[0]][start2d[1] :])
         for i in range(start2d[0] + 1, end2d[0]):
             byts.append(self._data[i])
-        byts.append(self._data[end2d[0]][:end2d[1]])
+        byts.append(self._data[end2d[0]][: end2d[1]])
         ptr = malloc(end - start)
         for byt in byts:
             ptr = _write_pybytes(ptr, byt)
@@ -147,8 +144,12 @@ class Chunk(Cachable):
         return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
 
     def tobytes(self) -> memoryview:
-        return encode(hub.__version__, self.shapes.encoder.array, self.byte_positions_encoder.array, self._data)
-
+        return encode(
+            hub.__version__,
+            self.shapes.encoder.array,
+            self.byte_positions_encoder.array,
+            self._data,
+        )
 
     @classmethod
     def frombuffer(cls, buffer: bytes) -> "Chunk":

@@ -8,7 +8,12 @@ import hub
 class Pointer(object):
     __slots__ = ("address", "size", "_c_array")
 
-    def __init__(self, address: Optional[int] = None, size: Optional[int] = None, c_array: Optional[ctypes.Array] = None) -> None:
+    def __init__(
+        self,
+        address: Optional[int] = None,
+        size: Optional[int] = None,
+        c_array: Optional[ctypes.Array] = None,
+    ) -> None:
         if c_array is None:
             if address is None or size is None:
                 raise ValueError("Expected c_array or address and size args.")
@@ -58,7 +63,7 @@ def malloc(size: int) -> Pointer:
     return Pointer(c_array=(ctypes.c_byte * size)())
 
 
-def memcpy(dest: Pointer, src:Pointer, count=None) -> None:
+def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
     if count is None:
         count = src.size
     ctypes.memmove(dest.address, src.address, count)
@@ -72,10 +77,12 @@ def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
 
 
 def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
-    return Pointer(arr.__array_interface__['data'][0], arr.itemsize * arr.size)
+    return Pointer(arr.__array_interface__["data"][0], arr.itemsize * arr.size)
 
 
-def encode(version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]) -> memoryview:
+def encode(
+    version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]
+) -> memoryview:
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
@@ -86,7 +93,12 @@ def encode(version: str, shape_info: np.ndarray, byte_positions: np.ndarray, dat
     byte_positions_data_size = byte_positions.itemsize * byte_positions.size
     byte_positions_slice_size = 4 + 4 + byte_positions_data_size
     data_slice_size = sum(map(len, data))
-    flatbuff = malloc(version_slice_size + shape_info_slice_size + byte_positions_slice_size + data_slice_size)
+    flatbuff = malloc(
+        version_slice_size
+        + shape_info_slice_size
+        + byte_positions_slice_size
+        + data_slice_size
+    )
     ptr = flatbuff + 0
 
     # write version
@@ -117,7 +129,9 @@ def encode(version: str, shape_info: np.ndarray, byte_positions: np.ndarray, dat
     return flatbuff.memoryview
 
 
-def decode(buff: Union[bytes, Pointer]) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
+def decode(
+    buff: Union[bytes, Pointer]
+) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     if isinstance(buff, bytes):
         buff = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
         copy = True
@@ -127,7 +141,7 @@ def decode(buff: Union[bytes, Pointer]) -> Tuple[str, np.ndarray, np.ndarray, me
 
     # read version
     len_version = ptr[0]
-    version = ''
+    version = ""
     ptr += 1
     for i in range(len_version):
         version += chr(ptr[i])
@@ -138,17 +152,25 @@ def decode(buff: Union[bytes, Pointer]) -> Tuple[str, np.ndarray, np.ndarray, me
     shape_info_shape = np.frombuffer(ptr.memoryview[:8], dtype=np.int32)
     ptr += 8
     shape_info_data_size = int(np.prod(shape_info_shape) * shape_info_dtype.itemsize)
-    shape_info = np.frombuffer(ptr.memoryview[:shape_info_data_size], dtype=shape_info_dtype).reshape(shape_info_shape)
+    shape_info = np.frombuffer(
+        ptr.memoryview[:shape_info_data_size], dtype=shape_info_dtype
+    ).reshape(shape_info_shape)
     if copy:
         shape_info = shape_info.copy()
     ptr += shape_info_data_size
 
     # read byte positions
-    byte_positions_dtype = np.dtype(hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE)
+    byte_positions_dtype = np.dtype(
+        hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE
+    )
     byte_positions_shape = np.frombuffer(ptr.memoryview[:8], dtype=np.int32)
     ptr += 8
-    byte_positions_data_size = int(np.prod(byte_positions_shape) * byte_positions_dtype.itemsize)
-    byte_positions = np.frombuffer(ptr.memoryview[:byte_positions_data_size], dtype=byte_positions_dtype).reshape(byte_positions_shape)
+    byte_positions_data_size = int(
+        np.prod(byte_positions_shape) * byte_positions_dtype.itemsize
+    )
+    byte_positions = np.frombuffer(
+        ptr.memoryview[:byte_positions_data_size], dtype=byte_positions_dtype
+    ).reshape(byte_positions_shape)
     if copy:
         byte_positions = byte_positions.copy()
     ptr += byte_positions_data_size
@@ -161,13 +183,13 @@ def decode(buff: Union[bytes, Pointer]) -> Tuple[str, np.ndarray, np.ndarray, me
 
 def test():
     version = hub.__version__
-    shape_info = np.cast[hub.core.meta.encode.shape.SHAPE_ENCODING_DTYPE](np.random.randint(100 ,size=(17, 63)))
-    byte_positions = np.cast[hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE](np.random.randint(100 ,size=(31, 79)))
-    data = [
-        b'1234' * 7,
-        b'abcdefg' * 8,
-        b'qwertyuiop' * 9
-    ]
+    shape_info = np.cast[hub.core.meta.encode.shape.SHAPE_ENCODING_DTYPE](
+        np.random.randint(100, size=(17, 63))
+    )
+    byte_positions = np.cast[
+        hub.core.meta.encode.byte_positions.POSITION_ENCODING_DTYPE
+    ](np.random.randint(100, size=(31, 79)))
+    data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
     encoded = bytes(encode(version, shape_info, byte_positions, data))
 
     # from bytes
@@ -176,7 +198,7 @@ def test():
     assert version2 == version
     np.testing.assert_array_equal(shape_info, shape_info2)
     np.testing.assert_array_equal(byte_positions, byte_positions2)
-    assert b''.join(data) == bytes(data2)
+    assert b"".join(data) == bytes(data2)
 
     # from pointer
     buff = Pointer(c_array=(ctypes.c_byte * len(encoded))(*encoded))
@@ -185,7 +207,8 @@ def test():
     assert version2 == version
     np.testing.assert_array_equal(shape_info, shape_info2)
     np.testing.assert_array_equal(byte_positions, byte_positions2)
-    assert b''.join(data) == bytes(data2)
+    assert b"".join(data) == bytes(data2)
+
 
 if __name__ == "__main__":
     test()
