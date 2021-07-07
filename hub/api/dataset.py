@@ -95,12 +95,12 @@ class Dataset:
 
         self.tensors: Dict[str, Tensor] = {}
 
-        self.client = HubBackendClient(token=token)
         self._token = token
 
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
+            self.client = HubBackendClient(token=token)
 
         self.public = public
         self._load_meta()
@@ -222,8 +222,9 @@ class Dataset:
         meta_key = get_dataset_meta_key()
 
         if dataset_exists(self.storage):
-            logger.info(f"Hub Dataset {self.path} successfully loaded.")
+            logger.info(f"{self.path} loaded successfully.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
+
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
@@ -391,6 +392,6 @@ class Dataset:
     @property
     def token(self):
         """Get attached token of the dataset"""
-        if self._token is None:
+        if self._token is None and self.path.startswith("hub://"):
             self._token = self.client.get_token()
         return self._token
