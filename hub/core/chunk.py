@@ -146,7 +146,7 @@ class Chunk(Cachable):
     def tobytes(self) -> memoryview:
         return encode(
             hub.__version__,
-            self.shapes.encoder.array,
+            self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             self._data,
         )
