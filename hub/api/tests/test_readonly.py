@@ -6,7 +6,7 @@ from hub import Dataset
 from hub.util.exceptions import ReadOnlyModeError
 
 
-def _assert_readonly_ops(ds: Dataset, num_samples: int, sample_shape: Tuple[int]):
+def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
     assert ds.mode == "r"
 
     with pytest.raises(ReadOnlyModeError):
@@ -18,7 +18,7 @@ def _assert_readonly_ops(ds: Dataset, num_samples: int, sample_shape: Tuple[int]
     assert ds.tensor.shape == (num_samples, *sample_shape)
 
 
-def test_readonly(local_ds: Dataset):
+def test_readonly(local_ds):
     path = local_ds.path
 
     local_ds.create_tensor("tensor")
