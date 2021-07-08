@@ -239,20 +239,16 @@ class Dataset:
                 )
 
     @property
-    def mode(self):
-        return self._mode
+    def read_only(self):
+        return self.read_only
 
-    @mode.setter
-    def mode(self, new_mode):
-        if new_mode == "r":
+    @read_only.setter
+    def read_only(self, value: bool):
+        if value:
             self.storage.enable_readonly()
         else:
             self.storage.disable_readonly()
-        self._mode = new_mode
-
-    @property
-    def mode(self):
-        return self._mode
+        self.read_only = value
 
     @hub_reporter.record_call
     def pytorch(
