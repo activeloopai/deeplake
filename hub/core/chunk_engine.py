@@ -320,7 +320,7 @@ class ChunkEngine:
             self._check_sample_size(len(data))
             self._append_bytes(data, sample.shape, sample.dtype)
         else:
-            return self.append(Sample(array=np.array(sample)))
+            return self.append(Sample(array=np.array(sample)), maybe_flush=maybe_flush)
 
         if maybe_flush:
             self.cache.maybe_flush()
