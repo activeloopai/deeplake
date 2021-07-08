@@ -212,3 +212,22 @@ def test_custom_tensor_order(ds):
             np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
             np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
             np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+
+
+@requires_torch
+def test_readonly(local_ds: Dataset):
+    path = local_ds.path
+
+    local_ds.create_tensor("images")
+    local_ds.create_tensor("labels")
+    local_ds.images.extend(np.ones((10, 28, 28)))
+    local_ds.labels.extend(np.ones(10))
+
+    del local_ds
+
+    local_ds = Dataset(path)
+    local_ds.mode = "r"
+
+    # no need to check input, only care that readonly works
+    for sample in local_ds.pytorch():
+        pass

@@ -81,7 +81,6 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
 ):
-    dataset.flush()
     _import_torch()
     pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
     return torch.utils.data.DataLoader(  # type: ignore
