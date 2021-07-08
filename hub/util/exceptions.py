@@ -419,3 +419,10 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
+
+
+class VisualizationError(Exception):
+    def __init__(self, shape: Tuple[int], dtype: str, reason: str):
+        super().__init__(
+            f"Was unable to visualize. shape={shape}, dtype={dtype}. Reason: {reason}"
+        )

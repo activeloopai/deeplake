@@ -1,13 +1,17 @@
 from hub.util.keys import tensor_exists
 from hub.core.sample import Sample  # type: ignore
-from typing import List, Sequence, Union, Optional, Tuple, Dict
+from typing import Any, List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
+from hub.util.visualization import imshow, import_plt, visualize_tensor
 
 import numpy as np
 
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.core.storage import LRUCache
-from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
+from hub.util.exceptions import (
+    TensorDoesNotExistError,
+    InvalidKeyTypeError,
+)
 from hub.core.index import Index
 
 
@@ -211,6 +215,18 @@ class Tensor:
         """
 
         return self.chunk_engine.numpy(self.index, aslist=aslist)
+
+    def plot(self):
+        """Visualize a single sample of this tensor. Currently only supports single-image visualization.
+
+        Example:
+            >>> images = ds.images
+            >>> images[0].shape
+            (100, 100, 3)
+            >>> images[0].plot()  # will bring up a matplotlib imshow plot!
+        """
+
+        visualize_tensor(self.numpy())
 
     def __str__(self):
         index_str = f", index={self.index}"

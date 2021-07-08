@@ -344,6 +344,18 @@ class Dataset:
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
             logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
+    def plot(self):
+        """Visualize this dataset's tensors on a single matplotlib figure!
+
+        Note: 
+            Not yet implemented, please use `ds.tensor[i].plot()` for now!
+
+        Raises:
+            NotImplementedError: Coming soon!
+        """
+
+        raise NotImplementedError
+
     @staticmethod
     def from_path(path: str):
         """Creates a hub dataset from unstructured data.
