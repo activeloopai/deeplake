@@ -1,7 +1,7 @@
 import numpy as np
 import ctypes
 from collections import namedtuple
-from typing import Tuple, List, Union, Optional
+from typing import Tuple, Sequence, Union, Optional
 import hub
 
 
@@ -89,7 +89,13 @@ def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
 def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
     return Pointer(arr.__array_interface__["data"][0], arr.itemsize * arr.size)
 
-def _infer_num_bytes(version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]):
+
+def _infer_num_bytes(
+    version: str,
+    shape_info: np.ndarray,
+    byte_positions: np.ndarray,
+    data: Union[Sequence[bytes], Sequence[memoryview]],
+):
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
@@ -100,16 +106,23 @@ def _infer_num_bytes(version: str, shape_info: np.ndarray, byte_positions: np.nd
     # shape_info_slice_size = 4 + 4 + shape_info.nbytes
     # byte_positions_slice_size = 4 + 4 + byte_positions.nbytes
     # data_slice_size = sum(map(len, data))
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + sum(map(len, data)) + 17
+    return (
+        len(version)
+        + shape_info.nbytes
+        + byte_positions.nbytes
+        + sum(map(len, data))
+        + 17
+    )
+
 
 def encode(
-    version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]
+    version: str,
+    shape_info: np.ndarray,
+    byte_positions: np.ndarray,
+    data: Union[Sequence[bytes], Sequence[memoryview]],
 ) -> memoryview:
 
-
-    flatbuff = malloc(
-        _infer_num_bytes(version, shape_info, byte_positions, data)
-    )
+    flatbuff = malloc(_infer_num_bytes(version, shape_info, byte_positions, data))
     ptr = flatbuff + 0
 
     # write version
@@ -134,8 +147,6 @@ def encode(
     # write actual data
     for d in data:
         ptr = _write_pybytes(ptr, d)
-
-    assert ptr.size == 0
 
     return flatbuff.bytes
 

@@ -69,32 +69,45 @@ class Chunk(Cachable):
         Returns:
             Tuple[int, int]: 2D index to be used to access `self._data`.
         """
-        assert byte_index < sum(map(len, self._data))
         i = 0
-        while len(self._data[i]) <= byte_index:
-            byte_index -= len(self._data[i])
-            i += 1
+        data = self._data
+        while True:
+            try:
+                num_data_i = len(data[i])
+            except IndexError:  # slightly faster than checking i < len(self._data) in a loop
+                return i - 1, len(data[i - 1]) + byte_index
+            if num_data_i <= byte_index:
+                byte_index -= num_data_i
+                i += 1
+            else:
+                break
         return i, byte_index
 
     def view(self, start_byte: int, end_byte: int):
         if len(self._data) == 1:
             return self._data[0][start_byte:end_byte]
 
-        start2d = self._get_2d_idx(start_byte)
-        end2d = self._get_2d_idx(end_byte - 1)
+        start2dx, start2dy = self._get_2d_idx(start_byte)
+        end2dx, end2dy = self._get_2d_idx(end_byte)
+        if start2dx == end2dx:
+            # Indexing to the same inner chunk, this would be fast
+            buff = malloc(end2dy - start2dy)
+            _write_pybytes(buff, self._data[start2dx][start2dy:end2dy])
+            return buff.memoryview
 
         # TODO: document this
         # builds a list of memoryviews that contain the pieces we need for the output view
+
         byts = []
-        byts.append(self._data[start2d[0]][start2d[1] :])
-        for i in range(start2d[0] + 1, end2d[0]):
+        byts.append(self._data[start2dx][start2dy:])
+        for i in range(start2dx + 1, end2dx):
             byts.append(self._data[i])
-        byts.append(self._data[end2d[0]][: end2d[1] + 1])
+        byts.append(self._data[end2dx][:end2dy])
         buff = malloc(sum(map(len, byts)))
         ptr = buff + 0
         for byt in byts:
             ptr = _write_pybytes(ptr, byt.cast("B"))
-        return memoryview(buff.bytes)
+        return buff.memoryview
 
     @property
     def num_samples(self):
@@ -160,7 +173,7 @@ class Chunk(Cachable):
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            self._data
+            self._data,
         )
 
     def tobytes(self) -> memoryview:
