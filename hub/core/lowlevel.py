@@ -74,7 +74,14 @@ def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
 
 
 def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
-    ptr2 = Pointer(c_array=(ctypes.c_byte * len(byts))(*byts))
+    try:
+        ptr2 = Pointer(c_array=(ctypes.c_byte * len(byts))(*byts))
+    except NotImplementedError:
+        # TODO: exceptions.py
+        raise Exception(
+            "Reference for pointer was garbage collected. Maybe because the cache killed it?"
+        )
+
     memcpy(ptr, ptr2)
     return ptr + len(byts)
 
@@ -190,7 +197,9 @@ def test():
     shape_info = np.cast[hub.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(17, 63))
     )
-    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(31, 79)))
+    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](
+        np.random.randint(100, size=(31, 79))
+    )
     data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
     encoded = bytes(encode(version, shape_info, byte_positions, data))
 

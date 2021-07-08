@@ -246,6 +246,7 @@ def test_sequence_samples(ds: Dataset):
 
     tensor.append([1, 2, 3])
     tensor.extend([[4, 5, 6]])
+    ds.clear_cache()
 
     assert len(tensor) == 2
 
