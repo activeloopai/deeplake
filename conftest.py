@@ -6,6 +6,8 @@ import pytest
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.basicConfig(level=logging.ERROR)
 
 from hub.api.dataset import Dataset
