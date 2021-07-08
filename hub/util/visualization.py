@@ -1,5 +1,4 @@
 import numpy as np
-from hub import Tensor
 from hub.util.exceptions import (
     ModuleNotInstalledException,
     VisualizationError,
@@ -24,20 +23,20 @@ def _imshow(array: np.ndarray):
     plt.show()
 
 
-def visualize_tensor(tensor: Tensor):
+def visualize_tensor(hub_tensor):
     _import_plt()
 
-    if len(tensor) != 1:
+    if len(hub_tensor) != 1:
         raise NotImplementedError(
             "Currently only 1 sample can be visualized at a time. Try using `tensor[i].plot()`!"
         )
 
     try:
         # TODO: support other tensor types here depending on shape, htype, etc.
-        _imshow(tensor.numpy())
+        _imshow(hub_tensor.numpy())
 
     except Exception as e:
         reason = "Unknown"
         if hasattr(e, "message"):
             reason = e.message
-        raise VisualizationError(tensor.shape, tensor.dtype, reason)
+        raise VisualizationError(hub_tensor.shape, hub_tensor.dtype, reason)
