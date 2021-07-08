@@ -70,7 +70,7 @@ class ChunkIdEncoder(Cachable):
 
         """
         self._shards: List[np.ndarray] = []
-        self._buffer: List[List(int, int)] = []
+        self._buffer: List[List[int]] = []
 
     def _flush_buffer(self):
         if self._buffer:
@@ -143,7 +143,7 @@ class ChunkIdEncoder(Cachable):
     @property
     def last_index(self) -> int:
         last_entry = self.last_entry
-        if not last_entry:
+        if last_entry is None:
             return -1
         return last_entry[LAST_INDEX_INDEX]
 
@@ -184,7 +184,7 @@ class ChunkIdEncoder(Cachable):
 
         if self.num_samples == 0:
             raise ChunkIdEncoderError(
-                "Cannot register samples because no chunk IDs exist."
+                f"Cannot register samples because no chunk IDs exist. {self._buffer}, {self._shards}"
             )
 
         if num_samples == 0 and self.num_chunks < 2:
@@ -196,7 +196,7 @@ class ChunkIdEncoder(Cachable):
 
         # this operation will trigger an overflow for the first addition, so supress the warning
         # np.seterr(over="ignore")
-        self.last_entry[LAST_INDEX_INDEX] += num_samples
+        self.last_entry[LAST_INDEX_INDEX] += ENCODING_DTYPE(num_samples)
         # np.seterr(over="warn")
 
     def get_local_sample_index(self, global_sample_index: int) -> int:
@@ -269,7 +269,7 @@ class ChunkIdEncoder(Cachable):
 
         self._flush_buffer()
         last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._shards]
-        shard_idx = bp.searchsorted(last_idxs, sample_index)
+        shard_idx = np.searchsorted(last_idxs, sample_index)
         shard = self._shards[shard_idx]
         idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
         id = shard[idx, CHUNK_ID_INDEX]
