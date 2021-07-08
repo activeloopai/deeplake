@@ -296,20 +296,20 @@ class ChunkEngine:
                     self._check_sample_size(num_bytes)
 
                 for sample_object in sample_objects:
-                    self.append(sample_object)
+                    self.append(sample_object, maybe_flush=False)
 
         elif isinstance(samples, Sequence):
             if is_uniform_sequence(samples):
                 self.extend(np.array(samples))
             else:
                 for sample in samples:
-                    self.append(sample)
+                    self.append(sample, maybe_flush=False)
         else:
             raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
 
         self.cache.maybe_flush()
 
-    def append(self, sample: SampleValue):
+    def append(self, sample: SampleValue, maybe_flush: bool = True):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
         if isinstance(sample, Sample):
@@ -322,7 +322,8 @@ class ChunkEngine:
         else:
             return self.append(Sample(array=np.array(sample)))
 
-        self.cache.maybe_flush()
+        if maybe_flush:
+            self.cache.maybe_flush()
 
     def numpy(
         self, index: Index, aslist: bool = False
