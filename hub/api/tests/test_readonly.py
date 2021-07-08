@@ -23,10 +23,10 @@ def test_readonly(local_ds):
 
     local_ds.create_tensor("tensor")
     local_ds.tensor.append(np.ones((100, 100)))
-    local_ds.mode = "r"
+    local_ds.read_only = True
     _assert_readonly_ops(local_ds, 1, (100, 100))
     del local_ds
 
     local_ds = Dataset(path)
-    local_ds.mode = "r"
+    local_ds.read_only = True
     _assert_readonly_ops(local_ds, 1, (100, 100))
