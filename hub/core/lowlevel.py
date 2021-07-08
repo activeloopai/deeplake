@@ -76,8 +76,7 @@ def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
 def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
     ptr2 = Pointer(c_array=(ctypes.c_byte * len(byts))(*byts))
     memcpy(ptr, ptr2)
-    ptr += len(byts)
-    return ptr
+    return ptr + len(byts)
 
 
 def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
@@ -117,13 +116,13 @@ def encode(
     ptr = _write_pybytes(ptr, np.int32(shape_info.shape[0]).tobytes())
     ptr = _write_pybytes(ptr, np.int32(shape_info.shape[1]).tobytes())
     memcpy(ptr, _ndarray_to_ptr(shape_info))
-    ptr += shape_info_data_size
+    ptr += shape_info.nbytes
 
     # write byte positions
     ptr = _write_pybytes(ptr, np.int32(byte_positions.shape[0]).tobytes())
     ptr = _write_pybytes(ptr, np.int32(byte_positions.shape[1]).tobytes())
     memcpy(ptr, _ndarray_to_ptr(byte_positions))
-    ptr += byte_positions_data_size
+    ptr += byte_positions.nbytes
 
     # write actual data
     for d in data:
