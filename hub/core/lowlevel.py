@@ -81,15 +81,7 @@ def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
 
 
 def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
-    try:
-        ptr2 = Pointer(c_array=(ctypes.c_byte * len(byts))(*byts))
-    except NotImplementedError:
-        # TODO: exceptions.py
-        raise Exception(
-            "Reference for pointer was garbage collected. Maybe because the cache killed it?"
-        )
-
-    memcpy(ptr, ptr2)
+    memcpy(ptr, _ndarray_to_ptr(np.frombuffer(byts, dtype=np.byte)))
     return ptr + len(byts)
 
 
