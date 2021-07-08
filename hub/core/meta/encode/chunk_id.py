@@ -70,16 +70,16 @@ class ChunkIdEncoder(Cachable):
 
         """
         self._buffer: List[List[int]] = []
-        self._shards: List[np.ndarray] = [] if ids is None else [ids]
+        self._data: List[np.ndarray] = [] if ids is None else [ids]
 
     def _flush_buffer(self):
         if self._buffer:
-            self._shards.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
+            self._data.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
         self._buffer.clear()
 
     def _get_2d_idx(self, idx: int) -> Tuple[int, int]:
         i = 0
-        data = self._shards
+        data = self._data
         while True:
             try:
                 num_data_i = len(data[i])
@@ -94,11 +94,11 @@ class ChunkIdEncoder(Cachable):
 
     def tobytes(self) -> memoryview:
         self._flush_buffer()
-        encoded = encode_chunkids(hub.__version__, self._shards)
+        encoded = encode_chunkids(hub.__version__, self._data)
         decoded = decode_chunkids(encoded)[1]
-        if self._shards:
+        if self._data:
             np.testing.assert_array_equal(
-                decoded, np.concatenate(self._shards), err_msg=str(bytes(encoded))
+                decoded, np.concatenate(self._data), err_msg=str(bytes(encoded))
             )
         return encoded
 
@@ -128,18 +128,18 @@ class ChunkIdEncoder(Cachable):
 
     @property
     def num_chunks(self) -> int:
-        return sum(map(len, self._shards)) + len(self._buffer)
+        return sum(map(len, self._data)) + len(self._buffer)
 
     def get_entry(self, idx):
         x, y = self._get_2d_idx(idx)
-        return self._buffer[y] if x < 0 else self._shards[x][y]
+        return self._buffer[y] if x < 0 else self._data[x][y]
 
     @property
     def last_entry(self) -> Union[np.ndarray, List[int]]:
         if self._buffer:
             return self._buffer[-1]
-        if self._shards:
-            return self._shards[-1][-1]
+        if self._data:
+            return self._data[-1][-1]
         return None
 
     @property
@@ -153,13 +153,13 @@ class ChunkIdEncoder(Cachable):
     def num_samples(self) -> int:
         if self._buffer:
             return self._buffer[-1][LAST_INDEX_INDEX] + 1
-        elif self._shards:
-            return int(self._shards[-1][-1, LAST_INDEX_INDEX] + 1)
+        elif self._data:
+            return int(self._data[-1][-1, LAST_INDEX_INDEX] + 1)
         return 0
 
     @property
     def empty(self) -> bool:
-        return not self._buffer and not self._shards
+        return not self._buffer and not self._data
 
     def generate_chunk_id(self) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
@@ -192,7 +192,7 @@ class ChunkIdEncoder(Cachable):
 
         if self.empty:
             raise ChunkIdEncoderError(
-                f"Cannot register samples because no chunk IDs exist. {self._buffer}, {self._shards}"
+                f"Cannot register samples because no chunk IDs exist. {self._buffer}, {self._data}"
             )
 
         if num_samples == 0 and self.num_chunks < 2:
@@ -246,10 +246,10 @@ class ChunkIdEncoder(Cachable):
             chunk_index -= 1
         else:
             shard_index -= 1
-            chunk_index = len(self._shards[shard_index]) - 1
+            chunk_index = len(self._data[shard_index]) - 1
 
         # current_entry = self._encoded_ids[chunk_index - 1]
-        current_entry = self._shards[shard_index][
+        current_entry = self._data[shard_index][
             chunk_index
         ]  # buffer already flushed by get() call
         last_num_samples = current_entry[LAST_INDEX_INDEX] + 1
@@ -286,9 +286,9 @@ class ChunkIdEncoder(Cachable):
             sample_index = (self.num_samples) + sample_index
 
         self._flush_buffer()
-        last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._shards]
+        last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
         shard_idx = np.searchsorted(last_idxs, sample_index)
-        shard = self._shards[shard_idx]
+        shard = self._data[shard_idx]
         idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
         id = shard[idx, CHUNK_ID_INDEX]
         chunk_index = idx
