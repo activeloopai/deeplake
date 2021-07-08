@@ -254,10 +254,6 @@ class Dataset:
             self.storage.disable_readonly()
         self._mode = new_mode
 
-    @property
-    def mode(self):
-        return self._mode
-
     @hub_reporter.record_call
     def pytorch(
         self,
