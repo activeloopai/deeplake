@@ -1,6 +1,6 @@
 from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
-from typing import Callable, Dict, Optional, Union, Tuple, List
+from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
 import numpy as np
 
 from hub.api.tensor import Tensor
@@ -258,6 +258,7 @@ class Dataset:
     def pytorch(
         self,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
         batch_size: Optional[int] = 1,
         drop_last: Optional[bool] = False,
@@ -290,6 +291,7 @@ class Dataset:
         return dataset_to_pytorch(
             self,
             transform,
+            tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,

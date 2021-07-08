@@ -1,5 +1,6 @@
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
+from hub.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
 from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
 import warnings
 from hub.util.exceptions import (
@@ -13,6 +14,7 @@ import hub
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
+    tensors: Optional[Sequence[str]] = None,
     num_workers: int = 1,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
@@ -32,6 +34,7 @@ def dataset_to_pytorch(
     pytorch_ds = TorchDataset(
         dataset,
         transform,
+        tensors,
         python_version_warning=python_version_warning,
     )
 
@@ -50,6 +53,7 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         python_version_warning: bool = True,
     ):
 
@@ -68,7 +72,10 @@ class TorchDataset:
             )
 
         self.transform = transform
-        self.tensor_keys = list(dataset.tensors)
+        if tensors is None:
+            self.tensor_keys = list(dataset.tensors)
+        else:
+            self.tensors_keys = list(tensors)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -86,7 +93,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         self._init_ds()
-        sample = {}
+        sample = OrderedDict()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
             item = self.dataset[key][index].numpy()  # type: ignore

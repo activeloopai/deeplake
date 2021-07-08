@@ -14,6 +14,7 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
+from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
@@ -73,6 +74,7 @@ def _read_and_store_chunk(
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
+    tensors: Optional[Sequence[str]] = None,
     num_workers: int = 1,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
@@ -98,13 +100,20 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
     ):
         self.transform = transform
         self.num_workers: int = num_workers
         self.map = ProcessPool(nodes=num_workers).map
         self.length = len(dataset)
-        self.tensor_keys = list(dataset.tensors)
+        if tensors is None:
+            self.tensor_keys = list(dataset.tensors)
+        else:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    riase TensorDoesNotExistError(t)
+            self.tensor_keys = list(tensors)
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -300,9 +309,9 @@ class TorchDataset:
         last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = {
-                key: self.all_index_value_maps[key][i] for key in self.tensor_keys
-            }
+            sample = IterableOrderedDict(
+                (key, self.all_index_value_maps[key][i]) for key in self.tensor_keys
+            )
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)

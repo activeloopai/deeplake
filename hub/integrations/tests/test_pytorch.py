@@ -159,7 +159,7 @@ def test_pytorch_small_old(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
-@pytest.mark.skip(reason="future")
+# @pytest.mark.skip(reason="future")
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
