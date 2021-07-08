@@ -270,8 +270,17 @@ class ChunkEngine:
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
-
+        uniform = False
         if isinstance(samples, np.ndarray):
+            uniform = True
+        elif isinstance(samples, Sequence):
+            if is_uniform_sequence(samples):
+                uniform = True
+            if not isinstance(samples[0], np.ndarray):
+                samples = np.array(samples)
+        else:
+            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+        if uniform:
             compression = self.tensor_meta.sample_compression
             if compression == UNCOMPRESSED:
                 buffers = []
@@ -297,15 +306,9 @@ class ChunkEngine:
 
                 for sample_object in sample_objects:
                     self.append(sample_object)
-
-        elif isinstance(samples, Sequence):
-            if is_uniform_sequence(samples):
-                self.extend(np.array(samples))
-            else:
-                for sample in samples:
-                    self.append(sample)
         else:
-            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+            for sample in samples:
+                self.append(sample)
 
         self.cache.maybe_flush()
 

@@ -57,7 +57,7 @@ class Pointer(object):
         elif isinstance(idx, slice):
             assert idx.step is None
             start = idx.start
-            end  = idx.stop
+            end = idx.stop
             n = self.size
             if start is None:
                 start = 0
@@ -72,7 +72,6 @@ class Pointer(object):
             ret = Pointer(self.address + start, end - start)
             ret._refs.append(self)
             return ret
-
 
     @property
     def memoryview(self):
@@ -110,13 +109,17 @@ def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
 
 
 def _pybytes_to_c_array(byts: bytes) -> Pointer:
-    return Pointer(np.frombuffer(byts, dtype=np.byte).__array_interface__["data"][0], len(byts))
+    return Pointer(
+        np.frombuffer(byts, dtype=np.byte).__array_interface__["data"][0], len(byts)
+    )
+
 
 def _infer_chunk_num_bytes(
     version: str,
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
-    data: Union[Sequence[bytes], Sequence[memoryview]],
+    data: Optional[Union[Sequence[bytes], Sequence[memoryview]]] = None,
+    len_data: Optional[int] = None,
 ):
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
@@ -128,13 +131,9 @@ def _infer_chunk_num_bytes(
     # shape_info_slice_size = 4 + 4 + shape_info.nbytes
     # byte_positions_slice_size = 4 + 4 + byte_positions.nbytes
     # data_slice_size = sum(map(len, data))
-    return (
-        len(version)
-        + shape_info.nbytes
-        + byte_positions.nbytes
-        + sum(map(len, data))
-        + 17
-    )
+    if len_data is None:
+        len_data = sum(map(len, data))
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 17
 
 
 def encode_chunk(
@@ -142,9 +141,12 @@ def encode_chunk(
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
+    len_data: Optional[int],
 ) -> memoryview:
 
-    flatbuff = malloc(_infer_chunk_num_bytes(version, shape_info, byte_positions, data))
+    flatbuff = malloc(
+        _infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
+    )
     ptr = flatbuff + 0
 
     # write version

@@ -53,6 +53,7 @@ class Chunk(Cachable):
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
         self._data: List[memoryview] = [] if data is None else [data]
+        self._len_data = len(self._data)
 
     @property
     def memoryview_data(self):
@@ -156,6 +157,7 @@ class Chunk(Cachable):
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data.append(buffer)
+        self._len_data += len(buffer)
         self.update_headers(incoming_num_bytes, shape)
 
     def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
@@ -179,7 +181,14 @@ class Chunk(Cachable):
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            self._data,
+            len_data=self._len_data,
+        )
+        return (
+            17
+            + len(hub.__version__)
+            + self.shapes_encoder.array.nbytes
+            + self.byte_positions_encoder.array.nbytes
+            + self._len_data
         )
 
     def tobytes(self) -> memoryview:
@@ -191,6 +200,7 @@ class Chunk(Cachable):
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             self._data,
+            self._len_data,
         )
 
     @classmethod
