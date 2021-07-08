@@ -29,7 +29,6 @@ def dataset_to_pytorch(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
 
-    dataset.flush()
     pytorch_ds = TorchDataset(
         dataset,
         transform,
