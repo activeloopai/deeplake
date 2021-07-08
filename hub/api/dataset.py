@@ -4,17 +4,13 @@ from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import (
-    DEFAULT_MEMORY_CACHE_SIZE,
-    DEFAULT_LOCAL_CACHE_SIZE,
-    MB,
-)
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
+from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
@@ -288,6 +284,8 @@ class Dataset:
         Returns:
             A torch.utils.data.DataLoader object.
         """
+        from hub.integrations import dataset_to_pytorch
+
         return dataset_to_pytorch(
             self,
             transform,
