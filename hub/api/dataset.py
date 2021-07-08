@@ -113,8 +113,15 @@ class Dataset:
         self.storage.autoflush = True
         self.flush()
 
+    @property
+    def num_samples(self) -> int:
+        """Returns the length of the smallest tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        return min(map(len, self.tensors.values()), default=0)
+
     def __len__(self):
-        """Return the smallest length of tensors"""
+        """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 
