@@ -51,8 +51,28 @@ class Pointer(object):
     def __setitem__(self, idx: int, byte: int) -> None:
         self._c_array[idx] = byte
 
-    def __getitem__(self, idx: int) -> int:
-        return self._c_array[idx]
+    def __getitem__(self, idx: Union[int, slice]) -> Union[int, "Pointer"]:
+        if isinstance(idx, int):
+            return self._c_array[idx]
+        elif isinstance(idx, slice):
+            assert idx.step is None
+            start = idx.start
+            end  = idx.stop
+            n = self.size
+            if start is None:
+                start = 0
+            elif start < 0:
+                start += n
+            if end is None:
+                end = n
+            elif end < 0:
+                end += n
+            assert start >= 0 and start < n
+            assert end >= start and end <= n
+            ret = Pointer(self.address + start, end - start)
+            ret._refs.append(self)
+            return ret
+
 
     @property
     def memoryview(self):
@@ -80,7 +100,7 @@ def memcpy(dest: Pointer, src: Pointer, count=None) -> None:
     ctypes.memmove(dest.address, src.address, count)
 
 
-def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
+def _write_pybytes(ptr: Pointer, byts: Union[bytes, memoryview]) -> Pointer:
     memcpy(ptr, _ndarray_to_ptr(np.frombuffer(byts, dtype=np.byte)))
     return ptr + len(byts)
 
@@ -148,6 +168,8 @@ def encode_chunk(
 
     # write actual data
     for d in data:
+        if isinstance(d, Pointer):
+            d = d.memoryview
         ptr = _write_pybytes(ptr, d)
 
     return memoryview(flatbuff.bytes)
