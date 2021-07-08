@@ -89,6 +89,9 @@ def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
     return Pointer(arr.__array_interface__["data"][0], arr.itemsize * arr.size)
 
 
+def _pybytes_to_c_array(byts: bytes) -> Pointer:
+    return Pointer(np.frombuffer(byts, dtype=np.byte).__array_interface__["data"][0], len(byts))
+
 def _infer_chunk_num_bytes(
     version: str,
     shape_info: np.ndarray,
@@ -154,13 +157,7 @@ def decode_chunk(
     buff: Union[bytes, Pointer, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     if not isinstance(buff, Pointer):
-        try:
-            buff = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
-        except NotImplementedError:
-            # TODO: exceptions.py
-            raise Exception(
-                "Reference for pointer was garbage collected. Maybe because the cache killed it?"
-            )
+        buff = _pybytes_to_c_array(buff)
         copy = True
     else:
         copy = False
@@ -228,13 +225,7 @@ def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
 
 
 def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
-    try:
-        ptr = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
-    except NotImplementedError:
-        # TODO: exceptions.py
-        raise Exception(
-            "Reference for pointer was garbage collected. Maybe because the cache killed it?"
-        )
+    ptr = _pybytes_to_c_array(buff)
 
     # Read version
     len_version = ptr[0]
