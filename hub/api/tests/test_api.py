@@ -488,3 +488,7 @@ def test_index_range(memory_ds):
             memory_ds[invalid_idx]
         with pytest.raises(ValueError):
             memory_ds.label[invalid_idx]
+
+    memory_ds[[0, 1, 2]]
+    with pytest.raises(ValueError):
+        memory_ds[[0, 1, 2, 3, 4, 5]]
