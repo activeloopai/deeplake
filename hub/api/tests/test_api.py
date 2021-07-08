@@ -443,17 +443,15 @@ def test_hub_cloud_dataset():
 
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    ds = Dataset(uri, token=token)
-    ds.create_tensor("image")
-    ds.create_tensor("label", htype="class_label")
 
-    with ds:
+    with Dataset(uri, token=token) as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label", htype="class_label")
+
         for i in range(1000):
             ds.image.append(i * np.ones((100, 100)))
             ds.label.append(np.uint32(i))
 
-    token = ds.token
-    del ds
     ds = Dataset(uri, token=token)
     for i in range(1000):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
