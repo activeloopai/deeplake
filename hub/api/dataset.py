@@ -347,7 +347,7 @@ class Dataset:
     def plot(self):
         """Visualize this dataset's tensors on a single matplotlib figure!
 
-        Note: 
+        Note:
             Not yet implemented, please use `ds.tensor[i].plot()` for now!
 
         Raises:

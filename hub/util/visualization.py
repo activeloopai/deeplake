@@ -1,3 +1,5 @@
+# type: ignore
+
 import numpy as np
 from hub.util.exceptions import (
     ModuleNotInstalledException,

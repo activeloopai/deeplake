@@ -2,7 +2,7 @@ from hub.util.keys import tensor_exists
 from hub.core.sample import Sample  # type: ignore
 from typing import Any, List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
-from hub.util.visualization import visualize_tensor
+from hub.util.visualization import visualize_tensor  # type: ignore
 
 import numpy as np
 
