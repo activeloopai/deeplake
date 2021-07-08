@@ -1,5 +1,5 @@
 import numpy as np
-from torch.functional import Tensor
+from hub import Tensor
 from hub.util.exceptions import (
     ModuleNotInstalledException,
     VisualizationError,
