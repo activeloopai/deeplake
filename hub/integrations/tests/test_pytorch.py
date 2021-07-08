@@ -215,7 +215,7 @@ def test_custom_tensor_order(ds):
 
 
 @requires_torch
-def test_readonly(local_ds: Dataset):
+def test_readonly(local_ds):
     path = local_ds.path
 
     local_ds.create_tensor("images")
