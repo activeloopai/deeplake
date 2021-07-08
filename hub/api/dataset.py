@@ -75,9 +75,9 @@ class Dataset:
 
         # done instead of directly assigning read_only as backend might return read_only permissions
         if hasattr(base_storage, "read_only") and base_storage.read_only:
-            self.read_only = True
+            self._read_only = True
         else:
-            self.read_only = False
+            self._read_only = False
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
@@ -240,7 +240,7 @@ class Dataset:
 
     @property
     def read_only(self):
-        return self.read_only
+        return self._read_only
 
     @read_only.setter
     def read_only(self, value: bool):
@@ -248,7 +248,7 @@ class Dataset:
             self.storage.enable_readonly()
         else:
             self.storage.disable_readonly()
-        self.read_only = value
+        self._read_only = value
 
     @hub_reporter.record_call
     def pytorch(
