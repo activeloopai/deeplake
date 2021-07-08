@@ -112,7 +112,7 @@ class TorchDataset:
         else:
             for t in tensors:
                 if t not in dataset.tensors:
-                    riase TensorDoesNotExistError(t)
+                    raise TensorDoesNotExistError(t)
             self.tensor_keys = list(tensors)
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
