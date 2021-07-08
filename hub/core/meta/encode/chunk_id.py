@@ -71,6 +71,7 @@ class ChunkIdEncoder(Cachable):
         """
         self._buffer: List[List[int]] = []
         self._data: List[np.ndarray] = [] if ids is None else [ids]
+        self._num_chunks = sum(map(len, self._data))
 
     def _flush_buffer(self):
         if self._buffer:
@@ -128,7 +129,7 @@ class ChunkIdEncoder(Cachable):
 
     @property
     def num_chunks(self) -> int:
-        return sum(map(len, self._data)) + len(self._buffer)
+        return self._num_chunks
 
     def get_entry(self, idx):
         x, y = self._get_2d_idx(idx)
@@ -170,6 +171,7 @@ class ChunkIdEncoder(Cachable):
         """
         id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
         self._buffer.append([id, self.last_index])
+        self._num_chunks += 1
         return id
 
     def register_samples_to_last_chunk_id(self, num_samples: int):

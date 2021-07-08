@@ -70,7 +70,7 @@ class Pointer(object):
             assert start >= 0 and start < n
             assert end >= start and end <= n
             ret = Pointer(self.address + start, end - start)
-            ret._refs.append(self)
+            ret._refs.append(self._c_array)
             return ret
 
     @property
@@ -120,7 +120,7 @@ def _infer_chunk_num_bytes(
     byte_positions: np.ndarray,
     data: Optional[Union[Sequence[bytes], Sequence[memoryview]]] = None,
     len_data: Optional[int] = None,
-):
+) -> int:
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
@@ -132,7 +132,7 @@ def _infer_chunk_num_bytes(
     # byte_positions_slice_size = 4 + 4 + byte_positions.nbytes
     # data_slice_size = sum(map(len, data))
     if len_data is None:
-        len_data = sum(map(len, data))
+        len_data = sum(map(len, data))  # type: ignore
     return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 17
 
 
@@ -188,11 +188,11 @@ def decode_chunk(
     ptr = buff + 0
 
     # read version
-    len_version = ptr[0]
+    len_version: int = ptr[0]  # type: ignore
     version = ""
     ptr += 1
     for i in range(len_version):
-        version += chr(ptr[i])
+        version += chr(ptr[i])  # type: ignore
     ptr += len_version
 
     # read shape info
@@ -252,11 +252,11 @@ def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
     ptr = _pybytes_to_c_array(buff)
 
     # Read version
-    len_version = ptr[0]
+    len_version: int = ptr[0]  # type: ignore
     ptr += 1
     version = ""
     for i in range(len_version):
-        version += chr(ptr[i])
+        version += chr(ptr[i])  # type: ignore
 
     ptr += len_version
 
