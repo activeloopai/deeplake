@@ -7,7 +7,7 @@ from hub.util.exceptions import ReadOnlyModeError
 
 
 def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
-    assert ds.mode == "r"
+    assert ds.read_only
 
     with pytest.raises(ReadOnlyModeError):
         ds.tensor.append(np.ones(sample_shape))
