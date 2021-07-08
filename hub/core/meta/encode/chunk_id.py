@@ -3,9 +3,11 @@ from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
 from io import BytesIO
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 import numpy as np
 from uuid import uuid4
+from hub.core.lowlevel import encode_chunkids, decode_chunkids
+
 
 # these constants are for accessing the data layout. see the `ChunkIdEncoder` docstring.
 CHUNK_ID_INDEX = 0
@@ -67,17 +69,35 @@ class ChunkIdEncoder(Cachable):
                 Then, you get the left-most column and that is your chunk ID!
 
         """
+        self._shards: List[np.ndarray] = []
+        self._buffer: List[List(int, int)] = []
 
-        self._encoded_ids = None
+    def _flush_buffer(self):
+        if self._buffer:
+            self._shards.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
+        self._buffer.clear()
+
+    def _get_2d_idx(self, idx: int) -> Tuple[int, int]:
+        i = 0
+        data = self._shards
+        while True:
+            try:
+                num_data_i = len(data[i])
+            except IndexError:  # slightly faster than checking i < len(self._data) in a loop
+                return -1, idx
+            if num_data_i <= idx:
+                idx -= num_data_i
+                i += 1
+            else:
+                break
+        return i, idx
 
     def tobytes(self) -> memoryview:
-        bio = BytesIO()
-        np.savez(
-            bio,
-            version=hub.__encoded_version__,
-            ids=self._encoded_ids,
+        self._flush_buffer()
+        return encode_chunkids(
+            hub.__version__,
+            self._shards
         )
-        return bio.getbuffer()
 
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
@@ -95,29 +115,41 @@ class ChunkIdEncoder(Cachable):
     def get_name_for_chunk(self, chunk_index: int) -> str:
         """Gets the name for the chunk at index `chunk_index`. If you need to get the name for a chunk from a sample index, instead
         use `__getitem__`, then `name_from_id`."""
-
-        chunk_id = self._encoded_ids[:, CHUNK_ID_INDEX][chunk_index]
+        chunk_id = self.get_entry(chunk_index)[CHUNK_ID_INDEX]
         return ChunkIdEncoder.name_from_id(chunk_id)
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
+        version, ids = decode_chunkids(buffer)
         instance = cls()
-        bio = BytesIO(buffer)
-        npz = np.load(bio)
-        instance._encoded_ids = npz["ids"]
+        instance._shards = [ids]
         return instance
 
     @property
     def num_chunks(self) -> int:
-        if self._encoded_ids is None:
-            return 0
-        return len(self._encoded_ids)
+        return sum(map(len, self._shards)) + len(self._buffer)
+
+    def get_entry(self, idx):
+        x, y = self._get_2d_idx(idx)
+        return self._buffer[y] if x < 0 else self._shards[x][y]
+
+    @property
+    def last_entry(self) -> int:
+        if self._buffer:
+            return self._buffer[-1]
+        if self._shards:
+            return self._shards[-1][-1]
+
+    @property
+    def last_index(self) -> int:
+        last_entry = self.last_entry
+        if not last_entry:
+            return -1
+        return last_entry[LAST_INDEX_INDEX]
 
     @property
     def num_samples(self) -> int:
-        if self._encoded_ids is None:
-            return 0
-        return int(self._encoded_ids[-1, LAST_INDEX_INDEX] + 1)
+        return self.last_index + 1
 
     def generate_chunk_id(self) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
@@ -128,20 +160,9 @@ class ChunkIdEncoder(Cachable):
         """
 
         id = ENCODING_DTYPE(uuid4().int >> UUID_SHIFT_AMOUNT)
-
-        if self.num_samples == 0:
-            self._encoded_ids = np.array([[id, -1]], dtype=ENCODING_DTYPE)
-
-        else:
-            last_index = self.num_samples - 1
-
-            new_entry = np.array(
-                [[id, last_index]],
-                dtype=ENCODING_DTYPE,
-            )
-            self._encoded_ids = np.concatenate([self._encoded_ids, new_entry])
-
+        self._buffer.append([id, self.last_index])
         return id
+
 
     def register_samples_to_last_chunk_id(self, num_samples: int):
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
@@ -171,12 +192,12 @@ class ChunkIdEncoder(Cachable):
                 "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
             )
 
-        current_entry = self._encoded_ids[-1]
+        current_entry = self.last_entry
 
         # this operation will trigger an overflow for the first addition, so supress the warning
-        np.seterr(over="ignore")
-        current_entry[LAST_INDEX_INDEX] += ENCODING_DTYPE(num_samples)
-        np.seterr(over="warn")
+        # np.seterr(over="ignore")
+        self.last_entry[LAST_INDEX_INDEX] += num_samples
+        # np.seterr(over="warn")
 
     def get_local_sample_index(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
@@ -206,19 +227,23 @@ class ChunkIdEncoder(Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, chunk_index = self.__getitem__(global_sample_index, return_chunk_index=True)  # type: ignore
+        _, (shard_index, chunk_index) = self.get(global_sample_index, return_chunk_index=True)  # type: ignore
 
-        if chunk_index == 0:
+        if not shard_index and not chunk_index:
             return global_sample_index
 
-        current_entry = self._encoded_ids[chunk_index - 1]  # type: ignore
+        # current_entry = self._encoded_ids[chunk_index - 1]
+        current_entry = self._shards[shard_index][chunk_index - 1]  # buffer already flushed by get() call
         last_num_samples = current_entry[LAST_INDEX_INDEX] + 1
 
-        return int(global_sample_index - last_num_samples)
+        return global_sample_index - int(last_num_samples)
 
-    def __getitem__(
+    def __getitem__(self, sample_index: int) -> int:
+        return self.get(sample_index)
+
+    def get(
         self, sample_index: int, return_chunk_index: bool = False
-    ) -> Tuple[ENCODING_DTYPE, Optional[int]]:
+    ) -> Union[int, Tuple[int, Tuple[int, int]]]:
         """Get the ID for the chunk that `sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 
@@ -242,11 +267,15 @@ class ChunkIdEncoder(Cachable):
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        idx = np.searchsorted(self._encoded_ids[:, LAST_INDEX_INDEX], sample_index)
-        id = self._encoded_ids[idx, CHUNK_ID_INDEX]
+        self._flush_buffer()
+        last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._shards]
+        shard_idx = bp.searchsorted(last_idxs, sample_index)
+        shard = self._shards[shard_idx]
+        idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
+        id = shard[idx, CHUNK_ID_INDEX]
         chunk_index = idx
 
         if return_chunk_index:
-            return id, chunk_index
+            return id, (shard_idx, chunk_index)
 
         return id

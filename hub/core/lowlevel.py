@@ -90,7 +90,7 @@ def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
     return Pointer(arr.__array_interface__["data"][0], arr.itemsize * arr.size)
 
 
-def _infer_num_bytes(
+def _infer_chunk_num_bytes(
     version: str,
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
@@ -115,14 +115,14 @@ def _infer_num_bytes(
     )
 
 
-def encode(
+def encode_chunk(
     version: str,
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
 ) -> memoryview:
 
-    flatbuff = malloc(_infer_num_bytes(version, shape_info, byte_positions, data))
+    flatbuff = malloc(_infer_chunk_num_bytes(version, shape_info, byte_positions, data))
     ptr = flatbuff + 0
 
     # write version
@@ -148,10 +148,10 @@ def encode(
     for d in data:
         ptr = _write_pybytes(ptr, d)
 
-    return flatbuff.bytes
+    return memoryview(flatbuff.bytes)
 
 
-def decode(
+def decode_chunk(
     buff: Union[bytes, Pointer, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     if not isinstance(buff, Pointer):
@@ -202,6 +202,45 @@ def decode(
         data = ptr.memoryview
     return version, shape_info, byte_positions, data
 
+def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+    len_version = len(version)
+    flatbuff = malloc(
+        1 + len_version + sum([x.nbytes for x in ids])
+    )
+
+    # Write version
+    ptr = flatbuff + 0
+    ptr[0] = len_version
+    ptr += 1
+
+    for i, c in enumerate(version):
+        ptr[i] = ord(c)
+
+    ptr += len_version
+
+    for arr in ids:
+        memcpy(ptr, _ndarray_to_ptr(arr))
+        ptr += arr.nbytes
+
+    return memoryview(flatbuff.bytes)
+
+def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
+    ptr = Pointer(c_array=(ctypes.c_byte * len(buff))())
+    _write_pybytes(ptr, buff)
+    buff = ptr
+
+    # Read version
+    len_version = ptr[0]
+    ptr += 1
+    version = ""
+    for i in range(len_version):
+        version += chr(ptr[i])
+    ptr += len_version
+
+    # Read chunk ids
+    ids = np.frombuffer(ptr.memoryview, dtype=hub.constants.ENCODING_DTYPE).reshape(-1, 2).copy()
+
+    return version, ids
 
 def test():
     version = hub.__version__
@@ -212,10 +251,10 @@ def test():
         np.random.randint(100, size=(31, 79))
     )
     data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
-    encoded = bytes(encode(version, shape_info, byte_positions, data))
+    encoded = bytes(encode_chunk(version, shape_info, byte_positions, data))
 
     # from bytes
-    decoded = decode(encoded)
+    decoded = decode_chunk(encoded)
     version2, shape_info2, byte_positions2, data2 = decoded
     assert version2 == version
     np.testing.assert_array_equal(shape_info, shape_info2)
@@ -224,7 +263,7 @@ def test():
 
     # from pointer
     buff = Pointer(c_array=(ctypes.c_byte * len(encoded))(*encoded))
-    decoded = decode(buff)
+    decoded = decode_chunk(buff)
     version2, shape_info2, byte_positions2, data2 = decoded
     assert version2 == version
     np.testing.assert_array_equal(shape_info, shape_info2)

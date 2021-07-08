@@ -8,7 +8,7 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
-from hub.core.lowlevel import encode, decode, malloc, _write_pybytes, _infer_num_bytes
+from hub.core.lowlevel import encode_chunk, decode_chunk, malloc, _write_pybytes, _infer_chunk_num_bytes
 
 
 class Chunk(Cachable):
@@ -169,7 +169,7 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-        return _infer_num_bytes(
+        return _infer_chunk_num_bytes(
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
@@ -180,7 +180,7 @@ class Chunk(Cachable):
         if self.num_samples == 0:
             return memoryview(bytes())
 
-        return encode(
+        return encode_chunk(
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
@@ -191,5 +191,5 @@ class Chunk(Cachable):
     def frombuffer(cls, buffer: bytes) -> "Chunk":
         if len(buffer) == 0:
             return cls()
-        version, shapes, byte_positions, data = decode(buffer)
+        version, shapes, byte_positions, data = decode_chunk(buffer)
         return cls(shapes, byte_positions, data=data)
