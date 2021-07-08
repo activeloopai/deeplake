@@ -225,6 +225,21 @@ class IndexEntry:
         else:
             return 0
 
+    def validate(self, parent_length: int):
+        """Checks that the index is not accessing values outside the range of the parent."""
+        # Slices are okay, as an out-of-range slice will just yield no samples
+        # Check each index of a tuple
+        if isinstance(self.value, tuple):
+            for idx in self.value:
+                IndexEntry(idx).validate(parent_length)
+
+        # Check ints that are too large (positive or negative)
+        if isinstance(self.value, int):
+            if self.value >= parent_length or self.value < -parent_length:
+                raise ValueError(
+                    f"Index {self.value} is out of range for tensors with length {parent_length}"
+                )
+
 
 class Index:
     def __init__(
@@ -365,6 +380,10 @@ class Index:
         """Returns the primary length of an Index given the length of the parent it is indexing.
         See: IndexEntry.length"""
         return self.values[0].length(parent_length)
+
+    def validate(self, parent_length):
+        """Checks that the index is not accessing values outside the range of the parent."""
+        self.values[0].validate(parent_length)
 
     def __str__(self):
         values = [entry.value for entry in self.values]
