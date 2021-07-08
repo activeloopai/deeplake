@@ -8,7 +8,13 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
-from hub.core.lowlevel import encode_chunk, decode_chunk, malloc, _write_pybytes, _infer_chunk_num_bytes
+from hub.core.lowlevel import (
+    encode_chunk,
+    decode_chunk,
+    malloc,
+    _write_pybytes,
+    _infer_chunk_num_bytes,
+)
 
 
 class Chunk(Cachable):

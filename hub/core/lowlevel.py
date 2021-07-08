@@ -1,12 +1,12 @@
 import numpy as np
 import ctypes
 from collections import namedtuple
-from typing import Tuple, Sequence, Union, Optional
+from typing import Tuple, Sequence, Union, Optional, List
 import hub
 
 
 class Pointer(object):
-    __slots__ = ("address", "size", "_c_array")
+    __slots__ = ("address", "size", "_c_array", "_refs")
 
     def __init__(
         self,
@@ -14,6 +14,7 @@ class Pointer(object):
         size: Optional[int] = None,
         c_array: Optional[ctypes.Array] = None,
     ) -> None:
+        self._refs: List[ctypes.Array] = []
         if c_array is None:
             if address is None or size is None:
                 raise ValueError("Expected c_array or address and size args.")
@@ -26,12 +27,18 @@ class Pointer(object):
             self.size = len(c_array)
 
     def _set_c_array(self) -> None:
+        try:
+            self._refs.append(self._c_array)
+        except AttributeError:
+            pass
         self._c_array = (ctypes.c_byte * self.size).from_address(self.address)
 
     def __add__(self, i: int) -> "Pointer":
         assert i >= 0
         assert i <= self.size
-        return Pointer(self.address + i, self.size - i)
+        ret = Pointer(self.address + i, self.size - i)
+        ret._refs.append(self._c_array)
+        return ret
 
     def __iadd__(self, i: int) -> "Pointer":
         assert i >= 0
@@ -155,9 +162,13 @@ def decode_chunk(
     buff: Union[bytes, Pointer, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
     if not isinstance(buff, Pointer):
-        ptr = Pointer(c_array=(ctypes.c_byte * len(buff))())
-        _write_pybytes(ptr, buff)
-        buff = ptr
+        try:
+            buff = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
+        except NotImplementedError:
+            # TODO: exceptions.py
+            raise Exception(
+                "Reference for pointer was garbage collected. Maybe because the cache killed it?"
+            )
         copy = True
     else:
         copy = False
@@ -202,11 +213,10 @@ def decode_chunk(
         data = ptr.memoryview
     return version, shape_info, byte_positions, data
 
+
 def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     len_version = len(version)
-    flatbuff = malloc(
-        1 + len_version + sum([x.nbytes for x in ids])
-    )
+    flatbuff = malloc(1 + len_version + sum([x.nbytes for x in ids]))
 
     # Write version
     ptr = flatbuff + 0
@@ -224,10 +234,15 @@ def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
 
     return memoryview(flatbuff.bytes)
 
+
 def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
-    ptr = Pointer(c_array=(ctypes.c_byte * len(buff))())
-    _write_pybytes(ptr, buff)
-    buff = ptr
+    try:
+        ptr = Pointer(c_array=(ctypes.c_byte * len(buff))(*buff))
+    except NotImplementedError:
+        # TODO: exceptions.py
+        raise Exception(
+            "Reference for pointer was garbage collected. Maybe because the cache killed it?"
+        )
 
     # Read version
     len_version = ptr[0]
@@ -235,14 +250,20 @@ def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
     version = ""
     for i in range(len_version):
         version += chr(ptr[i])
+
     ptr += len_version
 
     # Read chunk ids
-    ids = np.frombuffer(ptr.memoryview, dtype=hub.constants.ENCODING_DTYPE).reshape(-1, 2).copy()
+    ids = (
+        np.frombuffer(ptr.memoryview, dtype=hub.constants.ENCODING_DTYPE)
+        .reshape(-1, 2)
+        .copy()
+    )
 
     return version, ids
 
-def test():
+
+def test_chunk_encoding():
     version = hub.__version__
     shape_info = np.cast[hub.constants.ENCODING_DTYPE](
         np.random.randint(100, size=(17, 63))
@@ -271,5 +292,18 @@ def test():
     assert b"".join(data) == bytes(data2)
 
 
+def test_chunkids_encoding():
+    version = hub.__version__
+    shards = [
+        np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(100, 2)))
+    ]
+    encoded = encode_chunkids(version, shards)
+    decoded = decode_chunkids(encoded)
+    version2, ids = decoded
+    assert version2 == version
+    np.testing.assert_array_equal(np.concatenate(shards), ids)
+
+
 if __name__ == "__main__":
-    test()
+    test_chunk_encoding()
+    test_chunkids_encoding()
