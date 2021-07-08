@@ -226,7 +226,7 @@ class Tensor:
             >>> images[0].plot()  # will bring up a matplotlib imshow plot!
         """
 
-        visualize_tensor(self.numpy())
+        visualize_tensor(self)
 
     def __str__(self):
         index_str = f", index={self.index}"
