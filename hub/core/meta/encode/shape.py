@@ -115,6 +115,7 @@ class ShapeEncoder:
         shape: Tuple[int],
         count: int,
     ):
+
         if count <= 0:
             raise ValueError(f"Shape `count` should be > 0. Got {count}.")
 

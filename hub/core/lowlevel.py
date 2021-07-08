@@ -83,27 +83,26 @@ def _write_pybytes(ptr: Pointer, byts: bytes) -> Pointer:
 def _ndarray_to_ptr(arr: np.ndarray) -> Pointer:
     return Pointer(arr.__array_interface__["data"][0], arr.itemsize * arr.size)
 
-
-def encode(
-    version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]
-) -> memoryview:
+def _infer_num_bytes(version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]):
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
     assert max((map(ord, version))) < 128
-    assert shape_info.ndim == 2
-    assert byte_positions.ndim == 2
-    version_slice_size = 1 + len(version)
-    shape_info_data_size = shape_info.itemsize * shape_info.size
-    shape_info_slice_size = 4 + 4 + shape_info_data_size
-    byte_positions_data_size = byte_positions.itemsize * byte_positions.size
-    byte_positions_slice_size = 4 + 4 + byte_positions_data_size
-    data_slice_size = sum(map(len, data))
+    # assert shape_info.ndim == 2
+    # assert byte_positions.ndim == 2
+    # version_slice_size = 1 + len(version)
+    # shape_info_slice_size = 4 + 4 + shape_info.nbytes
+    # byte_positions_slice_size = 4 + 4 + byte_positions.nbytes
+    # data_slice_size = sum(map(len, data))
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + sum(map(len, data)) + 17
+
+def encode(
+    version: str, shape_info: np.ndarray, byte_positions: np.ndarray, data: List[bytes]
+) -> memoryview:
+
+
     flatbuff = malloc(
-        version_slice_size
-        + shape_info_slice_size
-        + byte_positions_slice_size
-        + data_slice_size
+        _infer_num_bytes(version, shape_info, byte_positions, data)
     )
     ptr = flatbuff + 0
 

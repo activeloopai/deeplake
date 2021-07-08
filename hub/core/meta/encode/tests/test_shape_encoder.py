@@ -8,7 +8,6 @@ def test_trivial():
 
     enc.add_shape((28, 28, 3), 4)
     assert enc[1] == (28, 28, 3)
-
     assert enc.num_samples == 4
     assert len(enc._encoded_shapes) == 1
 

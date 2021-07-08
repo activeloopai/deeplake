@@ -164,9 +164,13 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return None
 
+        return self.cache.get_cachable(self.last_chunk_key, Chunk)
+
+    @property
+    def last_chunk_key(self) -> str:
         last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
         last_chunk_key = get_chunk_key(self.key, last_chunk_name)
-        return self.cache.get_cachable(last_chunk_key, Chunk)
+        return last_chunk_key
 
     @property
     def tensor_meta(self):
@@ -196,6 +200,10 @@ class ChunkEngine:
             self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
+
+        # TODO implement tests for cache size compute
+        if self.last_chunk is not None:
+            self.cache[self.last_chunk_key] = self.last_chunk
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
