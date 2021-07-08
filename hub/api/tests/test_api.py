@@ -464,3 +464,27 @@ def test_hub_cloud_dataset():
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
     ds.delete()
+
+
+def test_index_range(memory_ds):
+    with pytest.raises(ValueError):
+        memory_ds[0]
+
+    memory_ds.create_tensor("label")
+
+    with pytest.raises(ValueError):
+        memory_ds.label[0]
+
+    memory_ds.label.extend([5, 6, 7])
+    assert len(memory_ds) == 3
+    assert len(memory_ds.label) == 3
+
+    for valid_idx in [0, 1, 2, -0, -1, -2, -3]:
+        memory_ds[valid_idx]
+        memory_ds.label[valid_idx]
+
+    for invalid_idx in [3, 4, -4, -5]:
+        with pytest.raises(ValueError):
+            memory_ds[invalid_idx]
+        with pytest.raises(ValueError):
+            memory_ds.label[invalid_idx]

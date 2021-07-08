@@ -100,6 +100,7 @@ class Dataset:
 
         self.public = public
         self._load_meta()
+        self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
