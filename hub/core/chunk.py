@@ -52,15 +52,19 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: List[memoryview] = [] if data is None else [data]
-        self._len_data = len(self._data)
+        self._data: List[memoryview] = []
+        self._len_data: int = 0
+
+        if data is not None:
+            self._data.append(data)
+            self._len_data += len(data)
 
     @property
     def memoryview_data(self):
         # deprecated
         if len(self._data) == 1:
             return self._data[0]
-        ptr = malloc(sum(map(len, self._data)))
+        ptr = malloc(self.num_data_bytes)
         for data in self._data:
             ptr = _write_pybytes(ptr, data)
         return memoryview(ptr.bytes)
@@ -122,7 +126,7 @@ class Chunk(Cachable):
 
     @property
     def num_data_bytes(self):
-        return sum(map(len, self._data))
+        return self._len_data
 
     def is_under_min_space(self, min_data_bytes_target: int) -> bool:
         """If this chunk's data is less than `min_data_bytes_target`, returns True."""
@@ -181,14 +185,14 @@ class Chunk(Cachable):
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
-            len_data=self._len_data,
+            len_data=self.num_data_bytes,
         )
         return (
             17
             + len(hub.__version__)
             + self.shapes_encoder.array.nbytes
             + self.byte_positions_encoder.array.nbytes
-            + self._len_data
+            + self.num_data_bytes
         )
 
     def tobytes(self) -> memoryview:
@@ -200,7 +204,7 @@ class Chunk(Cachable):
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             self._data,
-            self._len_data,
+            self.num_data_bytes,
         )
 
     @classmethod
