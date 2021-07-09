@@ -109,6 +109,8 @@ def test_pytorch_with_compression(ds: Dataset):
         images = ds.create_tensor("images", htype="image", sample_compression="png")
         labels = ds.create_tensor("labels", htype="class_label")
 
+        assert images.meta.sample_compression == "png"
+
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
