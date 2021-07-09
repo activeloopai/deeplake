@@ -188,6 +188,8 @@ class ChunkEngine:
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
+        self.cache.check_readonly()
+
         # num samples is always 1 when appending
         num_samples = 1
 
