@@ -76,6 +76,7 @@ class ChunkIdEncoder(Cachable):
         self._prev_sample_index: Optional[int] = None
         self._prev_chunk_index: Optional[Tuple[int, int]] = None
         self._prev_chunk_id: Optional[int] = None
+        self._prev_entry: Optional[Union[np.ndarray, List[int]]] = None
 
     def _flush_buffer(self):
         if self._buffer:
@@ -330,7 +331,7 @@ class ChunkIdEncoder(Cachable):
             #     if return_chunk_index:
             #         return self._prev_chunk_id, prev_chunk_index
             #     return self._prev_chunk_id
-            curr_entry = self._get_entry_2d(*prev_chunk_index)
+            curr_entry = self._prev_entry
             if sample_index <= curr_entry[LAST_INDEX_INDEX]:
                 if any(prev_chunk_index):
                     prev_entry = self._get_entry_2d(*(self._decr_2d(*prev_chunk_index)))
@@ -346,9 +347,9 @@ class ChunkIdEncoder(Cachable):
 
             try:
                 chunk_index = self._incr_2d(*prev_chunk_index)
-                next_entry = self._get_entry_2d(*chunk_index)
-                if sample_index <= next_entry[LAST_INDEX_INDEX]:
-                    chunk_id = next_entry[CHUNK_ID_INDEX]
+                current_entry = self._get_entry_2d(*chunk_index)
+                if sample_index <= current_entry[LAST_INDEX_INDEX]:
+                    chunk_id = current_entry[CHUNK_ID_INDEX]
             except IndexError:
                 pass
 
@@ -358,7 +359,8 @@ class ChunkIdEncoder(Cachable):
             shard_index = np.searchsorted(last_idxs, sample_index)
             shard = self._data[shard_index]
             idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
-            chunk_id = shard[idx, CHUNK_ID_INDEX]
+            current_entry = shard[idx]
+            chunk_id = current_entry[CHUNK_ID_INDEX]
             chunk_index = (shard_index, idx)
 
         self._prev_sample_index = sample_index
