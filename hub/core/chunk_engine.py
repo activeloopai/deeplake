@@ -200,10 +200,7 @@ class ChunkEngine:
             self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
-
-        # TODO implement tests for cache size compute
-        if self.last_chunk is not None:
-            self.cache[self.last_chunk_key] = self.last_chunk
+        self.cache.update_used_cache_for_path(self.last_chunk_key, len(self.last_chunk))
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]

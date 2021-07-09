@@ -6,7 +6,6 @@ from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import StorageProvider, S3Provider, MemoryProvider
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import get_base_storage
-from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
 from itertools import repeat
 from collections import defaultdict
 from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Sequence
@@ -75,7 +74,6 @@ def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     num_workers: int = 1,
-    tensors: Optional[Sequence[str]] = None,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
@@ -83,7 +81,9 @@ def dataset_to_pytorch(
 ):
     dataset.flush()
     _import_torch()
-    pytorch_ds = TorchDataset(dataset, transform, num_workers, tensors)
+    # TODO new pytorch approach doesn't support 0 workers currently
+    num_workers = max(num_workers, 1)
+    pytorch_ds = TorchDataset(dataset, transform, num_workers)
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         batch_size=batch_size,
@@ -99,25 +99,12 @@ class TorchDataset:
         dataset,
         transform: Optional[Callable] = None,
         num_workers: int = 1,
-        tensors: Optional[Sequence[str]] = None,
     ):
         self.transform = transform
         self.num_workers: int = num_workers
         self.map = ProcessPool(nodes=num_workers).map
         self.length = len(dataset)
-        self.keys = list(dataset.tensors)
-
-        self.tensor_keys: List[str]
-        if tensors is not None:
-            for t in tensors:
-                if t not in dataset.tensors:
-                    raise TensorDoesNotExistError(t)
-            self.tensor_keys = list(tensors)
-        else:
-            self.tensor_keys = list(dataset.tensors)
-
-        self._return_type = namedtuple("Tensors", self.tensor_keys)
-
+        self.tensor_keys = list(dataset.tensors)
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -199,7 +186,7 @@ class TorchDataset:
         # creating a cache around base storage to pass to ChunkEngine
         return {
             key: ChunkEngine(key, LRUCache(MemoryProvider(), self.storage, 16 * MB))
-            for key in self.keys
+            for key in self.tensor_keys
         }
 
     def _load_all_meta(self):
@@ -313,9 +300,9 @@ class TorchDataset:
         last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = self._return_type(
-                **{key: self.all_index_value_maps[key][i] for key in self.tensor_keys}
-            )
+            sample = {
+                key: self.all_index_value_maps[key][i] for key in self.tensor_keys
+            }
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
