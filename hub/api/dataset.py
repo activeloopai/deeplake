@@ -4,17 +4,13 @@ from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import (
-    DEFAULT_MEMORY_CACHE_SIZE,
-    DEFAULT_LOCAL_CACHE_SIZE,
-    MB,
-)
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.typing import StorageProvider
 from hub.core.index import Index
-from hub.integrations import dataset_to_pytorch, dataset_to_tensorflow
+from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
@@ -263,7 +259,6 @@ class Dataset:
         self,
         transform: Optional[Callable] = None,
         num_workers: int = 1,
-        tensors: Optional[List[str]] = None,
         batch_size: Optional[int] = 1,
         drop_last: Optional[bool] = False,
         collate_fn: Optional[Callable] = None,
@@ -278,8 +273,6 @@ class Dataset:
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample.
             num_workers (int): The number of workers to use for fetching data in parallel.
-            tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects.
-                For example, if the dataset that has "image" and "label" tensors and `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             batch_size (int, optional): Number of samples per batch to load. Default value is 1.
             drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
                 If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
@@ -292,11 +285,12 @@ class Dataset:
         Returns:
             A torch.utils.data.DataLoader object.
         """
+        from hub.integrations import dataset_to_pytorch
+
         return dataset_to_pytorch(
             self,
             transform,
             num_workers=num_workers,
-            tensors=tensors,
             batch_size=batch_size,
             drop_last=drop_last,
             collate_fn=collate_fn,
