@@ -134,6 +134,8 @@ class TensorMeta(Meta):
 
 
 def _required_meta_from_htype(htype: str) -> dict:
+    """Gets a dictionary with all required meta information to define a tensor."""
+
     _validate_htype_exists(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -153,10 +155,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
     defaults = HTYPE_CONFIGURATIONS[htype]
 
-    # check that user specified all required values by the htype
     for key, value in htype_overwrite.items():
-
-        # check if user provided keys that don't exist for the `htype`
         if key not in defaults:
             raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
