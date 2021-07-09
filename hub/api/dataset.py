@@ -1,5 +1,5 @@
 from hub.core.tensor import create_tensor
-from hub.constants import DEFAULT_HTYPE
+from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
@@ -144,9 +144,8 @@ class Dataset:
         name: str,
         htype: str = DEFAULT_HTYPE,
         chunk_size: int = None,
-        dtype: Union[str, np.dtype, type] = None,
-        sample_compression: str = None,
-        chunk_compression: str = None,
+        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -163,7 +162,6 @@ class Dataset:
                 For more on chunking, check out `hub.core.chunk_engine.chunker`.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
-            chunk_compression (str): Optionally override this tensor's `chunk_compression`. Currently not implemented.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -175,10 +173,6 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
 
-        if chunk_compression is not None:
-            # TODO: implement chunk compression + update docstring
-            raise NotImplementedError("Chunk compression is not implemented yet!")
-
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
@@ -189,7 +183,6 @@ class Dataset:
             chunk_size=chunk_size,
             dtype=dtype,
             sample_compression=sample_compression,
-            chunk_compression=chunk_compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)  # type: ignore

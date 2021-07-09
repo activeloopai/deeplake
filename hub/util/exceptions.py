@@ -315,6 +315,17 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
         )
 
 
+class TensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: str):
+        extra = ""
+        if key == "sample_compression":
+            extra = "`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed."
+
+        super().__init__(
+            f"'{htype}' htype requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        )
+
+
 class TensorMetaInvalidHtypeOverwriteKey(MetaError):
     def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
         super().__init__(

@@ -2,7 +2,6 @@ from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionEr
 import pytest
 from hub.api.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
-from hub.constants import UNCOMPRESSED
 import numpy as np
 
 import hub
@@ -40,9 +39,8 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
-    assert images.meta.chunk_compression == UNCOMPRESSED
 
-    original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
+    _populate_compressed_samples(images, cat_path, flower_path)
 
     assert images[0].numpy().shape == (900, 900, 3)
     assert images[1].numpy().shape == (513, 464, 4)
@@ -59,9 +57,8 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
-    assert images.meta.chunk_compression == UNCOMPRESSED
 
-    original_compressions = _populate_compressed_samples(images, cat_path, flower_path)
+    _populate_compressed_samples(images, cat_path, flower_path)
 
     expected_shapes = [
         (900, 900, 3),
@@ -83,7 +80,7 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
 @parametrize_all_dataset_storages
 def test_uncompressed(ds: Dataset):
-    images = ds.create_tensor(TENSOR_KEY, sample_compression=UNCOMPRESSED)
+    images = ds.create_tensor(TENSOR_KEY, sample_compression=None)
 
     images.append(np.ones((100, 100, 100)))
     images.extend(np.ones((3, 101, 2, 1)))

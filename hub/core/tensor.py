@@ -1,4 +1,3 @@
-from hub.constants import DEFAULT_HTYPE
 from hub.core.meta.tensor_meta import TensorMeta
 
 from hub.util.keys import get_tensor_meta_key, tensor_exists
@@ -11,9 +10,8 @@ from hub.util.exceptions import (
 def create_tensor(
     key: str,
     storage: StorageProvider,
-    htype: str = DEFAULT_HTYPE,
-    sample_compression: str = None,
-    chunk_compression: str = None,
+    htype: str,
+    sample_compression: str,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -23,8 +21,7 @@ def create_tensor(
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): If a sample is not already compressed (using `hub.load`), the sample will be compressed with `sample_compression`.
-            May be `UNCOMPRESSED`, in which case samples are uncompressed before stored.
-        chunk_compression (str): Chunk-wise compression has not been implemented yet. # TODO
+            May be `None`, in which case samples are uncompressed before stored.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -39,7 +36,6 @@ def create_tensor(
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
-        chunk_compression=chunk_compression,
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore

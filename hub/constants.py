@@ -9,11 +9,14 @@ MB = 1000 * KB
 GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
-UNCOMPRESSED = "uncompressed"
-DEFAULT_SAMPLE_COMPRESSION = UNCOMPRESSED
-DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
 
-SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
+SUPPORTED_COMPRESSIONS = ["png", "jpeg", None]
+
+# used for htypes. if an htype uses this as the default, that means the user needs to specify themselves a value
+REQUIRE_USER_SPECIFICATION = "require_user"
+
+# used instead of `None` for setting argument defaults. helpful for `REQUIRE_USER_SPECIFICATION` enforcement
+UNSPECIFIED = "unspecified"
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.

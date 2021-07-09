@@ -1,4 +1,3 @@
-from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
 import uuid
@@ -7,7 +6,11 @@ import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+    TensorMetaMissingRequiredValue,
+)
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 
@@ -184,8 +187,7 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.meta.sample_compression == UNCOMPRESSED
-    assert tensor.meta.chunk_compression == UNCOMPRESSED
+    assert tensor.meta.sample_compression is None
 
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
@@ -430,6 +432,11 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
+
+
+@pytest.mark.xfail(TensorMetaMissingRequiredValue, strict=True)
+def test_missing_sample_compression_for_image(memory_ds: Dataset):
+    memory_ds.create_tensor("tensor", htype="image")
 
 
 @pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)

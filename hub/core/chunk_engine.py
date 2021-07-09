@@ -13,7 +13,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
 
@@ -275,7 +275,7 @@ class ChunkEngine:
 
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
-            if compression == UNCOMPRESSED:
+            if compression is None:
                 buffers = []
 
                 # before adding any data, we need to check all sample sizes
@@ -369,7 +369,7 @@ class ChunkEngine:
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
+        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
