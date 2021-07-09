@@ -114,10 +114,10 @@ class ChunkEngine:
         # only the last chunk may be less than this
         self.min_chunk_size = self.max_chunk_size // 2
 
-        self._last_chunk = None
+        self.get_chunk_id_encoder()
+        self.get_last_chunk()
 
-    @property
-    def chunk_id_encoder(self) -> ChunkIdEncoder:
+    def get_chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
         For more information on what `ChunkIdEncoder` is used for, see the `__init__` docstring.
 
@@ -130,46 +130,39 @@ class ChunkEngine:
         """
 
         key = get_chunk_id_encoder_key(self.key)
-        if not self.chunk_id_encoder_exists:
+        if key in self.cache:
+            self.chunk_id_encoder = self.cache.get_cachable(key, ChunkIdEncoder)
 
+        else:
             # 1 because we always update the meta information before writing the samples (to account for potentially corrupted data in the future)
             if self.tensor_meta.length > 1:
                 raise CorruptedMetaError(
                     f"Tensor length is {self.tensor_meta.length}, but could not find the chunk id encoder."
                 )
 
-            enc = ChunkIdEncoder()
-            self.cache[key] = enc
-            return enc
+            self.chunk_id_encoder = ChunkIdEncoder()
+            self.cache[key] = self.chunk_id_encoder
 
-        enc = self.cache.get_cachable(key, ChunkIdEncoder)
-        return enc
-
-    @property
-    def chunk_id_encoder_exists(self) -> bool:
-        return get_chunk_id_encoder_key(self.key) in self.cache
+        return self.chunk_id_encoder
 
     @property
     def num_chunks(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
         return self.chunk_id_encoder.num_chunks
 
     @property
     def num_samples(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
         return self.chunk_id_encoder.num_samples
 
     def get_last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
-            return None
+            self._last_chunk = None
+        else:
+            last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+            last_chunk_key = get_chunk_key(self.key, last_chunk_name)
 
-        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
+            self._last_chunk = self.cache.get_cachable(last_chunk_key, Chunk)
+            self._last_chunk.key = last_chunk_key
 
-        self._last_chunk = self.cache.get_cachable(last_chunk_key, Chunk)
-        self._last_chunk.key = last_chunk_key
         return self._last_chunk
 
     @property

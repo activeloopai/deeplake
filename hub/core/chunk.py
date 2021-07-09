@@ -53,11 +53,11 @@ class Chunk(Cachable):
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
         self._data: List[memoryview] = []
-        self._len_data: int = 0
+        self._num_data_bytes: int = 0  # replaces: sum(map(len, self._data))
 
         if data is not None:
             self._data.append(data)
-            self._len_data += len(data)
+            self._num_data_bytes += len(data)
 
     @property
     def memoryview_data(self):
@@ -126,7 +126,7 @@ class Chunk(Cachable):
 
     @property
     def num_data_bytes(self):
-        return self._len_data
+        return self._num_data_bytes
 
     def is_under_min_space(self, min_data_bytes_target: int) -> bool:
         """If this chunk's data is less than `min_data_bytes_target`, returns True."""
@@ -161,7 +161,7 @@ class Chunk(Cachable):
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data.append(buffer)
-        self._len_data += len(buffer)
+        self._num_data_bytes += len(buffer)
         self.update_headers(incoming_num_bytes, shape)
 
     def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
