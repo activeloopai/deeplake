@@ -37,6 +37,15 @@ class LRUCache(StorageProvider):
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
 
+    def update_used_cache_for_path(self, path: str, new_size: int):
+        if new_size < 0:
+            raise ValueError(f"`new_size` must be >= 0. Got: {new_size}")
+        if path in self.lru_sizes:
+            old_size = self.lru_sizes[path]
+            self.cache_used -= old_size
+        self.cache_used += new_size
+        self.lru_sizes[path] = new_size
+
     def flush(self):
         """Writes data from cache_storage to next_storage. Only the dirty keys are written.
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
@@ -248,8 +257,8 @@ class LRUCache(StorageProvider):
         self.check_readonly()
         self._free_up_space(len(value))
         self.cache_storage[path] = value  # type: ignore
-        self.cache_used += len(value)
-        self.lru_sizes[path] = len(value)
+
+        self.update_used_cache_for_path(path, len(value))
 
     def _list_keys(self):
         """Helper function that lists all the objects present in the cache and the underlying storage.
