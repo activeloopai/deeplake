@@ -3,7 +3,7 @@ from io import BytesIO
 from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Sequence, Tuple, List
+from typing import Optional, Sequence, Tuple, List
 from uuid import uuid1
 
 import numpy as np
@@ -90,7 +90,7 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
     assert array.dtype == dtype
 
 
-def get_actual_compression_from_buffer(buffer: memoryview) -> str:
+def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
 
     try:
