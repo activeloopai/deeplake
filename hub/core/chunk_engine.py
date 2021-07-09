@@ -391,7 +391,7 @@ class ChunkEngine:
         if num_bytes > self.min_chunk_size:
             msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
-            if self.tensor_meta.sample_compression == UNCOMPRESSED:
+            if self.tensor_meta.sample_compression is None:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)

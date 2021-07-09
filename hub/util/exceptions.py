@@ -309,7 +309,7 @@ class TensorMetaInvalidHtype(MetaError):
 class TensorMetaInvalidHtypeOverwriteValue(MetaError):
     def __init__(self, key: str, value: Any, explanation: str = ""):
         super().__init__(
-            "Invalid value {} for tensor meta key {}. {}".format(
+            "Invalid value '{}' for tensor meta key {}. {}".format(
                 str(value), key, explanation
             )
         )

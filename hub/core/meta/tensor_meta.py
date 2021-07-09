@@ -12,17 +12,10 @@ from hub.util.exceptions import (
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
+    UNSPECIFIED,
 )
 from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.meta.meta import Meta
-
-
-def _remove_none_values_from_dict(d: dict) -> dict:
-    new_d = {}
-    for k, v in d.items():
-        if v is not None:
-            new_d[k] = v
-    return new_d
 
 
 class TensorMeta(Meta):
@@ -49,13 +42,13 @@ class TensorMeta(Meta):
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
         """
 
+        _validate_htype(htype)
         _validate_htype_overwrites(htype, kwargs)
+        _replace_unspecified_values(htype, kwargs)
+        _validate_required_htype_overwrites(kwargs)
 
         required_meta = _required_meta_from_htype(htype)
         required_meta.update(kwargs)
-
-        _validate_required_meta(htype, required_meta)
-
         self.__dict__.update(required_meta)
 
         super().__init__()
@@ -75,7 +68,7 @@ class TensorMeta(Meta):
 
         dtype = np.dtype(dtype)
 
-        if self.dtype and self.dtype != dtype.name:
+        if self.dtype is not None and self.dtype != dtype.name:
             raise TensorDtypeMismatchError(
                 self.dtype,
                 dtype.name,
@@ -114,7 +107,7 @@ class TensorMeta(Meta):
         dtype = np.dtype(dtype)
 
         if self.length <= 0:
-            if not self.dtype:
+            if self.dtype is None:
                 self.dtype = str(dtype)
 
             self.min_shape = list(shape)
@@ -139,44 +132,56 @@ class TensorMeta(Meta):
 
 
 def _required_meta_from_htype(htype: str) -> dict:
-    _check_valid_htype(htype)
+    _validate_htype(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     required_meta = {
         "htype": htype,
-        "dtype": defaults.get("dtype", None),
         "min_shape": [],
         "max_shape": [],
         "length": 0,
-        "sample_compression": defaults["sample_compression"],
+        **defaults,
     }
 
-    required_meta = _remove_none_values_from_dict(required_meta)
-    required_meta.update(defaults)
     return required_meta
-
-
-def _validate_required_meta(htype: str, required_meta: dict):
-    for k, v in required_meta.items():
-        if v == REQUIRE_USER_SPECIFICATION:
-            raise TensorMetaMissingRequiredValue(htype, k)
-
-    sample_compression = required_meta["sample_compression"]
-    if sample_compression not in SUPPORTED_COMPRESSIONS:
-        raise UnsupportedCompressionError(sample_compression)
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     """Raises appropriate errors if `htype_overwrite` keys/values are invalid in correspondence to `htype`. May modify `dtype` in `htype_overwrite` if it is a non-str."""
 
-    _check_valid_htype(htype)
+    # TODO: update docstring
+
     defaults = HTYPE_CONFIGURATIONS[htype]
 
-    for key in htype_overwrite.keys():
+    # check that user specified all required values by the htype
+    for key, value in htype_overwrite.items():
+
+        # check if user provided keys that don't exist for the `htype`
         if key not in defaults:
             raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
-    if "dtype" in htype_overwrite:
+        if value == UNSPECIFIED:
+            if defaults[key] == REQUIRE_USER_SPECIFICATION:
+                raise TensorMetaMissingRequiredValue(htype, key)
+
+
+def _replace_unspecified_values(htype: str, htype_overwrite: dict):
+    # TODO: docstring
+
+    defaults = HTYPE_CONFIGURATIONS[htype]
+
+    for k, v in htype_overwrite.items():
+        if v == UNSPECIFIED:
+            htype_overwrite[k] = defaults[k]
+
+
+def _validate_required_htype_overwrites(htype_overwrite: dict):
+    # TODO: docstring
+
+    if htype_overwrite["sample_compression"] not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(htype_overwrite["sample_compression"])
+
+    if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
             "dtype",
             htype_overwrite,
@@ -184,11 +189,8 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
 
-        if type(htype_overwrite["dtype"]) != str:
-            htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
-
-def _check_valid_htype(htype: str):
+def _validate_htype(htype: str):
     if htype not in HTYPE_CONFIGURATIONS:
         raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS.keys()))
 
