@@ -200,7 +200,7 @@ class ChunkEngine:
             self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
-        self.cache.update_used_cache_for_path(self.last_chunk_key, len(self.last_chunk))
+        self.cache.update_used_cache_for_path(self.last_chunk_key, len(self.last_chunk))  # type: ignore
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -345,27 +345,23 @@ class ChunkEngine:
         last_shape = None
         samples = []
 
-        for global_sample_index in index.values[0].indices(length):
-            chunk_id = enc[global_sample_index]
+        for chunk_id, local_sample_index in enc.iter(index.values[0].value):
             chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
             chunk_key = get_chunk_key(self.key, chunk_name)
             chunk = self.cache.get_cachable(chunk_key, Chunk)
-            sample = self.read_sample_from_chunk(global_sample_index, chunk)
+            sample = self.read_sample_from_chunk(chunk, local_sample_index)
             shape = sample.shape
-
             if not aslist and last_shape is not None:
                 if shape != last_shape:
                     raise DynamicTensorNumpyError(self.key, index, "shape")
-
             samples.append(sample)
             last_shape = shape
-
         return _format_samples(samples, index, aslist)
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
+        self, chunk: Chunk, local_sample_index: int
     ) -> np.ndarray:
-        """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
+        """Read a sample from a chunk, given the local index. Handles decompressing if applicable."""
 
         expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
         dtype = self.tensor_meta.dtype
@@ -373,7 +369,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         # buffer = chunk.memoryview_data
-        local_sample_index = enc.get_local_sample_index(global_sample_index)
+        # local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
