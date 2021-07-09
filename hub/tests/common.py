@@ -98,7 +98,6 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
         img = Image.open(bio)
         return img.format.lower()
 
-    # TODO: better way of determining the sample has no compression
     except UnidentifiedImageError:
         return None
 
