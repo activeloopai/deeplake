@@ -1,3 +1,4 @@
+from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
 from typing import Callable, Dict, Optional, Union, Tuple, List
@@ -8,7 +9,6 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
-from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
@@ -143,7 +143,6 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        chunk_size: int = None,
         dtype: Union[str, np.dtype, type] = None,
         sample_compression: str = None,
         chunk_compression: str = None,
@@ -158,9 +157,6 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the
-                size of files (chunks) being created to represent this tensor's samples.
-                For more on chunking, check out `hub.core.chunk_engine.chunker`.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
             chunk_compression (str): Optionally override this tensor's `chunk_compression`. Currently not implemented.
@@ -186,7 +182,6 @@ class Dataset:
             name,
             self.storage,
             htype=htype,
-            chunk_size=chunk_size,
             dtype=dtype,
             sample_compression=sample_compression,
             chunk_compression=chunk_compression,

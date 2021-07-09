@@ -1,3 +1,4 @@
+from hub.core.storage.provider import StorageProvider
 import os
 import posixpath
 import logging
@@ -20,9 +21,9 @@ from hub.constants import (
 )
 from hub.core.storage import LocalProvider, MemoryProvider, S3Provider
 from hub.core.tests.common import LOCAL, MEMORY, S3
-from hub.core.typing import StorageProvider
 from hub.tests.common import SESSION_ID, current_test_name, get_dummy_data_path
 from hub.util.cache_chain import get_cache_chain
+
 
 MEMORY_OPT = "--memory-skip"
 LOCAL_OPT = "--local"

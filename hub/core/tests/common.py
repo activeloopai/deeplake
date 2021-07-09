@@ -1,10 +1,6 @@
 import pytest
 
-from typing import Dict, List
-
 import pytest
-
-from hub.core.typing import StorageProvider
 
 STORAGE_FIXTURE_NAME = "storage"
 DATASET_FIXTURE_NAME = "ds"
