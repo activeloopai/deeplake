@@ -106,7 +106,7 @@ def test_pytorch_transform(ds):
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
-        images = ds.create_tensor("images", htype="image", sample_compression=None)
+        images = ds.create_tensor("images", htype="image", sample_compression="png")
         labels = ds.create_tensor("labels", htype="class_label")
 
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
