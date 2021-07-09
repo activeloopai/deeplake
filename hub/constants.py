@@ -12,10 +12,10 @@ DEFAULT_HTYPE = "generic"
 
 SUPPORTED_COMPRESSIONS = ["png", "jpeg", None]
 
-# used for htypes. if an htype uses this as the default, that means the user needs to specify themselves a value
-REQUIRE_USER_SPECIFICATION = "require_user"
+# used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
+REQUIRE_USER_SPECIFICATION = "require_user_specification"
 
-# used instead of `None` for setting argument defaults. helpful for `REQUIRE_USER_SPECIFICATION` enforcement
+# used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
 UNSPECIFIED = "unspecified"
 
 # If `True`  compression format has to be the same between samples in the same tensor.

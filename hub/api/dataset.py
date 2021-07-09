@@ -157,7 +157,7 @@ class Dataset:
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
-            sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
+            sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
