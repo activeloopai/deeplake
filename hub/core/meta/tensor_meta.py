@@ -43,7 +43,7 @@ class TensorMeta(Meta):
         """
 
         if htype != UNSPECIFIED:
-            _validate_htype(htype)
+            _validate_htype_exists(htype)
             _validate_htype_overwrites(htype, kwargs)
             _replace_unspecified_values(htype, kwargs)
             _validate_required_htype_overwrites(kwargs)
@@ -134,7 +134,7 @@ class TensorMeta(Meta):
 
 
 def _required_meta_from_htype(htype: str) -> dict:
-    _validate_htype(htype)
+    _validate_htype_exists(htype)
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     required_meta = {
@@ -149,9 +149,7 @@ def _required_meta_from_htype(htype: str) -> dict:
 
 
 def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
-    """Raises appropriate errors if `htype_overwrite` keys/values are invalid in correspondence to `htype`. May modify `dtype` in `htype_overwrite` if it is a non-str."""
-
-    # TODO: update docstring
+    """Raises errors if `htype_overwrite` has invalid keys or was missing required values."""
 
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -168,7 +166,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
 
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
-    # TODO: docstring
+    """Replaces `UNSPECIFIED` values in `htype_overwrite` with the `htype`'s defaults."""
 
     defaults = HTYPE_CONFIGURATIONS[htype]
 
@@ -178,7 +176,7 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
 
 
 def _validate_required_htype_overwrites(htype_overwrite: dict):
-    # TODO: docstring
+    """Raises errors if `htype_overwrite` has invalid values."""
 
     if htype_overwrite["sample_compression"] not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(htype_overwrite["sample_compression"])
@@ -193,13 +191,13 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
 
 
 def _format_values(htype_overwrite: dict):
-    # TODO: docstring
+    """Replaces values in `htype_overwrite` with consistent types/formats."""
 
     if htype_overwrite["dtype"] is not None:
         htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
 
-def _validate_htype(htype: str):
+def _validate_htype_exists(htype: str):
     if htype not in HTYPE_CONFIGURATIONS:
         raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS.keys()))
 
