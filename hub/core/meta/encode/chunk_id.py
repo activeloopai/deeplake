@@ -272,7 +272,7 @@ class ChunkIdEncoder(Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        return self.get(global_sample_index, return_local_sample_index=True)[1]
+        return self.get(global_sample_index, return_local_sample_index=True)[1]  # type: ignore
 
     def __getitem__(self, sample_index: int) -> int:
         return self.get(sample_index)  # type: ignore
@@ -282,7 +282,7 @@ class ChunkIdEncoder(Cachable):
         sample_index: int,
         return_chunk_index: bool = False,
         return_local_sample_index: bool = False,
-    ) -> Union[int, Tuple[int, Tuple[int, int]]]:
+    ) -> Union[int, Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int], int], Tuple[int, int]]:
         """Get the ID for the chunk that `sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 
@@ -327,7 +327,7 @@ class ChunkIdEncoder(Cachable):
                 local_sample_index = sample_index
             ret.append(local_sample_index)
 
-        return tuple(ret)
+        return tuple(ret)  # type: ignore
 
     def iter(self, index: Union[int, slice, tuple] = slice(None)):
         if isinstance(index, int):
@@ -352,7 +352,7 @@ class ChunkIdEncoder(Cachable):
                 return
             n = 0
             self._flush_buffer()
-            chunk_id, (shard_index, chunk_index), local_sample_index = self.get(
+            chunk_id, (shard_index, chunk_index), local_sample_index = self.get(  # type: ignore
                 start, return_chunk_index=True, return_local_sample_index=True
             )
             shard = self._data[shard_index]
