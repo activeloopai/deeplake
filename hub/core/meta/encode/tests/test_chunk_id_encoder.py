@@ -49,7 +49,7 @@ def test_trivial():
 
     # test local indexing
     assert enc.get_local_sample_index(0) == 0
-    assert enc.get_local_sample_index(1) == 1, (enc._data, enc._buffer)
+    assert enc.get_local_sample_index(1) == 1
     assert enc.get_local_sample_index(29) == 29
     assert enc.get_local_sample_index(30) == 0
     assert enc.get_local_sample_index(31) == 0
