@@ -30,7 +30,6 @@ class TensorMeta(Meta):
     dtype: str
     min_shape: List[int]
     max_shape: List[int]
-    chunk_size: int
     length: int
     sample_compression: str
 
@@ -146,7 +145,6 @@ def _required_meta_from_htype(htype: str) -> dict:
     required_meta = {
         "htype": htype,
         "dtype": defaults.get("dtype", None),
-        "chunk_size": defaults["chunk_size"],
         "min_shape": [],
         "max_shape": [],
         "length": 0,
@@ -177,14 +175,6 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     for key in htype_overwrite.keys():
         if key not in defaults:
             raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
-
-    if "chunk_size" in htype_overwrite:
-        _raise_if_condition(
-            "chunk_size",
-            htype_overwrite,
-            lambda chunk_size: chunk_size <= 0,
-            "Chunk size must be greater than 0.",
-        )
 
     if "dtype" in htype_overwrite:
         _raise_if_condition(

@@ -1,7 +1,7 @@
 from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.storage import StorageProvider
 
 from hub.util.keys import get_tensor_meta_key, tensor_exists
-from hub.core.typing import StorageProvider
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
 )

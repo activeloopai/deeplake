@@ -14,7 +14,6 @@ They are also used to inform default compression modes and data types.
 from re import L
 from typing import Dict
 from hub.constants import (
-    DEFAULT_MAX_CHUNK_SIZE,
     DEFAULT_HTYPE,
     REQUIRE_USER_SPECIFICATION,
 )
@@ -39,7 +38,6 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 
 # these configs are added to every `htype`
 COMMON_CONFIGS = {
-    "chunk_size": DEFAULT_MAX_CHUNK_SIZE,
     "sample_compression": None,
 }
 
