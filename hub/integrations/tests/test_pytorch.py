@@ -12,6 +12,10 @@ from hub.util.check_installation import requires_torch
 from hub.core.tests.common import parametrize_all_dataset_storages
 
 
+def to_tuple(sample):
+    return sample["image"], sample["image2"]
+
+
 @requires_torch
 @parametrize_all_dataset_storages
 def test_pytorch_small(ds):
@@ -23,11 +27,6 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
@@ -87,16 +86,8 @@ def test_pytorch_transform(ds):
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
-    def to_tuple(sample):
-        return sample["image"], sample["image2"]
-
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
@@ -127,11 +118,6 @@ def test_pytorch_with_compression(ds: Dataset):
             dl = ds.pytorch(num_workers=2)
         return
 
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
-            dl = ds.pytorch(num_workers=2)
-        return
-
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
     for batch in dl:
@@ -153,13 +139,13 @@ def test_pytorch_small_old(ds):
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = dataset_to_pytorch(
-                ds, num_workers=0, batch_size=1, python_version_warning=False
+                ds, num_workers=2, batch_size=1, python_version_warning=False
             )
         return
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     dl = dataset_to_pytorch(
-        ds, num_workers=0, batch_size=1, python_version_warning=False
+        ds, num_workers=2, batch_size=1, python_version_warning=False
     )
 
     for i, batch in enumerate(dl):
@@ -173,11 +159,7 @@ def test_pytorch_small_old(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
-@pytest.mark.xfail(
-    sys.version_info < (3, 8),
-    raises=NotImplementedError,
-    reason="requires python3.8 or higher",
-)
+@pytest.mark.skip(reason="future")
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -187,17 +169,12 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            ptds = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
     dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
     dl_old = dataset_to_pytorch(
-        ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
+        ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
     )
     for dl in [dl_new, dl_old]:
         for i, batch in enumerate(dl):

@@ -7,14 +7,13 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
-from hub.util.subscript_namedtuple import subscript_namedtuple as namedtuple
+import hub
 
 
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
     num_workers: int = 1,
-    tensors: Optional[Sequence[str]] = None,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
@@ -32,14 +31,9 @@ def dataset_to_pytorch(
     pytorch_ds = TorchDataset(
         dataset,
         transform,
-        tensors,
         python_version_warning=python_version_warning,
     )
-    # TODO add pytorch for num_workers > 1
-    if num_workers > 0:
-        raise NotImplementedError(
-            "Multiproccessed pytorch training is not support for Python version < 3.8. Please set num_workers equal to 0 or upgrade to python 3.8."
-        )
+
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         num_workers=num_workers,
@@ -55,7 +49,6 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
-        tensors: Optional[Sequence[str]] = None,
         python_version_warning: bool = True,
     ):
 
@@ -64,36 +57,38 @@ class TorchDataset:
                 "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
             )
 
-        self.dataset = dataset
+        self.dataset = None
 
-        base_storage = get_base_storage(dataset.storage)
-        if isinstance(base_storage, MemoryProvider):
+        self.storage = get_base_storage(dataset.storage)
+        self.index = dataset.index
+        if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
 
         self.transform = transform
-        self.tensor_keys: List[str]
-        if tensors is not None:
-            for t in tensors:
-                if t not in dataset.tensors:
-                    raise TensorDoesNotExistError(t)
-            self.tensor_keys = list(tensors)
-        else:
-            self.tensor_keys = list(dataset.tensors)
-        self._return_type = namedtuple("Tensors", self.tensor_keys)
+        self.tensor_keys = list(dataset.tensors)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
 
+    def _init_ds(self):
+        """
+        For each process, dataset should be independently loaded
+        """
+        if self.dataset is None:
+            self.dataset = hub.Dataset(storage=self.storage, index=self.index)
+
     def __len__(self):
+        self._init_ds()
         return len(self.dataset)
 
     def __getitem__(self, index: int):
-        sample = self._return_type()
+        self._init_ds()
+        sample = {}
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
-            item = self.dataset[key][index].numpy()
+            item = self.dataset[key][index].numpy()  # type: ignore
             if item.dtype == "uint16":
                 item = item.astype("int32")
             elif item.dtype in ["uint32", "uint64"]:
