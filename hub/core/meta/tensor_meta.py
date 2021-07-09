@@ -28,7 +28,7 @@ class TensorMeta(Meta):
 
     def __init__(
         self,
-        htype: str,
+        htype: str = UNSPECIFIED,
         **kwargs,
     ):
         """Tensor metadata is responsible for keeping track of global sample metadata within a tensor.
@@ -42,14 +42,16 @@ class TensorMeta(Meta):
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
         """
 
-        _validate_htype(htype)
-        _validate_htype_overwrites(htype, kwargs)
-        _replace_unspecified_values(htype, kwargs)
-        _validate_required_htype_overwrites(kwargs)
+        if htype != UNSPECIFIED:
+            _validate_htype(htype)
+            _validate_htype_overwrites(htype, kwargs)
+            _replace_unspecified_values(htype, kwargs)
+            _validate_required_htype_overwrites(kwargs)
+            _format_values(kwargs)
 
-        required_meta = _required_meta_from_htype(htype)
-        required_meta.update(kwargs)
-        self.__dict__.update(required_meta)
+            required_meta = _required_meta_from_htype(htype)
+            required_meta.update(kwargs)
+            self.__dict__.update(required_meta)
 
         super().__init__()
 
@@ -108,7 +110,7 @@ class TensorMeta(Meta):
 
         if self.length <= 0:
             if self.dtype is None:
-                self.dtype = str(dtype)
+                self.dtype = dtype.name
 
             self.min_shape = list(shape)
             self.max_shape = list(shape)
@@ -188,6 +190,13 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
             lambda dtype: not _is_dtype_supported_by_numpy(dtype),
             "Datatype must be supported by numpy. Can be an `str`, `np.dtype`, or normal python type (like `bool`, `float`, `int`, etc.). List of available numpy dtypes found here: https://numpy.org/doc/stable/user/basics.types.html",
         )
+
+
+def _format_values(htype_overwrite: dict):
+    # TODO: docstring
+
+    if htype_overwrite["dtype"] is not None:
+        htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
 
 def _validate_htype(htype: str):

@@ -319,10 +319,10 @@ class TensorMetaMissingRequiredValue(MetaError):
     def __init__(self, htype: str, key: str):
         extra = ""
         if key == "sample_compression":
-            extra = "`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed."
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
 
         super().__init__(
-            f"'{htype}' htype requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+            f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
         )
 
 

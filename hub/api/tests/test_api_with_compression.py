@@ -1,4 +1,8 @@
-from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionError
+from hub.util.exceptions import (
+    SampleCompressionError,
+    TensorMetaMissingRequiredValue,
+    UnsupportedCompressionError,
+)
 import pytest
 from hub.api.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
@@ -35,7 +39,7 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
 @parametrize_all_dataset_storages
 def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image")
+    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
@@ -53,7 +57,7 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
 @parametrize_all_dataset_storages
 def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image")
+    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
 
     assert images.meta.dtype == "uint8"
     assert images.meta.sample_compression == "png"
@@ -120,3 +124,8 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
 def test_unsupported_compression(memory_ds: Dataset):
     memory_ds.create_tensor(TENSOR_KEY, sample_compression="bad_compression")
     # TODO: same tests but with `dtype`
+
+
+@pytest.mark.xfail(raises=TensorMetaMissingRequiredValue, strict=True)
+def test_missing_sample_compression_for_image(memory_ds: Dataset):
+    memory_ds.create_tensor("tensor", htype="image")

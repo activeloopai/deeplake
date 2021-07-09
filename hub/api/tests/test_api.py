@@ -9,7 +9,6 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
-    TensorMetaMissingRequiredValue,
 )
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
@@ -385,7 +384,7 @@ def test_shape_property(memory_ds):
 
 
 def test_htype(memory_ds: Dataset):
-    image = memory_ds.create_tensor("image", htype="image")
+    image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
     label = memory_ds.create_tensor("label", htype="class_label")
     video = memory_ds.create_tensor("video", htype="video")
@@ -432,11 +431,6 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
-
-
-@pytest.mark.xfail(TensorMetaMissingRequiredValue, strict=True)
-def test_missing_sample_compression_for_image(memory_ds: Dataset):
-    memory_ds.create_tensor("tensor", htype="image")
 
 
 @pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
