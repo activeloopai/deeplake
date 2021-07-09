@@ -1,4 +1,3 @@
-from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
 
@@ -8,7 +7,7 @@ from hub.util.check_installation import requires_tensorflow
 @requires_tensorflow
 def test_tensorflow_with_compression(local_ds: Dataset):
     # TODO: when chunk-wise compression is done, `labels` should be compressed using lz4, so this test needs to be updated
-    images = local_ds.create_tensor("images", htype="image")
+    images = local_ds.create_tensor("images", htype="image", sample_compression=None)
     labels = local_ds.create_tensor("labels", htype="class_label")
 
     images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
