@@ -1,6 +1,6 @@
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
-from hub.util.iterable_ordered_dict import IterableOrderedDict as OrderedDict
+from hub.util.iterable_ordered_dict import IterableOrderedDict
 from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
 import warnings
 from hub.util.exceptions import (
@@ -9,6 +9,26 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 import hub
+
+
+def _collate_fn(batch):
+    import torch
+
+    elem = batch[0]
+    if isinstance(elem, IterableOrderedDict):
+        return IterableOrderedDict(
+            (key, _collate_fn([d[key] for d in batch])) for key in elem.keys()
+        )
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def _convert_fn(data):
+    import torch
+
+    elem_type = type(data)
+    if isinstance(data, IterableOrderedDict):
+        return IterableOrderedDict((k, _convert_fn(v)) for k, v in data.items())
+    return torch.utils.data._utils.collate.default_convert(data)
 
 
 def dataset_to_pytorch(
@@ -37,6 +57,9 @@ def dataset_to_pytorch(
         tensors,
         python_version_warning=python_version_warning,
     )
+
+    if collate_fn is None:
+        collate_fn = _convert_fn if batch_size is None else _collate_fn
 
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
@@ -75,7 +98,7 @@ class TorchDataset:
         if tensors is None:
             self.tensor_keys = list(dataset.tensors)
         else:
-            self.tensors_keys = list(tensors)
+            self.tensor_keys = list(tensors)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -93,7 +116,7 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         self._init_ds()
-        sample = OrderedDict()
+        sample = IterableOrderedDict()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
             item = self.dataset[key][index].numpy()  # type: ignore

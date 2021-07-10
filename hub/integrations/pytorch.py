@@ -71,6 +71,26 @@ def _read_and_store_chunk(
     return chunk_size
 
 
+def _collate_fn(batch):
+    import torch
+
+    elem = batch[0]
+    if isinstance(elem, IterableOrderedDict):
+        return IterableOrderedDict(
+            (key, _collate_fn([d[key] for d in batch])) for key in elem.keys()
+        )
+    return torch.utils.data._utils.collate.default_collate(batch)
+
+
+def _convert_fn(data):
+    import torch
+
+    elem_type = type(data)
+    if isinstance(data, IterableOrderedDict):
+        return IterableOrderedDict((k, _convert_fn(v)) for k, v in data.items())
+    return torch.utils.data._utils.collate.default_convert(data)
+
+
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
@@ -85,7 +105,9 @@ def dataset_to_pytorch(
     _import_torch()
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
-    pytorch_ds = TorchDataset(dataset, transform, num_workers)
+    pytorch_ds = TorchDataset(dataset, transform, tensors, num_workers)
+    if collate_fn is None:
+        collate_fn = _convert_fn if batch_size is None else _collate_fn
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         batch_size=batch_size,

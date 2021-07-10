@@ -1,6 +1,7 @@
 import sys
-from hub.util.remove_cache import get_base_storage
+import pickle
 import pytest
+from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
 from hub.constants import UNCOMPRESSED
@@ -183,6 +184,17 @@ def test_custom_tensor_order(ds):
             c2 = batch["c"]
             d2 = batch["d"]
             assert "b" not in batch
+            np.testing.assert_array_equal(a1, a2)
+            np.testing.assert_array_equal(c1, c2)
+            np.testing.assert_array_equal(d1, d2)
+            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+            batch = pickle.loads(pickle.dumps(batch))
+            c1, d1, a1 = batch
+            a2 = batch["a"]
+            c2 = batch["c"]
+            d2 = batch["d"]
             np.testing.assert_array_equal(a1, a2)
             np.testing.assert_array_equal(c1, c2)
             np.testing.assert_array_equal(d1, d2)
