@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.cachable import Cachable
-from typing import Callable, Set, Union
+from typing import Callable, Set, Union, Optional, Sequence
 
 from hub.core.storage.provider import StorageProvider
 
@@ -37,12 +37,14 @@ class LRUCache(StorageProvider):
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
 
-    def flush(self):
+    def flush(self, keys: Optional[Sequence[str]] = None):
         """Writes data from cache_storage to next_storage. Only the dirty keys are written.
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
         """
+        if not keys:
+            keys = self.dirty_keys.copy()  # type: ignore
         self.check_readonly()
-        for key in self.dirty_keys.copy():
+        for key in keys:  # type: ignore
             self._forward(key)
         self.next_storage.flush()
 

@@ -43,3 +43,4 @@ def create_tensor(
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
+    storage.flush()

@@ -1,6 +1,6 @@
 from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
-from typing import Callable, Dict, Optional, Union, Tuple, List
+from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
 import numpy as np
 
 from hub.api.tensor import Tensor
@@ -196,7 +196,7 @@ class Dataset:
 
         self.tensors[name] = tensor
         self.meta.tensors.append(name)
-
+        self.flush([get_dataset_meta_key()])
         return tensor
 
     __getattr__ = __getitem__
@@ -311,13 +311,13 @@ class Dataset:
         """
         return dataset_to_tensorflow(self)
 
-    def flush(self):
+    def flush(self, keys: Optional[Sequence[str]] = None):
         """Necessary operation after writes if caches are being used.
         Writes all the dirty data from the cache layers (if any) to the underlying storage.
         Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
         underlying storage.
         """
-        self.storage.flush()
+        self.storage.flush(keys)
 
     def clear_cache(self):
         """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents

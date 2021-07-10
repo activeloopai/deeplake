@@ -10,6 +10,7 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
+from click.testing import CliRunner
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -464,3 +465,13 @@ def test_hub_cloud_dataset():
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
     ds.delete()
+
+
+def test_empty_dataset():
+    with CliRunner().isolated_filesystem():
+        ds = Dataset("test")
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds = Dataset("test")
+        assert list(ds.tensors) == ["x", "y", "z"]
