@@ -195,7 +195,7 @@ class ChunkEngine:
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
 
         last_chunk = self._last_chunk
-        key = last_chunk.key
+        key = last_chunk.key  # type: ignore
         self.cache.update_used_cache_for_path(key, len(last_chunk))  # type: ignore
 
     def _try_appending_to_last_chunk(

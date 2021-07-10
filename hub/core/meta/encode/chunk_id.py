@@ -75,9 +75,16 @@ class ChunkIdEncoder(Cachable):
         self._data: List[np.ndarray] = [] if ids is None else [ids]
         self._num_chunks = sum(map(len, self._data))
 
+        self._prev_sample_index: Optional[int] = None
+        self._prev_chunk_id: Optional[int] = None
+        self._prev_chunk_index: Optional[Tuple[int, int]] = None
+        self._prev_entry: Optional[Union[np.ndarray, List[int]]] = None
+
     def _flush_buffer(self):
         if self._buffer:
             self._data.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
+        if self._prev_chunk_index and self._prev_chunk_index[0] < 0:
+            self._prev_chunk_index = (len(self._data) -1, self._prev_chunk_index[1])
         self._buffer.clear()
 
     def _get_2d_idx(self, idx: int) -> Tuple[int, int]:
@@ -306,14 +313,33 @@ class ChunkIdEncoder(Cachable):
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        self._flush_buffer()
-        last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
-        shard_index = np.searchsorted(last_idxs, sample_index)
-        shard = self._data[shard_index]
-        idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
-        current_entry = shard[idx]
-        chunk_id = current_entry[CHUNK_ID_INDEX]
-        chunk_index = (shard_index, idx)
+        if self._prev_sample_index is not None and sample_index == self._prev_sample_index + 1:
+            if sample_index > self._prev_entry[LAST_INDEX_INDEX]:
+                chunk_index = self._incr_2d(*self._prev_chunk_index)
+                current_entry = self._get_entry_2d(*chunk_index)
+                chunk_id = current_entry[CHUNK_ID_INDEX]
+                self._prev_entry = current_entry
+                self._prev_chunk_id = chunk_id
+            else:
+                chunk_id = self._prev_chunk_id
+                chunk_index = self._prev_chunk_index
+        else:
+            self._flush_buffer()
+            last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
+            shard_index = np.searchsorted(last_idxs, sample_index)
+            shard = self._data[shard_index]
+            idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
+            current_entry = shard[idx]
+            chunk_id = current_entry[CHUNK_ID_INDEX]
+            chunk_index = (shard_index, idx)
+            self._prev_entry = current_entry
+            self._prev_chunk_id = chunk_id
+
+        self._prev_sample_index = sample_index
+        self._prev_chunk_index = chunk_index
+
+        if not return_chunk_index and not return_local_sample_index:
+            return chunk_id
         ret = [chunk_id]
         if return_chunk_index:
             ret.append(chunk_index)
