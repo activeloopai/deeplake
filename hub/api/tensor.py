@@ -43,6 +43,8 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
+        self._numpy: Optional[np.ndarray] = None
+
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.load` outputs, which can be used to load files. See examples down below.
@@ -71,6 +73,7 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         self.chunk_engine.extend(samples)
+        self._numpy = None
 
     def append(
         self,
@@ -217,5 +220,15 @@ class Tensor:
         if self.index.is_trivial():
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
+
+    def __array__(self) -> np.ndarray:
+        if self._numpy is None:
+            self._numpy = self.numpy()
+            # NOTE: caching the array avoids multiple calls to .numpy() when a tensor object
+            # is pased multiple times to numpy methods. A downside is that the user can modify
+            # the cached array in-place, essentially corrupting it. Setting the writeable flag
+            # to False here also has no effect, as the outer array created with np.array(tensor)
+            # will not inherit that flag.
+        return self._numpy
 
     __repr__ = __str__
