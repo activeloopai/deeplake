@@ -17,19 +17,17 @@ If you know beforehand, you can use htype at creation:
 Specifying an htype allows for strict settings and errors whenever they are violated.
 Also, tensors with htypes can be easily visualized on the [activeloop platform](https://app.activeloop.ai/).
 
-Supported htypes are:
+Supported htypes and their respective defaults are:
 
-- "image"
+| HTYPE         |  DTYPE    |  COMPRESSION  |
+| ------------  |  -------  |  -----------  |
+| image         |  uint8    |  png          |
+| class_label   |  uint32   |  none         |
+| bbox          |  float32  |  none         |
+| video         |  uint8    |  none         |
+| binary_mask   |  bool     |  none         |
+| segment_mask  |  int32    |  none         |
 
-- "class_label"
-
-- "bbox"
-
-- "video"
-
-- "binary_mask"
-
-- "segment_mask"
 """
 
 from re import L
