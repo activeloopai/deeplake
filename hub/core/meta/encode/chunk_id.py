@@ -7,6 +7,8 @@ from typing import Optional, Tuple, Union, List
 import numpy as np
 from uuid import uuid4
 from hub.core.lowlevel import encode_chunkids, decode_chunkids
+from hub.core.index import IndexEntry
+import math
 
 
 # these constants are for accessing the data layout. see the `ChunkIdEncoder` docstring.
@@ -73,9 +75,16 @@ class ChunkIdEncoder(Cachable):
         self._data: List[np.ndarray] = [] if ids is None else [ids]
         self._num_chunks = sum(map(len, self._data))
 
+        self._prev_sample_index: Optional[int] = None
+        self._prev_chunk_id: Optional[int] = None
+        self._prev_chunk_index: Optional[Tuple[int, int]] = None
+        self._prev_entry: Optional[Union[np.ndarray, List[int]]] = None
+
     def _flush_buffer(self):
         if self._buffer:
             self._data.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
+        if self._prev_chunk_index and self._prev_chunk_index[0] < 0:
+            self._prev_chunk_index = (len(self._data) -1, self._prev_chunk_index[1])
         self._buffer.clear()
 
     def _get_2d_idx(self, idx: int) -> Tuple[int, int]:
@@ -131,9 +140,41 @@ class ChunkIdEncoder(Cachable):
     def num_chunks(self) -> int:
         return self._num_chunks
 
-    def get_entry(self, idx):
+    def get_entry(self, idx: int):
         x, y = self._get_2d_idx(idx)
         return self._buffer[y] if x < 0 else self._data[x][y]
+
+    def _get_entry_2d(self, x: int, y: int):
+        return self._buffer[y] if x < 0 else self._data[x][y]
+
+    def _decr_2d(self, x: int, y: int) -> Tuple[int, int]:
+        if x < 0:
+            if y:
+                return x, y - 1
+            return len(self._data) - 1, len(self._data[-1]) - 1
+        if y:
+            return x, y - 1
+        if x:
+            x -= 1
+            return x, len(self._data[x]) - 1
+        raise IndexError()
+
+    def _incr_2d(self, x: int, y: int) -> Tuple[int, int]:
+        if x < 0:
+            return x, y + 1
+        # assert y < len(self._data[x])
+        if y == len(self._data[x]) - 1:
+            if x == len(self._data) - 1:
+                return -1, 0
+            return x + 1, 0
+        return x, y + 1
+
+    def _is_origin(self, x: int, y: int) -> bool:
+        if not x and not y:
+            return True
+        if x < 0 and not self._data and not y:
+            return True
+        return False
 
     @property
     def last_entry(self) -> Union[np.ndarray, List[int]]:
@@ -148,12 +189,12 @@ class ChunkIdEncoder(Cachable):
         last_entry = self.last_entry
         if last_entry is None:
             return -1
-        return last_entry[LAST_INDEX_INDEX]
+        return int(last_entry[LAST_INDEX_INDEX])
 
     @property
     def num_samples(self) -> int:
         if self._buffer:
-            return self._buffer[-1][LAST_INDEX_INDEX] + 1
+            return int(self._buffer[-1][LAST_INDEX_INDEX] + 1)
         elif self._data:
             return int(self._data[-1][-1, LAST_INDEX_INDEX] + 1)
         return 0
@@ -186,7 +227,6 @@ class ChunkIdEncoder(Cachable):
             ChunkIdEncoderError: Must call `generate_chunk_id` before registering samples.
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
-
         if num_samples < 0:
             raise ValueError(
                 f"Cannot register negative num samples. Got: {num_samples}"
@@ -239,31 +279,17 @@ class ChunkIdEncoder(Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, (shard_index, chunk_index) = self.get(global_sample_index, return_chunk_index=True)  # type: ignore
-
-        if not shard_index and not chunk_index:
-            return global_sample_index
-
-        if chunk_index:
-            chunk_index -= 1
-        else:
-            shard_index -= 1
-            chunk_index = len(self._data[shard_index]) - 1
-
-        # current_entry = self._encoded_ids[chunk_index - 1]
-        current_entry = self._data[shard_index][
-            chunk_index
-        ]  # buffer already flushed by get() call
-        last_num_samples = current_entry[LAST_INDEX_INDEX] + 1
-
-        return global_sample_index - int(last_num_samples)
+        return self.get(global_sample_index, return_local_sample_index=True)[1]  # type: ignore
 
     def __getitem__(self, sample_index: int) -> int:
         return self.get(sample_index)  # type: ignore
 
     def get(
-        self, sample_index: int, return_chunk_index: bool = False
-    ) -> Union[int, Tuple[int, Tuple[int, int]]]:
+        self,
+        sample_index: int,
+        return_chunk_index: bool = False,
+        return_local_sample_index: bool = False,
+    ) -> Union[int, Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int], int], Tuple[int, int]]:
         """Get the ID for the chunk that `sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 
@@ -287,15 +313,166 @@ class ChunkIdEncoder(Cachable):
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        self._flush_buffer()
-        last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
-        shard_idx = np.searchsorted(last_idxs, sample_index)
-        shard = self._data[shard_idx]
-        idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
-        id = shard[idx, CHUNK_ID_INDEX]
-        chunk_index = idx
+        if self._prev_sample_index is not None and sample_index == self._prev_sample_index + 1:
+            if sample_index > self._prev_entry[LAST_INDEX_INDEX]:
+                chunk_index = self._incr_2d(*self._prev_chunk_index)
+                current_entry = self._get_entry_2d(*chunk_index)
+                chunk_id = current_entry[CHUNK_ID_INDEX]
+                self._prev_entry = current_entry
+                self._prev_chunk_id = chunk_id
+            else:
+                chunk_id = self._prev_chunk_id
+                chunk_index = self._prev_chunk_index
+        else:
+            self._flush_buffer()
+            last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
+            shard_index = np.searchsorted(last_idxs, sample_index)
+            shard = self._data[shard_index]
+            idx = np.searchsorted(shard[:, LAST_INDEX_INDEX], sample_index)
+            current_entry = shard[idx]
+            chunk_id = current_entry[CHUNK_ID_INDEX]
+            chunk_index = (shard_index, idx)
+            self._prev_entry = current_entry
+            self._prev_chunk_id = chunk_id
 
+        self._prev_sample_index = sample_index
+        self._prev_chunk_index = chunk_index
+
+        if not return_chunk_index and not return_local_sample_index:
+            return chunk_id
+        ret = [chunk_id]
         if return_chunk_index:
-            return id, (shard_idx, chunk_index)
+            ret.append(chunk_index)
+        if return_local_sample_index:
+            if any(chunk_index):
+                prev_entry = self._get_entry_2d(*self._decr_2d(*chunk_index))
+                local_sample_index = (
+                    sample_index - int(prev_entry[LAST_INDEX_INDEX]) - 1
+                )
+            else:
+                local_sample_index = sample_index
+            ret.append(local_sample_index)
 
-        return id
+        return tuple(ret)  # type: ignore
+
+    def iter(self, index: Union[int, slice, tuple] = slice(None)):
+        if isinstance(index, int):
+            yield self.get(index, return_local_sample_index=True)
+        elif isinstance(index, slice):
+            start = 0 if index.start is None else index.start
+            stop = self.num_samples if index.stop is None else index.stop
+            step = 1 if index.step is None else index.step
+            assert isinstance(start, int)
+            assert isinstance(stop, int)
+            assert isinstance(step, int)
+            assert step != 0
+            if step > 0:
+                total = math.ceil((stop - start) / step)
+                forward = True
+            else:
+                step = -step
+                total = math.ceil((stop - start) / step)
+                start, stop = stop - 1, start
+                forward = False
+            if not total:
+                return
+            n = 0
+            self._flush_buffer()
+            chunk_id, (shard_index, chunk_index), local_sample_index = self.get(  # type: ignore
+                start, return_chunk_index=True, return_local_sample_index=True
+            )
+            shard = self._data[shard_index]
+            yield chunk_id, local_sample_index
+            n += 1
+            if n == total:
+                return
+            ctr = Counter(step)
+            if forward:
+                last_index = int(shard[chunk_index, LAST_INDEX_INDEX])
+                for i in range(local_sample_index + 1, last_index + 1):
+                    if ctr():
+                        yield chunk_id, i
+                        n += 1
+                        if n == total:
+                            return
+                for chunk_index in range(chunk_index + 1, len(shard)):
+                    entry = shard[chunk_index]
+                    chunk_id = entry[CHUNK_ID_INDEX]
+                    new_last_index = int(entry[LAST_INDEX_INDEX])
+                    for i in range(new_last_index - last_index):
+                        if ctr():
+                            yield chunk_id, i
+                            n += 1
+                            if n == total:
+                                return
+                    last_index = new_last_index
+                for shard_index in range(shard_index + 1, len(self._data)):
+                    shard = self._data[shard_index]
+                    for entry in shard:
+                        chunk_id = entry[CHUNK_ID_INDEX]
+                        new_last_index = int(entry[LAST_INDEX_INDEX])
+                        for i in range(new_last_index - last_index):
+                            if ctr():
+                                yield chunk_id, i
+                                n += 1
+                                if n == total:
+                                    return
+                        last_index = new_last_index
+            else:
+                last_index = int(shard[chunk_index, LAST_INDEX_INDEX])
+                for local_sample_index in range(local_sample_index - 1, -1, -1):
+                    if ctr():
+                        yield chunk_id, local_sample_index
+                        n += 1
+                        if n == total:
+                            return
+                for chunk_index in range(chunk_index - 1, -1, -1):
+                    entry = shard[chunk_index]
+                    chunk_id = entry[CHUNK_ID_INDEX]
+                    last_index = entry[LAST_INDEX_INDEX]
+                    if chunk_index:
+                        last_index -= shard[chunk_id - 1, LAST_INDEX_INDEX]
+                    elif shard_index:
+                        last_index -= self._data[shard_index - 1][-1, LAST_INDEX_INDEX]
+                    for local_sample_index in range(last_index, -1, -1):
+                        if ctr():
+                            yield chunk_id, local_sample_index
+                            n += 1
+                            if n == total:
+                                return
+                for shard_index in range(shard_index - 1, -1, -1):
+                    shard = self._data[shard_index]
+                    for chunk_index in range(len(shard) - 1, -1, -1):
+                        entry = shard[chunk_index]
+                        chunk_id = entry[CHUNK_ID_INDEX]
+                        last_index = entry[LAST_INDEX_INDEX]
+                        if chunk_index:
+                            last_index -= shard[chunk_id - 1, LAST_INDEX_INDEX]
+                        elif shard_index:
+                            last_index -= self._data[shard_index - 1][
+                                -1, LAST_INDEX_INDEX
+                            ]
+                        for local_sample_index in range(last_index, -1, -1):
+                            if ctr():
+                                yield chunk_id, local_sample_index
+                                n += 1
+                                if n == total:
+                                    return
+        elif isinstance(index, tuple):
+            for i in index:
+                # Random access
+                yield self.get(i, return_local_sample_index=True)
+
+
+class Counter:
+    # TODO: refac this
+    def __init__(self, n: int) -> None:
+        self.n = n
+        self.i = 0
+
+    def __call__(self):
+        self.i += 1
+        if self.i == self.n:
+            self.i = 0
+            return True
+        return False
