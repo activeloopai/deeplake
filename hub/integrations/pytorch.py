@@ -263,13 +263,12 @@ class TorchDataset:
         """Extracts data from all the chunks in chunk_names and stores it index wise in a dictionary"""
         self.all_index_value_maps[key] = {}
         chunk_map = {}
-        all_shared_memory = []
         # loads value of chunks saved in SharedMemory into memory
         for chunk_name, shared_memory_name, chunk_size in zip(
             chunk_names, shared_memory_names, chunk_sizes
         ):
-            all_shared_memory.append(SharedMemory(name=shared_memory_name))
-            chunk = Chunk.frombuffer(all_shared_memory[-1].buf[:chunk_size])
+            shared_memory = SharedMemory(name=shared_memory_name)
+            chunk = Chunk.frombuffer(shared_memory.buf[:chunk_size])
             chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
