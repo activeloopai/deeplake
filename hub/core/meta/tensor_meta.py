@@ -67,10 +67,15 @@ class TensorMeta(Meta):
     def adapt(self, buffer: memoryview, shape: Tuple[int], dtype):
         dtype = np.dtype(dtype)
         if self.dtype and self.dtype != dtype.name:
+            arr = np.frombuffer(buffer, dtype=dtype)
             if np.can_cast(dtype, self.dtype):
-                buffer = memoryview(
-                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
-                )
+                buffer = memoryview(np.cast[self.dtype](arr).tobytes())
+            elif (
+                self.dtype == "uint8"
+                and "int" in dtype.name
+                and np.all((0 <= arr) * (arr < 256))
+            ):
+                buffer = memoryview(np.cast[self.dtype](arr).tobytes())
             else:
                 raise TensorDtypeMismatchError(
                     self.dtype,
