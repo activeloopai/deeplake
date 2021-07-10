@@ -68,7 +68,9 @@ class TensorMeta(Meta):
         dtype = np.dtype(dtype)
         if self.dtype and self.dtype != dtype.name:
             if np.can_cast(dtype, self.dtype):
-                buffer = memoryview(np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes())
+                buffer = memoryview(
+                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
+                )
             else:
                 raise TensorDtypeMismatchError(
                     self.dtype,
@@ -87,6 +89,7 @@ class TensorMeta(Meta):
                     shape,
                 )
         return buffer
+
     def check_compatibility(self, shape: Tuple[int], dtype):
         """Checks if this tensor meta is compatible with the incoming sample(s) properties.
 

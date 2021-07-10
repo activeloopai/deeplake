@@ -193,7 +193,6 @@ class ChunkEngine:
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
         buffer = self.tensor_meta.adapt(buffer, shape, dtype)
-        self.tensor_meta.check_compatibility(shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
