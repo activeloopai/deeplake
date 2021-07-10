@@ -64,6 +64,29 @@ class TensorMeta(Meta):
 
         super().__init__()
 
+    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype):
+        dtype = np.dtype(dtype)
+        if self.dtype and self.dtype != dtype.name:
+            if np.can_cast(dtype, self.dtype):
+                buffer = memoryview(np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes())
+            else:
+                raise TensorDtypeMismatchError(
+                    self.dtype,
+                    dtype.name,
+                    self.htype,
+                )
+        # shape length is only enforced after at least 1 sample exists.
+        if self.length > 0:
+            expected_shape_len = len(self.min_shape)
+            actual_shape_len = len(shape)
+            if expected_shape_len != actual_shape_len:
+                raise TensorInvalidSampleShapeError(
+                    "Sample shape length is expected to be {}, actual length is {}.".format(
+                        expected_shape_len, actual_shape_len
+                    ),
+                    shape,
+                )
+        return buffer
     def check_compatibility(self, shape: Tuple[int], dtype):
         """Checks if this tensor meta is compatible with the incoming sample(s) properties.
 
