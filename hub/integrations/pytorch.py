@@ -145,9 +145,6 @@ class TorchDataset:
         # keeps track of names of all shared_memory that have data in them
         self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(list)
 
-        # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
-        self.all_shared_memory: Dict = defaultdict(list)
-
         self.last_chunk_num_generated = -1
 
     def __len__(self):
@@ -266,12 +263,13 @@ class TorchDataset:
         """Extracts data from all the chunks in chunk_names and stores it index wise in a dictionary"""
         self.all_index_value_maps[key] = {}
         chunk_map = {}
+        all_shared_memory = []
         # loads value of chunks saved in SharedMemory into memory
         for chunk_name, shared_memory_name, chunk_size in zip(
             chunk_names, shared_memory_names, chunk_sizes
         ):
-            self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            all_shared_memory.append(SharedMemory(name=shared_memory_name))
+            chunk = Chunk.frombuffer(all_shared_memory[-1].buf[:chunk_size])
             chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
