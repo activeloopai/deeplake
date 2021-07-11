@@ -212,9 +212,6 @@ class Dataset:
             return super().__setattr__(name, value)
 
     def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-        return
         tensor_names = list(self.tensors)
         tensors_sliced = [t[self.index][:len(self)] for t in self.tensors.values()]
         num_tensors = len(tensor_names)
