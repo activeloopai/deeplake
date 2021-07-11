@@ -475,9 +475,9 @@ def test_iter_perf(memory_ds: Dataset):
 
     def searchsorted(*args, **kwargs):
         call_count["n"] += 1
-        orig_searchsorted(*args, **kwargs)
+        return orig_searchsorted(*args, **kwargs)
 
-    np.searchsorted = searchsorted
+
     ds = memory_ds
     ds.create_tensor("x")
     ds.create_tensor("y")
@@ -485,9 +485,9 @@ def test_iter_perf(memory_ds: Dataset):
         ds.x.append(np.zeros((10, 10)))
         ds.y.append(np.ones((10, 10)))
 
+    np.searchsorted = searchsorted
     for i, sub_ds in enumerate(ds):
-        np.testing.assert_array_equal(sub_ds.x.numpy(), np.zeros((10, 10)))
-        np.testing.assert_array_equal(sub_ds.y.numpy(), np.ones((10, 10)))
+        print(i, sub_ds)
 
     assert call_count["n"] == 4
 
