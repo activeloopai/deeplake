@@ -496,7 +496,7 @@ def test_iter_perf(memory_ds: Dataset):
     for _ in range(100):
         ds.x.append(np.zeros((3, 2)))
 
-    with pytest.warns():
+    with pytest.warns(UserWarning, match=r"Use *"):
         for i in range(len(ds.x)):
             sample = ds.x[i]
 

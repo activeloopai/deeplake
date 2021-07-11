@@ -219,7 +219,9 @@ class Dataset:
         num_tensors = len(tensor_names)
         for tensors in zip(*tensors_sliced):
             tensors = {tensor_names[i]: tensors[i] for i in range(num_tensors)}
-            ds = Dataset(read_only=True, storage=self.storage, _tensors=tensors)
+            ds = Dataset(
+                read_only=self.read_only, storage=self.storage, _tensors=tensors
+            )
             yield ds
 
     def _load_meta(self):
