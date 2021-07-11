@@ -17,6 +17,8 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
+
+
 def test_persist_local(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
@@ -465,3 +467,28 @@ def test_hub_cloud_dataset():
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
     ds.delete()
+
+
+def test_iter_perf(memory_ds: Dataset):
+    orig_searchsorted = np.searchsorted
+    call_count = {"n": 0}
+
+    def searchsorted(*args, **kwargs):
+        call_count["n"] += 1
+        orig_searchsorted(*args, **kwargs)
+
+    np.searchsorted = searchsorted
+    ds = memory_ds
+    ds.create_tensor("x")
+    ds.create_tensor("y")
+    for _ in range(10):
+        ds.x.append(np.zeros((10, 10)))
+        ds.y.append(np.ones((10, 10)))
+
+    for i, sub_ds in enumerate(ds):
+        np.testing.assert_array_equal(sub_ds.x.numpy(), np.zeros((10, 10)))
+        np.testing.assert_array_equal(sub_ds.y.numpy(), np.ones((10, 10)))
+
+    assert call_count["n"] == 4
+
+    np.searchsorted = orig_searchsorted

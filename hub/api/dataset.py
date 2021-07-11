@@ -38,6 +38,7 @@ class Dataset:
         storage: Optional[StorageProvider] = None,
         public: Optional[bool] = True,
         token: Optional[str] = None,
+        _tensors: Optional[Dict[str, Tensor]] = None
     ):
         """Initializes a new or existing dataset.
 
@@ -89,7 +90,7 @@ class Dataset:
         self.storage.autoflush = True
         self.index = index or Index()
 
-        self.tensors: Dict[str, Tensor] = {}
+        self.tensors: Dict[str, Tensor] =  _tensors if _tensors else {}
 
         self._token = token
 
@@ -213,6 +214,14 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+        return
+        tensor_names = list(self.tensors)
+        tensors_sliced = [t[self.index][:len(self)] for t in self.tensors.values()]
+        num_tensors = len(tensor_names)
+        for tensors in zip(*tensors_sliced):
+            tensors = {tensor_names[i]: tensors[i] for i in range(num_tensors)}
+            ds = Dataset(read_only=True, storage=self.storage, _tensors=tensors)
+            yield ds
 
     def _load_meta(self):
         meta_key = get_dataset_meta_key()
@@ -220,9 +229,9 @@ class Dataset:
         if dataset_exists(self.storage):
             logger.info(f"{self.path} loaded successfully.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-
-            for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+            if not self.tensors:
+                for tensor_name in self.meta.tensors:
+                    self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
         elif len(self.storage) > 0:
             # dataset does not exist, but the path was not empty
