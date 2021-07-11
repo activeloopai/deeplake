@@ -46,7 +46,6 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
         self._sample: Optional[Tuple(int, int)] = None
-        self._index_history: List[int] = []
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -192,21 +191,6 @@ class Tensor:
     ):
         if not isinstance(item, (int, slice, list, tuple, Index)):
             raise InvalidKeyTypeError(item)
-        hist = self._index_history
-        if isinstance(item, int):
-            if item < 0:
-                item += len(self)
-            hist.append(item)
-            if len(hist) == 100:
-                if hist[1] - hist[0] > 1 and hist == list(
-                    range(hist[0], hist[-1] + 1, hist[1] - hist[0])
-                ):
-                    warnings.warn(
-                        "Use `for i, sample in enumerate(tensor): ` instead of `for i in range(len(tensor)): ` to efficiently  iterate through the tensor."
-                    )
-                hist.clear()
-        else:
-            self._index_history.clear()
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):

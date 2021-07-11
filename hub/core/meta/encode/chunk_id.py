@@ -317,20 +317,21 @@ class ChunkIdEncoder(Cachable):
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        if (
-            self._prev_sample_index is not None
-            and sample_index == self._prev_sample_index + 1
-        ):
-            if sample_index > self._prev_entry[LAST_INDEX_INDEX]:  # type: ignore
-                chunk_index = self._incr_2d(*self._prev_chunk_index)  # type: ignore
-                current_entry = self._get_entry_2d(*chunk_index)
-                chunk_id = current_entry[CHUNK_ID_INDEX]
-                self._prev_entry = current_entry
-                self._prev_chunk_id = chunk_id
-            else:
+        chunk_id = None
+        if self._prev_sample_index is not None and sample_index >= self._prev_sample_index:
+            if sample_index <= self._prev_entry[LAST_INDEX_INDEX]:
                 chunk_id = self._prev_chunk_id
-                chunk_index = self._prev_chunk_index  # type: ignore
-        else:
+                chunk_index = self._prev_chunk_index
+                current_entry = self._prev_entry
+            else:
+                next_index = self._incr_2d(*self._prev_chunk_index)  # type: ignore
+                next_entry = self._get_entry_2d(*next_index)
+                if sample_index <= next_entry[LAST_INDEX_INDEX]:
+                    chunk_index = next_index
+                    current_entry = next_entry
+                    chunk_id = current_entry[CHUNK_ID_INDEX]
+
+        if chunk_id is None:
             self._flush_buffer()
             last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
             shard_index = np.searchsorted(last_idxs, sample_index)
@@ -339,11 +340,11 @@ class ChunkIdEncoder(Cachable):
             current_entry = shard[idx]
             chunk_id = current_entry[CHUNK_ID_INDEX]
             chunk_index = (shard_index, idx)
-            self._prev_entry = current_entry
-            self._prev_chunk_id = chunk_id
 
         self._prev_sample_index = sample_index
         self._prev_chunk_index = chunk_index
+        self._prev_entry = current_entry
+        self._prev_chunk_id = chunk_id
 
         if not return_chunk_index and not return_local_sample_index:
             return chunk_id
