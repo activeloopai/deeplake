@@ -194,11 +194,15 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         hist = self._index_history
         if isinstance(item, int):
+            if item < 0:
+                item += len(self)
             hist.append(item)
             if len(hist) == 100:
-                if hist == list(range(hist[0], hist[-1] + 1, hist[1] - hist[0])):
+                if hist[1] - hist[0] > 1 and hist == list(
+                    range(hist[0], hist[-1] + 1, hist[1] - hist[0])
+                ):
                     warnings.warn(
-                        "Use `for i, sample in enumerate(tensor): ` instead of `for i in range(len(tensor)): ` to iterate through the tensor."
+                        "Use `for i, sample in enumerate(tensor): ` instead of `for i in range(len(tensor)): ` to efficiently  iterate through the tensor."
                     )
                 hist.clear()
         else:
