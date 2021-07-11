@@ -493,7 +493,4 @@ def test_iter_perf(memory_ds: Dataset):
 
     assert call_count["n"] == 44
 
-    for _ in range(200):
-        ds.x.append(np.zeros((3, 2)))
-
     np.searchsorted = orig_searchsorted
