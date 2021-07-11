@@ -468,12 +468,14 @@ def test_hub_cloud_dataset():
 
     ds.delete()
 
-
+@pytest.mark.xfail(raises=AssertionError, reason="future")
 def test_iter_perf(memory_ds: Dataset):
     orig_searchsorted = np.searchsorted
     call_count = {"n": 0}
-
+    callers = []
     def searchsorted(*args, **kwargs):
+        import inspect
+        callers.append(inspect.stack()[1][3])
         call_count["n"] += 1
         return orig_searchsorted(*args, **kwargs)
 
@@ -486,6 +488,10 @@ def test_iter_perf(memory_ds: Dataset):
 
     np.searchsorted = searchsorted
     for i, sub_ds in enumerate(ds):
+        assert sub_ds.x._sample
+        assert sub_ds.y._sample
+        sub_ds.x.numpy()
+        sub_ds.y.numpy()
         np.testing.assert_array_equal(sub_ds.x.numpy(), np.zeros((10, 10)))
         np.testing.assert_array_equal(sub_ds.y.numpy(), np.ones((10, 10)))
 

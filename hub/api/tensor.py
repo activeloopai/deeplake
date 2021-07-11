@@ -232,7 +232,6 @@ class Tensor:
             chunk_id, local_sample_index = self._sample
             chunk = self.chunk_engine.get_chunk_from_id(chunk_id)
             return self.chunk_engine.read_sample_from_chunk(chunk, local_sample_index)
-
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):

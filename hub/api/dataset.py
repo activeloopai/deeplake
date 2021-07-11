@@ -91,7 +91,9 @@ class Dataset:
         self.index = index or Index()
 
         self.tensors: Dict[str, Tensor] =  _tensors if _tensors else {}
-
+        if self.tensors:
+            for t in self.tensors.values():
+                assert t._sample
         self._token = token
 
         if self.path.startswith("hub://"):
@@ -129,6 +131,8 @@ class Dataset:
             if item not in self.tensors:
                 raise TensorDoesNotExistError(item)
             else:
+                if self.index.is_trivial():
+                    return self.tensors[item]
                 return self.tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(

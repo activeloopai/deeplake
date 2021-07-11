@@ -309,7 +309,6 @@ class ChunkIdEncoder(Cachable):
             Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `sample_index`. If `return_chunk_index` is True,
                 there will be 2 values. The second one being the chunk's index.
         """
-
         if self.num_samples == 0:
             raise IndexError(
                 f"Index {sample_index} is out of bounds for an empty chunk names encoding."

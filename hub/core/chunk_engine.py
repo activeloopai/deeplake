@@ -341,7 +341,6 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
@@ -373,8 +372,6 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
 
-        # buffer = chunk.memoryview_data
-        # local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
