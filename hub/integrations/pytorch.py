@@ -279,7 +279,9 @@ class TorchDataset:
             actual_index = self.index_offset + i
             # TODO change this once it returns list/set of str
             chunk_engine = self.all_chunk_engines[key]
-            chunk_id, local_index = chunk_engine.chunk_id_encoder.get(actual_index, return_local_sample_index=True)
+            chunk_id, local_index = chunk_engine.chunk_id_encoder.get(
+                actual_index, return_local_sample_index=True
+            )
             chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)  # type: ignore
             if chunk_name not in chunk_map:
                 self.last_index_meta[key] = i - 1

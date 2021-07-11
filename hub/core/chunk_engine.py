@@ -348,9 +348,7 @@ class ChunkEngine:
         samples = []
 
         for chunk_id, local_sample_index in enc.iter(index.values[0].value):
-            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            chunk = self.get_chunk_from_id(chunk_id)
             sample = self.read_sample_from_chunk(chunk, local_sample_index)
             shape = sample.shape
             if not aslist and last_shape is not None:
@@ -359,6 +357,11 @@ class ChunkEngine:
             samples.append(sample)
             last_shape = shape
         return _format_samples(samples, index, aslist)
+
+    def get_chunk_from_id(self, chunk_id: int) -> Chunk:
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        return self.cache.get_cachable(chunk_key, Chunk)
 
     def read_sample_from_chunk(
         self, chunk: Chunk, local_sample_index: int

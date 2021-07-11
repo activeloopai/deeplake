@@ -84,7 +84,7 @@ class ChunkIdEncoder(Cachable):
         if self._buffer:
             self._data.append(np.array(self._buffer, dtype=ENCODING_DTYPE))
         if self._prev_chunk_index and self._prev_chunk_index[0] < 0:
-            self._prev_chunk_index = (len(self._data) -1, self._prev_chunk_index[1])
+            self._prev_chunk_index = (len(self._data) - 1, self._prev_chunk_index[1])
         self._buffer.clear()
 
     def _get_2d_idx(self, idx: int) -> Tuple[int, int]:
@@ -289,7 +289,12 @@ class ChunkIdEncoder(Cachable):
         sample_index: int,
         return_chunk_index: bool = False,
         return_local_sample_index: bool = False,
-    ) -> Union[int, Tuple[int, Tuple[int, int]], Tuple[int, Tuple[int, int], int], Tuple[int, int]]:
+    ) -> Union[
+        int,
+        Tuple[int, Tuple[int, int]],
+        Tuple[int, Tuple[int, int], int],
+        Tuple[int, int],
+    ]:
         """Get the ID for the chunk that `sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 
@@ -313,16 +318,19 @@ class ChunkIdEncoder(Cachable):
         if sample_index < 0:
             sample_index = (self.num_samples) + sample_index
 
-        if self._prev_sample_index is not None and sample_index == self._prev_sample_index + 1:
-            if sample_index > self._prev_entry[LAST_INDEX_INDEX]:
-                chunk_index = self._incr_2d(*self._prev_chunk_index)
+        if (
+            self._prev_sample_index is not None
+            and sample_index == self._prev_sample_index + 1
+        ):
+            if sample_index > self._prev_entry[LAST_INDEX_INDEX]:  # type: ignore
+                chunk_index = self._incr_2d(*self._prev_chunk_index)  # type: ignore
                 current_entry = self._get_entry_2d(*chunk_index)
                 chunk_id = current_entry[CHUNK_ID_INDEX]
                 self._prev_entry = current_entry
                 self._prev_chunk_id = chunk_id
             else:
                 chunk_id = self._prev_chunk_id
-                chunk_index = self._prev_chunk_index
+                chunk_index = self._prev_chunk_index  # type: ignore
         else:
             self._flush_buffer()
             last_idxs = [shard[-1, LAST_INDEX_INDEX] for shard in self._data]
