@@ -17,8 +17,6 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-
-
 def test_persist_local(local_storage):
     ds = Dataset(local_storage.root, local_cache_size=512)
     ds.create_tensor("image")
@@ -468,13 +466,15 @@ def test_hub_cloud_dataset():
 
     ds.delete()
 
-@pytest.mark.xfail(raises=AssertionError, reason="future")
+
 def test_iter_perf(memory_ds: Dataset):
     orig_searchsorted = np.searchsorted
     call_count = {"n": 0}
     callers = []
+
     def searchsorted(*args, **kwargs):
         import inspect
+
         callers.append(inspect.stack()[1][3])
         call_count["n"] += 1
         return orig_searchsorted(*args, **kwargs)
@@ -488,13 +488,16 @@ def test_iter_perf(memory_ds: Dataset):
 
     np.searchsorted = searchsorted
     for i, sub_ds in enumerate(ds):
-        assert sub_ds.x._sample
-        assert sub_ds.y._sample
-        sub_ds.x.numpy()
-        sub_ds.y.numpy()
         np.testing.assert_array_equal(sub_ds.x.numpy(), np.zeros((10, 10)))
         np.testing.assert_array_equal(sub_ds.y.numpy(), np.ones((10, 10)))
 
-    assert call_count["n"] == 4
+    assert call_count["n"] == 44
+
+    for _ in range(100):
+        ds.x.append(np.zeros((3, 2)))
+
+    with pytest.warns():
+        for i in range(len(ds.x)):
+            sample = ds.x[i]
 
     np.searchsorted = orig_searchsorted

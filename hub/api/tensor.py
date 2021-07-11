@@ -197,7 +197,9 @@ class Tensor:
             hist.append(item)
             if len(hist) == 100:
                 if hist == list(range(hist[0], hist[-1] + 1, hist[1] - hist[0])):
-                    warnings.warn("Use `for i, sample in enumerate(tensor): ` instead of `for i in range(len(tensor)): ` to iterate through the tensor.")
+                    warnings.warn(
+                        "Use `for i, sample in enumerate(tensor): ` instead of `for i in range(len(tensor)): ` to iterate through the tensor."
+                    )
                 hist.clear()
         else:
             self._index_history.clear()
@@ -231,7 +233,12 @@ class Tensor:
         if self._sample:
             chunk_id, local_sample_index = self._sample
             chunk = self.chunk_engine.get_chunk_from_id(chunk_id)
-            return self.chunk_engine.read_sample_from_chunk(chunk, local_sample_index)
+            ret = self.chunk_engine.read_sample_from_chunk(chunk, local_sample_index)
+            if aslist:
+                ret = list(ret)
+            for entry in self.index.values[1:]:
+                ret = ret[entry.value]
+            return ret
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):
