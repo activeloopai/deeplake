@@ -318,7 +318,10 @@ class ChunkIdEncoder(Cachable):
             sample_index = (self.num_samples) + sample_index
 
         chunk_id = None
-        if self._prev_sample_index is not None and sample_index >= self._prev_sample_index:
+        if (
+            self._prev_sample_index is not None
+            and sample_index >= self._prev_sample_index
+        ):
             if sample_index <= self._prev_entry[LAST_INDEX_INDEX]:
                 chunk_id = self._prev_chunk_id
                 chunk_index = self._prev_chunk_index
