@@ -195,7 +195,7 @@ def test_empty_samples(ds: Dataset):
 
     # test indexing individual empty samples with numpy while looping, this may seem redundant but this was failing before
     for actual_sample, expected in zip(ds, expected_list):
-        actual = actual_sample.with_empty.numpy()
+        actual = actual_sample["with_empty"].numpy()
         np.testing.assert_array_equal(actual, expected)
 
 
@@ -483,13 +483,13 @@ def test_iter_perf(memory_ds: Dataset):
     ds.create_tensor("x")
     ds.create_tensor("y")
     for _ in range(10):
-        ds.x.append(np.zeros((10, 10)))
-        ds.y.append(np.ones((10, 10)))
+        ds["x"].append(np.zeros((10, 10)))
+        ds["y"].append(np.ones((10, 10)))
 
     np.searchsorted = searchsorted
     for i, sub_ds in enumerate(ds):
-        np.testing.assert_array_equal(sub_ds.x.numpy(), np.zeros((10, 10)))
-        np.testing.assert_array_equal(sub_ds.y.numpy(), np.ones((10, 10)))
+        np.testing.assert_array_equal(sub_ds["x"].numpy(), np.zeros((10, 10)))
+        np.testing.assert_array_equal(sub_ds["y"].numpy(), np.ones((10, 10)))
 
     assert call_count["n"] == 44
 

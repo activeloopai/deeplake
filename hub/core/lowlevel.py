@@ -129,11 +129,11 @@ def _infer_chunk_num_bytes(
     # assert byte_positions.ndim == 2
     # version_slice_size = 1 + len(version)
     # shape_info_slice_size = 4 + 4 + shape_info.nbytes
-    # byte_positions_slice_size = 4 + 4 + byte_positions.nbytes
+    # byte_positions_slice_size = 4 + byte_positions.nbytes
     # data_slice_size = sum(map(len, data))
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
-    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 17
+    return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13
 
 
 def encode_chunk(
@@ -141,8 +141,11 @@ def encode_chunk(
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
     data: Union[Sequence[bytes], Sequence[memoryview]],
-    len_data: Optional[int],
+    len_data: Optional[int] = None,
 ) -> memoryview:
+
+    if len_data is None:
+        len_data = sum(map(len, data))
 
     flatbuff = malloc(
         _infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
@@ -164,7 +167,6 @@ def encode_chunk(
 
     # write byte positions
     ptr = _write_pybytes(ptr, np.int32(byte_positions.shape[0]).tobytes())
-    ptr = _write_pybytes(ptr, np.int32(byte_positions.shape[1]).tobytes())
     memcpy(ptr, _ndarray_to_ptr(byte_positions))
     ptr += byte_positions.nbytes
 
@@ -209,8 +211,8 @@ def decode_chunk(
 
     # read byte positions
     byte_positions_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
-    byte_positions_shape = np.frombuffer(ptr.memoryview[:8], dtype=np.int32)
-    ptr += 8
+    byte_positions_shape = (int(np.frombuffer(ptr.memoryview[:4], dtype=np.int32)), 3)
+    ptr += 4
     byte_positions_data_size = int(
         np.prod(byte_positions_shape) * byte_positions_dtype.itemsize
     )
@@ -268,49 +270,3 @@ def decode_chunkids(buff: bytes) -> Tuple[str, np.ndarray]:
     )
 
     return version, ids
-
-
-def test_chunk_encoding():
-    version = hub.__version__
-    shape_info = np.cast[hub.constants.ENCODING_DTYPE](
-        np.random.randint(100, size=(17, 63))
-    )
-    byte_positions = np.cast[hub.constants.ENCODING_DTYPE](
-        np.random.randint(100, size=(31, 79))
-    )
-    data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
-    encoded = bytes(encode_chunk(version, shape_info, byte_positions, data))
-
-    # from bytes
-    decoded = decode_chunk(encoded)
-    version2, shape_info2, byte_positions2, data2 = decoded
-    assert version2 == version
-    np.testing.assert_array_equal(shape_info, shape_info2)
-    np.testing.assert_array_equal(byte_positions, byte_positions2)
-    assert b"".join(data) == bytes(data2)
-
-    # from pointer
-    buff = Pointer(c_array=(ctypes.c_byte * len(encoded))(*encoded))
-    decoded = decode_chunk(buff)
-    version2, shape_info2, byte_positions2, data2 = decoded
-    assert version2 == version
-    np.testing.assert_array_equal(shape_info, shape_info2)
-    np.testing.assert_array_equal(byte_positions, byte_positions2)
-    assert b"".join(data) == bytes(data2)
-
-
-def test_chunkids_encoding():
-    version = hub.__version__
-    shards = [
-        np.cast[hub.constants.ENCODING_DTYPE](np.random.randint(100, size=(100, 2)))
-    ]
-    encoded = encode_chunkids(version, shards)
-    decoded = decode_chunkids(encoded)
-    version2, ids = decoded
-    assert version2 == version
-    np.testing.assert_array_equal(np.concatenate(shards), ids)
-
-
-if __name__ == "__main__":
-    test_chunk_encoding()
-    test_chunkids_encoding()

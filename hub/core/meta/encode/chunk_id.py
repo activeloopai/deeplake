@@ -3,7 +3,7 @@ from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
 from io import BytesIO
-from typing import Optional, Tuple, Union, List
+from typing import Optional, Tuple, Union, List, Iterable
 import numpy as np
 from uuid import uuid4
 from hub.core.lowlevel import encode_chunkids, decode_chunkids
@@ -322,7 +322,7 @@ class ChunkIdEncoder(Cachable):
             self._prev_sample_index is not None
             and sample_index >= self._prev_sample_index
         ):
-            if sample_index <= self._prev_entry[LAST_INDEX_INDEX]:
+            if sample_index <= self._prev_entry[LAST_INDEX_INDEX]:  # type: ignore
                 chunk_id = self._prev_chunk_id
                 chunk_index = self._prev_chunk_index
                 current_entry = self._prev_entry
@@ -355,8 +355,8 @@ class ChunkIdEncoder(Cachable):
         if return_chunk_index:
             ret.append(chunk_index)
         if return_local_sample_index:
-            if any(chunk_index):
-                prev_entry = self._get_entry_2d(*self._decr_2d(*chunk_index))
+            if any(chunk_index):  # type: ignore
+                prev_entry = self._get_entry_2d(*self._decr_2d(*chunk_index))  # type: ignore
                 local_sample_index = (
                     sample_index - int(prev_entry[LAST_INDEX_INDEX]) - 1
                 )
@@ -366,13 +366,19 @@ class ChunkIdEncoder(Cachable):
 
         return tuple(ret)  # type: ignore
 
-    def iter(self, index: Union[int, slice, tuple] = slice(None)):
+    def iter(
+        self, index: Union[int, slice, tuple] = slice(None)
+    ) -> Iterable[Tuple[int, int]]:
         if isinstance(index, int):
-            yield self.get(index, return_local_sample_index=True)
+            yield self.get(index, return_local_sample_index=True)  # type: ignore
         elif isinstance(index, slice):
             start = 0 if index.start is None else index.start
             stop = self.num_samples if index.stop is None else index.stop
             step = 1 if index.step is None else index.step
+            if start < 0:
+                start += self.num_samples
+            if stop < 0:
+                stop += self.num_samples
             assert isinstance(start, int)
             assert isinstance(stop, int)
             assert isinstance(step, int)
@@ -392,12 +398,12 @@ class ChunkIdEncoder(Cachable):
             chunk_id, (shard_index, chunk_index), local_sample_index = self.get(  # type: ignore
                 start, return_chunk_index=True, return_local_sample_index=True
             )
-            shard = self._data[shard_index]
             yield chunk_id, local_sample_index
             n += 1
             if n == total:
                 return
             ctr = Counter(step)
+            shard = self._data[shard_index]
             if forward:
                 last_index = int(shard[chunk_index, LAST_INDEX_INDEX])
                 for i in range(local_sample_index + 1, last_index + 1):
@@ -472,7 +478,7 @@ class ChunkIdEncoder(Cachable):
         elif isinstance(index, tuple):
             for i in index:
                 # Random access
-                yield self.get(i, return_local_sample_index=True)
+                yield self.get(i, return_local_sample_index=True)  # type: ignore
 
 
 class Counter:

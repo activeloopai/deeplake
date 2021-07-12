@@ -1,6 +1,6 @@
 from hub.util.keys import tensor_exists
 from hub.core.sample import Sample  # type: ignore
-from typing import List, Sequence, Union, Optional, Tuple, Dict
+from typing import List, Sequence, Union, Optional, Tuple, Dict, Iterator
 from hub.util.shape import ShapeInterval
 
 import numpy as np
@@ -45,7 +45,7 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
-        self._sample: Optional[Tuple(int, int)] = None
+        self._sample: Optional[Tuple[int, int]] = None
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -196,7 +196,7 @@ class Tensor:
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         raise NotImplementedError("Tensor update not currently supported!")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator["Tensor"]:
         for i, (chunk_id, local_sample_index) in enumerate(
             self.chunk_engine.chunk_id_encoder.iter(self.index.values[0].value)
         ):

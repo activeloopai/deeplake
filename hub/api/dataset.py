@@ -1,6 +1,6 @@
 from hub.core.tensor import create_tensor
 from hub.constants import DEFAULT_HTYPE
-from typing import Callable, Dict, Optional, Union, Tuple, List
+from typing import Callable, Dict, Optional, Union, Tuple, List, Iterator
 import numpy as np
 
 from hub.api.tensor import Tensor
@@ -213,7 +213,7 @@ class Dataset:
         else:
             return super().__setattr__(name, value)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator["Dataset"]:
         tensor_names = list(self.tensors)
         tensors_sliced = [t[self.index][: len(self)] for t in self.tensors.values()]
         num_tensors = len(tensor_names)
