@@ -471,6 +471,13 @@ def test_hub_cloud_dataset():
     ds.delete()
 
 
+@parametrize_all_dataset_storages
+def test_hub_dataset_suffix_bug(ds):
+    # creating dataset with similar name but some suffix removed from end
+    ds2 = Dataset(ds.path[:-1])
+    ds2.delete()
+
+    
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
         ds = Dataset("test")
