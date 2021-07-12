@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
@@ -12,7 +13,6 @@ from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Seque
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
-    TensorDoesNotExistError,
 )
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
@@ -79,6 +79,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
 ):
+    try_flushing(dataset)
     _import_torch()
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)

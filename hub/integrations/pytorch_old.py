@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
 from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
@@ -20,6 +21,8 @@ def dataset_to_pytorch(
     pin_memory: Optional[bool] = False,
     python_version_warning: bool = True,
 ):
+    try_flushing(dataset)
+
     global torch
     try:
         import torch
