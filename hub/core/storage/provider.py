@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import MutableMapping
 from hub.core.storage.cachable import Cachable
-from typing import Optional, Sequence
+from typing import Optional
 
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
@@ -140,7 +140,7 @@ class StorageProvider(ABC, MutableMapping):
         if hasattr(self, "read_only") and self.read_only:
             raise ReadOnlyModeError()
 
-    def flush(self, keys: Optional[Sequence[str]] = None):
+    def flush(self):
         """Only needs to be implemented for caches. Flushes the data to the next storage provider.
         Should be a no op for Base Storage Providers like local, s3, azure, gcs, etc.
         """
