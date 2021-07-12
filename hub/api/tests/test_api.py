@@ -448,21 +448,25 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    id = str(uuid.uuid1())
+
+    uri = f"hub://{username}/hub2ds2_{id}"
 
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    id = str(uuid.uuid1())
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    ds.create_tensor("image")
 
-    for i in range(10):
-        ds.image.append(i * np.ones((100, 100)))
+    with Dataset(uri, token=token) as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label", htype="class_label")
 
-    token = ds.token
-    del ds
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    for i in range(10):
+        for i in range(1000):
+            ds.image.append(i * np.ones((100, 100)))
+            ds.label.append(np.uint32(i))
+
+    ds = Dataset(uri, token=token)
+    for i in range(1000):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+        np.testing.assert_array_equal(ds.label[i].numpy(), np.uint32(i))
 
     ds.delete()
 
