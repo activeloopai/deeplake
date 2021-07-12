@@ -8,7 +8,7 @@ from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
 
-from hub.integrations.pytorch_old import dataset_to_pytorch
+from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
 from hub.core.tests.common import parametrize_all_dataset_storages
 
@@ -160,7 +160,6 @@ def test_pytorch_small_old(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
-# @pytest.mark.skip(reason="future")
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]

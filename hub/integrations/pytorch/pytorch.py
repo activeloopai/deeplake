@@ -20,6 +20,7 @@ from hub.util.shared_memory import (
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
+from .common import _convert_fn, _collate_fn
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
@@ -69,26 +70,6 @@ def _read_and_store_chunk(
     shared_memory.buf[:chunk_size] = chunk_bytes
     shared_memory.close()
     return chunk_size
-
-
-def _collate_fn(batch):
-    import torch
-
-    elem = batch[0]
-    if isinstance(elem, IterableOrderedDict):
-        return IterableOrderedDict(
-            (key, _collate_fn([d[key] for d in batch])) for key in elem.keys()
-        )
-    return torch.utils.data._utils.collate.default_collate(batch)
-
-
-def _convert_fn(data):
-    import torch
-
-    elem_type = type(data)
-    if isinstance(data, IterableOrderedDict):
-        return IterableOrderedDict((k, _convert_fn(v)) for k, v in data.items())
-    return torch.utils.data._utils.collate.default_convert(data)
 
 
 def dataset_to_pytorch(
