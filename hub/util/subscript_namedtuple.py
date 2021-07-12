@@ -65,10 +65,7 @@ def subscript_namedtuple(T: str, fields: List[str]):
             return len(self._dict)
 
         def __repr__(self):
-            return "%s(%s)" % (
-                T,
-                ", ".join(["%s=%s" % (k, v) for k, v in self.items()]),
-            )
+            return f"{T}{', '.join([f'{k}={v}' for k, v in self.items()])}"
 
         def __eq__(self, other):
             try:

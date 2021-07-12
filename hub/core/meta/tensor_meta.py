@@ -92,9 +92,7 @@ class TensorMeta(Meta):
             actual_shape_len = len(shape)
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
-                    "Sample shape length is expected to be {}, actual length is {}.".format(
-                        expected_shape_len, actual_shape_len
-                    ),
+                    f"Sample shape length is expected to be {expected_shape_len}, actual length is {actual_shape_len}.",
                     shape,
                 )
 
