@@ -149,7 +149,7 @@ class S3Provider(StorageProvider):
             items = items["Contents"]
             names = [item["Key"] for item in items]
             # removing the prefix from the names
-            len_path = len(self.path.split("/"))
+            len_path = len(self.path.split("/")) - 1
             names = ["/".join(name.split("/")[len_path:]) for name in names]
             return names
         except Exception as err:
