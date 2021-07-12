@@ -491,6 +491,6 @@ def test_iter_perf(memory_ds: Dataset):
         np.testing.assert_array_equal(sub_ds["x"].numpy(), np.zeros((10, 10)))
         np.testing.assert_array_equal(sub_ds["y"].numpy(), np.ones((10, 10)))
 
-    assert call_count["n"] == 44
+    assert call_count["n"] == 40
 
     np.searchsorted = orig_searchsorted

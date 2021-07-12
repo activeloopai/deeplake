@@ -383,6 +383,10 @@ class ChunkIdEncoder(Cachable):
             assert isinstance(stop, int)
             assert isinstance(step, int)
             assert step != 0
+            if start < 0:
+                start += self.num_samples
+            if stop < 0:
+                stop += self.num_samples
             if step > 0:
                 total = math.ceil((stop - start) / step)
                 forward = True
@@ -395,15 +399,23 @@ class ChunkIdEncoder(Cachable):
                 return
             n = 0
             self._flush_buffer()
-            chunk_id, (shard_index, chunk_index), local_sample_index = self.get(  # type: ignore
-                start, return_chunk_index=True, return_local_sample_index=True
-            )
+            if start:
+                chunk_id, (shard_index, chunk_index), local_sample_index = self.get(  # type: ignore
+                    start, return_chunk_index=True, return_local_sample_index=True
+                )
+                shard = self._data[shard_index]
+            else:
+                shard_index = 0
+                chunk_index = 0
+                shard = self._data[0]
+                local_sample_index = 0
+                chunk_id = shard[0, CHUNK_ID_INDEX]
             yield chunk_id, local_sample_index
             n += 1
             if n == total:
                 return
             ctr = Counter(step)
-            shard = self._data[shard_index]
+
             if forward:
                 last_index = int(shard[chunk_index, LAST_INDEX_INDEX])
                 for i in range(local_sample_index + 1, last_index + 1):
