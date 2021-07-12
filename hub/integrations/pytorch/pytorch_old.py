@@ -80,6 +80,9 @@ class TorchDataset:
         if tensors is None:
             self.tensor_keys = list(dataset.tensors)
         else:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
             self.tensor_keys = list(tensors)
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
