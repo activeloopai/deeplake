@@ -464,3 +464,10 @@ def test_hub_cloud_dataset():
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 
     ds.delete()
+
+
+@parametrize_all_dataset_storages
+def test_hub_dataset_suffix_bug(ds):
+    # creating dataset with similar name but some suffix removed from end
+    ds2 = Dataset(ds.path[:-1])
+    ds2.delete()

@@ -218,6 +218,8 @@ class S3Provider(StorageProvider):
         root = self.root.replace("s3://", "")
         self.bucket = root.split("/")[0]
         self.path = "/".join(root.split("/")[1:])
+        if not self.path.endswith("/"):
+            self.path += "/"
 
     def _set_hub_creds_info(self, tag: str, expiration: str):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
