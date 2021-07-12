@@ -5,12 +5,12 @@ import uuid
 import hub
 import os
 from hub.api.dataset import Dataset
-from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 from click.testing import CliRunner
+from hub.tests.dataset_fixtures import all_enabled_datasets
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -72,7 +72,7 @@ def test_persist_local_clear_cache(local_storage):
     ds.delete()
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_populate_dataset(ds):
     assert ds.meta.tensors == []
     ds.create_tensor("image")
@@ -128,7 +128,7 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
@@ -136,7 +136,7 @@ def test_compute_fixed_tensor(ds):
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
 
@@ -168,7 +168,7 @@ def test_compute_dynamic_tensor(ds):
     assert image.is_dynamic
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_empty_samples(ds: Dataset):
     tensor = ds.create_tensor("with_empty")
 
@@ -200,7 +200,7 @@ def test_empty_samples(ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
@@ -251,7 +251,7 @@ def test_scalar_samples(ds: Dataset):
         tensor.append([1, 2])
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_sequence_samples(ds: Dataset):
     tensor = ds.create_tensor("arrays")
 
@@ -267,7 +267,7 @@ def test_sequence_samples(ds: Dataset):
     assert_array_lists_equal(tensor.numpy(aslist=True), expected)
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")

@@ -2,12 +2,12 @@ from hub.util.exceptions import SampleCompressionError, UnsupportedCompressionEr
 import pytest
 from hub.api.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
+from hub.tests.dataset_fixtures import all_enabled_datasets
 from hub.constants import UNCOMPRESSED
 import numpy as np
 
 import hub
 from hub import Dataset
-from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
@@ -34,7 +34,7 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
     return original_compressions
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     images = ds.create_tensor(TENSOR_KEY, htype="image")
 
@@ -53,7 +53,7 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
     assert images.shape_interval.upper == (5, 900, 900, 4)
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
     images = ds.create_tensor(TENSOR_KEY, htype="image")
 
@@ -81,7 +81,7 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
         assert x.shape == expected_shape
 
 
-@parametrize_all_dataset_storages
+@all_enabled_datasets
 def test_uncompressed(ds: Dataset):
     images = ds.create_tensor(TENSOR_KEY, sample_compression=UNCOMPRESSED)
 

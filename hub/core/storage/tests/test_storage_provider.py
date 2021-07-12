@@ -1,12 +1,31 @@
+from hub.client.config import LOCAL
+from hub.tests.path_fixtures import ALL_STORAGES, MEMORY, S3
 import pytest
 
 from click.testing import CliRunner
 from hub.constants import MB
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 import pickle
+
 
 KEY = "file"
 
+STORAGE_FIXTURE_NAME = "storage"
+
+
+_ALL_CACHES_TUPLES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
+ALL_CACHES = list(map(lambda i: ",".join(i), _ALL_CACHES_TUPLES))
+
+parametrize_all_storages = pytest.mark.parametrize(
+    STORAGE_FIXTURE_NAME,
+    ALL_STORAGES,
+    indirect=True,
+)
+
+parametrize_all_caches = pytest.mark.parametrize(
+    STORAGE_FIXTURE_NAME,
+    ALL_CACHES,
+    indirect=True,
+)
 
 # helper functions for tests
 def check_storage_provider(storage):
