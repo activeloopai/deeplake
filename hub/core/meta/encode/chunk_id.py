@@ -157,7 +157,6 @@ class ChunkIdEncoder(Cachable):
     def _incr_2d(self, x: int, y: int) -> Tuple[int, int]:
         if x < 0:
             return x, y + 1
-        # assert y < len(self._data[x])
         if y == len(self._data[x]) - 1:
             if x == len(self._data) - 1:
                 return -1, 0

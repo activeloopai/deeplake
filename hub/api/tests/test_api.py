@@ -502,7 +502,7 @@ def test_iter_perf(memory_ds: Dataset):
 
     np.searchsorted = orig_searchsorted
 
-    
+
 def test_array_interface(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
     x = np.random.random((32, 32))

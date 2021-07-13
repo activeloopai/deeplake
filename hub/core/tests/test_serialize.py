@@ -20,7 +20,6 @@ def test_chunk_serialize():
     data = [b"1234" * 7, b"abcdefg" * 8, b"qwertyuiop" * 9]
     encoded = bytes(serialize_chunk(version, shape_info, byte_positions, data))
 
-    # from bytes
     decoded = deserialize_chunk(encoded)
     version2, shape_info2, byte_positions2, data2 = decoded
     assert version2 == version
