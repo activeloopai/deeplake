@@ -26,21 +26,66 @@ def _assert_num_chunks(tensor, expected_num_chunks):
     assert actual_num_chunks == expected_num_chunks
 
 
-@parametrize_all_dataset_storages
-def test_chunk_sizes(ds):
+def _create_tensors(ds):
     images = ds.create_tensor("images", htype="image", sample_compression=None)
     labels = ds.create_tensor("labels", htype="class_label")
+    return images, labels
+
+
+@parametrize_all_dataset_storages
+def test_append_chunk_sizes(ds):
+    images, labels = _create_tensors(ds)
 
     _update_chunk_sizes(ds, 32 * KB)
 
-    n = 100
-
-    for i in range(n):
+    for i in range(100):
         x = np.ones((28, 28), dtype=np.uint8) * i
         y = np.uint32(i)
 
         images.append(x)
         labels.append(y)
 
+    assert len(images) == 100
+    assert len(labels) == 100
+
     _assert_num_chunks(labels, 1)
     _assert_num_chunks(images, 5)
+
+
+@parametrize_all_dataset_storages
+def test_extend_chunk_sizes(ds):
+    images, labels = _create_tensors(ds)
+
+    _update_chunk_sizes(ds, 32 * KB)
+
+    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
+    labels.extend(np.ones(100, dtype=np.uint32))
+
+    assert len(images) == 100
+    assert len(labels) == 100
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 5)
+
+
+@parametrize_all_dataset_storages
+def test_extend_and_append_chunk_sizes(ds):
+    images, labels = _create_tensors(ds)
+
+    _update_chunk_sizes(ds, 32 * KB)
+
+    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
+    labels.extend(np.ones(100, dtype=np.uint32))
+
+    for i in range(100):
+        x = np.ones((28, 28), dtype=np.uint8) * i
+        y = np.uint32(i)
+
+        images.append(x)
+        labels.append(y)
+
+    assert len(images) == 200
+    assert len(labels) == 200
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 9)
