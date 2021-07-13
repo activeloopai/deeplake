@@ -9,7 +9,10 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.client.client import HubBackendClient
 from click.testing import CliRunner
-from hub.tests.dataset_fixtures import all_enabled_datasets
+from hub.tests.dataset_fixtures import (
+    enabled_datasets,
+    enabled_persistent_dataset_generators,
+)
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -17,13 +20,14 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-def test_persist_local(local_ds_generator):
-    ds = local_ds_generator()
+@enabled_persistent_dataset_generators
+def test_persist(ds_generator):
+    ds = ds_generator()
 
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
 
-    ds_new = local_ds_generator()
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -34,15 +38,16 @@ def test_persist_local(local_ds_generator):
     ds.delete()
 
 
-def test_persist_with_local(local_ds_generator):
-    with local_ds_generator() as ds:
+@enabled_persistent_dataset_generators
+def test_persist_with(ds_generator):
+    with ds_generator() as ds:
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 224, 224, 3)))
 
-        ds_new = local_ds_generator()
+        ds_new = ds_generator()
         assert len(ds_new) == 0  # shouldn't be flushed yet
 
-    ds_new = local_ds_generator()
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     engine = ds_new.image.chunk_engine
@@ -58,12 +63,13 @@ def test_persist_with_local(local_ds_generator):
     ds.delete()
 
 
-def test_persist_local_clear_cache(local_ds_generator):
-    ds = local_ds_generator()
+@enabled_persistent_dataset_generators
+def test_persist_local_clear_cache(ds_generator):
+    ds = ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
-    ds_new = local_ds_generator()
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -72,7 +78,7 @@ def test_persist_local_clear_cache(local_ds_generator):
     ds.delete()
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_populate_dataset(ds):
     assert ds.meta.tensors == []
     ds.create_tensor("image")
@@ -127,7 +133,7 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
@@ -135,7 +141,7 @@ def test_compute_fixed_tensor(ds):
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
 
@@ -167,7 +173,7 @@ def test_compute_dynamic_tensor(ds):
     assert image.is_dynamic
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_empty_samples(ds: Dataset):
     tensor = ds.create_tensor("with_empty")
 
@@ -199,7 +205,7 @@ def test_empty_samples(ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
@@ -250,7 +256,7 @@ def test_scalar_samples(ds: Dataset):
         tensor.append([1, 2])
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_sequence_samples(ds: Dataset):
     tensor = ds.create_tensor("arrays")
 
@@ -266,7 +272,7 @@ def test_sequence_samples(ds: Dataset):
     assert_array_lists_equal(tensor.numpy(aslist=True), expected)
 
 
-@all_enabled_datasets
+@enabled_datasets
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
@@ -441,25 +447,6 @@ def test_dtype_mismatch(memory_ds: Dataset):
 @pytest.mark.xfail(raises=TypeError, strict=True)
 def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
-
-
-def test_hub_cloud_dataset(hub_cloud_ds_generator):
-    # TODO: remove this and run all tests on hub cloud
-
-    ds = hub_cloud_ds_generator()
-
-    ds.create_tensor("image")
-
-    for i in range(10):
-        ds.image.append(i * np.ones((100, 100)))
-
-    del ds
-
-    ds = hub_cloud_ds_generator()
-    for i in range(10):
-        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
-
-    ds.delete()
 
 
 def test_empty_dataset():
