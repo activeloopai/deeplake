@@ -1,8 +1,10 @@
+from hub.util.get_storage_provider import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
 from conftest import S3_PATH_OPT
 from hub.constants import (
+    HUB_CLOUD_OPT,
     KEEP_STORAGE_OPT,
     LOCAL_OPT,
     MEMORY_OPT,
@@ -22,6 +24,7 @@ import pytest
 MEMORY = "memory"
 LOCAL = "local"
 S3 = "s3"
+HUB_CLOUD = "hub_cloud"
 
 ALL_STORAGES = [MEMORY, LOCAL, S3]
 
@@ -71,39 +74,60 @@ def _get_storage_path(
 
 @pytest.fixture
 def memory_path(request):
-    if not is_opt_true(request, MEMORY_OPT):
-        # no need to clear memory paths
-        return _get_storage_path(request, MEMORY)
-    else:
+    if is_opt_true(request, MEMORY_OPT):
         pytest.skip()
+        return
+
+    # no need to clear memory paths
+    return _get_storage_path(request, MEMORY)
 
 
 @pytest.fixture
 def local_path(request):
-    if is_opt_true(request, LOCAL_OPT):
-        path = _get_storage_path(request, LOCAL)
-
-        yield path
-
-        # clear storage unless flagged otherwise
-        if not is_opt_true(request, KEEP_STORAGE_OPT):
-            LocalProvider(path).clear()
-    else:
+    if not is_opt_true(request, LOCAL_OPT):
         pytest.skip()
+        return
+
+    path = _get_storage_path(request, LOCAL)
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        LocalProvider(path).clear()
 
 
 @pytest.fixture
 def s3_path(request):
-    if is_opt_true(request, S3_OPT):
-        path = _get_storage_path(request, S3)
-
-        yield path
-
-        # clear storage unless flagged otherwise
-        if not is_opt_true(request, KEEP_STORAGE_OPT):
-            S3Provider(path).clear()
-    else:
+    if not is_opt_true(request, S3_OPT):
         pytest.skip()
+        return
+
+    path = _get_storage_path(request, S3)
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        S3Provider(path).clear()
+
+
+@pytest.fixture
+def hub_cloud_path(request, hub_testing_token):
+    # TODO: can probably generalize these fixtures
+
+    # TODO: skipif
+    if not is_opt_true(request, HUB_CLOUD_OPT):
+        pytest.skip()
+        return
+
+    path = _get_storage_path(request, HUB_CLOUD)
+
+    yield path
+
+    # clear storage unless flagged otherwise
+    if not is_opt_true(request, KEEP_STORAGE_OPT):
+        storage_provider_from_hub_path(path, token=hub_testing_token).clear()
 
 
 @pytest.fixture

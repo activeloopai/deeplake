@@ -7,7 +7,6 @@ from hub.client.utils import (
     write_token,
     read_token,
     remove_token,
-    has_hub_testing_creds,
 )
 
 

@@ -8,7 +8,6 @@ from hub.api.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.client.client import HubBackendClient
-from hub.client.utils import has_hub_testing_creds
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import all_enabled_datasets
 
@@ -444,16 +443,11 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_hub_cloud_dataset():
-    # TODO: turn this into a fixture and remove skipif
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+def test_hub_cloud_dataset(hub_cloud_ds):
+    # TODO: remove this and run all tests on hub cloud
 
-    client = HubBackendClient()
-    token = client.request_auth_token(username, password)
-    id = str(uuid.uuid1())
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+    ds = hub_cloud_ds
+
     ds.create_tensor("image")
 
     for i in range(10):

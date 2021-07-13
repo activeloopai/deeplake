@@ -18,24 +18,19 @@ from hub.util.cache_chain import get_cache_chain
 from hub.tests.path_fixtures import *
 from hub.tests.dataset_fixtures import *
 from hub.tests.storage_fixtures import *
+from hub.tests.client_fixtures import *
 
 
 def pytest_addoption(parser):
     parser.addoption(
-        MEMORY_OPT,
-        action="store_true",
-        help="Tests using the `memory_storage` fixture will be skipped. Tests using the `storage` fixture will be "
-        "skipped if called with `MemoryProvider`.",
+        MEMORY_OPT, action="store_true", help="Memory tests will be SKIPPED if enabled."
     )
     parser.addoption(
-        LOCAL_OPT,
-        action="store_true",
-        help="Tests using the `storage`/`local_storage` fixtures will run with `LocalProvider`.",
+        LOCAL_OPT, action="store_true", help="Local tests will run if enabled."
     )
+    parser.addoption(S3_OPT, action="store_true", help="S3 tests will run if enabled.")
     parser.addoption(
-        S3_OPT,
-        action="store_true",
-        help="Tests using the `storage`/`s3_storage` fixtures will run with `S3Provider`.",
+        HUB_CLOUD_OPT, action="store_true", help="Hub cloud tests will run if enabled."
     )
     parser.addoption(
         CACHE_OPT,

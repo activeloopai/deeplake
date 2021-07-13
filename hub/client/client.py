@@ -13,7 +13,6 @@ from hub.client.config import (
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
-    UPDATE_SUFFIX,
 )
 from hub.client.log import logger
 import hub
@@ -101,9 +100,9 @@ class HubBackendClient:
         return response
 
     def endpoint(self):
-        if hub.client.config.LOCAL:
+        if hub.client.config.USE_LOCAL_HOST:
             return HUB_REST_ENDPOINT_LOCAL
-        if hub.client.config.DEV:
+        if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
 
         return HUB_REST_ENDPOINT

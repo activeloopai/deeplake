@@ -1,5 +1,4 @@
-from hub.client.config import LOCAL
-from hub.tests.path_fixtures import ALL_STORAGES, MEMORY, S3
+from hub.tests.path_fixtures import ALL_STORAGES, MEMORY, S3, LOCAL
 import pytest
 
 from click.testing import CliRunner
