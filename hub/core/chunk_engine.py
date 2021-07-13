@@ -343,21 +343,29 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
+
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
-        for chunk_id, local_sample_index in enc.iter(index.values[0].value):
-            chunk = self.get_chunk_from_id(chunk_id)
-            sample = self.read_sample_from_chunk(chunk, local_sample_index)
+        for global_sample_index in index.values[0].indices(length):
+            chunk_id = enc[global_sample_index]
+            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+            chunk_key = get_chunk_key(self.key, chunk_name)
+            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            sample = self.read_sample_from_chunk(global_sample_index, chunk)
             shape = sample.shape
+
             if not aslist and last_shape is not None:
                 if shape != last_shape:
                     raise DynamicTensorNumpyError(self.key, index, "shape")
+
             samples.append(sample)
             last_shape = shape
+
         return _format_samples(samples, index, aslist)
+
 
     def get_chunk_from_id(self, chunk_id: int) -> Chunk:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
