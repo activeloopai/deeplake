@@ -71,7 +71,6 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         self.chunk_engine.extend(samples)
-        self._numpy = None
 
     def append(
         self,
