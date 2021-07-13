@@ -35,4 +35,4 @@ def test_chunk_sizes(ds):
 
     # check number of chunks for images
     images_chunk_ids = images_engine.chunk_id_encoder
-    assert images_chunk_ids.num_chunks == 3
+    assert images_chunk_ids.num_chunks == 5
