@@ -373,15 +373,16 @@ class ChunkEngine:
         return self.cache.get_cachable(chunk_key, Chunk)
 
     def read_sample_from_chunk(
-        self, chunk: Chunk, local_sample_index: int
+        self, global_sample_index: int, chunk: Chunk
     ) -> np.ndarray:
-        """Read a sample from a chunk, given the local index. Handles decompressing if applicable."""
+        """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression is not None
+        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
 
+        local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
