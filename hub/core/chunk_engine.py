@@ -13,7 +13,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
 
@@ -114,8 +114,10 @@ class ChunkEngine:
         # only the last chunk may be less than this
         self.min_chunk_size = self.max_chunk_size // 2
 
-    @property
-    def chunk_id_encoder(self) -> ChunkIdEncoder:
+        self.get_chunk_id_encoder()
+        self.get_last_chunk()
+
+    def get_chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
         For more information on what `ChunkIdEncoder` is used for, see the `__init__` docstring.
 
@@ -128,49 +130,40 @@ class ChunkEngine:
         """
 
         key = get_chunk_id_encoder_key(self.key)
-        if not self.chunk_id_encoder_exists:
+        if key in self.cache:
+            self.chunk_id_encoder = self.cache.get_cachable(key, ChunkIdEncoder)
 
+        else:
             # 1 because we always update the meta information before writing the samples (to account for potentially corrupted data in the future)
             if self.tensor_meta.length > 1:
                 raise CorruptedMetaError(
                     f"Tensor length is {self.tensor_meta.length}, but could not find the chunk id encoder."
                 )
 
-            enc = ChunkIdEncoder()
-            self.cache[key] = enc
-            return enc
+            self.chunk_id_encoder = ChunkIdEncoder()
+            self.cache[key] = self.chunk_id_encoder
 
-        enc = self.cache.get_cachable(key, ChunkIdEncoder)
-        return enc
-
-    @property
-    def chunk_id_encoder_exists(self) -> bool:
-        return get_chunk_id_encoder_key(self.key) in self.cache
+        return self.chunk_id_encoder
 
     @property
     def num_chunks(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
         return self.chunk_id_encoder.num_chunks
 
     @property
     def num_samples(self) -> int:
-        if not self.chunk_id_encoder_exists:
-            return 0
         return self.chunk_id_encoder.num_samples
 
-    @property
-    def last_chunk(self) -> Optional[Chunk]:
+    def get_last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
-            return None
+            self._last_chunk = None
+        else:
+            last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+            last_chunk_key = get_chunk_key(self.key, last_chunk_name)
 
-        return self.cache.get_cachable(self.last_chunk_key, Chunk)
+            self._last_chunk = self.cache.get_cachable(last_chunk_key, Chunk)
+            self._last_chunk.key = last_chunk_key
 
-    @property
-    def last_chunk_key(self) -> str:
-        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
-        return last_chunk_key
+        return self._last_chunk
 
     @property
     def tensor_meta(self):
@@ -188,11 +181,13 @@ class ChunkEngine:
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
+        self.cache.check_readonly()
+
         # num samples is always 1 when appending
         num_samples = 1
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        self.tensor_meta.check_compatibility(shape, dtype)
+        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
@@ -201,9 +196,9 @@ class ChunkEngine:
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
 
-        # TODO implement tests for cache size compute
-        if self.last_chunk is not None:
-            self.cache[self.last_chunk_key] = self.last_chunk
+        last_chunk = self._last_chunk
+        key = last_chunk.key  # type: ignore
+        self.cache.update_used_cache_for_path(key, len(last_chunk))  # type: ignore
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -219,7 +214,7 @@ class ChunkEngine:
             bool: True if `buffer` was successfully written to the last chunk, otherwise False.
         """
 
-        last_chunk = self.last_chunk
+        last_chunk = self._last_chunk
         if last_chunk is None:
             return False
 
@@ -264,16 +259,29 @@ class ChunkEngine:
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name)
-        self.cache[chunk_key] = chunk
+        chunk.key = get_chunk_key(self.key, chunk_name)
+        self.cache[chunk.key] = chunk
+        self._last_chunk = chunk
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
+        self.get_last_chunk()
+
+        uniform = False
         if isinstance(samples, np.ndarray):
+            uniform = True
+        elif isinstance(samples, Sequence):
+            if is_uniform_sequence(samples):
+                uniform = True
+            if not isinstance(samples[0], np.ndarray):
+                samples = np.array(samples)
+        else:
+            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+        if uniform:
             compression = self.tensor_meta.sample_compression
-            if compression == UNCOMPRESSED:
+            if compression is None:
                 buffers = []
 
                 # before adding any data, we need to check all sample sizes
@@ -297,20 +305,16 @@ class ChunkEngine:
 
                 for sample_object in sample_objects:
                     self.append(sample_object)
-
-        elif isinstance(samples, Sequence):
-            if is_uniform_sequence(samples):
-                self.extend(np.array(samples))
-            else:
-                for sample in samples:
-                    self.append(sample)
         else:
-            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+            for sample in samples:
+                self.append(sample)
 
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
+
+        self.get_last_chunk()
 
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
@@ -339,45 +343,41 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
         samples = []
 
-        for global_sample_index in index.values[0].indices(length):
-            chunk_id = enc[global_sample_index]
-            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk = self.cache.get_cachable(chunk_key, Chunk)
-            sample = self.read_sample_from_chunk(global_sample_index, chunk)
+        for chunk_id, local_sample_index in enc.iter(index.values[0].value):
+            chunk = self.get_chunk_from_id(chunk_id)
+            sample = self.read_sample_from_chunk(chunk, local_sample_index)
             shape = sample.shape
-
             if not aslist and last_shape is not None:
                 if shape != last_shape:
                     raise DynamicTensorNumpyError(self.key, index, "shape")
-
             samples.append(sample)
             last_shape = shape
-
         return _format_samples(samples, index, aslist)
 
-    def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
-    ) -> np.ndarray:
-        """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
+    def get_chunk_from_id(self, chunk_id: int) -> Chunk:
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        return self.cache.get_cachable(chunk_key, Chunk)
 
-        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
+    def read_sample_from_chunk(
+        self, chunk: Chunk, local_sample_index: int
+    ) -> np.ndarray:
+        """Read a sample from a chunk, given the local index. Handles decompressing if applicable."""
+
+        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
 
-        buffer = chunk.memoryview_data
-        local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-        buffer = buffer[sb:eb]
+        buffer = chunk.view(sb, eb)
         if expect_compressed:
             sample = decompress_array(buffer, shape)
         else:
@@ -389,7 +389,7 @@ class ChunkEngine:
         if num_bytes > self.min_chunk_size:
             msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
-            if self.tensor_meta.sample_compression == UNCOMPRESSED:
+            if self.tensor_meta.sample_compression is None:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)

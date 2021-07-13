@@ -1,12 +1,14 @@
 from hub.util.exceptions import FullChunkError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Sequence, Tuple, Union
+from typing import List, Sequence, Tuple, Union
 import numpy as np
 from io import BytesIO
 
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
+
+from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 
 
 class Chunk(Cachable):
@@ -44,17 +46,71 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: Union[memoryview, bytearray] = data or bytearray()
+        self._data: List[memoryview] = []
+        self._num_data_bytes: int = 0  # replaces: sum(map(len, self._data))
+
+        if data is not None:
+            self._data.append(data)
+            self._num_data_bytes += len(data)
+
+    def _get_2d_idx(self, byte_index: int) -> Tuple[int, int]:
+        """Converts `byte_index`, which is an index for a flattened stream of bytes, into a 2D index that can
+        be used for a list of byte streams of varying lengths. Used for accessing `self._data`, which is a list
+        of `memoryview`s.
+
+        Args:
+            byte_index (int): Index over a flattened stream of bytes.
+
+        Returns:
+            Tuple[int, int]: 2D index to be used to access `self._data`.
+        """
+        i = 0
+        data = self._data
+        while True:
+            try:
+                num_data_i = len(data[i])
+            except IndexError:  # slightly faster than checking i < len(self._data) in a loop
+                return i - 1, len(data[i - 1]) + byte_index
+            if num_data_i <= byte_index:
+                byte_index -= num_data_i
+                i += 1
+            else:
+                break
+        return i, byte_index
+
+    def view(self, start_byte: int, end_byte: int):
+        """Returns a sliced view of the chunk's data"""
+        if len(self._data) == 1:
+            return self._data[0][start_byte:end_byte]
+
+        start2dx, start2dy = self._get_2d_idx(start_byte)
+        end2dx, end2dy = self._get_2d_idx(end_byte)
+        if start2dx == end2dx:
+            # Indexing to the same inner chunk, this would be fast
+            return self._data[start2dx][start2dy:end2dy]
+
+        # build a list of memoryviews that contain the pieces we need for the output view
+        byts = []
+        byts.append(self._data[start2dx][start2dy:])
+        for i in range(start2dx + 1, end2dx):
+            byts.append(self._data[i])
+        byts.append(self._data[end2dx][:end2dy])
+
+        buff = np.zeros(sum(map(len, byts)), dtype=np.byte)
+        offset = 0
+        for byt in byts:
+            n = len(byt)
+            buff[offset : offset + n] = byt
+            offset += n
+        return memoryview(buff.tobytes())
 
     @property
-    def memoryview_data(self):
-        if isinstance(self._data, memoryview):
-            return self._data
-        return memoryview(self._data)
+    def num_samples(self):
+        return self.shapes_encoder.num_samples
 
     @property
     def num_data_bytes(self):
-        return len(self._data)
+        return self._num_data_bytes
 
     def is_under_min_space(self, min_data_bytes_target: int) -> bool:
         """If this chunk's data is less than `min_data_bytes_target`, returns True."""
@@ -84,11 +140,10 @@ class Chunk(Cachable):
             )
 
         # `_data` will be a `memoryview` if `frombuffer` is called.
-        if isinstance(self._data, memoryview):
-            self._data = bytearray(self._data)
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data += buffer
+        self._data.append(buffer)
+        self._num_data_bytes += len(buffer)
         self.update_headers(incoming_num_bytes, shape)
 
     def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
@@ -108,31 +163,28 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-
-        shape_nbytes = self.shapes_encoder.nbytes
-        range_nbytes = self.byte_positions_encoder.nbytes
-        error_bytes = 32  # to account for any extra delimeters/stuff that `np.savez` may create in excess
-        return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
+        return infer_chunk_num_bytes(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            len_data=self.num_data_bytes,
+        )
 
     def tobytes(self) -> memoryview:
-        out = BytesIO()
+        if self.num_samples == 0:
+            return memoryview(bytes())
 
-        # TODO: for fault tolerance, we should have a chunk store the ID for the next chunk
-        # TODO: in case the index chunk meta gets pwned (especially during a potentially failed transform job merge)
-
-        np.savez(
-            out,
-            version=hub.__encoded_version__,
-            shapes=self.shapes_encoder.array,
-            byte_positions=self.byte_positions_encoder.array,
-            data=np.frombuffer(self.memoryview_data, dtype=np.uint8),
+        return serialize_chunk(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            self._data,
+            self.num_data_bytes,
         )
-        out.seek(0)
-        return out.getbuffer()
 
     @classmethod
-    def frombuffer(cls, buffer: bytes):
-        bio = BytesIO(buffer)
-        npz = np.load(bio)
-        data = memoryview(npz["data"].tobytes())
-        return cls(npz["shapes"], npz["byte_positions"], data=data)
+    def frombuffer(cls, buffer: bytes) -> "Chunk":
+        if len(buffer) == 0:
+            return cls()
+        version, shapes, byte_positions, data = deserialize_chunk(buffer)
+        return cls(shapes, byte_positions, data=data)

@@ -9,11 +9,14 @@ MB = 1000 * KB
 GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
-UNCOMPRESSED = "uncompressed"
-DEFAULT_SAMPLE_COMPRESSION = UNCOMPRESSED
-DEFAULT_CHUNK_COMPRESSION = UNCOMPRESSED  # TODO: make lz4
 
-SUPPORTED_COMPRESSIONS = ["png", "jpeg", UNCOMPRESSED]
+SUPPORTED_COMPRESSIONS = ["png", "jpeg", None]
+
+# used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
+REQUIRE_USER_SPECIFICATION = "require_user_specification"
+
+# used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
+UNSPECIFIED = "unspecified"
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
@@ -37,10 +40,9 @@ META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
 
-CHUNK_EXTENSION = "npz"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded.{CHUNK_EXTENSION}"
+ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
 
 ENCODING_DTYPE = np.uint32
 # caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`

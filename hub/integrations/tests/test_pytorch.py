@@ -1,15 +1,19 @@
 import sys
-from hub.util.remove_cache import get_base_storage
+import pickle
 import pytest
+from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
 
-from hub.integrations.pytorch_old import dataset_to_pytorch
+from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
 from hub.core.tests.common import parametrize_all_dataset_storages
+
+
+def to_tuple(sample):
+    return sample["image"], sample["image2"]
 
 
 @requires_torch
@@ -23,11 +27,6 @@ def test_pytorch_small(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
@@ -87,16 +86,8 @@ def test_pytorch_transform(ds):
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
 
-    def to_tuple(sample):
-        return sample["image"], sample["image2"]
-
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
@@ -116,19 +107,16 @@ def test_pytorch_transform(ds):
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
-        images = ds.create_tensor("images", htype="image")
+        images = ds.create_tensor("images", htype="image", sample_compression="png")
         labels = ds.create_tensor("labels", htype="class_label")
+
+        assert images.meta.sample_compression == "png"
 
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            dl = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
@@ -153,13 +141,13 @@ def test_pytorch_small_old(ds):
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
             dl = dataset_to_pytorch(
-                ds, num_workers=0, batch_size=1, python_version_warning=False
+                ds, num_workers=2, batch_size=1, python_version_warning=False
             )
         return
 
     # .pytorch will automatically switch depending on version, this syntax is being used to ensure testing of old code on Python 3.8
     dl = dataset_to_pytorch(
-        ds, num_workers=0, batch_size=1, python_version_warning=False
+        ds, num_workers=2, batch_size=1, python_version_warning=False
     )
 
     for i, batch in enumerate(dl):
@@ -173,11 +161,6 @@ def test_pytorch_small_old(ds):
 
 @requires_torch
 @parametrize_all_dataset_storages
-@pytest.mark.xfail(
-    sys.version_info < (3, 8),
-    raises=NotImplementedError,
-    reason="requires python3.8 or higher",
-)
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -187,17 +170,12 @@ def test_custom_tensor_order(ds):
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
-            ptds = ds.pytorch(num_workers=2)
-        return
-
-    if sys.version_info < (3, 8):
-        with pytest.raises(NotImplementedError):
             dl = ds.pytorch(num_workers=2)
         return
 
     dl_new = ds.pytorch(num_workers=2, tensors=["c", "d", "a"])
     dl_old = dataset_to_pytorch(
-        ds, num_workers=0, tensors=["c", "d", "a"], python_version_warning=False
+        ds, num_workers=2, tensors=["c", "d", "a"], python_version_warning=False
     )
     for dl in [dl_new, dl_old]:
         for i, batch in enumerate(dl):
@@ -212,3 +190,33 @@ def test_custom_tensor_order(ds):
             np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
             np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
             np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+            batch = pickle.loads(pickle.dumps(batch))
+            c1, d1, a1 = batch
+            a2 = batch["a"]
+            c2 = batch["c"]
+            d2 = batch["d"]
+            np.testing.assert_array_equal(a1, a2)
+            np.testing.assert_array_equal(c1, c2)
+            np.testing.assert_array_equal(d1, d2)
+            np.testing.assert_array_equal(a1[0], ds.a.numpy()[i])
+            np.testing.assert_array_equal(c1[0], ds.c.numpy()[i])
+            np.testing.assert_array_equal(d1[0], ds.d.numpy()[i])
+
+
+@requires_torch
+def test_readonly(local_ds):
+    path = local_ds.path
+
+    local_ds.create_tensor("images")
+    local_ds.create_tensor("labels")
+    local_ds.images.extend(np.ones((10, 28, 28)))
+    local_ds.labels.extend(np.ones(10))
+
+    del local_ds
+
+    local_ds = Dataset(path)
+    local_ds.mode = "r"
+
+    # no need to check input, only care that readonly works
+    for sample in local_ds.pytorch():
+        pass
