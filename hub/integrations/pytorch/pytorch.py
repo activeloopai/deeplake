@@ -13,6 +13,7 @@ from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Seque
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
+    TensorDoesNotExistError,
 )
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
