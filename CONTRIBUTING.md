@@ -24,15 +24,6 @@ pip3 install -r requirements/plugins.txt
 pip3 install -r requirements/tests.txt
 ```
 
-## Generating API Docs
-
-Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
-API docs are hosted at: https://api-docs.activeloop.ai/
-
-Run the below command to generate API documentation:
-```
-  pdoc3 --html --output-dir api_docs --template-dir pdoc/templates hub
-```
 
 ### Extra Resources
 - Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
@@ -94,4 +85,14 @@ def test_cache(cache: StorageProvider):  # note: caches are provided as `Storage
   # this test runs for every cache chain that contains all enabled storage providers.
   # if only memory is enabled (no providers are explicitly enabled), this test will be skipped.
   pass
+```
+
+## Generating API Docs
+
+Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
+API docs are hosted at: https://api-docs.activeloop.ai/
+
+Run the below command to generate API documentation:
+```
+  pdoc3 --html --output-dir api_docs --template-dir pdoc/templates hub
 ```
