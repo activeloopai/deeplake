@@ -366,12 +366,6 @@ class ChunkEngine:
 
         return _format_samples(samples, index, aslist)
 
-
-    def get_chunk_from_id(self, chunk_id: int) -> Chunk:
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name)
-        return self.cache.get_cachable(chunk_key, Chunk)
-
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk
     ) -> np.ndarray:
