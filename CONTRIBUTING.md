@@ -25,10 +25,12 @@ pip3 install -r requirements/tests.txt
 ```
 
 
-### Extra Resources
-- Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
-- Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
-- Understand what [pytest parametrizations](https://docs.pytest.org/en/6.2.x/parametrize.html) are.
+#### Running Tests
+- `pytest .`: Run all tests with memory only.
+- `pytest . --local`: Run all tests with memory and local.
+- `pytest . --s3`: Run all tests with memory and s3.
+- `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
+
 
 ### Options
 Combine any of the following options to suit your test cases.
@@ -40,13 +42,16 @@ Combine any of the following options to suit your test cases.
 - `--s3-path`: Specify an s3 path if you don't have access to our internal testing bucket.
 - `--keep-storage`: By default all storages are cleaned up after tests run. Enable this option if you need to check the storage contents.
 
-#### Options Examples
-- `pytest .`: Run all tests with memory only.
-- `pytest . --local`: Run all tests with memory and local.
-- `pytest . --s3`: Run all tests with memory and s3.
-- `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
 
-#### Fixture Examples
+### Extra Resources
+If you feel lost with any of these sections, try reading up on some of these topics.
+
+- Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
+- Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
+- Understand what [pytest parametrizations](https://docs.pytest.org/en/6.2.x/parametrize.html) are.
+
+
+#### Fixture Usage Examples
 These are not all of the available fixtures. You can see all of them [here](hub/tests/).
 
 Datasets
