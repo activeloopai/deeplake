@@ -12,7 +12,7 @@ from hub.util.exceptions import (
 import hub
 import os
 
-from .common import _convert_fn, _collate_fn
+from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 
 def dataset_to_pytorch(
@@ -44,7 +44,7 @@ def dataset_to_pytorch(
     )
 
     if collate_fn is None:
-        collate_fn = _convert_fn if batch_size is None else _collate_fn
+        collate_fn = default_convert_fn if batch_size is None else default_collate_fn
 
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,

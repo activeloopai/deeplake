@@ -20,7 +20,7 @@ from hub.util.shared_memory import (
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
-from .common import _convert_fn, _collate_fn
+from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
@@ -88,7 +88,7 @@ def dataset_to_pytorch(
     num_workers = max(num_workers, 1)
     pytorch_ds = TorchDataset(dataset, transform, tensors, num_workers)
     if collate_fn is None:
-        collate_fn = _convert_fn if batch_size is None else _collate_fn
+        collate_fn = default_convert_fn if batch_size is None else default_collate_fn
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         batch_size=batch_size,
