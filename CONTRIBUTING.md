@@ -24,113 +24,6 @@ pip3 install -r requirements/plugins.txt
 pip3 install -r requirements/tests.txt
 ```
 
-### Running Tests
-
-- To run memory only tests, use: `python -m pytest .`.
-- To run local only tests, use: `python -m pytest . --memory-skip --local`.
-- To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
-- To run cache chain only tests, use: `python -m pytest . --local --s3 --cache-chains-only`. Note: you can opt out of `--local` or `--s3`, the cache chains produced will only contain enabled storage providers.
-- To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
-
-### Prerequisites
-- Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
-- Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
-- Understand what [pytest parametrizations](https://docs.pytest.org/en/6.2.x/parametrize.html) are.
-
-
-### Options
-To see a list of our custom pytest options, run this command: `pytest -h | sed -En '/custom options:/,/\[pytest\] ini\-options/p'`.
-
-### Fixtures
-You can find more information on pytest fixtures [here](https://docs.pytest.org/en/6.2.x/fixture.html).
-
-- `memory_storage`: If `--memory-skip` is provided, tests with this fixture will be skipped. Otherwise, the test will run with only a `MemoryProvider`.
-- `local_storage`: If `--local` is **not** provided, tests with this fixture will be skipped. Otherwise, the test will run with only a `LocalProvider`.
-- `s3_storage`: If `--s3` is **not** provided, tests with this fixture will be skipped. Otherwise, the test will run with only an `S3Provider`.
-- `storage`: All tests that use the `storage` fixture will be parametrized with the enabled `StorageProvider`s (enabled via options defined below). If `--cache-chains` is provided, `storage` may also be a cache chain. Cache chains have the same interface as `StorageProvider`, but instead of just a single provider, it is multiple chained in a sequence, where the last provider in the chain is considered the actual storage.
-- `ds`: The same as the `storage` fixture, but the storages that are parametrized are wrapped with a `Dataset`.
-
-Each `StorageProvider`/`Dataset` that is created for a test via a fixture will automatically have a root created before and destroyed after the test. If you want to keep this data after the test run, you can use the `--keep-storage` option. 
-
-
-#### Fixture Examples
-
-
-Single storage provider fixture
-```python
-def test_memory(memory_storage):
-    # test will skip if `--memory-skip` is provided
-    memory_storage["key"] = b"1234"  # this data will only be stored in memory
-
-def test_local(local_storage):
-    # test will skip if `--local` is not provided
-    memory_storage["key"] = b"1234"  # this data will only be stored locally
-
-def test_local(s3_storage):
-    # test will skip if `--s3` is not provided
-    # test will fail if credentials are not provided
-    memory_storage["key"] = b"1234"  # this data will only be stored in s3
-```
-
-Multiple storage providers/cache chains
-```python
-from hub.core.tests.common import parametrize_all_storages, parametrize_all_caches, parametrize_all_storages_and_caches
-
-@parametrize_all_storages
-def test_storage(storage):
-    # storage will be parametrized with all enabled `StorageProvider`s
-    pass
-
-@parametrize_all_caches
-def test_caches(storage):
-    # storage will be parametrized with all common caches containing enabled `StorageProvider`s
-    pass
-
-@parametrize_all_storages_and_caches
-def test_storages_and_caches(storage):
-    # storage will be parametrized with all enabled `StorageProvider`s and common caches containing enabled `StorageProvider`s
-    pass
-```
-
-
-Dataset storage providers/cache chains
-```python
-from hub.core.tests.common import parametrize_all_dataset_storages, parametrize_all_dataset_storages_and_caches
-
-@parametrize_all_dataset_storages
-def test_dataset(ds):
-    # `ds` will be parametrized with 1 `Dataset` object per enabled `StorageProvider`
-    pass
-
-@parametrize_all_dataset_storages_and_caches
-def test_dataset(ds):
-    # `ds` will be parametrized with 1 `Dataset` object per enabled `StorageProvider` and all cache chains containing enabled `StorageProvider`s
-    pass
-```
-
-## Benchmarks
-We use [pytest-benchmark](https://pytest-benchmark.readthedocs.io/en/latest/usage.html) for our benchmark code which is a plugin for [pytest](https://docs.pytest.org/en/6.2.x/).
-
-### Running Benchmarks
-- To run benchmarks for memory only, use:
-  
-  ```python -m pytest . --benchmark-only```
-  
-- To run ALL **fast** benchmarks, use:
-  
-  ```python -m pytest . --local --s3 --cache-chains --benchmark-only```.
-  
-  Note: this only runs the subset of benchmarks that finish quickly.
-
-- To run ALL **fast AND slow** benchmarks, use:
-  
-  ```python -m pytest . --local --s3 --full-benchmarks --benchmark-only```
-  
-  Note: this will take a while... (also cache chains are implicitly enabled from `--full-benchmarks`.)
-  
-- You can opt out of `--local` and `--s3` for all commands, or add `--memory-skip`. Also `--cache-chains-only` works.
-- Optionally, you can remove the `--benchmark-only` flag in any of these commands to run normal tests alongside the benchmarks.
-
 ## Generating API Docs
 
 Hub used pdocs3 to generate docs: https://pdoc3.github.io/pdoc/
@@ -139,4 +32,74 @@ API docs are hosted at: https://api-docs.activeloop.ai/
 Run the below command to generate API documentation:
 ```
   pdoc3 --html --output-dir api_docs --template-dir pdoc/templates hub
+```
+
+### Running Tests
+
+- To run memory only tests, use: `python -m pytest .`.
+- To run local only tests, use: `python -m pytest . --memory-skip --local`.
+- To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
+- To run cache chain only tests, use: `python -m pytest . --local --s3 --cache-chains-only`. Note: you can opt out of `--local` or `--s3`, the cache chains produced will only contain enabled storage providers.
+- To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
+
+### Extra Resources
+- Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
+- Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
+- Understand what [pytest parametrizations](https://docs.pytest.org/en/6.2.x/parametrize.html) are.
+
+### Options
+Combine any of the following options to suit your test cases.
+
+- `--local`: Enable local tests.
+- `--s3`: Enable S3 tests.
+- `--hub-cloud`: Enable hub cloud tests.
+- `--memory-skip`: Disable memory tests.
+- `--s3-path`: Specify an s3 path if you don't have access to our internal testing bucket.
+- `--keep-storage`: By default all storages are cleaned up after tests run. Enable this option if you need to check the storage contents.
+
+#### Options Examples
+- `pytest .`: Run all tests with memory only.
+- `pytest . --local`: Run all tests with memory and local.
+- `pytest . --s3`: Run all tests with memory and s3.
+- `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
+
+#### Fixture Examples
+
+Datasets
+```python
+@enabled_datasets
+def test_dataset(ds: Dataset):
+  # this test will run once per enabled storage provider. if no providers are explicitly enabled,
+  # only memory will be used.
+  pass
+
+
+def test_local_dataset(local_ds: Dataset):
+  # this test will run only once with a local dataset. if the `--local` option is not provided,
+  # this test will be skipped.
+  pass
+```
+
+Storages
+```python
+@enabled_storages
+def test_storage(storage: StorageProvider):
+  # this test will run once per enabled storage provider. if no providers are explicitly enabled,
+  # only memory will be used.
+  pass
+
+
+def test_local_storage(local_storage: StorageProvider):
+  # this test will run only once with a local storage provider. if the `--local` option is not provided,
+  # this test will be skipped.
+  pass
+```
+
+Caches
+```python
+@enabled_cache_chains
+def test_cache(cache: StorageProvider):  # note: caches are provided as `StorageProvider`s
+  # this test runs for every cache chain that contains all enabled storage providers.
+  # if only memory is enabled (no providers are explicitly enabled), this test will be skipped.
+  pass
 ```

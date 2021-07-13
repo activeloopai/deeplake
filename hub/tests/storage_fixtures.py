@@ -4,7 +4,7 @@ from hub.core.storage.memory import MemoryProvider
 import pytest
 
 
-all_enabled_storages = pytest.mark.parametrize(
+enabled_storages = pytest.mark.parametrize(
     "storage",
     ["memory_storage", "local_storage", "s3_storage", "hub_cloud_storage"],
     indirect=True,

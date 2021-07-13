@@ -7,7 +7,6 @@ import os
 from hub.api.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
-from hub.client.client import HubBackendClient
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,

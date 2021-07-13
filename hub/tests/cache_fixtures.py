@@ -19,7 +19,7 @@ CACHE_CHAINS = [
 CACHE_CHAINS = list(map(lambda i: ",".join(i), CACHE_CHAINS))
 
 
-all_enabled_cache_chains = pytest.mark.parametrize(
+enabled_cache_chains = pytest.mark.parametrize(
     "cache_chain",
     CACHE_CHAINS,
     indirect=True,

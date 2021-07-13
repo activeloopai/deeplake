@@ -1,5 +1,5 @@
-from hub.tests.storage_fixtures import all_enabled_storages
-from hub.tests.cache_fixtures import all_enabled_cache_chains
+from hub.tests.storage_fixtures import enabled_storages
+from hub.tests.cache_fixtures import enabled_cache_chains
 import pytest
 
 from click.testing import CliRunner
@@ -115,18 +115,18 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-@all_enabled_storages
+@enabled_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
 
 
-@all_enabled_cache_chains
+@enabled_cache_chains
 def test_cache(cache_chain):
     check_storage_provider(cache_chain)
     check_cache(cache_chain)
 
 
-@all_enabled_storages
+@enabled_storages
 def test_pickling(storage):
     with CliRunner().isolated_filesystem():
         FILE_1 = f"{KEY}_1"
