@@ -71,18 +71,6 @@ class TensorMeta(Meta):
                 buffer = memoryview(
                     np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
                 )
-            elif "int" in self.dtype and "int" in dtype.name:
-                arr = np.frombuffer(buffer, dtype=dtype)
-                mn = np.iinfo(self.dtype).min
-                mx = np.iinfo(self.dtype).max
-                if np.all(np.logical_and(mn <= arr, arr <= mx)):
-                    buffer = memoryview(np.cast[self.dtype](arr).tobytes())
-                else:
-                    raise TensorDtypeMismatchError(
-                        self.dtype,
-                        dtype.name,
-                        self.htype,
-                    )
             else:
                 raise TensorDtypeMismatchError(
                     self.dtype,

@@ -434,9 +434,6 @@ def test_dtype(memory_ds: Dataset):
     with pytest.raises(TensorDtypeMismatchError):
         dtyped_tensor.append(np.ones((10, 10), dtype="uint64") * 256)
 
-    dtyped_tensor.append(np.ones((10, 10), dtype="uint32") * 2)
-    dtyped_tensor.append(np.ones((10, 10), dtype="uint64") * 3)
-
     assert tensor.dtype == np.float32
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
