@@ -16,7 +16,7 @@ CACHE_CHAINS = [
     (_MEMORY, _LOCAL, _S3),
     (_MEMORY, _LOCAL, _HUB_CLOUD),
 ]
-CACHE_CHAINS = list(map(lambda i: ",".join(i), CACHE_CHAINS))
+CACHE_CHAINS = list(map(lambda i: ",".join(i), CACHE_CHAINS))  # type: ignore
 
 
 enabled_cache_chains = pytest.mark.parametrize(
