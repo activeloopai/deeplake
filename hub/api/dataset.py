@@ -75,9 +75,9 @@ class Dataset:
 
         # done instead of directly assigning read_only as backend might return read_only permissions
         if hasattr(base_storage, "read_only") and base_storage.read_only:
-            self.read_only = True
+            self._read_only = True
         else:
-            self.read_only = False
+            self._read_only = False
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
@@ -182,6 +182,7 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
+        self.meta.tensors.append(name)
         create_tensor(
             name,
             self.storage,
@@ -195,7 +196,6 @@ class Dataset:
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
-        self.meta.tensors.append(name)
 
         return tensor
 
@@ -239,20 +239,16 @@ class Dataset:
                 )
 
     @property
-    def mode(self):
-        return self._mode
+    def read_only(self):
+        return self._read_only
 
-    @mode.setter
-    def mode(self, new_mode):
-        if new_mode == "r":
+    @read_only.setter
+    def read_only(self, value: bool):
+        if value:
             self.storage.enable_readonly()
         else:
             self.storage.disable_readonly()
-        self._mode = new_mode
-
-    @property
-    def mode(self):
-        return self._mode
+        self._read_only = value
 
     @hub_reporter.record_call
     def pytorch(

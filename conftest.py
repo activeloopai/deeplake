@@ -6,6 +6,8 @@ import pytest
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
 os.environ["BUGGER_OFF"] = "true"
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 logging.basicConfig(level=logging.ERROR)
 
 from hub.api.dataset import Dataset
@@ -84,15 +86,14 @@ def pytest_addoption(parser):
         CACHE_OPT,
         action="store_true",
         help="Tests using the `storage` fixture may run with combinations of all enabled providers in cache chains. "
-        "For example, if the option `%s` is not provided, all cache chains that use `S3Provider`"
-        "  are skipped." % (S3_OPT),
+        f"For example, if the option `{S3_OPT}` is not provided, all cache chains that use `S3Provider`"
+        "  are skipped.",
     )
     parser.addoption(
         CACHE_ONLY_OPT,
         action="store_true",
-        help="Force enables `%s`. `storage` fixture only returns cache chains. For example, if `%s` is provided, \
-            `storage` will never be just `S3Provider`."
-        % (CACHE_OPT, S3_OPT),
+        help=f"Force enables `{CACHE_OPT}`. `storage` fixture only returns cache chains. For example, if `{S3_OPT}` is provided, \
+            `storage` will never be just `S3Provider`.",
     )
     parser.addoption(
         S3_PATH_OPT,
@@ -270,7 +271,7 @@ def flower_path():
 
 def print_session_id():
     print("\n\n----------------------------------------------------------")
-    print("Testing session ID: %s" % SESSION_ID)
+    print(f"Testing session ID: {SESSION_ID}")
     print("----------------------------------------------------------")
 
 
