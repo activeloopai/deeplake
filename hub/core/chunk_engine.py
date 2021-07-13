@@ -372,7 +372,7 @@ class ChunkEngine:
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-        buffer = chunk.view(sb, eb)
+        buffer = chunk.memoryview_data[sb:eb]
         if expect_compressed:
             sample = decompress_array(buffer, shape)
         else:
