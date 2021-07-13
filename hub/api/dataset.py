@@ -172,6 +172,7 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
+        self.meta.tensors.append(name)
         create_tensor(
             name,
             self.storage,
@@ -183,7 +184,6 @@ class Dataset:
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
-        self.meta.tensors.append(name)
 
         return tensor
 
