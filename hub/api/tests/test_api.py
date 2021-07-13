@@ -64,7 +64,7 @@ def test_persist_with(ds_generator):
 
 
 @enabled_persistent_dataset_generators
-def test_persist_local_clear_cache(ds_generator):
+def test_persist_clear_cache(ds_generator):
     ds = ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
