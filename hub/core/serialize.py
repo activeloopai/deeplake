@@ -12,6 +12,18 @@ def infer_chunk_num_bytes(
     data: Optional[Union[Sequence[bytes], Sequence[memoryview]]] = None,
     len_data: Optional[int] = None,
 ) -> int:
+    """Calculates the number of bytes in a chunk without serializing it. Used by `LRUCache` to determine if a chunk can be cached.
+
+    Args:
+        version: (str) Version of hub library
+        shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
+        byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
+        data: (list) `_data` field of the chunk
+        len_data: (int, optional) Number of bytes in the chunk
+
+    Returns:
+        Length of the chunk when serialized as int
+    """
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
     assert len(version) < 256
@@ -28,6 +40,18 @@ def serialize_chunk(
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
 ) -> memoryview:
+    """Serializes a chunk
+
+    Args:
+        version: (str) Version of hub library.
+        shape_info: (numpy.ndarray) Encoded shapes info from the chunk's `ShapeEncoder` instance.
+        byte_positions: (numpy.ndarray) Encoded byte positions from the chunk's `BytePositionsEncoder` instance.
+        data: (list) `_data` field of the chunk.
+        len_data: (int, optional) Number of bytes in the chunk.
+
+    Returns:
+        Serialized chunk as memoryview.
+    """
     nbytes = infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
     flatbuff = np.zeros(nbytes, dtype=np.byte)
 
@@ -64,7 +88,18 @@ def serialize_chunk(
 def deserialize_chunk(
     byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
+    """Deserializes a chunk
 
+    Args:
+        byts: (bytes) Serialized chunk.
+
+    Returns:
+        Tuple of:
+        hub version used to create the chunk,
+        encoded shapes info as numpy array,
+        encoded byte positions as numpy array,
+        chunk data as memoryview.
+    """
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
     buff = np.frombuffer(byts, dtype=np.byte)
@@ -105,6 +140,15 @@ def deserialize_chunk(
 
 
 def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+    """Serializes chunk ids
+
+    Args:
+        version: (str) Version of hub library.
+        ids: (list) Encoded chunk ids from a `ChunkIdEncoder` instance.
+
+    Returns:
+        Serialized chunk ids as memoryview.
+    """
     len_version = len(version)
     flatbuff = np.zeros(1 + len_version + sum([x.nbytes for x in ids]), dtype=np.byte)
 
@@ -123,6 +167,16 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
 
 
 def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+    """Deserializes chunk ids
+
+    Args:
+        byts: (bytes) Serialized chunk ids.
+
+    Returns:
+        Tuple of:
+        hub version used to create the chunk,
+        encoded chunk ids as memoryview.
+    """
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
     buff = np.frombuffer(byts, dtype=np.byte)

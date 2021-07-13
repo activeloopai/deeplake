@@ -79,6 +79,7 @@ class Chunk(Cachable):
         return i, byte_index
 
     def view(self, start_byte: int, end_byte: int):
+        """Returns a sliced view of the chunk's data"""
         if len(self._data) == 1:
             return self._data[0][start_byte:end_byte]
 
@@ -88,9 +89,7 @@ class Chunk(Cachable):
             # Indexing to the same inner chunk, this would be fast
             return self._data[start2dx][start2dy:end2dy]
 
-        # TODO: document this
-        # builds a list of memoryviews that contain the pieces we need for the output view
-
+        # build a list of memoryviews that contain the pieces we need for the output view
         byts = []
         byts.append(self._data[start2dx][start2dy:])
         for i in range(start2dx + 1, end2dx):

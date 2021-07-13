@@ -45,6 +45,9 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
+        # If this tensor corresponds to a sample in a parent tensor,
+        # `_sample` caches the chunk id and local sample index
+        # for that sample. Set during iteration through the parent tensor.
         self._sample: Optional[Tuple[int, int]] = None
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
