@@ -8,13 +8,7 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
-from hub.core.lowlevel import (
-    encode_chunk,
-    decode_chunk,
-    malloc,
-    _write_pybytes,
-    _infer_chunk_num_bytes,
-)
+from hub.core.serialize import encode_chunk, decode_chunk, infer_chunk_num_bytes
 
 
 class Chunk(Cachable):
@@ -59,16 +53,6 @@ class Chunk(Cachable):
             self._data.append(data)
             self._num_data_bytes += len(data)
 
-    @property
-    def memoryview_data(self):
-        # deprecated
-        if len(self._data) == 1:
-            return self._data[0]
-        ptr = malloc(self.num_data_bytes)
-        for data in self._data:
-            ptr = _write_pybytes(ptr, data)
-        return memoryview(ptr.bytes)
-
     def _get_2d_idx(self, byte_index: int) -> Tuple[int, int]:
         """Converts `byte_index`, which is an index for a flattened stream of bytes, into a 2D index that can
         be used for a list of byte streams of varying lengths. Used for accessing `self._data`, which is a list
@@ -102,9 +86,7 @@ class Chunk(Cachable):
         end2dx, end2dy = self._get_2d_idx(end_byte)
         if start2dx == end2dx:
             # Indexing to the same inner chunk, this would be fast
-            buff = malloc(end2dy - start2dy)
-            _write_pybytes(buff, self._data[start2dx][start2dy:end2dy])
-            return buff.memoryview
+            return self._data[start2dx][start2dy:end2dy]
 
         # TODO: document this
         # builds a list of memoryviews that contain the pieces we need for the output view
@@ -114,11 +96,14 @@ class Chunk(Cachable):
         for i in range(start2dx + 1, end2dx):
             byts.append(self._data[i])
         byts.append(self._data[end2dx][:end2dy])
-        buff = malloc(sum(map(len, byts)))
-        ptr = buff + 0
+
+        buff = np.zeros(sum(map(len, byts)), dtype=np.byte)
+        offset = 0
         for byt in byts:
-            ptr = _write_pybytes(ptr, byt.cast("B"))
-        return buff.memoryview
+            n = len(byt)
+            buff[offset : offset + n] = byt
+            offset += n
+        return memoryview(buff.tobytes())
 
     @property
     def num_samples(self):
@@ -181,18 +166,11 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-        return _infer_chunk_num_bytes(
+        return infer_chunk_num_bytes(
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             len_data=self.num_data_bytes,
-        )
-        return (
-            17
-            + len(hub.__version__)
-            + self.shapes_encoder.array.nbytes
-            + self.byte_positions_encoder.array.nbytes
-            + self.num_data_bytes
         )
 
     def tobytes(self) -> memoryview:

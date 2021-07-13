@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Optional, Tuple, Union, List, Iterable
 import numpy as np
 from uuid import uuid4
-from hub.core.lowlevel import encode_chunkids, decode_chunkids
+from hub.core.serialize import encode_chunkids, decode_chunkids
 from hub.core.index import IndexEntry
 import math
 
