@@ -1,6 +1,6 @@
 from hub.util.keys import tensor_exists
 from hub.core.sample import Sample  # type: ignore
-from typing import List, Sequence, Union, Optional, Tuple, Dict, Iterator
+from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
 
 import numpy as np
@@ -9,8 +9,6 @@ from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.core.storage import LRUCache
 from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
 from hub.core.index import Index
-
-import warnings
 
 
 class Tensor:
@@ -45,11 +43,6 @@ class Tensor:
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
 
-        # If this tensor corresponds to a sample in a parent tensor,
-        # `_sample` caches the chunk id and local sample index
-        # for that sample. Set during iteration through the parent tensor.
-        self._sample: Optional[Tuple[int, int]] = None
-
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.load` outputs, which can be used to load files. See examples down below.
@@ -78,7 +71,6 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         self.chunk_engine.extend(samples)
-        self._sample = None
 
     def append(
         self,
@@ -199,13 +191,9 @@ class Tensor:
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
         raise NotImplementedError("Tensor update not currently supported!")
 
-    def __iter__(self) -> Iterator["Tensor"]:
-        for i, (chunk_id, local_sample_index) in enumerate(
-            self.chunk_engine.chunk_id_encoder.iter(self.index.values[0].value)
-        ):
-            tensor_i = Tensor(self.key, self.storage, index=self.index[i])
-            tensor_i._sample = chunk_id, local_sample_index
-            yield tensor_i
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
 
     def numpy(self, aslist=False) -> Union[np.ndarray, List[np.ndarray]]:
         """Computes the contents of the tensor in numpy format.
@@ -221,15 +209,7 @@ class Tensor:
         Returns:
             A numpy array containing the data represented by this tensor.
         """
-        if self._sample:
-            chunk_id, local_sample_index = self._sample
-            chunk = self.chunk_engine.get_chunk_from_id(chunk_id)
-            ret = self.chunk_engine.read_sample_from_chunk(chunk, local_sample_index)
-            if aslist:
-                ret = list(ret)
-            for entry in self.index.values[1:]:
-                ret = ret[entry.value]
-            return ret
+
         return self.chunk_engine.numpy(self.index, aslist=aslist)
 
     def __str__(self):
@@ -237,8 +217,5 @@ class Tensor:
         if self.index.is_trivial():
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
-
-    def __array__(self) -> np.ndarray:
-        return self.numpy()
 
     __repr__ = __str__
