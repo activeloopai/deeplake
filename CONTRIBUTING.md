@@ -16,7 +16,7 @@ We also use static typing for our function arguments/variables for better code r
 ## Testing
 We use [pytest](https://docs.pytest.org/en/6.2.x/) for our tests. In order to make it easier, we also have a set of custom options defined in [conftest.py](conftest.py).
 
-## To install all dependencies run:
+### To install all dependencies run:
 
 ```
 pip3 install -r requirements/common.txt
@@ -25,7 +25,7 @@ pip3 install -r requirements/tests.txt
 ```
 
 
-#### Running Tests
+### Running Tests
 - `pytest .`: Run all tests with memory only.
 - `pytest . --local`: Run all tests with memory and local.
 - `pytest . --s3`: Run all tests with memory and s3.
@@ -51,7 +51,7 @@ If you feel lost with any of these sections, try reading up on some of these top
 - Understand what [pytest parametrizations](https://docs.pytest.org/en/6.2.x/parametrize.html) are.
 
 
-#### Fixture Usage Examples
+### Fixture Usage Examples
 These are not all of the available fixtures. You can see all of them [here](hub/tests/).
 
 Datasets
