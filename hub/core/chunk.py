@@ -1,7 +1,7 @@
 from hub.util.exceptions import FullChunkError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import List, Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union
 import numpy as np
 from io import BytesIO
 
@@ -9,7 +9,6 @@ from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
-
 
 class Chunk(Cachable):
     def __init__(
@@ -46,71 +45,17 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
-        self._data: List[memoryview] = []
-        self._num_data_bytes: int = 0  # replaces: sum(map(len, self._data))
-
-        if data is not None:
-            self._data.append(data)
-            self._num_data_bytes += len(data)
-
-    def _get_2d_idx(self, byte_index: int) -> Tuple[int, int]:
-        """Converts `byte_index`, which is an index for a flattened stream of bytes, into a 2D index that can
-        be used for a list of byte streams of varying lengths. Used for accessing `self._data`, which is a list
-        of `memoryview`s.
-
-        Args:
-            byte_index (int): Index over a flattened stream of bytes.
-
-        Returns:
-            Tuple[int, int]: 2D index to be used to access `self._data`.
-        """
-        i = 0
-        data = self._data
-        while True:
-            try:
-                num_data_i = len(data[i])
-            except IndexError:  # slightly faster than checking i < len(self._data) in a loop
-                return i - 1, len(data[i - 1]) + byte_index
-            if num_data_i <= byte_index:
-                byte_index -= num_data_i
-                i += 1
-            else:
-                break
-        return i, byte_index
-
-    def view(self, start_byte: int, end_byte: int):
-        """Returns a sliced view of the chunk's data"""
-        if len(self._data) == 1:
-            return self._data[0][start_byte:end_byte]
-
-        start2dx, start2dy = self._get_2d_idx(start_byte)
-        end2dx, end2dy = self._get_2d_idx(end_byte)
-        if start2dx == end2dx:
-            # Indexing to the same inner chunk, this would be fast
-            return self._data[start2dx][start2dy:end2dy]
-
-        # build a list of memoryviews that contain the pieces we need for the output view
-        byts = []
-        byts.append(self._data[start2dx][start2dy:])
-        for i in range(start2dx + 1, end2dx):
-            byts.append(self._data[i])
-        byts.append(self._data[end2dx][:end2dy])
-
-        buff = np.zeros(sum(map(len, byts)), dtype=np.byte)
-        offset = 0
-        for byt in byts:
-            n = len(byt)
-            buff[offset : offset + n] = byt
-            offset += n
-        return memoryview(buff.tobytes())
+        self._data: Union[memoryview, bytearray] = data or bytearray()
 
     @property
-    def num_samples(self):
-        return self.shapes_encoder.num_samples
+    def memoryview_data(self):
+        if isinstance(self._data, memoryview):
+            return self._data
+        return memoryview(self._data)
 
     @property
     def num_data_bytes(self):
-        return self._num_data_bytes
+        return len(self._data)
 
     def is_under_min_space(self, min_data_bytes_target: int) -> bool:
         """If this chunk's data is less than `min_data_bytes_target`, returns True."""
@@ -140,10 +85,11 @@ class Chunk(Cachable):
             )
 
         # `_data` will be a `memoryview` if `frombuffer` is called.
+        if isinstance(self._data, memoryview):
+            self._data = bytearray(self._data)
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data.append(buffer)
-        self._num_data_bytes += len(buffer)
+        self._data += buffer
         self.update_headers(incoming_num_bytes, shape)
 
     def update_headers(self, incoming_num_bytes: int, sample_shape: Tuple[int]):
@@ -163,28 +109,14 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-        return infer_chunk_num_bytes(
-            hub.__version__,
-            self.shapes_encoder.array,
-            self.byte_positions_encoder.array,
-            len_data=self.num_data_bytes,
-        )
+        return infer_chunk_num_bytes(hub.__version__, self.shapes_encoder.array, self.byte_positions_encoder.array, len_data=len(self._data))
 
     def tobytes(self) -> memoryview:
-        if self.num_samples == 0:
-            return memoryview(bytes())
-
-        return serialize_chunk(
-            hub.__version__,
-            self.shapes_encoder.array,
-            self.byte_positions_encoder.array,
-            self._data,
-            self.num_data_bytes,
-        )
+        return serialize_chunk(hub.__version__, self.shapes_encoder.array, self.byte_positions_encoder.array, [self._data])
 
     @classmethod
-    def frombuffer(cls, buffer: bytes) -> "Chunk":
-        if len(buffer) == 0:
+    def frombuffer(cls, buffer: bytes):
+        if not buffer:
             return cls()
         version, shapes, byte_positions, data = deserialize_chunk(buffer)
         return cls(shapes, byte_positions, data=data)
