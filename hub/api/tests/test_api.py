@@ -18,12 +18,13 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-def test_persist_local(local_storage):
-    ds = Dataset(local_storage.root, local_cache_size=512)
+def test_persist_local(local_ds_generator):
+    ds = local_ds_generator()
+
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
 
-    ds_new = Dataset(local_storage.root)
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -34,15 +35,15 @@ def test_persist_local(local_storage):
     ds.delete()
 
 
-def test_persist_with_local(local_storage):
-    with Dataset(local_storage.root, local_cache_size=512) as ds:
+def test_persist_with_local(local_ds_generator):
+    with local_ds_generator() as ds:
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 224, 224, 3)))
 
-        ds_new = Dataset(local_storage.root)
+        ds_new = local_ds_generator()
         assert len(ds_new) == 0  # shouldn't be flushed yet
 
-    ds_new = Dataset(local_storage.root)
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     engine = ds_new.image.chunk_engine
@@ -58,12 +59,12 @@ def test_persist_with_local(local_storage):
     ds.delete()
 
 
-def test_persist_local_clear_cache(local_storage):
-    ds = Dataset(local_storage.root, local_cache_size=512)
+def test_persist_local_clear_cache(local_ds_generator):
+    ds = local_ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
-    ds_new = Dataset(local_storage.root)
+    ds_new = local_ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -97,13 +98,12 @@ def test_populate_dataset(ds):
 
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_larger_data_memory(memory_storage):
-    ds = Dataset(memory_storage.root)
-    ds.create_tensor("image")
-    ds.image.extend(np.ones((4, 4096, 4096)))
-    assert len(ds) == 4
-    assert ds.image.shape == (4, 4096, 4096)
-    np.testing.assert_array_equal(ds.image.numpy(), np.ones((4, 4096, 4096)))
+def test_larger_data_memory(memory_ds):
+    memory_ds.create_tensor("image")
+    memory_ds.image.extend(np.ones((4, 4096, 4096)))
+    assert len(memory_ds) == 4
+    assert memory_ds.image.shape == (4, 4096, 4096)
+    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((4, 4096, 4096)))
 
 
 def test_stringify(memory_ds):
@@ -446,6 +446,7 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 
 @pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
 def test_hub_cloud_dataset():
+    # TODO: turn this into a fixture and remove skipif
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
 

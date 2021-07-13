@@ -20,6 +20,14 @@ def local_ds(local_path):
 
 
 @pytest.fixture
+def local_ds_generator(local_path):
+    def generate_local_ds():
+        return Dataset(local_path)
+
+    return generate_local_ds
+
+
+@pytest.fixture
 def s3_ds(s3_path):
     return Dataset(s3_path)
 
