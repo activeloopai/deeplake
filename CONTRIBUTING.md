@@ -34,14 +34,6 @@ Run the below command to generate API documentation:
   pdoc3 --html --output-dir api_docs --template-dir pdoc/templates hub
 ```
 
-### Running Tests
-
-- To run memory only tests, use: `python -m pytest .`.
-- To run local only tests, use: `python -m pytest . --memory-skip --local`.
-- To run s3 only tests, use: `python -m pytest . --memory-skip --s3`.
-- To run cache chain only tests, use: `python -m pytest . --local --s3 --cache-chains-only`. Note: you can opt out of `--local` or `--s3`, the cache chains produced will only contain enabled storage providers.
-- To run ALL tests, use: `python -m pytest . --local --s3 --cache-chains`.
-
 ### Extra Resources
 - Understand how to write [pytest](https://docs.pytest.org/en/6.2.x/) tests.
 - Understand what a [pytest fixture](https://docs.pytest.org/en/6.2.x/fixture.html) is.
