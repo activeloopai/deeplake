@@ -5,28 +5,28 @@ from typing import Any, List, Sequence, Tuple
 
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__("{} Incoming sample shape: {}".format(message, str(shape)))
+        super().__init__(f"{message} Incoming sample shape: {str(shape)}")
 
 
 class TensorMetaMissingKey(Exception):
     def __init__(self, key: str, meta: dict):
-        super().__init__("Key {} missing from tensor meta {}.".format(key, str(meta)))
+        super().__init__(f"Key '{key}' missing from tensor meta '{str(meta)}'.")
 
 
 class TensorDoesNotExistError(KeyError):
     def __init__(self, tensor_name: str):
-        super().__init__("Tensor {} does not exist.".format(tensor_name))
+        super().__init__(f"Tensor '{tensor_name}' does not exist.")
 
 
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
-        super().__init__("Tensor {} already exists.".format(key))
+        super().__init__(f"Tensor '{key}' already exists.")
 
 
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(
-            f"Tensor {key} with index = {str(index)} is has a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
+            f"Tensor '{key}' with index = {str(index)} is a dynamic '{property_key}' and cannot be converted into a `np.ndarray`. Try setting the parameter `aslist=True`"
         )
 
 
@@ -37,10 +37,10 @@ class InvalidShapeIntervalError(Exception):
         s = message
 
         if lower is not None:
-            s += " lower={}".format(str(lower))
+            s += f" lower={str(lower)}"
 
         if upper is not None:
-            s += " upper={}".format(str(upper))
+            s += f" upper={str(upper)}"
 
         super().__init__(s)
 
@@ -48,18 +48,14 @@ class InvalidShapeIntervalError(Exception):
 class InvalidKeyTypeError(TypeError):
     def __init__(self, item: Any):
         super().__init__(
-            "Item {} is of type {} is not a valid key".format(
-                str(item), type(item).__name__
-            )
+            f"Item '{str(item)}' of type '{type(item).__name__}' is not a valid key."
         )
 
 
 class UnsupportedTensorTypeError(TypeError):
     def __init__(self, item: Any):
         super().__init__(
-            "Key of type {} is not currently supported to convert to a tensor.".format(
-                type(item).__name__
-            )
+            f"Key of type '{type(item).__name__}' is not currently supported to convert to a tensor."
         )
 
 
@@ -309,9 +305,18 @@ class TensorMetaInvalidHtype(MetaError):
 class TensorMetaInvalidHtypeOverwriteValue(MetaError):
     def __init__(self, key: str, value: Any, explanation: str = ""):
         super().__init__(
-            "Invalid value {} for tensor meta key {}. {}".format(
-                str(value), key, explanation
-            )
+            f"Invalid value '{value}' for tensor meta key '{key}'. {explanation}"
+        )
+
+
+class TensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: str):
+        extra = ""
+        if key == "sample_compression":
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
+
+        super().__init__(
+            f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
         )
 
 
@@ -419,3 +424,10 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
+
+
+class WindowsSharedMemoryError(Exception):
+    def __init__(self):
+        super().__init__(
+            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )

@@ -3,14 +3,14 @@ from io import BytesIO
 from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Sequence, Tuple, List
+from typing import Optional, Sequence, Tuple, List
 from uuid import uuid1
 
 import numpy as np
 import posixpath
 import pytest
 
-from hub.constants import KB, MB, UNCOMPRESSED, USE_UNIFORM_COMPRESSION_PER_SAMPLE
+from hub.constants import KB, MB
 
 SESSION_ID = str(uuid1())
 
@@ -72,7 +72,7 @@ def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
         a = np.random.uniform(size=shape)
         return a > 0.5
 
-    raise ValueError("Dtype %s not supported." % dtype)
+    raise ValueError(f"Dtype '{dtype}' not supported.")
 
 
 @parametrize_dtypes
@@ -90,7 +90,7 @@ def test_get_random_array(shape: Tuple[int], dtype: str):
     assert array.dtype == dtype
 
 
-def get_actual_compression_from_buffer(buffer: memoryview) -> str:
+def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
 
     try:
@@ -98,9 +98,8 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> str:
         img = Image.open(bio)
         return img.format.lower()
 
-    # TODO: better way of determining the sample has no compression
     except UnidentifiedImageError:
-        return UNCOMPRESSED
+        return None
 
 
 def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
