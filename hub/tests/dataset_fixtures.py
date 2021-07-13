@@ -1,4 +1,3 @@
-import os
 import pytest
 from hub import Dataset
 
@@ -53,9 +52,9 @@ def hub_cloud_ds(hub_cloud_ds_generator):
 
 
 @pytest.fixture
-def hub_cloud_ds_generator(hub_cloud_path, hub_testing_token):
+def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
     def generate_hub_cloud_ds():
-        return Dataset(hub_cloud_path, token=hub_testing_token)
+        return Dataset(hub_cloud_path, token=hub_cloud_dev_token)
 
     return generate_hub_cloud_ds
 

@@ -21,7 +21,7 @@ def tensorflow_installed():
     return True
 
 
-def tfds_installed():
+def _tfds_installed():
     try:
         import tensorflow_datasets  # type: ignore
 
@@ -40,5 +40,5 @@ requires_tensorflow = pytest.mark.skipif(
 )
 
 requires_tfds = pytest.mark.skipif(
-    not tfds_installed(), reason="requires tensorflow_datasets to be installed"
+    not _tfds_installed(), reason="requires tensorflow_datasets to be installed"
 )

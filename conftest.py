@@ -1,7 +1,5 @@
 import os
-import posixpath
 import logging
-import pytest
 
 # Disable crash reporting before running tests
 # This MUST come before hub imports to bypass import publication.
@@ -17,6 +15,7 @@ from hub.tests.common import SESSION_ID
 from hub.tests.path_fixtures import *
 from hub.tests.dataset_fixtures import *
 from hub.tests.storage_fixtures import *
+from hub.tests.cache_fixtures import *
 from hub.tests.client_fixtures import *
 
 
@@ -30,19 +29,6 @@ def pytest_addoption(parser):
     parser.addoption(S3_OPT, action="store_true", help="S3 tests will run if enabled.")
     parser.addoption(
         HUB_CLOUD_OPT, action="store_true", help="Hub cloud tests will run if enabled."
-    )
-    parser.addoption(
-        CACHE_OPT,
-        action="store_true",
-        help="Tests using the `storage` fixture may run with combinations of all enabled providers in cache chains. "
-        f"For example, if the option `{S3_OPT}` is not provided, all cache chains that use `S3Provider`"
-        "  are skipped.",
-    )
-    parser.addoption(
-        CACHE_ONLY_OPT,
-        action="store_true",
-        help=f"Force enables `{CACHE_OPT}`. `storage` fixture only returns cache chains. For example, if `{S3_OPT}` is provided, \
-            `storage` will never be just `S3Provider`.",
     )
     parser.addoption(
         S3_PATH_OPT,

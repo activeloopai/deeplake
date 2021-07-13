@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from hub.client.client import HubBackendClient
@@ -10,8 +8,8 @@ from hub.client.utils import (
 )
 
 
-def test_client_requests(hub_dev_credentials):
-    username, password = hub_dev_credentials
+def test_client_requests(hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
 
     hub_client = HubBackendClient()
     hub_client.request_auth_token(username, password)

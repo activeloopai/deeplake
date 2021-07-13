@@ -27,8 +27,6 @@ LOCAL = "local"
 S3 = "s3"
 HUB_CLOUD = "hub_cloud"
 
-ALL_STORAGES = [MEMORY, LOCAL, S3]
-
 
 def _get_path_composition_configs(request):
     return {
@@ -126,7 +124,7 @@ def s3_path(request):
 
 
 @pytest.fixture
-def hub_cloud_path(request, hub_testing_token):
+def hub_cloud_path(request, hub_cloud_dev_token):
     # TODO: can probably generalize these fixtures
 
     # TODO: skipif
@@ -140,7 +138,7 @@ def hub_cloud_path(request, hub_testing_token):
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        storage_provider_from_hub_path(path, token=hub_testing_token).clear()
+        storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
 
 
 @pytest.fixture

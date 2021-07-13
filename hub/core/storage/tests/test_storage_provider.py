@@ -1,4 +1,5 @@
-from hub.tests.path_fixtures import ALL_STORAGES, MEMORY, S3, LOCAL
+from hub.tests.storage_fixtures import all_enabled_storages
+from hub.tests.cache_fixtures import all_enabled_cache_chains
 import pytest
 
 from click.testing import CliRunner
@@ -8,23 +9,6 @@ import pickle
 
 KEY = "file"
 
-STORAGE_FIXTURE_NAME = "storage"
-
-
-_ALL_CACHES_TUPLES = [(MEMORY, LOCAL), (MEMORY, S3), (LOCAL, S3), (MEMORY, LOCAL, S3)]
-ALL_CACHES = list(map(lambda i: ",".join(i), _ALL_CACHES_TUPLES))
-
-parametrize_all_storages = pytest.mark.parametrize(
-    STORAGE_FIXTURE_NAME,
-    ALL_STORAGES,
-    indirect=True,
-)
-
-parametrize_all_caches = pytest.mark.parametrize(
-    STORAGE_FIXTURE_NAME,
-    ALL_CACHES,
-    indirect=True,
-)
 
 # helper functions for tests
 def check_storage_provider(storage):
@@ -131,18 +115,18 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-@parametrize_all_storages
+@all_enabled_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
 
 
-@parametrize_all_caches
-def test_cache(storage):
-    check_storage_provider(storage)
-    check_cache(storage)
+@all_enabled_cache_chains
+def test_cache(cache_chain):
+    check_storage_provider(cache_chain)
+    check_cache(cache_chain)
 
 
-@parametrize_all_storages
+@all_enabled_storages
 def test_pickling(storage):
     with CliRunner().isolated_filesystem():
         FILE_1 = f"{KEY}_1"

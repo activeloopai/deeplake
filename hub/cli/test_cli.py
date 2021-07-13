@@ -7,8 +7,8 @@ from click.testing import CliRunner
 from hub.cli.auth import login, logout
 
 
-def test_cli_auth(hub_dev_credentials):
-    username, password = hub_dev_credentials
+def test_cli_auth(hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
 
     runner = CliRunner()
 
