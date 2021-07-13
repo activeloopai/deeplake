@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Optional, Tuple, Union, List, Iterable
 import numpy as np
 from uuid import uuid4
-from hub.core.serialize import encode_chunkids, decode_chunkids
+from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 from hub.core.index import IndexEntry
 import math
 
@@ -104,12 +104,7 @@ class ChunkIdEncoder(Cachable):
 
     def tobytes(self) -> memoryview:
         self._flush_buffer()
-        encoded = encode_chunkids(hub.__version__, self._data)
-        decoded = decode_chunkids(encoded)[1]
-        if self._data:
-            np.testing.assert_array_equal(
-                decoded, np.concatenate(self._data), err_msg=str(bytes(encoded))
-            )
+        encoded = serialize_chunkids(hub.__version__, self._data)
         return encoded
 
     @staticmethod
@@ -133,7 +128,7 @@ class ChunkIdEncoder(Cachable):
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        version, ids = decode_chunkids(buffer)
+        version, ids = deserialize_chunkids(buffer)
         return cls(ids)
 
     @property

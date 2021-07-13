@@ -8,7 +8,7 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
-from hub.core.serialize import encode_chunk, decode_chunk, infer_chunk_num_bytes
+from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 
 
 class Chunk(Cachable):
@@ -177,7 +177,7 @@ class Chunk(Cachable):
         if self.num_samples == 0:
             return memoryview(bytes())
 
-        return encode_chunk(
+        return serialize_chunk(
             hub.__version__,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
@@ -189,5 +189,5 @@ class Chunk(Cachable):
     def frombuffer(cls, buffer: bytes) -> "Chunk":
         if len(buffer) == 0:
             return cls()
-        version, shapes, byte_positions, data = decode_chunk(buffer)
+        version, shapes, byte_positions, data = deserialize_chunk(buffer)
         return cls(shapes, byte_positions, data=data)

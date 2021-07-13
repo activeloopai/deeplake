@@ -21,7 +21,7 @@ def infer_chunk_num_bytes(
     return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13
 
 
-def encode_chunk(
+def serialize_chunk(
     version: str,
     shape_info: np.ndarray,
     byte_positions: np.ndarray,
@@ -61,7 +61,7 @@ def encode_chunk(
     return memoryview(flatbuff.tobytes())
 
 
-def decode_chunk(
+def deserialize_chunk(
     byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
 
@@ -104,7 +104,7 @@ def decode_chunk(
     return version, shape_info, byte_positions, data
 
 
-def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
+def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     len_version = len(version)
     flatbuff = np.zeros(1 + len_version + sum([x.nbytes for x in ids]), dtype=np.byte)
 
@@ -122,7 +122,7 @@ def encode_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
     return memoryview(flatbuff.tobytes())
 
 
-def decode_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
+def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
     buff = np.frombuffer(byts, dtype=np.byte)
