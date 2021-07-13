@@ -112,7 +112,7 @@ commands:
     steps:
       - run:
           name: "Gather machine info"
-          command: python3 -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
+          command: python3 -c "import platform as p; print(f'{p.platform()}\nPython {p.sys.version}')"
 
   google-creds:
     parameters:

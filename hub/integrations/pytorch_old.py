@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
 from typing import Callable, Union, List, Optional, Dict, Tuple, Sequence
@@ -8,6 +9,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 import hub
+import os
 
 
 def dataset_to_pytorch(
@@ -20,6 +22,8 @@ def dataset_to_pytorch(
     pin_memory: Optional[bool] = False,
     python_version_warning: bool = True,
 ):
+    try_flushing(dataset)
+
     global torch
     try:
         import torch
@@ -28,7 +32,6 @@ def dataset_to_pytorch(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
 
-    dataset.flush()
     pytorch_ds = TorchDataset(
         dataset,
         transform,
@@ -54,9 +57,14 @@ class TorchDataset:
     ):
 
         if python_version_warning:
-            warnings.warn(
-                "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
-            )
+            if os.name == "nt":
+                warnings.warn(
+                    "Windows OS detected. Pytorch iteration speeds will be slow. Use another OS along with Python version >= 3.8 for faster data streaming to Pytorch."
+                )
+            else:
+                warnings.warn(
+                    "Python version < 3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
+                )
 
         self.dataset = None
 
