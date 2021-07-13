@@ -9,6 +9,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 import hub
+import os
 
 
 def dataset_to_pytorch(
@@ -56,9 +57,14 @@ class TorchDataset:
     ):
 
         if python_version_warning:
-            warnings.warn(
-                "Python version<3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
-            )
+            if os.name == "nt":
+                warnings.warn(
+                    "Windows OS detected. Pytorch iteration speeds will be slow. Use another OS along with Python version >= 3.8 for faster data streaming to Pytorch."
+                )
+            else:
+                warnings.warn(
+                    "Python version < 3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
+                )
 
         self.dataset = None
 
