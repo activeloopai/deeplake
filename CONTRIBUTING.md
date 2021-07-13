@@ -47,6 +47,7 @@ Combine any of the following options to suit your test cases.
 - `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
 
 #### Fixture Examples
+These are not all of the available fixtures. You can see all of them [here](hub/tests/).
 
 Datasets
 ```python
@@ -72,8 +73,8 @@ def test_storage(storage: StorageProvider):
   pass
 
 
-def test_local_storage(local_storage: StorageProvider):
-  # this test will run only once with a local storage provider. if the `--local` option is not provided,
+def test_memory_storage(memory_storage: StorageProvider):
+  # this test will run only once with a memory storage provider. if the `--memory-skip` option is provided,
   # this test will be skipped.
   pass
 ```
