@@ -73,6 +73,8 @@ class ChunkIdEncoder(Cachable):
         self._encoded_ids = None
 
     def tobytes(self) -> memoryview:
+        if self._encoded_ids is None:
+            return b""
         return serialize_chunkids(hub.__version__, [self._encoded_ids])
 
     @staticmethod
@@ -98,6 +100,8 @@ class ChunkIdEncoder(Cachable):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
+        if not buffer:
+            return instance
         version, ids = deserialize_chunkids(buffer)
         instance._encoded_ids = ids
         return instance
