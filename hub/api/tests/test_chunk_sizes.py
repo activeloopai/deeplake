@@ -88,4 +88,4 @@ def test_extend_and_append_chunk_sizes(ds):
     assert len(labels) == 200
 
     _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 9)
+    _assert_num_chunks(images, 10)
