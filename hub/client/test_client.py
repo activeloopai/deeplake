@@ -10,10 +10,9 @@ from hub.client.utils import (
 )
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_client_requests():
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+def test_client_requests(hub_dev_credentials):
+    username, password = hub_dev_credentials
+
     hub_client = HubBackendClient()
     hub_client.request_auth_token(username, password)
     with pytest.raises(Exception):
