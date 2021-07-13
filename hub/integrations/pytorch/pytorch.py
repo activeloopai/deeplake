@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
@@ -12,7 +13,6 @@ from typing import Any, Callable, List, Optional, Set, Dict, Union, Tuple, Seque
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
-    TensorDoesNotExistError,
 )
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
@@ -82,7 +82,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
 ):
-    dataset.flush()
+    try_flushing(dataset)
     _import_torch()
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
@@ -156,9 +156,6 @@ class TorchDataset:
 
         # keeps track of names of all shared_memory that have data in them
         self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(list)
-
-        # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
-        self.all_shared_memory: Dict = defaultdict(list)
 
         self.last_chunk_num_generated = -1
 
@@ -282,8 +279,8 @@ class TorchDataset:
         for chunk_name, shared_memory_name, chunk_size in zip(
             chunk_names, shared_memory_names, chunk_sizes
         ):
-            self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            shared_memory = SharedMemory(name=shared_memory_name)
+            chunk = Chunk.frombuffer(shared_memory.buf[:chunk_size])
             chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory

@@ -309,6 +309,17 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
         )
 
 
+class TensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: str):
+        extra = ""
+        if key == "sample_compression":
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
+
+        super().__init__(
+            f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        )
+
+
 class TensorMetaInvalidHtypeOverwriteKey(MetaError):
     def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
         super().__init__(
@@ -413,3 +424,10 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
+
+
+class WindowsSharedMemoryError(Exception):
+    def __init__(self):
+        super().__init__(
+            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )

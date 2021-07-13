@@ -1,4 +1,3 @@
-from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
 import uuid
@@ -7,9 +6,13 @@ import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+)
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
+from click.testing import CliRunner
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -184,8 +187,7 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.meta.sample_compression == UNCOMPRESSED
-    assert tensor.meta.chunk_compression == UNCOMPRESSED
+    assert tensor.meta.sample_compression is None
 
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
@@ -383,7 +385,7 @@ def test_shape_property(memory_ds):
 
 
 def test_htype(memory_ds: Dataset):
-    image = memory_ds.create_tensor("image", htype="image")
+    image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
     label = memory_ds.create_tensor("label", htype="class_label")
     video = memory_ds.create_tensor("video", htype="video")
@@ -447,20 +449,54 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    id = str(uuid.uuid1())
+
+    uri = f"hub://{username}/hub2ds2_{id}"
 
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    id = str(uuid.uuid1())
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    ds.create_tensor("image")
 
-    for i in range(10):
-        ds.image.append(i * np.ones((100, 100)))
+    with Dataset(uri, token=token) as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label", htype="class_label")
 
-    token = ds.token
-    del ds
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    for i in range(10):
+        for i in range(1000):
+            ds.image.append(i * np.ones((100, 100)))
+            ds.label.append(np.uint32(i))
+
+    ds = Dataset(uri, token=token)
+    for i in range(1000):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+        np.testing.assert_array_equal(ds.label[i].numpy(), np.uint32(i))
 
     ds.delete()
+
+
+def test_array_interface(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    x = np.random.random((32, 32))
+    tensor.append(x)
+    arr1 = np.array(tensor)
+    arr2 = np.array(tensor)
+    np.testing.assert_array_equal(x, arr1[0])
+    np.testing.assert_array_equal(x, arr2[0])
+    assert arr1.__array_interface__["data"][0] == arr1.__array_interface__["data"][0]
+    tensor.append(x)
+    np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
+
+
+@parametrize_all_dataset_storages
+def test_hub_dataset_suffix_bug(ds):
+    # creating dataset with similar name but some suffix removed from end
+    ds2 = Dataset(ds.path[:-1])
+    ds2.delete()
+
+
+def test_empty_dataset():
+    with CliRunner().isolated_filesystem():
+        ds = Dataset("test")
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds = Dataset("test")
+        assert list(ds.tensors) == ["x", "y", "z"]
