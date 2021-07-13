@@ -1,4 +1,3 @@
-from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
 import uuid
@@ -7,7 +6,10 @@ import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+)
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 from click.testing import CliRunner
@@ -185,8 +187,7 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.meta.sample_compression == UNCOMPRESSED
-    assert tensor.meta.chunk_compression == UNCOMPRESSED
+    assert tensor.meta.sample_compression is None
 
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
@@ -384,7 +385,7 @@ def test_shape_property(memory_ds):
 
 
 def test_htype(memory_ds: Dataset):
-    image = memory_ds.create_tensor("image", htype="image")
+    image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
     label = memory_ds.create_tensor("label", htype="class_label")
     video = memory_ds.create_tensor("video", htype="video")
@@ -477,7 +478,7 @@ def test_hub_dataset_suffix_bug(ds):
     ds2 = Dataset(ds.path[:-1])
     ds2.delete()
 
-    
+
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
         ds = Dataset("test")

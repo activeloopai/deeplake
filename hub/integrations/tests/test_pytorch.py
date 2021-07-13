@@ -3,7 +3,6 @@ from hub.util.remove_cache import get_base_storage
 import pytest
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.constants import UNCOMPRESSED
 from hub.api.dataset import Dataset
 import numpy as np
 
@@ -107,8 +106,10 @@ def test_pytorch_transform(ds):
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
-        images = ds.create_tensor("images", htype="image")
+        images = ds.create_tensor("images", htype="image", sample_compression="png")
         labels = ds.create_tensor("labels", htype="class_label")
+
+        assert images.meta.sample_compression == "png"
 
         images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
