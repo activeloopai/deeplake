@@ -295,14 +295,16 @@ class ChunkIdEncoder(Cachable):
 
         Args:
             sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
-            return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
+            return_chunk_index (bool): If True, a tuple of 2 ints representing the chunks index is returned along with the chunk id.
+            return_local_sample_index (bool): If True, the local index of the sample within the chunk is returned along with the chunk id.
 
         Raises:
             IndexError: If no samples exist or `sample_index` exceeds the available indices.
 
         Returns:
-            Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `sample_index`. If `return_chunk_index` is True,
-                there will be 2 values. The second one being the chunk's index.
+            Union[int, Tuple[int, Tuple[int, int]], Tuple[int, int], Tuple[int, Tuple[int, int], int]]: Returns either just the chunk id
+            or a tuple containing the chunk id and one or both of the chunk index and local sample index based on the `return_chunk_index`
+            and `return_local_sample_index` arguments.
         """
         if self.num_samples == 0:
             raise IndexError(
