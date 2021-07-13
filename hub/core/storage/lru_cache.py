@@ -254,7 +254,7 @@ class LRUCache(StorageProvider):
         Raises:
             ReadOnlyError: If the provider is in read-only mode.
         """
-        self.check_readonly()
+
         self._free_up_space(len(value))
         self.cache_storage[path] = value  # type: ignore
 

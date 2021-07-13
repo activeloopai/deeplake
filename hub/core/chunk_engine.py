@@ -13,7 +13,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
 
@@ -181,6 +181,8 @@ class ChunkEngine:
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
+        self.cache.check_readonly()
+
         # num samples is always 1 when appending
         num_samples = 1
 
@@ -279,7 +281,7 @@ class ChunkEngine:
             raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
         if uniform:
             compression = self.tensor_meta.sample_compression
-            if compression == UNCOMPRESSED:
+            if compression is None:
                 buffers = []
 
                 # before adding any data, we need to check all sample sizes
@@ -367,7 +369,7 @@ class ChunkEngine:
     ) -> np.ndarray:
         """Read a sample from a chunk, given the local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
+        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
@@ -387,7 +389,7 @@ class ChunkEngine:
         if num_bytes > self.min_chunk_size:
             msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
-            if self.tensor_meta.sample_compression == UNCOMPRESSED:
+            if self.tensor_meta.sample_compression is None:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)
