@@ -32,12 +32,7 @@ def _create_tensors(ds):
     return images, labels
 
 
-@parametrize_all_dataset_storages
-def test_append_chunk_sizes(ds):
-    images, labels = _create_tensors(ds)
-
-    _update_chunk_sizes(ds, 32 * KB)
-
+def _append_tensors(images, labels):
     for i in range(100):
         x = np.ones((28, 28), dtype=np.uint8) * i
         y = np.uint32(i)
@@ -45,47 +40,83 @@ def test_append_chunk_sizes(ds):
         images.append(x)
         labels.append(y)
 
-    assert len(images) == 100
-    assert len(labels) == 100
+
+def _extend_tensors(images, labels):
+    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
+    labels.extend(np.ones(100, dtype=np.uint32))
+
+
+@parametrize_all_dataset_storages
+def test_append(ds):
+    images, labels = _create_tensors(ds)
+    _update_chunk_sizes(ds, 32 * KB)
+
+    _append_tensors(images, labels)
 
     _assert_num_chunks(labels, 1)
     _assert_num_chunks(images, 5)
 
-
-@parametrize_all_dataset_storages
-def test_extend_chunk_sizes(ds):
-    images, labels = _create_tensors(ds)
-
-    _update_chunk_sizes(ds, 32 * KB)
-
-    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
-    labels.extend(np.ones(100, dtype=np.uint32))
-
-    assert len(images) == 100
-    assert len(labels) == 100
-
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 5)
-
-
-@parametrize_all_dataset_storages
-def test_extend_and_append_chunk_sizes(ds):
-    images, labels = _create_tensors(ds)
-
-    _update_chunk_sizes(ds, 32 * KB)
-
-    images.extend(np.ones((100, 28, 28), dtype=np.uint8))
-    labels.extend(np.ones(100, dtype=np.uint32))
-
-    for i in range(100):
-        x = np.ones((28, 28), dtype=np.uint8) * i
-        y = np.uint32(i)
-
-        images.append(x)
-        labels.append(y)
-
-    assert len(images) == 200
-    assert len(labels) == 200
+    _append_tensors(images, labels)
 
     _assert_num_chunks(labels, 1)
     _assert_num_chunks(images, 10)
+
+    _append_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 15)
+
+    assert len(ds) == 300
+
+
+@parametrize_all_dataset_storages
+def test_extend(ds):
+    images, labels = _create_tensors(ds)
+
+    _update_chunk_sizes(ds, 32 * KB)
+
+    _extend_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 5)
+
+    _extend_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 10)
+
+    _extend_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 15)
+
+    assert len(ds) == 300
+
+
+@parametrize_all_dataset_storages
+def test_extend_and_append(ds):
+    images, labels = _create_tensors(ds)
+
+    _update_chunk_sizes(ds, 32 * KB)
+
+    _extend_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 5)
+
+    _append_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 10)
+
+    _extend_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 15)
+
+    _append_tensors(images, labels)
+
+    _assert_num_chunks(labels, 1)
+    _assert_num_chunks(images, 20)
+
+    assert len(ds) == 400
