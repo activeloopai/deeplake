@@ -16,8 +16,8 @@ def memory_ds(memory_path):
 
 
 @pytest.fixture
-def local_ds(local_path):
-    return Dataset(local_path)
+def local_ds(local_ds_generator):
+    return local_ds_generator()
 
 
 @pytest.fixture
@@ -34,8 +34,16 @@ def s3_ds(s3_path):
 
 
 @pytest.fixture
-def hub_cloud_ds(hub_cloud_path, hub_testing_token):
-    return Dataset(hub_cloud_path, token=hub_testing_token)
+def hub_cloud_ds(hub_cloud_ds_generator):
+    return hub_cloud_ds_generator()
+
+
+@pytest.fixture
+def hub_cloud_ds_generator(hub_cloud_path, hub_testing_token):
+    def generate_hub_cloud_ds():
+        return Dataset(hub_cloud_path, token=hub_testing_token)
+
+    return generate_hub_cloud_ds
 
 
 @pytest.fixture

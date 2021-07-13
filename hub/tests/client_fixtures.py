@@ -1,4 +1,4 @@
-from hub.constants import HUB_CLOUD_OPT
+from hub.constants import HUB_CLOUD_DEV_USERNAME, HUB_CLOUD_OPT
 from hub.tests.common import is_opt_true
 import os
 import pytest
@@ -7,22 +7,21 @@ import hub
 
 
 @pytest.fixture(scope="session")
-def hub_testing_credentials(request):
+def hub_dev_credentials(request):
+    # TODO: skipif
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
 
-    hub.client.config.USE_DEV_ENVIRONMENT = True
+    # TODO: use dev environment
 
-    username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    return username, password
+    return HUB_CLOUD_DEV_USERNAME, password
 
 
 @pytest.fixture(scope="session")
-def hub_testing_token(hub_testing_credentials):
-    username, password = hub_testing_credentials
+def hub_testing_token(hub_dev_credentials):
+    username, password = hub_dev_credentials
 
-    # TODO: use DEV environment
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
     return token

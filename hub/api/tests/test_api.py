@@ -443,19 +443,19 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-def test_hub_cloud_dataset(hub_cloud_ds):
+def test_hub_cloud_dataset(hub_cloud_ds_generator):
     # TODO: remove this and run all tests on hub cloud
 
-    ds = hub_cloud_ds
+    ds = hub_cloud_ds_generator()
 
     ds.create_tensor("image")
 
     for i in range(10):
         ds.image.append(i * np.ones((100, 100)))
 
-    token = ds.token
     del ds
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
+
+    ds = hub_cloud_ds_generator()
     for i in range(10):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
 

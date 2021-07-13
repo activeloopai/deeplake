@@ -8,6 +8,7 @@ from hub.constants import (
     KEEP_STORAGE_OPT,
     LOCAL_OPT,
     MEMORY_OPT,
+    PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
@@ -36,16 +37,25 @@ def _get_path_composition_configs(request):
             "use_id": False,
             "is_id_prefix": False,
             # if is_id_prefix (and use_id=True), the session id comes before test name, otherwise it is reversed
+            "use_underscores": False,
         },
         LOCAL: {
             "base_root": PYTEST_LOCAL_PROVIDER_BASE_ROOT,
             "use_id": False,
             "is_id_prefix": False,
+            "use_underscores": False,
         },
         S3: {
             "base_root": request.config.getoption(S3_PATH_OPT),
             "use_id": True,
             "is_id_prefix": True,
+            "use_underscores": False,
+        },
+        HUB_CLOUD: {
+            "base_root": PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT,
+            "use_id": True,
+            "is_id_prefix": True,
+            "use_underscores": True,
         },
     }
 
@@ -67,6 +77,9 @@ def _get_storage_path(
             path = posixpath.join(SESSION_ID, path)
         else:
             path = posixpath.join(path, SESSION_ID)
+
+    if info["use_underscores"]:
+        path = path.replace("/", "_")
 
     root = posixpath.join(root, path)
     return root
