@@ -55,6 +55,47 @@ class TensorMeta(Meta):
 
         super().__init__()
 
+    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
+        """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
+        the incoming sample to match the tensor's dtype if needed (and possible).
+
+        Args:
+            buffer: (memoryview) memoryview of the sample's bytes
+            shape: (Tuple[int]): Shape of the sample
+            dtype: Datatype for the sample(s).
+
+        Returns:
+            The sample as as memoryview which might be upcasted to match the meta's dtype.
+
+        Raises:
+            TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
+            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
+        """
+        dtype = np.dtype(dtype)
+        if self.dtype and self.dtype != dtype.name:
+            if np.can_cast(dtype, self.dtype):
+                buffer = memoryview(
+                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
+                )
+            else:
+                raise TensorDtypeMismatchError(
+                    self.dtype,
+                    dtype.name,
+                    self.htype,
+                )
+        # shape length is only enforced after at least 1 sample exists.
+        if self.length > 0:
+            expected_shape_len = len(self.min_shape)
+            actual_shape_len = len(shape)
+            if expected_shape_len != actual_shape_len:
+                raise TensorInvalidSampleShapeError(
+                    "Sample shape length is expected to be {}, actual length is {}.".format(
+                        expected_shape_len, actual_shape_len
+                    ),
+                    shape,
+                )
+        return buffer
+
     def check_compatibility(self, shape: Tuple[int], dtype):
         """Checks if this tensor meta is compatible with the incoming sample(s) properties.
 
