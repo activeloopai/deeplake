@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
@@ -64,11 +65,13 @@ def transform(
         MemoryDatasetNotSupportedError: If ds_out is a Hub dataset with memory as underlying storage and the scheduler is not threaded.
     """
     if isinstance(data_in, Dataset):
-        data_in.flush()
+        try_flushing(data_in)
         data_in_base_storage = get_base_storage(data_in.storage)
         data_in = Dataset(
             storage=data_in_base_storage, memory_cache_size=0, local_cache_size=0
         )
+    if ds_out._read_only:
+        raise InvalidOutputDatasetError
     ds_out.flush()
 
     if not hasattr(data_in, "__getitem__"):
@@ -79,7 +82,7 @@ def transform(
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         if len(ds_out[tensor]) != len(ds_out):
-            raise InvalidOutputDatasetError
+            raise InvalidOutputDatasetError("One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor).")
 
     workers = max(workers, 1)
 
@@ -90,14 +93,14 @@ def transform(
     else:
         raise UnsupportedSchedulerError(scheduler)
 
-    base_storage = get_base_storage(ds_out.storage)
-    if isinstance(base_storage, MemoryProvider) and scheduler != "threaded":
+    output_base_storage = get_base_storage(ds_out.storage)
+    if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
         raise MemoryDatasetNotSupportedError(scheduler)
 
     pipeline, pipeline_kwargs = pipeline_to_list(pipeline, pipeline_kwargs)
 
     run_pipeline(
-        data_in, base_storage, tensors, compute, workers, pipeline, pipeline_kwargs
+        data_in, output_base_storage, tensors, compute, workers, pipeline, pipeline_kwargs
     )
     load_updated_meta(ds_out)
 
@@ -163,7 +166,6 @@ def run_pipeline(
     """Runs the pipeline on the input data to produce output samples and stores in the dataset."""
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
-
     init_tensor_metas = {t: TensorMeta.load(t, storage).to_dict() for t in tensors}
     all_workers_metas = compute.map(
         store_shard,

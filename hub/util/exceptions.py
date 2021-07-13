@@ -371,9 +371,9 @@ class TensorMismatchError(TransformError):
 
 
 class InvalidOutputDatasetError(TransformError):
-    def __init__(self):
+    def __init__(self, message="The output Dataset to transform should not be in read mode"):
         super().__init__(
-            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+            message
         )
 
 
