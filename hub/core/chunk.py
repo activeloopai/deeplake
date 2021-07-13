@@ -141,8 +141,6 @@ class Chunk(Cachable):
             )
 
         # `_data` will be a `memoryview` if `frombuffer` is called.
-        # if isinstance(self._data, memoryview):
-        #     self._data = bytearray(self._data)
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data.append(buffer)
