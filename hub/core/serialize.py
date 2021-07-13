@@ -1,7 +1,6 @@
 from typing import Optional, Sequence, Union, Tuple
 
 import hub
-import ctypes
 import numpy as np
 
 
