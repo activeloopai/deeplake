@@ -56,16 +56,17 @@ class TensorMeta(Meta):
         super().__init__()
 
     def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
-        """Checks if this tensor meta is compatible with the incoming sample(s) properties, as well as upcasts
-        the incoming buffer to match the tensor's dtype if needed (and possible).
+        """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
+        the incoming sample to match the tensor's dtype if needed (and possible).
 
         Args:
-            shape (Tuple[int]): Shape all samples having their compatibility checked. Must be a single-sample shape
-                but can represent multiple.
+            buffer: (memoryview) memoryview of the sample's bytes
+            shape: (Tuple[int]): Shape of the sample
             dtype: Datatype for the sample(s).
 
         Returns:
-            The buffer which might be upcasted to match the meta's dtype.
+            The sample as as memoryview which might be upcasted to match the meta's dtype.
+
         Raises:
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
