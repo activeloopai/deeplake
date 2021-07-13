@@ -10,6 +10,7 @@ from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 
+
 class Chunk(Cachable):
     def __init__(
         self,
@@ -109,10 +110,20 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-        return infer_chunk_num_bytes(hub.__version__, self.shapes_encoder.array, self.byte_positions_encoder.array, len_data=len(self._data))
+        return infer_chunk_num_bytes(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            len_data=len(self._data),
+        )
 
     def tobytes(self) -> memoryview:
-        return serialize_chunk(hub.__version__, self.shapes_encoder.array, self.byte_positions_encoder.array, [self._data])
+        return serialize_chunk(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            [self._data],
+        )
 
     @classmethod
     def frombuffer(cls, buffer: bytes):

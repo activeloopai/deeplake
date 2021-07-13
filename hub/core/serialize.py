@@ -61,20 +61,35 @@ def serialize_chunk(
     offset = 1 + len_version
 
     # Write shape info
-    flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
-        np.byte
-    )
-    offset += 8
-    flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).view(np.byte)
-    offset += shape_info.nbytes
+    if shape_info.ndim == 1:
+        assert shape_info.nbytes == 0
+        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte)
+        offset += 8
+    else:
+        assert shape_info.ndim == 2
+        flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
+            np.byte
+        )
+        offset += 8
+        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).view(
+            np.byte
+        )
+        offset += shape_info.nbytes
 
     # Write byte positions
-    flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).view((np.byte, 4))
-    offset += 4
-    flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(-1).view(
-        np.byte
-    )
-    offset += byte_positions.nbytes
+    if byte_positions.ndim == 1:
+        assert byte_positions.nbytes == 0
+        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte)
+        offset += 4
+    else:
+        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).view(
+            (np.byte, 4)
+        )
+        offset += 4
+        flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(
+            -1
+        ).view(np.byte)
+        offset += byte_positions.nbytes
 
     # Write actual data
     for byts in data:
@@ -133,7 +148,7 @@ def deserialize_chunk(
     offset += byte_positions_nbytes
 
     # Read data
-    data = buff[offset:].copy()
+    data = memoryview(buff[offset:].tobytes())
 
     return version, shape_info, byte_positions, data
 

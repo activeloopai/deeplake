@@ -74,7 +74,7 @@ class ChunkIdEncoder(Cachable):
 
     def tobytes(self) -> memoryview:
         if self._encoded_ids is None:
-            return b""
+            return memoryview(b"")
         return serialize_chunkids(hub.__version__, [self._encoded_ids])
 
     @staticmethod
