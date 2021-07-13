@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-# TODO, will probably also need Queue to get tqdm working properly
+# TODO: will probably also need Queue to get tqdm working properly
 class ComputeProvider(ABC):
     """An abstract base class for implementing a compute provider."""
 

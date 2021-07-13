@@ -415,7 +415,7 @@ class ChunkEngine:
         while len(chunk_names) < target_chunk_count and sample_index < last_index:
             chunk_id = self.chunk_id_encoder[sample_index]
             chunk = self.chunk_id_encoder.name_from_id(chunk_id)
-            # todo, change to chunk_names.update once chunks returns sequence instead of single string
+            # TODO: change to chunk_names.update once chunks returns sequence instead of single string
             chunk_names.add(chunk)
             sample_index += 1
         return chunk_names
