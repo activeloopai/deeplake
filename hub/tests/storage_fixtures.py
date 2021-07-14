@@ -1,3 +1,4 @@
+from hub.util.get_storage_provider import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 from hub.core.storage.memory import MemoryProvider
@@ -28,7 +29,7 @@ def s3_storage(s3_path):
 
 @pytest.fixture
 def hub_cloud_storage(hub_cloud_path, hub_cloud_dev_token):
-    return S3Provider(hub_cloud_path, token=hub_cloud_dev_token)
+    return storage_provider_from_hub_path(hub_cloud_path, token=hub_cloud_dev_token)
 
 
 @pytest.fixture
