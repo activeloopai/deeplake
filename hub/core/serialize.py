@@ -39,7 +39,7 @@ def serialize_chunk(
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
 ) -> memoryview:
-    """Serializes a chunk
+    """Serializes a chunk's headers and data into a single byte stream. This is how the chunk will be written to the storage provider.
 
     Args:
         version: (str) Version of hub library.
