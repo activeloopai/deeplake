@@ -15,8 +15,10 @@ from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
+    CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     PathNotEmptyException,
+    ReadOnlyModeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
@@ -218,7 +220,12 @@ class Dataset:
 
         else:
             self.meta = DatasetMeta()
-            self.storage[meta_key] = self.meta
+
+            try:
+                self.storage[meta_key] = self.meta
+            except ReadOnlyModeError:
+                # if this is thrown, that means the dataset doesn't exist and the user has no write access.
+                raise CouldNotCreateNewDatasetException(self.path)
 
             self.flush()
             if self.path.startswith("hub://"):

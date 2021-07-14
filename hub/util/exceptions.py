@@ -140,6 +140,28 @@ class AuthorizationException(Exception):
         super().__init__(message)
 
 
+class InvalidPasswordException(AuthorizationException):
+    def __init__(
+        self,
+        message="The password you provided was invalid.",
+    ):
+        super().__init__(message)
+
+
+class CouldNotCreateNewDatasetException(AuthorizationException):
+    def __init__(
+        self,
+        path: str,
+    ):
+
+        extra = ""
+        if path.startswith("hub://"):
+            extra = "Since the path is a `hub://` dataset, if you believe you should have write permissions, try running `activeloop login`."
+
+        message = f"Dataset at '{path}' doesn't exist, and you have no permissions to create one there. Maybe a typo? {extra}"
+        super().__init__(message)
+
+
 class ResourceNotFoundException(Exception):
     def __init__(
         self,
