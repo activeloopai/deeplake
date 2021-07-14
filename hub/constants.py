@@ -40,10 +40,9 @@ META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
 
-CHUNK_EXTENSION = "npz"
 ENCODED_CHUNK_NAMES_FOLDER = "chunks_index"
 # unsharded naming will help with backwards compatibility
-ENCODED_CHUNK_NAMES_FILENAME = f"unsharded.{CHUNK_EXTENSION}"
+ENCODED_CHUNK_NAMES_FILENAME = f"unsharded"
 
 ENCODING_DTYPE = np.uint32
 # caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
