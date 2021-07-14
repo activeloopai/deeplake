@@ -33,8 +33,6 @@ def test_persist(ds_generator):
 
     assert ds_new.meta.version == hub.__version__
 
-    ds.delete()
-
 
 @enabled_persistent_dataset_generators
 def test_persist_with(ds_generator):
@@ -58,8 +56,6 @@ def test_persist_with(ds_generator):
 
     assert ds_new.meta.version == hub.__version__
 
-    ds.delete()
-
 
 @enabled_persistent_dataset_generators
 def test_persist_clear_cache(ds_generator):
@@ -73,7 +69,6 @@ def test_persist_clear_cache(ds_generator):
     assert ds_new.image.shape == (4, 224, 224, 3)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
-    ds.delete()
 
 
 @enabled_datasets
@@ -465,7 +460,6 @@ def test_array_interface(memory_ds: Dataset):
 def test_hub_dataset_suffix_bug(ds):
     # creating dataset with similar name but some suffix removed from end
     ds2 = Dataset(ds.path[:-1])
-    ds2.delete()
 
 
 def test_empty_dataset():
