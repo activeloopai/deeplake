@@ -40,3 +40,15 @@ def test_local_image_classification_with_sets():
     assert ds["train/images"].numpy().shape == (3, 900, 900, 3)
     assert ds["train/labels"].numpy().shape == (3,)
     assert ds["train/labels"].meta.class_names == ("class0", "class1", "class2")
+
+
+def test_kaggle_ingestion_simple():
+    tag = ""
+    local = "./datasets/source/kaggle"
+    hub_path = "./datasets/destination/kaggle"
+    download_kaggle_dataset(
+        tag, local_path=local, kaggle_credentials=kaggle_credentials
+    )
+    ds = hub.Dataset(hub_path)
+    unstructured = ImageClassification(source=local)
+    unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
