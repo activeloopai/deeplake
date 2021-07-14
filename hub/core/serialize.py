@@ -37,7 +37,7 @@ def serialize_chunk(
     data: Union[Sequence[bytes], Sequence[memoryview]],
     len_data: Optional[int] = None,
 ) -> memoryview:
-    """Serializes a chunk
+    """Serializes a chunk's headers and data into a single byte stream. This is how the chunk will be written to the storage provider.
 
     Args:
         version: (str) Version of hub library.
@@ -97,7 +97,7 @@ def serialize_chunk(
 def deserialize_chunk(
     byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
-    """Deserializes a chunk
+    """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk.
@@ -155,7 +155,7 @@ def deserialize_chunk(
 
 
 def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
-    """Serializes chunk ids
+    """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
         version: (str) Version of hub library.
@@ -182,7 +182,7 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
 
 
 def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
-    """Deserializes chunk ids
+    """Deserializes a chunk ID encoder from the serialized byte stream. This is how the encoder can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk ids.
