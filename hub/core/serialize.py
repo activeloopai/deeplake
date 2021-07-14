@@ -102,7 +102,7 @@ def serialize_chunk(
 def deserialize_chunk(
     byts: Union[bytes, memoryview]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
-    """Deserializes a chunk
+    """Deserializes a chunk from the serialized byte stream. This is how the chunk can be accessed/modified after it is read from storage.
 
     Args:
         byts: (bytes) Serialized chunk.
