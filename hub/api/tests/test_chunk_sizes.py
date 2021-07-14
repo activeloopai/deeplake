@@ -1,6 +1,5 @@
 import numpy as np
 from hub.constants import KB
-from hub.core.tests.common import parametrize_all_dataset_storages
 
 
 def _update_chunk_sizes(ds, max_chunk_size: int):
@@ -46,8 +45,8 @@ def _extend_tensors(images, labels):
     labels.extend(np.ones(100, dtype=np.uint32))
 
 
-@parametrize_all_dataset_storages
-def test_append(ds):
+def test_append(memory_ds):
+    ds = memory_ds
     images, labels = _create_tensors(ds)
     _update_chunk_sizes(ds, 32 * KB)
 
@@ -69,8 +68,8 @@ def test_append(ds):
     assert len(ds) == 300
 
 
-@parametrize_all_dataset_storages
-def test_extend(ds):
+def test_extend(memory_ds):
+    ds = memory_ds
     images, labels = _create_tensors(ds)
 
     _update_chunk_sizes(ds, 32 * KB)
@@ -93,8 +92,8 @@ def test_extend(ds):
     assert len(ds) == 300
 
 
-@parametrize_all_dataset_storages
-def test_extend_and_append(ds):
+def test_extend_and_append(memory_ds):
+    ds = memory_ds
     images, labels = _create_tensors(ds)
 
     _update_chunk_sizes(ds, 32 * KB)
