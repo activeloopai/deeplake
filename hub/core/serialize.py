@@ -160,7 +160,7 @@ def deserialize_chunk(
 
 
 def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
-    """Serializes chunk ids
+    """Serializes chunk ID encoders into a single byte stream. This is how the encoders will be written to the storage provider.
 
     Args:
         version: (str) Version of hub library.
