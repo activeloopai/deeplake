@@ -74,7 +74,7 @@ class ChunkIdEncoder(Cachable):
 
     def tobytes(self) -> memoryview:
         if self._encoded_ids is None:
-            return memoryview(b"")
+            return serialize_chunkids(hub.__version__, [np.array([], dtype=ENCODING_DTYPE)])
         return serialize_chunkids(hub.__version__, [self._encoded_ids])
 
     @staticmethod
@@ -103,7 +103,8 @@ class ChunkIdEncoder(Cachable):
         if not buffer:
             return instance
         version, ids = deserialize_chunkids(buffer)
-        instance._encoded_ids = ids
+        if ids.nbytes:
+            instance._encoded_ids = ids
         return instance
 
     @property
@@ -116,7 +117,8 @@ class ChunkIdEncoder(Cachable):
     def num_samples(self) -> int:
         if self._encoded_ids is None:
             return 0
-        return int(self._encoded_ids[-1, LAST_INDEX_INDEX] + 1)
+        return int(self._encoded_ids[-1, LAST_INDEX_INDEX]) + 1
+
 
     def generate_chunk_id(self) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.

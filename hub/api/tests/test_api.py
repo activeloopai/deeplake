@@ -26,7 +26,7 @@ def test_persist_local(local_storage):
     ds.image.extend(np.ones((4, 224, 224, 3)))
 
     ds_new = Dataset(local_storage.root)
-    assert len(ds_new) == 4
+    assert len(ds_new) == 4, (ds_new.image.chunk_engine.chunk_id_encoder._encoded_ids,)
 
     assert ds_new.image.shape == (4, 224, 224, 3)
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))

@@ -96,7 +96,13 @@ def serialize_chunk(
         n = len(byts)
         flatbuff[offset : offset + n] = np.frombuffer(byts, dtype=np.byte)
         offset += n
-    return memoryview(flatbuff.tobytes())
+    ret = flatbuff.tobytes()
+    v, s, b, d = deserialize_chunk(ret)
+    assert v == version
+    np.testing.assert_array_equal(s, shape_info)
+    np.testing.assert_array_equal(b, byte_positions)
+    assert bytes(d) == bytes(data[0])
+    return bytes(ret)
 
 
 def deserialize_chunk(
@@ -127,25 +133,31 @@ def deserialize_chunk(
     shape_info_shape = buff[offset : offset + 8].view(np.int32)
     offset += 8
     shape_info_nbytes = np.prod(shape_info_shape) * enc_dtype.itemsize
-    shape_info = (
-        buff[offset : offset + shape_info_nbytes]
-        .view(enc_dtype)
-        .reshape(shape_info_shape)
-        .copy()
-    )
-    offset += shape_info_nbytes
+    if shape_info_nbytes == 0:
+        shape_info = np.array([], dtype=enc_dtype)
+    else:
+        shape_info = (
+            buff[offset : offset + shape_info_nbytes]
+            .view(enc_dtype)
+            .reshape(shape_info_shape)
+            .copy()
+        )
+        offset += shape_info_nbytes
 
     # Read byte positions
     byte_positions_rows = buff[offset : offset + 4].view(np.int32)[0]
     offset += 4
     byte_positions_nbytes = byte_positions_rows * 3 * enc_dtype.itemsize
-    byte_positions = (
-        buff[offset : offset + byte_positions_nbytes]
-        .view(enc_dtype)
-        .reshape(byte_positions_rows, 3)
-        .copy()
-    )
-    offset += byte_positions_nbytes
+    if byte_positions_nbytes == 0:
+        byte_positions = np.array([], dtype=enc_dtype)
+    else:
+        byte_positions = (
+            buff[offset : offset + byte_positions_nbytes]
+            .view(enc_dtype)
+            .reshape(byte_positions_rows, 3)
+            .copy()
+        )
+        offset += byte_positions_nbytes
 
     # Read data
     data = memoryview(buff[offset:].tobytes())
@@ -177,7 +189,11 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
         flatbuff[offset : offset + arr.nbytes] = arr.view(np.byte).reshape(-1)
         offset += arr.nbytes
 
-    return memoryview(flatbuff.tobytes())
+    ret = memoryview(flatbuff.tobytes())
+    v, ids2 = deserialize_chunkids(ret)
+    assert v == version
+    np.testing.assert_array_equal(ids[0].reshape(-1, 2), ids2)
+    return ret
 
 
 def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:
