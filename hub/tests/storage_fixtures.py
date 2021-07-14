@@ -27,8 +27,8 @@ def s3_storage(s3_path):
 
 
 @pytest.fixture
-def hub_cloud_storage(hub_cloud_path, hub_cloud_token):
-    return S3Provider(hub_cloud_path, token=hub_cloud_token)
+def hub_cloud_storage(hub_cloud_path, hub_cloud_dev_token):
+    return S3Provider(hub_cloud_path, token=hub_cloud_dev_token)
 
 
 @pytest.fixture
