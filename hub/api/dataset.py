@@ -1,6 +1,7 @@
+from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
-from hub.constants import DEFAULT_HTYPE
-from typing import Callable, Dict, Optional, Union, Tuple, List
+from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
+from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
 from hub.api.tensor import Tensor
@@ -8,7 +9,6 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
-from hub.core.typing import StorageProvider
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
@@ -75,9 +75,9 @@ class Dataset:
 
         # done instead of directly assigning read_only as backend might return read_only permissions
         if hasattr(base_storage, "read_only") and base_storage.read_only:
-            self.read_only = True
+            self._read_only = True
         else:
-            self.read_only = False
+            self._read_only = False
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
@@ -143,10 +143,8 @@ class Dataset:
         self,
         name: str,
         htype: str = DEFAULT_HTYPE,
-        chunk_size: int = None,
-        dtype: Union[str, np.dtype, type] = None,
-        sample_compression: str = None,
-        chunk_compression: str = None,
+        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -158,12 +156,8 @@ class Dataset:
                 For example, `htype="image"` would have `dtype` default to `uint8`.
                 These defaults can be overridden by explicitly passing any of the other parameters to this function.
                 May also modify the defaults for other parameters.
-            chunk_size (int): Optionally override this tensor's `chunk_size`. In short, `chunk_size` determines the
-                size of files (chunks) being created to represent this tensor's samples.
-                For more on chunking, check out `hub.core.chunk_engine.chunker`.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
-            sample_compression (str): Optionally override this tensor's `sample_compression`. Only used when the incoming data is uncompressed.
-            chunk_compression (str): Optionally override this tensor's `chunk_compression`. Currently not implemented.
+            sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -175,27 +169,21 @@ class Dataset:
             NotImplementedError: If trying to override `chunk_compression`.
         """
 
-        if chunk_compression is not None:
-            # TODO: implement chunk compression + update docstring
-            raise NotImplementedError("Chunk compression is not implemented yet!")
-
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
+        self.meta.tensors.append(name)
         create_tensor(
             name,
             self.storage,
             htype=htype,
-            chunk_size=chunk_size,
             dtype=dtype,
             sample_compression=sample_compression,
-            chunk_compression=chunk_compression,
             **kwargs,
         )
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
-        self.meta.tensors.append(name)
 
         return tensor
 
@@ -239,25 +227,22 @@ class Dataset:
                 )
 
     @property
-    def mode(self):
-        return self._mode
+    def read_only(self):
+        return self._read_only
 
-    @mode.setter
-    def mode(self, new_mode):
-        if new_mode == "r":
+    @read_only.setter
+    def read_only(self, value: bool):
+        if value:
             self.storage.enable_readonly()
         else:
             self.storage.disable_readonly()
-        self._mode = new_mode
-
-    @property
-    def mode(self):
-        return self._mode
+        self._read_only = value
 
     @hub_reporter.record_call
     def pytorch(
         self,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
         batch_size: Optional[int] = 1,
         drop_last: Optional[bool] = False,
@@ -272,6 +257,7 @@ class Dataset:
 
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample.
+            tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int, optional): Number of samples per batch to load. Default value is 1.
             drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
@@ -290,6 +276,7 @@ class Dataset:
         return dataset_to_pytorch(
             self,
             transform,
+            tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,

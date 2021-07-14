@@ -158,7 +158,7 @@ class HubBackendClient:
         Returns:
             tuple: containing full url to dataset, credentials, mode and expiration time respectively.
         """
-        relative_url = GET_DATASET_CREDENTIALS_SUFFIX % (org_id, ds_name)
+        relative_url = GET_DATASET_CREDENTIALS_SUFFIX.format(org_id, ds_name)
         response = self.request(
             "GET",
             relative_url,

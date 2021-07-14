@@ -1,4 +1,3 @@
-from hub.constants import UNCOMPRESSED
 import numpy as np
 import pytest
 import uuid
@@ -7,9 +6,13 @@ import os
 from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+)
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
+from click.testing import CliRunner
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -184,8 +187,7 @@ def test_empty_samples(ds: Dataset):
     actual_list = tensor.numpy(aslist=True)
     expected_list = [a1, *a2, a3, *a4]
 
-    assert tensor.meta.sample_compression == UNCOMPRESSED
-    assert tensor.meta.chunk_compression == UNCOMPRESSED
+    assert tensor.meta.sample_compression is None
 
     assert len(tensor) == 16
     assert tensor.shape_interval.lower == (16, 0, 0, 2)
@@ -216,28 +218,35 @@ def test_scalar_samples(ds: Dataset):
     tensor.append(-99)
     tensor.append(np.array(4))
 
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.int16(4))
+    tensor.append(np.int16(4))
 
     with pytest.raises(TensorDtypeMismatchError):
         tensor.append(np.float32(4))
 
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.append(np.uint8(3))
+    tensor.append(np.uint8(3))
 
     tensor.extend([10, 1, 4])
     tensor.extend([1])
     tensor.extend(np.array([1, 2, 3], dtype=MAX_INT_DTYPE))
 
-    with pytest.raises(TensorDtypeMismatchError):
-        tensor.extend(np.array([4, 5, 33], dtype="int16"))
+    tensor.extend(np.array([4, 5, 33], dtype="int16"))
 
-    assert len(tensor) == 11
+    assert len(tensor) == 16
 
-    expected = np.array([5, 10, -99, 4, 10, 1, 4, 1, 1, 2, 3])
+    expected = np.array([5, 10, -99, 4, 4, 3, 10, 1, 4, 1, 1, 2, 3, 4, 5, 33])
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
     assert tensor.numpy(aslist=True) == expected.tolist()
+
+    assert tensor.shape == (16,)
+
+    # len(shape) for a scalar is `()`. len(shape) for [1] is `(1,)`
+    with pytest.raises(TensorInvalidSampleShapeError):
+        tensor.append([1])
+
+    # len(shape) for a scalar is `()`. len(shape) for [1, 2] is `(2,)`
+    with pytest.raises(TensorInvalidSampleShapeError):
+        tensor.append([1, 2])
 
 
 @parametrize_all_dataset_storages
@@ -246,6 +255,7 @@ def test_sequence_samples(ds: Dataset):
 
     tensor.append([1, 2, 3])
     tensor.extend([[4, 5, 6]])
+    ds.clear_cache()
 
     assert len(tensor) == 2
 
@@ -373,7 +383,7 @@ def test_shape_property(memory_ds):
 
 
 def test_htype(memory_ds: Dataset):
-    image = memory_ds.create_tensor("image", htype="image")
+    image = memory_ds.create_tensor("image", htype="image", sample_compression="png")
     bbox = memory_ds.create_tensor("bbox", htype="bbox")
     label = memory_ds.create_tensor("label", htype="class_label")
     video = memory_ds.create_tensor("video", htype="video")
@@ -416,16 +426,20 @@ def test_dtype(memory_ds: Dataset):
     np_dtyped_tensor.append(np.ones((10, 10), dtype=MAX_FLOAT_DTYPE))
     py_dtyped_tensor.append(np.ones((10, 10), dtype=MAX_FLOAT_DTYPE))
 
+    # test auto upcasting
+    np_dtyped_tensor.append(np.ones((10, 10), dtype="float32"))
+    py_dtyped_tensor.append(np.ones((10, 10), dtype="float32"))
+
+    with pytest.raises(TensorDtypeMismatchError):
+        tensor.append(np.ones((10, 10), dtype="float64"))
+
+    with pytest.raises(TensorDtypeMismatchError):
+        dtyped_tensor.append(np.ones((10, 10), dtype="uint64") * 256)
+
     assert tensor.dtype == np.float32
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
-
-
-@pytest.mark.xfail(raises=TensorDtypeMismatchError, strict=True)
-def test_dtype_mismatch(memory_ds: Dataset):
-    tensor = memory_ds.create_tensor("tensor", dtype="float16")
-    tensor.append(np.ones(100, dtype="uint8"))
 
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
@@ -437,20 +451,54 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 def test_hub_cloud_dataset():
     username = "testingacc"
     password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    id = str(uuid.uuid1())
+
+    uri = f"hub://{username}/hub2ds2_{id}"
 
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
-    id = str(uuid.uuid1())
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    ds.create_tensor("image")
 
-    for i in range(10):
-        ds.image.append(i * np.ones((100, 100)))
+    with Dataset(uri, token=token) as ds:
+        ds.create_tensor("image")
+        ds.create_tensor("label", htype="class_label")
 
-    token = ds.token
-    del ds
-    ds = Dataset(f"hub://testingacc/hub2ds2_{id}", token=token)
-    for i in range(10):
+        for i in range(1000):
+            ds.image.append(i * np.ones((100, 100)))
+            ds.label.append(np.uint32(i))
+
+    ds = Dataset(uri, token=token)
+    for i in range(1000):
         np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
+        np.testing.assert_array_equal(ds.label[i].numpy(), np.uint32(i))
 
     ds.delete()
+
+
+def test_array_interface(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("tensor")
+    x = np.random.random((32, 32))
+    tensor.append(x)
+    arr1 = np.array(tensor)
+    arr2 = np.array(tensor)
+    np.testing.assert_array_equal(x, arr1[0])
+    np.testing.assert_array_equal(x, arr2[0])
+    assert arr1.__array_interface__["data"][0] == arr1.__array_interface__["data"][0]
+    tensor.append(x)
+    np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
+
+
+@parametrize_all_dataset_storages
+def test_hub_dataset_suffix_bug(ds):
+    # creating dataset with similar name but some suffix removed from end
+    ds2 = Dataset(ds.path[:-1])
+    ds2.delete()
+
+
+def test_empty_dataset():
+    with CliRunner().isolated_filesystem():
+        ds = Dataset("test")
+        ds.create_tensor("x")
+        ds.create_tensor("y")
+        ds.create_tensor("z")
+        ds = Dataset("test")
+        assert list(ds.tensors) == ["x", "y", "z"]
