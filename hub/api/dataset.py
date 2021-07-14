@@ -15,8 +15,10 @@ from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
+    CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
     PathNotEmptyException,
+    ReadOnlyModeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
 )
@@ -73,11 +75,16 @@ class Dataset:
             creds = {}
         base_storage = get_storage_provider(path, storage, read_only, creds, token)
 
-        # done instead of directly assigning read_only as backend might return read_only permissions
-        if hasattr(base_storage, "read_only") and base_storage.read_only:
+        if read_only:
+            # if user passes `read_only`, we should ALWAYS open in read-only mode.
             self._read_only = True
+            base_storage.read_only = True
         else:
-            self._read_only = False
+            # done instead of directly assigning read_only as backend might return read_only permissions
+            if hasattr(base_storage, "read_only") and base_storage.read_only:
+                self._read_only = True
+            else:
+                self._read_only = False
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
@@ -218,7 +225,12 @@ class Dataset:
 
         else:
             self.meta = DatasetMeta()
-            self.storage[meta_key] = self.meta
+
+            try:
+                self.storage[meta_key] = self.meta
+            except ReadOnlyModeError:
+                # if this is thrown, that means the dataset doesn't exist and the user has no write access.
+                raise CouldNotCreateNewDatasetException(self.path)
 
             self.flush()
             if self.path.startswith("hub://"):

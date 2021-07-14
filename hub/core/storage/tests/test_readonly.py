@@ -1,5 +1,5 @@
 import pytest
-from hub.util.exceptions import ReadOnlyModeError
+from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 from hub import Dataset
 from hub.tests.storage_fixtures import enabled_storages
 
@@ -30,10 +30,3 @@ def test_readonly_clear(storage):
 def test_readonly_flush(storage):
     storage.enable_readonly()
     storage.flush()
-
-
-@pytest.mark.xfail(raises=ReadOnlyModeError, strict=True)
-@enabled_storages
-def test_readonly_ds_create_tensor(storage):
-    ds = Dataset(read_only=True, storage=storage)
-    ds.create_tensor("test")

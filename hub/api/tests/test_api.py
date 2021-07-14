@@ -456,10 +456,12 @@ def test_array_interface(memory_ds: Dataset):
     np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
 
 
-@enabled_datasets
-def test_hub_dataset_suffix_bug(ds):
+def test_hub_dataset_suffix_bug(hub_cloud_ds):
     # creating dataset with similar name but some suffix removed from end
-    Dataset(ds.path[:-1])
+    ds = Dataset(hub_cloud_ds.path[:-1])
+
+    # need to delete because it's a different path (won't be auto cleaned up)
+    ds.delete()
 
 
 def test_empty_dataset():

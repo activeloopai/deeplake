@@ -1,7 +1,7 @@
 import sys
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException
+from hub.util.exceptions import InvalidPasswordException, LoginException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -70,6 +70,9 @@ class HubBackendClient:
             headers (dict, optional): Dictionary of HTTP Headers to send with the request.
             timeout (float,optional): How many seconds to wait for the server to send data before giving up.
 
+        Raises:
+            InvalidPasswordException: `password` cannot be `None` inside `json`.
+
         Returns:
             requests.Response: The response received from the server.
         """
@@ -95,6 +98,11 @@ class HubBackendClient:
             files=files,
             timeout=timeout,
         )
+
+        # clearer error than `ServerUnderMaintenence`
+        if "password" in json and json["password"] is None:
+            # do NOT pass in the password here. `None` is explicitly typed.
+            raise InvalidPasswordException("Password cannot be `None`.")
 
         check_response_status(response)
         return response
