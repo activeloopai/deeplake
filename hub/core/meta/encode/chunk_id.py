@@ -6,6 +6,8 @@ from io import BytesIO
 from typing import Optional, Tuple
 import numpy as np
 from uuid import uuid4
+from hub.core.serialize import serialize_chunkids, deserialize_chunkids
+
 
 # these constants are for accessing the data layout. see the `ChunkIdEncoder` docstring.
 CHUNK_ID_INDEX = 0
@@ -71,13 +73,11 @@ class ChunkIdEncoder(Cachable):
         self._encoded_ids = None
 
     def tobytes(self) -> memoryview:
-        bio = BytesIO()
-        np.savez(
-            bio,
-            version=hub.__encoded_version__,
-            ids=self._encoded_ids,
-        )
-        return bio.getbuffer()
+        if self._encoded_ids is None:
+            return serialize_chunkids(
+                hub.__version__, [np.array([], dtype=ENCODING_DTYPE)]
+            )
+        return serialize_chunkids(hub.__version__, [self._encoded_ids])
 
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
@@ -102,9 +102,11 @@ class ChunkIdEncoder(Cachable):
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
-        bio = BytesIO(buffer)
-        npz = np.load(bio)
-        instance._encoded_ids = npz["ids"]
+        if not buffer:
+            return instance
+        version, ids = deserialize_chunkids(buffer)
+        if ids.nbytes:
+            instance._encoded_ids = ids
         return instance
 
     @property
@@ -117,7 +119,7 @@ class ChunkIdEncoder(Cachable):
     def num_samples(self) -> int:
         if self._encoded_ids is None:
             return 0
-        return int(self._encoded_ids[-1, LAST_INDEX_INDEX] + 1)
+        return int(self._encoded_ids[-1, LAST_INDEX_INDEX]) + 1
 
     def generate_chunk_id(self) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
