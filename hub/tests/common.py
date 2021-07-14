@@ -3,7 +3,7 @@ from io import BytesIO
 import os
 import pathlib
 from typing import List, Optional
-from uuid import uuid1
+from uuid import uuid4
 
 import numpy as np
 import posixpath
@@ -11,7 +11,7 @@ import pytest
 
 from hub.constants import KB, MB
 
-SESSION_ID = str(uuid1())
+SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 TENSOR_KEY = "tensor"
