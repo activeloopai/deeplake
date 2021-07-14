@@ -25,8 +25,6 @@ def infer_chunk_num_bytes(
     """
     # NOTE: Assumption: version string contains ascii characters only (ord(c) < 128)
     # NOTE: Assumption: len(version) < 256
-    assert len(version) < 256
-    assert max((map(ord, version))) < 128
     if len_data is None:
         len_data = sum(map(len, data))  # type: ignore
     return len(version) + shape_info.nbytes + byte_positions.nbytes + len_data + 13
@@ -62,11 +60,9 @@ def serialize_chunk(
 
     # Write shape info
     if shape_info.ndim == 1:
-        assert shape_info.nbytes == 0
         flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte)
         offset += 8
     else:
-        assert shape_info.ndim == 2
         flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
             np.byte
         )
@@ -78,7 +74,6 @@ def serialize_chunk(
 
     # Write byte positions
     if byte_positions.ndim == 1:
-        assert byte_positions.nbytes == 0
         flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte)
         offset += 4
     else:
