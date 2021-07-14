@@ -1,7 +1,7 @@
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
+from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
-from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
 
 from hub.api.tensor import Tensor
@@ -242,6 +242,7 @@ class Dataset:
     def pytorch(
         self,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
         batch_size: Optional[int] = 1,
         drop_last: Optional[bool] = False,
@@ -256,6 +257,7 @@ class Dataset:
 
         Args:
             transform (Callable, optional) : Transformation function to be applied to each sample.
+            tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
             num_workers (int): The number of workers to use for fetching data in parallel.
             batch_size (int, optional): Number of samples per batch to load. Default value is 1.
             drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
@@ -274,6 +276,7 @@ class Dataset:
         return dataset_to_pytorch(
             self,
             transform,
+            tensors,
             num_workers=num_workers,
             batch_size=batch_size,
             drop_last=drop_last,
