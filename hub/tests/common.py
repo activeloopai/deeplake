@@ -2,7 +2,7 @@ from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import os
 import pathlib
-from typing import List
+from typing import List, Optional
 from uuid import uuid1
 
 import numpy as np
@@ -53,7 +53,7 @@ def get_dummy_data_path(subpath: str = ""):
     return os.path.join(_THIS_FILE, "dummy_data" + os.sep, subpath)
 
 
-def get_actual_compression_from_buffer(buffer: memoryview) -> str:
+def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
 
     try:
