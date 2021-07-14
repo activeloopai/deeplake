@@ -87,7 +87,7 @@ def test_memory_storage(memory_storage: StorageProvider):
 Caches
 ```python
 @enabled_cache_chains
-def test_cache(cache: StorageProvider):  # note: caches are provided as `StorageProvider`s
+def test_cache(cache_chain: StorageProvider):  # note: caches are provided as `StorageProvider`s
   # this test runs for every cache chain that contains all enabled storage providers.
   # if only memory is enabled (no providers are explicitly enabled), this test will be skipped.
   pass

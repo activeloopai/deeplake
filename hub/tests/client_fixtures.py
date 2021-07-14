@@ -8,7 +8,6 @@ import hub
 
 @pytest.fixture(scope="session")
 def hub_cloud_dev_credentials(request):
-    # TODO: skipif
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
 

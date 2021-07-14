@@ -125,9 +125,6 @@ def s3_path(request):
 
 @pytest.fixture
 def hub_cloud_path(request, hub_cloud_dev_token):
-    # TODO: can probably generalize these fixtures
-
-    # TODO: skipif
     if not is_opt_true(request, HUB_CLOUD_OPT):
         pytest.skip()
         return

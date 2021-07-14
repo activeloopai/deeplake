@@ -4,7 +4,7 @@ from hub import Dataset
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "hub_cloud_ds"],  # TODO: add hub cloud
+    ["memory_ds", "local_ds", "s3_ds", "hub_cloud_ds"],
     indirect=True,
 )
 
