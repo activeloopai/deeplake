@@ -127,7 +127,9 @@ class ImageClassification(UnstructuredDataset):
                     else:
                         reason = "Unknown"
 
-                    warnings.warn(f"[Skipping] Could not upload sample '{file_path}'. Reason: {reason}")
+                    warnings.warn(
+                        f"[Skipping] Could not upload sample '{file_path}'. Reason: {reason}"
+                    )
                     continue
 
                 ds[labels_tensor_map[set_name]].append(label)

@@ -3,6 +3,20 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
+class ExternalCommandError(Exception):
+    def __init__(self, command: str, status: int):
+        super().__init__(
+            f'Status for command "{command}" was "{status}", expected to be "0".'
+        )
+
+class KaggleMissingCredentialsError(KaggleError):
+    def __init__(self, env_var_name: str):
+        super().__init__(
+            "Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api"
+            % env_var_name
+        )
+
+
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__(f"{message} Incoming sample shape: {str(shape)}")
