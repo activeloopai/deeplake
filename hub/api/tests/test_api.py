@@ -459,7 +459,7 @@ def test_array_interface(memory_ds: Dataset):
 @enabled_datasets
 def test_hub_dataset_suffix_bug(ds):
     # creating dataset with similar name but some suffix removed from end
-    ds2 = Dataset(ds.path[:-1])
+    Dataset(ds.path[:-1])
 
 
 def test_empty_dataset():
