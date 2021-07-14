@@ -15,6 +15,8 @@ GET_DATASET_CREDENTIALS_SUFFIX = "/api/org/%s/ds/%s/creds"
 CREATE_DATASET_SUFFIX = "/api/dataset/create"
 DATASET_SUFFIX = "/api/dataset"
 UPDATE_SUFFIX = "/api/org/{}/dataset/{}"
+LIST_DATASETS = "/api/datasets/{}"
+GET_USER_PROFILE = "/api/user/profile"
 
 DEFAULT_REQUEST_TIMEOUT = 170
 

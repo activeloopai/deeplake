@@ -1,7 +1,6 @@
-import sys
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException
+from hub.util.exceptions import LoginException, ListDatasetsAuthorizationError
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -14,6 +13,8 @@ from hub.client.config import (
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
     UPDATE_SUFFIX,
+    LIST_DATASETS,
+    GET_USER_PROFILE,
 )
 from hub.client.log import logger
 import hub
@@ -203,3 +204,46 @@ class HubBackendClient:
             suffix,
             endpoint=self.endpoint(),
         ).json()
+
+    def get_user_profile(self):
+        response = self.request(
+            "GET", GET_USER_PROFILE, endpoint=self.endpoint()
+        ).json()
+        return response["_id"], response["organizations"]
+
+    def get_public_datasets(self, workspace: str):
+        suffix = LIST_DATASETS.format("public")
+        if workspace:
+            response = self.request(
+                "GET",
+                suffix,
+                endpoint=self.endpoint(),
+                params={"organization": workspace},
+            ).json()
+        else:
+            response = self.request("GET", suffix, endpoint=self.endpoint()).json()
+        return [ds_dict["_id"] for ds_dict in response]
+
+    def get_user_datasets(self, workspace: str = ""):
+        suffix = LIST_DATASETS.format("all")
+        username, organizations = self.get_user_profile()
+        if username == "public":
+            raise ListDatasetsAuthorizationError(
+                "You are not logged in to your Activeloop account. Please log in to see your datasets."
+                "To see public datasets run 'activeloop get-public-datasets'."
+            )
+        if workspace:
+            if workspace in organizations:
+                response = self.request(
+                    "GET",
+                    suffix,
+                    endpoint=self.endpoint(),
+                    params={"organization": workspace},
+                ).json()
+            else:
+                raise ListDatasetsAuthorizationError(
+                    f"You are not a member of organization {workspace}."
+                )
+        else:
+            response = self.request("GET", suffix, endpoint=self.endpoint()).json()
+        return [ds_dict["_id"] for ds_dict in response]
