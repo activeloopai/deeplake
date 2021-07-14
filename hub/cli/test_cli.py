@@ -45,5 +45,5 @@ def test_get_datasets():
 
     res = runner.invoke(list_public_datasets, "--workspace activeloop")
     assert res.exit_code == 0
-    assert "testingacc/test_list" in res.output
+    assert "testingacc/test_list" not in res.output
     ds.delete()
