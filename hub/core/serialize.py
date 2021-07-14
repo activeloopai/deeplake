@@ -96,13 +96,7 @@ def serialize_chunk(
         n = len(byts)
         flatbuff[offset : offset + n] = np.frombuffer(byts, dtype=np.byte)
         offset += n
-    ret = flatbuff.tobytes()
-    v, s, b, d = deserialize_chunk(ret)
-    assert v == version
-    np.testing.assert_array_equal(s, shape_info)
-    np.testing.assert_array_equal(b, byte_positions)
-    assert bytes(d) == bytes(data[0])
-    return bytes(ret)
+    return memoryview(flatbuff.tobytes())
 
 
 def deserialize_chunk(
@@ -189,11 +183,7 @@ def serialize_chunkids(version: str, ids: Sequence[np.ndarray]) -> memoryview:
         flatbuff[offset : offset + arr.nbytes] = arr.view(np.byte).reshape(-1)
         offset += arr.nbytes
 
-    ret = memoryview(flatbuff.tobytes())
-    v, ids2 = deserialize_chunkids(ret)
-    assert v == version
-    np.testing.assert_array_equal(ids[0].reshape(-1, 2), ids2)
-    return ret
+    return memoryview(flatbuff.tobytes())
 
 
 def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarray]:

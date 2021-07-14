@@ -114,10 +114,8 @@ class ChunkEngine:
         # only the last chunk may be less than this
         self.min_chunk_size = self.max_chunk_size // 2
 
-        self.get_chunk_id_encoder()
-        self.get_last_chunk()
-
-    def get_chunk_id_encoder(self) -> ChunkIdEncoder:
+    @property
+    def chunk_id_encoder(self) -> ChunkIdEncoder:
         """Gets the chunk id encoder from cache, if one is not found it creates a blank encoder.
         For more information on what `ChunkIdEncoder` is used for, see the `__init__` docstring.
 
@@ -130,40 +128,49 @@ class ChunkEngine:
         """
 
         key = get_chunk_id_encoder_key(self.key)
-        if key in self.cache:
-            self.chunk_id_encoder = self.cache.get_cachable(key, ChunkIdEncoder)
+        if not self.chunk_id_encoder_exists:
 
-        else:
             # 1 because we always update the meta information before writing the samples (to account for potentially corrupted data in the future)
             if self.tensor_meta.length > 1:
                 raise CorruptedMetaError(
                     f"Tensor length is {self.tensor_meta.length}, but could not find the chunk id encoder."
                 )
 
-            self.chunk_id_encoder = ChunkIdEncoder()
-            self.cache[key] = self.chunk_id_encoder
+            enc = ChunkIdEncoder()
+            self.cache[key] = enc
+            return enc
 
-        return self.chunk_id_encoder
+        enc = self.cache.get_cachable(key, ChunkIdEncoder)
+        return enc
+
+    @property
+    def chunk_id_encoder_exists(self) -> bool:
+        return get_chunk_id_encoder_key(self.key) in self.cache
 
     @property
     def num_chunks(self) -> int:
+        if not self.chunk_id_encoder_exists:
+            return 0
         return self.chunk_id_encoder.num_chunks
 
     @property
     def num_samples(self) -> int:
+        if not self.chunk_id_encoder_exists:
+            return 0
         return self.chunk_id_encoder.num_samples
 
-    def get_last_chunk(self) -> Optional[Chunk]:
+    @property
+    def last_chunk(self) -> Optional[Chunk]:
         if self.num_chunks == 0:
-            self._last_chunk = None
-        else:
-            last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
-            last_chunk_key = get_chunk_key(self.key, last_chunk_name)
+            return None
 
-            self._last_chunk = self.cache.get_cachable(last_chunk_key, Chunk)
-            self._last_chunk.key = last_chunk_key
+        return self.cache.get_cachable(self.last_chunk_key, Chunk)
 
-        return self._last_chunk
+    @property
+    def last_chunk_key(self) -> str:
+        last_chunk_name = self.chunk_id_encoder.get_name_for_chunk(-1)
+        last_chunk_key = get_chunk_key(self.key, last_chunk_name)
+        return last_chunk_key
 
     @property
     def tensor_meta(self):
@@ -196,9 +203,9 @@ class ChunkEngine:
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
 
-        last_chunk = self._last_chunk
-        key = last_chunk.key  # type: ignore
-        self.cache.update_used_cache_for_path(key, len(last_chunk))  # type: ignore
+        # TODO implement tests for cache size compute
+        if self.last_chunk is not None:
+            self.cache[self.last_chunk_key] = self.last_chunk
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -214,7 +221,7 @@ class ChunkEngine:
             bool: True if `buffer` was successfully written to the last chunk, otherwise False.
         """
 
-        last_chunk = self._last_chunk
+        last_chunk = self.last_chunk
         if last_chunk is None:
             return False
 
@@ -259,9 +266,8 @@ class ChunkEngine:
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-        chunk.key = get_chunk_key(self.key, chunk_name)
-        self.cache[chunk.key] = chunk
-        self._last_chunk = chunk
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        self.cache[chunk_key] = chunk
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -303,10 +309,10 @@ class ChunkEngine:
         else:
             raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
 
+        self.cache.maybe_flush()
+
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-
-        self.get_last_chunk()
 
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
@@ -368,11 +374,12 @@ class ChunkEngine:
 
         enc = self.chunk_id_encoder
 
+        buffer = chunk.memoryview_data
         local_sample_index = enc.get_local_sample_index(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
-        buffer = chunk.memoryview_data[sb:eb]
+        buffer = buffer[sb:eb]
         if expect_compressed:
             sample = decompress_array(buffer, shape)
         else:
