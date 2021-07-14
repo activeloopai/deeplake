@@ -52,9 +52,9 @@ def hub_cloud_ds(hub_cloud_ds_generator):
 
 
 @pytest.fixture
-def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
+def hub_cloud_ds_generator(hub_cloud_storage):
     def generate_hub_cloud_ds():
-        return Dataset(hub_cloud_path, token=hub_cloud_dev_token)
+        return Dataset(storage=hub_cloud_storage)
 
     return generate_hub_cloud_ds
 
