@@ -70,6 +70,9 @@ class HubBackendClient:
             headers (dict, optional): Dictionary of HTTP Headers to send with the request.
             timeout (float,optional): How many seconds to wait for the server to send data before giving up.
 
+        Raises:
+            InvalidPasswordException: `password` cannot be `None` inside `json`.
+
         Returns:
             requests.Response: The response received from the server.
         """
