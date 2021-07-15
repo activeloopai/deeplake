@@ -432,6 +432,7 @@ class WindowsSharedMemoryError(Exception):
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
         )
 
+
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(

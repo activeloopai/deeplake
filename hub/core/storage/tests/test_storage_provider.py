@@ -130,7 +130,7 @@ def test_pickling(storage):
     if isinstance(storage, MemoryProvider):
         # skip pickling test for memory provider as the actual data isn't pickled for it
         return
-    
+
     FILE_1 = f"{KEY}_1"
     storage[FILE_1] = b"hello world"
     assert storage[FILE_1] == b"hello world"
