@@ -424,3 +424,10 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
+
+
+class WindowsSharedMemoryError(Exception):
+    def __init__(self):
+        super().__init__(
+            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )

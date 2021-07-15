@@ -37,6 +37,15 @@ class LRUCache(StorageProvider):
         self.dirty_keys: Set[str] = set()  # keys present in cache but not next_storage
         self.cache_used = 0
 
+    def update_used_cache_for_path(self, path: str, new_size: int):
+        if new_size < 0:
+            raise ValueError(f"`new_size` must be >= 0. Got: {new_size}")
+        if path in self.lru_sizes:
+            old_size = self.lru_sizes[path]
+            self.cache_used -= old_size
+        self.cache_used += new_size
+        self.lru_sizes[path] = new_size
+
     def flush(self):
         """Writes data from cache_storage to next_storage. Only the dirty keys are written.
         This is a cascading function and leads to data being written to the final storage in case of a chained cache.
@@ -192,24 +201,24 @@ class LRUCache(StorageProvider):
         """
         yield from self._list_keys()
 
-    def _forward(self, path, remove=False):
+    def _forward(self, path, remove_from_dirty=False):
         """Forward the value at a given path to the next storage, and un-marks its key.
-        If the value at the path is Cachable, it will only be un-dirtied if remove=True.
+        If the value at the path is Cachable, it will only be un-dirtied if remove_from_dirty=True.
         """
-        self._forward_value(path, self.cache_storage[path], remove)
+        self._forward_value(path, self.cache_storage[path], remove_from_dirty)
 
-    def _forward_value(self, path, value, remove=False):
+    def _forward_value(self, path, value, remove_from_dirty=False):
         """Forwards a path-value pair to the next storage, and un-marks its key.
 
         Args:
             path (str): the path to the object relative to the root of the provider.
             value (bytes, Cachable): the value to send to the next storage.
-            remove (bool, optional): cachable values are not un-marked automatically,
+            remove_from_dirty (bool, optional): cachable values are not un-marked automatically,
                 as they are externally mutable. Set this to True to un-mark them anyway.
         """
         cachable = isinstance(value, Cachable)
 
-        if not cachable or remove:
+        if not cachable or remove_from_dirty:
             self.dirty_keys.discard(path)
 
         if cachable:
@@ -231,7 +240,7 @@ class LRUCache(StorageProvider):
         """Helper function that pops the least recently used key, value pair from the cache"""
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys:
-            self._forward(key, remove=True)
+            self._forward(key, remove_from_dirty=True)
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
@@ -248,8 +257,8 @@ class LRUCache(StorageProvider):
 
         self._free_up_space(len(value))
         self.cache_storage[path] = value  # type: ignore
-        self.cache_used += len(value)
-        self.lru_sizes[path] = len(value)
+
+        self.update_used_cache_for_path(path, len(value))
 
     def _list_keys(self):
         """Helper function that lists all the objects present in the cache and the underlying storage.
