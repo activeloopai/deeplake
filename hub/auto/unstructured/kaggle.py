@@ -11,7 +11,7 @@ import os
 
 kaggle_credentials = {
     "username": "thisiseshan",
-    "key": "c5a2a9fe75044da342e95a341f882f31",
+    "key": "lol",
 }
 
 
