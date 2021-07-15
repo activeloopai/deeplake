@@ -96,3 +96,14 @@ class MemoryProvider(StorageProvider):
         """Clears the provider."""
         self.check_readonly()
         self.dict = {}
+
+    def __getstate__(self):
+        """Returns the state of the provider."""
+        # d = self.__dict__
+        # return self.__dict__
+        return self.root
+
+    def __setstate__(self, state):
+        """Sets the state of the provider."""
+        self.__init__(root=state)
+        

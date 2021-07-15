@@ -264,8 +264,10 @@ class LRUCache(StorageProvider):
 
     def __getstate__(self):
         """Returns the state of the cache, for pickling"""
+
         # flushes the cache before pickling
-        self.flush()
+        if not hasattr(self, "read_only") or not self.read_only:
+            self.flush()
         return {
             "next_storage": self.next_storage,
             "cache_storage": self.cache_storage,
