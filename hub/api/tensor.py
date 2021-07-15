@@ -1,4 +1,4 @@
-from hub.util.keys import tensor_exists
+from hub.util.keys import get_chunk_id_encoder_key, get_tensor_meta_key, tensor_exists
 from hub.core.sample import Sample  # type: ignore
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
@@ -7,7 +7,10 @@ import numpy as np
 
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.core.storage import LRUCache
-from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
+from hub.util.exceptions import (
+    TensorDoesNotExistError,
+    InvalidKeyTypeError,
+)
 from hub.core.index import Index
 
 
@@ -177,6 +180,9 @@ class Tensor:
         Returns:
             int: The current length of this tensor.
         """
+
+        # catch corrupted datasets / user tampering ASAP
+        self.chunk_engine.validate_num_samples_is_synchronized()
 
         return self.index.length(self.meta.length)
 

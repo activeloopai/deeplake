@@ -438,6 +438,26 @@ class ChunkEngine:
             sample_index += 1
         return chunk_names
 
+    def validate_num_samples_is_synchronized(self):
+        """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
+        Helpful for determining if a user has tampered with the tensor meta or the chunk ID encoder, or if
+        the tensor was corruptd.
+
+        Raises:
+            CorruptedMetaError: tensor_meta and chunk_id_encoder must have the same num samples.
+        """
+
+        tensor_meta_length = self.tensor_meta.length
+
+        # compare chunk ID encoder and tensor meta
+        chunk_id_num_samples = self.chunk_id_encoder.num_samples
+        if tensor_meta_length != chunk_id_num_samples:
+            tkey = get_tensor_meta_key(self.key)
+            ikey = get_chunk_id_encoder_key(self.key)
+            raise CorruptedMetaError(
+                f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
+            )
+
 
 def _format_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
