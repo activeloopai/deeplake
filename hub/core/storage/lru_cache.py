@@ -261,3 +261,29 @@ class LRUCache(StorageProvider):
         for key in self.cache_storage:
             all_keys.add(key)
         return list(all_keys)
+
+    def __getstate__(self):
+        """Returns the state of the cache, for pickling"""
+        # flushes the cache before pickling
+        self.flush()
+        return {
+            "next_storage": self.next_storage,
+            "cache_storage": self.cache_storage,
+            "cache_size": self.cache_size,
+        }
+
+    def __setstate__(self, state):
+        """Recreates a cache with the same configuration as the state.
+
+        PS: While restoring the cache, we reset its contents.
+        In case the cache storage was local/s3 and is still accessible when unpickled (if same machine/s3 creds present respectively), the earlier cache contents are no longer accessible.
+
+        TODO: We might want to change this behaviour in the future by having a separate file that keeps a track of the lru order for restoring the cache.
+        This would also allow the cache to persist across different different Dataset objects pointing to the same dataset.
+        """
+        self.next_storage = state["next_storage"]
+        self.cache_storage = state["cache_storage"]
+        self.cache_size = state["cache_size"]
+        self.lru_sizes = OrderedDict()
+        self.dirty_keys = set()
+        self.cache_used = 0

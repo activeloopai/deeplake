@@ -86,19 +86,19 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        self.storage.autoflush = True
         self.index = index or Index()
-
         self.tensors: Dict[str, Tensor] = {}
-
         self._token = token
+        self.public = public
+        self._init_helper()
 
+    def _init_helper(self):
+        self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
-            self.client = HubBackendClient(token=token)
+            self.client = HubBackendClient(token=self._token)
 
-        self.public = public
         self._load_meta()
 
         hub_reporter.feature_report(
@@ -117,6 +117,27 @@ class Dataset:
         """Return the smallest length of tensors"""
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
+
+    def __getstate__(self):
+        """Returns a dict that can be pickled and used to restore this dataset.
+
+        PS: Pickling a dataset does not copy the dataset, it only saves attributes that can be used to restore the dataset.
+            If you pickle a local dataset and try to access it on a machine that does not have the data present, the dataset will not work.
+        """
+        return {
+            "path": self.path,
+            "_read_only": self.read_only,
+            "index": self.index,
+            "public": self.public,
+            "storage": self.storage,
+            "_token": self.token,
+        }
+
+    def __setstate__(self, state):
+        """Restores dataset from a pickled state."""
+        self.__dict__.update(state)
+        self.tensors = {}
+        self._init_helper()
 
     def __getitem__(
         self,

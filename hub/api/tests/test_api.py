@@ -13,6 +13,7 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 from hub.client.utils import has_hub_testing_creds
 from click.testing import CliRunner
+import pickle
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -487,3 +488,36 @@ def test_empty_dataset():
         ds.create_tensor("z")
         ds = Dataset("test")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+@parametrize_all_dataset_storages
+def test_dataset_pickling(ds):
+    ds.create_tensor("image", htype="image", sample_compression="jpeg")
+    ds.create_tensor("label")
+    for i in range(10):
+        ds.image.append(i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8))
+
+    for i in range(5):
+        ds.label.append(i)
+
+    pickled_ds = pickle.dumps(ds)
+    unpickled_ds = pickle.loads(pickled_ds)
+    assert len(unpickled_ds.image) == len(ds.image)
+    assert len(unpickled_ds.label) == len(ds.label)
+    assert unpickled_ds.tensors.keys() == ds.tensors.keys()
+    assert unpickled_ds.index.values[0].value == ds.index.values[0].value
+    assert unpickled_ds.meta.version == ds.meta.version
+
+    for i in range(10):
+        np.testing.assert_array_equal(
+            ds.image[i].numpy(),
+            (i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8)),
+        )
+        np.testing.assert_array_equal(
+            ds.image[i].numpy(), unpickled_ds.image[i].numpy()
+        )
+    for i in range(5):
+        np.testing.assert_array_equal(ds.label[i].numpy(), i)
+        np.testing.assert_array_equal(
+            ds.label[i].numpy(), unpickled_ds.label[i].numpy()
+        )
