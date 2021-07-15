@@ -1,5 +1,9 @@
 from hub.auto.unstructured.image_classification import ImageClassification
-from hub.util.exceptions import ExternalCommandError, KaggleMissingCredentialsError
+from hub.util.exceptions import (
+    ExternalCommandError,
+    KaggleMissingCredentialsError,
+    KaggleDatasetAlreadyDownloadedError,
+)
 import hub
 
 import glob
@@ -10,18 +14,6 @@ kaggle_credentials = {
     "key": "c5a2a9fe75044da342e95a341f882f31",
 }
 
-
-class KaggleError(Exception):
-    message: str = ""
-
-
-class KaggleDatasetAlreadyDownloadedError(KaggleError):
-    def __init__(self, tag: str, path: str):
-        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
-        super().__init__(self.message)
-
-
-# kaggle.py
 
 _KAGGLE_USERNAME = "KAGGLE_USERNAME"
 _KAGGLE_KEY = "KAGGLE_KEY"
