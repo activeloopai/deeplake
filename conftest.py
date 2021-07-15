@@ -41,7 +41,7 @@ def pytest_addoption(parser):
         KEEP_STORAGE_OPT,
         action="store_true",
         help="All storage providers/datasets will have their pytest data wiped. \
-                Use this option to keep the data after the test run.",
+                Use this option to keep the data after the test run. Note: does not keep memory tests storage.",
     )
 
 

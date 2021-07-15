@@ -40,7 +40,7 @@ Combine any of the following options to suit your test cases.
 - `--hub-cloud`: Enable hub cloud tests.
 - `--memory-skip`: Disable memory tests.
 - `--s3-path`: Specify an s3 path if you don't have access to our internal testing bucket.
-- `--keep-storage`: By default all storages are cleaned up after tests run. Enable this option if you need to check the storage contents.
+- `--keep-storage`: By default all storages are cleaned up after tests run. Enable this option if you need to check the storage contents. Note: `--keep-storage` does not keep memory tests storage.
 
 
 ### Extra Resources

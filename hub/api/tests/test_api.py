@@ -445,13 +445,12 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
 
 def test_array_interface(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
-    x = np.random.random((32, 32))
+    x = np.arange(10).reshape(5, 2)
     tensor.append(x)
     arr1 = np.array(tensor)
     arr2 = np.array(tensor)
     np.testing.assert_array_equal(x, arr1[0])
     np.testing.assert_array_equal(x, arr2[0])
-    assert arr1.__array_interface__["data"][0] == arr1.__array_interface__["data"][0]
     tensor.append(x)
     np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
 
