@@ -509,7 +509,7 @@ def test_like(local_ds):
     local_ds.create_tensor("label", htype="class_label", dtype="uint8")
 
     new_ds_1 = Dataset(local_ds.path + "_test", like=local_ds)
-    new_ds_2 = Dataset(local_ds.path + "_test", like=local_ds.path)
+    new_ds_2 = Dataset(local_ds.path + "_test_1", like=local_ds.path)
     assert local_ds.meta.as_dict() == new_ds_2.meta.as_dict()
     assert new_ds_1.tensors.keys() == local_ds.tensors.keys()
     assert new_ds_2["image"].meta.htype == local_ds["image"].meta.htype
