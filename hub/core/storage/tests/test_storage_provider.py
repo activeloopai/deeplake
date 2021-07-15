@@ -1,3 +1,4 @@
+from hub.core.storage.memory import MemoryProvider
 import pytest
 
 from click.testing import CliRunner
@@ -126,12 +127,13 @@ def test_cache(storage):
 
 @parametrize_all_storages
 def test_pickling(storage):
-    with CliRunner().isolated_filesystem():
-        FILE_1 = f"{KEY}_1"
-        storage[FILE_1] = b"hello world"
-        assert storage[FILE_1] == b"hello world"
-        pickle_file = open("storage_pickle", "wb")
-        pickle.dump(storage, pickle_file)
-        pickle_file = open("storage_pickle", "rb")
-        unpickled_storage = pickle.load(pickle_file)
-        assert unpickled_storage[FILE_1] == b"hello world"
+    if isinstance(storage, MemoryProvider):
+        # skip pickling test for memory provider as the actual data isn't pickled for it
+        return
+    
+    FILE_1 = f"{KEY}_1"
+    storage[FILE_1] = b"hello world"
+    assert storage[FILE_1] == b"hello world"
+    pickled_storage = pickle.dumps(storage)
+    unpickled_storage = pickle.loads(pickled_storage)
+    assert unpickled_storage[FILE_1] == b"hello world"
