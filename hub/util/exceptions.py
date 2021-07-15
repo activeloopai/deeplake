@@ -9,12 +9,23 @@ class ExternalCommandError(Exception):
             f'Status for command "{command}" was "{status}", expected to be "0".'
         )
 
+
+class KaggleError(Exception):
+    message: str = ""
+
+
 class KaggleMissingCredentialsError(KaggleError):
     def __init__(self, env_var_name: str):
         super().__init__(
             "Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api"
             % env_var_name
         )
+
+
+class KaggleDatasetAlreadyDownloadedError(KaggleError):
+    def __init__(self, tag: str, path: str):
+        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
+        super().__init__(self.message)
 
 
 class TensorInvalidSampleShapeError(Exception):
