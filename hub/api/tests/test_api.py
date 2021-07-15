@@ -1,5 +1,3 @@
-from threading import local
-from PIL.Image import new
 import numpy as np
 import pytest
 import uuid
