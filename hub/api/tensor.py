@@ -178,7 +178,7 @@ class Tensor:
             int: The current length of this tensor.
         """
 
-        return self.index.length(self.chunk_engine.num_samples)
+        return self.index.length(self.meta.length)
 
     def __getitem__(
         self,
