@@ -75,16 +75,11 @@ class Dataset:
             creds = {}
         base_storage = get_storage_provider(path, storage, read_only, creds, token)
 
-        if read_only:
-            # if user passes `read_only`, we should ALWAYS open in read-only mode.
+        # done instead of directly assigning read_only as backend might return read_only permissions
+        if hasattr(base_storage, "read_only") and base_storage.read_only:
             self._read_only = True
-            base_storage.read_only = True
         else:
-            # done instead of directly assigning read_only as backend might return read_only permissions
-            if hasattr(base_storage, "read_only") and base_storage.read_only:
-                self._read_only = True
-            else:
-                self._read_only = False
+            self._read_only = False
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
