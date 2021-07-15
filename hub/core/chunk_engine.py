@@ -205,10 +205,10 @@ class ChunkEngine:
         self._synchronize_cache()
 
     def _synchronize_cache(self):
-        # TODO: docstring
-        # TODO implement tests for cache size compute
+        """Synchronizes cachables with the cache. Includes: the last chunk, tensor meta, and chunk IDs encoder."""
 
-        # TODO: optimize this by storing all of these keys in the chunk engine's state
+        # TODO implement tests for cache size compute
+        # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
 
         # synchronize last chunk
         last_chunk_key = self.last_chunk_key
