@@ -48,12 +48,6 @@ def remove_token():
         os.remove(TOKEN_FILE_PATH)
 
 
-def has_hub_testing_creds():
-    """Checks if credentials exists"""
-    env = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    return env is not None
-
-
 def check_response_status(response: requests.Response):
     """Check response status and throw corresponding exception on failure."""
     code = response.status_code

@@ -4,15 +4,13 @@ import uuid
 import hub
 import os
 from hub.api.dataset import Dataset
-from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import (
-    TensorDtypeMismatchError,
-    TensorInvalidSampleShapeError,
-)
-from hub.client.client import HubBackendClient
-from hub.client.utils import has_hub_testing_creds
+from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from click.testing import CliRunner
+from hub.tests.dataset_fixtures import (
+    enabled_datasets,
+    enabled_persistent_dataset_generators,
+)
 
 
 # need this for 32-bit and 64-bit systems to have correct tests
@@ -20,12 +18,14 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-def test_persist_local(local_storage):
-    ds = Dataset(local_storage.root, local_cache_size=512)
+@enabled_persistent_dataset_generators
+def test_persist(ds_generator):
+    ds = ds_generator()
+
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
 
-    ds_new = Dataset(local_storage.root)
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
@@ -33,18 +33,17 @@ def test_persist_local(local_storage):
 
     assert ds_new.meta.version == hub.__version__
 
-    ds.delete()
 
-
-def test_persist_with_local(local_storage):
-    with Dataset(local_storage.root, local_cache_size=512) as ds:
+@enabled_persistent_dataset_generators
+def test_persist_with(ds_generator):
+    with ds_generator() as ds:
         ds.create_tensor("image")
         ds.image.extend(np.ones((4, 224, 224, 3)))
 
-        ds_new = Dataset(local_storage.root)
+        ds_new = ds_generator()
         assert len(ds_new) == 0  # shouldn't be flushed yet
 
-    ds_new = Dataset(local_storage.root)
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     engine = ds_new.image.chunk_engine
@@ -57,24 +56,22 @@ def test_persist_with_local(local_storage):
 
     assert ds_new.meta.version == hub.__version__
 
-    ds.delete()
 
-
-def test_persist_local_clear_cache(local_storage):
-    ds = Dataset(local_storage.root, local_cache_size=512)
+@enabled_persistent_dataset_generators
+def test_persist_clear_cache(ds_generator):
+    ds = ds_generator()
     ds.create_tensor("image")
     ds.image.extend(np.ones((4, 224, 224, 3)))
     ds.clear_cache()
-    ds_new = Dataset(local_storage.root)
+    ds_new = ds_generator()
     assert len(ds_new) == 4
 
     assert ds_new.image.shape == (4, 224, 224, 3)
 
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
-    ds.delete()
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_populate_dataset(ds):
     assert ds.meta.tensors == []
     ds.create_tensor("image")
@@ -99,13 +96,12 @@ def test_populate_dataset(ds):
 
 
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
-def test_larger_data_memory(memory_storage):
-    ds = Dataset(memory_storage.root)
-    ds.create_tensor("image")
-    ds.image.extend(np.ones((4, 4096, 4096)))
-    assert len(ds) == 4
-    assert ds.image.shape == (4, 4096, 4096)
-    np.testing.assert_array_equal(ds.image.numpy(), np.ones((4, 4096, 4096)))
+def test_larger_data_memory(memory_ds):
+    memory_ds.create_tensor("image")
+    memory_ds.image.extend(np.ones((4, 4096, 4096)))
+    assert len(memory_ds) == 4
+    assert memory_ds.image.shape == (4, 4096, 4096)
+    np.testing.assert_array_equal(memory_ds.image.numpy(), np.ones((4, 4096, 4096)))
 
 
 def test_stringify(memory_ds):
@@ -130,7 +126,7 @@ def test_stringify_with_path(local_ds):
     assert str(ds) == f"Dataset(path='{local_ds.path}', tensors=[])"
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_compute_fixed_tensor(ds):
     ds.create_tensor("image")
     ds.image.extend(np.ones((32, 28, 28)))
@@ -138,7 +134,7 @@ def test_compute_fixed_tensor(ds):
     np.testing.assert_array_equal(ds.image.numpy(), np.ones((32, 28, 28)))
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_compute_dynamic_tensor(ds):
     ds.create_tensor("image")
 
@@ -170,7 +166,7 @@ def test_compute_dynamic_tensor(ds):
     assert image.is_dynamic
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_empty_samples(ds: Dataset):
     tensor = ds.create_tensor("with_empty")
 
@@ -201,7 +197,7 @@ def test_empty_samples(ds: Dataset):
         np.testing.assert_array_equal(actual, expected)
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
@@ -249,7 +245,7 @@ def test_scalar_samples(ds: Dataset):
         tensor.append([1, 2])
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_sequence_samples(ds: Dataset):
     tensor = ds.create_tensor("arrays")
 
@@ -266,7 +262,7 @@ def test_sequence_samples(ds: Dataset):
     assert_array_lists_equal(tensor.numpy(aslist=True), expected)
 
 
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_iterate_dataset(ds):
     labels = [1, 9, 7, 4]
     ds.create_tensor("image")
@@ -447,51 +443,24 @@ def test_fails_on_wrong_tensor_syntax(memory_ds):
     memory_ds.some_tensor = np.ones((28, 28))
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_hub_cloud_dataset():
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
-    id = str(uuid.uuid1())
-
-    uri = f"hub://{username}/hub2ds2_{id}"
-
-    client = HubBackendClient()
-    token = client.request_auth_token(username, password)
-
-    with Dataset(uri, token=token) as ds:
-        ds.create_tensor("image")
-        ds.create_tensor("label", htype="class_label")
-
-        for i in range(1000):
-            ds.image.append(i * np.ones((100, 100)))
-            ds.label.append(np.uint32(i))
-
-    ds = Dataset(uri, token=token)
-    for i in range(1000):
-        np.testing.assert_array_equal(ds.image[i].numpy(), i * np.ones((100, 100)))
-        np.testing.assert_array_equal(ds.label[i].numpy(), np.uint32(i))
-
-    ds.delete()
-
-
 def test_array_interface(memory_ds: Dataset):
     tensor = memory_ds.create_tensor("tensor")
-    x = np.random.random((32, 32))
+    x = np.arange(10).reshape(5, 2)
     tensor.append(x)
     arr1 = np.array(tensor)
     arr2 = np.array(tensor)
     np.testing.assert_array_equal(x, arr1[0])
     np.testing.assert_array_equal(x, arr2[0])
-    assert arr1.__array_interface__["data"][0] == arr1.__array_interface__["data"][0]
     tensor.append(x)
     np.testing.assert_array_equal(tensor.numpy(), np.concatenate([arr1, arr2]))
 
 
-@parametrize_all_dataset_storages
-def test_hub_dataset_suffix_bug(ds):
+def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
-    ds2 = Dataset(ds.path[:-1])
-    ds2.delete()
+    ds = Dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
+
+    # need to delete because it's a different path (won't be auto cleaned up)
+    ds.delete()
 
 
 def test_empty_dataset():
