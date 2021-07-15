@@ -7,6 +7,7 @@ from hub.api.dataset import Dataset
 from hub.core.tests.common import parametrize_all_dataset_storages
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
+    MemoryDatasetCanNotBePickledError,
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
 )
@@ -507,13 +508,21 @@ def test_empty_dataset():
 
 @parametrize_all_dataset_storages
 def test_dataset_pickling(ds):
-    ds.create_tensor("image", htype="image", sample_compression="jpeg")
-    ds.create_tensor("label")
-    for i in range(10):
-        ds.image.append(i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8))
+    if ds.path.startswith("mem://"):
+        with pytest.raises(MemoryDatasetCanNotBePickledError):
+            pickle.dumps(ds)
+        return
 
-    for i in range(5):
-        ds.label.append(i)
+    with ds:
+        ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        ds.create_tensor("label")
+        for i in range(10):
+            ds.image.append(
+                i * np.ones(((i + 1) * 20, (i + 1) * 20, 3), dtype=np.uint8)
+            )
+
+        for i in range(5):
+            ds.label.append(i)
 
     pickled_ds = pickle.dumps(ds)
     unpickled_ds = pickle.loads(pickled_ds)
