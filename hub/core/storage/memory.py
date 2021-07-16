@@ -4,7 +4,7 @@ from hub.core.storage.provider import StorageProvider
 class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
-    def __init__(self, root=""):
+    def __init__(self, root: str = ""):
         self.dict = {}
         self.root = root
 
@@ -97,9 +97,9 @@ class MemoryProvider(StorageProvider):
         self.check_readonly()
         self.dict = {}
 
-    def __getstate__(self):
+    def __getstate__(self) -> str:
         """Does NOT save the in memory data in state."""
         return self.root
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: str):
         self.__init__(root=state)
