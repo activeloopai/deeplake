@@ -68,11 +68,11 @@ class TorchDataset:
         if python_version_warning:
             if os.name == "nt":
                 warnings.warn(
-                    f"Windows OS detected. Pytorch iteration speeds are upto 500% faster using linux/macOS along with Python version >= 3.8."
+                    f"Windows OS detected. Pytorch iteration speeds are up to 500% faster using linux/macOS along with Python version >= 3.8."
                 )
             else:
                 warnings.warn(
-                    f"Python version < 3.8 detected. Pytorch iteration speeds are upto 500% faster on Python version >= 3.8."
+                    f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8."
                 )
 
         self.dataset = None
