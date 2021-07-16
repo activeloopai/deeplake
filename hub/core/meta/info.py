@@ -1,8 +1,4 @@
 from hub.util.json import validate_is_jsonable
-from hub.util.immutability import (
-    recursively_parse_as_immutable,
-    validate_can_be_parsed_as_immutable,
-)
 from typing import Any
 from hub.util.storage_callback import CachableCallback, callback
 
@@ -39,12 +35,11 @@ class Info(CachableCallback):
         # TODO: docstring (INTERNAL USE ONLY!)
 
         # TODO: optimize this
-
         return {"_info": self._info.copy()}
 
     @callback()
     def update(self, *args, **kwargs):
-        # TODO: convert everything to immutable structures
+        # TODO: docstring (mention jsonable)
 
         if len(args) > 1:
             raise ValueError(_VALUE_ERROR_MSG)  # TODO: exceptions.py
@@ -54,11 +49,9 @@ class Info(CachableCallback):
                 raise ValueError(_VALUE_ERROR_MSG)
 
             for k, v in args[0].items():
-                validate_can_be_parsed_as_immutable(v, recursive=True, key=k)
                 validate_is_jsonable(k, v)
 
         for k, v in kwargs.items():
-            validate_can_be_parsed_as_immutable(v, recursive=True, key=k)
             validate_is_jsonable(k, v)
 
         self._info.update(*args, **kwargs)
@@ -73,7 +66,10 @@ class Info(CachableCallback):
         return super().__getattribute__(name)
 
     def __getitem__(self, key: str):
-        # TODO: docstring (immutability)
+        return self._info[key]
 
-        value = self._info[key]
-        return recursively_parse_as_immutable(value)
+    def __str__(self):
+        return self._info.__str__()
+
+    def __repr__(self):
+        return self._info.__repr__()

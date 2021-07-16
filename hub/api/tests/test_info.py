@@ -6,22 +6,20 @@ def test_failures(local_ds):
 
     with pytest.raises(ValueError):
         ds.info.update(1, 2)
-
-    with pytest.raises(ValueError):
-        ds.info.update({"test": 0}, {"test": 2})
-
     with pytest.raises(ValueError):
         ds.info.update(1)
 
+    # bad because 2 positional args
     with pytest.raises(ValueError):
-        ds.info.update({"something": {"nested": "dict"}})
+        ds.info.update({"test": 0}, {"test": 2})
 
-    with pytest.raises(ValueError):
-        ds.info.update(bad_key={"normal": "dict"})
-
-    with pytest.raises(ValueError):
-        # this is bad because **kwargs values cannot be dictionaries
-        ds.info.update({"good_key": 1}, good_key=1, bad_key={"normal": "dict"})
+    # bad because **kwargs values cannot be dictionaries (TODO remove this?)
+    # with pytest.raises(ValueError):
+    #     ds.info.update(bad_key={"normal": "dict"})
+    # with pytest.raises(ValueError):
+    #     ds.info.update({"good_key": 1}, good_key=1, bad_key={"normal": "dict"})
+    # with pytest.raises(ValueError):
+    #     ds.info.update({"something": {"nested": "dict"}})
 
     # TODO: raise error when a user tries to add a numpy array
 
@@ -53,8 +51,15 @@ def test_dataset(local_ds_generator):
 
     assert ds.info.another_key == "hello"
     assert ds.info.something == "bbbb"
-    assert ds.info.test == (1, 2, "5"), "needs to convert to tuple"
-    assert ds.info.test2 == (1, 5, (1, "2"), (5, 6, (7, 8)))
+
+    # need to convert to tuples (TODO remove this?)
+    # assert ds.info.test == (1, 2, "5")
+    # assert ds.info.test2 == (1, 5, (1, "2"), (5, 6, (7, 8)))
+
+    # TODO: remove this?
+    assert ds.info.test == [1, 2, "5"]
+    assert ds.info.test2 == [1, 5, [1, "2"], [5, 6, [7, 8]]]
+
     assert ds.info.xyz == "abc"
     assert ds.info["1_-+"] == 5  # key can't be accessed with `.` syntax
 
@@ -62,8 +67,8 @@ def test_dataset(local_ds_generator):
 
     ds = local_ds_generator()
 
-    assert len(ds.info) == 8
-    assert ds.info.test == (99,)
+    assert len(ds.info) == 7
+    assert ds.info.test == [99]
 
 
 def test_tensor(local_ds_generator):
