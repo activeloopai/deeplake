@@ -213,7 +213,7 @@ class ChunkEngine:
         # synchronize last chunk
         last_chunk_key = self.last_chunk_key
         last_chunk = self.last_chunk
-        self.cache.update_used_cache_for_path(last_chunk_key, len(last_chunk))  # type: ignore
+        self.cache.update_used_cache_for_path(last_chunk_key, last_chunk.nbytes)  # type: ignore
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key)

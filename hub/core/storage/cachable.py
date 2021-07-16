@@ -13,8 +13,10 @@ class Cachable(ABC):
         if buffer:
             self.frombuffer(buffer)
 
-    def __len__(self):
-        return len(self.tobytes())
+    @property
+    def nbytes(self):
+        # do not implement, each class should do this because it could be very slow if `tobytes` is called
+        raise NotImplementedError
 
     def tobytes(self) -> bytes:
         return bytes(json.dumps(self.as_dict()), "utf-8")

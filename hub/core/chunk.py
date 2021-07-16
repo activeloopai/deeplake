@@ -108,8 +108,10 @@ class Chunk(Cachable):
         self.shapes_encoder.add_shape(sample_shape, 1)
         self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, 1)
 
-    def __len__(self):
+    @property
+    def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
+
         return infer_chunk_num_bytes(
             hub.__version__,
             self.shapes_encoder.array,

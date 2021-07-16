@@ -179,6 +179,10 @@ class TensorMeta(Meta):
 
         return d
 
+    @property
+    def nbytes(self):
+        return len(self.tobytes())
+
 
 def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""

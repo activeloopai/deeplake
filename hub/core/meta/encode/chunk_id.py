@@ -72,6 +72,11 @@ class ChunkIdEncoder(Cachable):
 
         self._encoded_ids = None
 
+    @property
+    def nbytes(self):
+        # TODO: optimize this
+        return len(self.tobytes())
+
     def tobytes(self) -> memoryview:
         if self._encoded_ids is None:
             return serialize_chunkids(
