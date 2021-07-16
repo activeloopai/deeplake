@@ -1,6 +1,6 @@
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
-from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
+from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
@@ -115,7 +115,7 @@ class Dataset:
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
 
         PS: Pickling a dataset does not copy the dataset, it only saves attributes that can be used to restore the dataset.
@@ -132,8 +132,12 @@ class Dataset:
             "_token": self.token,
         }
 
-    def __setstate__(self, state):
-        """Restores dataset from a pickled state."""
+    def __setstate__(self, state: Dict[str, Any]):
+        """Restores dataset from a pickled state.
+
+        Args:
+            state (dict): The pickled state used to restore the dataset.
+        """
         self.__dict__.update(state)
         self.tensors = {}
         self._init_helper()
