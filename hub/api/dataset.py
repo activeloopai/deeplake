@@ -120,7 +120,7 @@ class Dataset:
     def __getstate__(self) -> Dict[str, Any]:
         """Returns a dict that can be pickled and used to restore this dataset.
 
-        Note: 
+        Note:
             Pickling a dataset does not copy the dataset, it only saves attributes that can be used to restore the dataset.
             If you pickle a local dataset and try to access it on a machine that does not have the data present, the dataset will not work.
         """
