@@ -1,10 +1,10 @@
 from hub.core.storage.memory import MemoryProvider
+from hub.tests.storage_fixtures import enabled_storages
+from hub.tests.cache_fixtures import enabled_cache_chains
 import pytest
-
-from click.testing import CliRunner
 from hub.constants import MB
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 import pickle
+
 
 KEY = "file"
 
@@ -114,18 +114,18 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-@parametrize_all_storages
+@enabled_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
 
 
-@parametrize_all_caches
-def test_cache(storage):
-    check_storage_provider(storage)
-    check_cache(storage)
+@enabled_cache_chains
+def test_cache(cache_chain):
+    check_storage_provider(cache_chain)
+    check_cache(cache_chain)
 
 
-@parametrize_all_storages
+@enabled_storages
 def test_pickling(storage):
     if isinstance(storage, MemoryProvider):
         # skip pickling test for memory provider as the actual data isn't pickled for it

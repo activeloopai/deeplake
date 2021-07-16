@@ -5,15 +5,13 @@ import pytest
 from click.testing import CliRunner
 
 from hub.cli.auth import login, logout
-from hub.client.utils import has_hub_testing_creds
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_cli_auth():
+def test_cli_auth(hub_cloud_dev_credentials):
+    username, password = hub_cloud_dev_credentials
+
     runner = CliRunner()
 
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
     result = runner.invoke(login, f"-u {username} -p {password}")
     assert result.exit_code == 0
     assert result.output == "Successfully logged in to Activeloop.\n"

@@ -1,10 +1,9 @@
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
-from hub.api.tensor import Tensor
 import os
 import pathlib
-from typing import Optional, Sequence, Tuple, List
-from uuid import uuid1
+from typing import List, Optional
+from uuid import uuid4
 
 import numpy as np
 import posixpath
@@ -12,7 +11,7 @@ import pytest
 
 from hub.constants import KB, MB
 
-SESSION_ID = str(uuid1())
+SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()
 TENSOR_KEY = "tensor"
@@ -54,42 +53,6 @@ def get_dummy_data_path(subpath: str = ""):
     return os.path.join(_THIS_FILE, "dummy_data" + os.sep, subpath)
 
 
-def get_random_array(shape: Tuple[int], dtype: str) -> np.ndarray:
-    dtype = dtype.lower()
-
-    if "int" in dtype:
-        low = np.iinfo(dtype).min
-        high = np.iinfo(dtype).max
-        return np.random.randint(low=low, high=high, size=shape, dtype=dtype)
-
-    if "float" in dtype:
-        # `low`/`high` have to be `float16` instead of `dtype` because `np.random.uniform` only supports `float16`
-        low = np.finfo("float16").min
-        high = np.finfo("float16").max
-        return np.random.uniform(low=low, high=high, size=shape).astype(dtype)
-
-    if "bool" in dtype:
-        a = np.random.uniform(size=shape)
-        return a > 0.5
-
-    raise ValueError(f"Dtype '{dtype}' not supported.")
-
-
-@parametrize_dtypes
-@pytest.mark.parametrize(
-    SHAPE_PARAM,
-    (
-        (100, 100),
-        (1,),
-        (1, 1, 1, 1, 1),
-    ),
-)
-def test_get_random_array(shape: Tuple[int], dtype: str):
-    array = get_random_array(shape, dtype)
-    assert array.shape == shape
-    assert array.dtype == dtype
-
-
 def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
 
@@ -106,3 +69,8 @@ def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
     """Assert that two lists of numpy arrays are equal"""
     for idx, (a1, a2) in enumerate(zip(l1, l2)):
         np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
+
+
+def is_opt_true(request, opt) -> bool:
+    """Returns if the pytest option `opt` is True. Assumes `opt` is a boolean value."""
+    return request.config.getoption(opt)
