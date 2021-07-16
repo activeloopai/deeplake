@@ -1,6 +1,6 @@
 from hub.util.json import validate_is_jsonable
 from typing import Any
-from hub.util.storage_callback import CachableCallback, callback
+from hub.core.storage.cachable import CachableCallback, use_callback
 
 
 _VALUE_ERROR_MSG = '`info.update` should be called with a single dictionary or **kwargs values. Example: `info.update({"key1": 1}, key2=2, key3=3)`'
@@ -21,23 +21,23 @@ class Info(CachableCallback):
         super().__init__()
 
     @property
-    @callback(check_only=True)
+    @use_callback(check_only=True)
     def nbytes(self):
         # TODO: optimize this
         return len(self.tobytes())
 
-    @callback(check_only=True)
+    @use_callback(check_only=True)
     def __len__(self):
         return len(self._info)
 
-    @callback(check_only=True)
+    @use_callback(check_only=True)
     def as_dict(self) -> dict:
         # TODO: docstring (INTERNAL USE ONLY!)
 
         # TODO: optimize this
         return {"_info": self._info.copy()}
 
-    @callback()
+    @use_callback()
     def update(self, *args, **kwargs):
         # TODO: docstring (mention jsonable)
 

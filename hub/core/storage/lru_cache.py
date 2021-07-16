@@ -1,7 +1,6 @@
 from collections import OrderedDict
-from hub.util.storage_callback import CachableCallback
-from hub.core.storage.cachable import Cachable
-from typing import Callable, Set, Union
+from hub.core.storage.cachable import Cachable, CachableCallback
+from typing import Set, Union
 
 from hub.core.storage.provider import StorageProvider
 

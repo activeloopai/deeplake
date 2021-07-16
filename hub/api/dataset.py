@@ -1,4 +1,4 @@
-from hub.core.meta.info import Info
+from hub.api.info import Info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
 from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
