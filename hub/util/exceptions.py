@@ -453,3 +453,7 @@ class WindowsSharedMemoryError(Exception):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
         )
+
+
+class CallbackInitializationError(Exception):
+    pass

@@ -181,6 +181,7 @@ class TensorMeta(Meta):
 
     @property
     def nbytes(self):
+        # TODO: optimize this
         return len(self.tobytes())
 
 

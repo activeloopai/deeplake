@@ -74,5 +74,3 @@ def test_tensor(local_ds_generator):
     assert len(t2.info) == 2
 
     assert t1.info.key == 99
-
-

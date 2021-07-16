@@ -1,3 +1,4 @@
+from hub.core.meta.info import Info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
 from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
@@ -11,7 +12,12 @@ from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
-from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
+from hub.util.keys import (
+    dataset_exists,
+    get_dataset_info_key,
+    get_dataset_meta_key,
+    tensor_exists,
+)
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
@@ -102,6 +108,7 @@ class Dataset:
 
         self.public = public
         self._load_meta()
+        self._load_info()
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
@@ -232,6 +239,17 @@ class Dataset:
                 self.client.create_dataset_entry(
                     self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
                 )
+
+    def _load_info(self):
+        info_key = get_dataset_info_key()
+
+        if info_key in self.storage:
+            self.info = self.storage.get_cachable(info_key, Info)
+        else:
+            self.info = Info()
+            self.info.initialize_callback_location(info_key, self.storage)
+
+        return self.info
 
     @property
     def read_only(self):

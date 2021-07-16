@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from hub.util.storage_callback import CachableCallback
 from hub.core.storage.cachable import Cachable
 from typing import Callable, Set, Union
 
@@ -90,6 +91,10 @@ class LRUCache(StorageProvider):
             obj = expected_class.frombuffer(item)
             if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)
+
+            if isinstance(obj, CachableCallback):
+                obj.initialize_callback_location(path, self)
+            
             return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")

@@ -24,6 +24,7 @@ USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
 
 SUPPORTED_MODES = ["r", "a"]
 
+# min chunk size is always half of `DEFAULT_MAX_CHUNK_SIZE`
 DEFAULT_MAX_CHUNK_SIZE = 32 * MB
 
 MIN_FIRST_CACHE_SIZE = 32 * MB
@@ -34,8 +35,14 @@ DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
 
+# meta is 100% required hub-defined meta
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
+
+# info is 100% optional user-defined information
+DATASET_INFO_FILENAME = "dataset_info.json"
+TENSOR_INFO_FILENAME = "tensor_info.json"
+
 META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
