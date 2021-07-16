@@ -89,12 +89,13 @@ class LRUCache(StorageProvider):
 
         if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
-            if obj.nbytes <= self.cache_size:
-                self._insert_in_cache(path, obj)
 
             if isinstance(obj, CachableCallback):
                 obj.initialize_callback_location(path, self)
-            
+
+            if obj.nbytes <= self.cache_size:
+                self._insert_in_cache(path, obj)
+
             return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")

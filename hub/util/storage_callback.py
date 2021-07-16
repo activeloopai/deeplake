@@ -59,5 +59,4 @@ class CachableCallback(Cachable):
         self._storage = storage
 
     def callback(self):
-        # TODO
-        raise NotImplementedError
+        self._storage[self._key] = self

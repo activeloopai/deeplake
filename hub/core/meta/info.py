@@ -1,6 +1,9 @@
 from hub.util.storage_callback import CachableCallback, callback
 
 
+_VALUE_ERROR_MSG = '`info.update` should be called with a single dictionary or **kwargs values. Example: `info.update({"key1": 1}, key2=2, key3=3)`'
+
+
 class Info(CachableCallback):
     def __init__(self):
         """Contains **optional** key/values that datasets/tensors use for human-readability.
@@ -27,8 +30,18 @@ class Info(CachableCallback):
 
     @callback(check_only=True)
     def as_dict(self) -> dict:
-        raise NotImplementedError
+        # TODO: optimize this
+        return self._dict.copy()
 
     @callback()
     def update(self, *args, **kwargs):
-        raise NotImplementedError
+        # TODO: convert everything to immutable structures
+
+        if len(args) > 1:
+            raise ValueError(_VALUE_ERROR_MSG)  # TODO: exceptions.py
+
+        if len(args) == 1:
+            if not isinstance(args[0], dict):
+                raise ValueError(_VALUE_ERROR_MSG)
+
+        self._dict.update(*args, **kwargs)

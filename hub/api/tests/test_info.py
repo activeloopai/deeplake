@@ -1,3 +1,21 @@
+import pytest
+
+
+def test_failures(local_ds):
+    ds = local_ds
+
+    with pytest.raises(ValueError):
+        ds.info.update(1, 2)
+
+    with pytest.raises(ValueError):
+        ds.info.update({"test": 0}, {"test": 2})
+
+    with pytest.raises(ValueError):
+        ds.info.update(1)
+
+    # TODO: raise error when a user tries to add a numpy array
+
+
 def test_dataset(local_ds_generator):
     ds = local_ds_generator()
 
@@ -17,7 +35,7 @@ def test_dataset(local_ds_generator):
         ds.info.update({"test2": (1, 5, (1, "2"), [5, 6, (7, 8)])})
         ds.info.update(xyz="abc")
 
-    ds.info.update({"1_-+", 5})
+    ds.info.update({"1_-+": 5})
 
     ds = local_ds_generator()
 
