@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
 import uuid
 
@@ -20,15 +21,18 @@ def save_reporting_config(
     """
     reporting_config = {}
 
-    repo_dir = os.getcwd()
-
-    config_report_path = os.path.join(repo_dir, REPORTING_CONFIG_FILE_PATH)
-    if os.path.isfile(config_report_path):
+    if os.path.isfile(REPORTING_CONFIG_FILE_PATH):
         try:
-            with open(config_report_path, "r") as ifp:
+            with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
                 reporting_config = json.load(ifp)
         except Exception:
             pass
+    else:
+        # We should not expect that the parent directory for the reporting configuration will exist.
+        # If it doesn't exist, we create the directory, if possible.
+        # This mirrors the code for the `write_token` method in hub/client/utils.py.
+        path = Path(REPORTING_CONFIG_FILE_PATH)
+        os.makedirs(path.parent, exist_ok=True)
 
     if client_id is not None and reporting_config.get("client_id") is None:
         reporting_config["client_id"] = client_id
@@ -42,7 +46,7 @@ def save_reporting_config(
     reporting_config["consent"] = consent
 
     try:
-        with open(config_report_path, "w") as ofp:
+        with open(REPORTING_CONFIG_FILE_PATH, "w") as ofp:
             json.dump(reporting_config, ofp)
     except Exception:
         pass
@@ -53,14 +57,13 @@ def get_reporting_config() -> Dict[str, Any]:
     reporting_config = {}
     repo_dir = os.getcwd()
     if repo_dir is not None:
-        config_report_path = os.path.join(repo_dir, REPORTING_CONFIG_FILE_PATH)
         try:
-            if not os.path.exists(config_report_path):
+            if not os.path.exists(REPORTING_CONFIG_FILE_PATH):
                 client_id = str(uuid.uuid4())
                 reporting_config["client_id"] = client_id
                 save_reporting_config(True, client_id)
             else:
-                with open(config_report_path, "r") as ifp:
+                with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
                     reporting_config = json.load(ifp)
         except Exception:
             pass
