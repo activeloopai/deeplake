@@ -51,7 +51,11 @@ class TensorMeta(Meta):
 
             required_meta = _required_meta_from_htype(htype)
             required_meta.update(kwargs)
+
+            self._required_meta_keys = tuple(required_meta.keys())
             self.__dict__.update(required_meta)
+        else:
+            self._required_meta_keys = tuple()
 
         super().__init__()
 
@@ -168,8 +172,12 @@ class TensorMeta(Meta):
             self.max_shape[i] = max(dim, self.max_shape[i])
 
     def as_dict(self):
-        # TODO: tensor meta as_dict
-        raise NotImplementedError
+        d = super().as_dict()
+
+        for key in self._required_meta_keys:
+            d[key] = getattr(self, key)
+
+        return d
 
 
 def _required_meta_from_htype(htype: str) -> dict:

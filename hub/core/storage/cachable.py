@@ -17,7 +17,7 @@ class Cachable(ABC):
         return len(self.tobytes())
 
     def tobytes(self) -> bytes:
-        return bytes(json.dumps(self.__dict__), "utf-8")
+        return bytes(json.dumps(self.as_dict()), "utf-8")
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
