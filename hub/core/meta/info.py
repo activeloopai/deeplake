@@ -1,3 +1,7 @@
+from hub.util.immutability import (
+    recursively_parse_as_immutable,
+    validate_can_be_parsed_as_immutable,
+)
 from typing import Any
 from hub.util.storage_callback import CachableCallback, callback
 
@@ -16,7 +20,7 @@ class Info(CachableCallback):
             Must call `initialize_callback_location` before using any methods.
         """
 
-        self._dict = {}
+        self._info = {}
         super().__init__()
 
     @property
@@ -27,22 +31,15 @@ class Info(CachableCallback):
 
     @callback(check_only=True)
     def __len__(self):
-        return len(self._dict)
+        return len(self._info)
 
     @callback(check_only=True)
     def as_dict(self) -> dict:
+        # TODO: docstring (INTERNAL USE ONLY!)
+
         # TODO: optimize this
 
-        return {"_dict": self._dict.copy()}
-
-    def __getattribute__(self, name: str) -> Any:
-        """Allows access to info values using the `.` syntax. Example: `info.description`."""
-
-        if name == "_dict":
-            return super().__getattribute__(name)
-        if name in self._dict:
-            return self._dict[name]
-        return super().__getattribute__(name)
+        return {"_info": self._info.copy()}
 
     @callback()
     def update(self, *args, **kwargs):
@@ -55,4 +52,27 @@ class Info(CachableCallback):
             if not isinstance(args[0], dict):
                 raise ValueError(_VALUE_ERROR_MSG)
 
-        self._dict.update(*args, **kwargs)
+            for v in args[0].values():
+                validate_can_be_parsed_as_immutable(v, recursive=True)
+
+        for v in kwargs.values():
+            validate_can_be_parsed_as_immutable(v, recursive=True)
+
+        self._info.update(*args, **kwargs)
+
+    def __getattribute__(self, name: str) -> Any:
+        """Allows access to info values using the `.` syntax. Example: `info.description`."""
+
+        if name == "_info":
+            return super().__getattribute__(name)
+        if name in self._info:
+            return self.__getitem__(name)
+        return super().__getattribute__(name)
+
+    def __getitem__(self, key: str):
+        # TODO: docstring (immutability)
+
+        value = self._info[key]
+
+        # TODO: return immutable (tuples and stuff)
+        return recursively_parse_as_immutable(value)

@@ -13,6 +13,16 @@ def test_failures(local_ds):
     with pytest.raises(ValueError):
         ds.info.update(1)
 
+    with pytest.raises(ValueError):
+        ds.info.update({"something": {"nested": "dict"}})
+
+    with pytest.raises(ValueError):
+        ds.info.update(bad_key={"normal": "dict"})
+
+    with pytest.raises(ValueError):
+        # this is bad because **kwargs values cannot be dictionaries
+        ds.info.update({"good_key": 1}, good_key=1, bad_key={"normal": "dict"})
+
     # TODO: raise error when a user tries to add a numpy array
 
 
