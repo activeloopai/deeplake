@@ -18,6 +18,9 @@ def save_reporting_config(
         consent (bool): Enabling and disabling sending crashes and system report to Activeloop Hub.
         client_id (str, optional): Unique client id.
         username (str, optional): Activeloop username.
+
+    Returns:
+        The configuration that it just saved.
     """
     reporting_config = {}
 
@@ -56,7 +59,7 @@ def save_reporting_config(
 
 def get_reporting_config() -> Dict[str, Any]:
     """Get an existing reporting config"""
-    reporting_config = {"consent": False}
+    reporting_config: Dict[str, Any] = {"consent": False}
     try:
         if not os.path.exists(REPORTING_CONFIG_FILE_PATH):
             client_id = str(uuid.uuid4())
