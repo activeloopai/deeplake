@@ -29,6 +29,9 @@ def test_readonly(local_ds_generator):
     ds.read_only = True
     _assert_readonly_ops(ds, 1, (100, 100))
 
+    with pytest.raises(ReadOnlyModeError):
+        ds.info.update(key=0)
+
 
 @pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
 def test_readonly_doesnt_exist(local_path):

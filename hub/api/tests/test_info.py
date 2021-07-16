@@ -1,29 +1,3 @@
-import pytest
-
-
-def test_failures(local_ds):
-    ds = local_ds
-
-    with pytest.raises(ValueError):
-        ds.info.update(1, 2)
-    with pytest.raises(ValueError):
-        ds.info.update(1)
-
-    # bad because 2 positional args
-    with pytest.raises(ValueError):
-        ds.info.update({"test": 0}, {"test": 2})
-
-    # bad because **kwargs values cannot be dictionaries (TODO remove this?)
-    # with pytest.raises(ValueError):
-    #     ds.info.update(bad_key={"normal": "dict"})
-    # with pytest.raises(ValueError):
-    #     ds.info.update({"good_key": 1}, good_key=1, bad_key={"normal": "dict"})
-    # with pytest.raises(ValueError):
-    #     ds.info.update({"something": {"nested": "dict"}})
-
-    # TODO: raise error when a user tries to add a numpy array
-
-
 def test_dataset(local_ds_generator):
     ds = local_ds_generator()
 
@@ -107,3 +81,24 @@ def test_tensor(local_ds_generator):
     assert len(t2.info) == 2
 
     assert t1.info.key == 99
+
+
+def test_update_reference_manually(local_ds_generator):
+    """Right now synchronization can only happen when you call `info.update`."""
+
+    ds = local_ds_generator()
+
+    ds.info.update(key=[1, 2, 3])
+
+    ds = local_ds_generator()
+
+    l = ds.info.key
+    assert l == [1, 2, 3]
+
+    # un-registered update
+    l.append(5)
+
+    ds = local_ds_generator()
+
+    l = ds.info.key
+    assert l == [1, 2, 3]

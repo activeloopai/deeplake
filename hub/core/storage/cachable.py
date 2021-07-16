@@ -36,42 +36,6 @@ class Cachable(ABC):
         return instance
 
 
-class CachableCallback(Cachable):
-    def __init__(self):
-        # TODO: docstring (warn that this may be very slow and shouldn't be used often or should be optimized)
-        # TODO: mention in docstring "use_callback"
-
-        self._key = None
-        self._storage = None
-
-    def _is_callback_initialized(self) -> bool:
-        key_ex = self._key is not None
-        storage_ex = self._storage is not None
-        return key_ex and storage_ex
-
-    def initialize_callback_location(self, key, storage):
-        """Must be called once before any other method calls.
-
-        Args:
-            key: The key for where in `storage` bytes are serialized with each callback call.
-            storage: The storage for where bytes are serialized with each callback call.
-
-        Raises:
-            CallbackInitializationError: Cannot re-initialize.
-        """
-
-        if self._is_callback_initialized():
-            raise CallbackInitializationError(
-                f"`initialize_callback_location` was already called. key={self._key}"
-            )
-
-        self._key = key
-        self._storage = storage
-
-    def callback(self):
-        self._storage[self._key] = self
-
-
 def use_callback(check_only: bool = False):
     """Decorator for methods that should require `initialize_callback_location` to be called first."""
 
@@ -94,3 +58,43 @@ def use_callback(check_only: bool = False):
         return inner
 
     return outer
+
+
+class CachableCallback(Cachable):
+    def __init__(self):
+        # TODO: docstring (warn that this may be very slow and shouldn't be used often or should be optimized)
+        # TODO: mention in docstring "use_callback"
+
+        self._key = None
+        self._cache = None
+
+    def _is_callback_initialized(self) -> bool:
+        key_ex = self._key is not None
+        cache_ex = self._cache is not None
+        return key_ex and cache_ex
+
+    def initialize_callback_location(self, key, cache):
+        """Must be called once before any other method calls.
+
+        Args:
+            key: The key for where in `cache` bytes are serialized with each callback call.
+            cache: The cache for where bytes are serialized with each callback call.
+
+        Raises:
+            CallbackInitializationError: Cannot re-initialize.
+        """
+
+        if self._is_callback_initialized():
+            raise CallbackInitializationError(
+                f"`initialize_callback_location` was already called. key={self._key}"
+            )
+
+        self._key = key
+        self._cache = cache
+
+    def callback(self):
+        self._cache[self._key] = self
+
+    @use_callback(check_only=True)
+    def flush(self):
+        self._cache.flush()

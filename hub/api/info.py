@@ -13,7 +13,7 @@ class Info(CachableCallback):
         See the `Meta` class for required key/values for datasets/tensors.
 
         Note:
-            Since `Info` is rarely written to and mostly by the user, every modifier will call `storage[key] = self`.
+            Since `Info` is rarely written to and mostly by the user, every modifier will call `cache[key] = self`.
             This is so the user doesn't have to call `flush`.
             Must call `initialize_callback_location` before using any methods.
         """
@@ -32,29 +32,21 @@ class Info(CachableCallback):
 
     @use_callback(check_only=True)
     def __getstate__(self) -> Dict[str, Any]:
-        # TODO: docstring (INTERNAL USE ONLY!)
         return self._info
 
     def __setstate__(self, state: Dict[str, Any]):
-        self._info = state.copy()
+        self._info = state
 
     @use_callback()
     def update(self, *args, **kwargs):
-        # TODO: docstring (mention jsonable)
+        """Updates info and synchronizes with cache. Inputs must be supported by JSON.
+        A full list of supported value types can be found here: https://docs.python.org/3/library/json.html#json.JSONEncoder.
 
-        if len(args) > 1:
-            raise ValueError(_VALUE_ERROR_MSG)  # TODO: exceptions.py
+        Note:
+            This method has the same functionality as `dict().update(...)` Reference: https://www.geeksforgeeks.org/python-dictionary-update-method/.
+        """
 
-        if len(args) == 1:
-            if not isinstance(args[0], dict):
-                raise ValueError(_VALUE_ERROR_MSG)
-
-            for k, v in args[0].items():
-                validate_is_jsonable(k, v)
-
-        for k, v in kwargs.items():
-            validate_is_jsonable(k, v)
-
+        self._cache.check_readonly()
         self._info.update(*args, **kwargs)
 
     def __getattribute__(self, name: str) -> Any:
@@ -76,11 +68,11 @@ class Info(CachableCallback):
         return self._info.__repr__()
 
 
-def load_info(info_key: str, storage: LRUCache):
-    if info_key in storage:
-        info = storage.get_cachable(info_key, Info)
+def load_info(info_key: str, cache: LRUCache):
+    if info_key in cache:
+        info = cache.get_cachable(info_key, Info)
     else:
         info = Info()
-        info.initialize_callback_location(info_key, storage)
+        info.initialize_callback_location(info_key, cache)
 
     return info
