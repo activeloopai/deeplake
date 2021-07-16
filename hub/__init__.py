@@ -14,6 +14,7 @@ from .api.dataset import Dataset
 from .api.tensor import Tensor
 from .api.load import load
 from .util.bugout_reporter import hub_reporter
+from .util.dataset_like import dataset_like
 
 __all__ = ["Dataset", "Tensor", "load", "__version__"]
 

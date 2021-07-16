@@ -171,6 +171,16 @@ class TensorMeta(Meta):
         # TODO: tensor meta as_dict
         raise NotImplementedError
 
+    def __eq__(self, other_meta: "TensorMeta") -> bool:
+        if (
+            isinstance(other_meta, TensorMeta)
+            and other_meta.htype == self.htype
+            and other_meta.dtype == self.dtype
+            and other_meta.sample_compression == self.sample_compression
+        ):
+            return True
+        return False
+
 
 def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
