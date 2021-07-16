@@ -1,5 +1,4 @@
-from hub.core.storage.memory import MemoryProvider
-from hub.tests.storage_fixtures import enabled_storages
+from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
 import pytest
 from hub.constants import MB
@@ -125,12 +124,8 @@ def test_cache(cache_chain):
     check_cache(cache_chain)
 
 
-@enabled_storages
+@enabled_persistent_storages
 def test_pickling(storage):
-    if isinstance(storage, MemoryProvider):
-        # skip pickling test for memory provider as the actual data isn't pickled for it
-        return
-
     FILE_1 = f"{KEY}_1"
     storage[FILE_1] = b"hello world"
     assert storage[FILE_1] == b"hello world"
