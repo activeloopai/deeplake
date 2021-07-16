@@ -1,4 +1,4 @@
-from hub.core.storage.provider import StorageProvider
+from hub.core.storage.lru_cache import LRUCache
 from hub.util.json import validate_is_jsonable
 from typing import Any, Dict
 from hub.core.storage.cachable import CachableCallback, use_callback
@@ -22,7 +22,6 @@ class Info(CachableCallback):
         super().__init__()
 
     @property
-    @use_callback(check_only=True)
     def nbytes(self):
         # TODO: optimize this
         return len(self.tobytes())
@@ -77,7 +76,7 @@ class Info(CachableCallback):
         return self._info.__repr__()
 
 
-def load_info(info_key: str, storage: StorageProvider):
+def load_info(info_key: str, storage: LRUCache):
     if info_key in storage:
         info = storage.get_cachable(info_key, Info)
     else:

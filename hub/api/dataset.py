@@ -108,7 +108,7 @@ class Dataset:
 
         self.public = public
         self._load_meta()  # TODO: use the same load scheme as info
-        self.info = load_info(get_dataset_info_key(), self.storage)
+        self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
