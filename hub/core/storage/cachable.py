@@ -1,5 +1,6 @@
 from abc import ABC
 import json
+from typing import Any, Dict
 from hub.util.exceptions import CallbackInitializationError
 
 
@@ -19,13 +20,19 @@ class Cachable(ABC):
         # do not implement, each class should do this because it could be very slow if `tobytes` is called
         raise NotImplementedError
 
+    def __getstate__(self) -> Dict[str, Any]:
+        raise NotImplementedError
+
+    def __setstate__(self, state: Dict[str, Any]):
+        self.__dict__.update(state)
+
     def tobytes(self) -> bytes:
-        return bytes(json.dumps(self.as_dict()), "utf-8")
+        return bytes(json.dumps(self.__getstate__()), "utf-8")
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
         instance = cls()
-        instance.__dict__.update(json.loads(buffer))
+        instance.__setstate__(json.loads(buffer))
         return instance
 
 

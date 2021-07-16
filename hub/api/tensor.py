@@ -1,4 +1,8 @@
-from hub.util.keys import get_chunk_id_encoder_key, get_tensor_meta_key, tensor_exists
+from hub.api.info import load_info
+from hub.util.keys import (
+    get_tensor_info_key,
+    tensor_exists,
+)
 from hub.core.sample import Sample  # type: ignore
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
@@ -45,6 +49,8 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
+
+        self.info = load_info(get_tensor_info_key(self.key), self.storage)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,

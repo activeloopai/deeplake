@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -171,13 +171,17 @@ class TensorMeta(Meta):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
 
-    def as_dict(self):
-        d = super().as_dict()
+    def __getstate__(self) -> Dict[str, Any]:
+        d = super().__getstate__()
 
         for key in self._required_meta_keys:
             d[key] = getattr(self, key)
 
         return d
+
+    def __setstate__(self, state: Dict[str, Any]):
+        super().__setstate__(state)
+        self._required_meta_keys = tuple(state.keys())
 
     @property
     def nbytes(self):

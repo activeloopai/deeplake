@@ -1,3 +1,4 @@
+from typing import Any, Dict
 import hub
 from hub.core.storage.cachable import Cachable
 
@@ -10,5 +11,5 @@ class Meta(Cachable):
 
         self.version = hub.__version__
 
-    def as_dict(self) -> dict:
+    def __getstate__(self) -> Dict[str, Any]:
         return {"version": self.version}

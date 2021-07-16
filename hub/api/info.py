@@ -1,5 +1,6 @@
+from hub.core.storage.provider import StorageProvider
 from hub.util.json import validate_is_jsonable
-from typing import Any
+from typing import Any, Dict
 from hub.core.storage.cachable import CachableCallback, use_callback
 
 
@@ -31,11 +32,12 @@ class Info(CachableCallback):
         return len(self._info)
 
     @use_callback(check_only=True)
-    def as_dict(self) -> dict:
+    def __getstate__(self) -> Dict[str, Any]:
         # TODO: docstring (INTERNAL USE ONLY!)
+        return self._info
 
-        # TODO: optimize this
-        return {"_info": self._info.copy()}
+    def __setstate__(self, state: Dict[str, Any]):
+        self._info = state.copy()
 
     @use_callback()
     def update(self, *args, **kwargs):
@@ -73,3 +75,13 @@ class Info(CachableCallback):
 
     def __repr__(self):
         return self._info.__repr__()
+
+
+def load_info(info_key: str, storage: StorageProvider):
+    if info_key in storage:
+        info = storage.get_cachable(info_key, Info)
+    else:
+        info = Info()
+        info.initialize_callback_location(info_key, storage)
+
+    return info

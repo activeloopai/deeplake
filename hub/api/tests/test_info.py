@@ -103,7 +103,7 @@ def test_tensor(local_ds_generator):
     t1 = ds.tensor1
     t2 = ds.tensor2
 
-    assert len(t1.info) == 2
+    assert len(t1.info) == 1
     assert len(t2.info) == 2
 
     assert t1.info.key == 99

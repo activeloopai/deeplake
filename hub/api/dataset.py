@@ -1,4 +1,4 @@
-from hub.api.info import Info
+from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
 from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
@@ -107,8 +107,8 @@ class Dataset:
             self.client = HubBackendClient(token=token)
 
         self.public = public
-        self._load_meta()
-        self._load_info()
+        self._load_meta()  # TODO: use the same load scheme as info
+        self.info = load_info(get_dataset_info_key(), self.storage)
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
@@ -237,19 +237,11 @@ class Dataset:
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
+                    self.org_id,
+                    self.ds_name,
+                    self.meta.__getstate__(),
+                    public=self.public,
                 )
-
-    def _load_info(self):
-        info_key = get_dataset_info_key()
-
-        if info_key in self.storage:
-            self.info = self.storage.get_cachable(info_key, Info)
-        else:
-            self.info = Info()
-            self.info.initialize_callback_location(info_key, self.storage)
-
-        return self.info
 
     @property
     def read_only(self):
