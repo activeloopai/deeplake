@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from hub.core.storage.provider import StorageProvider
 
 
@@ -5,7 +6,7 @@ class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
     def __init__(self, root: str = ""):
-        self.dict = {}
+        self.dict: Dict[str, Any] = {}
         self.root = root
 
     def __getitem__(
@@ -102,4 +103,4 @@ class MemoryProvider(StorageProvider):
         return self.root
 
     def __setstate__(self, state: str):
-        self.__init__(root=state)
+        self.__init__(root=state)  # type: ignore
