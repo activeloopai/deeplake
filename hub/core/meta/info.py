@@ -1,3 +1,4 @@
+from hub.util.json import validate_is_jsonable
 from hub.util.immutability import (
     recursively_parse_as_immutable,
     validate_can_be_parsed_as_immutable,
@@ -52,11 +53,13 @@ class Info(CachableCallback):
             if not isinstance(args[0], dict):
                 raise ValueError(_VALUE_ERROR_MSG)
 
-            for v in args[0].values():
-                validate_can_be_parsed_as_immutable(v, recursive=True)
+            for k, v in args[0].items():
+                validate_can_be_parsed_as_immutable(v, recursive=True, key=k)
+                validate_is_jsonable(k, v)
 
-        for v in kwargs.values():
-            validate_can_be_parsed_as_immutable(v, recursive=True)
+        for k, v in kwargs.items():
+            validate_can_be_parsed_as_immutable(v, recursive=True, key=k)
+            validate_is_jsonable(k, v)
 
         self._info.update(*args, **kwargs)
 
@@ -73,6 +76,4 @@ class Info(CachableCallback):
         # TODO: docstring (immutability)
 
         value = self._info[key]
-
-        # TODO: return immutable (tuples and stuff)
         return recursively_parse_as_immutable(value)
