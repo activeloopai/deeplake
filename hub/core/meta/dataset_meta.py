@@ -15,7 +15,7 @@ class DatasetMeta(Meta):
         d["tensors"] = self.tensors
         return d
 
-    def __eq__(self, other_meta: "DatasetMeta") -> bool:
+    def __eq__(self, other_meta: object) -> bool:
         if isinstance(other_meta, DatasetMeta) and self.tensors == other_meta.tensors:
             return True
         return False

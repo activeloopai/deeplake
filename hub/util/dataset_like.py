@@ -1,9 +1,9 @@
-from typing import Union
+from typing import Union, Optional
 from hub import Dataset
 
 
 def dataset_like(
-    path: str, like: Union[str, Dataset], like_creds: dict = None, **kwargs
+    path: str, like: Union[str, Dataset], like_creds: Optional[dict] = None, **kwargs
 ) -> Dataset:
     """Create a new dataset from template dataset.
 

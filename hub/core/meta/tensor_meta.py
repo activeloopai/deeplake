@@ -171,7 +171,7 @@ class TensorMeta(Meta):
         # TODO: tensor meta as_dict
         raise NotImplementedError
 
-    def __eq__(self, other_meta: "TensorMeta") -> bool:
+    def __eq__(self, other_meta: object) -> bool:
         if (
             isinstance(other_meta, TensorMeta)
             and other_meta.htype == self.htype
