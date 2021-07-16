@@ -1,3 +1,4 @@
+from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
@@ -14,11 +15,13 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
+from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
     remove_shared_memory_from_resource_tracker,
     clear_shared_memory,
 )
 from pathos.pools import ProcessPool  # type: ignore
+from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 try:
     from multiprocessing.shared_memory import SharedMemory  # type: ignore
@@ -73,17 +76,20 @@ def _read_and_store_chunk(
 def dataset_to_pytorch(
     dataset,
     transform: Optional[Callable] = None,
+    tensors: Optional[Sequence[str]] = None,
     num_workers: int = 1,
     batch_size: Optional[int] = 1,
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
 ):
-    dataset.flush()
+    try_flushing(dataset)
     _import_torch()
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
-    pytorch_ds = TorchDataset(dataset, transform, num_workers)
+    pytorch_ds = TorchDataset(dataset, transform, tensors, num_workers)
+    if collate_fn is None:
+        collate_fn = default_convert_fn if batch_size is None else default_collate_fn
     return torch.utils.data.DataLoader(  # type: ignore
         pytorch_ds,
         batch_size=batch_size,
@@ -98,13 +104,20 @@ class TorchDataset:
         self,
         dataset,
         transform: Optional[Callable] = None,
+        tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
     ):
         self.transform = transform
         self.num_workers: int = num_workers
         self.map = ProcessPool(nodes=num_workers).map
         self.length = len(dataset)
-        self.tensor_keys = list(dataset.tensors)
+        if tensors is None:
+            self.tensor_keys = list(dataset.tensors)
+        else:
+            for t in tensors:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
+            self.tensor_keys = list(tensors)
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -144,9 +157,6 @@ class TorchDataset:
 
         # keeps track of names of all shared_memory that have data in them
         self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(list)
-
-        # keeps pointers to shared memory across tensors so they don't get closed between calls to getitem
-        self.all_shared_memory: Dict = defaultdict(list)
 
         self.last_chunk_num_generated = -1
 
@@ -270,8 +280,8 @@ class TorchDataset:
         for chunk_name, shared_memory_name, chunk_size in zip(
             chunk_names, shared_memory_names, chunk_sizes
         ):
-            self.all_shared_memory[key].append(SharedMemory(name=shared_memory_name))
-            chunk = Chunk.frombuffer(self.all_shared_memory[key][-1].buf[:chunk_size])
+            shared_memory = SharedMemory(name=shared_memory_name)
+            chunk = Chunk.frombuffer(shared_memory.buf[:chunk_size])
             chunk_map[chunk_name] = chunk
 
         # saves np array for each index in memory
@@ -300,9 +310,9 @@ class TorchDataset:
         last_index = min(self.last_index_meta[key] for key in self.tensor_keys)
         samples = []
         for i in range(first_index, last_index + 1):
-            sample = {
-                key: self.all_index_value_maps[key][i] for key in self.tensor_keys
-            }
+            sample = IterableOrderedDict(
+                (key, self.all_index_value_maps[key][i]) for key in self.tensor_keys
+            )
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)

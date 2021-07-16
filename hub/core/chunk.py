@@ -8,6 +8,8 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
+from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
+
 
 class Chunk(Cachable):
     def __init__(
@@ -108,31 +110,24 @@ class Chunk(Cachable):
 
     def __len__(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
-
-        shape_nbytes = self.shapes_encoder.nbytes
-        range_nbytes = self.byte_positions_encoder.nbytes
-        error_bytes = 32  # to account for any extra delimeters/stuff that `np.savez` may create in excess
-        return shape_nbytes + range_nbytes + self.num_data_bytes + error_bytes
+        return infer_chunk_num_bytes(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            len_data=len(self._data),
+        )
 
     def tobytes(self) -> memoryview:
-        out = BytesIO()
-
-        # TODO: for fault tolerance, we should have a chunk store the ID for the next chunk
-        # TODO: in case the index chunk meta gets pwned (especially during a potentially failed transform job merge)
-
-        np.savez(
-            out,
-            version=hub.__encoded_version__,
-            shapes=self.shapes_encoder.array,
-            byte_positions=self.byte_positions_encoder.array,
-            data=np.frombuffer(self.memoryview_data, dtype=np.uint8),
+        return serialize_chunk(
+            hub.__version__,
+            self.shapes_encoder.array,
+            self.byte_positions_encoder.array,
+            [self._data],
         )
-        out.seek(0)
-        return out.getbuffer()
 
     @classmethod
     def frombuffer(cls, buffer: bytes):
-        bio = BytesIO(buffer)
-        npz = np.load(bio)
-        data = memoryview(npz["data"].tobytes())
-        return cls(npz["shapes"], npz["byte_positions"], data=data)
+        if not buffer:
+            return cls()
+        version, shapes, byte_positions, data = deserialize_chunk(buffer)
+        return cls(shapes, byte_positions, data=data)

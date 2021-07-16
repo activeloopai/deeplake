@@ -5,9 +5,7 @@ from hub import constants
 
 
 def get_chunk_key(key: str, chunk_name: str) -> str:
-    return posixpath.join(
-        key, constants.CHUNKS_FOLDER, f"{chunk_name}.{constants.CHUNK_EXTENSION}"
-    )
+    return posixpath.join(key, constants.CHUNKS_FOLDER, f"{chunk_name}")
 
 
 def get_dataset_meta_key() -> str:

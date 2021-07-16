@@ -112,7 +112,7 @@ commands:
     steps:
       - run:
           name: "Gather machine info"
-          command: python3 -c "import platform as p; print('{}\nPython {}'.format(p.platform(), p.sys.version))"
+          command: python3 -c "import platform as p; print(f'{p.platform()}\nPython {p.sys.version}')"
 
   google-creds:
     parameters:
@@ -169,7 +169,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --cache-chains
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -177,7 +177,7 @@ commands:
                 name: "Running tests - Unix"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --cache-chains
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
                   
           parallelism: 10
   codecov-upload:

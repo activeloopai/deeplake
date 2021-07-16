@@ -1,6 +1,5 @@
 # type: ignore
 from hub.core.compression import compress_array
-from hub.constants import UNCOMPRESSED
 import numpy as np
 import pathlib
 from typing import List, Optional, Tuple
@@ -41,7 +40,7 @@ class Sample:
         if array is not None:
             self.path = None
             self._array = array
-            self._original_compression = UNCOMPRESSED
+            self._original_compression = None
 
         self._compressed_bytes = None
         self._uncompressed_bytes = None
@@ -75,7 +74,7 @@ class Sample:
         self._read()
 
         if self.is_empty:
-            return UNCOMPRESSED
+            return None
 
         return self._original_compression.lower()
 
@@ -87,7 +86,7 @@ class Sample:
                 returned without re-compressing.
 
         Args:
-            compression (str): `self.array` will be compressed into this format. If `compression == UNCOMPRESSED`, return `self.uncompressed_bytes()`.
+            compression (str): `self.array` will be compressed into this format. If `compression is None`, return `self.uncompressed_bytes()`.
 
         Returns:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
@@ -95,7 +94,7 @@ class Sample:
 
         compression = compression.lower()
 
-        if compression == UNCOMPRESSED:
+        if compression is None:
             return self.uncompressed_bytes()
 
         if self._compressed_bytes is None:

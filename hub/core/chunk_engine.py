@@ -13,7 +13,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE, UNCOMPRESSED
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
 
@@ -188,11 +188,13 @@ class ChunkEngine:
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
+        self.cache.check_readonly()
+
         # num samples is always 1 when appending
         num_samples = 1
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        self.tensor_meta.check_compatibility(shape, dtype)
+        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
@@ -200,10 +202,26 @@ class ChunkEngine:
             self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
+        self._synchronize_cache()
+
+    def _synchronize_cache(self):
+        """Synchronizes cachables with the cache. Includes: the last chunk, tensor meta, and chunk IDs encoder."""
 
         # TODO implement tests for cache size compute
-        if self.last_chunk is not None:
-            self.cache[self.last_chunk_key] = self.last_chunk
+        # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
+
+        # synchronize last chunk
+        last_chunk_key = self.last_chunk_key
+        last_chunk = self.last_chunk
+        self.cache.update_used_cache_for_path(last_chunk_key, len(last_chunk))  # type: ignore
+
+        # synchronize tensor meta
+        tensor_meta_key = get_tensor_meta_key(self.key)
+        self.cache[tensor_meta_key] = self.tensor_meta
+
+        # synchronize chunk ID encoder
+        chunk_id_key = get_chunk_id_encoder_key(self.key)
+        self.cache[chunk_id_key] = self.chunk_id_encoder
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
@@ -273,7 +291,7 @@ class ChunkEngine:
 
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
-            if compression == UNCOMPRESSED:
+            if compression is None:
                 buffers = []
 
                 # before adding any data, we need to check all sample sizes
@@ -367,7 +385,7 @@ class ChunkEngine:
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression != UNCOMPRESSED
+        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
@@ -389,7 +407,7 @@ class ChunkEngine:
         if num_bytes > self.min_chunk_size:
             msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
 
-            if self.tensor_meta.sample_compression == UNCOMPRESSED:
+            if self.tensor_meta.sample_compression is None:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
 
             raise NotImplementedError(msg)
@@ -419,6 +437,26 @@ class ChunkEngine:
             chunk_names.add(chunk)
             sample_index += 1
         return chunk_names
+
+    def validate_num_samples_is_synchronized(self):
+        """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
+        Helpful for determining if a user has tampered with the tensor meta or the chunk ID encoder, or if
+        the tensor was corruptd.
+
+        Raises:
+            CorruptedMetaError: tensor_meta and chunk_id_encoder must have the same num samples.
+        """
+
+        tensor_meta_length = self.tensor_meta.length
+
+        # compare chunk ID encoder and tensor meta
+        chunk_id_num_samples = self.chunk_id_encoder.num_samples
+        if tensor_meta_length != chunk_id_num_samples:
+            tkey = get_tensor_meta_key(self.key)
+            ikey = get_chunk_id_encoder_key(self.key)
+            raise CorruptedMetaError(
+                f"'{tkey}' and '{ikey}' have a record of different numbers of samples. Got {tensor_meta_length} and {chunk_id_num_samples} respectively."
+            )
 
 
 def _format_samples(
