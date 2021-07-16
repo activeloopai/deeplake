@@ -252,10 +252,8 @@ class S3Provider(StorageProvider):
             client = HubBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
-            if hasattr(self, "read_only") and self.read_only:
-                mode = "r"
-            else:
-                mode = "a"
+            mode = "r" if self.read_only else "a"
+
             url, creds, mode, expiration = client.get_dataset_credentials(
                 org_id, ds_name, mode
             )
