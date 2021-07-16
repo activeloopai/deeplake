@@ -140,6 +140,28 @@ class AuthorizationException(Exception):
         super().__init__(message)
 
 
+class InvalidPasswordException(AuthorizationException):
+    def __init__(
+        self,
+        message="The password you provided was invalid.",
+    ):
+        super().__init__(message)
+
+
+class CouldNotCreateNewDatasetException(AuthorizationException):
+    def __init__(
+        self,
+        path: str,
+    ):
+
+        extra = ""
+        if path.startswith("hub://"):
+            extra = "Since the path is a `hub://` dataset, if you believe you should have write permissions, try running `activeloop login`."
+
+        message = f"Dataset at '{path}' doesn't exist, and you have no permissions to create one there. Maybe a typo? {extra}"
+        super().__init__(message)
+
+
 class ResourceNotFoundException(Exception):
     def __init__(
         self,
@@ -309,6 +331,17 @@ class TensorMetaInvalidHtypeOverwriteValue(MetaError):
         )
 
 
+class TensorMetaMissingRequiredValue(MetaError):
+    def __init__(self, htype: str, key: str):
+        extra = ""
+        if key == "sample_compression":
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
+
+        super().__init__(
+            f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
+        )
+
+
 class TensorMetaInvalidHtypeOverwriteKey(MetaError):
     def __init__(self, htype: str, key: str, available_keys: Sequence[str]):
         super().__init__(
@@ -413,3 +446,10 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         message="If the size of the last chunk is given, it must be smaller than the requested chunk size.",
     ):
         super().__init__(message)
+
+
+class WindowsSharedMemoryError(Exception):
+    def __init__(self):
+        super().__init__(
+            f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )

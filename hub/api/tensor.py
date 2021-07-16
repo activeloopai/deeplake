@@ -218,4 +218,7 @@ class Tensor:
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
 
+    def __array__(self) -> np.ndarray:
+        return self.numpy()
+
     __repr__ = __str__

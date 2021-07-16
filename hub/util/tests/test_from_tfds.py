@@ -1,13 +1,12 @@
 import numpy as np
-import pytest
 
-from hub.core.tests.common import parametrize_all_dataset_storages
-from hub.util.check_installation import tfds_installed, requires_tfds, requires_tensorflow  # type: ignore
+from hub.util.check_installation import requires_tfds, requires_tensorflow  # type: ignore
+from hub.tests.dataset_fixtures import enabled_datasets
 
 
 @requires_tfds
 def test_from_tfds_to_path(local_storage):
-    from hub.util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
+    from hub.util.from_tfds import from_tfds_to_path  # type: ignore
 
     hub_ds = from_tfds_to_path(
         tfds_dataset_name="mnist",
@@ -20,7 +19,7 @@ def test_from_tfds_to_path(local_storage):
 
 @requires_tensorflow
 @requires_tfds
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_from_tfds(ds):
     import tensorflow_datasets as tfds  # type: ignore
     from hub.util.from_tfds import from_tfds, from_tfds_to_path  # type: ignore
