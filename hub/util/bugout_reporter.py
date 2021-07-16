@@ -11,7 +11,7 @@ from humbug.report import HumbugReporter
 
 def save_reporting_config(
     consent: bool, client_id: Optional[str] = None, username: Optional[str] = None
-) -> None:
+) -> Dict[str, Any]:
     """Modify reporting config.
 
     Args:
@@ -51,22 +51,24 @@ def save_reporting_config(
     except Exception:
         pass
 
+    return reporting_config
+
 
 def get_reporting_config() -> Dict[str, Any]:
     """Get an existing reporting config"""
-    reporting_config = {}
-    repo_dir = os.getcwd()
-    if repo_dir is not None:
-        try:
-            if not os.path.exists(REPORTING_CONFIG_FILE_PATH):
-                client_id = str(uuid.uuid4())
-                reporting_config["client_id"] = client_id
-                save_reporting_config(True, client_id)
-            else:
-                with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
-                    reporting_config = json.load(ifp)
-        except Exception:
-            pass
+    reporting_config = {"consent": False}
+    try:
+        if not os.path.exists(REPORTING_CONFIG_FILE_PATH):
+            client_id = str(uuid.uuid4())
+            reporting_config["client_id"] = client_id
+            reporting_config = save_reporting_config(True, client_id)
+        else:
+            with open(REPORTING_CONFIG_FILE_PATH, "r") as ifp:
+                reporting_config = json.load(ifp)
+    except Exception:
+        # Not being able to load reporting consent should not get in the user's way. We will just
+        # return the default reporting_config object in which consent is set to False.
+        pass
     return reporting_config
 
 
