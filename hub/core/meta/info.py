@@ -1,3 +1,4 @@
+from typing import Any
 from hub.util.storage_callback import CachableCallback, callback
 
 
@@ -31,7 +32,17 @@ class Info(CachableCallback):
     @callback(check_only=True)
     def as_dict(self) -> dict:
         # TODO: optimize this
-        return self._dict.copy()
+
+        return {"_dict": self._dict.copy()}
+
+    def __getattribute__(self, name: str) -> Any:
+        """Allows access to info values using the `.` syntax. Example: `info.description`."""
+
+        if name == "_dict":
+            return super().__getattribute__(name)
+        if name in self._dict:
+            return self._dict[name]
+        return super().__getattribute__(name)
 
     @callback()
     def update(self, *args, **kwargs):
