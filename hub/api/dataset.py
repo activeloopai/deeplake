@@ -5,7 +5,7 @@ from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB, GB
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
@@ -343,6 +343,36 @@ class Dataset:
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
             logger.info(f"Hub Dataset {self.path} successfully deleted.")
+
+    @staticmethod
+    def delete_at(path: str, force: bool = False, large_ok=False):
+        """Deletes the dataset at a given path.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        Args:
+            path (str): The path to the dataset to be deleted.
+            force (bool, optional): Delete data regardless of whether
+                it looks like a hub dataset. All data at the path will be removed.
+            large_ok (bool, optional): Delete datasets larger than 1GB. Disabled by default.
+        """
+        base_storage = get_storage_provider(
+            path, storage=None, read_only=False, creds={}, token=None
+        )
+
+        if force:
+            base_storage.clear()
+        else:
+            ds = Dataset(path)
+            if not large_ok:
+                tensors = ds.tensors.values()
+                chunk_engines = [tensor.chunk_engine for tensor in tensors]
+                size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+                if size > (1 * GB):
+                    logger.info(
+                        f"Hub Dataset {path} was too large to delete. Try again with large_ok=True."
+                    )
+                    return
+            ds.delete()
 
     @staticmethod
     def from_path(path: str):

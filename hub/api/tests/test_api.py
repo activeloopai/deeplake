@@ -5,7 +5,11 @@ import hub
 import os
 from hub.api.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+    PathNotEmptyException,
+)
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
@@ -499,3 +503,35 @@ def test_empty_dataset():
         ds.create_tensor("z")
         ds = Dataset("test")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_dataset_delete():
+    with CliRunner().isolated_filesystem():
+        os.mkdir("test")
+        with open("test/test.txt", "w") as f:
+            f.write("some data")
+
+        with pytest.raises(PathNotEmptyException):
+            # Can't delete raw data without force
+            Dataset.delete_at("test/")
+
+        Dataset.delete_at("test/", force=True)
+        assert not os.path.isfile("test/test.txt")
+
+        Dataset("test/").create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        Dataset.delete_at("test/")
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        # # Additional test omitted due to performance and memory issues.
+        # ds = Dataset("test/")
+        # ds.create_tensor("data")
+        # for i in range(1000):
+        #     ds.data.append(np.zeros((200000,)))
+
+        # Dataset.delete_at("test/")
+        # assert os.path.isfile("test/dataset_meta.json")
+
+        # Dataset.delete_at("test/", large_ok=True)
+        # assert not os.path.isfile("test/dataset_meta.json")
