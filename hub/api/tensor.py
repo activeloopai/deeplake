@@ -45,6 +45,7 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
+        self.index.validate(self.num_samples)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -163,6 +164,13 @@ class Tensor:
     def is_dynamic(self) -> bool:
         """Will return True if samples in this tensor have shapes that are unequal."""
         return self.shape_interval.is_dynamic
+
+    @property
+    def num_samples(self) -> int:
+        """Returns the length of the primary axis of the tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        return self.chunk_engine.num_samples
 
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
