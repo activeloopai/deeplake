@@ -11,7 +11,7 @@ import os
 
 kaggle_credentials = {
     "username": "thisiseshan",
-    "key": "lol",
+    "key": "c5a2a9fe75044da342e95a341f882f31",
 }
 
 
@@ -71,9 +71,9 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
     _exec_command("%s rm *.zip" % setup)
 
 
-tag = "olgabelitskaya/horse-breeds"
-local = "./datasets/horse/source/1"
-hub_path = "./datasets/horse/destination/1"
+tag = "andradaolteanu/birdcall-recognition-data"
+local = "./datasets/source/1"
+hub_path = "./datasets/destination/1"
 
 
 def run():
@@ -85,4 +85,4 @@ def run():
     unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
 
 
-run()
+# run()
