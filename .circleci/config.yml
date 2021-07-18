@@ -1,0 +1,324 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@3.4.2
+  codecov: codecov/codecov@1.1.3
+  win: circleci/windows@2.4.0
+
+workflows:
+  test:
+    jobs:
+      - test:
+          name: "Linux Simple Test"
+          e: linux
+          context:
+            - test
+            - azure
+      - test:
+          name: "Linux Complex Test"
+          e: linux
+          plugins: true
+          context:
+            - test
+            - azure
+      - test:
+          name: "Mac Complex Test"
+          e: mac
+          mac-like: true
+          plugins: true
+          context:
+            - test
+            - azure
+      - test:
+          name: "Windows Complex Test"
+          e: win64
+          unix-like: false
+          plugins: true
+          context:
+            - test
+            - azure
+  test-and-deploy:
+    jobs:
+      - test:
+          name: test-simple
+          e: linux
+          context:
+            - test
+            - azure
+          filters: &version
+            tags:
+              only: /[0-9]+(\.[0-9]+)*/
+            branches:
+              ignore: /.*/
+      - test:
+          name: test-complex
+          e: linux
+          plugins: true
+          context:
+            - test
+            - azure
+          filters: *version
+      - verify:
+          type: approval
+          requires:
+            - test-simple
+            - test-complex
+          filters: *version
+      - deploy:
+          context:
+            - pypi
+            - snark-docker
+          requires:
+            - verify
+          filters: *version
+      - conda:
+          context:
+            - conda
+          requires:
+            - deploy
+          filters: *version
+
+executors:
+  linux:
+    docker:
+      - image: circleci/python:3.8
+  win64: win/default
+  mac:
+    macos:
+      xcode: "12.4.0"
+
+commands:
+  aliases:
+    steps:
+      - run:
+          name: "Setting aliases for Windows"
+          command: |
+            Add-Content -Path $profile -Value {Set-Alias -Name python3 -Value python}
+            Add-Content -Path $profile -Value {Set-Alias -Name pip3 -Value pip}
+  get-python:
+    steps:
+      - run:
+          name: "Install Python"
+          command: |
+            brew update
+            brew install python@3.8
+            brew link --overwrite python@3.8
+      - run:
+          name: "Install dependencies"
+          command: |
+              brew install zlib libjpeg webp       	
+              sudo ln -s /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/* /usr/local/include/
+  info:
+    steps:
+      - run:
+          name: "Gather machine info"
+          command: python3 -c "import platform as p; print(f'{p.platform()}\nPython {p.sys.version}')"
+
+  google-creds:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                name: "Prepare Google credentials - Windows"
+                command: |
+                  $Env:CI_SECRETS_PATH = $Env:USERPROFILE + "\.secrets"
+                  $Env:CI_GCS_PATH = $Env:CI_SECRETS_PATH + "\gcs.json"
+                  setx /m CI_GCS_PATH "$Env:CI_GCS_PATH"
+                  mkdir $Env:CI_SECRETS_PATH
+                  [Text.Encoding]::ASCII.GetString([Convert]::FromBase64String($Env:GOOGLE_APPLICATION_CREDENTIALS)) | Out-File -FilePath $Env:CI_GCS_PATH -Encoding ASCII
+      - when:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                name: "Prepare Google credentials - Unix"
+                command: |
+                  mkdir -p "$HOME/.secrets/"
+                  echo "$GOOGLE_APPLICATION_CREDENTIALS" | base64 --decode > "$HOME/.secrets/gcs.json"
+  requirements:
+    parameters:
+      plugins:
+        description: "Include supported plugins requirements"
+        type: boolean
+        default: false
+    steps:
+      - run:
+          name: "Collecting requirements"
+          command: |
+            pip3 install --upgrade pip --user
+            pip3 install --upgrade setuptools
+            pip3 install -r requirements/tests.txt
+            <<# parameters.plugins >>pip3 install -r requirements/plugins.txt<</ parameters.plugins >>
+            pip3 install -r requirements/common.txt
+            pip3 install -e .
+  run-tests:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                name: "Running tests - Windows"
+                command: |
+                  $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
+                  setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+      - when:
+          condition: << parameters.unix-like >>
+          steps:
+            - run:
+                name: "Running tests - Unix"
+                command: |
+                  export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+                  
+          parallelism: 10
+  codecov-upload:
+    steps:
+      - codecov/upload:
+          file: coverage.xml
+  save-benchmarks:
+    steps:
+      - store_artifacts:
+          path: .benchmarks/
+  report:
+    parameters:
+      unix-like:
+        type: boolean
+        default: true
+    steps:
+      - when:
+          condition: << parameters.unix-like >>
+          steps:
+            - codecov-upload
+      - store_test_results:
+          path: test-reports # possibly change this path for Win
+      - store_artifacts:
+          path: test-reports
+  slack-status:
+    steps:
+      - slack/status:
+          fail_only: true
+          webhook: $SLACK_WEBHOOK
+  conda-install:
+    steps:
+      - run:
+          name: "Install Miniconda"
+          command: |
+            curl -O https://repo.anaconda.com/miniconda/Miniconda3-py38_4.9.2-Linux-x86_64.sh
+            echo "1314b90489f154602fd794accfc90446111514a5a72fe1f71ab83e07de9504a7 Miniconda3-py38_4.9.2-Linux-x86_64.sh" | sha256sum -c
+            bash Miniconda3-py38_4.9.2-Linux-x86_64.sh -b
+            echo 'export PATH=$HOME/miniconda3/bin:$PATH' >> $BASH_ENV
+  conda-setup:
+    steps:
+      - run:
+          name: "Install required conda packages and set config"
+          command: |
+            conda install conda-build anaconda-client patch -y
+            conda config --add channels conda-forge
+            conda config --set anaconda_upload yes
+  conda-build:
+    steps:
+      - run:
+          name: "Build Hub for conda"
+          command: |
+            pip install -e .
+            export HUB_VERSION=$(awk -F'=' '/^__version__/ { print $2}' $HOME/project/hub/version.py | tr -d ' "')
+            conda build .
+jobs:
+  test:
+    parameters:
+      e:
+        type: executor
+      plugins:
+        description: "Include requirements for supported plugins"
+        type: boolean
+        default: false
+      unix-like:
+        type: boolean
+        default: true
+      mac-like:
+        type: boolean
+        default: false
+    executor: << parameters.e >>
+    steps:
+      - checkout
+      - unless:
+          condition: << parameters.unix-like >>
+          steps:
+            - aliases
+      - when:
+          condition: << parameters.mac-like >>
+          steps:
+            - get-python  
+      - info
+      - google-creds:
+          unix-like: << parameters.unix-like >>
+      - requirements:
+          plugins: << parameters.plugins >>
+      - run-tests:
+          unix-like: << parameters.unix-like >>
+      - save-benchmarks
+      - when:
+          condition: << parameters.plugins >>
+          steps:
+            - report:
+                unix-like: << parameters.unix-like >>
+      - when:
+          condition: << parameters.unix-like >>
+          steps:
+            - slack-status
+  deploy:
+    executor: linux
+    environment:
+      IMAGE_NAME: snarkai/hub
+    steps:
+      - setup_remote_docker
+      - checkout
+      - run:
+          name: "Init .pypirc"
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = __token__" >> ~/.pypirc
+            echo -e "password = $TWINE_PASSWORD" >> ~/.pypirc
+      - run:
+          name: "Create a source distribution & wheel"
+          command: |
+            python3 setup.py sdist
+            python3 setup.py bdist_wheel
+      - run:
+          name: "Install twine via pip"
+          command: |
+            pip3 install twine
+      - run:
+          name: "Upload dist to PyPi"
+          command: |
+            twine upload --skip-existing dist/*
+      - run:
+          name: "Build Docker Hub Image"
+          command: |
+            docker build -t $IMAGE_NAME:latest .
+      - run:
+          name: "Deploy to Docker Hub"
+          command: |
+            echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+            IMAGE_TAG=${CIRCLE_TAG}
+            docker tag $IMAGE_NAME:latest $IMAGE_NAME:$IMAGE_TAG
+            docker push $IMAGE_NAME:latest
+            docker push $IMAGE_NAME:$IMAGE_TAG
+      - slack-status
+  conda:
+    executor: linux
+    steps:
+      - checkout
+      - conda-install
+      - conda-setup
+      - conda-build
+      - slack-status
