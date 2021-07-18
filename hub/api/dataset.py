@@ -351,9 +351,9 @@ class Dataset:
 
         Args:
             path (str): The path to the dataset to be deleted.
-            force (bool, optional): Delete data regardless of whether
+            force (bool): Delete data regardless of whether
                 it looks like a hub dataset. All data at the path will be removed.
-            large_ok (bool, optional): Delete datasets larger than 1GB. Disabled by default.
+            large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
         base_storage = get_storage_provider(
             path, storage=None, read_only=False, creds={}, token=None
