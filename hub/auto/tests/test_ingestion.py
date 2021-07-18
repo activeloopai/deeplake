@@ -44,8 +44,8 @@ def test_local_image_classification_with_sets():
 
 def test_kaggle_ingestion_simple():
     tag = "andradaolteanu/birdcall-recognition-data"
-    local = "./datasets/source/kaggle"
-    hub_path = "./datasets/destination/kaggle"
+    local = "./datasets/source/kaggle/simple"
+    hub_path = "./datasets/destination/kaggle/simple"
     download_kaggle_dataset(
         tag, local_path=local, kaggle_credentials=kaggle_credentials
     )
@@ -57,3 +57,28 @@ def test_kaggle_ingestion_simple():
     assert ds.labels.numpy().shape == (10,)
     plt.imshow(ds["images"][9].numpy())
     plt.show()
+
+
+def test_kaggle_ingestion_sets():
+    tag = "thisiseshan/bird-classes"
+    local = "./datasets/source/kaggle/sets"
+    hub_path = "./datasets/destination/kaggle/sets"
+    download_kaggle_dataset(
+        tag, local_path=local, kaggle_credentials=kaggle_credentials
+    )
+    ds = hub.Dataset(hub_path)
+    unstructured = ImageClassification(source=local)
+    unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
+    assert list(ds.tensors.keys()) == [
+        "test/images",
+        "test/labels",
+        "train/images",
+        "train/labels",
+    ]
+    assert ds["test/images"].numpy().shape == (3, 200, 200, 3)
+    assert ds["test/labels"].numpy().shape == (3,)
+    assert ds["test/labels"].meta.class_names == ("class0", "class1", "class2")
+
+    assert ds["train/images"].numpy().shape == (3, 200, 200, 3)
+    assert ds["train/labels"].numpy().shape == (3,)
+    assert ds["train/labels"].meta.class_names == ("class0", "class1", "class2")
