@@ -2,8 +2,13 @@ from hub.api.dataset import Dataset
 from hub.auto.tests.common import get_dummy_data_path
 from hub.auto.unstructured.image_classification import ImageClassification
 import matplotlib.pyplot as plt
-from hub.auto.unstructured.kaggle import download_kaggle_dataset, kaggle_credentials
+from hub.auto.unstructured.kaggle import download_kaggle_dataset
 import hub
+
+kaggle_credentials = {
+    "username": "thisiseshan",
+    "key": "c5a2a9fe75044da342e95a341f882f31",
+}
 
 
 def test_local_ingestion_image_classification():

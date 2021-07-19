@@ -7,15 +7,7 @@ from hub.util.exceptions import (
     KaggleMissingCredentialsError,
     KaggleDatasetAlreadyDownloadedError,
 )
-
-kaggle_credentials = {
-    "username": "thisiseshan",
-    "key": "lol",
-}
-
-
-_KAGGLE_USERNAME = "KAGGLE_USERNAME"
-_KAGGLE_KEY = "KAGGLE_KEY"
+from hub.constants import _KAGGLE_KEY, _KAGGLE_USERNAME
 
 
 def _exec_command(command):
@@ -68,20 +60,3 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
     _exec_command("%s kaggle datasets download -d %s" % (setup, tag))
     _exec_command("%s unzip -n *.zip" % setup)
     _exec_command("%s rm *.zip" % setup)
-
-
-tag = "andradaolteanu/birdcall-recognition-data"
-local = "./datasets/source/1"
-hub_path = "./datasets/destination/1"
-
-
-def run():
-    download_kaggle_dataset(
-        tag, local_path=local, kaggle_credentials=kaggle_credentials
-    )
-    ds = hub.Dataset(hub_path)
-    unstructured = ImageClassification(source=local)
-    unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
-
-
-# run()
