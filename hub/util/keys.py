@@ -26,8 +26,16 @@ def get_chunk_id_encoder_key(key: str) -> str:
 
 
 def dataset_exists(storage: StorageProvider) -> bool:
-    return get_dataset_meta_key() in storage
+    try:
+        storage[get_dataset_meta_key()]
+        return True
+    except KeyError:
+        return False
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
-    return get_tensor_meta_key(key) in storage
+    try:
+        storage[get_tensor_meta_key(key)]
+        return True
+    except KeyError:
+        return False

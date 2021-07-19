@@ -5,7 +5,7 @@ import tensorflow_datasets as tfds  # type: ignore
 from tensorflow_datasets import Split
 from tqdm import tqdm  # type: ignore
 
-from hub import Dataset
+from hub.api.dataset import Dataset
 
 
 def from_tfds_to_path(

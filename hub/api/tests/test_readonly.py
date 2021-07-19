@@ -2,7 +2,7 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-from hub import Dataset
+from hub.api.dataset import Dataset
 from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 
 

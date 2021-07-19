@@ -1,5 +1,5 @@
 import pytest
-from hub import Dataset
+from hub.api.dataset import Dataset
 
 
 enabled_datasets = pytest.mark.parametrize(

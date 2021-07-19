@@ -453,3 +453,8 @@ class WindowsSharedMemoryError(Exception):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
         )
+
+
+class DatasetHandlerError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
