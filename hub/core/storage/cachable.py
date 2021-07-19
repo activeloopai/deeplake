@@ -62,8 +62,14 @@ def use_callback(check_only: bool = False):
 
 class CachableCallback(Cachable):
     def __init__(self):
-        # TODO: docstring (warn that this may be very slow and shouldn't be used often or should be optimized)
-        # TODO: mention in docstring "use_callback"
+        """CachableCallback objects can be stored in memory cache and when modifier methods are called, this class is synchronized
+        with the cache. This means the user doesn't have to do `ds.cache[cache_key] = ds.info`.
+
+        Note:
+            This class should be used as infrequently as possible, as it may lead to slowdowns.
+            When extending this class, methods that should have a callback called should be decorated with
+                `@use_callback()`.
+        """
 
         self._key = None
         self._cache = None
