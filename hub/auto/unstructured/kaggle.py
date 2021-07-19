@@ -1,17 +1,16 @@
 from hub.auto.unstructured.image_classification import ImageClassification
+import hub
+import glob
+import os
 from hub.util.exceptions import (
     ExternalCommandError,
     KaggleMissingCredentialsError,
     KaggleDatasetAlreadyDownloadedError,
 )
-import hub
-
-import glob
-import os
 
 kaggle_credentials = {
     "username": "thisiseshan",
-    "key": "c5a2a9fe75044da342e95a341f882f31",
+    "key": "lol",
 }
 
 
