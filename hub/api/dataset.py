@@ -109,6 +109,7 @@ class Dataset:
         self.public = public
         self._load_meta()  # TODO: use the same load scheme as info
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
+        self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
@@ -122,8 +123,15 @@ class Dataset:
         self.storage.autoflush = True
         self.flush()
 
+    @property
+    def num_samples(self) -> int:
+        """Returns the length of the smallest tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        return min(map(len, self.tensors.values()), default=0)
+
     def __len__(self):
-        """Return the smallest length of tensors"""
+        """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 

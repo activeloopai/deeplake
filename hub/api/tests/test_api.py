@@ -463,6 +463,34 @@ def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     ds.delete()
 
 
+def test_index_range(memory_ds):
+    with pytest.raises(ValueError):
+        memory_ds[0]
+
+    memory_ds.create_tensor("label")
+
+    with pytest.raises(ValueError):
+        memory_ds.label[0]
+
+    memory_ds.label.extend([5, 6, 7])
+    assert len(memory_ds) == 3
+    assert len(memory_ds.label) == 3
+
+    for valid_idx in [0, 1, 2, -0, -1, -2, -3]:
+        memory_ds[valid_idx]
+        memory_ds.label[valid_idx]
+
+    for invalid_idx in [3, 4, -4, -5]:
+        with pytest.raises(ValueError):
+            memory_ds[invalid_idx]
+        with pytest.raises(ValueError):
+            memory_ds.label[invalid_idx]
+
+    memory_ds[[0, 1, 2]]
+    with pytest.raises(ValueError):
+        memory_ds[[0, 1, 2, 3, 4, 5]]
+
+
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
         ds = Dataset("test")
