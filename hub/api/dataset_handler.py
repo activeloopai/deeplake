@@ -12,7 +12,7 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: bool = False,
+        public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -20,7 +20,7 @@ class dataset:
         """Returns a Dataset object referencing either a new or existing dataset.
 
         Args:
-            path (str, optional): The full path to the dataset. Can be:-
+            path (str): The full path to the dataset. Can be:-
                 - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
@@ -33,7 +33,11 @@ class dataset:
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys."""
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+
+        Returns:
+            Dataset object created using the arguments provided.
+        """
 
         if overwrite:
             storage = get_storage_provider(path)
@@ -54,7 +58,7 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: bool = False,
+        public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -62,7 +66,7 @@ class dataset:
         """Creates an empty dataset
 
         Args:
-            path (str, optional): The full path to the dataset. Can be:-
+            path (str): The full path to the dataset. Can be:-
                 - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
@@ -75,7 +79,14 @@ class dataset:
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys."""
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+
+        Returns:
+            Dataset object created using the arguments provided.
+
+        Raises:
+            DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
+        """
         storage = get_storage_provider(path)
         if overwrite and dataset_exists(storage):
             storage.clear()
@@ -98,7 +109,7 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: bool = False,
+        public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
@@ -106,7 +117,7 @@ class dataset:
         """Loads an existing dataset
 
         Args:
-            path (str, optional): The full path to the dataset. Can be:-
+            path (str): The full path to the dataset. Can be:-
                 - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
@@ -119,7 +130,14 @@ class dataset:
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
-                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys."""
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+
+        Returns:
+            Dataset object created using the arguments provided.
+
+        Raises:
+            DatasetHandlerError: If a Dataset does not exist at the given path.
+        """
 
         storage = get_storage_provider(path)
         if not dataset_exists(storage):
