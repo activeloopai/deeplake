@@ -32,6 +32,9 @@ def test_readonly(local_ds_generator):
     with pytest.raises(ReadOnlyModeError):
         ds.info.update(key=0)
 
+    with pytest.raises(ReadOnlyModeError):
+        ds.tensor.info.update(key=0)
+
 
 @pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
 def test_readonly_doesnt_exist(local_path):

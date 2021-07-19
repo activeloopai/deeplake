@@ -28,11 +28,6 @@ def test_dataset(local_ds_generator):
     assert ds.info.another_key == "hello"
     assert ds.info.something == "bbbb"
 
-    # need to convert to tuples (TODO remove this?)
-    # assert ds.info.test == (1, 2, "5")
-    # assert ds.info.test2 == (1, 5, (1, "2"), (5, 6, (7, 8)))
-
-    # TODO: remove this?
     assert ds.info.test == [1, 2, "5", "user made change without `update`"]
     assert ds.info.test2 == [1, 5, [1, "2"], [5, 6, [7, 8]]]
 
