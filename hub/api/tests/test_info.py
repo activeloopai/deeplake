@@ -97,8 +97,17 @@ def test_update_reference_manually(local_ds_generator):
 
     # un-registered update
     l.append(5)
+    assert ds.info.key == [1, 2, 3, 5]
 
     ds = local_ds_generator()
 
     l = ds.info.key
     assert l == [1, 2, 3]
+
+    # registered update
+    l.append(99)
+    ds.info.update()
+
+    ds = local_ds_generator()
+
+    assert l == [1, 2, 3, 99]

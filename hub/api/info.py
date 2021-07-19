@@ -4,9 +4,6 @@ from typing import Any, Dict
 from hub.core.storage.cachable import CachableCallback, use_callback
 
 
-_VALUE_ERROR_MSG = '`info.update` should be called with a single dictionary or **kwargs values. Example: `info.update({"key1": 1}, key2=2, key3=3)`'
-
-
 class Info(CachableCallback):
     def __init__(self):
         """Contains **optional** key/values that datasets/tensors use for human-readability.
@@ -39,11 +36,39 @@ class Info(CachableCallback):
 
     @use_callback()
     def update(self, *args, **kwargs):
-        """Updates info and synchronizes with cache. Inputs must be supported by JSON.
-        A full list of supported value types can be found here: https://docs.python.org/3/library/json.html#json.JSONEncoder.
+        """Store optional dataset/tensor information. Will be accessible after loading your data from a new script!
+        Inputs must be supported by JSON.
+
 
         Note:
             This method has the same functionality as `dict().update(...)` Reference: https://www.geeksforgeeks.org/python-dictionary-update-method/.
+            A full list of supported value types can be found here: https://docs.python.org/3/library/json.html#json.JSONEncoder.
+
+        Examples:
+            Normal update usage:
+                >>> ds.info
+                {}
+                >>> ds.info.update(key=0)
+                >>> ds.info
+                {"key": 0}
+                >>> ds.info.update({"key1": 5, "key2": [1, 2, "test"]})
+                >>> ds.info
+                {"key": 0, "key1": 5, "key2": [1, 2, "test"]}
+
+            Alternate update usage:
+                >>> ds.info
+                {}
+                >>> ds.info.update(list=[1, 2, "apple"])
+                >>> ds.info
+                {"list": [1, 2, "apple"]}
+                >>> l = ds.info.list
+                >>> l
+                [1, 2, "apple"]
+                >>> l.append(5)
+                >>> l
+                [1, 2, "apple", 5]
+                >>> ds.info.update()  # required to be persistent!
+
         """
 
         self._cache.check_readonly()
