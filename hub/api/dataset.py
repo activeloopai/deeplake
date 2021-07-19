@@ -182,7 +182,6 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        self.meta.tensors.append(name)
         create_tensor(
             name,
             self.storage,
@@ -191,6 +190,8 @@ class Dataset:
             sample_compression=sample_compression,
             **kwargs,
         )
+        self.meta.tensors.append(name)
+        self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
