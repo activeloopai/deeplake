@@ -2,8 +2,8 @@ import hub
 
 
 def test_load(cat_path, flower_path):
-    cat = hub.load(cat_path)
-    flower = hub.load(flower_path)
+    cat = hub.read(cat_path)
+    flower = hub.read(flower_path)
 
     assert cat.is_lazy
     assert flower.is_lazy
