@@ -13,9 +13,11 @@ def test_dataset(local_ds_generator):
 
     ds.info.update(test=[1, 2, "5"])
 
+    test_list = ds.info.test
     with ds:
         ds.info.update({"test2": (1, 5, (1, "2"), [5, 6, (7, 8)])})
         ds.info.update(xyz="abc")
+        test_list.extend(["user made change without `update`"])
 
     ds.info.update({"1_-+": 5})
 
@@ -31,7 +33,7 @@ def test_dataset(local_ds_generator):
     # assert ds.info.test2 == (1, 5, (1, "2"), (5, 6, (7, 8)))
 
     # TODO: remove this?
-    assert ds.info.test == [1, 2, "5"]
+    assert ds.info.test == [1, 2, "5", "user made change without `update`"]
     assert ds.info.test2 == [1, 5, [1, "2"], [5, 6, [7, 8]]]
 
     assert ds.info.xyz == "abc"
