@@ -18,6 +18,8 @@ def get_dataset_meta_key() -> str:
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 
+def get_hashlist_meta_key(key: str) -> str:
+    return posixpath.join(key, constants.HASHLIST_META_FILENAME)
 
 def get_chunk_id_encoder_key(key: str) -> str:
     return posixpath.join(

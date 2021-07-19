@@ -5,7 +5,7 @@ from hub.util.keys import get_tensor_meta_key, tensor_exists
 from hub.util.exceptions import (
     TensorAlreadyExistsError,
 )
-
+from typing import Callable, Dict, Optional, Union, Tuple, List
 
 def create_tensor(
     key: str,

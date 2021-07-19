@@ -36,6 +36,7 @@ DEFAULT_LOCAL_CACHE_SIZE = 0
 
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
+HASHLIST_META_FILENAME = "hashlist.json"
 META_ENCODING = "utf8"
 
 CHUNKS_FOLDER = "chunks"
@@ -52,3 +53,5 @@ UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
 PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windows
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
+
+

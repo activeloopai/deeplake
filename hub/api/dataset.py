@@ -1,5 +1,6 @@
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
+from hub.core.hashlist import create_hashlist
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 from typing import Callable, Dict, Optional, Union, Tuple, List
 import numpy as np
@@ -145,6 +146,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
+        isHash: Optional[bool] = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -181,7 +183,13 @@ class Dataset:
             sample_compression=sample_compression,
             **kwargs,
         )
-        tensor = Tensor(name, self.storage)  # type: ignore
+
+        create_hashlist(
+            name,
+            self.storage,
+            **kwargs
+        )
+        tensor = Tensor(key=name, storage=self.storage, isHash=isHash)  # type: ignore
 
         self.tensors[name] = tensor
 
