@@ -1,3 +1,5 @@
+import os
+from hub.api.dataset import Dataset
 from hub.util.dataset import try_flushing
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
@@ -9,8 +11,6 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
-import hub
-import os
 
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
@@ -101,7 +101,7 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self.dataset is None:
-            self.dataset = hub.Dataset(storage=self.storage, index=self.index)
+            self.dataset = Dataset(storage=self.storage, index=self.index)
 
     def __len__(self):
         self._init_ds()
