@@ -11,7 +11,6 @@ class Info(CachableCallback):
 
         Note:
             Since `Info` is rarely written to and mostly by the user, every modifier will call `cache[key] = self`.
-            This is so the user doesn't have to call `flush`.
             Must call `initialize_callback_location` before using any methods.
         """
 
