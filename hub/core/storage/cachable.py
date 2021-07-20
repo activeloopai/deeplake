@@ -37,9 +37,15 @@ class Cachable(ABC):
 
 
 def use_callback(check_only: bool = False):
-    """Decorator for methods that should require `initialize_callback_location` to be called first."""
+    """Decorator function for `CachableCallback` and it's subclasses.
+    Use this decorator on a field method that should use the `CachableCallback.callback` method.
 
-    # TODO: update docstring
+    All methods that are decorated will require that `CachableCallback.initialize_callback_location`
+        is called first. Also, after the function executes, `CachableCallback.callback` is called.
+
+    Args:
+        check_only (bool, optional): If True, the callback is not actually called. Only the requirement check is executed. Defaults to False.
+    """
 
     def outer(func):
         def inner(obj: "CachableCallback", *args, **kwargs):
