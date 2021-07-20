@@ -343,6 +343,14 @@ class ChunkEngine:
         self.cache.maybe_flush()
 
     def update(self, index: Index, value: SampleValue):
+
+        length = self.num_samples
+        enc = self.chunk_id_encoder
+
+        for global_sample_index in index.values[0].indices(length):
+            chunk = self.get_chunk_for_sample(global_sample_index, enc)
+            pass
+
         raise NotImplementedError
 
     def numpy(
@@ -367,10 +375,7 @@ class ChunkEngine:
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            chunk_id = enc[global_sample_index]
-            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            chunk = self.get_chunk_for_sample(global_sample_index, enc)
             sample = self.read_sample_from_chunk(global_sample_index, chunk)
             shape = sample.shape
 
@@ -382,6 +387,27 @@ class ChunkEngine:
             last_shape = shape
 
         return _format_samples(samples, index, aslist)
+
+    def get_chunk_for_sample(
+        self, global_sample_index: int, enc: ChunkIdEncoder
+    ) -> Chunk:
+        """Retrives the `Chunk` object corresponding to `global_sample_index`.
+
+        Args:
+            global_sample_index (int): Index relative to the entire tensor representing the sample.
+            enc (ChunkIdEncoder): Chunk ID encoder. This is an argument because right now it is
+                sub-optimal to use `self.chunk_id_encoder` due to posixpath joins.
+
+        Returns:
+            Chunk: Chunk object that contains `global_sample_index`.
+        """
+
+        chunk_id = enc[global_sample_index]
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+
+        return chunk
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk
