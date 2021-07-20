@@ -1,6 +1,6 @@
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
-from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
+from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
@@ -17,6 +17,7 @@ from hub.util.cache_chain import generate_chain
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
+    MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
     ReadOnlyModeError,
     TensorAlreadyExistsError,
@@ -75,11 +76,7 @@ class Dataset:
             creds = {}
         base_storage = get_storage_provider(path, storage, read_only, creds, token)
 
-        # done instead of directly assigning read_only as backend might return read_only permissions
-        if hasattr(base_storage, "read_only") and base_storage.read_only:
-            self._read_only = True
-        else:
-            self._read_only = False
+        self._read_only = base_storage.read_only
 
         # uniquely identifies dataset
         self.path = path or get_path_from_storage(base_storage)
@@ -88,25 +85,11 @@ class Dataset:
         self.storage = generate_chain(
             base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
         )
-        self.storage.autoflush = True
         self.index = index or Index()
-
         self.tensors: Dict[str, Tensor] = {}
-
         self._token = token
-
-        if self.path.startswith("hub://"):
-            split_path = self.path.split("/")
-            self.org_id, self.ds_name = split_path[2], split_path[3]
-            self.client = HubBackendClient(token=token)
-
         self.public = public
-        self._load_meta()
-        self.index.validate(self.num_samples)
-
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
-        )
+        self._set_derived_attributes()
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -127,6 +110,34 @@ class Dataset:
         """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Returns a dict that can be pickled and used to restore this dataset.
+
+        Note:
+            Pickling a dataset does not copy the dataset, it only saves attributes that can be used to restore the dataset.
+            If you pickle a local dataset and try to access it on a machine that does not have the data present, the dataset will not work.
+        """
+        if self.path.startswith("mem://"):
+            raise MemoryDatasetCanNotBePickledError
+        return {
+            "path": self.path,
+            "_read_only": self.read_only,
+            "index": self.index,
+            "public": self.public,
+            "storage": self.storage,
+            "_token": self.token,
+        }
+
+    def __setstate__(self, state: Dict[str, Any]):
+        """Restores dataset from a pickled state.
+
+        Args:
+            state (dict): The pickled state used to restore the dataset.
+        """
+        self.__dict__.update(state)
+        self.tensors = {}
+        self._set_derived_attributes()
 
     def __getitem__(
         self,
@@ -306,6 +317,21 @@ class Dataset:
             tensor_key: tensor_value.meta
             for tensor_key, tensor_value in self.tensors.items()
         }
+
+    def _set_derived_attributes(self):
+        """Sets derived attributes during init and unpickling."""
+        self.storage.autoflush = True
+        if self.path.startswith("hub://"):
+            split_path = self.path.split("/")
+            self.org_id, self.ds_name = split_path[2], split_path[3]
+            self.client = HubBackendClient(token=self._token)
+
+        self._load_meta()
+        self.index.validate(self.num_samples)
+
+        hub_reporter.feature_report(
+            feature_name="Dataset", parameters={"Path": str(self.path)}
+        )
 
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
