@@ -252,14 +252,12 @@ class Dataset:
             raise PathNotEmptyException
 
         else:
-            self.meta = DatasetMeta()
-
-            try:
-                self.storage[meta_key] = self.meta
-            except ReadOnlyModeError:
-                # if this is thrown, that means the dataset doesn't exist and the user has no write access.
+            if self.read_only:
+                # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
 
+            self.meta = DatasetMeta()
+            self.storage[meta_key] = self.meta
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
