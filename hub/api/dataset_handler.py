@@ -61,7 +61,6 @@ class dataset:
     @staticmethod
     def empty(
         path: str,
-        read_only: bool = False,
         overwrite: bool = False,
         public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
@@ -77,8 +76,6 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
-                Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): Overwrites the dataset if it already exists. Defaults to False.
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
@@ -96,9 +93,7 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        storage = get_storage_provider(
-            path=path, read_only=read_only, creds=creds, token=token
-        )
+        storage = get_storage_provider(path=path, creds=creds, token=token)
 
         if overwrite and dataset_exists(storage):
             storage.clear()
@@ -109,7 +104,6 @@ class dataset:
 
         return Dataset(
             path=path,
-            read_only=read_only,
             public=public,
             memory_cache_size=memory_cache_size,
             local_cache_size=local_cache_size,
