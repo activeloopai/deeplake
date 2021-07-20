@@ -89,20 +89,7 @@ class Dataset:
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
-        self._init_helper()
-
-    def _init_helper(self):
-        self.storage.autoflush = True
-        if self.path.startswith("hub://"):
-            split_path = self.path.split("/")
-            self.org_id, self.ds_name = split_path[2], split_path[3]
-            self.client = HubBackendClient(token=self._token)
-
-        self._load_meta()
-
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
-        )
+        self._set_derived_attributes()
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -143,7 +130,7 @@ class Dataset:
         """
         self.__dict__.update(state)
         self.tensors = {}
-        self._init_helper()
+        self._set_derived_attributes()
 
     def __getitem__(
         self,
@@ -322,6 +309,20 @@ class Dataset:
             tensor_key: tensor_value.meta
             for tensor_key, tensor_value in self.tensors.items()
         }
+
+    def _set_derived_attributes(self):
+        """Sets derived attributes during init and unpickling."""
+        self.storage.autoflush = True
+        if self.path.startswith("hub://"):
+            split_path = self.path.split("/")
+            self.org_id, self.ds_name = split_path[2], split_path[3]
+            self.client = HubBackendClient(token=self._token)
+
+        self._load_meta()
+
+        hub_reporter.feature_report(
+            feature_name="Dataset", parameters={"Path": str(self.path)}
+        )
 
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
