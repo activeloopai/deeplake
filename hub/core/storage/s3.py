@@ -3,13 +3,13 @@ import boto3
 import botocore  # type: ignore
 import posixpath
 from typing import Optional
-from botocore.session import ComponentLocator
+from botocore.session import ComponentLocator # type: ignore
 from hub.client.client import HubBackendClient
 from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 import hub
 
-from retrying import retry
+from retrying import retry # type: ignore
 
 
 class S3Provider(StorageProvider):
