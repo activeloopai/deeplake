@@ -203,7 +203,7 @@ class Tensor:
         return Tensor(self.key, self.storage, index=self.index[item])
 
     def __setitem__(self, item: Union[int, slice], value: np.ndarray):
-        raise NotImplementedError("Tensor update not currently supported!")
+        self.chunk_engine.update(Index(item), value)
 
     def __iter__(self):
         for i in range(len(self)):

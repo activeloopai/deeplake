@@ -342,6 +342,9 @@ class ChunkEngine:
 
         self.cache.maybe_flush()
 
+    def update(self, index: Index, value: SampleValue):
+        raise NotImplementedError
+
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
