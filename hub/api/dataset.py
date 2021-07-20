@@ -95,13 +95,11 @@ class Dataset:
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
-        self._load_meta()  # TODO: use the same load scheme as info
-        self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
-        self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
         )
+
         self._set_derived_attributes()
 
     def __enter__(self):
@@ -334,13 +332,15 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
+
         self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
-        self._load_meta()
+        self._load_meta()  # TODO: use the same scheme as `load_info`
+        self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
