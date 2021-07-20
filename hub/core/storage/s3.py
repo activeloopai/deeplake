@@ -9,6 +9,8 @@ from hub.core.storage.provider import StorageProvider
 from hub.util.exceptions import S3DeletionError, S3GetError, S3ListError, S3SetError
 import hub
 
+from retrying import retry
+
 
 class S3Provider(StorageProvider):
     """Provider class for using S3 storage."""
@@ -83,6 +85,7 @@ class S3Provider(StorageProvider):
         except Exception as err:
             raise S3SetError(err)
 
+    @retry(stop_max_attempt_number=3)
     def __getitem__(self, path):
         """Gets the object present at the path.
 
