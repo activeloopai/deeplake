@@ -1,7 +1,7 @@
 import hub
 
 
-def test_load(cat_path, flower_path):
+def test_read(cat_path, flower_path):
     cat = hub.read(cat_path)
     flower = hub.read(flower_path)
 
