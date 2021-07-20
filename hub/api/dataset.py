@@ -96,10 +96,6 @@ class Dataset:
         self._token = token
         self.public = public
 
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
-        )
-
         self._set_derived_attributes()
 
     def __enter__(self):
