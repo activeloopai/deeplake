@@ -1,4 +1,4 @@
-from hub.util.keys import tensor_exists
+from hub.util.keys import get_chunk_id_encoder_key, get_tensor_meta_key, tensor_exists
 from hub.core.sample import Sample  # type: ignore
 from typing import List, Sequence, Union, Optional, Tuple, Dict
 from hub.util.shape import ShapeInterval
@@ -7,7 +7,10 @@ import numpy as np
 
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.core.storage import LRUCache
-from hub.util.exceptions import TensorDoesNotExistError, InvalidKeyTypeError
+from hub.util.exceptions import (
+    TensorDoesNotExistError,
+    InvalidKeyTypeError,
+)
 from hub.core.index import Index
 
 
@@ -42,6 +45,7 @@ class Tensor:
             raise TensorDoesNotExistError(self.key)
 
         self.chunk_engine = ChunkEngine(self.key, self.storage)
+        self.index.validate(self.num_samples)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -161,6 +165,13 @@ class Tensor:
         """Will return True if samples in this tensor have shapes that are unequal."""
         return self.shape_interval.is_dynamic
 
+    @property
+    def num_samples(self) -> int:
+        """Returns the length of the primary axis of the tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        return self.chunk_engine.num_samples
+
     def __len__(self):
         """Returns the length of the primary axis of the tensor.
         Accounts for indexing into the tensor object.
@@ -178,7 +189,10 @@ class Tensor:
             int: The current length of this tensor.
         """
 
-        return self.index.length(self.chunk_engine.num_samples)
+        # catch corrupted datasets / user tampering ASAP
+        self.chunk_engine.validate_num_samples_is_synchronized()
+
+        return self.index.length(self.meta.length)
 
     def __getitem__(
         self,

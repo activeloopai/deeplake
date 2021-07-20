@@ -99,8 +99,15 @@ class Dataset:
         self.storage.autoflush = True
         self.flush()
 
+    @property
+    def num_samples(self) -> int:
+        """Returns the length of the smallest tensor.
+        Ignores any applied indexing and returns the total length.
+        """
+        return min(map(len, self.tensors.values()), default=0)
+
     def __len__(self):
-        """Return the smallest length of tensors"""
+        """Returns the length of the smallest tensor"""
         tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
         return min(tensor_lengths, default=0)
 
@@ -186,7 +193,6 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
-        self.meta.tensors.append(name)
         create_tensor(
             name,
             self.storage,
@@ -195,6 +201,8 @@ class Dataset:
             sample_compression=sample_compression,
             **kwargs,
         )
+        self.meta.tensors.append(name)
+        self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
@@ -319,6 +327,7 @@ class Dataset:
             self.client = HubBackendClient(token=self._token)
 
         self._load_meta()
+        self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
             feature_name="Dataset", parameters={"Path": str(self.path)}
