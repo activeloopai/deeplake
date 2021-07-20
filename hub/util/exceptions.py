@@ -457,3 +457,10 @@ class WindowsSharedMemoryError(Exception):
 
 class CallbackInitializationError(Exception):
     pass
+
+
+class MemoryDatasetCanNotBePickledError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
+        )

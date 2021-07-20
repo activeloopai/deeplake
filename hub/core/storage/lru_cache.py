@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from hub.core.storage.cachable import Cachable, CachableCallback
-from typing import Set, Union
+from typing import Any, Dict, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -173,11 +173,10 @@ class LRUCache(StorageProvider):
         self.maybe_flush()
 
     def clear_cache(self):
-        """Flushes the content of the cache and and then deletes contents of all the layers of it.
+        """Flushes the content of the cache if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """
-        self.check_readonly()
-        self.flush()
+        self._flush_if_not_read_only()
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()
@@ -282,3 +281,40 @@ class LRUCache(StorageProvider):
         for key in self.cache_storage:
             all_keys.add(key)
         return list(all_keys)
+
+    def _flush_if_not_read_only(self):
+        """Flushes the cache if not in read-only mode."""
+        if not self.read_only:
+            self.flush()
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Returns the state of the cache, for pickling"""
+
+        # flushes the cache before pickling
+        self._flush_if_not_read_only()
+
+        return {
+            "next_storage": self.next_storage,
+            "cache_storage": self.cache_storage,
+            "cache_size": self.cache_size,
+        }
+
+    def __setstate__(self, state: Dict[str, Any]):
+        """Recreates a cache with the same configuration as the state.
+
+        Args:
+            state (dict): The state to be used to recreate the cache.
+
+        Note:
+            While restoring the cache, we reset its contents.
+            In case the cache storage was local/s3 and is still accessible when unpickled (if same machine/s3 creds present respectively), the earlier cache contents are no longer accessible.
+        """
+
+        # TODO: We might want to change this behaviour in the future by having a separate file that keeps a track of the lru order for restoring the cache.
+        # This would also allow the cache to persist across different different Dataset objects pointing to the same dataset.
+        self.next_storage = state["next_storage"]
+        self.cache_storage = state["cache_storage"]
+        self.cache_size = state["cache_size"]
+        self.lru_sizes = OrderedDict()
+        self.dirty_keys = set()
+        self.cache_used = 0

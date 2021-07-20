@@ -17,10 +17,10 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
     original_compressions = []
 
     for _ in range(count):
-        tensor.append(hub.load(cat_path))
+        tensor.append(hub.read(cat_path))
         original_compressions.append("jpeg")
 
-        tensor.append(hub.load(flower_path))
+        tensor.append(hub.read(flower_path))
         original_compressions.append("png")
 
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
@@ -28,8 +28,8 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
         tensor.extend(
             [
-                hub.load(flower_path),
-                hub.load(cat_path),
+                hub.read(flower_path),
+                hub.read(cat_path),
             ]
         )
         original_compressions.extend(["png", "jpeg"])
