@@ -1,15 +1,15 @@
 from hub.core.sample import Sample  # type: ignore
 
 
-def load(path: str) -> Sample:
-    """Utility that loads data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
+def read(path: str) -> Sample:
+    """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
 
     Note:
-        No data is actually loaded until you try to read a property of the returned `Sample`. This is useful for passing along to
+        No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
             `tensor.append` and `tensor.extend`.
 
     Examples:
-        >>> sample = hub.load("path/to/cat.jpeg")
+        >>> sample = hub.read("path/to/cat.jpeg")
         >>> type(sample.array)
         <class 'numpy.ndarray'>
         >>> sample.compression
