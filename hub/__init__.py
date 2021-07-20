@@ -14,8 +14,9 @@ from .api.dataset_handler import dataset
 from .api.tensor import Tensor
 from .api.read import read
 from .util.bugout_reporter import hub_reporter
-
-__all__ = ["dataset", "Tensor", "read", "__version__"]
+load = dataset.load
+empty = dataset.empty
+__all__ = ["dataset", "Tensor", "read", "__version__", "load", "empty"]
 
 __version__ = "2.0.2"
 __encoded_version__ = np.array(__version__)
