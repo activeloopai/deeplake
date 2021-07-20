@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
-import uuid
 import hub
-import os
 from hub.api.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
@@ -11,6 +9,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
 )
 from click.testing import CliRunner
+from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
@@ -205,7 +204,7 @@ def test_empty_samples(ds: Dataset):
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
-    assert tensor.meta.dtype == None
+    assert tensor.meta.dtype is None
 
     # first sample sets dtype
     tensor.append(5)

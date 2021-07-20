@@ -11,6 +11,12 @@ enabled_storages = pytest.mark.parametrize(
     indirect=True,
 )
 
+enabled_persistent_storages = pytest.mark.parametrize(
+    "storage",
+    ["local_storage", "s3_storage", "hub_cloud_storage"],
+    indirect=True,
+)
+
 
 @pytest.fixture
 def memory_storage(memory_path):
