@@ -38,13 +38,18 @@ class Cachable(ABC):
 
 def use_callback(check_only: bool = False):
     """Decorator function for `CachableCallback` and it's subclasses.
-    Use this decorator on a field method that should use the `CachableCallback.callback` method.
 
-    All methods that are decorated will require that `CachableCallback.initialize_callback_location`
-        is called first. Also, after the function executes, `CachableCallback.callback` is called.
+    Note:
+        Must call `@use_callback()` not `@use_callback`.
+        Use this decorator on a field method that should use the `CachableCallback.callback` method.
+        All methods that are decorated will require that `CachableCallback.initialize_callback_location`
+            is called first. Also, after the function executes, `CachableCallback.callback` is called.
 
     Args:
-        check_only (bool, optional): If True, the callback is not actually called. Only the requirement check is executed. Defaults to False.
+        check_only (bool): If True, the callback is not actually called. Only the requirement check is executed. Defaults to False.
+
+    Returns:
+        Decorator function.
     """
 
     def outer(func):
