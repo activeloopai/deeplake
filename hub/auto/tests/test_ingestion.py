@@ -1,7 +1,6 @@
 from hub.api.dataset import Dataset
 from hub.auto.tests.common import get_dummy_data_path
 from hub.auto.unstructured.image_classification import ImageClassification
-import matplotlib.pyplot as plt
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 import hub
 
@@ -21,8 +20,6 @@ def test_local_ingestion_image_classification():
     assert ds.images.numpy().shape == (3, 200, 200, 3)
     assert ds.labels.numpy().shape == (3,)
     assert ds.labels.meta.class_names == ("class0", "class1", "class2")
-    plt.imshow(ds["images"][0].numpy())
-    plt.show()
 
 
 def test_local_image_classification_with_sets():
@@ -60,8 +57,6 @@ def test_kaggle_ingestion_simple():
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds.images[9].numpy().shape == (570, 570, 3)
     assert ds.labels.numpy().shape == (10,)
-    plt.imshow(ds["images"][9].numpy())
-    plt.show()
 
 
 def test_kaggle_ingestion_sets():
