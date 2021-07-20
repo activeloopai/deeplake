@@ -1,12 +1,15 @@
 import numpy as np
 import pytest
-import uuid
 import hub
-import os
 from hub.api.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+    UnsupportedCompressionError,
+)
 from click.testing import CliRunner
+from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
@@ -201,7 +204,7 @@ def test_empty_samples(ds: Dataset):
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
-    assert tensor.meta.dtype == None
+    assert tensor.meta.dtype is None
 
     # first sample sets dtype
     tensor.append(5)
@@ -498,4 +501,18 @@ def test_empty_dataset():
         ds.create_tensor("y")
         ds.create_tensor("z")
         ds = Dataset("test")
+        assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_tensor_creation_fail_recovery():
+    with CliRunner().isolated_filesystem():
+        ds = Dataset("test")
+        with ds:
+            ds.create_tensor("x")
+            ds.create_tensor("y")
+            with pytest.raises(UnsupportedCompressionError):
+                ds.create_tensor("z", sample_compression="something_random")
+        ds = Dataset("test")
+        assert list(ds.tensors) == ["x", "y"]
+        ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]

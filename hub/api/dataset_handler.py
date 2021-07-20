@@ -16,7 +16,7 @@ class dataset:
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
     ):
         """Returns a Dataset object referencing either a new or existing dataset.
 
@@ -43,7 +43,9 @@ class dataset:
         if creds is None:
             creds = {}
         if overwrite:
-            storage = get_storage_provider(path=path, read_only=read_only, creds=creds, token=token)
+            storage = get_storage_provider(
+                path=path, read_only=read_only, creds=creds, token=token
+            )
             if dataset_exists(storage):
                 storage.clear()
 
@@ -65,7 +67,7 @@ class dataset:
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
     ) -> Dataset:
         """Creates an empty dataset
 
@@ -94,7 +96,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        storage = get_storage_provider(path=path, read_only=read_only, creds=creds, token=token)
+        storage = get_storage_provider(
+            path=path, read_only=read_only, creds=creds, token=token
+        )
 
         if overwrite and dataset_exists(storage):
             storage.clear()
@@ -121,7 +125,7 @@ class dataset:
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
-        token: Optional[str] = None
+        token: Optional[str] = None,
     ) -> Dataset:
         """Loads an existing dataset
 
@@ -151,7 +155,9 @@ class dataset:
         if creds is None:
             creds = {}
 
-        storage = get_storage_provider(path=path, read_only=read_only, creds=creds, token=token)
+        storage = get_storage_provider(
+            path=path, read_only=read_only, creds=creds, token=token
+        )
         if not dataset_exists(storage):
             raise DatasetHandlerError(
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
