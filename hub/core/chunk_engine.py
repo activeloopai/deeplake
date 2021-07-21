@@ -356,6 +356,7 @@ class ChunkEngine:
         # TODO: docstring
 
         if not isinstance(value, np.ndarray):
+            # TODO: implement this
             raise NotImplementedError(
                 f"Updating is only supported for numpy arrays as inputs currently. Got: {type(value)}"
             )
@@ -372,9 +373,7 @@ class ChunkEngine:
 
             local_sample_index = enc.get_local_sample_index(global_sample_index)
 
-            # TODO: properly get `incoming_sample`
-            # incoming_sample = value[value_index]
-            incoming_sample = value
+            incoming_sample = value[value_index]
 
             # TODO: optimize this (memcp)
             buffer = memoryview(incoming_sample.tobytes())
@@ -382,8 +381,6 @@ class ChunkEngine:
 
         self._synchronize_cache()
         self.cache.maybe_flush()
-
-        raise NotImplementedError
 
     def numpy(
         self, index: Index, aslist: bool = False

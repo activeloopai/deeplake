@@ -38,13 +38,20 @@ def _make_update_assert_equal(
     tensor = ds[tensor_name]
     expected = tensor.numpy(aslist=True)
 
+    # this is necessary because `expected` uses `aslist=True` to handle dynamic cases.
+    # with `aslist=False`, this wouldn't be necessary.
+    expected_value = value
+    if hasattr(value, "__len__"):
+        if len(value) == 1:
+            expected_value = value[0]
+
     # make updates
     if pre_index is None:
         tensor[index] = value
-        expected[index] = value
+        expected[index] = expected_value
     else:
         tensor[pre_index][index] = value
-        expected[pre_index][index] = value
+        expected[pre_index][index] = expected_value
 
     # non-persistence check
     actual = tensor.numpy(aslist=True)
@@ -53,7 +60,6 @@ def _make_update_assert_equal(
     # persistence check
     ds = ds_generator()
     tensor = ds[tensor_name]
-
     actual = tensor.numpy(aslist=True)
     assert_array_lists_equal(actual, expected)
 
