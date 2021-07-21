@@ -7,7 +7,7 @@ from hub.util.exceptions import (
     KaggleMissingCredentialsError,
     KaggleDatasetAlreadyDownloadedError,
 )
-from hub.constants import _KAGGLE_KEY, _KAGGLE_USERNAME
+from hub.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
 
 
 def _exec_command(command):
@@ -17,16 +17,16 @@ def _exec_command(command):
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: dict = {}):
-    if _KAGGLE_USERNAME not in os.environ:
+    if ENV_KAGGLE_USERNAME not in os.environ:
         username = kaggle_credentials.get("username", None)
-        os.environ[_KAGGLE_USERNAME] = username
+        os.environ[ENV_KAGGLE_USERNAME] = username
         if not username:
-            raise KaggleMissingCredentialsError(_KAGGLE_USERNAME)
-    if _KAGGLE_KEY not in os.environ:
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_USERNAME)
+    if ENV_KAGGLE_KEY not in os.environ:
         key = kaggle_credentials.get("key", None)
-        os.environ[_KAGGLE_KEY] = key
+        os.environ[ENV_KAGGLE_KEY] = key
         if not key:
-            raise KaggleMissingCredentialsError(_KAGGLE_KEY)
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_KEY)
 
 
 def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = {}):
