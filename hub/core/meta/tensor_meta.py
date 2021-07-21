@@ -236,6 +236,7 @@ def _format_values(htype_overwrite: dict):
     if htype_overwrite.get("sample_compression") == "jpg":
         htype_overwrite["sample_compression"] = "jpeg"
 
+
 def _validate_htype_exists(htype: str):
     """Raises errors if given an unrecognized htype."""
     if htype not in HTYPE_CONFIGURATIONS:
