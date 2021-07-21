@@ -12,12 +12,12 @@ __pdoc__ = {
 
 from .api.dataset import Dataset
 from .api.tensor import Tensor
-from .api.load import load
+from .api.read import read
 from .util.bugout_reporter import hub_reporter
 
 __all__ = ["Dataset", "Tensor", "load", "transform", "__version__"]
 
-__version__ = "2.0.0"
+__version__ = "2.0.2"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")
