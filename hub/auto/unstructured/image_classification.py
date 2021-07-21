@@ -106,7 +106,7 @@ class ImageClassification(UnstructuredDataset):
                 disable=not use_progress_bar,
             )
             for file_path in iterator:
-                image = hub.load(file_path)
+                image = hub.read(file_path)
                 class_name = _class_name_from_path(file_path)
 
                 label = np.uint32(self.class_names.index(class_name))
