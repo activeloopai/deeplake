@@ -455,6 +455,10 @@ class WindowsSharedMemoryError(Exception):
         )
 
 
+class CallbackInitializationError(Exception):
+    pass
+
+
 class MemoryDatasetCanNotBePickledError(Exception):
     def __init__(self):
         super().__init__(
