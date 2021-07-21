@@ -1,5 +1,5 @@
 from hub.util.exceptions import DatasetHandlerError, PathNotEmptyException
-from hub.util.get_storage_provider import get_storage_and_storage_chain
+from hub.util.storage import get_storage_and_cache_chain
 from typing import Optional
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from .dataset import Dataset
@@ -42,7 +42,7 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        storage, storage_chain = get_storage_and_storage_chain(
+        storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
             creds=creds,
@@ -53,7 +53,7 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
 
-        return Dataset(storage=storage_chain, public=public, token=token)
+        return Dataset(storage=cache_chain, public=public, token=token)
 
     @staticmethod
     def empty(
@@ -90,7 +90,7 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        storage, storage_chain = get_storage_and_storage_chain(
+        storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=False,
             creds=creds,
@@ -106,7 +106,7 @@ class dataset:
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
 
-        return Dataset(storage=storage_chain, public=public, token=token)
+        return Dataset(storage=cache_chain, public=public, token=token)
 
     @staticmethod
     def load(
@@ -147,7 +147,7 @@ class dataset:
         if creds is None:
             creds = {}
 
-        storage, storage_chain = get_storage_and_storage_chain(
+        storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
             creds=creds,
@@ -162,7 +162,7 @@ class dataset:
             )
         if overwrite:
             storage.clear()
-        return Dataset(storage=storage_chain, public=public, token=token)
+        return Dataset(storage=cache_chain, public=public, token=token)
 
     @staticmethod
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:

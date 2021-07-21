@@ -81,11 +81,11 @@ def storage_provider_from_hub_path(
     return storage
 
 
-def get_storage_and_storage_chain(
+def get_storage_and_cache_chain(
     path, read_only, creds, token, memory_cache_size, local_cache_size
 ):
     """
-    Get a storage provider and a chain of storage providers to the root of the dataset.
+    Returns storage provider and cache chain for a given path, according to arguments passed.
 
     Args:
         path (str): The full path to the Dataset.
