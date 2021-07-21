@@ -76,10 +76,18 @@ def test_non_trivial(local_ds_generator):
     _make_update_assert_equal(gen, "images", slice(0, 3), np.zeros((28, 28)))
     _make_update_assert_equal(gen, "labels", slice(0, 5), 3)
 
+    # TODO: test updating a tensor that has already been indexed into. example:
+    # t = ds.tensor[5:10]
+    # t[0] = ...
+
+    # TODO: test updating a tensor with an empty sample
+
 
 def test_failures(memory_ds):
     # TODO: test bad shape broadcasting
 
     # TODO: test inplace operators (these shouldn't happen yet)
+
+    # TODO: notimplemented stuff (shapes not equal for incoming samples)
 
     pass

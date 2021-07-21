@@ -164,7 +164,10 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return None
 
-        return self.cache.get_cachable(self.last_chunk_key, Chunk)
+        return self.get_chunk(self.last_chunk_key)
+
+    def get_chunk(self, chunk_key: str) -> Chunk:
+        return self.cache.get_cachable(chunk_key, Chunk)
 
     @property
     def last_chunk_key(self) -> str:
@@ -204,16 +207,22 @@ class ChunkEngine:
         self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
         self._synchronize_cache()
 
-    def _synchronize_cache(self):
-        """Synchronizes cachables with the cache. Includes: the last chunk, tensor meta, and chunk IDs encoder."""
+    def _synchronize_cache(self, chunk_keys: List[str] = None):
+        """Synchronizes cachables with the cache.
+
+        Args:
+            chunk_keys (List[str]): List of chunk keys to be synchronized. If None, only the last chunk will be synchronized. Defaults to None.
+        """
 
         # TODO implement tests for cache size compute
         # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
 
-        # synchronize last chunk
-        last_chunk_key = self.last_chunk_key
-        last_chunk = self.last_chunk
-        self.cache.update_used_cache_for_path(last_chunk_key, len(last_chunk))  # type: ignore
+        # synchronize chunks
+        if chunk_keys is None:
+            chunk_keys = [self.last_chunk_key]
+        for chunk_key in chunk_keys:
+            chunk = self.get_chunk(chunk_key)
+            self.cache.update_used_cache_for_path(chunk_key, len(chunk))  # type: ignore
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key)
@@ -296,6 +305,7 @@ class ChunkEngine:
 
                 # before adding any data, we need to check all sample sizes
                 for sample in samples:
+                    # TODO: optimize this (memcp)
                     buffer = memoryview(sample.tobytes())
                     self._check_sample_size(len(buffer))
                     buffers.append(buffer)
@@ -342,14 +352,36 @@ class ChunkEngine:
 
         self.cache.maybe_flush()
 
-    def update(self, index: Index, value: SampleValue):
+    def update(self, index: Index, value: np.ndarray):
+        # TODO: docstring
+
+        if not isinstance(value, np.ndarray):
+            raise NotImplementedError(
+                f"Updating is only supported for numpy arrays as inputs currently. Got: {type(value)}"
+            )
+
+        # TODO: first make sure `value` can be assigned to `Index`
 
         length = self.num_samples
         enc = self.chunk_id_encoder
 
-        for global_sample_index in index.values[0].indices(length):
+        for value_index, global_sample_index in enumerate(
+            index.values[0].indices(length)
+        ):
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            pass
+
+            local_sample_index = enc.get_local_sample_index(global_sample_index)
+
+            # TODO: properly get `incoming_sample`
+            # incoming_sample = value[value_index]
+            incoming_sample = value
+
+            # TODO: optimize this (memcp)
+            buffer = memoryview(incoming_sample.tobytes())
+            chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)
+
+        self._synchronize_cache()
+        self.cache.maybe_flush()
 
         raise NotImplementedError
 

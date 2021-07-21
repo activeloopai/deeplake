@@ -1,5 +1,4 @@
 from hub.constants import ENCODING_DTYPE
-from re import L
 from typing import Tuple
 import numpy as np
 
@@ -149,24 +148,38 @@ class BytePositionsEncoder:
                 dtype=ENCODING_DTYPE,
             )
 
-    def __getitem__(self, sample_index: int) -> Tuple[int, int]:
-        """Get the (start_byte, end_byte) for `sample_index`. For details on the lookup algorithm, see `__init__`."""
+    def translate_index(self, local_sample_index: int) -> int:
+        """Translates `local_sample_index` into which row it corresponds to inside `self._encoded_byte_positions`.
+
+        Args:
+            local_sample_index (int): Index representing a sample, binary searched over the `LAST_INDEX_INDEX` column.
+
+        Returns:
+            int: The index of the corresponding row inside `self._encoded_byte_positions`.
+        """
 
         if self.num_samples == 0:
             raise IndexError(
-                f"Index {sample_index} is out of bounds for an empty byte position encoding."
+                f"Index {local_sample_index} is out of bounds for an empty byte position encoding."
             )
 
-        if sample_index < 0:
-            sample_index = (self.num_samples) + sample_index
+        if local_sample_index < 0:
+            local_sample_index += self.num_samples
 
-        idx = np.searchsorted(self._encoded_byte_positions[:, -1], sample_index)
+        return np.searchsorted(self._encoded_byte_positions[:, -1], local_sample_index)
 
-        entry = self._encoded_byte_positions[idx]
+    def __getitem__(self, sample_index: int) -> Tuple[int, int]:
+        """Get the (start_byte, end_byte) for `sample_index`. For details on the lookup algorithm, see `__init__`."""
+
+        encoded_index = self.translate_index(sample_index)
+
+        entry = self._encoded_byte_positions[encoded_index]
 
         index_bias = 0
-        if idx >= 1:
-            index_bias = self._encoded_byte_positions[idx - 1][LAST_INDEX_INDEX] + 1
+        if encoded_index >= 1:
+            index_bias = (
+                self._encoded_byte_positions[encoded_index - 1][LAST_INDEX_INDEX] + 1
+            )
 
         row_num_bytes = entry[NUM_BYTES_INDEX]
         row_start_byte = entry[START_BYTE_INDEX]
@@ -174,3 +187,20 @@ class BytePositionsEncoder:
         start_byte = row_start_byte + (sample_index - index_bias) * row_num_bytes
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
+
+    def update_num_bytes(self, local_sample_index: int, num_bytes: int):
+        # TODO: docstring
+
+        # TODO: this function needs major optimization...
+
+        encoded_index = self.translate_index(local_sample_index)
+
+        entry = self._encoded_byte_positions[encoded_index]
+
+        if entry[NUM_BYTES_INDEX] == num_bytes:
+            return
+
+        # TODO: if num_bytes don't match and there is only 1 sample for this row, all you need to do is update num_bytes
+        # TODO: if num_bytes don't match and there is > 1 sample for this row, you will need to create a new row
+
+        raise NotImplementedError
