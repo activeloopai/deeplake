@@ -1,5 +1,3 @@
-import os
-import hub
 from hub.util.dataset import try_flushing
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
@@ -11,6 +9,10 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
+import hub
+import os
+import pickle
+
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 
@@ -75,14 +77,14 @@ class TorchDataset:
                 )
 
         self.dataset = None
-
-        self.storage = get_base_storage(dataset.storage)
-        self.index = dataset.index
-        if isinstance(self.storage, MemoryProvider):
+        base_storage = get_base_storage(dataset.storage)
+        if isinstance(base_storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
-
+        self.pickled_storage = pickle.dumps(dataset.storage)
+        self.index = dataset.index
+        self.length = len(dataset)
         self.transform = transform
         if tensors is None:
             self.tensor_keys = list(dataset.tensors)
@@ -100,13 +102,11 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self.dataset is None:
-            self.dataset = hub.api.dataset.Dataset(
-                storage=self.storage, index=self.index
-            )
+            storage = pickle.loads(self.pickled_storage)
+            self.dataset = hub.Dataset(storage=storage, index=self.index)
 
     def __len__(self):
-        self._init_ds()
-        return len(self.dataset)
+        return self.length
 
     def __getitem__(self, index: int):
         self._init_ds()
