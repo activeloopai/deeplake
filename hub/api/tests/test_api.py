@@ -21,7 +21,16 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-@enabled_persistent_dataset_generators
+# not using the predefined parametrizes because `hub_cloud_ds_generator` is not enabled by default
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
 def test_persist(ds_generator):
     ds = ds_generator()
 

@@ -4,13 +4,13 @@ from hub import Dataset
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds", "hub_cloud_ds"],
+    ["memory_ds", "local_ds", "s3_ds"],
     indirect=True,
 )
 
 enabled_persistent_dataset_generators = pytest.mark.parametrize(
     "ds_generator",
-    ["local_ds_generator", "s3_ds_generator", "hub_cloud_ds_generator"],
+    ["local_ds_generator", "s3_ds_generator"],
     indirect=True,
 )
 
