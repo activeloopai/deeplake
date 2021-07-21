@@ -64,8 +64,14 @@ def test(local_ds_generator, images_compression):
     _add_dummy_mnist(gen(), images_compression=images_compression)
 
     # update single sample
-    _make_update_assert_equal(gen, "images", 0, np.ones((28, 25)) * 5)  # new shape
+    _make_update_assert_equal(
+        gen, "images", -1, np.ones((1, 28, 28)) * 75
+    )  # same shape (with 1)
     _make_update_assert_equal(gen, "images", -1, np.ones((28, 28)) * 75)  # same shape
+    _make_update_assert_equal(
+        gen, "images", 0, np.ones((1, 28, 25)) * 5
+    )  # new shape (with 1)
+    _make_update_assert_equal(gen, "images", 0, np.ones((28, 25)) * 5)  # new shape
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0))
     )  # empty sample (new shape)
