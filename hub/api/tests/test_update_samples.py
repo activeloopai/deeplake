@@ -46,11 +46,16 @@ def _make_update_assert_equal(
         tensor[pre_index][index] = value
         expected[pre_index][index] = value
 
-    # persistence
+    # non-persistence check
+    actual = tensor.numpy(aslist=True)
+    assert_array_lists_equal(actual, expected)
+
+    # persistence check
     ds = ds_generator()
     tensor = ds[tensor_name]
 
-    assert_array_lists_equal(tensor.numpy(aslist=True), expected)
+    actual = tensor.numpy(aslist=True)
+    assert_array_lists_equal(actual, expected)
 
     # make sure no new values are recorded
     ds = ds_generator()
@@ -131,6 +136,8 @@ def test_failures(memory_ds):
         memory_ds.images[0:3] = np.zeros((28, 28))
     with pytest.raises(ValueError):
         memory_ds.images[0:3] = np.zeros((2, 28, 28))
+    with pytest.raises(ValueError):
+        memory_ds.images[0] = np.zeros((2, 28, 28))
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
