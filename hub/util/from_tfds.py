@@ -28,7 +28,7 @@ def from_tfds_to_path(
     tfds_ds = tfds.load(tfds_dataset_name, split=split).batch(batch_size)
     ds = hub.dataset(hub_ds_path)
 
-    return from_tfds(tfds_ds=tfds_ds, ds=ds)
+    return from_tfds(tfds_ds=tfds_ds, ds=ds)  # type: ignore
 
 
 def from_tfds(tfds_ds: tensorflow.data.Dataset, ds: Dataset):

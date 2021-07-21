@@ -103,7 +103,7 @@ class TorchDataset:
         """
         if self.dataset is None:
             storage = pickle.loads(self.pickled_storage)
-            self.dataset = hub.Dataset(storage=storage, index=self.index)
+            self.dataset = hub.api.dataset.Dataset(storage=storage, index=self.index)
 
     def __len__(self):
         return self.length
