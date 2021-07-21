@@ -54,7 +54,6 @@ class ImageClassification(UnstructuredDataset):
                 Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
         """
 
-        # TODO: should support any `StorageProvider`. right now only local files can be converted
         super().__init__(source)
 
         self._abs_file_paths = _get_file_paths(self.source)
