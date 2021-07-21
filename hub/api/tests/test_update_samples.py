@@ -1,12 +1,11 @@
+import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
 from hub.api.dataset import Dataset
 import numpy as np
 
 
-def _add_dummy_mnist(ds_generator: Callable):
-    ds = ds_generator()
-
+def _add_dummy_mnist(ds: Dataset):
     ds.create_tensor("images")
     ds.create_tensor("labels")
 
@@ -20,7 +19,7 @@ def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, v
     """Updates a tensor and checks that the data is as expected.
 
     Example update:
-        >>> ds.tensor[0:5] = 1
+        >>> ds.tensor[0:5] = [1, 2, 3, 4, 5]
 
     Args:
         ds_generator (Callable): Function that returns a new dataset object with each call.
@@ -50,31 +49,27 @@ def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, v
     assert len(ds) == 10
 
 
-def test_trivial(local_ds_generator):
+def test_same_shape(local_ds_generator):
     gen = local_ds_generator
 
-    _add_dummy_mnist(gen)
+    _add_dummy_mnist(gen())
 
+    # update single sample
     _make_update_assert_equal(gen, "images", 0, np.ones((28, 28)) * 5)
     _make_update_assert_equal(gen, "labels", 0, 5)
-
     _make_update_assert_equal(gen, "images", -1, np.ones((28, 28)) * 75)
     _make_update_assert_equal(gen, "labels", -5, 99)
 
-
-def test_non_trivial(local_ds_generator):
-    gen = local_ds_generator
-    _add_dummy_mnist(gen)
-
-    # incoming samples are same shape as expected
+    # update a range of samples
     _make_update_assert_equal(
         gen, "images", slice(0, 3), np.arange(3 * 28 * 28).reshape((3, 28, 28))
     )
     _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
 
-    # incoming samples are broadcasted
-    _make_update_assert_equal(gen, "images", slice(0, 3), np.zeros((28, 28)))
-    _make_update_assert_equal(gen, "labels", slice(0, 5), 3)
+
+def test_new_shapes(local_ds_generator):
+    gen = local_ds_generator
+    _add_dummy_mnist(gen())
 
     # TODO: test updating a tensor that has already been indexed into. example:
     # t = ds.tensor[5:10]
@@ -84,10 +79,28 @@ def test_non_trivial(local_ds_generator):
 
 
 def test_failures(memory_ds):
-    # TODO: test bad shape broadcasting
+    _add_dummy_mnist(memory_ds)
 
-    # TODO: test inplace operators (these shouldn't happen yet)
+    # primary axis doesn't match
+    with pytest.raises(ValueError):
+        memory_ds.images[0:3] = np.zeros((28, 28))
+    with pytest.raises(ValueError):
+        memory_ds.images[0:3] = np.zeros((2, 28, 28))
+    with pytest.raises(ValueError):
+        memory_ds.labels[0:3] = [1, 2, 3, 4]
 
-    # TODO: notimplemented stuff (shapes not equal for incoming samples)
+    # dimensionality doesn't match
+    with pytest.raises(ValueError):
+        memory_ds.images[0:5] = np.zeros((5, 28))
+    with pytest.raises(ValueError):
+        memory_ds.labels[0:5] = np.zeros((5, 2))
 
-    pass
+    # inplace operators
+    with pytest.raises(NotImplementedError):
+        memory_ds.labels[0:5] += 1
+
+    # make sure no data changed
+    assert len(memory_ds.images) == 10
+    assert len(memory_ds.labels) == 10
+    np.tesing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28)))
+    np.tesing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10))
