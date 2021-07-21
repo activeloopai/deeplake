@@ -105,13 +105,6 @@ class LoginException(Exception):
         super().__init__(message)
 
 
-class ImproperDatasetInitialization(Exception):
-    def __init__(self):
-        super().__init__(
-            "Exactly one argument out of 'path' and 'storage' should be provided."
-        )
-
-
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(

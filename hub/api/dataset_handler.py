@@ -1,7 +1,7 @@
 from hub.util.exceptions import DatasetHandlerError, PathNotEmptyException
-from hub.util.get_storage_provider import get_storage_provider
+from hub.util.get_storage_provider import get_storage_and_storage_chain
 from typing import Optional
-from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE
+from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from .dataset import Dataset
 from hub.util.keys import dataset_exists
 
@@ -28,7 +28,7 @@ class dataset:
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
-            overwrite (bool): Overwrites the dataset if it already exists. Defaults to False.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -42,21 +42,18 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        if overwrite:
-            storage = get_storage_provider(
-                path=path, read_only=read_only, creds=creds, token=token
-            )
-            if dataset_exists(storage):
-                storage.clear()
-
-        return Dataset(
+        storage, storage_chain = get_storage_and_storage_chain(
             path=path,
             read_only=read_only,
-            public=public,
+            creds=creds,
+            token=token,
             memory_cache_size=memory_cache_size,
             local_cache_size=local_cache_size,
-            creds=creds,
         )
+        if overwrite and dataset_exists(storage):
+            storage.clear()
+
+        return Dataset(storage=storage_chain, public=public, token=token)
 
     @staticmethod
     def empty(
@@ -76,7 +73,7 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            overwrite (bool): Overwrites the dataset if it already exists. Defaults to False.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -93,7 +90,14 @@ class dataset:
         """
         if creds is None:
             creds = {}
-        storage = get_storage_provider(path=path, creds=creds, token=token)
+        storage, storage_chain = get_storage_and_storage_chain(
+            path=path,
+            read_only=False,
+            creds=creds,
+            token=token,
+            memory_cache_size=memory_cache_size,
+            local_cache_size=local_cache_size,
+        )
 
         if overwrite and dataset_exists(storage):
             storage.clear()
@@ -102,13 +106,7 @@ class dataset:
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
 
-        return Dataset(
-            path=path,
-            public=public,
-            memory_cache_size=memory_cache_size,
-            local_cache_size=local_cache_size,
-            creds=creds,
-        )
+        return Dataset(storage=storage_chain, public=public, token=token)
 
     @staticmethod
     def load(
@@ -131,7 +129,7 @@ class dataset:
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
-            overwrite (bool): Overwrites the dataset if it already exists. Defaults to False.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -149,23 +147,22 @@ class dataset:
         if creds is None:
             creds = {}
 
-        storage = get_storage_provider(
-            path=path, read_only=read_only, creds=creds, token=token
+        storage, storage_chain = get_storage_and_storage_chain(
+            path=path,
+            read_only=read_only,
+            creds=creds,
+            token=token,
+            memory_cache_size=memory_cache_size,
+            local_cache_size=local_cache_size,
         )
+
         if not dataset_exists(storage):
             raise DatasetHandlerError(
                 f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
             )
         if overwrite:
             storage.clear()
-        return Dataset(
-            path=path,
-            read_only=read_only,
-            public=public,
-            memory_cache_size=memory_cache_size,
-            local_cache_size=local_cache_size,
-            creds=creds,
-        )
+        return Dataset(storage=storage_chain, public=public, token=token)
 
     @staticmethod
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:

@@ -4,7 +4,7 @@ import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.api.dataset import Dataset
+import hub
 import numpy as np
 
 from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
@@ -214,7 +214,7 @@ def test_readonly(local_ds):
 
     del local_ds
 
-    local_ds = Dataset(path)
+    local_ds = hub.dataset(path)
     local_ds.mode = "r"
 
     # no need to check input, only care that readonly works

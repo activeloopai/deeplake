@@ -1,29 +1,11 @@
-from hub.util.exceptions import (
-    ImproperDatasetInitialization,
-)
+from hub.util.cache_chain import generate_chain
+from hub.constants import MB
 from hub.util.tag import check_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
 from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
 from hub.client.client import HubBackendClient
-
-
-def get_storage_provider(
-    path: Optional[str] = None,
-    storage: Optional[StorageProvider] = None,
-    read_only: bool = False,
-    creds: Optional[dict] = None,
-    token: Optional[str] = None,
-):
-    if path is not None and storage is not None:
-        raise ImproperDatasetInitialization
-    elif path is not None:
-        return storage_provider_from_path(path, creds, read_only, token)
-    elif storage is not None:
-        if read_only:
-            storage.enable_readonly()
-        return storage
 
 
 def storage_provider_from_path(
@@ -95,5 +77,32 @@ def storage_provider_from_hub_path(
         read_only = True
 
     storage = storage_provider_from_path(url, creds, read_only)
-    storage._set_hub_creds_info(tag, expiration)
+    storage._set_hub_creds_info(path, expiration)
     return storage
+
+
+def get_storage_and_storage_chain(
+    path, read_only, creds, token, memory_cache_size, local_cache_size
+):
+    """
+    Get a storage provider and a chain of storage providers to the root of the dataset.
+
+    Args:
+        path (str): The full path to the Dataset.
+        creds (dict): A dictionary containing credentials used to access the dataset at the url.
+            This takes precedence over credentials present in the environment. Only used when url is provided. Currently only works with s3 urls.
+        read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+        token (str): token for authentication into activeloop
+        memory_cache_size (int): The size of the in-memory cache to use.
+        local_cache_size (int): The size of the local cache to use.
+
+    Returns:
+        A tuple of the storage provider and the storage chain.
+    """
+    storage = storage_provider_from_path(path, creds, read_only, token)
+    memory_cache_size_bytes = memory_cache_size * MB
+    local_cache_size_bytes = local_cache_size * MB
+    storage_chain = generate_chain(
+        storage, memory_cache_size_bytes, local_cache_size_bytes, path
+    )
+    return storage, storage_chain
