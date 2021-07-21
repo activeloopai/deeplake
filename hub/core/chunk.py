@@ -95,7 +95,7 @@ class Chunk(Cachable):
         self._make_data_bytearray()
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data += buffer
+        self._data += buffer  # type: ignore
         self.register_sample_to_headers(incoming_num_bytes, shape)
 
     def register_sample_to_headers(
@@ -144,7 +144,7 @@ class Chunk(Cachable):
         # TODO: optimize this (lots of memcps)
         left = self._data[:sb]
         right = self._data[eb:]
-        self._data = left + buffer + right
+        self._data = left + buffer + right  # type: ignore
 
         self.byte_positions_encoder.update_num_bytes(local_sample_index, new_nb)
 

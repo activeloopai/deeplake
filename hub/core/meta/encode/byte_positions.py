@@ -154,6 +154,9 @@ class BytePositionsEncoder:
         Args:
             local_sample_index (int): Index representing a sample, binary searched over the `LAST_INDEX_INDEX` column.
 
+        Raises:
+            IndexError: Cannot index when there are no samples to index into.
+
         Returns:
             int: The index of the corresponding row inside `self._encoded_byte_positions`.
         """
