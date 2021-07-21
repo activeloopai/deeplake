@@ -5,8 +5,8 @@ from hub.api.dataset import Dataset
 import numpy as np
 
 
-def _add_dummy_mnist(ds: Dataset):
-    ds.create_tensor("images")
+def _add_dummy_mnist(ds: Dataset, images_compression: str = None):
+    ds.create_tensor("images", sample_compression=images_compression)
     ds.create_tensor("labels")
 
     ds.images.extend(np.ones((10, 28, 28)))
@@ -15,7 +15,9 @@ def _add_dummy_mnist(ds: Dataset):
     return ds
 
 
-def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, value):
+def _make_update_assert_equal(
+    ds_generator: Callable, tensor_name: str, index, value, pre_index=None
+):
     """Updates a tensor and checks that the data is as expected.
 
     Example update:
@@ -24,8 +26,10 @@ def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, v
     Args:
         ds_generator (Callable): Function that returns a new dataset object with each call.
         tensor_name (str): Name of the tensor to be updated.
-        index (Any): Any value that can be used as an index for an access/modifier operation (`ds.tensor[index] = value`).
-        value (Any): Any value that can be used as a value for an access/modifier operation (`ds.tensor[index] = value`).
+        index (Any): Any value that can be used as an index for updating (`ds.tensor[index] = value`).
+        value (Any): Any value that can be used as a value for updating (`ds.tensor[index] = value`).
+        pre_index (Any): Any value that can be used as an index. This simulates indexing a tensor and then
+            indexing again to update. (`ds.tensor[pre_index][index] = value`).
     """
 
     ds = ds_generator()
@@ -35,8 +39,12 @@ def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, v
     expected = tensor.numpy(aslist=True)
 
     # make updates
-    tensor[index] = value
-    expected[index] = value
+    if pre_index is None:
+        tensor[index] = value
+        expected[index] = value
+    else:
+        tensor[pre_index][index] = value
+        expected[pre_index][index] = value
 
     # persistence
     ds = ds_generator()
@@ -49,11 +57,11 @@ def _make_update_assert_equal(ds_generator: Callable, tensor_name: str, index, v
     assert len(ds) == 10
 
 
-def test(local_ds_generator):
+@pytest.mark.parametrize("images_compression", [None, "png"])
+def test(local_ds_generator, images_compression):
     gen = local_ds_generator
 
-    # TODO: test with compression too
-    _add_dummy_mnist(gen())
+    _add_dummy_mnist(gen(), images_compression=images_compression)
 
     # update single sample
     _make_update_assert_equal(gen, "images", 0, np.ones((28, 25)) * 5)  # new shape
@@ -89,13 +97,24 @@ def test(local_ds_generator):
 
 
 def test_pre_indexed_tensor(local_ds_generator):
+    """A pre-indexed tensor update means the tensor was already indexed into, and an update is being made to that tensor view.
+
+    Example:
+        >>> tensor = ds.tensor[0:10]
+        >>> len(tensor)
+        10
+        >>> tensor[0:5] = ...
+    """
+
     gen = local_ds_generator
     _add_dummy_mnist(gen())
 
-    # TODO: test updating a tensor that has already been indexed into. example:
-    # t = ds.tensor[5:10]
-    # t[0] = ...
-    raise NotImplementedError
+    x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
+    _make_update_assert_equal(gen, "images", slice(4, 7), x, pre_index=slice(2, 9))
+
+    _make_update_assert_equal(
+        gen, "labels", slice(0, 5), [1, 2, 3, 4, 5], pre_index=slice(0, 6)
+    )
 
 
 def test_failures(memory_ds):
