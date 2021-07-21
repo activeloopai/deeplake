@@ -18,6 +18,16 @@ class Encoder:
             return 0
         return int(self._encoded[-1, self.last_index_index] + 1)
 
+    def num_samples_at(self, translated_index: int) -> int:
+        # TODO: docstring
+
+        lower_bound = 0
+        if len(self._encoded) > 1 and translated_index > 0:
+            lower_bound = self._encoded[translated_index - 1, self.last_index_index] + 1
+        upper_bound = self._encoded[translated_index, self.last_index_index] + 1
+
+        return int(upper_bound - lower_bound)
+
     def translate_index(self, local_sample_index: int) -> int:
         """Translates `local_sample_index` into which row it corresponds to inside the encoded state.
 

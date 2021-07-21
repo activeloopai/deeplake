@@ -23,6 +23,7 @@ def test_fixed():
 
     assert enc.num_samples == 4003
     assert len(enc._encoded) == 1
+    assert enc.num_samples_at(0) == 4003
 
     assert enc[0] == (28, 28, 3)
     assert enc[1999] == (28, 28, 3)
@@ -42,6 +43,10 @@ def test_dynamic():
 
     assert enc.num_samples == 4001
     assert len(enc._encoded) == 4
+    assert enc.num_samples_at(0) == 2000
+    assert enc.num_samples_at(1) == 1000
+    assert enc.num_samples_at(2) == 1000
+    assert enc.num_samples_at(3) == 1
 
     assert enc[0] == (28, 28, 3)
     assert enc[1999] == (28, 28, 3)
