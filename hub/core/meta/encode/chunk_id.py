@@ -205,32 +205,24 @@ class ChunkIdEncoder(Encoder, Cachable):
         return int(global_sample_index - last_num_samples)
 
     def __getitem__(
-        self, sample_index: int, return_chunk_index: bool = False
+        self, local_sample_index: int, return_chunk_index: bool = False
     ) -> Tuple[ENCODING_DTYPE, Optional[int]]:
-        """Get the ID for the chunk that `sample_index` is stored in.
+        """Get the ID for the chunk that `local_sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
 
         Args:
-            sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
+            local_sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
             return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
 
         Raises:
-            IndexError: If no samples exist or `sample_index` exceeds the available indices.
+            IndexError: If no samples exist or `local_sample_index` exceeds the available indices.
 
         Returns:
-            Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `sample_index`. If `return_chunk_index` is True,
+            Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `local_sample_index`. If `return_chunk_index` is True,
                 there will be 2 values. The second one being the chunk's index.
         """
 
-        if self.num_samples == 0:
-            raise IndexError(
-                f"Index {sample_index} is out of bounds for an empty chunk names encoding."
-            )
-
-        if sample_index < 0:
-            sample_index = (self.num_samples) + sample_index
-
-        idx = np.searchsorted(self._encoded[:, self.last_index_index], sample_index)
+        idx = self.translate_index(local_sample_index)
         id = self._encoded[idx, CHUNK_ID_INDEX]
         chunk_index = idx
 

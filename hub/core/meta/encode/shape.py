@@ -76,16 +76,8 @@ class ShapeEncoder(Encoder):
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """
 
-    def __getitem__(self, sample_index: int) -> np.ndarray:
-        if self.num_samples == 0:
-            raise IndexError(
-                f"Index {sample_index} is out of bounds for an empty shape encoding."
-            )
-
-        if sample_index < 0:
-            sample_index = (self.num_samples) + sample_index
-
-        idx = np.searchsorted(self._encoded[:, -1], sample_index)
+    def __getitem__(self, local_sample_index: int) -> np.ndarray:
+        idx = self.translate_index(local_sample_index)
         return tuple(self._encoded[idx, :-1])
 
     @property
@@ -132,8 +124,6 @@ class ShapeEncoder(Encoder):
         # TODO: this function needs optimization
 
         encoded_index = self.translate_index(local_sample_index)
-
-        entry = self._encoded_byte_positions[encoded_index]
 
         if self[-1] == new_shape:
             return
