@@ -366,6 +366,7 @@ class ChunkEngine:
         length = self.num_samples
         enc = self.chunk_id_encoder
 
+        updated_chunks = set()
         for value_index, global_sample_index in enumerate(
             index.values[0].indices(length)
         ):
@@ -379,7 +380,12 @@ class ChunkEngine:
             buffer = memoryview(incoming_sample.tobytes())
             chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)
 
-        self._synchronize_cache()
+            updated_chunks.add(chunk)
+
+        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk
+
         self.cache.maybe_flush()
 
     def numpy(
@@ -435,6 +441,7 @@ class ChunkEngine:
         chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
 
         return chunk
 
