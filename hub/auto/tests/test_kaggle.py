@@ -2,6 +2,7 @@ from hub.api.dataset import Dataset
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 import os
+import hub
 
 
 def test_ingestion_simple(local_ds: Dataset):

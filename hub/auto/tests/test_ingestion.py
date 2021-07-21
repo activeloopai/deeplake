@@ -4,10 +4,9 @@ from hub.auto.unstructured.image_classification import ImageClassification
 import hub
 
 
-def test_image_classification_simple():
+def test_image_classification_simple(memory_ds: Dataset):
+    ds = memory_ds
     path = get_dummy_data_path("image_classification")
-    destination = "./datasets/destination/classification"
-    ds = Dataset(destination)
     unstructured = ImageClassification(source=path)
     unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
     assert list(ds.tensors.keys()) == ["images", "labels"]
@@ -16,10 +15,9 @@ def test_image_classification_simple():
     assert ds.labels.meta.class_names == ("class0", "class1", "class2")
 
 
-def test_image_classification_sets():
+def test_image_classification_sets(memory_ds: Dataset):
+    ds = memory_ds
     path = get_dummy_data_path("image_classification_with_sets")
-    destination = "./datasets/destination/classification_sets"
-    ds = Dataset(destination)
     unstructured = ImageClassification(source=path)
     unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
 
