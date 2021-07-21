@@ -1,5 +1,4 @@
 from hub.core.storage.lru_cache import LRUCache
-from hub.util.json import validate_is_jsonable
 from typing import Any, Dict
 from hub.core.storage.cachable import CachableCallback, use_callback
 

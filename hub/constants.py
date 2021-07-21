@@ -35,11 +35,11 @@ DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
 
-# meta is 100% required hub-defined meta
+# meta is hub-defined information, necessary for hub Datasets/Tensors to function
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
 
-# info is 100% optional user-defined information
+# info is user-defined information, entirely optional. may be used by the visualizer
 DATASET_INFO_FILENAME = "dataset_info.json"
 TENSOR_INFO_FILENAME = "tensor_info.json"
 

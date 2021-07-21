@@ -86,9 +86,9 @@ class CachableCallback(Cachable):
         self._cache = None
 
     def _is_callback_initialized(self) -> bool:
-        key_ex = self._key is not None
-        cache_ex = self._cache is not None
-        return key_ex and cache_ex
+        key_exists = self._key is not None
+        cache_exists = self._cache is not None
+        return key_exists and cache_exists
 
     def initialize_callback_location(self, key, cache):
         """Must be called once before any other method calls.
