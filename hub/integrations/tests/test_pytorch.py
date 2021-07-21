@@ -10,6 +10,7 @@ import numpy as np
 from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
 from hub.tests.dataset_fixtures import enabled_datasets
+from hub.api.dataset import Dataset
 
 
 def to_tuple(sample):
