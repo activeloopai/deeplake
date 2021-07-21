@@ -5,7 +5,7 @@ import os
 import glob
 from typing import Dict, List, Sequence, Tuple, Union
 
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.exceptions import InvalidPathException, TensorInvalidSampleShapeError
 from hub import Dataset
 
 from tqdm import tqdm  # type: ignore
@@ -19,18 +19,20 @@ LABELS_TENSOR_NAME = "labels"
 
 
 def _get_file_paths(directory: Path, relative_to: Union[str, Path] = "") -> List[Path]:
-    # TODO: make sure directory is actually a directory
-    g = glob.glob(os.path.join(directory, "**"), recursive=True)
-    file_paths = []
-    for path_str in g:
-        if os.path.isfile(path_str):
-            path = Path(path_str)
-            if relative_to:
-                relative_path = Path(path).relative_to(directory)
-            else:
-                relative_path = path
-            file_paths.append(relative_path)
-    return file_paths
+    if os.path.isdir(directory):
+        g = glob.glob(os.path.join(directory, "**"), recursive=True)
+        file_paths = []
+        for path_str in g:
+            if os.path.isfile(path_str):
+                path = Path(path_str)
+                if relative_to:
+                    relative_path = Path(path).relative_to(directory)
+                else:
+                    relative_path = path
+                file_paths.append(relative_path)
+        return file_paths
+    else:
+        raise InvalidPathException(directory)
 
 
 def _class_name_from_path(path: Path) -> str:

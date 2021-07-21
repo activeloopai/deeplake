@@ -28,6 +28,13 @@ class KaggleDatasetAlreadyDownloadedError(KaggleError):
         super().__init__(self.message)
 
 
+class InvalidPathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"The Dataset's path is an invalid path. It should be a valid directory got {directory}."
+        )
+
+
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, message: str, shape: Sequence[int]):
         super().__init__(f"{message} Incoming sample shape: {str(shape)}")
