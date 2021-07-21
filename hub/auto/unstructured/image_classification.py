@@ -45,6 +45,15 @@ def _set_name_from_path(path: Path) -> str:
 
 class ImageClassification(UnstructuredDataset):
     def __init__(self, source: str):
+        """Convert an unstructured dataset to a structured dataset.
+        Args:
+            source (str): The full path to the dataset.
+                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+        """
+
         # TODO: should support any `StorageProvider`. right now only local files can be converted
         super().__init__(source)
 
