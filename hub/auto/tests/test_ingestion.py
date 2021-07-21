@@ -9,10 +9,11 @@ def test_image_classification_simple(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
     unstructured = ImageClassification(source=path)
     unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+    print(ds)
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds.images.numpy().shape == (3, 200, 200, 3)
-    assert ds.labels.numpy().shape == (3,)
-    assert ds.labels.meta.class_names == ("class0", "class1", "class2")
+    assert ds["images"].numpy().shape == (3, 200, 200, 3)
+    assert ds["labels"].numpy().shape == (3,)
+    assert ds["labels"].meta.class_names == ("class0", "class1", "class2")
 
 
 def test_image_classification_sets(memory_ds: Dataset):
