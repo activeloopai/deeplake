@@ -1,6 +1,6 @@
 from hub.core.compression import decompress_array
 from math import ceil
-from typing import Optional, Sequence, Union, Tuple, List, Set
+from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
@@ -355,20 +355,15 @@ class ChunkEngine:
     def update(self, index: Index, value: np.ndarray):
         # TODO: docstring
 
-        if not isinstance(value, np.ndarray):
-            # TODO: implement this
-            raise NotImplementedError(
-                f"Updating is only supported for numpy arrays as inputs currently. Got: {type(value)}"
-            )
+        # TODO: first make sure `value` can be asigned to `Index`
 
-        # TODO: first make sure `value` can be assigned to `Index`
+        value = _format_input_samples(index, value, self.num_samples)
 
-        length = self.num_samples
         enc = self.chunk_id_encoder
 
         updated_chunks = set()
         for value_index, global_sample_index in enumerate(
-            index.values[0].indices(length)
+            index.values[0].indices(self.num_samples)
         ):
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
 
@@ -421,7 +416,7 @@ class ChunkEngine:
             samples.append(sample)
             last_shape = shape
 
-        return _format_samples(samples, index, aslist)
+        return _format_output_samples(samples, index, aslist)
 
     def get_chunk_for_sample(
         self, global_sample_index: int, enc: ChunkIdEncoder
@@ -524,7 +519,20 @@ class ChunkEngine:
             )
 
 
-def _format_samples(
+def _format_input_samples(index: Index, value: Any, total_num_samples: int):
+    """Returns `value` wrapped in a list so it can be looped over in case it isn't already."""
+
+    index_length = index.length(total_num_samples)
+    if index_length == 1:
+        if hasattr(value, "__len__"):
+            if len(value) != 1:
+                value = [value]
+        else:
+            value = [value]
+    return value
+
+
+def _format_output_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Helper function for preparing `samples` read from the chunk engine in the way the format the user expects."""
