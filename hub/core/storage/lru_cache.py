@@ -1,8 +1,14 @@
 from collections import OrderedDict
-from hub.core.storage.cachable import Cachable
+from hub.core.storage.cachable import Cachable, CachableCallback
 from typing import Any, Dict, Set, Union
 
 from hub.core.storage.provider import StorageProvider
+
+
+def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
+    if isinstance(obj, Cachable):
+        return obj.nbytes
+    return len(obj)
 
 
 # TODO use lock for multiprocessing
@@ -82,8 +88,13 @@ class LRUCache(StorageProvider):
 
         if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
-            if len(obj) <= self.cache_size:
+
+            if isinstance(obj, CachableCallback):
+                obj.initialize_callback_location(path, self)
+
+            if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)
+
             return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
@@ -106,7 +117,8 @@ class LRUCache(StorageProvider):
             return self.cache_storage[path]
         else:
             result = self.next_storage[path]  # fetch from storage, may throw KeyError
-            if len(result) <= self.cache_size:  # insert in cache if it fits
+
+            if _get_nbytes(result) <= self.cache_size:  # insert in cache if it fits
                 self._insert_in_cache(path, result)
             return result
 
@@ -125,7 +137,7 @@ class LRUCache(StorageProvider):
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
 
-        if len(value) <= self.cache_size:
+        if _get_nbytes(value) <= self.cache_size:
             self._insert_in_cache(path, value)
             self.dirty_keys.add(path)
         else:  # larger than cache, directly send to next layer
@@ -254,10 +266,10 @@ class LRUCache(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
 
-        self._free_up_space(len(value))
+        self._free_up_space(_get_nbytes(value))
         self.cache_storage[path] = value  # type: ignore
 
-        self.update_used_cache_for_path(path, len(value))
+        self.update_used_cache_for_path(path, _get_nbytes(value))
 
     def _list_keys(self):
         """Helper function that lists all the objects present in the cache and the underlying storage.

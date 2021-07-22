@@ -1,4 +1,3 @@
-from hub.core.storage.s3 import S3Provider
 from hub.util.dataset import try_flushing
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import get_base_storage
@@ -78,13 +77,12 @@ class TorchDataset:
                 )
 
         self.dataset = None
-        storage = get_base_storage(dataset.storage)
-        self.pickled_storage = pickle.dumps(storage)
-        if isinstance(storage, MemoryProvider):
+        base_storage = get_base_storage(dataset.storage)
+        if isinstance(base_storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
-
+        self.pickled_storage = pickle.dumps(dataset.storage)
         self.index = dataset.index
         self.length = len(dataset)
         self.transform = transform
@@ -105,7 +103,7 @@ class TorchDataset:
         """
         if self.dataset is None:
             storage = pickle.loads(self.pickled_storage)
-            self.dataset = hub.Dataset(storage=storage, index=self.index)
+            self.dataset = hub.core.dataset.Dataset(storage=storage, index=self.index)
 
     def __len__(self):
         return self.length
