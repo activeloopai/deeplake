@@ -2,7 +2,7 @@ from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain
 from typing import Optional
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
 
 

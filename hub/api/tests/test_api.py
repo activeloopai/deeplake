@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import hub
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,

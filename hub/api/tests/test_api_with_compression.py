@@ -10,7 +10,7 @@ from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
