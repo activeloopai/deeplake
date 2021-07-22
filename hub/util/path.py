@@ -10,6 +10,8 @@ def get_path_from_storage(storage):
     if isinstance(storage, LRUCache):
         return get_path_from_storage(storage.next_storage)
     elif isinstance(storage, StorageProvider):
+        if hasattr(storage, "hub_path"):
+            return storage.hub_path
         return storage.root
     return None
 
