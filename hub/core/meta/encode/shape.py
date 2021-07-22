@@ -75,9 +75,7 @@ class ShapeEncoder(Encoder):
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """
 
-    @property
-    def array(self):
-        return self._encoded
+
 
     def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
         return tuple(row[: self.last_index_index])

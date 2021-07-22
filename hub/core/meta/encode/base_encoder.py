@@ -14,8 +14,12 @@ class Encoder:
             self._encoded = np.array([], dtype=ENCODING_DTYPE)
 
     @property
+    def array(self):
+        return self._encoded
+
+    @property
     def nbytes(self):
-        return self._encoded.nbytes
+        return self.array.nbytes
 
     @property
     def num_samples(self) -> int:

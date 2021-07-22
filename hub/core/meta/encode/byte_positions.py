@@ -88,10 +88,6 @@ class BytePositionsEncoder(Encoder):
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
-    @property
-    def array(self):
-        return self._encoded
-
     def validate_incoming_item(self, num_bytes: int):
         if num_bytes < 0:
             raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
