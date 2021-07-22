@@ -54,11 +54,8 @@ def test_dataset(local_ds_generator):
 def test_tensor(local_ds_generator):
     ds = local_ds_generator()
 
-    t1 = ds.create_tensor("tensor1", key=1)
-    t2 = ds.create_tensor("tensor2", key=0, key1=1)
-
-    assert len(t1.info) == 1
-    assert len(t2.info) == 2
+    t1 = ds.create_tensor("tensor1")
+    t2 = ds.create_tensor("tensor2")
 
     assert t1.info["key"] == t1.info.key == 1
     assert t2.info["key"] == t2.info.key == 0
@@ -134,3 +131,10 @@ def test_update_reference_manually(local_ds_generator):
     ds = local_ds_generator()
 
     assert l == [1, 2, 3, 99]
+
+
+def test_class_label(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("labels", htype="class_label", class_names=["a", "b", "c"])
+    assert len(ds.info) == 1
+    assert ds.info.class_names == ds.info["class_names"] == ["a", "b", "c"]

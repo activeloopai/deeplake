@@ -15,6 +15,7 @@ SUPPORTED_COMPRESSIONS = ["png", "jpeg", None]
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
 REQUIRE_USER_SPECIFICATION = "require_user_specification"
 
+
 # used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
 UNSPECIFIED = "unspecified"
 
