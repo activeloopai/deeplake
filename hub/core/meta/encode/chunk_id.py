@@ -144,27 +144,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
-        if num_samples < 0:
-            raise ValueError(
-                f"Cannot register negative num samples. Got: {num_samples}"
-            )
-
-        if self.num_samples == 0:
-            raise ChunkIdEncoderError(
-                "Cannot register samples because no chunk IDs exist."
-            )
-
-        if num_samples == 0 and self.num_chunks < 2:
-            raise ChunkIdEncoderError(
-                "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
-            )
-
-        current_entry = self._encoded[-1]
-
-        # this operation will trigger an overflow for the first addition, so supress the warning
-        np.seterr(over="ignore")
-        current_entry[self.last_index_index] += ENCODING_DTYPE(num_samples)
-        np.seterr(over="warn")
+        super().register_samples(None, num_samples)
 
     # TODO: rename this function (maybe generalize into `translate_index`?)
     def get_local_sample_index(self, global_sample_index: int) -> int:
@@ -203,6 +183,35 @@ class ChunkIdEncoder(Encoder, Cachable):
         last_num_samples = current_entry[self.last_index_index] + 1
 
         return int(global_sample_index - last_num_samples)
+
+    def validate_incoming_item(self, _, num_samples: int):
+        if num_samples < 0:
+            raise ValueError(
+                f"Cannot register negative num samples. Got: {num_samples}"
+            )
+
+        if self.num_samples == 0:
+            raise ChunkIdEncoderError(
+                "Cannot register samples because no chunk IDs exist."
+            )
+
+        if num_samples == 0 and self.num_chunks < 2:
+            raise ChunkIdEncoderError(
+                "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
+            )
+        
+        # note: do not call super() method (num_samples can be 0)
+
+    def combine_condition(self, _) -> bool:
+        return True
+
+    def do_combine(self, last_index: ENCODING_DTYPE, num_samples: int):
+        # this operation will trigger an overflow for the first addition, so supress the warning
+        np.seterr(over="ignore")
+        new_last_index = last_index + ENCODING_DTYPE(num_samples)
+        np.seterr(over="warn")
+
+        return new_last_index
 
     def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
         return row[CHUNK_ID_INDEX]

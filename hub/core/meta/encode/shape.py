@@ -75,12 +75,10 @@ class ShapeEncoder(Encoder):
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """
 
-
-
     def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
         return tuple(row[: self.last_index_index])
 
-    def validate_incoming_item(self, shape: Tuple[int]):
+    def validate_incoming_item(self, shape: Tuple[int], _):
         if len(self._encoded) > 0:
             last_shape = self[-1]  # TODO: optimize this
 
@@ -88,6 +86,8 @@ class ShapeEncoder(Encoder):
                 raise ValueError(
                     f"All sample shapes in a tensor must have the same len(shape). Expected: {len(last_shape)} got: {len(shape)}."
                 )
+
+        super().validate_incoming_item(shape, _)
 
     def combine_condition(self, shape: Tuple[int]) -> bool:
         last_shape = self[-1]  # TODO: optimize this

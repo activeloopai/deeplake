@@ -88,9 +88,11 @@ class BytePositionsEncoder(Encoder):
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
-    def validate_incoming_item(self, num_bytes: int):
+    def validate_incoming_item(self, num_bytes: int, _):
         if num_bytes < 0:
             raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
+
+        super().validate_incoming_item(num_bytes, _)
 
     def combine_condition(self, num_bytes: int) -> bool:
         last_num_bytes = self._encoded[-1, NUM_BYTES_INDEX]

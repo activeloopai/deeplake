@@ -67,25 +67,25 @@ class Encoder:
     def register_samples(self, item: Any, num_samples: int):
         # TODO: docstring
 
-        # TODO: generalize all methods to this
-
         # TODO: optimize this
 
-        if num_samples <= 0:
-            raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
-
-        self.validate_incoming_item(item)
+        self.validate_incoming_item(item, num_samples)
 
         if self.num_samples != 0:
             if self.combine_condition(item):
-                self._encoded[-1, self.last_index_index] += num_samples
+                last_index = self._encoded[-1, self.last_index_index]
+                new_last_index = self.do_combine(last_index, num_samples)
+
+                self._encoded[-1, self.last_index_index] = new_last_index
 
             else:
                 decomposable = self.make_decomposable(item)
 
                 last_index = self._encoded[-1, self.last_index_index]
+                next_last_index = self.do_combine(last_index, num_samples)
+
                 shape_entry = np.array(
-                    [[*decomposable, last_index + num_samples]], dtype=ENCODING_DTYPE
+                    [[*decomposable, next_last_index]], dtype=ENCODING_DTYPE
                 )
 
                 self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
@@ -96,15 +96,21 @@ class Encoder:
                 [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
             )
 
-    def validate_incoming_item(self, item: Any):
+    def validate_incoming_item(self, _, num_samples: int):
         # TODO: docstring (also make these "_" functions)
 
-        raise NotImplementedError
+        if num_samples <= 0:
+            raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
 
     def combine_condition(self, item: Any) -> bool:
         # TODO: docstring
 
         raise NotImplementedError
+
+    def do_combine(self, last_index: ENCODING_DTYPE, num_samples: int):
+        # TODO: docstring
+
+        return last_index + num_samples
 
     def make_decomposable(self, item: Any) -> Sequence:
         # TODO: docstring
@@ -112,6 +118,8 @@ class Encoder:
         return item
 
     def derive_value(self, row: np.ndarray) -> np.ndarray:
+        # TODO: docstring
+
         raise NotImplementedError
 
     def __getitem__(
