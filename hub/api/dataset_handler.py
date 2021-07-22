@@ -1,8 +1,8 @@
-from hub.util.exceptions import DatasetHandlerError, PathNotEmptyException
+from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain
 from typing import Optional
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
-from .dataset import Dataset
+from hub.api.dataset import Dataset
 from hub.util.keys import dataset_exists
 
 
@@ -12,13 +12,16 @@ class dataset:
         path: str,
         read_only: bool = False,
         overwrite: bool = False,
-        public: Optional[bool] = True,
+        public: bool = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
         token: Optional[str] = None,
     ):
         """Returns a Dataset object referencing either a new or existing dataset.
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
             path (str): The full path to the dataset. Can be:-
@@ -29,7 +32,7 @@ class dataset:
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
-            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
@@ -66,6 +69,9 @@ class dataset:
         token: Optional[str] = None,
     ) -> Dataset:
         """Creates an empty dataset
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
             path (str): The full path to the dataset. Can be:-
@@ -120,6 +126,9 @@ class dataset:
         token: Optional[str] = None,
     ) -> Dataset:
         """Loads an existing dataset
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
             path (str): The full path to the dataset. Can be:-
