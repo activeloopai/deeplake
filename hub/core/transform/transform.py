@@ -1,3 +1,6 @@
+from hub.util.cache_chain import generate_chain
+from hub.util.keys import get_tensor_meta_key
+from numpy import dtype
 from hub.util.dataset import try_flushing
 from hub.util.exceptions import (
     InvalidInputDataError,
@@ -17,6 +20,7 @@ from typing import Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 from hub.util.remove_cache import get_base_storage
 from hub.core.storage import LRUCache, MemoryProvider, StorageProvider
 from hub.core.compute import ThreadProvider, ProcessProvider, ComputeProvider
+from hub.core.chunk_engine import ChunkEngine
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.constants import MB
 from itertools import repeat
@@ -82,7 +86,9 @@ def transform(
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         if len(ds_out[tensor]) != len(ds_out):
-            raise InvalidOutputDatasetError("One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor).")
+            raise InvalidOutputDatasetError(
+                "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+            )
 
     workers = max(workers, 1)
 
@@ -100,31 +106,50 @@ def transform(
     pipeline, pipeline_kwargs = pipeline_to_list(pipeline, pipeline_kwargs)
 
     run_pipeline(
-        data_in, output_base_storage, tensors, compute, workers, pipeline, pipeline_kwargs
+        data_in,
+        output_base_storage,
+        tensors,
+        compute,
+        workers,
+        pipeline,
+        pipeline_kwargs,
     )
     load_updated_meta(ds_out)
 
 
 def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
-    data_shard, storage, tensor_metas, pipeline, pipeline_kwargs = transform_input
-    tensors = set(tensor_metas.keys())
+    (
+        data_shard,
+        memory_storage,
+        chunk_engines,
+        pipeline,
+        pipeline_kwargs,
+    ) = transform_input
+    tensors = set(chunk_engines.keys())
 
     # storing the metas in memory to merge later
-    all_index_meta = {}
-    all_tensor_meta = {}
+    all_chunk_engines = {}
+    all_caches = {}
     for tensor in tensors:
-        index_meta = IndexMeta.create(tensor, MemoryProvider())
-        all_index_meta[tensor] = index_meta
-
-        tensor_meta = TensorMeta.create(tensor, MemoryProvider())
-        tensor_meta.htype = tensor_metas[tensor]["htype"]
-        tensor_meta.dtype = tensor_metas[tensor]["dtype"]
-        tensor_meta.sample_compression = tensor_metas[tensor]["sample_compression"]
-        all_tensor_meta[tensor] = tensor_meta
-
-    # separate cache for each tensor to prevent frequent flushing, 32 MB ensures only full chunks are written.
-    storage_map = {key: LRUCache(MemoryProvider(), storage, 32 * MB) for key in tensors}
+        memory_storage = MemoryProvider()
+        chunk_engine = chunk_engines[tensor]
+        existing_meta = chunk_engine.tensor_meta
+        new_tensor_meta = TensorMeta(
+            htype=existing_meta.htype,
+            dtype=existing_meta.dtype,
+            sample_compression=existing_meta.sample_compression,
+        )
+        meta_key = get_tensor_meta_key(tensor)
+        memory_storage[meta_key] = new_tensor_meta  # type: ignore
+        actual_storage = get_base_storage(chunk_engine.cache)
+        new_cache = LRUCache(MemoryProvider(), actual_storage, 32 * MB)
+        new_cache.autoflush = False
+        chunk_engine = ChunkEngine(
+            tensor, new_cache, chunk_engine.max_chunk_size, memory_storage
+        )
+        all_chunk_engines[tensor] = chunk_engine
+        all_caches[tensor] = new_cache
 
     # TODO separate cache for data_shard if it's a Dataset
 
@@ -138,20 +163,14 @@ def store_shard(transform_input: Tuple):
             if set(result.keys()) != tensors:
                 raise TensorMismatchError(list(tensors), list(result.keys()))
             for key, value in result.items():
-                append_tensor(
-                    value,
-                    key,
-                    storage_map[key],
-                    index_meta=all_index_meta[key],
-                    tensor_meta=all_tensor_meta[key],
-                )
+                all_chunk_engines[key].append(value)
 
+    all_tensor_metas = {}
     for tensor in tensors:
-        storage_map[tensor].flush()
-        all_tensor_meta[tensor] = all_tensor_meta[tensor].to_dict()
-        all_index_meta[tensor] = all_index_meta[tensor].to_dict()
+        all_caches[tensor].flush()
+        all_tensor_metas[tensor] = all_chunk_engines[tensor].tensor_meta
 
-    return all_index_meta, all_tensor_meta
+    return all_tensor_metas
 
 
 def run_pipeline(
@@ -166,19 +185,18 @@ def run_pipeline(
     """Runs the pipeline on the input data to produce output samples and stores in the dataset."""
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
-    init_tensor_metas = {t: TensorMeta.load(t, storage).to_dict() for t in tensors}
-    all_workers_metas = compute.map(
+    init_chunk_engines = {
+        tensor: ChunkEngine(tensor, LRUCache(MemoryProvider(), storage, 16 * MB))
+        for tensor in tensors
+    }
+    all_workers_tensor_metas = compute.map(
         store_shard,
         zip(
             shards,
             repeat(storage),
-            repeat(init_tensor_metas),
+            repeat(init_chunk_engines),
             repeat(pipeline),
             repeat(pipeline_kwargs),
         ),
     )
-    all_workers_metas = list(all_workers_metas)
-    all_workers_index_meta, all_workers_tensor_meta = zip(*all_workers_metas)
-
-    merge_tensor_metas(all_workers_tensor_meta, storage, tensors)
-    merge_index_metas(all_workers_index_meta, storage, tensors)
+    t = all_workers_tensor_metas

@@ -1,3 +1,4 @@
+from hub.core.storage.provider import StorageProvider
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple, List, Set
@@ -45,7 +46,11 @@ def is_uniform_sequence(samples):
 
 class ChunkEngine:
     def __init__(
-        self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
+        self,
+        key: str,
+        cache: LRUCache,
+        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+        memory_provider: StorageProvider = None,
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 
