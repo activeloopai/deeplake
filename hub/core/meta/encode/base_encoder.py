@@ -3,7 +3,7 @@ from typing import Any, Sequence
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
-# TODO: refactor all encoders for common methods and uniform interface
+
 class Encoder(ABC):
     last_index_index: int = -1
 

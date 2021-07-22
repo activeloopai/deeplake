@@ -145,8 +145,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         super().register_samples(None, num_samples)
 
-    # TODO: rename this function (maybe generalize into `translate_index`?)
-    def get_local_sample_index(self, global_sample_index: int) -> int:
+    def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
 
         Example:
@@ -155,15 +154,15 @@ class ChunkIdEncoder(Encoder, Cachable):
             7
             >>> self.num_chunks
             3
-            >>> self.get_local_sample_index(0)
+            >>> self.translate_index_relative_to_chunks(0)
             0
-            >>> self.get_local_sample_index(1)
+            >>> self.translate_index_relative_to_chunks(1)
             1
-            >>> self.get_local_sample_index(2)
+            >>> self.translate_index_relative_to_chunks(2)
             0
-            >>> self.get_local_sample_index(3)
+            >>> self.translate_index_relative_to_chunks(3)
             1
-            >>> self.get_local_sample_index(6)
+            >>> self.translate_index_relative_to_chunks(6)
             2
 
         Args:

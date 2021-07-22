@@ -391,7 +391,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         buffer = chunk.memoryview_data
-        local_sample_index = enc.get_local_sample_index(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 

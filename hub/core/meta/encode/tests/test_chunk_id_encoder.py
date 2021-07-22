@@ -48,12 +48,12 @@ def test_trivial():
     assert id3 == enc[31]
 
     # test local indexing
-    assert enc.get_local_sample_index(0) == 0
-    assert enc.get_local_sample_index(1) == 1
-    assert enc.get_local_sample_index(29) == 29
-    assert enc.get_local_sample_index(30) == 0
-    assert enc.get_local_sample_index(31) == 0
-    assert enc.get_local_sample_index(35) == 4
+    assert enc.translate_index_relative_to_chunks(0) == 0
+    assert enc.translate_index_relative_to_chunks(1) == 1
+    assert enc.translate_index_relative_to_chunks(29) == 29
+    assert enc.translate_index_relative_to_chunks(30) == 0
+    assert enc.translate_index_relative_to_chunks(31) == 0
+    assert enc.translate_index_relative_to_chunks(35) == 4
 
 
 def test_failures():
