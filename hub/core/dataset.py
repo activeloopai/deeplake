@@ -4,7 +4,7 @@ from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
-from hub.util.bugout_reporter import hub_reporter
+
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
@@ -14,6 +14,7 @@ from hub.util.keys import (
     get_dataset_meta_key,
     tensor_exists,
 )
+from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,

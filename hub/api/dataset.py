@@ -8,7 +8,6 @@ from hub.util.bugout_reporter import hub_reporter
 
 
 class dataset:
-    
     def __new__(
         cls,
         path: str,
