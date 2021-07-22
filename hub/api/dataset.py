@@ -56,7 +56,9 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         read_only = storage.read_only
-        return Dataset(storage=cache_chain, read_only=read_only, public=public, token=token)
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
+        )
 
     @staticmethod
     def empty(
@@ -112,7 +114,9 @@ class dataset:
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
         read_only = storage.read_only
-        return Dataset(storage=cache_chain, read_only=read_only, public=public, token=token)
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
+        )
 
     @staticmethod
     def load(
@@ -172,7 +176,9 @@ class dataset:
         if overwrite:
             storage.clear()
         read_only = storage.read_only
-        return Dataset(storage=cache_chain, read_only=read_only, public=public, token=token)
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
+        )
 
     @staticmethod
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
