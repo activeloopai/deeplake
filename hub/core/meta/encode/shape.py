@@ -83,34 +83,19 @@ class ShapeEncoder(Encoder):
     def array(self):
         return self._encoded
 
-    def register_samples(
-        self,
-        shape: Tuple[int],
-        count: int,
-    ):
+    def validate_incoming_item(self, shape: Tuple[int]):
+        if len(shape) == 0:
+            raise ValueError("Shape cannot be empty.")
 
-        if count <= 0:
-            raise ValueError(f"Shape `count` should be > 0. Got {count}.")
-
-        if self.num_samples != 0:
-            last_shape = self[-1]
+        if len(self._encoded) > 0:
+            last_shape = self[-1]  # TODO: optimize this
 
             if len(shape) != len(last_shape):
                 raise ValueError(
                     f"All sample shapes in a tensor must have the same len(shape). Expected: {len(last_shape)} got: {len(shape)}."
                 )
 
-            if shape == last_shape:
-                # increment last shape's index by `count`
-                self._encoded[-1, self.last_index_index] += count
+    def increment_condition(self, shape: Tuple[int]) -> bool:
+        last_shape = self[-1]  # TODO: optimize this
 
-            else:
-                last_shape_index = self._encoded[-1, self.last_index_index]
-                shape_entry = np.array(
-                    [[*shape, last_shape_index + count]], dtype=ENCODING_DTYPE
-                )
-
-                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
-
-        else:
-            self._encoded = np.array([[*shape, count - 1]], dtype=ENCODING_DTYPE)
+        return shape == last_shape

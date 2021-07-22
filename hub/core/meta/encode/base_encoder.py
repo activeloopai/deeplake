@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Sequence
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -46,6 +46,8 @@ class Encoder:
             int: The index of the corresponding row inside the encoded state.
         """
 
+        # TODO: optimize this (should accept an optional argument for starting point, instead of random binsearch)
+
         if self.num_samples == 0:
             raise IndexError(
                 f"Index {local_sample_index} is out of bounds for an empty byte position encoding."
@@ -59,6 +61,50 @@ class Encoder:
         )
 
     def register_samples(self, item: Any, num_samples: int):
+        # TODO: docstring
+
         # TODO: generalize all methods to this
 
+        # TODO: optimize this
+
+        if num_samples <= 0:
+            raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
+
+        self.validate_incoming_item(item)
+
+        if self.num_samples != 0:
+            last_shape = self[-1]
+
+            if self.increment_condition(item):
+                self._encoded[-1, self.last_index_index] += num_samples
+
+            else:
+                decomposable = self.make_decomposable(item)
+
+                last_index = self._encoded[-1, self.last_index_index]
+                shape_entry = np.array(
+                    [[*decomposable, last_index + num_samples]], dtype=ENCODING_DTYPE
+                )
+
+                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
+
+        else:
+            decomposable = self.make_decomposable(item)
+            self._encoded = np.array(
+                [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
+            )
+
+    def validate_incoming_item(self, item: Any):
+        # TODO: docstring
+
         raise NotImplementedError
+
+    def increment_condition(self, item: Any) -> bool:
+        # TODO: docstring
+
+        raise NotImplementedError
+
+    def make_decomposable(self, item: Any) -> Sequence:
+        # TODO: docstring
+
+        return item
