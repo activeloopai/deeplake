@@ -8,15 +8,19 @@ import numpy as np
 class ShapeEncoder(Encoder):
     """Custom compressor that allows reading of shapes from a sample index without decompressing.
     Requires that all shapes encoded have the same dimensionality (`len(shape)`).
+
     Layout:
         `_encoded` is a 2D array.
+
         Rows:
             The number of rows is equal to the number of unique runs of shapes that exist upon ingestion. See examples below.
+
         Columns:
             The number of columns is equal to the dimensionality (`len(shape)`) of the shapes + 1.
             Each row looks like this: [shape_dim0, shape_dim1, shape_dim2, ..., last_index], where `last_index`
             is equal to the last index the specified shape in that row exists. This means that a shape can be shared
             by multiple samples, so long as they were added directly after each other. See examples below.
+
         Fixed Example:
             >>> enc = ShapeEncoder()
             >>> enc.add_shape((1,), 100)  # represents scalar values
@@ -29,6 +33,7 @@ class ShapeEncoder(Encoder):
             10100
             >>> enc[5000]
             (1,)
+
         Dynamic Example:
             >>> enc = ShapeEncoder()
             >>> enc.add_shape((28, 28), 1)
@@ -52,16 +57,20 @@ class ShapeEncoder(Encoder):
             (28, 28)
             >>> enc[11]
             (29, 28)
+
         Best case scenario:
             The best case scenario is when all samples have the same shape. This means that only 1 row is created.
             This is O(1) lookup.
+
         Worst case scenario:
             The worst case scenario is when all samples have different shapes. This means that there are as many rows as there are samples.
             This is O(log(N)) lookup.
+
         Lookup algorithm:
             To get the shape for some sample index, you do a binary search over the right-most column. This will give you
             the row that corresponds to that sample index (since the right-most column is our "last index" for that shape).
             Then, you use all elements to the left as your shape!
+
     Args:
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """

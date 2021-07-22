@@ -34,10 +34,13 @@ class Encoder:
 
     def translate_index(self, local_sample_index: int) -> int:
         """Translates `local_sample_index` into which row it corresponds to inside the encoded state.
+
         Args:
             local_sample_index (int): Index representing a sample, binary searched over the "last index" column.
+
         Raises:
             IndexError: Cannot index when there are no samples to index into.
+
         Returns:
             int: The index of the corresponding row inside the encoded state.
         """

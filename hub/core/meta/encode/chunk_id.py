@@ -15,16 +15,21 @@ CHUNK_ID_INDEX = 0
 
 class ChunkIdEncoder(Encoder, Cachable):
     """Custom compressor that allows reading of chunk IDs from a sample index without decompressing.
+
     Chunk IDs:
         Chunk IDs are a `ENCODING_DTYPE` value  and this class handles generating/encoding them.
+
     Layout:
         `_encoded` is a 2D array.
+
         Rows:
             The number of rows is equal to the number of chunk IDs this encoder is responsible for.
+
         Columns:
             The number of columns is 2.
             Each row looks like this: [chunk_id, last_index], where `last_index` is the last index that the
             chunk with `chunk_id` contains.
+
         Example:
             >>> enc = ChunkIdEncoder()
             >>> enc.generate_chunk_id()
@@ -47,12 +52,16 @@ class ChunkIdEncoder(Encoder, Cachable):
              [1893450271, 20]]
             >>> enc[20]
             1893450271
+
         Best case scenario:
             The best case scenario is when all samples fit within a single chunk. This means the number of rows is 1,
             providing a O(1) lookup.
+
         Worst case scenario:
+
             The worst case scenario is when only 1 sample fits per chunk. This means the number of rows is equal to the number
             of samples, providing a O(log(N)) lookup.
+
         Lookup algorithm:
             To get the chunk ID for some sample index, you do a binary search over the right-most column. This will give you
             the row that corresponds to that sample index (since the right-most column is our "last index" for that chunk ID).
@@ -101,6 +110,7 @@ class ChunkIdEncoder(Encoder, Cachable):
     def generate_chunk_id(self) -> ENCODING_DTYPE:
         """Generates a random 64bit chunk ID using uuid4. Also prepares this ID to have samples registered to it.
         This method should be called once per chunk created.
+
         Returns:
             ENCODING_DTYPE: The random chunk ID.
         """
@@ -124,8 +134,10 @@ class ChunkIdEncoder(Encoder, Cachable):
     def register_samples_to_last_chunk_id(self, num_samples: int):
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
+
         Args:
             num_samples (int): The number of samples the last chunk ID should have added to it's registration.
+
         Raises:
             ValueError: `num_samples` should be non-negative.
             ChunkIdEncoderError: Must call `generate_chunk_id` before registering samples.
@@ -156,6 +168,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
     def get_local_sample_index(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
+
         Example:
             Given: 2 sampes in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
             >>> self.num_samples
@@ -172,8 +185,10 @@ class ChunkIdEncoder(Encoder, Cachable):
             1
             >>> self.get_local_sample_index(6)
             2
+
         Args:
             global_sample_index (int): Index of the sample relative to the containing tensor.
+
         Returns:
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
@@ -193,11 +208,14 @@ class ChunkIdEncoder(Encoder, Cachable):
     ) -> Tuple[ENCODING_DTYPE, Optional[int]]:
         """Get the ID for the chunk that `local_sample_index` is stored in.
         To get the name of the chunk, use `name_from_id`.
+
         Args:
             local_sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
             return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
+
         Raises:
             IndexError: If no samples exist or `local_sample_index` exceeds the available indices.
+
         Returns:
             Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `local_sample_index`. If `return_chunk_index` is True,
                 there will be 2 values. The second one being the chunk's index.
