@@ -166,19 +166,21 @@ commands:
           steps:
             - run:
                 name: "Running tests - Windows"
+                environment:
+                  BUGGER_OFF: "true"
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  activeloop reporting --off
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
       - when:
           condition: << parameters.unix-like >>
           steps:
             - run:
                 name: "Running tests - Unix"
+                environment:
+                  BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  activeloop reporting --off
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
                   
           parallelism: 10
