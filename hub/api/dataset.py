@@ -57,13 +57,13 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         read_only = storage.read_only
-        
+
         hub_reporter.feature_report(feature_name="dataset", parameters={})
-                 
+
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-    
+
     @staticmethod
     @hub_reporter.record_call
     def empty(
@@ -185,13 +185,13 @@ class dataset:
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-    
+
     @staticmethod
     @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset"""
         raise NotImplementedError
-        
+
     @staticmethod
     @hub_reporter.record_call
     def like(
@@ -199,7 +199,7 @@ class dataset:
     ) -> Dataset:
         """Creates a dataset with the same structure as another dataset"""
         raise NotImplementedError
-            
+
     @staticmethod
     @hub_reporter.record_call
     def ingest(

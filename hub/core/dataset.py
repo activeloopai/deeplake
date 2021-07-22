@@ -303,15 +303,15 @@ class Dataset:
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
-            
+
             hub_reporter.feature_report(
                 feature_name="HubDataset", parameters={"Path": str(self.path)}
-                )
+            )
 
         self._load_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
-        
+
     @hub_reporter.record_call
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
@@ -341,7 +341,7 @@ class Dataset:
         """
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
-    
+
     @hub_reporter.record_call
     def delete(self):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
