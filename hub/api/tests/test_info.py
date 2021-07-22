@@ -47,7 +47,7 @@ def test_dataset(local_ds_generator):
     ds.info.delete(["1_-+", "xyz"])
     assert len(ds.info) == 4
 
-    ds.info.delte()
+    ds.info.delete()
     assert len(ds.info) == 0
 
 
@@ -56,10 +56,6 @@ def test_tensor(local_ds_generator):
 
     t1 = ds.create_tensor("tensor1")
     t2 = ds.create_tensor("tensor2")
-
-    assert t1.info["key"] == t1.info.key == 1
-    assert t2.info["key"] == t2.info.key == 0
-    assert t2.info["key1"] == t2.info.key1 == 1
 
     t1.info.update(key=0)
     t2.info.update(key=1, key1=0)
@@ -136,5 +132,18 @@ def test_update_reference_manually(local_ds_generator):
 def test_class_label(local_ds_generator):
     ds = local_ds_generator()
     ds.create_tensor("labels", htype="class_label", class_names=["a", "b", "c"])
-    assert len(ds.info) == 1
-    assert ds.info.class_names == ds.info["class_names"] == ["a", "b", "c"]
+    ds.create_tensor("labels2", htype="class_label")
+    assert len(ds.labels.info) == 1
+    assert len(ds.labels2.info) == 1
+    assert (
+        ds.labels.info.class_names == ds.labels.info["class_names"] == ["a", "b", "c"]
+    )
+    assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
+    ds.labels.info.class_names = ["c", "b", "a"]
+    ds = local_ds_generator()
+    assert len(ds.labels.info) == 1
+    assert len(ds.labels2.info) == 1
+    assert (
+        ds.labels.info.class_names == ds.labels.info["class_names"] == ["c", "b", "a"]
+    )
+    assert ds.labels2.info.class_names == ds.labels2.info["class_names"] == []
