@@ -1,11 +1,8 @@
 from hub.core.storage.provider import StorageProvider
-from hub.core.tensor import create_tensor
+from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
-
-from hub.api.tensor import Tensor
-
 from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.index import Index
