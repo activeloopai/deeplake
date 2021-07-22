@@ -4,8 +4,8 @@ from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
+from hub.util.bugout_reporter import hub_reporter
 from hub.core.meta.dataset_meta import DatasetMeta
-
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
@@ -14,7 +14,6 @@ from hub.util.keys import (
     get_dataset_meta_key,
     tensor_exists,
 )
-from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
     InvalidKeyTypeError,
@@ -303,15 +302,16 @@ class Dataset:
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
+            
+            hub_reporter.feature_report(
+                feature_name="HubDataset", parameters={"Path": str(self.path)}
+                )
 
         self._load_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
-
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
-        )
-
+        
+    @hub_reporter.record_call
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
 
@@ -340,7 +340,8 @@ class Dataset:
         """
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
-
+    
+    @hub_reporter.record_call
     def delete(self):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.

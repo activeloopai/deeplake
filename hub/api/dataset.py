@@ -4,9 +4,12 @@ from typing import Optional
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
+from hub.util.bugout_reporter import hub_reporter
 
 
 class dataset:
+    
+    @hub_reporter.record_call
     def __new__(
         cls,
         path: str,
@@ -59,7 +62,8 @@ class dataset:
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-
+    
+    @hub_reporter.record_call
     @staticmethod
     def empty(
         path: str,
@@ -117,7 +121,8 @@ class dataset:
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-
+    
+    @hub_reporter.record_call
     @staticmethod
     def load(
         path: str,
@@ -179,19 +184,22 @@ class dataset:
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-
+    
+    @hub_reporter.record_call
     @staticmethod
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset"""
         raise NotImplementedError
-
+        
+    @hub_reporter.record_call    
     @staticmethod
     def like(
         path: str, like: str, like_creds: dict, overwrite: bool = False
     ) -> Dataset:
         """Creates a dataset with the same structure as another dataset"""
         raise NotImplementedError
-
+        
+    @hub_reporter.record_call    
     @staticmethod
     def ingest(
         path: str, src: str, src_creds: dict, overwrite: bool = False
