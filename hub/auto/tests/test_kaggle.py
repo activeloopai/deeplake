@@ -13,7 +13,7 @@ def test_ingestion_simple(local_ds: Dataset):
     unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds["images"][9].numpy().shape == (570, 570, 3)
+    assert ds["images"][1].numpy().shape == (570, 570, 3)
     assert ds["labels"].numpy().shape == (10,)
 
 
