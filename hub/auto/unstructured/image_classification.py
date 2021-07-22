@@ -92,8 +92,8 @@ class ImageClassification(UnstructuredDataset):
 
             images_tensor_name = os.path.join(set_name, IMAGES_TENSOR_NAME)
             labels_tensor_name = os.path.join(set_name, LABELS_TENSOR_NAME)
-            images_tensor_map[set_name] = images_tensor_name
-            labels_tensor_map[set_name] = labels_tensor_name
+            images_tensor_map[set_name] = images_tensor_name.replace("\\", "/")
+            labels_tensor_map[set_name] = (labels_tensor_name.replace("\\", "/"),)
 
             # TODO: infer sample_compression
             ds.create_tensor(
