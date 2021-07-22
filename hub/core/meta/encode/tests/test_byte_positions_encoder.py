@@ -62,6 +62,6 @@ def test_non_uniform():
 def test_failures():
     enc = BytePositionsEncoder()
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         # num_samples cannot be 0
         enc.register_samples(8, 0)

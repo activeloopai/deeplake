@@ -95,7 +95,7 @@ class ShapeEncoder(Encoder):
                     f"All sample shapes in a tensor must have the same len(shape). Expected: {len(last_shape)} got: {len(shape)}."
                 )
 
-    def increment_condition(self, shape: Tuple[int]) -> bool:
+    def combine_condition(self, shape: Tuple[int]) -> bool:
         last_shape = self[-1]  # TODO: optimize this
 
         return shape == last_shape

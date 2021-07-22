@@ -1,6 +1,6 @@
 from hub.core.meta.encode.base_encoder import Encoder
 from hub.constants import ENCODING_DTYPE
-from typing import Tuple
+from typing import Sequence, Tuple
 import numpy as np
 
 
@@ -92,20 +92,13 @@ class BytePositionsEncoder(Encoder):
     def array(self):
         return self._encoded
 
-    def register_samples(self, num_bytes_per_sample: int, num_samples: int):
-        """Either adds a new row to `_encoded`, or extends the last one. For more information on this algorithm, see `__init__`."""
-
-        if num_samples <= 0:
-            raise ValueError(f"`num_samples` should be > 0. Got {num_samples}.")
-
-        if num_bytes_per_sample < 0:
-            raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes_per_sample}.")
-
+    """
+    def register_samples(self, num_bytes: int, num_samples: int):
         if self.num_samples != 0:
             last_entry = self._encoded[-1]
             last_nb = last_entry[NUM_BYTES_INDEX]
 
-            if last_nb == num_bytes_per_sample:
+            if last_nb == num_bytes:
                 self._encoded[-1, self.last_index_index] += num_samples
 
             else:
@@ -114,19 +107,35 @@ class BytePositionsEncoder(Encoder):
                 sb = self.num_bytes_encoded_under_row(-1)
 
                 entry = np.array(
-                    [[num_bytes_per_sample, sb, last_index + num_samples]],
+                    [[num_bytes, sb, last_index + num_samples]],
                     dtype=ENCODING_DTYPE,
                 )
                 self._encoded = np.concatenate([self._encoded, entry], axis=0)
 
         else:
             self._encoded = np.array(
-                [[num_bytes_per_sample, 0, num_samples - 1]],
+                [[num_bytes, 0, num_samples - 1]],
                 dtype=ENCODING_DTYPE,
             )
+    """
+
+    def validate_incoming_item(self, num_bytes: int):
+        if num_bytes < 0:
+            raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
+
+    def combine_condition(self, num_bytes: int) -> bool:
+        last_num_bytes = self._encoded[-1, NUM_BYTES_INDEX]
+        return num_bytes == last_num_bytes
+
+    def make_decomposable(self, num_bytes: int) -> Sequence:
+        sb = self.num_bytes_encoded_under_row(-1)
+        return [num_bytes, sb]
 
     def __getitem__(self, sample_index: int) -> Tuple[int, int]:
         """Get the (start_byte, end_byte) for `sample_index`. For details on the lookup algorithm, see `__init__`."""
+
+        if sample_index < 0:
+            raise NotImplementedError
 
         encoded_index = self.translate_index(sample_index)
 

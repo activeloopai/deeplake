@@ -73,9 +73,7 @@ class Encoder:
         self.validate_incoming_item(item)
 
         if self.num_samples != 0:
-            last_shape = self[-1]
-
-            if self.increment_condition(item):
+            if self.combine_condition(item):
                 self._encoded[-1, self.last_index_index] += num_samples
 
             else:
@@ -99,7 +97,7 @@ class Encoder:
 
         raise NotImplementedError
 
-    def increment_condition(self, item: Any) -> bool:
+    def combine_condition(self, item: Any) -> bool:
         # TODO: docstring
 
         raise NotImplementedError
