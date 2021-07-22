@@ -195,10 +195,7 @@ class HubBackendClient:
         )
 
         if response.status_code == 200:
-            logger.info(
-                "Your Hub dataset has been successfully created!"
-                + f"\nIt is available at {self.endpoint()}/datasets/explore?tag={tag}"
-            )
+            logger.info("Your Hub dataset has been successfully created!")
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 
