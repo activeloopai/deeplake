@@ -88,21 +88,21 @@ class BytePositionsEncoder(Encoder):
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
-    def validate_incoming_item(self, num_bytes: int, _):
+    def _validate_incoming_item(self, num_bytes: int, _):
         if num_bytes < 0:
             raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
 
-        super().validate_incoming_item(num_bytes, _)
+        super()._validate_incoming_item(num_bytes, _)
 
-    def combine_condition(self, num_bytes: int) -> bool:
+    def _combine_condition(self, num_bytes: int) -> bool:
         last_num_bytes = self._encoded[-1, NUM_BYTES_INDEX]
         return num_bytes == last_num_bytes
 
-    def make_decomposable(self, num_bytes: int) -> Sequence:
+    def _make_decomposable(self, num_bytes: int) -> Sequence:
         sb = self.num_bytes_encoded_under_row(-1)
         return [num_bytes, sb]
 
-    def derive_value(
+    def _derive_value(
         self, row: np.ndarray, row_index: int, local_sample_index: int
     ) -> np.ndarray:
         index_bias = 0

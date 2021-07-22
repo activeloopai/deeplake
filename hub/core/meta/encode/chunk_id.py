@@ -3,7 +3,6 @@ from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Optional, Tuple
 import numpy as np
 from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
@@ -184,7 +183,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return int(global_sample_index - last_num_samples)
 
-    def validate_incoming_item(self, _, num_samples: int):
+    def _validate_incoming_item(self, _, num_samples: int):
         if num_samples < 0:
             raise ValueError(
                 f"Cannot register negative num samples. Got: {num_samples}"
@@ -199,13 +198,13 @@ class ChunkIdEncoder(Encoder, Cachable):
             raise ChunkIdEncoderError(
                 "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
             )
-        
+
         # note: do not call super() method (num_samples can be 0)
 
-    def combine_condition(self, _) -> bool:
+    def _combine_condition(self, _) -> bool:
         return True
 
-    def do_combine(self, last_index: ENCODING_DTYPE, num_samples: int):
+    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         # this operation will trigger an overflow for the first addition, so supress the warning
         np.seterr(over="ignore")
         new_last_index = last_index + ENCODING_DTYPE(num_samples)
@@ -213,5 +212,5 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return new_last_index
 
-    def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
         return row[CHUNK_ID_INDEX]
