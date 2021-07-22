@@ -7,13 +7,13 @@ import pytest
 
 enabled_storages = pytest.mark.parametrize(
     "storage",
-    ["memory_storage", "local_storage", "s3_storage", "hub_cloud_storage"],
+    ["memory_storage", "local_storage", "s3_storage"],
     indirect=True,
 )
 
 enabled_persistent_storages = pytest.mark.parametrize(
     "storage",
-    ["local_storage", "s3_storage", "hub_cloud_storage"],
+    ["local_storage", "s3_storage"],
     indirect=True,
 )
 

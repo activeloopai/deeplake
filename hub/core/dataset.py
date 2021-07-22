@@ -1,3 +1,4 @@
+from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
@@ -7,7 +8,12 @@ from hub.core.meta.dataset_meta import DatasetMeta
 
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
-from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
+from hub.util.keys import (
+    dataset_exists,
+    get_dataset_info_key,
+    get_dataset_meta_key,
+    tensor_exists,
+)
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
     CouldNotCreateNewDatasetException,
@@ -55,6 +61,7 @@ class Dataset:
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
+
         self._set_derived_attributes()
 
     def __enter__(self):
@@ -205,18 +212,19 @@ class Dataset:
             raise PathNotEmptyException
 
         else:
-            self.meta = DatasetMeta()
-
-            try:
-                self.storage[meta_key] = self.meta
-            except ReadOnlyModeError:
-                # if this is thrown, that means the dataset doesn't exist and the user has no write access.
+            if self.read_only:
+                # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
 
+            self.meta = DatasetMeta()
+            self.storage[meta_key] = self.meta
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
+                    self.org_id,
+                    self.ds_name,
+                    self.meta.__getstate__(),
+                    public=self.public,
                 )
 
     @property
@@ -286,13 +294,15 @@ class Dataset:
 
     def _set_derived_attributes(self):
         """Sets derived attributes during init and unpickling."""
+
         self.storage.autoflush = True
         if self.path.startswith("hub://"):
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
-        self._load_meta()
+        self._load_meta()  # TODO: use the same scheme as `load_info`
+        self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 
         hub_reporter.feature_report(
