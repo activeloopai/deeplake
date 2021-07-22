@@ -147,7 +147,9 @@ class Encoder(ABC):
 
         return item
 
-    def _derive_value(self, row: np.ndarray) -> np.ndarray:
+    def _derive_value(
+        self, row: np.ndarray, row_index: int, local_sample_index: int
+    ) -> np.ndarray:
         """Given a row of `self._encoded`, this method should implement how `__getitem__` hands a value to the caller."""
 
     def __getitem__(
