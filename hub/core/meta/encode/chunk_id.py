@@ -166,6 +166,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         current_entry[self.last_index_index] += ENCODING_DTYPE(num_samples)
         np.seterr(over="warn")
 
+    # TODO: rename this function (maybe generalize into `translate_index`?)
     def get_local_sample_index(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
 
@@ -193,7 +194,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             int: local index value between 0 and the amount of samples the chunk contains - 1.
         """
 
-        _, chunk_index = self.__getitem__(global_sample_index, return_chunk_index=True)  # type: ignore
+        _, chunk_index = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
 
         if chunk_index == 0:
             return global_sample_index
@@ -203,29 +204,5 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return int(global_sample_index - last_num_samples)
 
-    def __getitem__(
-        self, local_sample_index: int, return_chunk_index: bool = False
-    ) -> Tuple[ENCODING_DTYPE, Optional[int]]:
-        """Get the ID for the chunk that `local_sample_index` is stored in.
-        To get the name of the chunk, use `name_from_id`.
-
-        Args:
-            local_sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
-            return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
-
-        Raises:
-            IndexError: If no samples exist or `local_sample_index` exceeds the available indices.
-
-        Returns:
-            Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `local_sample_index`. If `return_chunk_index` is True,
-                there will be 2 values. The second one being the chunk's index.
-        """
-
-        idx = self.translate_index(local_sample_index)
-        id = self._encoded[idx, CHUNK_ID_INDEX]
-        chunk_index = idx
-
-        if return_chunk_index:
-            return id, chunk_index
-
-        return id
+    def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+        return row[CHUNK_ID_INDEX]

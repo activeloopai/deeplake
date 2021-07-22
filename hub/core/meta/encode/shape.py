@@ -75,18 +75,14 @@ class ShapeEncoder(Encoder):
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """
 
-    def __getitem__(self, local_sample_index: int) -> np.ndarray:
-        idx = self.translate_index(local_sample_index)
-        return tuple(self._encoded[idx, :-1])
-
     @property
     def array(self):
         return self._encoded
 
-    def validate_incoming_item(self, shape: Tuple[int]):
-        if len(shape) == 0:
-            raise ValueError("Shape cannot be empty.")
+    def derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+        return tuple(row[: self.last_index_index])
 
+    def validate_incoming_item(self, shape: Tuple[int]):
         if len(self._encoded) > 0:
             last_shape = self[-1]  # TODO: optimize this
 

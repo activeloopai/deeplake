@@ -93,7 +93,7 @@ class Encoder:
             )
 
     def validate_incoming_item(self, item: Any):
-        # TODO: docstring
+        # TODO: docstring (also make these "_" functions)
 
         raise NotImplementedError
 
@@ -106,3 +106,21 @@ class Encoder:
         # TODO: docstring
 
         return item
+
+    def derive_value(self, row: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def __getitem__(
+        self, local_sample_index: int, return_row_index: bool = False
+    ) -> Any:
+        # TODO: docstring
+
+        row_index = self.translate_index(local_sample_index)
+        value = self.derive_value(
+            self._encoded[row_index], row_index, local_sample_index
+        )
+
+        if return_row_index:
+            return value, row_index
+
+        return value
