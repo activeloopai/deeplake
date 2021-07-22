@@ -10,7 +10,7 @@ __pdoc__ = {
     "tests": False,
 }
 
-from .api.dataset_handler import dataset
+from .api.dataset import dataset
 from .api.read import read
 from .util.bugout_reporter import hub_reporter
 

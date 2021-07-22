@@ -7,7 +7,7 @@ import numpy as np
 
 def test_new_dataset():
     with CliRunner().isolated_filesystem():
-        ds = hub.dataset("test_dataset_handler/test_new_dataset")
+        ds = hub.dataset("test_new_dataset")
         with ds:
             ds.create_tensor("image")
             for i in range(10):
@@ -21,7 +21,7 @@ def test_new_dataset():
 
 def test_dataset_empty_load():
     with CliRunner().isolated_filesystem():
-        path = "test_dataset_handler/test_dataset_load"
+        path = "test_dataset_load"
 
         ds = hub.empty(path)
         with ds:
