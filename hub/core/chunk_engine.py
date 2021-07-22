@@ -201,7 +201,7 @@ class ChunkEngine:
         if not buffer_consumed:
             self._append_to_new_chunk(buffer, shape)
 
-        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
+        self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
 
     def _synchronize_cache(self):

@@ -1,3 +1,4 @@
+from typing import Any
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -56,3 +57,8 @@ class Encoder:
         return np.searchsorted(
             self._encoded[:, self.last_index_index], local_sample_index
         )
+
+    def register_samples(self, item: Any, num_samples: int):
+        # TODO: generalize all methods to this
+
+        raise NotImplementedError

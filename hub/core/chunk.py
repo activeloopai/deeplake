@@ -105,8 +105,8 @@ class Chunk(Cachable):
         """
 
         num_bytes_per_sample = incoming_num_bytes
-        self.shapes_encoder.add_shape(sample_shape, 1)
-        self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, 1)
+        self.shapes_encoder.register_samples(sample_shape, 1)
+        self.byte_positions_encoder.register_samples(num_bytes_per_sample, 1)
 
     @property
     def nbytes(self):

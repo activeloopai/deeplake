@@ -35,16 +35,16 @@ class ChunkIdEncoder(Encoder, Cachable):
             >>> enc.generate_chunk_id()
             >>> enc.num_chunks
             1
-            >>> enc.register_samples_to_last_chunk_id(10)
+            >>> enc.register_samples(10)
             >>> enc.num_samples
             10
-            >>> enc.register_samples_to_last_chunk_id(10)
+            >>> enc.register_samples(10)
             >>> enc.num_samples
             20
             >>> enc.num_chunks
             1
             >>> enc.generate_chunk_id()
-            >>> enc.register_samples_to_last_chunk_id(1)
+            >>> enc.register_samples(1)
             >>> enc.num_samples
             21
             >>> enc._encoded
@@ -131,7 +131,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return id
 
-    def register_samples_to_last_chunk_id(self, num_samples: int):
+    def register_samples(self, num_samples: int):
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
 

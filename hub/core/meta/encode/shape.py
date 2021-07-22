@@ -23,10 +23,10 @@ class ShapeEncoder(Encoder):
 
         Fixed Example:
             >>> enc = ShapeEncoder()
-            >>> enc.add_shape((1,), 100)  # represents scalar values
+            >>> enc.register_samples((1,), 100)  # represents scalar values
             >>> enc._encoded
             [[1, 99]]
-            >>> enc.add_shape((1,), 10000)
+            >>> enc.register_samples((1,), 10000)
             >>> enc._encoded
             [[1, 10099]]
             >>> enc.num_samples
@@ -36,17 +36,17 @@ class ShapeEncoder(Encoder):
 
         Dynamic Example:
             >>> enc = ShapeEncoder()
-            >>> enc.add_shape((28, 28), 1)
+            >>> enc.register_samples((28, 28), 1)
             >>> enc._encoded
             [[28, 28, 0]]
-            >>> enc.add_shape((28, 28, 10))
+            >>> enc.register_samples((28, 28, 10))
             >>> enc._encoded
             [[28, 28, 10]]
-            >>> enc.add_shape((29, 28, 5))
+            >>> enc.register_samples((29, 28, 5))
             >>> enc._encoded
             [[28, 28, 10],
              [29, 28, 15]]
-            >>> enc.add_shape((28, 28, 3))
+            >>> enc.register_samples((28, 28, 3))
             >>> enc._encoded
             [[28, 28, 10],
              [29, 28, 15],
@@ -83,7 +83,7 @@ class ShapeEncoder(Encoder):
     def array(self):
         return self._encoded
 
-    def add_shape(
+    def register_samples(
         self,
         shape: Tuple[int],
         count: int,

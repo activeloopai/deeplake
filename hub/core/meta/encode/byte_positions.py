@@ -31,14 +31,14 @@ class BytePositionsEncoder(Encoder):
 
         Example:
             >>> enc = BytePositionsEncoder()
-            >>> enc.add_byte_position(4, 100)  # 100 int32 samples
+            >>> enc.register_samples(4, 100)  # 100 int32 samples
             >>> enc._encoded_byte_position
             [[4, 0, 99]]
-            >>> enc.add_byte_position(8, 100)
+            >>> enc.register_samples(8, 100)
             >>> enc._encoded_byte_position
             [[4, 0, 99],
              [8, 400, 199]]
-             >>> enc.add_byte_position(4, 200)
+             >>> enc.register_samples(4, 200)
             >>> enc._encoded_byte_position
             [[4, 0, 99],
              [8, 400, 199],
@@ -92,7 +92,7 @@ class BytePositionsEncoder(Encoder):
     def array(self):
         return self._encoded
 
-    def add_byte_position(self, num_bytes_per_sample: int, num_samples: int):
+    def register_samples(self, num_bytes_per_sample: int, num_samples: int):
         """Either adds a new row to `_encoded`, or extends the last one. For more information on this algorithm, see `__init__`."""
 
         if num_samples <= 0:

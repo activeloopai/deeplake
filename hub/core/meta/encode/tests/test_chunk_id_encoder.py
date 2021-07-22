@@ -12,16 +12,16 @@ def test_trivial():
     assert enc.num_chunks == 0
 
     id1 = enc.generate_chunk_id()
-    enc.register_samples_to_last_chunk_id(10)
+    enc.register_samples(10)
 
     assert enc.num_chunks == 1
 
     assert id1 == enc[0]
     assert id1 == enc[9]
 
-    enc.register_samples_to_last_chunk_id(10)
-    enc.register_samples_to_last_chunk_id(9)
-    enc.register_samples_to_last_chunk_id(1)
+    enc.register_samples(10)
+    enc.register_samples(9)
+    enc.register_samples(1)
 
     assert enc.num_chunks == 1
     assert enc.num_samples == 30
@@ -32,10 +32,10 @@ def test_trivial():
 
     # new chunks
     id2 = enc.generate_chunk_id()
-    enc.register_samples_to_last_chunk_id(1)
+    enc.register_samples(1)
 
     id3 = enc.generate_chunk_id()
-    enc.register_samples_to_last_chunk_id(5)
+    enc.register_samples(5)
 
     assert enc.num_chunks == 3
     assert enc.num_samples == 36
@@ -61,15 +61,15 @@ def test_failures():
 
     with pytest.raises(ChunkIdEncoderError):
         # fails because no chunk ids exist
-        enc.register_samples_to_last_chunk_id(0)
+        enc.register_samples(0)
 
     enc.generate_chunk_id()
 
     with pytest.raises(ChunkIdEncoderError):
         # fails because cannot register 0 samples when there is no last chunk
-        enc.register_samples_to_last_chunk_id(0)
+        enc.register_samples(0)
 
-    enc.register_samples_to_last_chunk_id(1)
+    enc.register_samples(1)
 
     with pytest.raises(IndexError):
         enc[1]
