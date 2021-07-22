@@ -2,7 +2,7 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-from hub import Dataset
+import hub
 from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 
 
@@ -38,4 +38,4 @@ def test_readonly(local_ds_generator):
 
 @pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
 def test_readonly_doesnt_exist(local_path):
-    Dataset(local_path, read_only=True)
+    hub.dataset(local_path, read_only=True)

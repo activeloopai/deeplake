@@ -1,4 +1,3 @@
-from hub.util.exceptions import CorruptedMetaError
 from hub.core.storage.provider import StorageProvider
 import posixpath
 
@@ -36,11 +35,16 @@ def get_chunk_id_encoder_key(key: str) -> str:
 
 
 def dataset_exists(storage: StorageProvider) -> bool:
-    """A dataset exists if the provided `storage` contains a `dataset_meta.json`."""
-
-    meta_exists = get_dataset_meta_key() in storage
-    return meta_exists
+    try:
+        storage[get_dataset_meta_key()]
+        return True
+    except KeyError:
+        return False
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
-    return get_tensor_meta_key(key) in storage
+    try:
+        storage[get_tensor_meta_key(key)]
+        return True
+    except KeyError:
+        return False

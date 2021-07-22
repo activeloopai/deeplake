@@ -5,7 +5,8 @@ import tensorflow_datasets as tfds  # type: ignore
 from tensorflow_datasets import Split
 from tqdm import tqdm  # type: ignore
 
-from hub import Dataset
+from hub.core.dataset import Dataset
+import hub
 
 
 def from_tfds_to_path(
@@ -25,9 +26,9 @@ def from_tfds_to_path(
         A hub dataset
     """
     tfds_ds = tfds.load(tfds_dataset_name, split=split).batch(batch_size)
-    ds = Dataset(hub_ds_path)
+    ds = hub.dataset(hub_ds_path)
 
-    return from_tfds(tfds_ds=tfds_ds, ds=ds)
+    return from_tfds(tfds_ds=tfds_ds, ds=ds)  # type: ignore
 
 
 def from_tfds(tfds_ds: tensorflow.data.Dataset, ds: Dataset):

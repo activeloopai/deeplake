@@ -4,13 +4,13 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
 )
 import pytest
-from hub.api.tensor import Tensor
+from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
 from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
-from hub import Dataset
+from hub.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):

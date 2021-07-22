@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 import hub
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
@@ -469,7 +469,7 @@ def test_array_interface(memory_ds: Dataset):
 
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
-    ds = Dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
+    ds = hub.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
 
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
@@ -505,23 +505,23 @@ def test_index_range(memory_ds):
 
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         with ds:
             ds.create_tensor("x")
             ds.create_tensor("y")
             with pytest.raises(UnsupportedCompressionError):
                 ds.create_tensor("z", sample_compression="something_random")
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         assert list(ds.tensors) == ["x", "y"]
         ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]
