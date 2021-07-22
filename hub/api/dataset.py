@@ -9,7 +9,6 @@ from hub.util.bugout_reporter import hub_reporter
 
 class dataset:
     
-    @hub_reporter.record_call
     def __new__(
         cls,
         path: str,
@@ -59,12 +58,15 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         read_only = storage.read_only
+        
+        hub_reporter.feature_report(feature_name="dataset", parameters={})
+                 
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
     
-    @hub_reporter.record_call
     @staticmethod
+    @hub_reporter.record_call
     def empty(
         path: str,
         overwrite: bool = False,
@@ -121,9 +123,9 @@ class dataset:
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
-    
-    @hub_reporter.record_call
+
     @staticmethod
+    @hub_reporter.record_call
     def load(
         path: str,
         read_only: bool = False,
@@ -185,22 +187,22 @@ class dataset:
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
     
-    @hub_reporter.record_call
     @staticmethod
+    @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset"""
         raise NotImplementedError
         
-    @hub_reporter.record_call    
     @staticmethod
+    @hub_reporter.record_call
     def like(
         path: str, like: str, like_creds: dict, overwrite: bool = False
     ) -> Dataset:
         """Creates a dataset with the same structure as another dataset"""
         raise NotImplementedError
-        
-    @hub_reporter.record_call    
+            
     @staticmethod
+    @hub_reporter.record_call
     def ingest(
         path: str, src: str, src_creds: dict, overwrite: bool = False
     ) -> Dataset:
