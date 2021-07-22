@@ -224,15 +224,16 @@ class S3Provider(StorageProvider):
         if not self.path.endswith("/"):
             self.path += "/"
 
-    def _set_hub_creds_info(self, tag: str, expiration: str):
+    def _set_hub_creds_info(self, hub_path: str, expiration: str):
         """Sets the tag and expiration of the credentials. These are only relevant to datasets using Hub storage.
         This info is used to fetch new credentials when the temporary 12 hour credentials expire.
 
         Args:
-            tag (str): The Hub tag of the dataset in the format username/dataset_name.
+            hub_path (str): The hub cloud path to the dataset.
             expiration (str): The time at which the credentials expire.
         """
-        self.tag = tag
+        self.hub_path = hub_path
+        self.tag = hub_path[6:]  # removing the hub:// part from the path
         self.expiration = expiration
 
     def _initialize_s3_parameters(self):
@@ -255,10 +256,8 @@ class S3Provider(StorageProvider):
             client = HubBackendClient(self.token)
             org_id, ds_name = self.tag.split("/")
 
-            if hasattr(self, "read_only") and self.read_only:
-                mode = "r"
-            else:
-                mode = "a"
+            mode = "r" if self.read_only else "a"
+
             url, creds, mode, expiration = client.get_dataset_credentials(
                 org_id, ds_name, mode
             )

@@ -105,13 +105,6 @@ class LoginException(Exception):
         super().__init__(message)
 
 
-class ImproperDatasetInitialization(Exception):
-    def __init__(self):
-        super().__init__(
-            "Exactly one argument out of 'path' and 'storage' should be provided."
-        )
-
-
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
@@ -452,4 +445,20 @@ class WindowsSharedMemoryError(Exception):
     def __init__(self):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )
+
+
+class DatasetHandlerError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class CallbackInitializationError(Exception):
+    pass
+
+
+class MemoryDatasetCanNotBePickledError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )

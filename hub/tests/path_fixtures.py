@@ -1,4 +1,4 @@
-from hub.util.get_storage_provider import storage_provider_from_hub_path
+from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
@@ -100,6 +100,7 @@ def local_path(request):
         return
 
     path = _get_storage_path(request, LOCAL)
+    LocalProvider(path).clear()
 
     yield path
 
@@ -115,6 +116,7 @@ def s3_path(request):
         return
 
     path = _get_storage_path(request, S3)
+    S3Provider(path).clear()
 
     yield path
 
@@ -130,6 +132,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
         return
 
     path = _get_storage_path(request, HUB_CLOUD)
+    storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
 
     yield path
 

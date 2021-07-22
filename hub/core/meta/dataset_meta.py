@@ -1,7 +1,5 @@
-from typing import Dict, List
-from hub.core.storage.provider import StorageProvider
+from typing import Any, Dict
 from hub.core.meta.meta import Meta
-from hub.util.keys import get_dataset_meta_key
 
 
 class DatasetMeta(Meta):
@@ -10,7 +8,12 @@ class DatasetMeta(Meta):
 
         super().__init__()
 
-    def as_dict(self) -> dict:
-        d = super().as_dict()
+    @property
+    def nbytes(self):
+        # TODO: can optimize this
+        return len(self.tobytes())
+
+    def __getstate__(self) -> Dict[str, Any]:
+        d = super().__getstate__()
         d["tensors"] = self.tensors
         return d
