@@ -4,8 +4,8 @@ from hub.tests.common import get_dummy_data_path
 import pytest
 
 
-def test_kaggle_Exception():
-    path = get_dummy_data_path("tests_auto/test_kaggle_exception")
+def test_kaggle_exception():
+    path = get_dummy_data_path("tests_auto/test_kaggle_exception/")
 
     with pytest.raises(KaggleDatasetAlreadyDownloadedError):
         download_kaggle_dataset("thisiseshan/bird-classes", local_path=path)
