@@ -3,6 +3,7 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
+from hub.htypes import HTYPE_CONFIGURATIONS
 import numpy as np
 from hub.core.meta.dataset_meta import DatasetMeta
 
@@ -170,19 +171,38 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
+        # Seperate meta and info
+
+        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
+        info_keys = htype_config.pop("_info", [])
+        info_kwargs = {}
+        meta_kwargs = {}
+        for k, v in kwargs.items():
+            if k in info_keys:
+                info_kwargs[k] = v
+            else:
+                meta_kwargs[k] = v
+
+        # Set defaults
+        for k in info_keys:
+            if k not in info_kwargs:
+                info_kwargs[k] = htype_config[k]
+
         create_tensor(
             name,
             self.storage,
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
-            **kwargs,
+            **meta_kwargs,
         )
         self.meta.tensors.append(name)
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
 
         self.tensors[name] = tensor
+
+        tensor.info.update(info_kwargs)
 
         return tensor
 
