@@ -204,19 +204,15 @@ class dataset:
             Dataset: New dataset object.
         """
 
-        if overwrite:
-            # TODO:
-            raise NotImplementedError
-
-        destination_ds = dataset.empty(path, creds=creds)
+        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
         source_ds = source
         if isinstance(source, str):
             source_ds = dataset.load(source)
 
-        for tensor_name in source_ds.meta.tensors:
+        for tensor_name in source_ds.meta.tensors:  # type: ignore
             destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
-        destination_ds.info.update(source_ds.info.__getstate__())
+        destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
         return destination_ds
 
