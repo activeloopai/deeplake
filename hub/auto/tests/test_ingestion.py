@@ -1,15 +1,23 @@
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
 from hub.auto.unstructured.image_classification import ImageClassification
+from hub.util.exceptions import InvalidPathException
+import pytest
 import hub
 
 
 def test_image_classification_simple(memory_ds: Dataset):
     ds = memory_ds
     path = get_dummy_data_path("tests_auto/image_classification")
+
+    with pytest.raises(InvalidPathException):
+        unstructured = ImageClassification(
+            source=get_dummy_data_path("tests_auto/invalid_path")
+        )
+
     unstructured = ImageClassification(source=path)
     unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
-    print(ds)
+
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds["images"].numpy().shape == (3, 200, 200, 3)
     assert ds["labels"].numpy().shape == (3,)
