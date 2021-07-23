@@ -69,9 +69,9 @@ class BytePositionsEncoder(Encoder):
     """
 
     def num_bytes_encoded_under_row(self, row_index: int) -> int:
-        """Calculates the amount of bytes total under a specific row. Useful for adding new rows to `_encoded`."""
+        """Calculates the amount of bytes total "under" a specific row. "Under" meaning all rows that preceed it. Useful for adding new rows to `_encoded`."""
 
-        if len(self._encoded) == 0:
+        if len(self._encoded) == 0 or row_index == 0:
             return 0
 
         if row_index < 0:
@@ -94,12 +94,20 @@ class BytePositionsEncoder(Encoder):
 
         super()._validate_incoming_item(num_bytes, _)
 
-    def _combine_condition(self, num_bytes: int) -> bool:
-        last_num_bytes = self._encoded[-1, NUM_BYTES_INDEX]
+    def _combine_condition(self, num_bytes: int, compare_row_index: int = -1) -> bool:
+        """Checks if `num_bytes` matches the `num_bytes` represented at row with index `compare_row_index`."""
+
+        if compare_row_index >= len(self._encoded):
+            # cannot combine if the row index doesn't exist
+            return False
+
+        last_num_bytes = self._encoded[compare_row_index, NUM_BYTES_INDEX]
         return num_bytes == last_num_bytes
 
-    def _make_decomposable(self, num_bytes: int) -> Sequence:
-        sb = self.num_bytes_encoded_under_row(-1)
+    def _make_decomposable(
+        self, num_bytes: int, compare_row_index: int = -1
+    ) -> Sequence:
+        sb = self.num_bytes_encoded_under_row(compare_row_index)
         return [num_bytes, sb]
 
     def _derive_value(
@@ -119,30 +127,54 @@ class BytePositionsEncoder(Encoder):
     def update_num_bytes(self, local_sample_index: int, num_bytes: int):
         # TODO: docstring
 
+        # TODO: GENERALIZE INTO BASE CLASS!!!
+
         # TODO: this function needs optimization
 
-        encoded_index = self.translate_index(local_sample_index)
+        row_index = self.translate_index(local_sample_index)
 
-        entry = self._encoded[encoded_index]
+        if self._combine_condition(num_bytes, row_index):
+            # num_bytes matches the current row's num_bytes (no need to make any changes)
 
-        if entry[NUM_BYTES_INDEX] == num_bytes:
+            # TODO: TEST THIS!
             return
 
-        # TODO: if num_bytes don't match and there is only 1 sample for this row, all you need to do is update num_bytes
-        if self.num_samples_at(encoded_index) == 1:
+        if self._combine_condition(num_bytes, row_index + 1):
+            # num_bytes matches the next row's num_bytes (no need to create a new row)
+
+            # TODO: TEST THIS!
+
+            # TODO: decrement num_samples by 1 at `row_index`
+            # TODO: then increment num_samples by 1 at `row_index + 1`
+
             raise NotImplementedError
 
+        if self.num_samples_at(row_index) == 1:
+            # TODO: TEST THIS!
+
+            # TODO: if num_bytes don't match and there is only 1 sample for this row, all you need to do is update num_bytes
+            raise NotImplementedError
+
+        # at this point, `num_bytes` doesn't match and there are > 1 samples at `row_index`.
+
+        # TODO: create a new row that represents a single sample with `num_bytes` as it's derived value
+        # TODO: decrement current row's last_index_index
+
         # TODO: do something with `upper_encoded`
-        upper_encoded = self._encoded[:encoded_index]
+        lower_rows = self._encoded[:row_index]
 
-        # middle_encoded = entry[]
+        last_index = (
+            0 if len(lower_rows) == 0 else lower_rows[-1, self.last_index_index]
+        )
 
-        lower_encoded = self._encoded[encoded_index:]
+        new_item = self._make_decomposable(num_bytes, compare_row_index=row_index)
+        new_row = np.array([*new_item, last_index], dtype=ENCODING_DTYPE)
 
-        print(local_sample_index, self._encoded)
+        upper_rows = self._encoded[row_index:]
+
         # TODO: if num_bytes don't match and there is > 1 sample for this row, you will need to create a new row
 
         # TODO: memcp (remove for optimization)
-        self._encoded = np.concatenate([lower_encoded, *middle_encoded, upper_encoded])
+        self._encoded = np.concatenate([lower_rows, [new_row], upper_rows])
 
-        raise NotImplementedError
+        # TODO: update following row's start byte
