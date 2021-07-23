@@ -106,6 +106,52 @@ def test_scalars():
         enc[526]
 
 
+def _assert_encoded(enc, expected_encoding):
+    np.testing.assert_array_equal(enc._encoded, expected_encoding)
+
+
+def test_update():
+    enc = ShapeEncoder()
+
+    enc.register_samples((100, 100), 1)
+    enc[0] = (100, 101)
+    _assert_encoded(enc, [[100, 101, 0]])
+
+    enc.register_samples((100, 101), 5)
+    enc[0] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 0], [100, 101, 5]])
+
+    enc[1] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    # nothing changes
+    enc[2] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[2] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 0], [100, 101, 5]])
+
+    enc[2] = (28, 0)
+    _assert_encoded(enc, [[101, 100, 0], [28, 0, 2], [100, 101, 5]])
+
+    enc[5] = (28, 0)
+    _assert_encoded(enc, [[101, 100, 0], [28, 0, 2], [100, 101, 4], [28, 0, 5]])
+
+    enc[4] = (28, 0)
+    _assert_encoded(enc, [[101, 100, 0], [28, 0, 2], [100, 101, 3], [28, 0, 5]])
+
+    enc[3] = (28, 0)
+    _assert_encoded(enc, [[101, 100, 0], [28, 0, 5]])
+
+    enc[0] = (28, 0)
+    _assert_encoded(enc, [[28, 0, 5]])
+
+    assert enc.num_samples == 6
+
+    with pytest.raises(IndexError):
+        enc[6] = 4
+
+
 def test_failures():
     enc = ShapeEncoder()
 

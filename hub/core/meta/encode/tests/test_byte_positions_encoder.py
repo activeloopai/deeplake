@@ -93,6 +93,9 @@ def test_update():
     enc[5] = 16
     _assert_encoded(enc, [[4, 0, 1], [8, 8, 4], [16, 20, 5]])
 
+    enc[0] = 32
+    _assert_encoded(enc, [[32, 0, 0], [4, 32, 1], [8, 40, 4], [16, 52, 5]])
+
     assert enc.num_samples == 6
 
     with pytest.raises(IndexError):
