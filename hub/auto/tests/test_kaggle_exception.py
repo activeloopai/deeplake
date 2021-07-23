@@ -5,7 +5,7 @@ import pytest
 
 
 def test_kaggle_exception():
-    path = get_dummy_data_path("tests_auto/test_kaggle_exception/")
+    path = get_dummy_data_path("tests_auto/test_kaggle_exception")
 
     with pytest.raises(KaggleDatasetAlreadyDownloadedError):
         download_kaggle_dataset("thisiseshan/bird-classes", local_path=path)
