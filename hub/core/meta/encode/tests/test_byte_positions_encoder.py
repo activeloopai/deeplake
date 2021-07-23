@@ -62,6 +62,40 @@ def test_non_uniform():
     assert enc[2] == (4960 + 4961, 4960 + 4961 + 41)
 
 
+def _assert_encoded(enc, expected_encoding):
+    np.testing.assert_array_equal(enc._encoded, expected_encoding)
+
+
+def test_update():
+    enc = BytePositionsEncoder()
+
+    enc.register_samples(4960, 1)
+    enc[0] = 8
+    _assert_encoded(enc, [[8, 0, 0]])
+
+    enc.register_samples(8, 5)
+    enc[0] = 4
+    _assert_encoded(enc, [[4, 0, 0], [8, 4, 5]])
+
+    enc[1] = 4
+    _assert_encoded(enc, [[4, 0, 1], [8, 8, 5]])
+
+    # nothing changes
+    enc[2] = 8
+    _assert_encoded(enc, [[4, 0, 1], [8, 8, 5]])
+
+    enc[2] = 4
+    _assert_encoded(enc, [[4, 0, 2], [8, 12, 5]])
+
+    enc[2] = 8
+    _assert_encoded(enc, [[4, 0, 1], [8, 8, 5]])
+
+    assert enc.num_samples == 6
+
+    with pytest.raises(IndexError):
+        enc[6] = 4
+
+
 def test_failures():
     enc = BytePositionsEncoder()
 
