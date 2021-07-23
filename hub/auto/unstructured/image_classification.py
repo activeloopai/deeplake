@@ -46,6 +46,7 @@ def _set_name_from_path(path: Path) -> str:
 class ImageClassification(UnstructuredDataset):
     def __init__(self, source: str):
         """Convert an unstructured dataset to a structured dataset.
+
         Args:
             source (str): The full path to the dataset.
                 Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
@@ -81,6 +82,14 @@ class ImageClassification(UnstructuredDataset):
     def structure(  # type: ignore
         self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
     ):
+        """Create a structured dataset.
+
+        Args:
+            ds (Dataset) : A Hub dataset object.
+            use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
+            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png)
+        """
+
         images_tensor_map = {}
         labels_tensor_map = {}
 

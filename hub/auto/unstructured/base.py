@@ -8,6 +8,7 @@ class UnstructuredDataset(ABC):
         self.source = Path(find_root(source))
 
     """Initializes an unstructured dataset.
+    
     Args:
         source (str): The full path to the dataset.
             Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
