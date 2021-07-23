@@ -1,9 +1,8 @@
 from hub.util.exceptions import FullChunkError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Sequence, Tuple, Union
+from typing import Tuple, Union
 import numpy as np
-from io import BytesIO
 
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
@@ -112,44 +111,40 @@ class Chunk(Cachable):
         """
 
         num_bytes_per_sample = incoming_num_bytes
-        self.shapes_encoder.add_shape(sample_shape, 1)
-        self.byte_positions_encoder.add_byte_position(num_bytes_per_sample, 1)
+        self.shapes_encoder.register_samples(sample_shape, 1)
+        self.byte_positions_encoder.register_samples(num_bytes_per_sample, 1)
 
     def update_sample(
-        self, local_sample_index: int, buffer: memoryview, shape: Tuple[int]
+        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
     ):
         # TODO: docstring
 
         # TODO: warn user the length of buffer is longer than expected
 
-        expected_shape = self.shapes_encoder[local_sample_index]
-        if expected_shape != shape:
-            # TODO: implement updating with different shapes
-            raise NotImplementedError(
-                f"Updating samples with new shapes is not yet supported. Make sure the incoming samples have the same shapes as the ones they aim to replace. Got: {str(shape)}, Expected: {str(expected_shape)}"
+        expected_dimensionality = len(self.shapes_encoder[local_sample_index])
+        if expected_dimensionality != len(new_shape):
+            raise ValueError(
+                f"Dimensionality of incoming sample was expected to be {expected_dimensionality}, but got {len(new_shape)}."
             )
 
         self._make_data_bytearray()
 
         sb, eb = self.byte_positions_encoder[local_sample_index]
-        new_nb = len(buffer)
-
-        if eb - sb != new_nb:
-            # TODO: implement updating with different `nbytes` (compression / different shape)
-            raise NotImplementedError(
-                f"Updating a sample with different `nbytes` than the original is not supported. Got: {new_nb}, Expected: {eb-sb}"
-            )
+        new_nb = len(new_buffer)
 
         # update data
         # TODO: optimize this (lots of memcps)
         left = self._data[:sb]
         right = self._data[eb:]
-        self._data = left + buffer + right  # type: ignore
+        self._data = left + new_buffer + right  # type: ignore
 
         self.byte_positions_encoder.update_num_bytes(local_sample_index, new_nb)
+        self.shapes_encoder.update_shape(local_sample_index, new_shape)
 
-    def __len__(self):
+    @property
+    def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
+
         return infer_chunk_num_bytes(
             hub.__version__,
             self.shapes_encoder.array,

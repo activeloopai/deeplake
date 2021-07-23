@@ -3,7 +3,6 @@ from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Optional, Tuple
 import numpy as np
 from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
@@ -35,16 +34,16 @@ class ChunkIdEncoder(Encoder, Cachable):
             >>> enc.generate_chunk_id()
             >>> enc.num_chunks
             1
-            >>> enc.register_samples_to_last_chunk_id(10)
+            >>> enc.register_samples(10)
             >>> enc.num_samples
             10
-            >>> enc.register_samples_to_last_chunk_id(10)
+            >>> enc.register_samples(10)
             >>> enc.num_samples
             20
             >>> enc.num_chunks
             1
             >>> enc.generate_chunk_id()
-            >>> enc.register_samples_to_last_chunk_id(1)
+            >>> enc.register_samples(1)
             >>> enc.num_samples
             21
             >>> enc._encoded
@@ -65,7 +64,6 @@ class ChunkIdEncoder(Encoder, Cachable):
             To get the chunk ID for some sample index, you do a binary search over the right-most column. This will give you
             the row that corresponds to that sample index (since the right-most column is our "last index" for that chunk ID).
             Then, you get the left-most column and that is your chunk ID!
-
     """
 
     def tobytes(self) -> memoryview:
@@ -131,7 +129,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return id
 
-    def register_samples_to_last_chunk_id(self, num_samples: int):
+    def register_samples(self, num_samples: int):  # type: ignore
         """Registers samples to the chunk ID that was generated last with the `generate_chunk_id` method.
         This method should be called at least once per chunk created.
 
@@ -144,6 +142,46 @@ class ChunkIdEncoder(Encoder, Cachable):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
+        super().register_samples(None, num_samples)
+
+    def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
+        """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
+
+        Example:
+            Given: 2 sampes in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
+            >>> self.num_samples
+            7
+            >>> self.num_chunks
+            3
+            >>> self.translate_index_relative_to_chunks(0)
+            0
+            >>> self.translate_index_relative_to_chunks(1)
+            1
+            >>> self.translate_index_relative_to_chunks(2)
+            0
+            >>> self.translate_index_relative_to_chunks(3)
+            1
+            >>> self.translate_index_relative_to_chunks(6)
+            2
+
+        Args:
+            global_sample_index (int): Index of the sample relative to the containing tensor.
+
+        Returns:
+            int: local index value between 0 and the amount of samples the chunk contains - 1.
+        """
+
+        _, chunk_index = self.__getitem__(global_sample_index, return_row_index=True)  # type: ignore
+
+        if chunk_index == 0:
+            return global_sample_index
+
+        current_entry = self._encoded[chunk_index - 1]  # type: ignore
+        last_num_samples = current_entry[self.last_index_index] + 1
+
+        return int(global_sample_index - last_num_samples)
+
+    def _validate_incoming_item(self, _, num_samples: int):
         if num_samples < 0:
             raise ValueError(
                 f"Cannot register negative num samples. Got: {num_samples}"
@@ -159,74 +197,18 @@ class ChunkIdEncoder(Encoder, Cachable):
                 "Cannot register 0 num_samples (signifying a partial sample continuing the last chunk) when no last chunk exists."
             )
 
-        current_entry = self._encoded[-1]
+        # note: do not call super() method (num_samples can be 0)
 
+    def _combine_condition(self, _) -> bool:
+        return True
+
+    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         # this operation will trigger an overflow for the first addition, so supress the warning
         np.seterr(over="ignore")
-        current_entry[self.last_index_index] += ENCODING_DTYPE(num_samples)
+        new_last_index = last_index + ENCODING_DTYPE(num_samples)
         np.seterr(over="warn")
 
-    def get_local_sample_index(self, global_sample_index: int) -> int:
-        """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
+        return new_last_index
 
-        Example:
-            Given: 2 sampes in chunk 0, 2 samples in chunk 1, and 3 samples in chunk 2.
-
-            >>> self.num_samples
-            7
-            >>> self.num_chunks
-            3
-            >>> self.get_local_sample_index(0)
-            0
-            >>> self.get_local_sample_index(1)
-            1
-            >>> self.get_local_sample_index(2)
-            0
-            >>> self.get_local_sample_index(3)
-            1
-            >>> self.get_local_sample_index(6)
-            2
-
-        Args:
-            global_sample_index (int): Index of the sample relative to the containing tensor.
-
-        Returns:
-            int: local index value between 0 and the amount of samples the chunk contains - 1.
-        """
-
-        _, chunk_index = self.__getitem__(global_sample_index, return_chunk_index=True)  # type: ignore
-
-        if chunk_index == 0:
-            return global_sample_index
-
-        current_entry = self._encoded[chunk_index - 1]  # type: ignore
-        last_num_samples = current_entry[self.last_index_index] + 1
-
-        return int(global_sample_index - last_num_samples)
-
-    def __getitem__(
-        self, local_sample_index: int, return_chunk_index: bool = False
-    ) -> Tuple[ENCODING_DTYPE, Optional[int]]:
-        """Get the ID for the chunk that `local_sample_index` is stored in.
-        To get the name of the chunk, use `name_from_id`.
-
-        Args:
-            local_sample_index (int): Global index (relative to the tensor). This will be converted to the local chunk index.
-            return_chunk_index (bool): If True, 2 values are returned, the second one being the chunk's index. Defaults to False.
-
-        Raises:
-            IndexError: If no samples exist or `local_sample_index` exceeds the available indices.
-
-        Returns:
-            Tuple[Tuple[ENCODING_DTYPE], Optional[Tuple[int]]]: Returns the chunk ID for `local_sample_index`. If `return_chunk_index` is True,
-                there will be 2 values. The second one being the chunk's index.
-        """
-
-        idx = self.translate_index(local_sample_index)
-        id = self._encoded[idx, CHUNK_ID_INDEX]
-        chunk_index = idx
-
-        if return_chunk_index:
-            return id, chunk_index
-
-        return id
+    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+        return row[CHUNK_ID_INDEX]

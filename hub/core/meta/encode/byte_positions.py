@@ -1,6 +1,6 @@
 from hub.core.meta.encode.base_encoder import Encoder
 from hub.constants import ENCODING_DTYPE
-from typing import Tuple
+from typing import Sequence, Tuple
 import numpy as np
 
 
@@ -15,7 +15,6 @@ class BytePositionsEncoder(Encoder):
     Byte Positions:
         Byte positions are 2 numbers: `start_byte` and `end_byte`. This represents where in the chunk's `data` buffer
         a sample lives.
-
         Byte positions are encoded as `num_bytes` and `start_byte`. That way we can group together samples that have the same
         `num_bytes`.
 
@@ -32,14 +31,14 @@ class BytePositionsEncoder(Encoder):
 
         Example:
             >>> enc = BytePositionsEncoder()
-            >>> enc.add_byte_position(4, 100)  # 100 int32 samples
+            >>> enc.register_samples(4, 100)  # 100 int32 samples
             >>> enc._encoded_byte_position
             [[4, 0, 99]]
-            >>> enc.add_byte_position(8, 100)
+            >>> enc.register_samples(8, 100)
             >>> enc._encoded_byte_position
             [[4, 0, 99],
              [8, 400, 199]]
-             >>> enc.add_byte_position(4, 200)
+             >>> enc.register_samples(4, 200)
             >>> enc._encoded_byte_position
             [[4, 0, 99],
              [8, 400, 199],
@@ -67,7 +66,6 @@ class BytePositionsEncoder(Encoder):
                 start_byte = row_start_byte + (index - index_bias) * row_num_bytes
                 end_byte = start_byte + row_num_bytes
                 byte_position = (start_byte, end_byte)
-
     """
 
     def num_bytes_encoded_under_row(self, row_index: int) -> int:
@@ -90,64 +88,31 @@ class BytePositionsEncoder(Encoder):
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
-    @property
-    def nbytes(self):
-        if len(self._encoded) == 0:
-            return 0
-        return self._encoded.nbytes
+    def _validate_incoming_item(self, num_bytes: int, _):
+        if num_bytes < 0:
+            raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes}.")
 
-    @property
-    def array(self):
-        return self._encoded
+        super()._validate_incoming_item(num_bytes, _)
 
-    def add_byte_position(self, num_bytes_per_sample: int, num_samples: int):
-        """Either adds a new row to `_encoded`, or extends the last one. For more information on this algorithm, see `__init__`."""
+    def _combine_condition(self, num_bytes: int) -> bool:
+        last_num_bytes = self._encoded[-1, NUM_BYTES_INDEX]
+        return num_bytes == last_num_bytes
 
-        if num_samples <= 0:
-            raise ValueError(f"`num_samples` should be > 0. Got {num_samples}.")
+    def _make_decomposable(self, num_bytes: int) -> Sequence:
+        sb = self.num_bytes_encoded_under_row(-1)
+        return [num_bytes, sb]
 
-        if num_bytes_per_sample < 0:
-            raise ValueError(f"`num_bytes` must be >= 0. Got {num_bytes_per_sample}.")
-
-        if self.num_samples != 0:
-            last_entry = self._encoded[-1]
-            last_nb = last_entry[NUM_BYTES_INDEX]
-
-            if last_nb == num_bytes_per_sample:
-                self._encoded[-1, self.last_index_index] += num_samples
-
-            else:
-                last_index = last_entry[self.last_index_index]
-
-                sb = self.num_bytes_encoded_under_row(-1)
-
-                entry = np.array(
-                    [[num_bytes_per_sample, sb, last_index + num_samples]],
-                    dtype=ENCODING_DTYPE,
-                )
-                self._encoded = np.concatenate([self._encoded, entry], axis=0)
-
-        else:
-            self._encoded = np.array(
-                [[num_bytes_per_sample, 0, num_samples - 1]],
-                dtype=ENCODING_DTYPE,
-            )
-
-    def __getitem__(self, sample_index: int) -> Tuple[int, int]:
-        """Get the (start_byte, end_byte) for `sample_index`. For details on the lookup algorithm, see `__init__`."""
-
-        encoded_index = self.translate_index(sample_index)
-
-        entry = self._encoded[encoded_index]
-
+    def _derive_value(
+        self, row: np.ndarray, row_index: int, local_sample_index: int
+    ) -> np.ndarray:
         index_bias = 0
-        if encoded_index >= 1:
-            index_bias = self._encoded[encoded_index - 1][self.last_index_index] + 1
+        if row_index >= 1:
+            index_bias = self._encoded[row_index - 1][self.last_index_index] + 1
 
-        row_num_bytes = entry[NUM_BYTES_INDEX]
-        row_start_byte = entry[START_BYTE_INDEX]
+        row_num_bytes = row[NUM_BYTES_INDEX]
+        row_start_byte = row[START_BYTE_INDEX]
 
-        start_byte = row_start_byte + (sample_index - index_bias) * row_num_bytes
+        start_byte = row_start_byte + (local_sample_index - index_bias) * row_num_bytes
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
 
@@ -164,6 +129,20 @@ class BytePositionsEncoder(Encoder):
             return
 
         # TODO: if num_bytes don't match and there is only 1 sample for this row, all you need to do is update num_bytes
+        if self.num_samples_at(encoded_index) == 1:
+            raise NotImplementedError
+
+        # TODO: do something with `upper_encoded`
+        upper_encoded = self._encoded[:encoded_index]
+
+        # middle_encoded = entry[]
+
+        lower_encoded = self._encoded[encoded_index:]
+
+        print(local_sample_index, self._encoded)
         # TODO: if num_bytes don't match and there is > 1 sample for this row, you will need to create a new row
+
+        # TODO: memcp (remove for optimization)
+        self._encoded = np.concatenate([lower_encoded, *middle_encoded, upper_encoded])
 
         raise NotImplementedError

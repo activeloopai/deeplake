@@ -23,10 +23,10 @@ class ShapeEncoder(Encoder):
 
         Fixed Example:
             >>> enc = ShapeEncoder()
-            >>> enc.add_shape((1,), 100)  # represents scalar values
+            >>> enc.register_samples((1,), 100)  # represents scalar values
             >>> enc._encoded
             [[1, 99]]
-            >>> enc.add_shape((1,), 10000)
+            >>> enc.register_samples((1,), 10000)
             >>> enc._encoded
             [[1, 10099]]
             >>> enc.num_samples
@@ -36,17 +36,17 @@ class ShapeEncoder(Encoder):
 
         Dynamic Example:
             >>> enc = ShapeEncoder()
-            >>> enc.add_shape((28, 28), 1)
+            >>> enc.register_samples((28, 28), 1)
             >>> enc._encoded
             [[28, 28, 0]]
-            >>> enc.add_shape((28, 28, 10))
+            >>> enc.register_samples((28, 28, 10))
             >>> enc._encoded
             [[28, 28, 10]]
-            >>> enc.add_shape((29, 28, 5))
+            >>> enc.register_samples((29, 28, 5))
             >>> enc._encoded
             [[28, 28, 10],
              [29, 28, 15]]
-            >>> enc.add_shape((28, 28, 3))
+            >>> enc.register_samples((28, 28, 3))
             >>> enc._encoded
             [[28, 28, 10],
              [29, 28, 15],
@@ -71,54 +71,28 @@ class ShapeEncoder(Encoder):
             the row that corresponds to that sample index (since the right-most column is our "last index" for that shape).
             Then, you use all elements to the left as your shape!
 
-
     Args:
         encoded_shapes (np.ndarray): Encoded shapes that this instance should start with. Defaults to None.
     """
 
-    def __getitem__(self, local_sample_index: int) -> np.ndarray:
-        idx = self.translate_index(local_sample_index)
-        return tuple(self._encoded[idx, :-1])
+    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+        return tuple(row[: self.last_index_index])
 
-    @property
-    def nbytes(self):
-        return self._encoded.nbytes
-
-    @property
-    def array(self):
-        return self._encoded
-
-    def add_shape(
-        self,
-        shape: Tuple[int],
-        count: int,
-    ):
-
-        if count <= 0:
-            raise ValueError(f"Shape `count` should be > 0. Got {count}.")
-
-        if self.num_samples != 0:
-            last_shape = self[-1]
+    def _validate_incoming_item(self, shape: Tuple[int], _):
+        if len(self._encoded) > 0:
+            last_shape = self[-1]  # TODO: optimize this
 
             if len(shape) != len(last_shape):
                 raise ValueError(
                     f"All sample shapes in a tensor must have the same len(shape). Expected: {len(last_shape)} got: {len(shape)}."
                 )
 
-            if shape == last_shape:
-                # increment last shape's index by `count`
-                self._encoded[-1, self.last_index_index] += count
+        super()._validate_incoming_item(shape, _)
 
-            else:
-                last_shape_index = self._encoded[-1, self.last_index_index]
-                shape_entry = np.array(
-                    [[*shape, last_shape_index + count]], dtype=ENCODING_DTYPE
-                )
+    def _combine_condition(self, shape: Tuple[int]) -> bool:
+        last_shape = self[-1]  # TODO: optimize this
 
-                self._encoded = np.concatenate([self._encoded, shape_entry], axis=0)
-
-        else:
-            self._encoded = np.array([[*shape, count - 1]], dtype=ENCODING_DTYPE)
+        return shape == last_shape
 
     def update_shape(self, local_sample_index: int, new_shape: Tuple[int]):
         # TODO: this function needs optimization

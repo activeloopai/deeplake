@@ -204,7 +204,7 @@ class ChunkEngine:
         if not buffer_consumed:
             self._append_to_new_chunk(buffer, shape)
 
-        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
+        self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
@@ -222,7 +222,7 @@ class ChunkEngine:
             chunk_keys = [self.last_chunk_key]
         for chunk_key in chunk_keys:
             chunk = self.get_chunk(chunk_key)
-            self.cache.update_used_cache_for_path(chunk_key, len(chunk))  # type: ignore
+            self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key)
@@ -367,7 +367,9 @@ class ChunkEngine:
         ):
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
 
-            local_sample_index = enc.get_local_sample_index(global_sample_index)
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
 
             incoming_sample = value[value_index]
 
@@ -451,7 +453,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         buffer = chunk.memoryview_data
-        local_sample_index = enc.get_local_sample_index(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
