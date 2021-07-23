@@ -6,7 +6,7 @@ import glob
 from typing import Dict, List, Sequence, Tuple, Union
 
 from hub.util.exceptions import InvalidPathException, TensorInvalidSampleShapeError
-from hub import Dataset
+from hub.api.dataset import Dataset
 
 from tqdm import tqdm  # type: ignore
 
