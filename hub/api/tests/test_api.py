@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pytest
 import hub
@@ -9,7 +10,6 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
 )
 from click.testing import CliRunner
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
@@ -511,6 +511,36 @@ def test_empty_dataset():
         ds.create_tensor("z")
         ds = hub.dataset("test")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_like(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+    src_ds.info.update(key=0)
+
+    src_ds.create_tensor("a", htype="image", sample_compression="png")
+    src_ds.create_tensor("b", htype="class_label")
+    src_ds.create_tensor("c")
+    src_ds.create_tensor("d", dtype=bool)
+
+    src_ds.d.info.update(key=1)
+
+    dest_ds = hub.like(dest_path, src_ds)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    assert len(dest_ds) == 0
 
 
 def test_tensor_creation_fail_recovery():
