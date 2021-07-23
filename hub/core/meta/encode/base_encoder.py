@@ -120,6 +120,60 @@ class Encoder(ABC):
                 [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
             )
 
+    def __setitem__(self, local_sample_index: int, item: Any):
+        # TODO: docstring
+
+        # TODO: optimize this
+
+        self._validate_incoming_item(item, 1)
+        row_index = self.translate_index(local_sample_index)
+
+        if self._combine_condition(item, row_index):
+            # num_bytes matches the current row's num_bytes (no need to make any changes)
+
+            # TODO: TEST THIS!
+            return
+
+        if self._combine_condition(item, row_index + 1):
+            # num_bytes matches the next row's num_bytes (no need to create a new row)
+
+            # TODO: TEST THIS!
+
+            # TODO: decrement num_samples by 1 at `row_index`
+            # TODO: then increment num_samples by 1 at `row_index + 1`
+
+            raise NotImplementedError
+
+        if self.num_samples_at(row_index) == 1:
+            # TODO: TEST THIS!
+
+            # TODO: if num_bytes don't match and there is only 1 sample for this row, all you need to do is update num_bytes
+            raise NotImplementedError
+
+        # at this point, `num_bytes` doesn't match and there are > 1 samples at `row_index`.
+
+        # TODO: create a new row that represents a single sample with `num_bytes` as it's derived value
+        # TODO: decrement current row's last_index_index
+
+        # TODO: do something with `upper_encoded`
+        lower_rows = self._encoded[:row_index]
+
+        last_index = (
+            0 if len(lower_rows) == 0 else lower_rows[-1, self.last_index_index]
+        )
+
+        new_item = self._make_decomposable(item, compare_row_index=row_index)
+        new_row = np.array([*new_item, last_index], dtype=ENCODING_DTYPE)
+
+        upper_rows = self._encoded[row_index:]
+
+        # TODO: if num_bytes don't match and there is > 1 sample for this row, you will need to create a new row
+
+        # TODO: memcp (remove for optimization)
+        self._encoded = np.concatenate([lower_rows, [new_row], upper_rows])
+
+        # TODO: update following row's start byte
+
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
         Subclasses should override this method when applicable.
@@ -135,14 +189,14 @@ class Encoder(ABC):
         if num_samples <= 0:
             raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
 
-    def _combine_condition(self, item: Any) -> bool:
+    def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
         """Should determine if `item` can be combined with the last row in `self._encoded`."""
 
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         """Calculates what the next last index should be."""
         return last_index + num_samples
 
-    def _make_decomposable(self, item: Any) -> Sequence:
+    def _make_decomposable(self, item: Any, compare_row_index: int = -1) -> Sequence:
         """Should return a value that can be decompsed with the `*` operator. Example: `*(1, 2)`"""
 
         return item

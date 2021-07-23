@@ -199,7 +199,7 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         # note: do not call super() method (num_samples can be 0)
 
-    def _combine_condition(self, _) -> bool:
+    def _combine_condition(self, *args) -> bool:
         return True
 
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):

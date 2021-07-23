@@ -138,8 +138,8 @@ class Chunk(Cachable):
         right = self._data[eb:]
         self._data = left + new_buffer + right  # type: ignore
 
-        self.byte_positions_encoder.update_num_bytes(local_sample_index, new_nb)
-        self.shapes_encoder.update_shape(local_sample_index, new_shape)
+        self.byte_positions_encoder[local_sample_index] = new_nb
+        self.shapes_encoder[local_sample_index] = new_shape
 
     @property
     def nbytes(self):

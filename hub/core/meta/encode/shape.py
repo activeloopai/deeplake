@@ -89,8 +89,10 @@ class ShapeEncoder(Encoder):
 
         super()._validate_incoming_item(shape, _)
 
-    def _combine_condition(self, shape: Tuple[int]) -> bool:
-        last_shape = self[-1]  # TODO: optimize this
+    def _combine_condition(
+        self, shape: Tuple[int], compare_row_index: int = -1
+    ) -> bool:
+        last_shape = self[compare_row_index]  # TODO: optimize this
 
         return shape == last_shape
 
