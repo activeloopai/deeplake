@@ -82,7 +82,6 @@ class ImageClassification(UnstructuredDataset):
     def structure(  # type: ignore
         self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
     ) -> Dataset:
-
         """Create a structured dataset.
 
         Args:
