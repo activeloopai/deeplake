@@ -82,12 +82,17 @@ class ImageClassification(UnstructuredDataset):
     def structure(  # type: ignore
         self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
     ) -> Dataset:
+
         """Create a structured dataset.
 
         Args:
             ds (Dataset) : A Hub dataset object.
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
-            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png)
+            image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
+
+        Returns:
+            A hub dataset
+
         """
 
         images_tensor_map = {}
