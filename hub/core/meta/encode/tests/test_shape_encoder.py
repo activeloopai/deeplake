@@ -146,6 +146,12 @@ def test_update():
     enc[0] = (28, 0)
     _assert_encoded(enc, [[28, 0, 5]])
 
+    enc[3] = (100, 100)
+    _assert_encoded(enc, [[28, 0, 2], [100, 100, 3], [28, 0, 5]])
+
+    enc[3] = (28, 0)
+    _assert_encoded(enc, [[28, 0, 5]])
+
     assert enc.num_samples == 6
 
     with pytest.raises(IndexError):
