@@ -97,10 +97,6 @@ class BytePositionsEncoder(Encoder):
     def _combine_condition(self, num_bytes: int, compare_row_index: int = -1) -> bool:
         """Checks if `num_bytes` matches the `num_bytes` represented at row with index `compare_row_index`."""
 
-        if compare_row_index >= len(self._encoded):
-            # cannot combine if the row index doesn't exist
-            return False
-
         last_num_bytes = self._encoded[compare_row_index, NUM_BYTES_INDEX]
         return num_bytes == last_num_bytes
 

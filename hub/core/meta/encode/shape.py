@@ -93,7 +93,6 @@ class ShapeEncoder(Encoder):
         self, shape: Tuple[int], compare_row_index: int = -1
     ) -> bool:
         last_shape = self[compare_row_index]  # TODO: optimize this
-
         return shape == last_shape
 
     def update_shape(self, local_sample_index: int, new_shape: Tuple[int]):
