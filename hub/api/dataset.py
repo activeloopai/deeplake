@@ -213,8 +213,8 @@ class dataset:
         if isinstance(source, str):
             source_ds = dataset.load(source)
 
-        for tensor_name, tensor in source_ds.tensors.items():
-            destination_ds.create_tensor_like(tensor_name, tensor)
+        for tensor_name in source_ds.meta.tensors:
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
         destination_ds.info.update(source_ds.info.__getstate__())
 
