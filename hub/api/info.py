@@ -91,6 +91,7 @@ class Info(CachableCallback):
 
     @use_callback()
     def delete(self, key: Optional[Union[Sequence[str], str]] = None):
+        """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
         self._cache.check_readonly()
         if key is None:
             self._info.clear()
