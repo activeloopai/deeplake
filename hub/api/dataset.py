@@ -1,6 +1,6 @@
 from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain
-from typing import Optional
+from typing import Optional, Union
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
@@ -187,15 +187,41 @@ class dataset:
 
     @staticmethod
     def like(
-        path: str, like: str, like_creds: dict, overwrite: bool = False
+        path: str,
+        source: Union[str, Dataset],
+        creds: dict = None,
+        overwrite: bool = False,
     ) -> Dataset:
-        """Creates a dataset with the same structure as another dataset"""
-        raise NotImplementedError
+        """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
+
+        Args:
+            path (str): Path where the new dataset will be created.
+            source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            creds (dict): Credentials that will be used to create the new dataset.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+
+        Returns:
+            Dataset: New dataset object.
+        """
+
+        if overwrite:
+            # TODO:
+            raise NotImplementedError
+
+        destination_ds = dataset.empty(path, creds=creds)
+        source_ds = source
+        if isinstance(source, str):
+            source_ds = dataset.load(source)
+
+        for tensor_name, tensor in source_ds.tensors.items():
+            destination_ds.create_tensor_like(tensor_name, tensor)
+
+        destination_ds.info.update(source_ds.info.__getstate__())
+
+        return destination_ds
 
     @staticmethod
-    def ingest(
-        path: str, src: str, src_creds: dict, overwrite: bool = False
-    ) -> Dataset:
+    def ingest(path: str, source: str, creds: dict, overwrite: bool = False) -> Dataset:
         """Ingests a dataset from a source"""
         raise NotImplementedError
 

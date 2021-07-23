@@ -186,6 +186,33 @@ class Dataset:
 
         return tensor
 
+    @hub_reporter.record_call
+    def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
+        """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
+
+        Args:
+            name (str): Name for the new tensor.
+            source (Tensor): Tensor who's meta/info will be copied. May or may not be contained in the same dataset.
+
+        Returns:
+            Tensor: New Tensor object.
+        """
+
+        info = source.info.__getstate__().copy()
+        meta = source.meta.__getstate__().copy()
+        del meta["min_shape"]
+        del meta["max_shape"]
+        del meta["length"]
+        del meta["version"]
+
+        destination_tensor = self.create_tensor(
+            name,
+            **meta,
+        )
+        destination_tensor.info.update(info)
+
+        return destination_tensor
+
     __getattr__ = __getitem__
 
     def __setattr__(self, name: str, value):
