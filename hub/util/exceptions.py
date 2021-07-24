@@ -31,7 +31,14 @@ class KaggleDatasetAlreadyDownloadedError(KaggleError):
 class InvalidPathException(Exception):
     def __init__(self, directory):
         super().__init__(
-            f"The Dataset's path is an invalid path. It should be a valid directory got {directory}."
+            f"Dataset's path is an invalid path. It should be a valid directory got {directory}."
+        )
+
+
+class SamePathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Dataset source and destination path are same '{directory}'. Source and destination cannot be same for dataset ingestion, try setting different paths."
         )
 
 

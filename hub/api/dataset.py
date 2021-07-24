@@ -1,9 +1,16 @@
-from hub.util.exceptions import DatasetHandlerError
+from hub.util.exceptions import (
+    DatasetHandlerError,
+    InvalidPathException,
+    SamePathException,
+)
 from hub.util.storage import get_storage_and_cache_chain
 from typing import Optional
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
+from hub.auto.unstructured.image_classification import ImageClassification
+import hub
+import os
 
 
 class dataset:
@@ -194,10 +201,39 @@ class dataset:
 
     @staticmethod
     def ingest(
-        path: str, src: str, src_creds: dict, overwrite: bool = False
+        src: str, dest: str, src_creds: dict, overwrite: bool = False
     ) -> Dataset:
-        """Ingests a dataset from a source"""
-        raise NotImplementedError
+        """Ingests a dataset from a source and store it as a structured dataset to destination
+
+        Args:
+            src (str): Local path to where the unstructured dataset is stored.
+            dest (str): Destination path where the structured dataset will be stored. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            src_creds (dict): A dictionary containing credentials used to access the dataset at the path.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+
+        Raises:
+            InvalidPathException: If the source directory does not exist.
+            SamePathException: If the source and destination path are same.
+        """
+
+        if not os.path.isdir(src):
+            raise InvalidPathException(src)
+
+        if os.path.isdir(src) and os.path.isdir(dest):
+            if os.path.samefile(src, dest):
+                raise SamePathException(src)
+
+        ds = hub.dataset(dest)
+        unstructured = ImageClassification(source=src)
+
+        # TODO auto detect file extension
+        unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+
+        return ds
 
     @staticmethod
     def list(workspace: str) -> None:

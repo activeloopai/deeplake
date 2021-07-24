@@ -93,7 +93,7 @@ class ImageClassification(UnstructuredDataset):
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
-            A hub dataset
+            A hub dataset.
 
         """
 
