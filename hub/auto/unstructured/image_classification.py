@@ -45,7 +45,7 @@ def _set_name_from_path(path: Path) -> str:
 
 class ImageClassification(UnstructuredDataset):
     def __init__(self, source: str):
-        """Convert an unstructured image dataset to a structured image dataset.
+        """Convert an unstructured dataset to a structured dataset.
 
         Note:
             Currently only supports computer vision (image) datasets.
