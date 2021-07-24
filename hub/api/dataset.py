@@ -9,6 +9,7 @@ from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, M
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
 from hub.auto.unstructured.image_classification import ImageClassification
+from hub.auto.unstructured.kaggle import download_kaggle_dataset
 import hub
 import os
 
@@ -205,6 +206,9 @@ class dataset:
     ) -> Dataset:
         """Ingests a dataset from a source and store it as a structured dataset to destination
 
+        Note:
+            Currently local source path and only image datasets are supported.
+
         Args:
             src (str): Local path to where the unstructured dataset is stored.
             dest (str): Destination path where the structured dataset will be stored. Can be:-
@@ -232,6 +236,47 @@ class dataset:
 
         # TODO auto detect file extension
         unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+
+        return ds
+
+    @staticmethod
+    def from_kaggle(
+        tag: str, src: str, dest: str, src_creds: dict, overwrite: bool = False
+    ) -> Dataset:
+        """Download and ingest a kaggle dataset and store it as a structured dataset to destination
+
+        Note:
+            Currently only local source path and only image datasets are supported.
+
+        Args:
+            tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
+            src (str): Local path to where the unstructured dataset is stored.
+            dest (str): Destination path where the structured dataset will be stored. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            src_creds (dict): A dictionary containing credentials used to access the dataset at the path.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+
+        Raises:
+            InvalidPathException: If the source directory does not exist.
+            SamePathException: If the source and destination path are same.
+        """
+
+        # if not os.path.isdir(src):
+        #     raise InvalidPathException(src)
+
+        if os.path.isdir(src) and os.path.isdir(dest):
+            if os.path.samefile(src, dest):
+                raise SamePathException(src)
+
+        download_kaggle_dataset(tag, local_path=src)
+        ds = hub.dataset(dest)
+        unstructured = ImageClassification(source=src)
+
+        # TODO auto detect file extension
+        unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
 
         return ds
 

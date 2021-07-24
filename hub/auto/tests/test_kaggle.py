@@ -39,7 +39,7 @@ def test_ingestion_sets(local_ds: Dataset):
     assert ds["train/labels"].meta.class_names == ("class0", "class1", "class2")
 
 
-def test_kaggle_Exception(local_ds: Dataset):
+def test_kaggle_exception(local_ds: Dataset):
     ds = local_ds
     kaggle_path = os.path.join(ds.path, "unstructured_kaggle_data")
 
