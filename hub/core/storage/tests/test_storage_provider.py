@@ -1,9 +1,9 @@
+from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
+from hub.tests.cache_fixtures import enabled_cache_chains
 import pytest
-
-from click.testing import CliRunner
 from hub.constants import MB
-from hub.core.tests.common import parametrize_all_caches, parametrize_all_storages
 import pickle
+
 
 KEY = "file"
 
@@ -113,25 +113,22 @@ def check_cache(cache):
     check_cache_state(cache, expected_state=[set(), set(), 0, 0, 0, 0])
 
 
-@parametrize_all_storages
+@enabled_storages
 def test_storage_provider(storage):
     check_storage_provider(storage)
 
 
-@parametrize_all_caches
-def test_cache(storage):
-    check_storage_provider(storage)
-    check_cache(storage)
+@enabled_cache_chains
+def test_cache(cache_chain):
+    check_storage_provider(cache_chain)
+    check_cache(cache_chain)
 
 
-@parametrize_all_storages
+@enabled_persistent_storages
 def test_pickling(storage):
-    with CliRunner().isolated_filesystem():
-        FILE_1 = f"{KEY}_1"
-        storage[FILE_1] = b"hello world"
-        assert storage[FILE_1] == b"hello world"
-        pickle_file = open("storage_pickle", "wb")
-        pickle.dump(storage, pickle_file)
-        pickle_file = open("storage_pickle", "rb")
-        unpickled_storage = pickle.load(pickle_file)
-        assert unpickled_storage[FILE_1] == b"hello world"
+    FILE_1 = f"{KEY}_1"
+    storage[FILE_1] = b"hello world"
+    assert storage[FILE_1] == b"hello world"
+    pickled_storage = pickle.dumps(storage)
+    unpickled_storage = pickle.loads(pickled_storage)
+    assert unpickled_storage[FILE_1] == b"hello world"

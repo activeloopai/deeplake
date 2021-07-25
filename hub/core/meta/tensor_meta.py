@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -51,9 +51,54 @@ class TensorMeta(Meta):
 
             required_meta = _required_meta_from_htype(htype)
             required_meta.update(kwargs)
+
+            self._required_meta_keys = tuple(required_meta.keys())
             self.__dict__.update(required_meta)
+        else:
+            self._required_meta_keys = tuple()
 
         super().__init__()
+
+    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
+        """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
+        the incoming sample to match the tensor's dtype if needed (and possible).
+
+        Args:
+            buffer: (memoryview) memoryview of the sample's bytes
+            shape: (Tuple[int]): Shape of the sample
+            dtype: Datatype for the sample(s).
+
+        Returns:
+            The sample as as memoryview which might be upcasted to match the meta's dtype.
+
+        Raises:
+            TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
+            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
+        """
+        dtype = np.dtype(dtype)
+        if self.dtype and self.dtype != dtype.name:
+            if np.can_cast(dtype, self.dtype):
+                buffer = memoryview(
+                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
+                )
+            else:
+                raise TensorDtypeMismatchError(
+                    self.dtype,
+                    dtype.name,
+                    self.htype,
+                )
+        # shape length is only enforced after at least 1 sample exists.
+        if self.length > 0:
+            expected_shape_len = len(self.min_shape)
+            actual_shape_len = len(shape)
+            if expected_shape_len != actual_shape_len:
+                raise TensorInvalidSampleShapeError(
+                    "Sample shape length is expected to be {}, actual length is {}.".format(
+                        expected_shape_len, actual_shape_len
+                    ),
+                    shape,
+                )
+        return buffer
 
     def check_compatibility(self, shape: Tuple[int], dtype):
         """Checks if this tensor meta is compatible with the incoming sample(s) properties.
@@ -126,9 +171,22 @@ class TensorMeta(Meta):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
 
-    def as_dict(self):
-        # TODO: tensor meta as_dict
-        raise NotImplementedError
+    def __getstate__(self) -> Dict[str, Any]:
+        d = super().__getstate__()
+
+        for key in self._required_meta_keys:
+            d[key] = getattr(self, key)
+
+        return d
+
+    def __setstate__(self, state: Dict[str, Any]):
+        super().__setstate__(state)
+        self._required_meta_keys = tuple(state.keys())
+
+    @property
+    def nbytes(self):
+        # TODO: optimize this
+        return len(self.tobytes())
 
 
 def _required_meta_from_htype(htype: str) -> dict:

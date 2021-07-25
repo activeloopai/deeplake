@@ -108,13 +108,6 @@ class LoginException(Exception):
         super().__init__(message)
 
 
-class ImproperDatasetInitialization(Exception):
-    def __init__(self):
-        super().__init__(
-            "Exactly one argument out of 'path' and 'storage' should be provided."
-        )
-
-
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
@@ -140,6 +133,28 @@ class AuthorizationException(Exception):
         self,
         message="You are not authorized to access this resource on Activeloop Server.",
     ):
+        super().__init__(message)
+
+
+class InvalidPasswordException(AuthorizationException):
+    def __init__(
+        self,
+        message="The password you provided was invalid.",
+    ):
+        super().__init__(message)
+
+
+class CouldNotCreateNewDatasetException(AuthorizationException):
+    def __init__(
+        self,
+        path: str,
+    ):
+
+        extra = ""
+        if path.startswith("hub://"):
+            extra = "Since the path is a `hub://` dataset, if you believe you should have write permissions, try running `activeloop login`."
+
+        message = f"Dataset at '{path}' doesn't exist, and you have no permissions to create one there. Maybe a typo? {extra}"
         super().__init__(message)
 
 
@@ -433,4 +448,20 @@ class WindowsSharedMemoryError(Exception):
     def __init__(self):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )
+
+
+class DatasetHandlerError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class CallbackInitializationError(Exception):
+    pass
+
+
+class MemoryDatasetCanNotBePickledError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )
