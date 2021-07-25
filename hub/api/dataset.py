@@ -260,7 +260,6 @@ class dataset:
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
 
         Raises:
-            InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
         if os.path.isdir(src) and os.path.isdir(dest):
