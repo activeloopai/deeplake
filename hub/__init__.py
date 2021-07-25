@@ -18,7 +18,7 @@ load = dataset.load
 empty = dataset.empty
 __all__ = ["dataset", "read", "__version__", "load", "empty"]
 
-__version__ = "2.0.2"
+__version__ = "2.0.3"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")
