@@ -14,6 +14,7 @@ def test_ingestion_simple(local_ds: Dataset):
         src=kaggle_path,
         dest=local_ds.path,
         src_creds=None,
+        compression="jpeg",
         overwrite=False,
     )
 
@@ -28,6 +29,7 @@ def test_ingestion_sets(local_ds: Dataset):
         src=kaggle_path,
         dest=local_ds.path,
         src_creds=None,
+        compression="jpeg",
         overwrite=False,
     )
 
@@ -55,6 +57,7 @@ def test_kaggle_exception(local_ds: Dataset):
             src=kaggle_path,
             dest=local_ds.path,
             src_creds=None,
+            compression="jpeg",
             overwrite=False,
         )
         hub.ingest_kaggle(
@@ -62,5 +65,6 @@ def test_kaggle_exception(local_ds: Dataset):
             src=kaggle_path,
             dest=local_ds.path,
             src_creds=None,
+            compression="jpeg",
             overwrite=False,
         )

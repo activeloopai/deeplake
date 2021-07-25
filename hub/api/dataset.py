@@ -202,7 +202,7 @@ class dataset:
 
     @staticmethod
     def ingest(
-        src: str, dest: str, src_creds: dict, overwrite: bool = False
+        src: str, dest: str, src_creds: dict, compression: str, overwrite: bool = False
     ) -> Dataset:
         """Ingests a dataset from a source and store it as a structured dataset to destination
 
@@ -217,6 +217,7 @@ class dataset:
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             src_creds (dict): A dictionary containing credentials used to access the dataset at the path.
+            compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
 
         Raises:
@@ -235,13 +236,20 @@ class dataset:
         unstructured = ImageClassification(source=src)
 
         # TODO auto detect file extension
-        unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+        unstructured.structure(
+            ds, image_tensor_args={"sample_compression": compression}
+        )
 
         return ds
 
     @staticmethod
     def ingest_kaggle(
-        tag: str, src: str, dest: str, src_creds: dict, overwrite: bool = False
+        tag: str,
+        src: str,
+        dest: str,
+        src_creds: dict,
+        compression: str,
+        overwrite: bool = False,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
 
@@ -257,6 +265,7 @@ class dataset:
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             src_creds (dict): A dictionary containing credentials used to access the dataset at the path.
+            compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
 
         Raises:
@@ -271,7 +280,9 @@ class dataset:
         unstructured = ImageClassification(source=src)
 
         # TODO auto detect file extension
-        unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+        unstructured.structure(
+            ds, image_tensor_args={"sample_compression": compression}
+        )
 
         return ds
 

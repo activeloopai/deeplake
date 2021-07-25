@@ -14,13 +14,22 @@ def test_ingestion_simple(memory_ds: Dataset):
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             src_creds=None,
+            compression="jpeg",
             overwrite=False,
         )
 
     with pytest.raises(SamePathException):
-        hub.ingest(src=path, dest=path, src_creds=None, overwrite=False)
+        hub.ingest(
+            src=path, dest=path, src_creds=None, compression="jpeg", overwrite=False
+        )
 
-    ds = hub.ingest(src=path, dest=memory_ds.path, src_creds=None, overwrite=False)
+    ds = hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        src_creds=None,
+        compression="jpeg",
+        overwrite=False,
+    )
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds.images.numpy().shape == (3, 200, 200, 3)
@@ -30,7 +39,13 @@ def test_ingestion_simple(memory_ds: Dataset):
 
 def test_image_classification_sets(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
-    ds = hub.ingest(src=path, dest=memory_ds.path, src_creds=None, overwrite=False)
+    ds = hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        src_creds=None,
+        compression="jpeg",
+        overwrite=False,
+    )
 
     assert list(ds.tensors.keys()) == [
         "test/images",
@@ -54,8 +69,11 @@ def test_ingestion_exception(memory_ds: Dataset):
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             src_creds=None,
+            compression="jpeg",
             overwrite=False,
         )
 
     with pytest.raises(SamePathException):
-        hub.ingest(src=path, dest=path, src_creds=None, overwrite=False)
+        hub.ingest(
+            src=path, dest=path, src_creds=None, compression="jpeg", overwrite=False
+        )
