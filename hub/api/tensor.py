@@ -104,7 +104,7 @@ class Tensor:
         self.extend([sample])
 
     @property
-    def meta(self):
+    def meta(self): 
         return self.chunk_engine.tensor_meta
 
     @property

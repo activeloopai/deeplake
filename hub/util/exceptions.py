@@ -22,6 +22,9 @@ class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Tensor '{key}' already exists.")
 
+class HashlistAlreadyExistsError(Exception):
+    def __init__(self, key:str):
+        super().__init__(f"Hashlist '{key}' already exists.")
 
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):

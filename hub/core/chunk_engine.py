@@ -209,7 +209,7 @@ class ChunkEngine:
         num_samples = 1
 
         hash_value = hash_sample(buffer.tobytes())
-        self.hashlist_meta.update(hash_value)
+        self.hashlist_meta.append(hash_value)
         print('Hash: ', hash_value)
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.

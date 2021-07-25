@@ -8,10 +8,9 @@ class HashlistMeta(Meta):
     def __init__(self):
         
         self.hashlist = []
-
-
+        
         super().__init__()
     
-    def update(self, hash):
+    def append(self, hash):
         self.hashlist.append(hash)
 

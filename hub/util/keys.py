@@ -28,10 +28,12 @@ def get_chunk_id_encoder_key(key: str) -> str:
         constants.ENCODED_CHUNK_NAMES_FILENAME,
     )
 
-
 def dataset_exists(storage: StorageProvider) -> bool:
     return get_dataset_meta_key() in storage
 
 
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
     return get_tensor_meta_key(key) in storage
+
+def hashlist_exists(key: str, storage: StorageProvider) -> bool:
+    return get_hashlist_meta_key(key) in storage
