@@ -223,7 +223,6 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
-
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
@@ -232,6 +231,7 @@ class dataset:
                 raise SamePathException(src)
 
         ds = hub.dataset(dest)
+
         unstructured = ImageClassification(source=src)
 
         # TODO auto detect file extension
@@ -240,7 +240,7 @@ class dataset:
         return ds
 
     @staticmethod
-    def from_kaggle(
+    def ingest_kaggle(
         tag: str, src: str, dest: str, src_creds: dict, overwrite: bool = False
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
@@ -263,10 +263,6 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
-
-        # if not os.path.isdir(src):
-        #     raise InvalidPathException(src)
-
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
@@ -276,7 +272,7 @@ class dataset:
         unstructured = ImageClassification(source=src)
 
         # TODO auto detect file extension
-        unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
+        unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
 
         return ds
 

@@ -8,22 +8,29 @@ import hub
 
 
 def test_ingestion_simple(local_ds: Dataset):
-    ds = local_ds
-    kaggle_path = os.path.join(ds.path, "unstructured_kaggle_data_simple")
-    download_kaggle_dataset("andradaolteanu/birdcall-recognition-data", kaggle_path)
-    unstructured = ImageClassification(source=kaggle_path)
-    unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_simple")
+    ds = hub.ingest_kaggle(
+        tag="andradaolteanu/birdcall-recognition-data",
+        src=kaggle_path,
+        dest=local_ds.path,
+        src_creds=None,
+        overwrite=False,
+    )
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds["labels"].numpy().shape == (10,)
 
 
 def test_ingestion_sets(local_ds: Dataset):
-    ds = local_ds
-    kaggle_path = os.path.join(ds.path, "unstructured_kaggle_data_sets")
-    download_kaggle_dataset("thisiseshan/bird-classes", local_path=kaggle_path)
-    unstructured = ImageClassification(source=kaggle_path)
-    unstructured.structure(ds, image_tensor_args={"sample_compression": "png"})
+    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_sets")
+    ds = hub.ingest_kaggle(
+        tag="thisiseshan/bird-classes",
+        src=kaggle_path,
+        dest=local_ds.path,
+        src_creds=None,
+        overwrite=False,
+    )
+
     assert list(ds.tensors.keys()) == [
         "test/images",
         "test/labels",
@@ -40,9 +47,20 @@ def test_ingestion_sets(local_ds: Dataset):
 
 
 def test_kaggle_exception(local_ds: Dataset):
-    ds = local_ds
-    kaggle_path = os.path.join(ds.path, "unstructured_kaggle_data")
+    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data")
 
     with pytest.raises(KaggleDatasetAlreadyDownloadedError):
-        download_kaggle_dataset("thisiseshan/bird-classes", local_path=kaggle_path)
-        download_kaggle_dataset("thisiseshan/bird-classes", local_path=kaggle_path)
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
+            src=kaggle_path,
+            dest=local_ds.path,
+            src_creds=None,
+            overwrite=False,
+        )
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
+            src=kaggle_path,
+            dest=local_ds.path,
+            src_creds=None,
+            overwrite=False,
+        )

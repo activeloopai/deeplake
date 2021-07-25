@@ -6,29 +6,19 @@ import pytest
 import hub
 
 
-def test_image_classification_simple(memory_ds: Dataset):
-    ds = memory_ds
+def test_ingestion_simple(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/image_classification")
-
-    with pytest.raises(InvalidPathException):
-        unstructured = ImageClassification(
-            source=get_dummy_data_path("tests_auto/invalid_path")
-        )
-
-    unstructured = ImageClassification(source=path)
-    unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+    ds = hub.ingest(src=path, dest=memory_ds.path, src_creds=None, overwrite=False)
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds["images"].numpy().shape == (3, 200, 200, 3)
-    assert ds["labels"].numpy().shape == (3,)
-    assert ds["labels"].meta.class_names == ("class0", "class1", "class2")
+    assert ds.images.numpy().shape == (3, 200, 200, 3)
+    assert ds.labels.numpy().shape == (3,)
+    assert ds.labels.meta.class_names == ("class0", "class1", "class2")
 
 
 def test_image_classification_sets(memory_ds: Dataset):
-    ds = memory_ds
     path = get_dummy_data_path("tests_auto/image_classification_with_sets")
-    unstructured = ImageClassification(source=path)
-    unstructured.structure(ds, image_tensor_args={"sample_compression": "jpeg"})
+    ds = hub.ingest(src=path, dest=memory_ds.path, src_creds=None, overwrite=False)
 
     assert list(ds.tensors.keys()) == [
         "test/images",
