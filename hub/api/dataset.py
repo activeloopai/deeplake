@@ -4,6 +4,7 @@ from typing import Optional, Union
 from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
+from hub.util.bugout_reporter import hub_reporter
 
 
 class dataset:
@@ -56,11 +57,15 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         read_only = storage.read_only
+
+        hub_reporter.feature_report(feature_name="dataset", parameters={})
+
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def empty(
         path: str,
         overwrite: bool = False,
@@ -119,6 +124,7 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def load(
         path: str,
         read_only: bool = False,
@@ -181,11 +187,13 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset"""
         raise NotImplementedError
 
     @staticmethod
+    @hub_reporter.record_call
     def like(
         path: str,
         source: Union[str, Dataset],
@@ -217,7 +225,10 @@ class dataset:
         return destination_ds
 
     @staticmethod
-    def ingest(path: str, source: str, creds: dict, overwrite: bool = False) -> Dataset:
+    @hub_reporter.record_call
+    def ingest(
+        path: str, src: str, src_creds: dict, overwrite: bool = False
+    ) -> Dataset:
         """Ingests a dataset from a source"""
         raise NotImplementedError
 
