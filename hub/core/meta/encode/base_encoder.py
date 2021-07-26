@@ -134,22 +134,31 @@ class Encoder(ABC):
             # item matches, no update required
             return
 
-        start_encoding = self._encoded[:row_index]
+        start_encoding = list(self._encoded[:row_index])
 
         decomp_item = self._make_decomposable(item, compare_row_index=row_index)
-        new_row = [*decomp_item, local_sample_index]
-        print(new_row)
+        new_rows = [[*decomp_item, local_sample_index]]
 
-        end_encoding = self._encoded[row_index:]
+        subject_row = self._encoded[row_index]
+        end_encoding = self._encoded[row_index + 1 :]
 
-        print(start_encoding)
-        print(end_encoding)
+        # TODO explain this;
+        if subject_row[LAST_SEEN_INDEX_INDEX] > local_sample_index:
+            # TODO: this only works when `start_encoding` is empty to begin with!!
+            lower_split_entry = np.array(subject_row)
+            lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
+            start_encoding.append(lower_split_entry)
 
-        self._encoded = np.concatenate([start_encoding, [new_row], end_encoding])
+            upper_split_entry = np.array(subject_row)
+            new_rows.append(upper_split_entry)
 
-    def _synchronize_rows(self, start_row_index: int):
+        self._encoded = self._squeeze([start_encoding, new_rows, end_encoding])
+
+    def _squeeze(self, a: Sequence):
         # TODO: docstring
-        pass
+
+        # TODO: implement (maybe staticmethod?)
+        return a
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
@@ -167,7 +176,7 @@ class Encoder(ABC):
             raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
 
     def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
-        """Should determine if `item` can be combined with the last row in `self._encoded`."""
+        """Should determine if `item` can be combined with a row in `self._encoded`."""
 
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         """Calculates what the next last index should be."""
