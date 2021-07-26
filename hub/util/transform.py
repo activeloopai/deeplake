@@ -181,23 +181,3 @@ def merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out):
         chunk_id_key = get_chunk_id_encoder_key(tensor)
         ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
     ds_out.flush()
-
-
-# def pipeline_to_list(
-#     pipeline: Union[Callable, Sequence[Callable]],
-#     kwargs: Optional[Union[Dict, Sequence[Dict]]] = None,
-# ) -> Tuple[List[Callable], List[Dict]]:
-#     """Converts pipeline and kwargs to lists. Also makes the length of both lists equal to length of pipleine."""
-#     kwargs = kwargs or []
-#     kwargs = list(kwargs) if isinstance(kwargs, Sequence) else [kwargs]
-#     pipeline = list(pipeline) if isinstance(pipeline, Sequence) else [pipeline]
-
-#     kwargs = list(kwargs[: len(pipeline)])
-#     kwargs += [dict()] * (len(pipeline) - len(kwargs))
-#     return pipeline, kwargs
-
-
-# def load_updated_meta(ds_out: Dataset):
-#     """Clears the dataset's cache which may contain outdated meta file and loads updated meta after transform."""
-#     ds_out.clear_cache()
-#     ds_out._load_meta()
