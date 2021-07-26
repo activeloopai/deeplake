@@ -10,6 +10,7 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     PathNotEmptyException,
 )
+from hub.constants import MB
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
@@ -524,14 +525,19 @@ def test_dataset_delete():
         Dataset.delete_at("test/")
         assert not os.path.isfile("test/dataset_meta.json")
 
-        # # Additional test omitted due to performance and memory issues.
-        # ds = Dataset("test/")
-        # ds.create_tensor("data")
-        # for i in range(1000):
-        #     ds.data.append(np.zeros((200000,)))
+        old_size = hub.constants.DELETE_SAFETY_SIZE
+        hub.constants.DELETE_SAFETY_SIZE = 1 * MB
 
-        # Dataset.delete_at("test/")
-        # assert os.path.isfile("test/dataset_meta.json")
+        ds = Dataset("test/")
+        ds.create_tensor("data")
+        ds.data.extend(np.zeros((100, 2000)))
 
-        # Dataset.delete_at("test/", large_ok=True)
-        # assert not os.path.isfile("test/dataset_meta.json")
+        try:
+            Dataset.delete_at("test/")
+        finally:
+            assert os.path.isfile("test/dataset_meta.json")
+
+        Dataset.delete_at("test/", large_ok=True)
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        hub.constants.DELETE_SAFETY_SIZE = old_size

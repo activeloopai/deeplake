@@ -33,6 +33,8 @@ MIN_SECOND_CACHE_SIZE = 160 * MB
 DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
+# maximum allowable size before `large_ok` must be passed to dataset delete methods
+DELETE_SAFETY_SIZE = 1 * GB
 
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"

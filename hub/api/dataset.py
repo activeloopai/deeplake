@@ -1,11 +1,18 @@
+import hub
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor
 from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
 from hub.api.tensor import Tensor
-from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB, GB
+from hub.constants import (
+    DEFAULT_HTYPE,
+    UNSPECIFIED,
+    DEFAULT_MEMORY_CACHE_SIZE,
+    DEFAULT_LOCAL_CACHE_SIZE,
+    MB,
+    GB,
+)
 
 from hub.core.meta.dataset_meta import DatasetMeta
 
@@ -367,7 +374,7 @@ class Dataset:
                 tensors = ds.tensors.values()
                 chunk_engines = [tensor.chunk_engine for tensor in tensors]
                 size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
-                if size > (1 * GB):
+                if size > hub.constants.DELETE_SAFETY_SIZE:
                     logger.info(
                         f"Hub Dataset {path} was too large to delete. Try again with large_ok=True."
                     )
