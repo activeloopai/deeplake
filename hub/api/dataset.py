@@ -280,6 +280,7 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
+    @hub_reporter.record_call
     def ingest_kaggle(
         tag: str,
         src: str,
