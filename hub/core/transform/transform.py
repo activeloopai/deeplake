@@ -70,6 +70,8 @@ def transform(
     """
     if isinstance(data_in, hub.core.dataset.Dataset):
         try_flushing(data_in)
+        # TODO: Maybe have 0 cache here but create a new one for each shard
+
         # data_in_base_storage = get_base_storage(data_in.storage)
         # data_in = Dataset(
         #     storage=data_in_base_storage, memory_cache_size=0, local_cache_size=0
