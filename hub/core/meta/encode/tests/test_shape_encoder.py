@@ -213,6 +213,6 @@ def test_failures():
         enc[101]
 
     with pytest.raises(IndexError):
-        enc[101] = (1,)
+        enc[101] = (1, 1)
 
     assert enc.num_samples == 100
