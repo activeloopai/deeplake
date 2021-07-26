@@ -17,7 +17,7 @@
   <h3 align="center">
    <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
    <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
-   <a href="http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme"><b>API Reference</b></a> &bull;  
+   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
@@ -96,8 +96,8 @@ Hub users can access and visualize a variety of popular datasets through a free 
 ### Hub and DVC
 Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to a traditional file structures by DVC when datasets are composed of many files (i.e. many images). An additional distinction is that DVC primarily uses a command line interface, where as Hub is a python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools.
 
-### Hub and TensorFlow Datasets
-Hub and TensorFlow Datasets seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both Pytorch and Tensorflow, whereas TensorFlow Datasets are only compatible with TensorFlow. A key difference between Hub and TensorFlow Datasets is that Hub offers powerful tools for users to create custom datasets, store them on a variety of cloud storage providers, and collaborate with with their piers. TensorFlow Datasets is primarily focused on giving the public easy access to commonly available datasets, and the creation and storage of custom datasets is not its focus. Datasets can be converted between TFDS and Hub formats with a simple [function call](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html?utm_source=github&utm_medium=readme&utm_campaign=desc).
+### Hub and TensorFlow Datasets (TFDS)
+Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. In addition to providing access to popular publicly-available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus.
 
 ### Hub and HuggingFace 
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace primarily focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.
