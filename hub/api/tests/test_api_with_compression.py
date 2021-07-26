@@ -120,6 +120,14 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
     tensor.append(np.ones(bad_shape, dtype="uint8"))
 
 
+def test_compression_aliases(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("jpeg_tensor", sample_compression="jpeg")
+    assert tensor.meta.sample_compression == "jpeg"
+
+    tensor = memory_ds.create_tensor("jpg_tensor", sample_compression="jpg")
+    assert tensor.meta.sample_compression == "jpeg"
+
+
 @pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)
 def test_unsupported_compression(memory_ds: Dataset):
     memory_ds.create_tensor(TENSOR_KEY, sample_compression="bad_compression")

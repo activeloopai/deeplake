@@ -11,6 +11,7 @@ GB = 1000 * MB
 DEFAULT_HTYPE = "generic"
 
 SUPPORTED_COMPRESSIONS = ["png", "jpg", "jpeg", None]
+COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
 REQUIRE_USER_SPECIFICATION = "require_user_specification"
