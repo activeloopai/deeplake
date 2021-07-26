@@ -135,10 +135,11 @@ class Encoder(ABC):
             return
 
         # TODO: explain this
-        if row_index > 0 and self._combine_condition(item, row_index - 1):
-            # item can be "moved down"
+        moved_down = self._try_moving_down(item, row_index)
+        moved_up = self._try_moving_up(item, row_index)
 
-            self._encoded[row_index - 1, LAST_SEEN_INDEX_INDEX] += 1
+        # TODO: explain this
+        if moved_down != moved_up:
             return
 
         start_encoding = self._encoded[:row_index]
@@ -164,6 +165,28 @@ class Encoder(ABC):
         self._encoded = self._squeeze(
             start_encoding, new_rows, end_encoding, row_index, local_sample_index
         )
+
+    def _try_moving_down(self, item: Any, row_index: int) -> bool:
+        # TODO: docstring
+
+        if row_index > 0 and self._combine_condition(item, row_index - 1):
+            # item can be "moved down"
+            self._encoded[row_index - 1, LAST_SEEN_INDEX_INDEX] += 1
+            return True
+
+        return False
+
+    def _try_moving_up(self, item: Any, row_index: int) -> bool:
+        # TODO: docstring
+
+        if row_index < len(self._encoded) - 1 and self._combine_condition(
+            item, row_index + 1
+        ):
+            # item can be "moved up"
+            self._encoded[row_index, LAST_SEEN_INDEX_INDEX] -= 1
+            return True
+
+        return False
 
     def _squeeze(
         self,
