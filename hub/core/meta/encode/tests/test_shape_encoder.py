@@ -110,8 +110,44 @@ def _assert_encoded(enc, expected_encoding):
     np.testing.assert_array_equal(enc._encoded, expected_encoding)
 
 
+def test_update_no_change():
+    enc = ShapeEncoder(np.array([[101, 100, 1], [100, 101, 5]]))
+
+    enc[0] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[1] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[2] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[3] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[4] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[5] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    assert enc.num_samples == 6
+
+
+def test_update_expand_squeeze():
+    enc = ShapeEncoder(np.array([[28, 0, 5]]))
+    _assert_encoded(enc, [[28, 0, 5]])
+
+    enc[3] = (100, 100)
+    _assert_encoded(enc, [[28, 0, 2], [100, 100, 3], [28, 0, 5]])
+
+    enc[3] = (28, 0)
+    _assert_encoded(enc, [[28, 0, 5]])
+
+    assert enc.num_samples == 6
+
+
 def test_update():
-    # TODO: continue breaking this test into multiple targeted examples
     enc = ShapeEncoder()
 
     enc.register_samples((100, 100), 1)
@@ -146,31 +182,6 @@ def test_update():
 
     assert enc.num_samples == 6
 
-    with pytest.raises(IndexError):
-        enc[6] = 4
-
-
-def test_update_no_change():
-    enc = ShapeEncoder(np.array([[101, 100, 1], [100, 101, 5]]))
-
-    enc[0] = (101, 100)
-    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
-
-    enc[2] = (100, 101)
-    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
-    # TODO: make sure this test is valid
-
-
-def test_update_expand_squeeze():
-    enc = ShapeEncoder(np.array([[28, 0, 5]]))
-    _assert_encoded(enc, [[28, 0, 5]])
-
-    enc[3] = (100, 100)
-    _assert_encoded(enc, [[28, 0, 2], [100, 100, 3], [28, 0, 5]])
-
-    enc[3] = (28, 0)
-    _assert_encoded(enc, [[28, 0, 5]])
-
 
 def test_failures():
     enc = ShapeEncoder()
@@ -197,3 +208,11 @@ def test_failures():
     assert len(enc._encoded) == 1
 
     assert enc[-1] == (100, 100)
+
+    with pytest.raises(IndexError):
+        enc[101]
+
+    with pytest.raises(IndexError):
+        enc[101] = (1,)
+
+    assert enc.num_samples == 100
