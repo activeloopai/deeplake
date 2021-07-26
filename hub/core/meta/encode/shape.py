@@ -92,7 +92,7 @@ class ShapeEncoder(Encoder):
     def _combine_condition(
         self, shape: Tuple[int], compare_row_index: int = -1
     ) -> bool:
-        last_shape = self[compare_row_index]  # TODO: optimize this
+        last_shape = self._derive_value(self._encoded[compare_row_index])
         return shape == last_shape
 
     def update_shape(self, local_sample_index: int, new_shape: Tuple[int]):
