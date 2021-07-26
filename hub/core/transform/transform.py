@@ -123,11 +123,16 @@ def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
     (
         data_shard,
-        chunk_engines,
+        output_storage,
+        tensors,
         pipeline,
         pipeline_kwargs,
     ) = transform_input
-    tensors = set(chunk_engines.keys())
+
+    chunk_engines = {
+        t: ChunkEngine(t, LRUCache(MemoryProvider(), output_storage, 32 * MB))
+        for t in tensors
+    }
 
     # storing the metas in memory to merge later
     all_chunk_engines = {}
@@ -161,7 +166,7 @@ def store_shard(transform_input: Tuple):
 
         results = transform_sample(sample, pipeline, pipeline_kwargs)
         for result in results:
-            if set(result.keys()) != tensors:
+            if set(result.keys()) != set(tensors):
                 raise TensorMismatchError(list(tensors), list(result.keys()))
             for key, value in result.items():
                 all_chunk_engines[key].append(value)
@@ -185,28 +190,21 @@ def run_pipeline(
     pipeline_kwargs: List[Dict],
 ):
     """Runs the pipeline on the input data to produce output samples and stores in the dataset."""
-    output_base_storage = get_base_storage(ds_out.storage)
-
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
-    init_chunk_engines = {
-        tensor: ChunkEngine(
-            tensor, LRUCache(MemoryProvider(), output_base_storage, 16 * MB)
-        )
-        for tensor in tensors
-    }
-    map_output = compute.map(
+
+    output_base_storage = get_base_storage(ds_out.storage)
+    metas_and_encoders = compute.map(
         store_shard,
         zip(
             shards,
-            repeat(init_chunk_engines),
+            repeat(output_base_storage),
+            repeat(tensors),
             repeat(pipeline),
             repeat(pipeline_kwargs),
         ),
     )
 
-    all_workers_tensor_metas, all_workers_chunk_id_encoders = zip(*map_output)
-
+    all_workers_tensor_metas, all_workers_chunk_id_encoders = zip(*metas_and_encoders)
     merge_tensor_metas(all_workers_tensor_metas, ds_out)
     merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out)
-    # merge_all_chunk_engines(all_workers_chunk_engines, ds_out)
