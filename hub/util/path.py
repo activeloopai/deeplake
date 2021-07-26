@@ -17,31 +17,31 @@ def get_path_from_storage(storage):
 
 
 def find_root(path: str) -> str:
-    # TODO: update docstring
-    # TODO: tests
+    """Find the root of the dataset within the given path.
 
-    """
-    Find the root of the dataset within the given path.
-    the "root" is defined as being the path to a subdirectory within path that has > 1 folder/file (if applicable).
-    in other words, if there is a directory structure like:
-    dataset -
-        Images -
-            class1 -
-                img.jpg
+    Note:
+        The "root" is defined as the subdirectory (within path) that has > 1 folder/file (if applicable).
+        in other words, if there is a directory structure like:
+        dataset -
+            Images -
+                class1 -
+                    img.jpg
+                    ...
+                class2 -
+                    img.jpg
+                    ...
                 ...
-            class2 -
-                img.jpg
-                ...
-            ...
-    the output of this function should be "dataset/Images/" as that is the root.
+
+        root is "dataset/Images"
+
+    Args:
+        path (str): The local path to folder containing an unstructured dataset and of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+
+    Returns:
+        Path of the unstructured dataset.
     """
 
     subs = glob.glob(os.path.join(path, "*"))
-
-    # if ignore_sub:
-    #     ignore_sub = os.path.join(path, ignore_sub)
-    #     if ignore_sub in subs:
-    #         subs.remove(ignore_sub)
 
     subs = [
         sub for sub in subs if os.path.isdir(sub)

@@ -207,7 +207,7 @@ class dataset:
         """Ingests a dataset from a source and store it as a structured dataset to destination
 
         Note:
-            Currently local source path and only image datasets are supported.
+            Currently only local source paths and image classification datasets are supported for automatic ingestion.
 
         Args:
             src (str): Local path to where the unstructured dataset is stored.
@@ -233,9 +233,10 @@ class dataset:
 
         ds = hub.dataset(dest)
 
+        # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
 
-        # TODO auto detect file extension
+        # TODO: auto detect compression
         unstructured.structure(
             ds, image_tensor_args={"sample_compression": compression}
         )
@@ -254,7 +255,7 @@ class dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
 
         Note:
-            Currently only local source path and only image datasets are supported.
+            Currently only local source paths and image classification datasets are supported for automatic ingestion.
 
         Args:
             tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
@@ -276,12 +277,9 @@ class dataset:
                 raise SamePathException(src)
 
         download_kaggle_dataset(tag, local_path=src)
-        ds = hub.dataset(dest)
-        unstructured = ImageClassification(source=src)
 
-        # TODO auto detect file extension
-        unstructured.structure(
-            ds, image_tensor_args={"sample_compression": compression}
+        ds = hub.ingest(
+            src=src, dest=dest, src_creds=None, compression=compression, overwrite=False
         )
 
         return ds
