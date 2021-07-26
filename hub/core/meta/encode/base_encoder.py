@@ -134,6 +134,13 @@ class Encoder(ABC):
             # item matches, no update required
             return
 
+        # TODO: explain this
+        if row_index > 0 and self._combine_condition(item, row_index - 1):
+            # item can be "moved down"
+
+            self._encoded[row_index - 1, LAST_SEEN_INDEX_INDEX] += 1
+            return
+
         start_encoding = self._encoded[:row_index]
 
         decomp_item = self._make_decomposable(item, compare_row_index=row_index)
@@ -144,6 +151,8 @@ class Encoder(ABC):
 
         # TODO explain this;
         if subject_row[LAST_SEEN_INDEX_INDEX] > local_sample_index:
+            print(subject_row, "subject")
+
             # TODO: this only works when `start_encoding` is empty to begin with!!
             lower_split_entry = np.array(subject_row)
             lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
