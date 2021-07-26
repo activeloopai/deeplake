@@ -1,4 +1,3 @@
-from hub.core.storage.provider import StorageProvider
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple, List, Set
@@ -50,7 +49,7 @@ class ChunkEngine:
         key: str,
         cache: LRUCache,
         max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
-        memory_provider: StorageProvider = None,
+        memory_cache: LRUCache = None,
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 
@@ -118,6 +117,7 @@ class ChunkEngine:
 
         # only the last chunk may be less than this
         self.min_chunk_size = self.max_chunk_size // 2
+        self.mem_cache = memory_cache
 
     @property
     def chunk_id_encoder(self) -> ChunkIdEncoder:
@@ -131,6 +131,7 @@ class ChunkEngine:
             ChunkIdEncoder: The chunk ID encoder handles the mapping between sample indices
                 and their corresponding chunks.
         """
+        cache = self.mem_cache or self.cache
 
         key = get_chunk_id_encoder_key(self.key)
         if not self.chunk_id_encoder_exists:
@@ -142,15 +143,21 @@ class ChunkEngine:
                 )
 
             enc = ChunkIdEncoder()
-            self.cache[key] = enc
+            cache[key] = enc
             return enc
 
-        enc = self.cache.get_cachable(key, ChunkIdEncoder)
+        enc = cache.get_cachable(key, ChunkIdEncoder)
         return enc
 
     @property
     def chunk_id_encoder_exists(self) -> bool:
-        return get_chunk_id_encoder_key(self.key) in self.cache
+        cache = self.mem_cache or self.cache
+        try:
+            key = get_chunk_id_encoder_key(self.key)
+            cache[key]
+            return True
+        except KeyError:
+            return False
 
     @property
     def num_chunks(self) -> int:
@@ -179,8 +186,9 @@ class ChunkEngine:
 
     @property
     def tensor_meta(self):
+        cache = self.mem_cache or self.cache
         tensor_meta_key = get_tensor_meta_key(self.key)
-        return self.cache.get_cachable(tensor_meta_key, TensorMeta)
+        return cache.get_cachable(tensor_meta_key, TensorMeta)
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -214,7 +222,7 @@ class ChunkEngine:
 
         # TODO implement tests for cache size compute
         # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
-
+        cache = self.mem_cache or self.cache
         # synchronize last chunk
         last_chunk_key = self.last_chunk_key
         last_chunk = self.last_chunk
@@ -222,11 +230,11 @@ class ChunkEngine:
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key)
-        self.cache[tensor_meta_key] = self.tensor_meta
+        cache[tensor_meta_key] = self.tensor_meta
 
         # synchronize chunk ID encoder
         chunk_id_key = get_chunk_id_encoder_key(self.key)
-        self.cache[chunk_id_key] = self.chunk_id_encoder
+        cache[chunk_id_key] = self.chunk_id_encoder
 
     def _try_appending_to_last_chunk(
         self, buffer: memoryview, shape: Tuple[int]
