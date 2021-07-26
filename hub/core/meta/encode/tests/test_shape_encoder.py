@@ -111,6 +111,7 @@ def _assert_encoded(enc, expected_encoding):
 
 
 def test_update():
+    # TODO: continue breaking this test into multiple targeted examples
     enc = ShapeEncoder()
 
     enc.register_samples((100, 100), 1)
@@ -149,7 +150,18 @@ def test_update():
         enc[6] = 4
 
 
-def test_update_squeeze():
+def test_update_no_change():
+    enc = ShapeEncoder(np.array([[101, 100, 1], [100, 101, 5]]))
+
+    enc[0] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[2] = (100, 101)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+    # TODO: make sure this test is valid
+
+
+def test_update_expand_squeeze():
     enc = ShapeEncoder(np.array([[28, 0, 5]]))
     _assert_encoded(enc, [[28, 0, 5]])
 
