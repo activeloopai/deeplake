@@ -1,4 +1,4 @@
-from hub.core.meta.encode.base_encoder import Encoder
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_INDEX
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
 import hub
@@ -178,7 +178,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             return global_sample_index
 
         current_entry = self._encoded[chunk_index - 1]  # type: ignore
-        last_num_samples = current_entry[self.last_index_index] + 1
+        last_num_samples = current_entry[LAST_SEEN_INDEX_INDEX] + 1
 
         return int(global_sample_index - last_num_samples)
 

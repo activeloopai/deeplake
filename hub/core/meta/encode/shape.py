@@ -1,4 +1,4 @@
-from hub.core.meta.encode.base_encoder import Encoder
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_INDEX
 from hub.constants import ENCODING_DTYPE
 from typing import Tuple
 from hub.core.storage.provider import StorageProvider
@@ -76,7 +76,7 @@ class ShapeEncoder(Encoder):
     """
 
     def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
-        return tuple(row[: self.last_index_index])
+        return tuple(row[:LAST_SEEN_INDEX_INDEX])
 
     def _validate_incoming_item(self, shape: Tuple[int], _):
         if len(self._encoded) > 0:
