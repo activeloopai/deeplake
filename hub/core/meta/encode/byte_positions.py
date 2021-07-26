@@ -1,4 +1,4 @@
-from hub.core.meta.encode.base_encoder import Encoder
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_INDEX
 from hub.constants import ENCODING_DTYPE
 from typing import Sequence, Tuple
 import numpy as np
@@ -82,9 +82,9 @@ class BytePositionsEncoder(Encoder):
         if row_index == 0:
             previous_last_index = -1
         else:
-            previous_last_index = self._encoded[row_index - 1, self.last_index_index]
+            previous_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_INDEX]
 
-        num_samples = row[self.last_index_index] - previous_last_index
+        num_samples = row[LAST_SEEN_INDEX_INDEX] - previous_last_index
         num_bytes_for_entry = num_samples * row[NUM_BYTES_INDEX]
         return int(num_bytes_for_entry + row[START_BYTE_INDEX])
 
@@ -111,7 +111,7 @@ class BytePositionsEncoder(Encoder):
     ) -> np.ndarray:
         index_bias = 0
         if row_index >= 1:
-            index_bias = self._encoded[row_index - 1][self.last_index_index] + 1
+            index_bias = self._encoded[row_index - 1][LAST_SEEN_INDEX_INDEX] + 1
 
         row_num_bytes = row[NUM_BYTES_INDEX]
         row_start_byte = row[START_BYTE_INDEX]

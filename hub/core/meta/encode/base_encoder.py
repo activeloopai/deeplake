@@ -4,9 +4,10 @@ from hub.constants import ENCODING_DTYPE
 import numpy as np
 
 
-class Encoder(ABC):
-    last_index_index: int = -1
+LAST_SEEN_INDEX_INDEX = -1
 
+
+class Encoder(ABC):
     def __init__(self, encoded=None):
         """Base class for meta encoders. Handles heavy lifting logic for:
             - Chunk ID encoder
@@ -36,7 +37,7 @@ class Encoder(ABC):
     def num_samples(self) -> int:
         if len(self._encoded) == 0:
             return 0
-        return int(self._encoded[-1, self.last_index_index] + 1)
+        return int(self._encoded[-1, LAST_SEEN_INDEX_INDEX] + 1)
 
     def num_samples_at(self, translated_index: int) -> int:
         """Calculates the number of samples a row in the encoding corresponds to.
@@ -50,16 +51,17 @@ class Encoder(ABC):
 
         lower_bound = 0
         if len(self._encoded) > 1 and translated_index > 0:
-            lower_bound = self._encoded[translated_index - 1, self.last_index_index] + 1
-        upper_bound = self._encoded[translated_index, self.last_index_index] + 1
+            lower_bound = self._encoded[translated_index - 1, LAST_SEEN_INDEX_INDEX] + 1
+        upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_INDEX] + 1
 
         return int(upper_bound - lower_bound)
 
     def translate_index(self, local_sample_index: int) -> int:
-        """Translates `local_sample_index` into which row it corresponds to inside the encoded state.
+        """Searches for the row index for where `local_sample_index` exists within `self._encoded`.
+        This method is worst case log(N) due to the binary search.
 
         Args:
-            local_sample_index (int): Index representing a sample, binary searched over the "last index" column.
+            local_sample_index (int): Index representing a sample. Localized to `self._encoded`.
 
         Raises:
             IndexError: Cannot index when there are no samples to index into.
@@ -79,7 +81,7 @@ class Encoder(ABC):
             local_sample_index += self.num_samples
 
         return np.searchsorted(
-            self._encoded[:, self.last_index_index], local_sample_index
+            self._encoded[:, LAST_SEEN_INDEX_INDEX], local_sample_index
         )
 
     def register_samples(self, item: Any, num_samples: int):
@@ -97,15 +99,15 @@ class Encoder(ABC):
 
         if self.num_samples != 0:
             if self._combine_condition(item):
-                last_index = self._encoded[-1, self.last_index_index]
+                last_index = self._encoded[-1, LAST_SEEN_INDEX_INDEX]
                 new_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                self._encoded[-1, self.last_index_index] = new_last_index
+                self._encoded[-1, LAST_SEEN_INDEX_INDEX] = new_last_index
 
             else:
                 decomposable = self._make_decomposable(item)
 
-                last_index = self._encoded[-1, self.last_index_index]
+                last_index = self._encoded[-1, LAST_SEEN_INDEX_INDEX]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
                 shape_entry = np.array(
