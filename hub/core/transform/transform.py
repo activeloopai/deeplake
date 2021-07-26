@@ -73,7 +73,12 @@ def transform(
         try_flushing(data_in)
         data_in_base_storage = get_base_storage(data_in.storage)
         cached_store = LRUCache(MemoryProvider(), data_in_base_storage, 0)
-        data_in = Dataset(storage=cached_store, log_loading=False)
+        data_in = Dataset(
+            storage=cached_store,
+            index=data_in.index,
+            read_only=data_in.read_only,
+            log_loading=False,
+        )
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     ds_out.flush()
@@ -121,6 +126,8 @@ def transform(
 
 def store_shard(transform_input: Tuple):
     """Takes a shard of the original data and iterates through it, producing chunks."""
+
+    # TODO: make this function simpler, shift stuff to core
     (
         data_shard,
         output_storage,
@@ -158,15 +165,19 @@ def store_shard(transform_input: Tuple):
 
     if isinstance(data_shard, Dataset):
         base_storage = get_base_storage(data_shard.storage)
-        cache_size = 32 * len(tensors) * MB 
+        cache_size = 32 * len(tensors) * MB
         cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-        data_shard = Dataset(cached_store, index=data_shard.index, log_loading=False)
+        data_shard = Dataset(
+            cached_store,
+            index=data_shard.index,
+            read_only=data_shard.read_only,
+            log_loading=False,
+        )
 
     for i in range(len(data_shard)):
         sample = data_shard[i]
         if isinstance(sample, hub.core.dataset.Dataset):
             sample = {key: sample[key].numpy() for key in sample.tensors}
-
         results = transform_sample(sample, pipeline, pipeline_kwargs)
         for result in results:
             if set(result.keys()) != set(tensors):
