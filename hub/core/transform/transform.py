@@ -1,3 +1,4 @@
+from hub.core.dataset import Dataset
 from hub.util.cache_chain import generate_chain
 from hub.util.keys import get_tensor_meta_key
 from numpy import dtype
@@ -70,12 +71,9 @@ def transform(
     """
     if isinstance(data_in, hub.core.dataset.Dataset):
         try_flushing(data_in)
-        # TODO: Maybe have 0 cache here but create a new one for each shard
-
-        # data_in_base_storage = get_base_storage(data_in.storage)
-        # data_in = Dataset(
-        #     storage=data_in_base_storage, memory_cache_size=0, local_cache_size=0
-        # )
+        data_in_base_storage = get_base_storage(data_in.storage)
+        cached_store = LRUCache(MemoryProvider(), data_in_base_storage, 0)
+        data_in = Dataset(storage=cached_store, log_loading=False)
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     ds_out.flush()
@@ -153,13 +151,16 @@ def store_shard(transform_input: Tuple):
         actual_storage = get_base_storage(chunk_engine.cache)
         new_cache = LRUCache(MemoryProvider(), actual_storage, 32 * MB)
         new_cache.autoflush = False
-        chunk_engine = ChunkEngine(
-            tensor, new_cache, chunk_engine.max_chunk_size, memory_cache
-        )
+        chunk_size = chunk_engine.max_chunk_size
+        chunk_engine = ChunkEngine(tensor, new_cache, chunk_size, memory_cache)
         all_chunk_engines[tensor] = chunk_engine
         all_caches[tensor] = new_cache
 
-    # TODO separate cache for data_shard if it's a Dataset
+    if isinstance(data_shard, Dataset):
+        base_storage = get_base_storage(data_shard.storage)
+        cache_size = 32 * len(tensors) * MB 
+        cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
+        data_shard = Dataset(cached_store, index=data_shard.index, log_loading=False)
 
     for i in range(len(data_shard)):
         sample = data_shard[i]
