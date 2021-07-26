@@ -253,6 +253,9 @@ class dataset:
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
 
+        Returns:
+            Dataset: New dataset object with structured dataset.
+
         Raises:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
@@ -271,10 +274,10 @@ class dataset:
 
         # TODO: auto detect compression
         unstructured.structure(
-            ds, image_tensor_args={"sample_compression": compression}
+            ds, image_tensor_args={"sample_compression": compression}  # type: ignore
         )
 
-        return ds
+        return ds  # type: ignore
 
     @staticmethod
     def ingest_kaggle(
@@ -301,6 +304,9 @@ class dataset:
             src_creds (dict): A dictionary containing credentials used to access the dataset at the path.
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+
+        Returns:
+            Dataset: New dataset object with structured dataset.
 
         Raises:
             SamePathException: If the source and destination path are same.
