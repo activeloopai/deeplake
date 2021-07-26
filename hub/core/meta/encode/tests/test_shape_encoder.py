@@ -164,7 +164,7 @@ def test_update_move_up():
     enc[3] = (100, 101)
     _assert_encoded(enc, [[101, 100, 2], [100, 101, 10]])
 
-    assert enc.num_samples == 6
+    assert enc.num_samples == 11
 
 
 def test_update_split_first():
