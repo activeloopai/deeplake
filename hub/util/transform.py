@@ -1,17 +1,22 @@
-from hub.api.dataset import Dataset
-from hub.util.exceptions import InvalidTransformOutputError
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
-from hub.util.keys import get_chunk_key, get_tensor_meta_key, get_chunk_id_encoder_key
-from hub.core.storage.provider import StorageProvider
-from hub.core.meta.tensor_meta import TensorMeta
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE
+import hub
 import numpy as np
+from typing import Any, List, Tuple
+
+from hub.core.meta.tensor_meta import TensorMeta
+from hub.core.storage import MemoryProvider, LRUCache
+from hub.core.chunk_engine import ChunkEngine
+from hub.core.dataset import Dataset
+
+from hub.constants import MB
+
+from hub.util.remove_cache import get_base_storage
+from hub.util.exceptions import InvalidTransformOutputError, TensorMismatchError
+from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 
 
 def transform_sample(
     sample: Any,
-    pipeline: Sequence[Callable],
-    kwarg_list: List[dict],
+    pipeline,
 ) -> List[dict]:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
@@ -24,12 +29,13 @@ def transform_sample(
     """
     result = sample
     for index in range(len(pipeline)):
-        fn = pipeline[index]
-        kwargs = kwarg_list[index]
+        fn = pipeline.transform_functions[index].func
+        args = pipeline.transform_functions[index].args
+        kwargs = pipeline.transform_functions[index].kwargs
         if isinstance(result, (list, tuple)) and index != 0:
-            result = [fn(data, **kwargs) for data in result]
+            result = [fn(data, *args, **kwargs) for data in result]
         else:
-            result = fn(result, **kwargs)
+            result = fn(result, *args, **kwargs)
         if isinstance(result, list):
             result = flatten_list_of_list(result)
         verify_transform_output(result)
@@ -57,67 +63,73 @@ def verify_transform_output(output):
         raise InvalidTransformOutputError
 
 
-def get_first_chunk(index_meta: dict) -> Tuple[str, int]:
-    """Finds the name and size of the first chunk in the index_meta."""
-    chunk_name = ""
-    chunk_size = 0
+def store_shard(transform_input: Tuple):
+    """Takes a shard of the original data and iterates through it, producing chunks."""
 
-    if (
-        len(index_meta["entries"]) > 0
-        and len(index_meta["entries"][0]["chunk_names"]) > 0
-    ):
-        chunk_name = index_meta["entries"][0]["chunk_names"][0]
-        chunk_size = 0
+    # TODO: make this function simpler, shift stuff to core
+    (
+        data_shard,
+        output_storage,
+        tensors,
+        pipeline,
+    ) = transform_input
 
-        for entry in index_meta["entries"]:
-            if entry["chunk_names"] == [chunk_name]:
-                chunk_size = entry["end_byte"]
-            elif (
-                len(entry["chunk_names"]) > 1 and entry["chunk_names"][0] == chunk_name
-            ):
-                chunk_size = DEFAULT_MAX_CHUNK_SIZE
-            else:
-                break
+    chunk_engines = {
+        t: ChunkEngine(t, LRUCache(MemoryProvider(), output_storage, 32 * MB))
+        for t in tensors
+    }
 
-    return chunk_name, chunk_size
+    # storing the metas in memory to merge later
+    all_chunk_engines = {}
+    all_caches = {}
+    for tensor in tensors:
+        memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
+        chunk_engine = chunk_engines[tensor]
+        existing_meta = chunk_engine.tensor_meta
+        new_tensor_meta = TensorMeta(
+            htype=existing_meta.htype,
+            dtype=existing_meta.dtype,
+            sample_compression=existing_meta.sample_compression,
+        )
+        meta_key = get_tensor_meta_key(tensor)
+        memory_cache[meta_key] = new_tensor_meta  # type: ignore
+        actual_storage = get_base_storage(chunk_engine.cache)
+        new_cache = LRUCache(MemoryProvider(), actual_storage, 32 * MB)
+        new_cache.autoflush = False
+        chunk_size = chunk_engine.max_chunk_size
+        chunk_engine = ChunkEngine(tensor, new_cache, chunk_size, memory_cache)
+        all_chunk_engines[tensor] = chunk_engine
+        all_caches[tensor] = new_cache
 
+    if isinstance(data_shard, Dataset):
+        base_storage = get_base_storage(data_shard.storage)
+        cache_size = 32 * len(tensors) * MB
+        cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
+        data_shard = Dataset(
+            cached_store,
+            index=data_shard.index,
+            read_only=data_shard.read_only,
+            log_loading=False,
+        )
 
-def merge_chunks(
-    chunk_min_target: int,
-    tensor: str,
-    storage: StorageProvider,
-    current_meta: Dict,
-    first_chunk_name: str = "",
-    first_chunk_size: int = 0,
-    last_chunk_name: str = "",
-    last_chunk_size: int = 0,
-):
-    """Merges 2 chunks which are the last chunk of worker n and first chunk of worker n+1 into a single one if possible.
-    This is done to reduce the number of suboptimal chunks generated.
-    """
-    if (
-        first_chunk_size < chunk_min_target
-        and first_chunk_size + last_chunk_size <= DEFAULT_MAX_CHUNK_SIZE
-    ):
-        first_chunk_key = get_chunk_key(tensor, first_chunk_name)
-        last_chunk_key = get_chunk_key(tensor, last_chunk_name)
+    for i in range(len(data_shard)):
+        sample = data_shard[i]
+        if isinstance(sample, hub.core.dataset.Dataset):
+            sample = {key: sample[key].numpy() for key in sample.tensors}
+        results = transform_sample(sample, pipeline)
+        for result in results:
+            if set(result.keys()) != set(tensors):
+                raise TensorMismatchError(list(tensors), list(result.keys()))
+            for key, value in result.items():
+                all_chunk_engines[key].append(value)
 
-        last_chunk_content: bytes = storage[last_chunk_key]
-        first_chunk_content: bytes = storage[first_chunk_key]
-
-        new_chunk = bytearray(last_chunk_content) + first_chunk_content
-        del storage[first_chunk_key]
-        storage[last_chunk_key] = new_chunk
-
-        offset = last_chunk_size
-
-        for i in range(len(current_meta["entries"])):
-            if current_meta["entries"][i]["chunk_names"] == [first_chunk_name]:
-                current_meta["entries"][i]["chunk_names"] = [last_chunk_name]
-                current_meta["entries"][i]["start_byte"] += offset
-                current_meta["entries"][i]["end_byte"] += offset
-            else:
-                break
+    all_tensor_metas = {}
+    all_chunk_id_encoders = {}
+    for tensor in tensors:
+        all_caches[tensor].flush()
+        all_tensor_metas[tensor] = all_chunk_engines[tensor].tensor_meta
+        all_chunk_id_encoders[tensor] = all_chunk_engines[tensor].chunk_id_encoder
+    return all_tensor_metas, all_chunk_id_encoders
 
 
 def merge_tensor_metas(all_workers_tensor_metas, ds_out):
@@ -171,21 +183,21 @@ def merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out):
     ds_out.flush()
 
 
-def pipeline_to_list(
-    pipeline: Union[Callable, Sequence[Callable]],
-    kwargs: Optional[Union[Dict, Sequence[Dict]]] = None,
-) -> Tuple[List[Callable], List[Dict]]:
-    """Converts pipeline and kwargs to lists. Also makes the length of both lists equal to length of pipleine."""
-    kwargs = kwargs or []
-    kwargs = list(kwargs) if isinstance(kwargs, Sequence) else [kwargs]
-    pipeline = list(pipeline) if isinstance(pipeline, Sequence) else [pipeline]
+# def pipeline_to_list(
+#     pipeline: Union[Callable, Sequence[Callable]],
+#     kwargs: Optional[Union[Dict, Sequence[Dict]]] = None,
+# ) -> Tuple[List[Callable], List[Dict]]:
+#     """Converts pipeline and kwargs to lists. Also makes the length of both lists equal to length of pipleine."""
+#     kwargs = kwargs or []
+#     kwargs = list(kwargs) if isinstance(kwargs, Sequence) else [kwargs]
+#     pipeline = list(pipeline) if isinstance(pipeline, Sequence) else [pipeline]
 
-    kwargs = list(kwargs[: len(pipeline)])
-    kwargs += [dict()] * (len(pipeline) - len(kwargs))
-    return pipeline, kwargs
+#     kwargs = list(kwargs[: len(pipeline)])
+#     kwargs += [dict()] * (len(pipeline) - len(kwargs))
+#     return pipeline, kwargs
 
 
-def load_updated_meta(ds_out: Dataset):
-    """Clears the dataset's cache which may contain outdated meta file and loads updated meta after transform."""
-    ds_out.clear_cache()
-    ds_out._load_meta()
+# def load_updated_meta(ds_out: Dataset):
+#     """Clears the dataset's cache which may contain outdated meta file and loads updated meta after transform."""
+#     ds_out.clear_cache()
+#     ds_out._load_meta()
