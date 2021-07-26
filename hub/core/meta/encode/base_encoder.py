@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -152,15 +152,51 @@ class Encoder(ABC):
             upper_split_entry = np.array(subject_row)
             new_rows.append(upper_split_entry)
 
-        self._encoded = self._squeeze(start_encoding, new_rows, end_encoding)
+        self._encoded = self._squeeze(
+            start_encoding, new_rows, end_encoding, row_index, local_sample_index
+        )
 
     def _squeeze(
-        self, start: np.ndarray, new_rows: Sequence[np.ndarray], end: np.ndarray
+        self,
+        start: np.ndarray,
+        new_rows: List[np.ndarray],
+        end: np.ndarray,
+        row_index: int,
+        local_sample_index: int,
     ):
-        # TODO: docstring
+        # TODO: docstring (maybe rename the method?)
 
-        # TODO: implement (maybe staticmethod?)
-        return np.concatenate([start, new_rows, end])
+        print("before")
+        print(start)
+        print(new_rows)
+        print(end)
+
+        # TODO: explain this
+        if len(start) > 0:
+            # TODO: this may fail for bytepositions encoder (row_index/local_sample_index)
+            lower_value = self._derive_value(start[-1], row_index, local_sample_index)
+            upper_value = self._derive_value(new_rows[0], row_index, local_sample_index)
+
+            if lower_value == upper_value:
+                start = start[:-1]
+
+        # TODO: explain this
+        if len(end) > 0:
+            lower_value = self._derive_value(
+                new_rows[-1], row_index, local_sample_index
+            )
+            upper_value = self._derive_value(end[0], row_index, local_sample_index)
+
+            if lower_value == upper_value:
+                new_rows.pop()
+
+        print("after")
+        print(start)
+        print(new_rows)
+        print(end)
+
+        entries = [x for x in (start, new_rows, end) if len(x) > 0]
+        return np.concatenate(entries)
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
