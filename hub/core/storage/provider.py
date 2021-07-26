@@ -9,6 +9,7 @@ from hub.util.exceptions import ReadOnlyModeError
 
 
 class StorageProvider(ABC, MutableMapping):
+    
     autoflush = False
     read_only = False
 
