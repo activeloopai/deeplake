@@ -134,7 +134,7 @@ class Encoder(ABC):
             # item matches, no update required
             return
 
-        start_encoding = list(self._encoded[:row_index])
+        start_encoding = self._encoded[:row_index]
 
         decomp_item = self._make_decomposable(item, compare_row_index=row_index)
         new_rows = [[*decomp_item, local_sample_index]]
@@ -147,18 +147,20 @@ class Encoder(ABC):
             # TODO: this only works when `start_encoding` is empty to begin with!!
             lower_split_entry = np.array(subject_row)
             lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
-            start_encoding.append(lower_split_entry)
+            new_rows = [lower_split_entry, *new_rows]
 
             upper_split_entry = np.array(subject_row)
             new_rows.append(upper_split_entry)
 
-        self._encoded = self._squeeze([start_encoding, new_rows, end_encoding])
+        self._encoded = self._squeeze(start_encoding, new_rows, end_encoding)
 
-    def _squeeze(self, a: Sequence):
+    def _squeeze(
+        self, start: np.ndarray, new_rows: Sequence[np.ndarray], end: np.ndarray
+    ):
         # TODO: docstring
 
         # TODO: implement (maybe staticmethod?)
-        return a
+        return np.concatenate([start, new_rows, end])
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
