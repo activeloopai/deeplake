@@ -342,6 +342,15 @@ class Dataset:
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
+    def size_approx(self):
+        """Estimates the size in bytes of the dataset.
+        Includes only content, so will generally return an under-estimate.
+        """
+        tensors = ds.tensors.values()
+        chunk_engines = [tensor.chunk_engine for tensor in tensors]
+        size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+        return size
+
     def delete(self):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
@@ -371,9 +380,7 @@ class Dataset:
         else:
             ds = Dataset(path)
             if not large_ok:
-                tensors = ds.tensors.values()
-                chunk_engines = [tensor.chunk_engine for tensor in tensors]
-                size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+                size = ds.size_approx()
                 if size > hub.constants.DELETE_SAFETY_SIZE:
                     logger.info(
                         f"Hub Dataset {path} was too large to delete. Try again with large_ok=True."
