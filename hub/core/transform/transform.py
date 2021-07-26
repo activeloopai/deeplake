@@ -10,7 +10,8 @@ from hub.util.exceptions import (
     UnsupportedSchedulerError,
 )
 from hub.util.transform import (
-    merge_all_chunk_engines,
+    merge_chunk_id_encoders,
+    merge_tensor_metas,
     pipeline_to_list,
     transform_sample,
 )
@@ -24,6 +25,7 @@ from hub.constants import MB
 from itertools import repeat
 import hub
 import math
+import pickle
 
 
 def transform(
@@ -168,10 +170,9 @@ def store_shard(transform_input: Tuple):
     all_chunk_id_encoders = {}
     for tensor in tensors:
         all_caches[tensor].flush()
-    #     all_tensor_metas[tensor] = all_chunk_engines[tensor].tensor_meta
-    #     all_chunk_id_encoders[tensor] = all_chunk_engines[tensor].chunk_id_encoder
-
-    return all_chunk_engines
+        all_tensor_metas[tensor] = all_chunk_engines[tensor].tensor_meta
+        all_chunk_id_encoders[tensor] = all_chunk_engines[tensor].chunk_id_encoder
+    return all_tensor_metas, all_chunk_id_encoders
 
 
 def run_pipeline(
@@ -188,14 +189,13 @@ def run_pipeline(
 
     shard_size = math.ceil(len(data_in) / workers)
     shards = [data_in[i * shard_size : (i + 1) * shard_size] for i in range(workers)]
-    print("sharding complete")
     init_chunk_engines = {
         tensor: ChunkEngine(
             tensor, LRUCache(MemoryProvider(), output_base_storage, 16 * MB)
         )
         for tensor in tensors
     }
-    all_workers_chunk_engines = compute.map(
+    map_output = compute.map(
         store_shard,
         zip(
             shards,
@@ -204,4 +204,9 @@ def run_pipeline(
             repeat(pipeline_kwargs),
         ),
     )
-    merge_all_chunk_engines(all_workers_chunk_engines, ds_out)
+
+    all_workers_tensor_metas, all_workers_chunk_id_encoders = zip(*map_output)
+
+    merge_tensor_metas(all_workers_tensor_metas, ds_out)
+    merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out)
+    # merge_all_chunk_engines(all_workers_chunk_engines, ds_out)
