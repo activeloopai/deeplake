@@ -188,6 +188,9 @@ class TensorMeta(Meta):
         # TODO: optimize this
         return len(self.tobytes())
 
+    def __str__(self):
+        return str(self.__getstate__())
+
 
 def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
