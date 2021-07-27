@@ -38,7 +38,7 @@ def find_root(path: str) -> str:
         path (str): The local path to folder containing an unstructured dataset and of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
 
     Returns:
-        Path of the unstructured dataset.
+        str: Root path of the unstructured dataset.
     """
 
     subs = glob.glob(os.path.join(path, "*"))
