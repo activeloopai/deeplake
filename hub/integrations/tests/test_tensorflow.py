@@ -1,4 +1,4 @@
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 import numpy as np
 
 from hub.util.check_installation import requires_tensorflow

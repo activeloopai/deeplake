@@ -1,368 +1,198 @@
 import hub
-from hub.core.storage.provider import StorageProvider
-from hub.core.tensor import create_tensor
-from typing import Callable, Dict, Optional, Union, Tuple, List, Sequence
-import numpy as np
+from typing import Optional, Union
 
-from hub.api.tensor import Tensor
-from hub.constants import (
-    DEFAULT_HTYPE,
-    UNSPECIFIED,
-    DEFAULT_MEMORY_CACHE_SIZE,
-    DEFAULT_LOCAL_CACHE_SIZE,
-    MB,
-    GB,
-)
-
-from hub.core.meta.dataset_meta import DatasetMeta
-
-from hub.core.index import Index
-from hub.integrations import dataset_to_tensorflow
-from hub.util.keys import dataset_exists, get_dataset_meta_key, tensor_exists
-from hub.util.bugout_reporter import hub_reporter
-from hub.util.cache_chain import generate_chain
-from hub.util.exceptions import (
-    CouldNotCreateNewDatasetException,
-    InvalidKeyTypeError,
-    PathNotEmptyException,
-    ReadOnlyModeError,
-    TensorAlreadyExistsError,
-    TensorDoesNotExistError,
-)
-from hub.util.get_storage_provider import get_storage_provider
-from hub.client.client import HubBackendClient
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.client.log import logger
-from hub.util.path import get_path_from_storage
+from hub.util.keys import dataset_exists
+from hub.util.bugout_reporter import hub_reporter
+from hub.util.exceptions import DatasetHandlerError
+from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.core.dataset import Dataset
 
 
-class Dataset:
-    def __init__(
-        self,
-        path: Optional[str] = None,
+class dataset:
+    def __new__(
+        cls,
+        path: str,
         read_only: bool = False,
-        index: Index = None,
+        overwrite: bool = False,
+        public: bool = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
         creds: Optional[dict] = None,
-        storage: Optional[StorageProvider] = None,
-        public: Optional[bool] = True,
         token: Optional[str] = None,
     ):
-        """Initializes a new or existing dataset.
+        """Returns a Dataset object referencing either a new or existing dataset.
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
 
         Args:
-            path (str, optional): The full path to the dataset.
-                Can be a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
-                Can be a s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
-                Can be a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
-                Can be a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            path (str): The full path to the dataset. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
                 Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
-            index (Index): The Index object restricting the view of this dataset's tensors.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            public (bool): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
             creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
                 This takes precedence over credentials present in the environment. Currently only works with s3 paths.
                 It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
-            storage (StorageProvider, optional): The storage provider used to access the dataset.
-                Use this if you want to specify the storage provider object manually instead of using a tag or url to generate it.
-            public (bool, optional): Applied only if storage is Hub cloud storage and a new Dataset is being created. Defines if the dataset will have public access.
             token (str, optional): Activeloop token, used for fetching credentials for Hub datasets. This is optional, tokens are normally autogenerated.
 
-
-        Raises:
-            ValueError: If an existing local path is given, it must be a directory.
-            ImproperDatasetInitialization: Exactly one argument out of 'path' and 'storage' needs to be specified.
-                This is raised if none of them are specified or more than one are specifed.
-            InvalidHubPathException: If a Hub cloud path (path starting with hub://) is specified and it isn't of the form hub://username/datasetname.
-            AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
-            PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
+        Returns:
+            Dataset object created using the arguments provided.
         """
         if creds is None:
             creds = {}
-        base_storage = get_storage_provider(path, storage, read_only, creds, token)
-
-        # done instead of directly assigning read_only as backend might return read_only permissions
-        if hasattr(base_storage, "read_only") and base_storage.read_only:
-            self._read_only = True
-        else:
-            self._read_only = False
-
-        # uniquely identifies dataset
-        self.path = path or get_path_from_storage(base_storage)
-        memory_cache_size_bytes = memory_cache_size * MB
-        local_cache_size_bytes = local_cache_size * MB
-        self.storage = generate_chain(
-            base_storage, memory_cache_size_bytes, local_cache_size_bytes, path
+        storage, cache_chain = get_storage_and_cache_chain(
+            path=path,
+            read_only=read_only,
+            creds=creds,
+            token=token,
+            memory_cache_size=memory_cache_size,
+            local_cache_size=local_cache_size,
         )
-        self.storage.autoflush = True
-        self.index = index or Index()
+        if overwrite and dataset_exists(storage):
+            storage.clear()
+        read_only = storage.read_only
 
-        self.tensors: Dict[str, Tensor] = {}
+        hub_reporter.feature_report(feature_name="dataset", parameters={})
 
-        self._token = token
-
-        if self.path.startswith("hub://"):
-            split_path = self.path.split("/")
-            self.org_id, self.ds_name = split_path[2], split_path[3]
-            self.client = HubBackendClient(token=token)
-
-        self.public = public
-        self._load_meta()
-        self.index.validate(self.num_samples)
-
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
         )
-
-    def __enter__(self):
-        self.storage.autoflush = False
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.storage.autoflush = True
-        self.flush()
-
-    @property
-    def num_samples(self) -> int:
-        """Returns the length of the smallest tensor.
-        Ignores any applied indexing and returns the total length.
-        """
-        return min(map(len, self.tensors.values()), default=0)
-
-    def __len__(self):
-        """Returns the length of the smallest tensor"""
-        tensor_lengths = [len(tensor[self.index]) for tensor in self.tensors.values()]
-        return min(tensor_lengths, default=0)
-
-    def __getitem__(
-        self,
-        item: Union[
-            str, int, slice, List[int], Tuple[Union[int, slice, Tuple[int]]], Index
-        ],
-    ):
-        if isinstance(item, str):
-            if item not in self.tensors:
-                raise TensorDoesNotExistError(item)
-            else:
-                return self.tensors[item][self.index]
-        elif isinstance(item, (int, slice, list, tuple, Index)):
-            return Dataset(
-                read_only=self.read_only,
-                storage=self.storage,
-                index=self.index[item],
-            )
-        else:
-            raise InvalidKeyTypeError(item)
-
-    @hub_reporter.record_call
-    def create_tensor(
-        self,
-        name: str,
-        htype: str = DEFAULT_HTYPE,
-        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
-        sample_compression: str = UNSPECIFIED,
-        **kwargs,
-    ):
-        """Creates a new tensor in the dataset.
-
-        Args:
-            name (str): The name of the tensor to be created.
-            htype (str): The class of data for the tensor.
-                The defaults for other parameters are determined in terms of this value.
-                For example, `htype="image"` would have `dtype` default to `uint8`.
-                These defaults can be overridden by explicitly passing any of the other parameters to this function.
-                May also modify the defaults for other parameters.
-            dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
-            sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
-            **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
-                To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
-
-        Returns:
-            The new tensor, which can also be accessed by `self[name]`.
-
-        Raises:
-            TensorAlreadyExistsError: Duplicate tensors are not allowed.
-            NotImplementedError: If trying to override `chunk_compression`.
-        """
-
-        if tensor_exists(name, self.storage):
-            raise TensorAlreadyExistsError(name)
-
-        self.meta.tensors.append(name)
-        create_tensor(
-            name,
-            self.storage,
-            htype=htype,
-            dtype=dtype,
-            sample_compression=sample_compression,
-            **kwargs,
-        )
-        tensor = Tensor(name, self.storage)  # type: ignore
-
-        self.tensors[name] = tensor
-
-        return tensor
-
-    __getattr__ = __getitem__
-
-    def __setattr__(self, name: str, value):
-        if isinstance(value, (np.ndarray, np.generic)):
-            raise TypeError(
-                "Setting tensor attributes directly is not supported. To add a tensor, use the `create_tensor` method."
-                + "To add data to a tensor, use the `append` and `extend` methods."
-            )
-        else:
-            return super().__setattr__(name, value)
-
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-
-    def _load_meta(self):
-        meta_key = get_dataset_meta_key()
-
-        if dataset_exists(self.storage):
-            logger.info(f"{self.path} loaded successfully.")
-            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-
-            for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
-
-        elif len(self.storage) > 0:
-            # dataset does not exist, but the path was not empty
-            raise PathNotEmptyException
-
-        else:
-            self.meta = DatasetMeta()
-
-            try:
-                self.storage[meta_key] = self.meta
-            except ReadOnlyModeError:
-                # if this is thrown, that means the dataset doesn't exist and the user has no write access.
-                raise CouldNotCreateNewDatasetException(self.path)
-
-            self.flush()
-            if self.path.startswith("hub://"):
-                self.client.create_dataset_entry(
-                    self.org_id, self.ds_name, self.meta.as_dict(), public=self.public
-                )
-
-    @property
-    def read_only(self):
-        return self._read_only
-
-    @read_only.setter
-    def read_only(self, value: bool):
-        if value:
-            self.storage.enable_readonly()
-        else:
-            self.storage.disable_readonly()
-        self._read_only = value
-
-    @hub_reporter.record_call
-    def pytorch(
-        self,
-        transform: Optional[Callable] = None,
-        tensors: Optional[Sequence[str]] = None,
-        num_workers: int = 1,
-        batch_size: Optional[int] = 1,
-        drop_last: Optional[bool] = False,
-        collate_fn: Optional[Callable] = None,
-        pin_memory: Optional[bool] = False,
-    ):
-        """Converts the dataset into a pytorch Dataloader.
-
-        Note:
-            Pytorch does not support uint16, uint32, uint64 dtypes. These are implicitly type casted to int32, int64 and int64 respectively.
-            This spins up it's own workers to fetch data.
-
-        Args:
-            transform (Callable, optional) : Transformation function to be applied to each sample.
-            tensors (List, optional): Optionally provide a list of tensor names in the ordering that your training script expects. For example, if you have a dataset that has "image" and "label" tensors, if `tensors=["image", "label"]`, your training script should expect each batch will be provided as a tuple of (image, label).
-            num_workers (int): The number of workers to use for fetching data in parallel.
-            batch_size (int, optional): Number of samples per batch to load. Default value is 1.
-            drop_last (bool, optional): Set to True to drop the last incomplete batch, if the dataset size is not divisible by the batch size.
-                If False and the size of dataset is not divisible by the batch size, then the last batch will be smaller. Default value is False.
-                Read torch.utils.data.DataLoader docs for more details.
-            collate_fn (Callable, optional): merges a list of samples to form a mini-batch of Tensor(s). Used when using batched loading from a map-style dataset.
-                Read torch.utils.data.DataLoader docs for more details.
-            pin_memory (bool, optional): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
-                Read torch.utils.data.DataLoader docs for more details.
-
-        Returns:
-            A torch.utils.data.DataLoader object.
-        """
-        from hub.integrations import dataset_to_pytorch
-
-        return dataset_to_pytorch(
-            self,
-            transform,
-            tensors,
-            num_workers=num_workers,
-            batch_size=batch_size,
-            drop_last=drop_last,
-            collate_fn=collate_fn,
-            pin_memory=pin_memory,
-        )
-
-    def _get_total_meta(self):
-        """Returns tensor metas all together"""
-        return {
-            tensor_key: tensor_value.meta
-            for tensor_key, tensor_value in self.tensors.items()
-        }
-
-    def tensorflow(self):
-        """Converts the dataset into a tensorflow compatible format.
-
-        See:
-            https://www.tensorflow.org/api_docs/python/tf/data/Dataset
-
-        Returns:
-            tf.data.Dataset object that can be used for tensorflow training.
-        """
-        return dataset_to_tensorflow(self)
-
-    def flush(self):
-        """Necessary operation after writes if caches are being used.
-        Writes all the dirty data from the cache layers (if any) to the underlying storage.
-        Here dirty data corresponds to data that has been changed/assigned and but hasn't yet been sent to the
-        underlying storage.
-        """
-        self.storage.flush()
-
-    def clear_cache(self):
-        """Flushes (see Dataset.flush documentation) the contents of the cache layers (if any) and then deletes contents
-         of all the layers of it.
-        This doesn't delete data from the actual storage.
-        This is useful if you have multiple datasets with memory caches open, taking up too much RAM.
-        Also useful when local cache is no longer needed for certain datasets and is taking up storage space.
-        """
-        if hasattr(self.storage, "clear_cache"):
-            self.storage.clear_cache()
-
-    def size_approx(self):
-        """Estimates the size in bytes of the dataset.
-        Includes only content, so will generally return an under-estimate.
-        """
-        tensors = ds.tensors.values()
-        chunk_engines = [tensor.chunk_engine for tensor in tensors]
-        size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
-        return size
-
-    def delete(self):
-        """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
-        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
-        """
-        self.storage.clear()
-        if self.path.startswith("hub://"):
-            self.client.delete_dataset_entry(self.org_id, self.ds_name)
-            logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
     @staticmethod
-    def delete_at(path: str, force: bool = False, large_ok=False):
-        """Deletes the dataset at a given path.
+    @hub_reporter.record_call
+    def empty(
+        path: str,
+        overwrite: bool = False,
+        public: Optional[bool] = True,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        creds: Optional[dict] = None,
+        token: Optional[str] = None,
+    ) -> Dataset:
+        """Creates an empty dataset
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
+
+        Args:
+            path (str): The full path to the dataset. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+            memory_cache_size (int): The size of the memory cache to be used in MB.
+            local_cache_size (int): The size of the local filesystem cache to be used in MB.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+            token (str, optional): Activeloop token, used for fetching credentials for Hub datasets. This is optional, tokens are normally autogenerated.
+
+        Returns:
+            Dataset object created using the arguments provided.
+
+        Raises:
+            DatasetHandlerError: If a Dataset already exists at the given path and overwrite is False.
+        """
+        if creds is None:
+            creds = {}
+        storage, cache_chain = get_storage_and_cache_chain(
+            path=path,
+            read_only=False,
+            creds=creds,
+            token=token,
+            memory_cache_size=memory_cache_size,
+            local_cache_size=local_cache_size,
+        )
+
+        if overwrite and dataset_exists(storage):
+            storage.clear()
+        elif dataset_exists(storage):
+            raise DatasetHandlerError(
+                f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
+            )
+        read_only = storage.read_only
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
+        )
+
+    @staticmethod
+    @hub_reporter.record_call
+    def load(
+        path: str,
+        read_only: bool = False,
+        overwrite: bool = False,
+        public: Optional[bool] = True,
+        memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
+        local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
+        creds: Optional[dict] = None,
+        token: Optional[str] = None,
+    ) -> Dataset:
+        """Loads an existing dataset
+
+        Important:
+            Using `overwrite` will delete all of your data if it exists! Be very careful when setting this parameter.
+
+        Args:
+            path (str): The full path to the dataset. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
+                Datasets stored on Hub cloud that your account does not have write access to will automatically open in read mode.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
+            memory_cache_size (int): The size of the memory cache to be used in MB.
+            local_cache_size (int): The size of the local filesystem cache to be used in MB.
+            creds (dict, optional): A dictionary containing credentials used to access the dataset at the path.
+                This takes precedence over credentials present in the environment. Currently only works with s3 paths.
+                It supports 'aws_access_key_id', 'aws_secret_access_key', 'aws_session_token', 'endpoint_url' and 'region' as keys.
+            token (str, optional): Activeloop token, used for fetching credentials for Hub datasets. This is optional, tokens are normally autogenerated.
+
+        Returns:
+            Dataset object created using the arguments provided.
+
+        Raises:
+            DatasetHandlerError: If a Dataset does not exist at the given path.
+        """
+        if creds is None:
+            creds = {}
+
+        storage, cache_chain = get_storage_and_cache_chain(
+            path=path,
+            read_only=read_only,
+            creds=creds,
+            token=token,
+            memory_cache_size=memory_cache_size,
+            local_cache_size=local_cache_size,
+        )
+
+        if not dataset_exists(storage):
+            raise DatasetHandlerError(
+                f"A Hub dataset does not exist at the given path ({path}). Check the path provided or in case you want to create a new dataset, use dataset.empty() or dataset()."
+            )
+        if overwrite:
+            storage.clear()
+        read_only = storage.read_only
+        return Dataset(
+            storage=cache_chain, read_only=read_only, public=public, token=token
+        )
+
+    @staticmethod
+    @hub_reporter.record_call
+    def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
+        """Deletes a dataset at a given path.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
 
         Args:
@@ -371,14 +201,14 @@ class Dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
-        base_storage = get_storage_provider(
-            path, storage=None, read_only=False, creds={}, token=None
+        base_storage = storage_provider_from_path(
+            path, creds={}, read_only=False, token=None
         )
 
         if force:
             base_storage.clear()
         else:
-            ds = Dataset(path)
+            ds = hub.load(path)
             if not large_ok:
                 size = ds.size_approx()
                 if size > hub.constants.DELETE_SAFETY_SIZE:
@@ -389,49 +219,46 @@ class Dataset:
             ds.delete()
 
     @staticmethod
-    def from_path(path: str):
-        """Creates a hub dataset from unstructured data.
-
-        Note:
-            This copies the data into hub format.
-            Be careful when using this with large datasets.
+    @hub_reporter.record_call
+    def like(
+        path: str,
+        source: Union[str, Dataset],
+        creds: dict = None,
+        overwrite: bool = False,
+    ) -> Dataset:
+        """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
 
         Args:
-            path (str): Path to the data to be converted
+            path (str): Path where the new dataset will be created.
+            source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            creds (dict): Credentials that will be used to create the new dataset.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
 
         Returns:
-            A Dataset instance whose path points to the hub formatted
-            copy of the data.
-
-        Raises:
-            NotImplementedError: TODO.
+            Dataset: New dataset object.
         """
 
-        raise NotImplementedError(
-            "Automatic dataset ingestion is not yet supported."
-        )  # TODO: hub.auto
-        return None
+        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
+        source_ds = source
+        if isinstance(source, str):
+            source_ds = dataset.load(source)
 
-    def __str__(self):
-        path_str = ""
-        if self.path:
-            path_str = f"path='{self.path}', "
+        for tensor_name in source_ds.meta.tensors:  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
 
-        mode_str = ""
-        if self.read_only:
-            mode_str = f"read_only=True, "
+        destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
 
-        index_str = f"index={self.index}, "
-        if self.index.is_trivial():
-            index_str = ""
+        return destination_ds
 
-        return f"Dataset({path_str}{mode_str}{index_str}tensors={self.meta.tensors})"
+    @staticmethod
+    @hub_reporter.record_call
+    def ingest(
+        path: str, src: str, src_creds: dict, overwrite: bool = False
+    ) -> Dataset:
+        """Ingests a dataset from a source"""
+        raise NotImplementedError
 
-    __repr__ = __str__
-
-    @property
-    def token(self):
-        """Get attached token of the dataset"""
-        if self._token is None and self.path.startswith("hub://"):
-            self._token = self.client.get_token()
-        return self._token
+    @staticmethod
+    def list(workspace: str) -> None:
+        """List all datasets"""
+        raise NotImplementedError
