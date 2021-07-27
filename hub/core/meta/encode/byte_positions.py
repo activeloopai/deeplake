@@ -1,6 +1,5 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_INDEX
-from hub.constants import ENCODING_DTYPE
-from typing import Sequence, Tuple
+from typing import List, Sequence
 import numpy as np
 
 
@@ -119,6 +118,14 @@ class BytePositionsEncoder(Encoder):
         start_byte = row_start_byte + (local_sample_index - index_bias) * row_num_bytes
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
+
+    def _synchronize(
+        self, start: np.ndarray, new_rows: List[np.ndarray], end: np.ndarray
+    ):
+        # TODO: docstring
+        # TODO: implement
+
+        raise NotImplementedError
 
     # def update_num_bytes(self, local_sample_index: int, num_bytes: int):
     #     # TODO: docstring

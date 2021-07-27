@@ -217,8 +217,16 @@ class Encoder(ABC):
             if lower_value == upper_value:
                 new_rows.pop()
 
-        entries = [x for x in (start, new_rows, end) if len(x) > 0]
+        # TODO: explain this
+        entries = [x for x in self._synchronize(start, new_rows, end) if len(x) > 0]
         return np.concatenate(entries)
+
+    def _synchronize(
+        self, start: np.ndarray, new_rows: List[np.ndarray], end: np.ndarray
+    ):
+        # TODO: docstring
+
+        return start, new_rows, end
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
