@@ -1,4 +1,4 @@
-from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_INDEX
+from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE, UUID_SHIFT_AMOUNT
 from hub.util.exceptions import ChunkIdEncoderError
 import hub
@@ -8,65 +8,10 @@ from uuid import uuid4
 from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 
 
-# these constants are for accessing the data layout. see the `ChunkIdEncoder` docstring.
-CHUNK_ID_INDEX = 0
+CHUNK_ID_COLUMN = 0
 
 
 class ChunkIdEncoder(Encoder, Cachable):
-    """Custom compressor that allows reading of chunk IDs from a sample index without decompressing.
-
-    Chunk IDs:
-        Chunk IDs are a `ENCODING_DTYPE` value  and this class handles generating/encoding them.
-
-    Layout:
-        `_encoded` is a 2D array.
-
-        Rows:
-            The number of rows is equal to the number of chunk IDs this encoder is responsible for.
-
-        Columns:
-            The number of columns is 2.
-            Each row looks like this: [chunk_id, last_index], where `last_index` is the last index that the
-            chunk with `chunk_id` contains.
-
-        Example:
-            >>> enc = ChunkIdEncoder()
-            >>> enc.generate_chunk_id()
-            >>> enc.num_chunks
-            1
-            >>> enc.register_samples(10)
-            >>> enc.num_samples
-            10
-            >>> enc.register_samples(10)
-            >>> enc.num_samples
-            20
-            >>> enc.num_chunks
-            1
-            >>> enc.generate_chunk_id()
-            >>> enc.register_samples(1)
-            >>> enc.num_samples
-            21
-            >>> enc._encoded
-            [[3723322941, 19],
-             [1893450271, 20]]
-            >>> enc[20]
-            1893450271
-
-        Best case scenario:
-            The best case scenario is when all samples fit within a single chunk. This means the number of rows is 1,
-            providing a O(1) lookup.
-
-        Worst case scenario:
-
-            The worst case scenario is when only 1 sample fits per chunk. This means the number of rows is equal to the number
-            of samples, providing a O(log(N)) lookup.
-
-        Lookup algorithm:
-            To get the chunk ID for some sample index, you do a binary search over the right-most column. This will give you
-            the row that corresponds to that sample index (since the right-most column is our "last index" for that chunk ID).
-            Then, you get the left-most column and that is your chunk ID!
-    """
-
     def tobytes(self) -> memoryview:
         return serialize_chunkids(hub.__version__, [self._encoded])
 
@@ -87,7 +32,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         """Gets the name for the chunk at index `chunk_index`. If you need to get the name for a chunk from a sample index, instead
         use `__getitem__`, then `name_from_id`."""
 
-        chunk_id = self._encoded[:, CHUNK_ID_INDEX][chunk_index]
+        chunk_id = self._encoded[:, CHUNK_ID_COLUMN][chunk_index]
         return ChunkIdEncoder.name_from_id(chunk_id)
 
     @classmethod
@@ -178,7 +123,7 @@ class ChunkIdEncoder(Encoder, Cachable):
             return global_sample_index
 
         current_entry = self._encoded[chunk_index - 1]  # type: ignore
-        last_num_samples = current_entry[LAST_SEEN_INDEX_INDEX] + 1
+        last_num_samples = current_entry[LAST_SEEN_INDEX_COLUMN] + 1
 
         return int(global_sample_index - last_num_samples)
 
@@ -212,4 +157,4 @@ class ChunkIdEncoder(Encoder, Cachable):
         return new_last_index
 
     def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
-        return row[CHUNK_ID_INDEX]
+        return row[CHUNK_ID_COLUMN]
