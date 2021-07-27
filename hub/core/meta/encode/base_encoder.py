@@ -180,7 +180,7 @@ class Encoder(ABC):
         )
 
         for action in actions:
-            if action(item, row_index):
+            if action(item, row_index, local_sample_index):
                 # each action returns a bool, if True that means the action was taken.
                 break
 
@@ -189,7 +189,6 @@ class Encoder(ABC):
         self._has_below = None
         self._can_combine_above = None
         self._can_combine_below = None
-        self._samples_at_row_index = None
 
     """
     def __setitem__(self, local_sample_index: int, item: Any):
@@ -240,7 +239,7 @@ class Encoder(ABC):
         # )
     """
 
-    def _setup_update(self, item: Any, row_index: int):
+    def _setup_update(self, item: Any, row_index: int, *args):
         # TODO: docstring
         self._has_above = row_index > 0
         self._has_below = row_index + 1 < len(self._encoded)
@@ -253,20 +252,19 @@ class Encoder(ABC):
         if self._has_below:
             self._can_combine_below = self._combine_condition(item, row_index + 1)
 
-        self._samples_at_row_index = self.num_samples_at(row_index)
-
         # print(row_index, len(self._encoded))
         # print(self._has_above)
         # print(self._has_below)
         # print(self._can_combine_above)
         # print(self._can_combine_below)
 
-    def _try_not_changing(self, item: Any, row_index: int) -> bool:
+    def _try_not_changing(self, item: Any, row_index: int, *args) -> bool:
         # TODO: docstring
 
         return self._combine_condition(item, row_index)
 
-    def _try_squeezing(self, item: Any, row_index) -> bool:
+    def _try_squeezing(self, item: Any, row_index: int, *args) -> bool:
+        # TODO: docstring
 
         if not (self._has_above and self._has_below):
             return False
@@ -281,7 +279,7 @@ class Encoder(ABC):
 
         return True
 
-    def _try_moving_up(self, item: Any, row_index: int) -> bool:
+    def _try_moving_up(self, item: Any, row_index: int, *args) -> bool:
         # TODO: docstring
 
         if self._can_combine_below or not self._can_combine_above:
@@ -292,7 +290,7 @@ class Encoder(ABC):
 
         return True
 
-    def _try_moving_down(self, item: Any, row_index: int) -> bool:
+    def _try_moving_down(self, item: Any, row_index: int, *args) -> bool:
         # TODO: docstring
 
         if self._can_combine_above or not self._can_combine_below:
@@ -303,10 +301,10 @@ class Encoder(ABC):
 
         return True
 
-    def _try_replacing(self, item: Any, row_index: int) -> bool:
+    def _try_replacing(self, item: Any, row_index: int, *args) -> bool:
         # TODO: docstring
 
-        if self._samples_at_row_index != 1:
+        if self.num_samples_at(row_index) != 1:
             return False
 
         # sample can be "replaced"
@@ -315,11 +313,33 @@ class Encoder(ABC):
 
         return True
 
-    def _try_splitting_up(self, *args) -> bool:
-        raise NotImplementedError
+    def _try_splitting_up(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
+        # TODO: docstring
 
-    def _try_splitting_down(self, *args) -> bool:
+        above_last_index = 0
+        if self._has_above:
+            above_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN]
+
+        if above_last_index != local_sample_index:
+            return False
+
         raise NotImplementedError
+        return True
+
+    def _try_splitting_down(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
+        # TODO: docstring
+
+        last_index = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN]
+
+        if last_index != local_sample_index:
+            return False
+
+        raise NotImplementedError
+        return True
 
     def _try_splitting_middle(self, *args) -> bool:
         raise NotImplementedError
