@@ -13,10 +13,12 @@ __pdoc__ = {
 from .api.dataset import dataset
 from .api.read import read
 from .util.bugout_reporter import hub_reporter
+from .util.compare import compare
 
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+
 __all__ = ["dataset", "read", "__version__", "load", "empty", "like"]
 
 __version__ = "2.0.2"

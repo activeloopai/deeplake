@@ -34,11 +34,12 @@ MIN_SECOND_CACHE_SIZE = 160 * MB
 DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
+# hashlist consists of list of hashes of all samples inside a tensor
+HASHLIST_FILENAME = "hashlist.json"
 
 # meta is hub-defined information, necessary for hub Datasets/Tensors to function
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"
-HASHLIST_META_FILENAME = "hashlist.json"
 
 # info is user-defined information, entirely optional. may be used by the visualizer
 DATASET_INFO_FILENAME = "dataset_info.json"

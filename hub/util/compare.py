@@ -1,6 +1,10 @@
 from hub.core.sample import Sample  # type: ignore
 from typing import Optional, Union
-import os
+from hub.core.dataset import Dataset
+from hub.api.dataset import dataset
+from hub.core.tensor import Tensor
+from hub.constants import HASHLIST_FILENAME
+import os, glob
 
 def jaccard_similarity(list1, list2):
     intersection = len(list(set(list1).intersection(list2)))
@@ -8,15 +12,14 @@ def jaccard_similarity(list1, list2):
     return float(intersection) / union
 
 def find_hashlist(path):
-    for root, dirs, files in os.walk(path):
-        if 'hashlist.json' in files:
-            return os.path.join(root, 'hashlist.json')
+    print("Path: ", path)
+    print("File to search: ", HASHLIST_FILENAME)
+    for root, dir, files in os.walk(path):
+        print("HELLO!!!!!!!!!!")
 
-
-# hub.compare(d1.images, d2.images)
 
 # Compare hashlists of two different files     
-def compare(path1: Union(str, Dataset), path2: Union(str, Dataset)) -> int:
+def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tensor]) -> int:
     """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
 
     Note:
@@ -39,11 +42,17 @@ def compare(path1: Union(str, Dataset), path2: Union(str, Dataset)) -> int:
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
-    # Find and load hashlist fro two datasets
-    l1 = find_hashlist(path1)
-    l2 = find_hashlist(path2)
+    if isinstance(path1, Dataset) or isinstance(path2, Dataset):
+        raise NotImplementedError
 
+    if isinstance(path1, str) or isinstance(path2, str):
+        raise NotImplementedError
+
+    list1 = path1.hashlist
+    list2 = path2.hashlist
+    
     #Find jaccard similarity between the two lists
-    similarity_score = jaccard_similarity(list1, list2)
-
+    similarity_score = jaccard_similarity(list1.hashes, list2.hashes)
+    
+    print("Jaccard similarity score: ", similarity_score)
     return similarity_score

@@ -6,12 +6,15 @@ from hub.core.storage import StorageProvider, LRUCache
 from hub.core.sample import Sample  # type: ignore
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.api.info import load_info
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key, get_hashlist_meta_key
+from hub.api.hashlist import load_hashlist
+from hub.api.hashlist import Hashlist
+from hub.util.keys import get_tensor_meta_key, get_hashlist_key, hashlist_exists, tensor_exists, get_tensor_info_key
 from hub.util.shape import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    HashlistAlreadyExistsError,
 )
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
@@ -47,6 +50,12 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
+    # Creating hashlist 
+    hashlist_key = get_hashlist_key(key)
+    hlist = Hashlist()
+    storage[hashlist_key] = hlist
+
+
 
 class Tensor:
     def __init__(
@@ -81,6 +90,9 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
+        self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
+
+
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,

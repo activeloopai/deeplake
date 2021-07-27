@@ -6,13 +6,13 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.hashlist_meta import HashlistMeta
+from hub.api.hashlist import Hashlist
 from hub.core.index.index import Index
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
-    get_hashlist_meta_key
+    get_hashlist_key
 )
 from hub.core.sample import Sample  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
@@ -116,7 +116,7 @@ class ChunkEngine:
         self.key = key
         self.cache = cache
         self.isHash = isHash
-
+        
         if max_chunk_size <= 2:
             raise ValueError("Max chunk size should be > 2 bytes.")
 
@@ -187,11 +187,11 @@ class ChunkEngine:
     def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
-
-    @property 
-    def hashlist_meta(self):
-        hashlist_meta_key = get_hashlist_meta_key(self.key)
-        return self.cache.get_cachable(hashlist_meta_key, HashlistMeta)
+    
+    @property
+    def hashlist(self):
+        hashlist_key = get_hashlist_key(self.key)
+        return self.cache.get_cachable(hashlist_key, Hashlist)
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -203,13 +203,12 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
-
         self.cache.check_readonly()
         # num samples is always 1 when appending
         num_samples = 1
 
         hash_value = hash_sample(buffer.tobytes())
-        self.hashlist_meta.append(hash_value)
+        self.hashlist.append(hash_value)
         print('Hash: ', hash_value)
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
