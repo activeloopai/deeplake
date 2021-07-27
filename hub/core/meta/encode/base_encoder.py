@@ -142,31 +142,80 @@ class Encoder(ABC):
                 [[*decomposable, num_samples - 1]], dtype=ENCODING_DTYPE
             )
 
+    def _validate_incoming_item(self, item: Any, num_samples: int):
+        """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
+        Subclasses should override this method when applicable.
+
+        Args:
+            item (Any): General input, will be passed along to subclass methods.
+            num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
+
+        Raises:
+            ValueError: For the general case, `num_samples` should be > 0.
+        """
+
+        if num_samples <= 0:
+            raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
+
+    def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
+        """Should determine if `item` can be combined with a row in `self._encoded`."""
+
+    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
+        """Calculates what the next last index should be."""
+        return last_index + num_samples
+
+    def _make_decomposable(self, item: Any, compare_row_index: int = -1) -> Sequence:
+        """Should return a value that can be decompsed with the `*` operator. Example: `*(1, 2)`"""
+
+        return item
+
+    def _derive_value(
+        self, row: np.ndarray, row_index: int, local_sample_index: int
+    ) -> np.ndarray:
+        """Given a row of `self._encoded`, this method should implement how `__getitem__` hands a value to the caller."""
+
+    def __getitem__(
+        self, local_sample_index: int, return_row_index: bool = False
+    ) -> Any:
+        """Derives the value at `local_sample_index`.
+
+        Args:
+            local_sample_index (int): Index of the sample for the desired value.
+            return_row_index (bool): If True, the index of the row that the value was derived from is returned as well.
+                Defaults to False.
+
+        Returns:
+            Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
+        """
+
+        row_index = self.translate_index(local_sample_index)
+        value = self._derive_value(
+            self._encoded[row_index], row_index, local_sample_index
+        )
+
+        if return_row_index:
+            return value, row_index
+
+        return value
+
     def __setitem__(self, local_sample_index: int, item: Any):
         # TODO: docstring
 
         row_index = self.translate_index(local_sample_index)
 
-        # action space (must try in order):
-        # 0. no change (cost delta = 0)
-        # 1. squeeze (cost delta = -2) TODO
-        # 2. move up (cost delta = 0) TODO
-        # 3. move down (cost delta = 0) TODO
-        # 4. replace (cost delta = 0) TODO
-        # 5. split up (cost delta = +1) TODO
-        # 6. split down (cost delta = +1) TODO
-        # 7. split middle (cost delta = +2)  TODO
-
-        # self._try_squeeze(item, row_index)
-        # self._try_moving_up(item, row_index)
-        # self._try_moving_down(item, row_index)
-        # self._try_replacing(item, row_index)
-        # self._try_splitting_up(item, row_index)
-        # self._try_splitting_down(item, row_index)
-        # self._try_splitting_middle(item, row_index)
-
         # note: an action that is "upwards" is being performed towards idx=0
         #       an action that is "downwards" is being performed away from idx=0
+
+        # action space (must be in order):
+        # 0. no change (cost delta = 0)
+        # 1. squeeze (cost delta = -2)
+        # 2. move up (cost delta = 0)
+        # 3. move down (cost delta = 0)
+        # 4. replace (cost delta = 0)
+        # 5. split up (cost delta = +1)
+        # 6. split down (cost delta = +1)
+        # 7. split middle (cost delta = +2)
+
         actions = (
             self._try_not_changing,
             self._setup_update,  # not an actual action
@@ -184,63 +233,17 @@ class Encoder(ABC):
                 # each action returns a bool, if True that means the action was taken.
                 break
 
-        # reset update state
+        self._reset_update_state()
+
+    def _reset_update_state(self):
         self._has_above = None
         self._has_below = None
         self._can_combine_above = None
         self._can_combine_below = None
 
-    """
-    def __setitem__(self, local_sample_index: int, item: Any):
-        # TODO: docstring
-
-        # TODO: optimize this
-        self._validate_incoming_item(item, 1)
-        row_index = self.translate_index(local_sample_index)
-
-        if self._combine_condition(item, row_index):
-            # item matches, no update required
-            return
-
-        # TODO: explain this
-        moved_down = self._try_moving_down(item, row_index)
-        moved_up = self._try_moving_up(item, row_index)
-
-        # TODO: explain this
-        if moved_down != moved_up:
-            return
-
-        split_down = self._try_splitting_down(item, row_index)
-        split_up = self._try_splitting_up(item, row_index)
-
-        # start_encoding = self._encoded[:row_index]
-
-        # decomp_item = self._make_decomposable(item, compare_row_index=row_index)
-        # new_rows = [[*decomp_item, local_sample_index]]
-
-        # subject_row = self._encoded[row_index]
-        # end_encoding = self._encoded[row_index + 1 :]
-
-        # # TODO explain this;
-        # if subject_row[LAST_SEEN_INDEX_COLUMN] > local_sample_index:
-        #     # TODO: this only works when `start_encoding` is empty to begin with!!
-
-        #     # TODO: explain this
-        #     if local_sample_index > 0:
-        #         lower_split_entry = np.array(subject_row)
-        #         lower_split_entry[LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
-        #         new_rows = [lower_split_entry, *new_rows]
-
-        #     upper_split_entry = np.array(subject_row)
-        #     new_rows.append(upper_split_entry)
-
-        # self._encoded = self._squeeze(
-        #     start_encoding, new_rows, end_encoding, row_index, local_sample_index
-        # )
-    """
-
     def _setup_update(self, item: Any, row_index: int, *args):
         # TODO: docstring
+
         self._has_above = row_index > 0
         self._has_below = row_index + 1 < len(self._encoded)
 
@@ -251,12 +254,6 @@ class Encoder(ABC):
         self._can_combine_below = False
         if self._has_below:
             self._can_combine_below = self._combine_condition(item, row_index + 1)
-
-        # print(row_index, len(self._encoded))
-        # print(self._has_above)
-        # print(self._has_below)
-        # print(self._can_combine_above)
-        # print(self._can_combine_below)
 
     def _try_not_changing(self, item: Any, row_index: int, *args) -> bool:
         # TODO: docstring
@@ -342,102 +339,6 @@ class Encoder(ABC):
         return True
 
     def _try_splitting_middle(self, *args) -> bool:
-        raise NotImplementedError
-
-    """
-    def _squeeze(
-        self,
-        start: np.ndarray,
-        new_rows: List[np.ndarray],
-        end: np.ndarray,
-        row_index: int,
-        local_sample_index: int,
-    ):
-        # TODO: docstring (maybe rename the method?)
-
-        # TODO: explain this
-        if len(start) > 0:
-            # TODO: this may fail for bytepositions encoder (row_index/local_sample_index)
-            lower_value = self._derive_value(start[-1], row_index, local_sample_index)
-            upper_value = self._derive_value(new_rows[0], row_index, local_sample_index)
-
-            if lower_value == upper_value:
-                start = start[:-1]
-
-        # TODO: explain this
-        if len(end) > 0:
-            lower_value = self._derive_value(
-                new_rows[-1], row_index, local_sample_index
-            )
-            upper_value = self._derive_value(end[0], row_index, local_sample_index)
-
-            if lower_value == upper_value:
-                new_rows.pop()
-
-        # TODO: explain this
-        entries = [x for x in self._synchronize(start, new_rows, end) if len(x) > 0]
-        return np.concatenate(entries)
-
-    def _synchronize(
-        self, start: np.ndarray, new_rows: List[np.ndarray], end: np.ndarray
-    ):
         # TODO: docstring
 
-        return start, new_rows, end
-    """
-
-    def _validate_incoming_item(self, item: Any, num_samples: int):
-        """Raises appropriate exceptions for when `item` or `num_samples` are invalid.
-        Subclasses should override this method when applicable.
-
-        Args:
-            item (Any): General input, will be passed along to subclass methods.
-            num_samples (int): Number of samples that have `item`'s value. Will be passed along to subclass methods.
-
-        Raises:
-            ValueError: For the general case, `num_samples` should be > 0.
-        """
-
-        if num_samples <= 0:
-            raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
-
-    def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
-        """Should determine if `item` can be combined with a row in `self._encoded`."""
-
-    def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
-        """Calculates what the next last index should be."""
-        return last_index + num_samples
-
-    def _make_decomposable(self, item: Any, compare_row_index: int = -1) -> Sequence:
-        """Should return a value that can be decompsed with the `*` operator. Example: `*(1, 2)`"""
-
-        return item
-
-    def _derive_value(
-        self, row: np.ndarray, row_index: int, local_sample_index: int
-    ) -> np.ndarray:
-        """Given a row of `self._encoded`, this method should implement how `__getitem__` hands a value to the caller."""
-
-    def __getitem__(
-        self, local_sample_index: int, return_row_index: bool = False
-    ) -> Any:
-        """Derives the value at `local_sample_index`.
-
-        Args:
-            local_sample_index (int): Index of the sample for the desired value.
-            return_row_index (bool): If True, the index of the row that the value was derived from is returned as well.
-                Defaults to False.
-
-        Returns:
-            Any: Either just a singular derived value, or a tuple with the derived value and the row index respectively.
-        """
-
-        row_index = self.translate_index(local_sample_index)
-        value = self._derive_value(
-            self._encoded[row_index], row_index, local_sample_index
-        )
-
-        if return_row_index:
-            return value, row_index
-
-        return value
+        raise NotImplementedError
