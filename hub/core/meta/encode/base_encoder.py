@@ -273,8 +273,9 @@ class Encoder(ABC):
         if not (self._can_combine_above and self._can_combine_below):
             return False
 
-        # TODO: do combine
-        raise NotImplementedError
+        start = self._encoded[: row_index - 1]
+        end = self._encoded[row_index + 1 :]
+        self._encoded = np.concatenate((start, end))
 
         return True
 

@@ -134,13 +134,24 @@ def test_update_no_change():
     assert enc.num_samples == 6
 
 
-def test_update_squeeze():
+def test_update_squeeze_trivial():
     enc = ShapeEncoder(np.array([[28, 0, 2], [100, 100, 3], [28, 0, 5]]))
 
     enc[3] = (28, 0)
     _assert_encoded(enc, [[28, 0, 5]])
 
     assert enc.num_samples == 6
+
+
+def test_update_squeeze_complex():
+    enc = ShapeEncoder(
+        np.array([[10, 10, 1], [28, 0, 2], [100, 100, 3], [28, 0, 5], [10, 10, 7]])
+    )
+
+    enc[3] = (28, 0)
+    _assert_encoded(enc, [[10, 10, 1], [28, 0, 5], [10, 10, 7]])
+
+    assert enc.num_samples == 8
 
 
 def test_update_move_up():
