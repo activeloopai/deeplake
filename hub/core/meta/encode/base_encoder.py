@@ -4,18 +4,38 @@ from hub.constants import ENCODING_DTYPE
 import numpy as np
 
 
-LAST_SEEN_INDEX_INDEX = -1
+# the "last seen index" denotes an encoder row's last seen index
+# this is the column that is binary searched over
+LAST_SEEN_INDEX_COLUMN = -1
 
 
 class Encoder(ABC):
     def __init__(self, encoded=None):
-        """Base class for meta encoders. Handles heavy lifting logic for:
+        """Base class for custom encoders that allow reading meta information from sample indices without decoding the entire encoded state.
+
+        Handles heavy lifting logic for:
             - Chunk ID encoder
             - Shape encoder
             - Byte positions encoder
 
         Lookup algorithm is essentially the same for all encoders, however the details are different.
         You can find all of this information in their respective classes.
+
+        Layout:
+            `_encoded` is a 2D array.
+
+            Best case scenario:
+                The best case scenario is when all samples have the same meta and can thus be stored in a single row,
+                providing a O(1) lookup.
+
+            Worst case scenario:
+                The worst case scenario is when every sample has different meta values. This means the number of rows is equal to the number
+                of samples, providing a O(log(N)) lookup.
+
+            Lookup algorithm:
+                To get the decoded meta for some sample index, you do a binary search over the column `LAST_SEEN_INDEX_COLUMN`. This will give you
+                the row that corresponds to that sample index (since the right-most column is our "last index" for that meta information).
+                Then, you decode the row and that is your meta!
 
         Args:
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
@@ -37,7 +57,7 @@ class Encoder(ABC):
     def num_samples(self) -> int:
         if len(self._encoded) == 0:
             return 0
-        return int(self._encoded[-1, LAST_SEEN_INDEX_INDEX] + 1)
+        return int(self._encoded[-1, LAST_SEEN_INDEX_COLUMN] + 1)
 
     def num_samples_at(self, translated_index: int) -> int:
         """Calculates the number of samples a row in the encoding corresponds to.
@@ -51,8 +71,10 @@ class Encoder(ABC):
 
         lower_bound = 0
         if len(self._encoded) > 1 and translated_index > 0:
-            lower_bound = self._encoded[translated_index - 1, LAST_SEEN_INDEX_INDEX] + 1
-        upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_INDEX] + 1
+            lower_bound = (
+                self._encoded[translated_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
+            )
+        upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_COLUMN] + 1
 
         return int(upper_bound - lower_bound)
 
@@ -81,7 +103,7 @@ class Encoder(ABC):
             local_sample_index += self.num_samples
 
         return np.searchsorted(
-            self._encoded[:, LAST_SEEN_INDEX_INDEX], local_sample_index
+            self._encoded[:, LAST_SEEN_INDEX_COLUMN], local_sample_index
         )
 
     def register_samples(self, item: Any, num_samples: int):
@@ -99,15 +121,15 @@ class Encoder(ABC):
 
         if self.num_samples != 0:
             if self._combine_condition(item):
-                last_index = self._encoded[-1, LAST_SEEN_INDEX_INDEX]
+                last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 new_last_index = self._derive_next_last_index(last_index, num_samples)
 
-                self._encoded[-1, LAST_SEEN_INDEX_INDEX] = new_last_index
+                self._encoded[-1, LAST_SEEN_INDEX_COLUMN] = new_last_index
 
             else:
                 decomposable = self._make_decomposable(item)
 
-                last_index = self._encoded[-1, LAST_SEEN_INDEX_INDEX]
+                last_index = self._encoded[-1, LAST_SEEN_INDEX_COLUMN]
                 next_last_index = self._derive_next_last_index(last_index, num_samples)
 
                 shape_entry = np.array(
