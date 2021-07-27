@@ -147,6 +147,44 @@ class Encoder(ABC):
     def __setitem__(self, local_sample_index: int, item: Any):
         # TODO: docstring
 
+        row_index = self.translate_index(local_sample_index)
+
+        # action space (must try in order):
+        # 1. disappear (cost delta = -2) TODO
+        # 2. move up (cost delta = 0) TODO
+        # 3. move down (cost delta = 0) TODO
+        # 4. replace (cost delta = 0) TODO
+        # 5. split up (cost delta = +1) TODO
+        # 6. split down (cost delta = +1) TODO
+        # 7. split middle (cost delta = +2)  TODO
+
+        actions = (
+            self._try_disappear,
+            self._try_moving_up,
+            self._try_moving_down,
+            self._try_replacing,
+            self._try_splitting_up,
+            self._try_splitting_down,
+            self._try_splitting_middle,
+        )
+
+        for action in actions:
+            if action(self, item, row_index):
+                # each action returns a bool, if True that means the action was taken.
+                break
+
+        # self._try_disappear(item, row_index)
+        # self._try_moving_up(item, row_index)
+        # self._try_moving_down(item, row_index)
+        # self._try_replacing(item, row_index)
+        # self._try_splitting_up(item, row_index)
+        # self._try_splitting_down(item, row_index)
+        # self._try_splitting_middle(item, row_index)
+
+    """
+    def __setitem__(self, local_sample_index: int, item: Any):
+        # TODO: docstring
+
         # TODO: optimize this
         self._validate_incoming_item(item, 1)
         row_index = self.translate_index(local_sample_index)
@@ -163,40 +201,37 @@ class Encoder(ABC):
         if moved_down != moved_up:
             return
 
-        start_encoding = self._encoded[:row_index]
+        split_down = self._try_splitting_down(item, row_index)
+        split_up = self._try_splitting_up(item, row_index)
 
-        decomp_item = self._make_decomposable(item, compare_row_index=row_index)
-        new_rows = [[*decomp_item, local_sample_index]]
+        # start_encoding = self._encoded[:row_index]
 
-        subject_row = self._encoded[row_index]
-        end_encoding = self._encoded[row_index + 1 :]
+        # decomp_item = self._make_decomposable(item, compare_row_index=row_index)
+        # new_rows = [[*decomp_item, local_sample_index]]
 
-        # TODO explain this;
-        if subject_row[LAST_SEEN_INDEX_INDEX] > local_sample_index:
-            # TODO: this only works when `start_encoding` is empty to begin with!!
+        # subject_row = self._encoded[row_index]
+        # end_encoding = self._encoded[row_index + 1 :]
 
-            # TODO: explain this
-            if local_sample_index > 0:
-                lower_split_entry = np.array(subject_row)
-                lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
-                new_rows = [lower_split_entry, *new_rows]
+        # # TODO explain this;
+        # if subject_row[LAST_SEEN_INDEX_COLUMN] > local_sample_index:
+        #     # TODO: this only works when `start_encoding` is empty to begin with!!
 
-            upper_split_entry = np.array(subject_row)
-            new_rows.append(upper_split_entry)
+        #     # TODO: explain this
+        #     if local_sample_index > 0:
+        #         lower_split_entry = np.array(subject_row)
+        #         lower_split_entry[LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
+        #         new_rows = [lower_split_entry, *new_rows]
 
-        self._encoded = self._squeeze(
-            start_encoding, new_rows, end_encoding, row_index, local_sample_index
-        )
+        #     upper_split_entry = np.array(subject_row)
+        #     new_rows.append(upper_split_entry)
 
-    def _try_moving_down(self, item: Any, row_index: int) -> bool:
-        # TODO: docstring
+        # self._encoded = self._squeeze(
+        #     start_encoding, new_rows, end_encoding, row_index, local_sample_index
+        # )
+    """
 
-        if row_index > 0 and self._combine_condition(item, row_index - 1):
-            # item can be "moved down"
-            self._encoded[row_index - 1, LAST_SEEN_INDEX_INDEX] += 1
-            return True
-
-        return False
+    def _try_disappear(self, *args) -> bool:
+        raise NotImplementedError
 
     def _try_moving_up(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
@@ -205,11 +240,34 @@ class Encoder(ABC):
             item, row_index + 1
         ):
             # item can be "moved up"
-            self._encoded[row_index, LAST_SEEN_INDEX_INDEX] -= 1
+            self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
             return True
 
         return False
 
+    def _try_moving_down(self, item: Any, row_index: int) -> bool:
+        # TODO: docstring
+
+        if row_index > 0 and self._combine_condition(item, row_index - 1):
+            # item can be "moved down"
+            self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
+            return True
+
+        return False
+
+    def _try_replacing(self, *args) -> bool:
+        raise NotImplementedError
+
+    def _try_splitting_up(self, *args) -> bool:
+        raise NotImplementedError
+
+    def _try_splitting_down(self, *args) -> bool:
+        raise NotImplementedError
+
+    def _try_splitting_middle(self, *args) -> bool:
+        raise NotImplementedError
+
+    """
     def _squeeze(
         self,
         start: np.ndarray,
@@ -249,6 +307,7 @@ class Encoder(ABC):
         # TODO: docstring
 
         return start, new_rows, end
+    """
 
     def _validate_incoming_item(self, item: Any, num_samples: int):
         """Raises appropriate exceptions for when `item` or `num_samples` are invalid.

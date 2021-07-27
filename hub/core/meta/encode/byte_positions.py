@@ -1,5 +1,5 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from typing import Sequence
+from typing import List, Sequence
 import numpy as np
 
 
