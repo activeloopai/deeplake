@@ -207,10 +207,6 @@ class ChunkEngine:
         # num samples is always 1 when appending
         num_samples = 1
 
-        hash_value = hash_sample(buffer.tobytes())
-        self.hashlist.append(hash_value)
-        print('Hash: ', hash_value)
-
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
         buffer = self.tensor_meta.adapt(buffer, shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
@@ -319,6 +315,10 @@ class ChunkEngine:
 
                 # before adding any data, we need to check all sample sizes
                 for sample in samples:
+                    
+                    hash_value = hash_sample(sample.uncompressed_bytes())
+                    self.hashlist.append(hash_value)
+
                     buffer = memoryview(sample.tobytes())
                     self._check_sample_size(len(buffer))
                     buffers.append(buffer)
@@ -333,6 +333,10 @@ class ChunkEngine:
                 for sample in samples:
                     sample_object = Sample(array=sample)
                     sample_objects.append(sample_object)
+
+                    hash_value = hash_sample(sample.uncompressed_bytes())
+                    self.hashlist.append(hash_value)
+                    
                     num_bytes = len(sample_object.compressed_bytes(compression))
                     self._check_sample_size(num_bytes)
 
@@ -359,6 +363,11 @@ class ChunkEngine:
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
             self._check_sample_size(len(data))
+            
+            hash_value = hash_sample(sample.uncompressed_bytes())
+            self.hashlist.append(hash_value)
+            print('Hash: ', hash_value)
+            
             self._append_bytes(data, sample.shape, sample.dtype)
 
         else:

@@ -3,6 +3,7 @@ from typing import Optional, Union
 from hub.core.dataset import Dataset
 from hub.api.dataset import dataset
 from hub.core.tensor import Tensor
+from hub.util.keys import hashlist_exists
 from hub.constants import HASHLIST_FILENAME
 import os, glob
 
@@ -11,16 +12,8 @@ def jaccard_similarity(list1, list2):
     union = (len(list1) + len(list2)) - intersection
     return float(intersection) / union
 
-def find_hashlist(path):
-    print("Path: ", path)
-    print("File to search: ", HASHLIST_FILENAME)
-    for root, dir, files in os.walk(path):
-        print("HELLO!!!!!!!!!!")
-
-
-# Compare hashlists of two different files     
 def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tensor]) -> int:
-    """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
+    """Utility that compares hashlist of two different files
 
     Note:
         No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
@@ -50,7 +43,9 @@ def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tenso
 
     list1 = path1.hashlist
     list2 = path2.hashlist
-    
+
+    #TODO: Add check to make sure list1 and list2 aren't empty
+            
     #Find jaccard similarity between the two lists
     similarity_score = jaccard_similarity(list1.hashes, list2.hashes)
     

@@ -276,10 +276,14 @@ class TensorUnsupportedSampleType(Exception):
             "or resulting dictionary from .read() to be added to the tensor"
         )
 
-
+class HashlistDoesNotExistError(Exception):
+        def __init__(self, key: str):
+            super().__init__(
+                f"Hashlist (key={key}) was not found in the tensor directory."
+        )
+        
 class MetaError(Exception):
     pass
-
 
 class MetaDoesNotExistError(MetaError):
     def __init__(self, key: str):
