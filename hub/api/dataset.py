@@ -237,7 +237,7 @@ class dataset:
     def ingest(
         src: str, dest: str, dest_creds: dict, compression: str, overwrite: bool = False
     ) -> Dataset:
-        """Ingests a dataset from a source and store it as a structured dataset to destination
+        """Ingests a dataset from a source and stores it as a structured dataset to destination
 
         Note:
             Currently only local source paths and image classification datasets are supported for automatic ingestion.
