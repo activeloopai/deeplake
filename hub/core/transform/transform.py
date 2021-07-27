@@ -9,26 +9,12 @@ from hub.core.compute import ThreadProvider, ProcessProvider, ComputeProvider
 from hub.util.remove_cache import get_base_storage
 from hub.util.dataset import try_flushing
 from hub.util.transform import merge_chunk_id_encoders, merge_tensor_metas, store_shard
-
 from hub.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
     MemoryDatasetNotSupportedError,
     UnsupportedSchedulerError,
 )
-
-
-def parallel(fn):
-    def inner(*args, **kwargs):
-        return TransformFunction(fn, args, kwargs)
-
-    return inner
-
-
-def compose(transform_functions):
-    for fn in transform_functions:
-        assert isinstance(fn, TransformFunction)
-    return Pipeline(transform_functions)
 
 
 class TransformFunction:
@@ -44,6 +30,8 @@ class TransformFunction:
 
 class Pipeline:
     def __init__(self, transform_functions: List[TransformFunction]):
+        if not transform_functions:
+            raise Exception  # TODO: Proper exception
         self.transform_functions = transform_functions
 
     def __len__(self):
@@ -90,6 +78,8 @@ class Pipeline:
             raise InvalidInputDataError("__len__")
 
         tensors = list(ds_out.meta.tensors)
+
+        # TODO: convert to function
         for tensor in tensors:
             if len(ds_out[tensor]) != len(ds_out):
                 raise InvalidOutputDatasetError(
@@ -98,6 +88,7 @@ class Pipeline:
 
         workers = max(workers, 1)
 
+        # TODO: Convert to function
         if scheduler == "threaded":
             compute: ComputeProvider = ThreadProvider(workers)
         elif scheduler == "processed":
@@ -150,10 +141,14 @@ class Pipeline:
         merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out)
 
 
-# @parallel
-# def my_fn(a, b, c):
-#     return a + b + c
+def compose(transform_functions: List[TransformFunction]):
+    for fn in transform_functions:
+        assert isinstance(fn, TransformFunction)
+    return Pipeline(transform_functions)
 
-# res = my_fn(1, 2, c=3).eval(None, None, None, None)
-# import pickle
-# pickle.dumps(res)
+
+def parallel(fn):
+    def inner(*args, **kwargs):
+        return TransformFunction(fn, args, kwargs)
+
+    return inner

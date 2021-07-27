@@ -12,6 +12,7 @@ from hub.constants import MB
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import InvalidTransformOutputError, TensorMismatchError
 from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
+from hub.core.transform.transform_shard import TransformDatasetShard
 
 
 def transform_sample(
@@ -29,38 +30,35 @@ def transform_sample(
     """
     result = sample
     for index in range(len(pipeline)):
-        fn = pipeline.transform_functions[index].func
-        args = pipeline.transform_functions[index].args
-        kwargs = pipeline.transform_functions[index].kwargs
-        if isinstance(result, (list, tuple)) and index != 0:
-            result = [fn(data, *args, **kwargs) for data in result]
+        transform_function = pipeline.transform_functions[index]
+        fn = transform_function.func
+        args = transform_function.args
+        kwargs = transform_function.kwargs
+
+        if isinstance(result, TransformDatasetShard):
+            all_samples_out = []
+            for item in result:
+                samples_out = TransformDatasetShard()
+                fn(item, samples_out, *args, **kwargs)
+                samples_out._check_length_equal()
+                all_samples_out.append(samples_out)
+            result = combine_shards(all_samples_out)
+            result._check_length_equal()  # TODO separate exception for this
         else:
-            result = fn(result, *args, **kwargs)
-        if isinstance(result, list):
-            result = flatten_list_of_list(result)
-        verify_transform_output(result)
-    return result if isinstance(result, list) else [result]
+            samples_out = TransformDatasetShard()
+            fn(result, samples_out, *args, **kwargs)
+            samples_out._check_length_equal()
+            result = samples_out
+    return result
 
 
-def flatten_list_of_list(ls: List) -> List:
-    """Flattens list of list into 1D list"""
-    items = []
-    for r in ls:
-        if isinstance(r, dict):
-            items.append(r)
-        else:
-            items.extend(r)
-    return items
-
-
-def verify_transform_output(output):
-    """Checks whether the output of a transform is valid."""
-    if isinstance(output, (list, tuple)):
-        for item in output:
-            if not isinstance(item, dict):
-                raise InvalidTransformOutputError(item)
-    elif not isinstance(output, dict):
-        raise InvalidTransformOutputError
+def combine_shards(shards: List[TransformDatasetShard]):
+    """Combines multiple shards into a single dataset shard"""
+    final_shard = TransformDatasetShard()
+    for shard in shards:
+        for tensor in shard.tensors:
+            final_shard[tensor].extend(shard[tensor].numpy())
+    return final_shard
 
 
 def store_shard(transform_input: Tuple):
@@ -114,14 +112,11 @@ def store_shard(transform_input: Tuple):
 
     for i in range(len(data_shard)):
         sample = data_shard[i]
-        if isinstance(sample, hub.core.dataset.Dataset):
-            sample = {key: sample[key].numpy() for key in sample.tensors}
-        results = transform_sample(sample, pipeline)
-        for result in results:
-            if set(result.keys()) != set(tensors):
-                raise TensorMismatchError(list(tensors), list(result.keys()))
-            for key, value in result.items():
-                all_chunk_engines[key].append(value)
+        result = transform_sample(sample, pipeline)
+        if set(result.tensors.keys()) != set(tensors):
+            raise TensorMismatchError(list(tensors), list(result.tensors.keys()))
+        for tensor in result.tensors:
+            all_chunk_engines[tensor].extend(result[tensor].numpy())
 
     all_tensor_metas = {}
     all_chunk_id_encoders = {}

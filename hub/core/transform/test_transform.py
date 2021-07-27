@@ -10,25 +10,24 @@ from click.testing import CliRunner
 
 
 @hub.parallel
-def fn1(i, mul=1, copy=1):
-    d = {}
-    d["image"] = np.ones((337, 200)) * i * mul
-    d["label"] = np.ones((1,)) * i * mul
-    return d if copy == 1 else [d] * copy
+def fn1(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.image.append(np.ones((337, 200)) * sample_in * mul)
+        samples_out.label.append(np.ones((1,)) * sample_in * mul)
 
 
 @hub.parallel
-def fn2(sample, mul=1, copy=1):
-    d = {"image": sample["image"] * mul, "label": sample["label"] * mul}
-    return d if copy == 1 else [d] * copy
+def fn2(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.image.append(sample_in.image.numpy() * mul)
+        samples_out.label.append(sample_in.label.numpy() * mul)
 
 
 @hub.parallel
-def fn3(i, mul=1, copy=1):
-    d = {}
-    d["image"] = np.ones((1310, 2087)) * i * mul
-    d["label"] = np.ones((13,)) * i * mul
-    return d if copy == 1 else [d] * copy
+def fn3(sample_in, samples_out, mul=1, copy=1):
+    for _ in range(copy):
+        samples_out.image.append(np.ones((1310, 2087)) * sample_in * mul)
+        samples_out.label.append(np.ones((13,)) * sample_in * mul)
 
 
 @enabled_datasets
