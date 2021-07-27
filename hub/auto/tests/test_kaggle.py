@@ -13,7 +13,7 @@ def test_ingestion_simple(local_ds: Dataset):
         tag="andradaolteanu/birdcall-recognition-data",
         src=kaggle_path,
         dest=local_ds.path,
-        src_creds={},
+        dest_creds={},
         compression="jpeg",
         overwrite=False,
     )
@@ -28,7 +28,7 @@ def test_ingestion_sets(local_ds: Dataset):
         tag="thisiseshan/bird-classes",
         src=kaggle_path,
         dest=local_ds.path,
-        src_creds={},
+        dest_creds={},
         compression="jpeg",
         overwrite=False,
     )
@@ -56,7 +56,7 @@ def test_kaggle_exception(local_ds: Dataset):
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
-            src_creds={},
+            dest_creds={},
             compression="jpeg",
             overwrite=False,
         )
@@ -64,7 +64,7 @@ def test_kaggle_exception(local_ds: Dataset):
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
-            src_creds={},
+            dest_creds={},
             compression="jpeg",
             overwrite=False,
         )

@@ -148,11 +148,10 @@ class ImageClassification(UnstructuredDataset):
                     reshaped_image = np.expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
-                except Exception:
-                    reason = "Unknown"
+                except Exception as e:
 
                     warnings.warn(
-                        f"[Skipping] Could not upload sample '{file_path}'. Reason: {reason}"
+                        f"[Skipping] Could not upload sample '{file_path}'. Reason: {e}"
                     )
                     continue
 

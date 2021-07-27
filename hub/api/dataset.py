@@ -235,7 +235,7 @@ class dataset:
     @staticmethod
     @hub_reporter.record_call
     def ingest(
-        src: str, dest: str, src_creds: dict, compression: str, overwrite: bool = False
+        src: str, dest: str, dest_creds: dict, compression: str, overwrite: bool = False
     ) -> Dataset:
         """Ingests a dataset from a source and store it as a structured dataset to destination
 
@@ -263,11 +263,11 @@ class dataset:
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
-        if os.path.isdir(src) and os.path.isdir(dest):
+        if os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        ds = hub.dataset(dest)
+        ds = hub.dataset(dest, creds=dest_creds)
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
@@ -285,7 +285,7 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
-        src_creds: dict,
+        dest_creds: dict,
         compression: str,
         overwrite: bool = False,
     ) -> Dataset:
@@ -319,7 +319,11 @@ class dataset:
         download_kaggle_dataset(tag, local_path=src)
 
         ds = hub.ingest(
-            src=src, dest=dest, src_creds=None, compression=compression, overwrite=False
+            src=src,
+            dest=dest,
+            dest_creds=dest_creds,
+            compression=compression,
+            overwrite=overwrite,
         )
 
         return ds
