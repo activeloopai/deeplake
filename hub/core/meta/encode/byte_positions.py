@@ -1,6 +1,5 @@
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
-from hub.constants import ENCODING_DTYPE
-from typing import Sequence, Tuple
+from typing import Sequence
 import numpy as np
 
 
