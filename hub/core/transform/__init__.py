@@ -1,1 +1,1 @@
-from hub.core.transform.transform import parallel, compose
+from hub.core.transform.transform import compute, compose

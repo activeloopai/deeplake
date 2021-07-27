@@ -147,7 +147,7 @@ def compose(transform_functions: List[TransformFunction]):
     return Pipeline(transform_functions)
 
 
-def parallel(fn):
+def compute(fn):
     def inner(*args, **kwargs):
         return TransformFunction(fn, args, kwargs)
 

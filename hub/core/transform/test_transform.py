@@ -9,21 +9,21 @@ from hub.tests.dataset_fixtures import enabled_datasets
 from click.testing import CliRunner
 
 
-@hub.parallel
+@hub.compute
 def fn1(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(np.ones((337, 200)) * sample_in * mul)
         samples_out.label.append(np.ones((1,)) * sample_in * mul)
 
 
-@hub.parallel
+@hub.compute
 def fn2(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(sample_in.image.numpy() * mul)
         samples_out.label.append(sample_in.label.numpy() * mul)
 
 
-@hub.parallel
+@hub.compute
 def fn3(sample_in, samples_out, mul=1, copy=1):
     for _ in range(copy):
         samples_out.image.append(np.ones((1310, 2087)) * sample_in * mul)
