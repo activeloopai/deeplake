@@ -150,6 +150,7 @@ class Encoder(ABC):
         row_index = self.translate_index(local_sample_index)
 
         # action space (must try in order):
+        # 0. match (cost delta = 0)
         # 1. disappear (cost delta = -2) TODO
         # 2. move up (cost delta = 0) TODO
         # 3. move down (cost delta = 0) TODO
@@ -158,7 +159,16 @@ class Encoder(ABC):
         # 6. split down (cost delta = +1) TODO
         # 7. split middle (cost delta = +2)  TODO
 
+        # self._try_disappear(item, row_index)
+        # self._try_moving_up(item, row_index)
+        # self._try_moving_down(item, row_index)
+        # self._try_replacing(item, row_index)
+        # self._try_splitting_up(item, row_index)
+        # self._try_splitting_down(item, row_index)
+        # self._try_splitting_middle(item, row_index)
+
         actions = (
+            self._try_match,
             self._try_disappear,
             self._try_moving_up,
             self._try_moving_down,
@@ -172,14 +182,6 @@ class Encoder(ABC):
             if action(self, item, row_index):
                 # each action returns a bool, if True that means the action was taken.
                 break
-
-        # self._try_disappear(item, row_index)
-        # self._try_moving_up(item, row_index)
-        # self._try_moving_down(item, row_index)
-        # self._try_replacing(item, row_index)
-        # self._try_splitting_up(item, row_index)
-        # self._try_splitting_down(item, row_index)
-        # self._try_splitting_middle(item, row_index)
 
     """
     def __setitem__(self, local_sample_index: int, item: Any):
@@ -229,6 +231,9 @@ class Encoder(ABC):
         #     start_encoding, new_rows, end_encoding, row_index, local_sample_index
         # )
     """
+
+    def _try_match(self, *args) -> bool:
+        raise NotImplementedError
 
     def _try_disappear(self, *args) -> bool:
         raise NotImplementedError
