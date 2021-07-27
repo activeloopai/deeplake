@@ -126,7 +126,6 @@ class Encoder(ABC):
         # TODO: docstring
 
         # TODO: optimize this
-
         self._validate_incoming_item(item, 1)
         row_index = self.translate_index(local_sample_index)
 
@@ -152,12 +151,13 @@ class Encoder(ABC):
 
         # TODO explain this;
         if subject_row[LAST_SEEN_INDEX_INDEX] > local_sample_index:
-            print(subject_row, "subject")
-
             # TODO: this only works when `start_encoding` is empty to begin with!!
-            lower_split_entry = np.array(subject_row)
-            lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
-            new_rows = [lower_split_entry, *new_rows]
+
+            # TODO: explain this
+            if local_sample_index > 0:
+                lower_split_entry = np.array(subject_row)
+                lower_split_entry[LAST_SEEN_INDEX_INDEX] = local_sample_index - 1
+                new_rows = [lower_split_entry, *new_rows]
 
             upper_split_entry = np.array(subject_row)
             new_rows.append(upper_split_entry)
@@ -198,11 +198,6 @@ class Encoder(ABC):
     ):
         # TODO: docstring (maybe rename the method?)
 
-        print("before")
-        print(start)
-        print(new_rows)
-        print(end)
-
         # TODO: explain this
         if len(start) > 0:
             # TODO: this may fail for bytepositions encoder (row_index/local_sample_index)
@@ -221,11 +216,6 @@ class Encoder(ABC):
 
             if lower_value == upper_value:
                 new_rows.pop()
-
-        print("after")
-        print(start)
-        print(new_rows)
-        print(end)
 
         entries = [x for x in (start, new_rows, end) if len(x) > 0]
         return np.concatenate(entries)
