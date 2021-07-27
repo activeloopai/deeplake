@@ -273,6 +273,7 @@ class Encoder(ABC):
         if not (self._can_combine_above and self._can_combine_below):
             return False
 
+        # row can be "squeezed away"
         start = self._encoded[: row_index - 1]
         end = self._encoded[row_index + 1 :]
         self._encoded = np.concatenate((start, end))
@@ -282,22 +283,24 @@ class Encoder(ABC):
     def _try_moving_up(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
 
-        if self._can_combine_above and not self._can_combine_below:
-            # item can be "moved up"
-            self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
-            return True
+        if self._can_combine_below or not self._can_combine_above:
+            return False
 
-        return False
+        # sample can be "moved up"
+        self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
+
+        return True
 
     def _try_moving_down(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
 
-        if self._can_combine_below and not self._can_combine_above:
-            # item can be "moved down"
-            self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
-            return True
+        if self._can_combine_above or not self._can_combine_below:
+            return False
 
-        return False
+        # sample can be "moved down"
+        self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
+
+        return True
 
     def _try_replacing(self, *args) -> bool:
         raise NotImplementedError
