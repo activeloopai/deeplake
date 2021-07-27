@@ -1,4 +1,3 @@
-from hub.core.chunk_engine import is_uniform_sequence
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
 
@@ -8,16 +7,18 @@ class TransformDatasetTensor:
         self.items = [] if base_tensor is None else base_tensor.items
         self.base_tensor = base_tensor or self
         self.slice_list = slice_list or []
+        self.length = None
 
     def numpy(self) -> None:
         value = self.items
         for slice_ in self.slice_list:
             value = value[slice_]
-        if isinstance(value, list) and is_uniform_sequence(value):
-            return np.array(value)
+        self.length = len(value)
         return value
 
     def __len__(self) -> int:
+        if self.length is not None:
+            return self.length
         return len(self.numpy())
 
     def __getitem__(self, index):
@@ -30,7 +31,7 @@ class TransformDatasetTensor:
         )
 
     def append(self, item):
-        item = np.array(item)
+        item = np.asarray(item)
         if self.items:
             expected_dims = self.items[-1].ndim
             dims = item.ndim

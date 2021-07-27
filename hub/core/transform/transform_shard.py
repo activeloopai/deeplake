@@ -4,14 +4,6 @@ from hub.util.exceptions import TensorDoesNotExistError
 # TODO: add tests
 
 
-def slice_with_list(item, slice_list):
-    """Slice an object with a list of slices."""
-    sliced = item
-    for slice_ in slice_list:
-        sliced = sliced[slice_]
-    return sliced
-
-
 class TransformDatasetShard:
     def __init__(self, all_tensors=None, slice_list=None):
         self.tensors = all_tensors or {}
