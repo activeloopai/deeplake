@@ -51,7 +51,7 @@ class BytePositionsEncoder(Encoder):
             providing a O(1) lookup.
 
         Worst case scenario:
-            The worst case scenario is when all samples are a differet number of bytes long. This means the number of rows is equal to the number
+            The worst case scenario is when all samples are a different number of bytes long. This means the number of rows is equal to the number
             of samples, providing a O(log(N)) lookup.
 
         Lookup algorithm:
