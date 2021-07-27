@@ -59,22 +59,20 @@ class Encoder(ABC):
             return 0
         return int(self._encoded[-1, LAST_SEEN_INDEX_COLUMN] + 1)
 
-    def num_samples_at(self, translated_index: int) -> int:
+    def num_samples_at(self, row_index: int) -> int:
         """Calculates the number of samples a row in the encoding corresponds to.
 
         Args:
-            translated_index (int): This index will be used when indexing `self._encoded`.
+            row_index (int): This index will be used when indexing `self._encoded`.
 
         Returns:
             int: Representing the number of samples that a row's derivable value represents.
         """
 
         lower_bound = 0
-        if len(self._encoded) > 1 and translated_index > 0:
-            lower_bound = (
-                self._encoded[translated_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
-            )
-        upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_COLUMN] + 1
+        if len(self._encoded) > 1 and row_index > 0:
+            lower_bound = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
+        upper_bound = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] + 1
 
         return int(upper_bound - lower_bound)
 
@@ -191,6 +189,7 @@ class Encoder(ABC):
         self._has_below = None
         self._can_combine_above = None
         self._can_combine_below = None
+        self._samples_at_row_index = None
 
     """
     def __setitem__(self, local_sample_index: int, item: Any):
@@ -254,6 +253,8 @@ class Encoder(ABC):
         if self._has_below:
             self._can_combine_below = self._combine_condition(item, row_index + 1)
 
+        self._samples_at_row_index = self.num_samples_at(row_index)
+
         # print(row_index, len(self._encoded))
         # print(self._has_above)
         # print(self._has_below)
@@ -302,8 +303,17 @@ class Encoder(ABC):
 
         return True
 
-    def _try_replacing(self, *args) -> bool:
-        raise NotImplementedError
+    def _try_replacing(self, item: Any, row_index: int) -> bool:
+        # TODO: docstring
+
+        if self._samples_at_row_index != 1:
+            return False
+
+        # sample can be "replaced"
+        # TODO: this may not work for byte positions encoder
+        self._encoded[row_index, :LAST_SEEN_INDEX_COLUMN] = item
+
+        return True
 
     def _try_splitting_up(self, *args) -> bool:
         raise NotImplementedError
