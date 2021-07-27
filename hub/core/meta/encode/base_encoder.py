@@ -12,7 +12,7 @@ LAST_SEEN_INDEX_COLUMN = -1
 class Encoder(ABC):
     def __init__(self, encoded=None):
         """Base class for custom encoders that allow reading meta information from sample indices without decoding the entire encoded state.
-        
+
         Handles heavy lifting logic for:
             - Chunk ID encoder
             - Shape encoder
@@ -71,7 +71,9 @@ class Encoder(ABC):
 
         lower_bound = 0
         if len(self._encoded) > 1 and translated_index > 0:
-            lower_bound = self._encoded[translated_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
+            lower_bound = (
+                self._encoded[translated_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
+            )
         upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_COLUMN] + 1
 
         return int(upper_bound - lower_bound)
