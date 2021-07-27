@@ -291,9 +291,9 @@ class Encoder(ABC):
     def _try_moving_down(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
 
-        if row_index > 0 and self._combine_condition(item, row_index - 1):
+        if self._can_combine_below and not self._can_combine_above:
             # item can be "moved down"
-            self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
+            self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
             return True
 
         return False
