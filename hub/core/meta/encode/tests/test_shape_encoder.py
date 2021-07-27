@@ -144,6 +144,18 @@ def test_update_squeeze():
 
 
 def test_update_move_up():
+    enc = ShapeEncoder(np.array([[101, 100, 0], [100, 101, 5]]))
+
+    enc[1] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
+
+    enc[2] = (101, 100)
+    _assert_encoded(enc, [[101, 100, 2], [100, 101, 5]])
+
+    assert enc.num_samples == 6
+
+
+def test_update_move_down():
     enc = ShapeEncoder(np.array([[101, 100, 5], [100, 101, 10]]))
 
     enc[5] = (100, 101)
@@ -156,18 +168,6 @@ def test_update_move_up():
     _assert_encoded(enc, [[101, 100, 2], [100, 101, 10]])
 
     assert enc.num_samples == 11
-
-
-def test_update_move_down():
-    enc = ShapeEncoder(np.array([[101, 100, 0], [100, 101, 5]]))
-
-    enc[1] = (101, 100)
-    _assert_encoded(enc, [[101, 100, 1], [100, 101, 5]])
-
-    enc[2] = (101, 100)
-    _assert_encoded(enc, [[101, 100, 2], [100, 101, 5]])
-
-    assert enc.num_samples == 6
 
 
 def test_update_replace():

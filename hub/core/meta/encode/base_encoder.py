@@ -151,7 +151,7 @@ class Encoder(ABC):
 
         # action space (must try in order):
         # 0. no change (cost delta = 0)
-        # 1. disappear (cost delta = -2) TODO
+        # 1. squeeze (cost delta = -2) TODO
         # 2. move up (cost delta = 0) TODO
         # 3. move down (cost delta = 0) TODO
         # 4. replace (cost delta = 0) TODO
@@ -159,7 +159,7 @@ class Encoder(ABC):
         # 6. split down (cost delta = +1) TODO
         # 7. split middle (cost delta = +2)  TODO
 
-        # self._try_disappear(item, row_index)
+        # self._try_squeeze(item, row_index)
         # self._try_moving_up(item, row_index)
         # self._try_moving_down(item, row_index)
         # self._try_replacing(item, row_index)
@@ -167,9 +167,12 @@ class Encoder(ABC):
         # self._try_splitting_down(item, row_index)
         # self._try_splitting_middle(item, row_index)
 
+        # note: an action that is "upwards" is being performed towards idx=0
+        #       an action that is "downwards" is being performed away from idx=0
         actions = (
-            self._try_no_change,
-            self._try_disappear,
+            self._try_not_changing,
+            self._setup_update,  # not an actual action
+            self._try_squeezing,
             self._try_moving_up,
             self._try_moving_down,
             self._try_replacing,
@@ -182,6 +185,12 @@ class Encoder(ABC):
             if action(item, row_index):
                 # each action returns a bool, if True that means the action was taken.
                 break
+
+        # reset update state
+        self._has_above = None
+        self._has_below = None
+        self._can_combine_above = None
+        self._can_combine_below = None
 
     """
     def __setitem__(self, local_sample_index: int, item: Any):
@@ -232,22 +241,49 @@ class Encoder(ABC):
         # )
     """
 
-    def _try_no_change(self, item: Any, row_index: int) -> bool:
+    def _setup_update(self, item: Any, row_index: int):
+        # TODO: docstring
+        self._has_above = row_index > 0
+        self._has_below = row_index + 1 < len(self._encoded)
+
+        self._can_combine_above = False
+        if self._has_above:
+            self._can_combine_above = self._combine_condition(item, row_index - 1)
+
+        self._can_combine_below = False
+        if self._has_below:
+            self._can_combine_below = self._combine_condition(item, row_index + 1)
+
+        # print(row_index, len(self._encoded))
+        # print(self._has_above)
+        # print(self._has_below)
+        # print(self._can_combine_above)
+        # print(self._can_combine_below)
+
+    def _try_not_changing(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
 
         return self._combine_condition(item, row_index)
 
-    def _try_disappear(self, *args) -> bool:
+    def _try_squeezing(self, item: Any, row_index) -> bool:
+
+        if not (self._has_above and self._has_below):
+            return False
+
+        if not (self._can_combine_above and self._can_combine_below):
+            return False
+
+        # TODO: do combine
         raise NotImplementedError
+
+        return True
 
     def _try_moving_up(self, item: Any, row_index: int) -> bool:
         # TODO: docstring
 
-        if row_index < len(self._encoded) - 1 and self._combine_condition(
-            item, row_index + 1
-        ):
+        if self._can_combine_above and not self._can_combine_below:
             # item can be "moved up"
-            self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
+            self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
             return True
 
         return False
