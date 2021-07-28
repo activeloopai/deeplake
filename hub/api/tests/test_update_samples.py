@@ -16,7 +16,7 @@ def _add_dummy_mnist(ds: Dataset, images_compression: str = None):
 
 
 def _make_update_assert_equal(
-    ds_generator: Callable, tensor_name: str, index, value, pre_index=None
+    ds_generator: Callable, tensor_name: str, index, value, pre_index=None, check_persistence: bool = True 
 ):
     """Updates a tensor and checks that the data is as expected.
 
@@ -56,16 +56,18 @@ def _make_update_assert_equal(
     # non-persistence check
     actual = tensor.numpy(aslist=True)
     assert_array_lists_equal(actual, expected)
-
-    # persistence check
-    ds = ds_generator()
-    tensor = ds[tensor_name]
-    actual = tensor.numpy(aslist=True)
-    assert_array_lists_equal(actual, expected)
-
-    # make sure no new values are recorded
-    ds = ds_generator()
     assert len(ds) == 10
+
+    if check_persistence:
+        # persistence check
+        ds = ds_generator()
+        tensor = ds[tensor_name]
+        actual = tensor.numpy(aslist=True)
+        assert_array_lists_equal(actual, expected)
+
+        # make sure no new values are recorded
+        ds = ds_generator()
+        assert len(ds) == 10
 
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
