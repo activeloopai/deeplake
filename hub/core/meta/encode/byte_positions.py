@@ -62,18 +62,14 @@ class BytePositionsEncoder(Encoder):
         """Starting at `start_row_index`, move downwards through `self._encoded` and update all start bytes
         for each row if applicable. Used for updating."""
 
-        print('before')
-        print(self._encoded)
 
         for row_index in range(start_row_index, len(self._encoded)):
-            print('row', row_index)
-            print(self._encoded[row_index])
-            bytes_under_row = self.get_sum_of_bytes(row_index)
-            print(bytes_under_row)
+            if row_index == 0:
+                bytes_under_row = 0
+            else:
+                bytes_under_row = self.get_sum_of_bytes(row_index-1)
             self._encoded[row_index, START_BYTE_COLUMN] = bytes_under_row
 
-        print('after')
-        print(self._encoded)
 
     def _derive_value(
         self, row: np.ndarray, row_index: int, local_sample_index: int
