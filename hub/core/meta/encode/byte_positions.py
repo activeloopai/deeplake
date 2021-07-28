@@ -50,7 +50,9 @@ class BytePositionsEncoder(Encoder):
         """Starting at `start_row_index`, move downwards through `self._encoded` and update all start bytes
         for each row if applicable."""
 
-        raise NotImplementedError
+        for row_index in range(start_row_index, len(self._encoded)):
+            bytes_under_row = self.num_bytes_encoded_under_row(row_index)
+            self._encoded[row_index, START_BYTE_COLUMN] = bytes_under_row
 
     def _derive_value(
         self, row: np.ndarray, row_index: int, local_sample_index: int
