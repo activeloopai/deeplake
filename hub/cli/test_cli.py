@@ -4,7 +4,7 @@ from click.testing import CliRunner
 
 import hub
 from hub.cli.auth import login, logout
-from hub.cli.list_datasets import list_my_datasets, list_public_datasets
+from hub.cli.list_datasets import list_datasets
 
 
 def test_cli_auth(hub_cloud_dev_credentials):
@@ -26,20 +26,20 @@ def test_get_datasets(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
 
     runner.invoke(login, f"-u {username} -p {password}")
-    ds = hub.dataset("hub://testingacc/test_list")
+    ds1 = hub.dataset("hub://testingacc/test_list")
 
-    res = runner.invoke(list_my_datasets)
+    res = runner.invoke(list_datasets)
     assert res.exit_code == 0
     assert "testingacc/test_list" in res.output
 
-    res = runner.invoke(list_my_datasets, "--workspace activeloop")
-    assert res.exit_code == 1
+    res = runner.invoke(list_datasets, "--workspace activeloop")
+    assert len(res.output.split("\n")) > 0
 
-    res = runner.invoke(list_public_datasets)
-    assert res.exit_code == 0
-    assert "testingacc/test_list" in res.output
+    ds2 = hub.dataset("hub://testingacc/test_list_private", public=False)
+    res = runner.invoke(logout)
+    assert res.output == "Logged out of Activeloop.\n"
+    res = runner.invoke(list_datasets)
+    assert "testingacc/test_list_private" not in res.output
 
-    res = runner.invoke(list_public_datasets, "--workspace activeloop")
-    assert res.exit_code == 0
-    assert "testingacc/test_list" not in res.output
-    ds.delete()
+    ds1.delete()
+    ds2.delete()

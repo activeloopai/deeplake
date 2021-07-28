@@ -1,6 +1,5 @@
 import requests
-import warnings
-from typing import Optional
+from typing import Dict, Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
@@ -217,36 +216,46 @@ class HubBackendClient:
         ).json()
         return response["_id"], response["organizations"]
 
-    def get_workspace_datasets(self, workspace: str = ""):
-        suffix = LIST_DATASETS.format("all")
-        username, organizations = self.get_user_profile()
+    def get_workspace_datasets(
+        self, workspace: str = None, suffix_public: str = None, suffix_user: str = None
+    ):
+        _, organizations = self.get_user_profile()
         if workspace in organizations:
             response = self.request(
                 "GET",
-                suffix,
+                suffix_user,
                 endpoint=self.endpoint(),
                 params={"organization": workspace},
             ).json()
-            return response
-
-    def get_datasets(self, workspace: str):
-        suffix = LIST_DATASETS.format("public")
-        if not workspace:
+        else:
+            print(
+                f"You are not a member of organization {workspace}. List of accessible datasets from {workspace}: ",
+            )
             response = self.request(
                 "GET",
-                suffix,
+                suffix_public,
+                endpoint=self.endpoint(),
+                params={"organization": workspace},
+            ).json()
+        return response
+
+    def get_datasets(self, workspace: str):
+        suffix_public = LIST_DATASETS.format("public")
+        suffix_user = LIST_DATASETS.format("all")
+        if workspace:
+            res_datasets = self.get_workspace_datasets(
+                workspace, suffix_public, suffix_user
+            )
+        else:
+            public_datasets = self.request(
+                "GET",
+                suffix_public,
                 endpoint=self.endpoint(),
             ).json()
-        else:
-            response = self.get_workspace_datasets(workspace)
-            if response is None:
-                print(
-                    f"You are not a member of organization {workspace}. List of accessible datasets from {workspace}: ",
-                )
-                response = self.request(
-                    "GET",
-                    suffix,
-                    endpoint=self.endpoint(),
-                    params={"organization": workspace},
-                ).json()
-        return [ds_dict["_id"] for ds_dict in response]
+            user_datasets = self.request(
+                "GET",
+                suffix_user,
+                endpoint=self.endpoint(),
+            ).json()
+            res_datasets = public_datasets + user_datasets
+        return [ds["_id"] for ds in res_datasets]
