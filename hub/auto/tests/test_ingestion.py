@@ -1,6 +1,5 @@
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
-from hub.auto.unstructured.image_classification import ImageClassification
 from hub.util.exceptions import InvalidPathException, SamePathException
 import pytest
 import hub
