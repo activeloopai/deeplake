@@ -258,7 +258,13 @@ class Encoder(ABC):
                 f"Update could not be executed for idx={local_sample_index}, item={str(item)}"
             )
 
+        self._post_process_state(start_row_index=max(row_index - 2, 0))
         self._reset_update_state()
+
+    def _post_process_state(self, start_row_index: int):
+        """Overridden when more complex columns exist in subclasses. Example: byte positions."""
+
+        pass
 
     def _reset_update_state(self):
         self._has_above = None
@@ -429,7 +435,6 @@ class Encoder(ABC):
             return False
 
         # sample can be "replaced"
-        # TODO: this may not work for byte positions encoder
         self._encoded[row_index, :LAST_SEEN_INDEX_COLUMN] = item
 
         return True

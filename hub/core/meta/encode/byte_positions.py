@@ -46,6 +46,12 @@ class BytePositionsEncoder(Encoder):
         sb = self.num_bytes_encoded_under_row(compare_row_index)
         return [num_bytes, sb]
 
+    def _post_process_state(self, start_row_index: int):
+        """Starting at `start_row_index`, move downwards through `self._encoded` and update all start bytes
+        for each row if applicable."""
+
+        raise NotImplementedError
+
     def _derive_value(
         self, row: np.ndarray, row_index: int, local_sample_index: int
     ) -> np.ndarray:
