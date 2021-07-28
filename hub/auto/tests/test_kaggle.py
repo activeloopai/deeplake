@@ -1,5 +1,6 @@
 from hub.api.dataset import Dataset
 from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError, SamePathException
+from hub.tests.common import get_dummy_data_path
 import pytest
 import os
 import hub
@@ -22,6 +23,7 @@ def test_ingestion_simple(local_ds: Dataset):
 
 def test_ingestion_sets(local_ds: Dataset):
     kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_sets")
+
     ds = hub.ingest_kaggle(
         tag="thisiseshan/bird-classes",
         src=kaggle_path,
@@ -48,11 +50,12 @@ def test_ingestion_sets(local_ds: Dataset):
 
 def test_kaggle_exception(local_ds: Dataset):
     kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data")
+    dummy_path = get_dummy_data_path("tests_auto/image_classification")
 
     with pytest.raises(SamePathException):
         hub.ingest(
-            src=kaggle_path,
-            dest=kaggle_path,
+            src=dummy_path,
+            dest=dummy_path,
             dest_creds=None,
             compression="jpeg",
             overwrite=False,
