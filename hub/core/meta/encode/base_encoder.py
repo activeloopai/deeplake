@@ -229,10 +229,16 @@ class Encoder(ABC):
             self._try_splitting_middle,
         )
 
+        action_taken = None
         for action in actions:
             if action(item, row_index, local_sample_index):
                 # each action returns a bool, if True that means the action was taken.
+                action_taken = action
                 break
+        if action_taken is None:
+            raise ValueError(
+                f"Update could not be executed for idx={local_sample_index}, item={str(item)}"
+            )
 
         self._reset_update_state()
 
@@ -373,8 +379,29 @@ class Encoder(ABC):
 
         return True
 
-    def _try_splitting_middle(self, *args) -> bool:
+    def _try_splitting_middle(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
         # TODO: docstring
 
-        raise NotImplementedError
+        # example of splitting middle:
+        # B -> A @ 3
+        # -----
+        # A, 0
+        # B, 5
+        # A, 10
+        # -----
+        # A, 0
+        # B, 2
+        # A, 3
+        # B, 5
+        # A, 10
+
+        # 2 rows should be created, and 1 should be updated
+        start = np.array(self._encoded[: row_index + 1])
+        new_row = [*item, local_sample_index]
+        end = self._encoded[row_index:]
+        start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
+        self._encoded = np.concatenate((start, [new_row], end))
+
         return True
