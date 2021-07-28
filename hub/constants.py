@@ -11,8 +11,9 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-Image.init()
-SUPPORTED_COMPRESSIONS = [c.lower() for c in Image.SAVE if c in Image.OPEN] + [None]
+# Image.init()
+# SUPPORTED_COMPRESSIONS = [c.lower() for c in Image.SAVE if c in Image.OPEN] + [None]
+SUPPORTED_COMPRESSIONS = ["jpeg", "png", "bmp", "gif", None]
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.

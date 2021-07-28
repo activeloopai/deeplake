@@ -2,10 +2,10 @@ from hub.tests.common import get_actual_compression_from_buffer
 import numpy as np
 import pytest
 from hub.core.compression import compress_array, decompress_array
-
+from hub.constants import SUPPORTED_COMPRESSIONS
 
 parametrize_compressions = pytest.mark.parametrize(
-    "compression", ["jpeg", "png"]
+    "compression", SUPPORTED_COMPRESSIONS[:-1]
 )  # TODO: extend to be all pillow types we want to focus on
 
 parametrize_image_shapes = pytest.mark.parametrize(

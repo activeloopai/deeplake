@@ -47,9 +47,14 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     try:
         img = to_image(array)
         out = BytesIO()
-        if compression == "jpeg" and img.mode != "RGB":
-            img = img.convert("RGB")
-        img.save(out, compression)
+        try:
+            img.save(out, compression)
+        except Exception as e:
+            if compression == "jpeg":
+                img = img.convert("RGB")
+                img.save(out, compression)
+            else:
+                raise e
         out.seek(0)
         return out.read()
     except (TypeError, OSError) as e:
