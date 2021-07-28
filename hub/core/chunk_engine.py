@@ -381,7 +381,7 @@ class ChunkEngine:
 
         # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
         for chunk in updated_chunks:
-            self.cache[chunk.key] = chunk
+            self.cache[chunk.key] = chunk  # type: ignore
 
         self.cache.maybe_flush()
 

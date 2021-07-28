@@ -5,7 +5,7 @@ from hub.api.dataset import Dataset
 import numpy as np
 
 
-def _add_dummy_mnist(ds: Dataset, images_compression: str = None):
+def _add_dummy_mnist(ds, images_compression: str = None):
     ds.create_tensor("images", sample_compression=images_compression)
     ds.create_tensor("labels")
 

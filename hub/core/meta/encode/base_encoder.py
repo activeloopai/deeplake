@@ -250,7 +250,7 @@ class Encoder(ABC):
 
         action_taken = None
         for action in actions:
-            if action(item, row_index, local_sample_index):
+            if action(item, row_index, local_sample_index):  # type: ignore
                 # each action returns a bool, if True that means the action was taken.
                 action_taken = action
                 break
