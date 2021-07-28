@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image
 
 BYTE_PADDING = b"\0"
 
@@ -10,7 +11,14 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SUPPORTED_COMPRESSIONS = ["png", "jpg", "jpeg", None]
+# Image.init()
+SUPPORTED_COMPRESSIONS = [
+    "jpeg",
+    "png",
+    "bmp",
+    "gif",
+    None,
+]  # [c.lower() for c in Image.SAVE if c in Image.OPEN] + [None]
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.

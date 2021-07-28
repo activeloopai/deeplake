@@ -38,11 +38,16 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
 
 @enabled_datasets
-def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
+@pytest.mark.parametrize("sample_compression", ["png", "bmp", "gif", "jpeg"])
+def test_populate_compressed_samples(
+    ds: Dataset, cat_path, flower_path, sample_compression
+):
+    images = ds.create_tensor(
+        TENSOR_KEY, htype="image", sample_compression=sample_compression
+    )
 
     assert images.meta.dtype == "uint8"
-    assert images.meta.sample_compression == "png"
+    assert images.meta.sample_compression == sample_compression
 
     _populate_compressed_samples(images, cat_path, flower_path)
 
@@ -56,11 +61,16 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
 
 @enabled_datasets
-def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
-    images = ds.create_tensor(TENSOR_KEY, htype="image", sample_compression="png")
+@pytest.mark.parametrize("sample_compression", ["png", "bmp", "gif", "jpeg"])
+def test_iterate_compressed_samples(
+    ds: Dataset, cat_path, flower_path, sample_compression
+):
+    images = ds.create_tensor(
+        TENSOR_KEY, htype="image", sample_compression=sample_compression
+    )
 
     assert images.meta.dtype == "uint8"
-    assert images.meta.sample_compression == "png"
+    assert images.meta.sample_compression == sample_compression
 
     _populate_compressed_samples(images, cat_path, flower_path)
 
@@ -97,10 +107,8 @@ def test_uncompressed(ds: Dataset):
 @pytest.mark.parametrize(
     "bad_shape",
     [
-        # raises OSError: cannot write mode LA as JPEG
-        (100, 100, 2),
-        # raises OSError: cannot write mode RGBA as JPE
-        (100, 100, 4),
+        (100, 100, 5),
+        (100, 100, 100),
     ],
 )
 def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):

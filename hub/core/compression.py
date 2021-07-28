@@ -47,6 +47,8 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     try:
         img = to_image(array)
         out = BytesIO()
+        if compression == "jpeg" and img.mode != "RGB":
+            img = img.convert("RGB")
         img.save(out, compression)
         out.seek(0)
         return out.read()
@@ -75,6 +77,28 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
 
     try:
         img = Image.open(BytesIO(buffer))
-        return np.array(img).reshape(shape)
+        arr = np.array(img)
+        if np.prod(shape) != arr.size:
+            if (
+                img.mode == "RGB"
+                and shape[-1] == 4
+                and arr.shape[:-1] == shape[:-1]
+                and np.prod(shape[:-1]) * 3 == arr.size
+            ):
+                img = img.convert("RGBA")
+                arr = np.array(img)
+                assert arr.shape == shape
+                return arr
+            elif arr.shape[:2] == shape[:-1] and np.prod(shape[:-1]) == arr.size:
+                if shape[-1] == 4:
+                    img = img.convert("RGBA")
+                elif shape[-1] == 3:
+                    img = img.convert("RGB")
+                arr = np.array(img)
+                assert arr.shape == shape
+                return arr
+            else:
+                raise Exception(arr.shape, shape)
+        return arr.reshape(shape)
     except UnidentifiedImageError:
         raise SampleDecompressionError()

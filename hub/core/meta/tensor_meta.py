@@ -237,8 +237,10 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
 def _validate_required_htype_overwrites(htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
 
-    if htype_overwrite["sample_compression"] not in SUPPORTED_COMPRESSIONS:
-        raise UnsupportedCompressionError(htype_overwrite["sample_compression"])
+    sample_compression = htype_overwrite["sample_compression"]
+    sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
+    if sample_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(sample_compression)
 
     if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
