@@ -282,7 +282,24 @@ class Encoder(ABC):
 
     def _try_not_changing(self, item: Any, row_index: int, *_) -> bool:
         """If `item` already is the value at `row_index`, no need to make any updates.
+
         Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+
+            Update:
+                self[5] = A
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       11
         """
 
         return self._combine_condition(item, row_index)
@@ -290,7 +307,24 @@ class Encoder(ABC):
     def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the above and below rows in `self._encoded`
         to match the incoming item, just combine them all into a single row.
+
         Cost delta = -2
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                A       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       15
         """
 
         if not (self._has_above and self._has_below):
@@ -308,7 +342,25 @@ class Encoder(ABC):
 
     def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
         """If `item` exists in the row above `row_index`, then we can just use the above row to encode `item`.
-        Cost delta = 0"""
+
+        Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       11
+                B       15
+        """
 
         if self._can_combine_below or not self._can_combine_above:
             return False
@@ -320,7 +372,24 @@ class Encoder(ABC):
 
     def _try_moving_down(self, item: Any, row_index: int, *_) -> bool:
         """If `item` exists in the row below `row_index`, then we can just use the below row to encode `item`.
+
         Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+
+            Update:
+                self[10] = B
+
+            End:
+                item    last index
+                ------------------
+                A       9
+                B       15
         """
 
         if self._can_combine_above or not self._can_combine_below:
@@ -334,7 +403,26 @@ class Encoder(ABC):
     def _try_replacing(self, item: Any, row_index: int, *args) -> bool:
         """If the value encoded at `row_index` only exists for a single index, then `row_index`
         can be directly replaced with `item`.
+
         Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       20
+
+            Update:
+                self[11] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                D       11
+                C       20
         """
 
         if self.num_samples_at(row_index) != 1:
@@ -351,7 +439,27 @@ class Encoder(ABC):
     ) -> bool:
         """If the row at `row_index` is being updated on the first index it is responsible for,
         AND the above row doesn't match `item`, a new row needs to be created above.
+
         Cost delta = +1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                C       20
+
+            Update:
+                self[11] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                D       11
+                B       15
+                C       20
         """
 
         above_last_index = 0
@@ -360,18 +468,6 @@ class Encoder(ABC):
 
         if above_last_index != local_sample_index:
             return False
-
-        # example of splitting up:
-        # B -> C @ 1
-        # -----
-        # A, 0
-        # B, 5
-        # C, 10
-        # -----
-        # A, 0
-        # C, 1
-        # B, 5
-        # C, 10
 
         # a new row should be created above
         start = self._encoded[: row_index - 1]
@@ -386,26 +482,32 @@ class Encoder(ABC):
     ) -> bool:
         """If the row at `row_index` is being updated on the last index it is responsible for,
         AND the below row doesn't match `item`, a new row needs to be created below.
-        Cost delta = +1
-        """
 
-        # TODO: examples in docstring
+        Cost delta = +1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                C       20
+
+            Update:
+                self[15] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       14
+                D       15
+                C       20
+        """
 
         last_index = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN]
         if last_index != local_sample_index:
             return False
-
-        # example of splitting down:
-        # B -> A @ 5
-        # -----
-        # A, 0
-        # B, 5
-        # C, 10
-        # -----
-        # A, 0
-        # B, 4
-        # A, 5
-        # C, 10
 
         # a new row should be created below
         start = self._encoded[: row_index + 1]
@@ -421,21 +523,29 @@ class Encoder(ABC):
     ) -> bool:
         """If the row at `row_index` is being updated on an index in the middle of the samples it is responsible for,
         a new row needs to be created above AND below.
-        Cost delta = +2
-        """
 
-        # example of splitting middle:
-        # B -> A @ 3
-        # -----
-        # A, 0
-        # B, 5
-        # A, 10
-        # -----
-        # A, 0
-        # B, 2
-        # A, 3
-        # B, 5
-        # A, 10
+        Cost delta = +2
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                A       20
+
+            Update:
+                self[13] = A
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       12
+                A       13
+                B       15
+                A       20
+        """
 
         # 2 rows should be created, and 1 should be updated
         start = np.array(self._encoded[: row_index + 1])
