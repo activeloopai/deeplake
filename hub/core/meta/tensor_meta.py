@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -12,6 +12,7 @@ from hub.util.exceptions import (
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
+    COMPRESSION_ALIASES,
     UNSPECIFIED,
 )
 from hub.htypes import HTYPE_CONFIGURATIONS
@@ -51,7 +52,11 @@ class TensorMeta(Meta):
 
             required_meta = _required_meta_from_htype(htype)
             required_meta.update(kwargs)
+
+            self._required_meta_keys = tuple(required_meta.keys())
             self.__dict__.update(required_meta)
+        else:
+            self._required_meta_keys = tuple()
 
         super().__init__()
 
@@ -167,9 +172,25 @@ class TensorMeta(Meta):
             self.min_shape[i] = min(dim, self.min_shape[i])
             self.max_shape[i] = max(dim, self.max_shape[i])
 
-    def as_dict(self):
-        # TODO: tensor meta as_dict
-        raise NotImplementedError
+    def __getstate__(self) -> Dict[str, Any]:
+        d = super().__getstate__()
+
+        for key in self._required_meta_keys:
+            d[key] = getattr(self, key)
+
+        return d
+
+    def __setstate__(self, state: Dict[str, Any]):
+        super().__setstate__(state)
+        self._required_meta_keys = tuple(state.keys())
+
+    @property
+    def nbytes(self):
+        # TODO: optimize this
+        return len(self.tobytes())
+
+    def __str__(self):
+        return str(self.__getstate__())
 
 
 def _required_meta_from_htype(htype: str) -> dict:
@@ -234,8 +255,13 @@ def _format_values(htype_overwrite: dict):
     if htype_overwrite["dtype"] is not None:
         htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
+    for key, value in COMPRESSION_ALIASES.items():
+        if htype_overwrite.get("sample_compression") == key:
+            htype_overwrite["sample_compression"] = value
+
 
 def _validate_htype_exists(htype: str):
+    """Raises errors if given an unrecognized htype."""
     if htype not in HTYPE_CONFIGURATIONS:
         raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS.keys()))
 

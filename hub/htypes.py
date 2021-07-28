@@ -1,14 +1,32 @@
 """
 "htype" is the class of a tensor: image, bounding box, generic tensor, etc.
 
-These are used when creating a new tensor as follows:
+When not specified, the unspecified options will be inferred from the data:
 ```
->>> ds.create_tensor(some_data, htype="image")
+>>> ds.create_tensor("my_tensor")
+>>> ds.my_tensor.append(1)
+>>> ds.my_tensor.dtype
+int64
 ```
 
-Specifying an htype allows the [activeloop platform](https://app.activeloop.ai/)
-to know how to best visualize your tensor. 
-They are also used to inform default compression modes and data types.
+If you know beforehand, you can use htype at creation:
+```
+>>> ds.create_tensor("my_tensor", htype="image", sample_compression=None)
+```
+
+Specifying an htype allows for strict settings and error handling, and it is critical for increasing the performance of hub datasets containing rich data such as images and videos.
+
+Supported htypes and their respective defaults are:
+
+| HTYPE         |  DTYPE    |  COMPRESSION  |
+| ------------  |  -------  |  -----------  |
+| image         |  uint8    |  png          |
+| class_label   |  uint32   |  none         |
+| bbox          |  float32  |  none         |
+| video         |  uint8    |  none         |
+| binary_mask   |  bool     |  none         |
+| segment_mask  |  int32    |  none         |
+
 """
 
 from re import L
@@ -27,6 +45,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
+        "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
     "bbox": {"dtype": "float32"},
     "video": {"dtype": "uint8"},

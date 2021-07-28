@@ -1,6 +1,11 @@
 import requests
 from typing import Optional
-from hub.util.exceptions import LoginException, ListDatasetsAuthorizationError
+from hub.util.exceptions import (
+    LoginException,
+    ListDatasetsAuthorizationError,
+    LoginException,
+    InvalidPasswordException,
+)
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
     HUB_REST_ENDPOINT,
@@ -72,6 +77,9 @@ class HubBackendClient:
             headers (dict, optional): Dictionary of HTTP Headers to send with the request.
             timeout (float,optional): How many seconds to wait for the server to send data before giving up.
 
+        Raises:
+            InvalidPasswordException: `password` cannot be `None` inside `json`.
+
         Returns:
             requests.Response: The response received from the server.
         """
@@ -98,13 +106,18 @@ class HubBackendClient:
             timeout=timeout,
         )
 
+        # clearer error than `ServerUnderMaintenence`
+        if "password" in json and json["password"] is None:
+            # do NOT pass in the password here. `None` is explicitly typed.
+            raise InvalidPasswordException("Password cannot be `None`.")
+
         check_response_status(response)
         return response
 
     def endpoint(self):
-        if hub.client.config.LOCAL:
+        if hub.client.config.USE_LOCAL_HOST:
             return HUB_REST_ENDPOINT_LOCAL
-        if hub.client.config.DEV:
+        if hub.client.config.USE_DEV_ENVIRONMENT:
             return HUB_REST_ENDPOINT_DEV
 
         return HUB_REST_ENDPOINT
@@ -189,10 +202,7 @@ class HubBackendClient:
         )
 
         if response.status_code == 200:
-            logger.info(
-                "Your Hub dataset has been successfully created!"
-                + f"\nIt is available at {self.endpoint()}/datasets/explore?tag={tag}"
-            )
+            logger.info("Your Hub dataset has been successfully created!")
             if public is False:
                 logger.info("The dataset is private so make sure you are logged in!")
 

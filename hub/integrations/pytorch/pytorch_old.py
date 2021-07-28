@@ -11,6 +11,7 @@ from hub.util.exceptions import (
 )
 import hub
 import os
+import pickle
 
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
@@ -68,22 +69,22 @@ class TorchDataset:
         if python_version_warning:
             if os.name == "nt":
                 warnings.warn(
-                    "Windows OS detected. Pytorch iteration speeds will be slow. Use another OS along with Python version >= 3.8 for faster data streaming to Pytorch."
+                    f"Windows OS detected. Pytorch iteration speeds are up to 500% faster using linux/macOS along with Python version >= 3.8."
                 )
             else:
                 warnings.warn(
-                    "Python version < 3.8 detected. Pytorch iteration speeds will be slow. Use newer Python versions for faster data streaming to Pytorch."
+                    f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8."
                 )
 
         self.dataset = None
-
-        self.storage = get_base_storage(dataset.storage)
-        self.index = dataset.index
-        if isinstance(self.storage, MemoryProvider):
+        base_storage = get_base_storage(dataset.storage)
+        if isinstance(base_storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
                 "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
             )
-
+        self.pickled_storage = pickle.dumps(dataset.storage)
+        self.index = dataset.index
+        self.length = len(dataset)
         self.transform = transform
         if tensors is None:
             self.tensor_keys = list(dataset.tensors)
@@ -101,11 +102,11 @@ class TorchDataset:
         For each process, dataset should be independently loaded
         """
         if self.dataset is None:
-            self.dataset = hub.Dataset(storage=self.storage, index=self.index)
+            storage = pickle.loads(self.pickled_storage)
+            self.dataset = hub.core.dataset.Dataset(storage=storage, index=self.index)
 
     def __len__(self):
-        self._init_ds()
-        return len(self.dataset)
+        return self.length
 
     def __getitem__(self, index: int):
         self._init_ds()

@@ -1,15 +1,16 @@
-import sys
+from hub.util.remove_cache import get_base_storage
 import pickle
 import pytest
 from hub.util.remove_cache import get_base_storage
 from hub.util.exceptions import DatasetUnsupportedPytorch
 from hub.core.storage.memory import MemoryProvider
-from hub.api.dataset import Dataset
+import hub
 import numpy as np
 
 from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
 from hub.util.check_installation import requires_torch
-from hub.core.tests.common import parametrize_all_dataset_storages
+from hub.tests.dataset_fixtures import enabled_datasets
+from hub.core.dataset import Dataset
 
 
 def to_tuple(sample):
@@ -17,7 +18,7 @@ def to_tuple(sample):
 
 
 @requires_torch
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image")
@@ -78,7 +79,7 @@ def test_pytorch_small(ds):
 
 
 @requires_torch
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image")
@@ -103,7 +104,7 @@ def test_pytorch_transform(ds):
 
 
 @requires_torch
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
@@ -130,7 +131,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
 
 @requires_torch
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_pytorch_small_old(ds):
     with ds:
         ds.create_tensor("image")
@@ -160,7 +161,7 @@ def test_pytorch_small_old(ds):
 
 
 @requires_torch
-@parametrize_all_dataset_storages
+@enabled_datasets
 def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
@@ -214,7 +215,7 @@ def test_readonly(local_ds):
 
     del local_ds
 
-    local_ds = Dataset(path)
+    local_ds = hub.dataset(path)
     local_ds.mode = "r"
 
     # no need to check input, only care that readonly works

@@ -2,8 +2,8 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-from hub import Dataset
-from hub.util.exceptions import ReadOnlyModeError
+import hub
+from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 
 
 def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
@@ -18,15 +18,24 @@ def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
     assert ds.tensor.shape == (num_samples, *sample_shape)
 
 
-def test_readonly(local_ds):
-    path = local_ds.path
+def test_readonly(local_ds_generator):
+    ds = local_ds_generator()
+    ds.create_tensor("tensor")
+    ds.tensor.append(np.ones((100, 100)))
+    ds.read_only = True
+    _assert_readonly_ops(ds, 1, (100, 100))
 
-    local_ds.create_tensor("tensor")
-    local_ds.tensor.append(np.ones((100, 100)))
-    local_ds.read_only = True
-    _assert_readonly_ops(local_ds, 1, (100, 100))
-    del local_ds
+    ds = local_ds_generator()
+    ds.read_only = True
+    _assert_readonly_ops(ds, 1, (100, 100))
 
-    local_ds = Dataset(path)
-    local_ds.read_only = True
-    _assert_readonly_ops(local_ds, 1, (100, 100))
+    with pytest.raises(ReadOnlyModeError):
+        ds.info.update(key=0)
+
+    with pytest.raises(ReadOnlyModeError):
+        ds.tensor.info.update(key=0)
+
+
+@pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
+def test_readonly_doesnt_exist(local_path):
+    hub.dataset(local_path, read_only=True)

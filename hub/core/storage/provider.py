@@ -10,6 +10,7 @@ from hub.util.exceptions import ReadOnlyModeError
 
 class StorageProvider(ABC, MutableMapping):
     autoflush = False
+    read_only = False
 
     """An abstract base class for implementing a storage provider.
 
@@ -137,7 +138,7 @@ class StorageProvider(ABC, MutableMapping):
 
     def check_readonly(self):
         """Raises an exception if the provider is in read-only mode."""
-        if hasattr(self, "read_only") and self.read_only:
+        if self.read_only:
             raise ReadOnlyModeError()
 
     def flush(self):
@@ -150,7 +151,7 @@ class StorageProvider(ABC, MutableMapping):
         """Flush cache if autoflush has been enabled.
         Called at the end of methods which write data, to ensure consistency as a default.
         """
-        if hasattr(self, "autoflush") and self.autoflush:
+        if self.autoflush:
             self.flush()
 
     @abstractmethod

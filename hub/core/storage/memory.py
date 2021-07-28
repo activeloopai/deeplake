@@ -1,11 +1,12 @@
+from typing import Any, Dict
 from hub.core.storage.provider import StorageProvider
 
 
 class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
-    def __init__(self, root=""):
-        self.dict = {}
+    def __init__(self, root: str = ""):
+        self.dict: Dict[str, Any] = {}
         self.root = root
 
     def __getitem__(
@@ -96,3 +97,10 @@ class MemoryProvider(StorageProvider):
         """Clears the provider."""
         self.check_readonly()
         self.dict = {}
+
+    def __getstate__(self) -> str:
+        """Does NOT save the in memory data in state."""
+        return self.root
+
+    def __setstate__(self, state: str):
+        self.__init__(root=state)  # type: ignore
