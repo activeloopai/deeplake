@@ -240,7 +240,12 @@ class dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
 
         Note:
-            Currently only local source paths and image classification datasets are supported for automatic ingestion.
+            - Currently only local source paths and image classification datasets are supported for automatic ingestion.
+            - Supported filetypes: png/jpeg/jpg.
+            - All files and sub-directories with unsupported filetypes are ignored.
+            - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
+            - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]
+            - Mapping filenames to classes from an external file is currently not supported.
 
         Args:
             src (str): Local path to where the unstructured dataset is stored.
