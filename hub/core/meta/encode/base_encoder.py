@@ -216,6 +216,7 @@ class Encoder(ABC):
         # 6. split down (cost delta = +1)
         # 7. split middle (cost delta = +2)
 
+        # TODO: optimize this
         actions = (
             self._try_not_changing,
             self._setup_update,  # not an actual action
@@ -322,7 +323,24 @@ class Encoder(ABC):
         if above_last_index != local_sample_index:
             return False
 
-        raise NotImplementedError
+        # example of splitting up:
+        # B -> C @ 1
+        # -----
+        # A, 0
+        # B, 5
+        # C, 10
+        # -----
+        # A, 0
+        # C, 1
+        # B, 5
+        # C, 10
+
+        # a new row should be created above
+        start = self._encoded[: row_index - 1]
+        end = self._encoded[row_index:]
+        new_row = [*item, local_sample_index]
+        self._encoded = np.concatenate((start, [new_row], end))
+
         return True
 
     def _try_splitting_down(
@@ -331,14 +349,32 @@ class Encoder(ABC):
         # TODO: docstring
 
         last_index = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN]
-
         if last_index != local_sample_index:
             return False
 
-        raise NotImplementedError
+        # example of splitting down:
+        # B -> A @ 5
+        # -----
+        # A, 0
+        # B, 5
+        # C, 10
+        # -----
+        # A, 0
+        # B, 4
+        # A, 5
+        # C, 10
+
+        # a new row should be created below
+        start = self._encoded[: row_index + 1]
+        end = self._encoded[row_index + 1 :]
+        start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+        new_row = [*item, local_sample_index]
+        self._encoded = np.concatenate((start, [new_row], end))
+
         return True
 
     def _try_splitting_middle(self, *args) -> bool:
         # TODO: docstring
 
         raise NotImplementedError
+        return True
