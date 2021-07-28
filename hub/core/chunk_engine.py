@@ -315,7 +315,7 @@ class ChunkEngine:
                 for sample in samples:
                     
                     if (isHash):
-                        hash_value = hash_sample(sample.uncompressed_bytes())
+                        hash_value = hash_sample(sample.tobytes())
                         self.hashlist.append(hash_value)
                     
                     buffer = memoryview(sample.tobytes())

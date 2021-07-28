@@ -21,6 +21,12 @@ class Hashlist(CachableCallback):
     @property
     def nbytes(self):
         return len(self.tobytes())
+    
+    def isEmpty(self):
+        if len(self.hashes):
+            return False
+        else: 
+            return True
 
 
 def load_hashlist(hashlist_key: str, cache: LRUCache):

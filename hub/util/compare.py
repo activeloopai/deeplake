@@ -5,6 +5,10 @@ from hub.api.dataset import dataset
 from hub.core.tensor import Tensor
 from hub.util.keys import hashlist_exists
 from hub.constants import HASHLIST_FILENAME
+from hub.client.log import logger
+from hub.util.exceptions import (
+    HashlistDoesNotExistError,
+)
 import os, glob
 
 def jaccard_similarity(list1, list2):
@@ -35,19 +39,21 @@ def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tenso
     Returns:
         Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
     """
+
     if isinstance(path1, Dataset) or isinstance(path2, Dataset):
         raise NotImplementedError
 
     if isinstance(path1, str) or isinstance(path2, str):
         raise NotImplementedError
-
+    
     list1 = path1.hashlist
     list2 = path2.hashlist
 
-    #TODO: Add check to make sure list1 and list2 aren't empty
-            
+    if list1.isEmpty() or list2.isEmpty():
+        raise HashlistDoesNotExistError
+
     #Find jaccard similarity between the two lists
     similarity_score = jaccard_similarity(list1.hashes, list2.hashes)
     
-    print("Jaccard similarity score: ", similarity_score)
+    logger.info(f"The Jaccard similarity score is {similarity_score}")
     return similarity_score

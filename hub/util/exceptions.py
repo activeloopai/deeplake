@@ -277,9 +277,9 @@ class TensorUnsupportedSampleType(Exception):
         )
 
 class HashlistDoesNotExistError(Exception):
-        def __init__(self, key: str):
+        def __init__(self):
             super().__init__(
-                f"Hashlist (key={key}) was not found in the tensor directory."
+                f"Hashlist doesn't exist."
         )
         
 class MetaError(Exception):
