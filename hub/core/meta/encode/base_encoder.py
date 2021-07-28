@@ -199,22 +199,39 @@ class Encoder(ABC):
         return value
 
     def __setitem__(self, local_sample_index: int, item: Any):
-        # TODO: docstring
+        """Update the encoded value at a given index. Depending on the state, this may increase/decrease
+        the size of the state.
+
+        Action space:
+            Updation is executed by going through a list of possible actions and trying to reduce the cost delta.
+            The cost delta is the number of rows added/removed from `self._encoded` as a result of the action.
+
+            These actions are chosen assuming `self._encoded` is already encoded properly.
+
+
+            Note:
+                An action that is "upwards" is being performed towards idx=0
+                An action that is "downwards" is being performed away from idx=0
+
+            Actions in order of execution:
+                0. no change    (cost delta = 0)
+                1. squeeze      (cost delta = -2)
+                2. move up      (cost delta = 0)
+                3. move down    (cost delta = 0)
+                4. replace      (cost delta = 0)
+                5. split up     (cost delta = +1)
+                6. split down   (cost delta = +1)
+                7. split middle (cost delta = +2)
+
+        Args:
+            local_sample_index (int): Index representing a sample. Localized to `self._encoded`.
+            item (Any): Item compatible with the encoder subclass.
+
+        Raises:
+            ValueError: If no update actions were taken.
+        """
 
         row_index = self.translate_index(local_sample_index)
-
-        # note: an action that is "upwards" is being performed towards idx=0
-        #       an action that is "downwards" is being performed away from idx=0
-
-        # action space (must be in order):
-        # 0. no change (cost delta = 0)
-        # 1. squeeze (cost delta = -2)
-        # 2. move up (cost delta = 0)
-        # 3. move down (cost delta = 0)
-        # 4. replace (cost delta = 0)
-        # 5. split up (cost delta = +1)
-        # 6. split down (cost delta = +1)
-        # 7. split middle (cost delta = +2)
 
         # TODO: optimize this
         actions = (
@@ -235,6 +252,7 @@ class Encoder(ABC):
                 # each action returns a bool, if True that means the action was taken.
                 action_taken = action
                 break
+
         if action_taken is None:
             raise ValueError(
                 f"Update could not be executed for idx={local_sample_index}, item={str(item)}"
@@ -248,8 +266,8 @@ class Encoder(ABC):
         self._can_combine_above = None
         self._can_combine_below = None
 
-    def _setup_update(self, item: Any, row_index: int, *args):
-        # TODO: docstring
+    def _setup_update(self, item: Any, row_index: int, *_):
+        """Setup the state variables for preceeding actions. Used for updating."""
 
         self._has_above = row_index > 0
         self._has_below = row_index + 1 < len(self._encoded)
@@ -262,13 +280,18 @@ class Encoder(ABC):
         if self._has_below:
             self._can_combine_below = self._combine_condition(item, row_index + 1)
 
-    def _try_not_changing(self, item: Any, row_index: int, *args) -> bool:
-        # TODO: docstring
+    def _try_not_changing(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` already is the value at `row_index`, no need to make any updates.
+        Cost delta = 0
+        """
 
         return self._combine_condition(item, row_index)
 
-    def _try_squeezing(self, item: Any, row_index: int, *args) -> bool:
-        # TODO: docstring
+    def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the above and below rows in `self._encoded`
+        to match the incoming item, just combine them all into a single row.
+        Cost delta = -2
+        """
 
         if not (self._has_above and self._has_below):
             return False
@@ -283,8 +306,9 @@ class Encoder(ABC):
 
         return True
 
-    def _try_moving_up(self, item: Any, row_index: int, *args) -> bool:
-        # TODO: docstring
+    def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` exists in the row above `row_index`, then we can just use the above row to encode `item`.
+        Cost delta = 0"""
 
         if self._can_combine_below or not self._can_combine_above:
             return False
@@ -294,8 +318,10 @@ class Encoder(ABC):
 
         return True
 
-    def _try_moving_down(self, item: Any, row_index: int, *args) -> bool:
-        # TODO: docstring
+    def _try_moving_down(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` exists in the row below `row_index`, then we can just use the below row to encode `item`.
+        Cost delta = 0
+        """
 
         if self._can_combine_above or not self._can_combine_below:
             return False
@@ -306,7 +332,10 @@ class Encoder(ABC):
         return True
 
     def _try_replacing(self, item: Any, row_index: int, *args) -> bool:
-        # TODO: docstring
+        """If the value encoded at `row_index` only exists for a single index, then `row_index`
+        can be directly replaced with `item`.
+        Cost delta = 0
+        """
 
         if self.num_samples_at(row_index) != 1:
             return False
@@ -320,7 +349,10 @@ class Encoder(ABC):
     def _try_splitting_up(
         self, item: Any, row_index: int, local_sample_index: int
     ) -> bool:
-        # TODO: docstring
+        """If the row at `row_index` is being updated on the first index it is responsible for,
+        AND the above row doesn't match `item`, a new row needs to be created above.
+        Cost delta = +1
+        """
 
         above_last_index = 0
         if self._has_above:
@@ -352,7 +384,12 @@ class Encoder(ABC):
     def _try_splitting_down(
         self, item: Any, row_index: int, local_sample_index: int
     ) -> bool:
-        # TODO: docstring
+        """If the row at `row_index` is being updated on the last index it is responsible for,
+        AND the below row doesn't match `item`, a new row needs to be created below.
+        Cost delta = +1
+        """
+
+        # TODO: examples in docstring
 
         last_index = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN]
         if last_index != local_sample_index:
@@ -382,7 +419,10 @@ class Encoder(ABC):
     def _try_splitting_middle(
         self, item: Any, row_index: int, local_sample_index: int
     ) -> bool:
-        # TODO: docstring
+        """If the row at `row_index` is being updated on an index in the middle of the samples it is responsible for,
+        a new row needs to be created above AND below.
+        Cost delta = +2
+        """
 
         # example of splitting middle:
         # B -> A @ 3
