@@ -202,12 +202,14 @@ class Encoder(ABC):
         """Update the encoded value at a given index. Depending on the state, this may increase/decrease
         the size of the state.
 
-        Action space:
+        Updating:
             Updation is executed by going through a list of possible actions and trying to reduce the cost delta.
-            The cost delta is the number of rows added/removed from `self._encoded` as a result of the action.
 
-            These actions are chosen assuming `self._encoded` is already encoded properly.
+            Cost:
+                Cost is defined as `len(self._encoded)`.
+                The "cost delta" is the number of rows added/removed from `self._encoded` as a result of the action.
 
+            Actions are chosen assuming `self._encoded` is already encoded properly.
 
             Note:
                 An action that is "upwards" is being performed towards idx=0
