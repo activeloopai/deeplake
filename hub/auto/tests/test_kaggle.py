@@ -53,7 +53,8 @@ def test_kaggle_exception(local_ds: Dataset):
     dummy_path = get_dummy_data_path("tests_auto/image_classification")
 
     with pytest.raises(SamePathException):
-        hub.ingest(
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
             src=dummy_path,
             dest=dummy_path,
             dest_creds=None,
