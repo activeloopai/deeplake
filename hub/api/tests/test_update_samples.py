@@ -30,6 +30,7 @@ def _make_update_assert_equal(
         value (Any): Any value that can be used as a value for updating (`ds.tensor[index] = value`).
         pre_index (Any): Any value that can be used as an index. This simulates indexing a tensor and then
             indexing again to update. (`ds.tensor[pre_index][index] = value`).
+        check_persistence (bool): If True, the update will be tested to make sure it can be serialized/deserialized.
     """
 
     ds = ds_generator()
