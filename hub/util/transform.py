@@ -116,7 +116,7 @@ def store_shard(transform_input: Tuple):
         if set(result.tensors.keys()) != set(tensors):
             raise TensorMismatchError(list(tensors), list(result.tensors.keys()))
         for tensor in result.tensors:
-            all_chunk_engines[tensor].extend(result[tensor].numpy())
+            all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
 
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
