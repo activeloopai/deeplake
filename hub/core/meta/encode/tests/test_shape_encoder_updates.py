@@ -3,7 +3,6 @@ from hub.core.meta.encode.shape import ShapeEncoder
 from .common import assert_encoded
 
 
-
 def test_update_no_change():
     enc = ShapeEncoder(np.array([[101, 100, 1], [100, 101, 5]]))
 

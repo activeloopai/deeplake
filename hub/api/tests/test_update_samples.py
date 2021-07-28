@@ -16,7 +16,12 @@ def _add_dummy_mnist(ds: Dataset, images_compression: str = None):
 
 
 def _make_update_assert_equal(
-    ds_generator: Callable, tensor_name: str, index, value, pre_index=None, check_persistence: bool = True 
+    ds_generator: Callable,
+    tensor_name: str,
+    index,
+    value,
+    pre_index=None,
+    check_persistence: bool = True,
 ):
     """Updates a tensor and checks that the data is as expected.
 

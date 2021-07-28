@@ -235,7 +235,7 @@ class Encoder(ABC):
 
         row_index = self.translate_index(local_sample_index)
 
-        # TODO: optimize this
+        # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
         actions = (
             self._try_not_changing,
             self._setup_update,  # not an actual action

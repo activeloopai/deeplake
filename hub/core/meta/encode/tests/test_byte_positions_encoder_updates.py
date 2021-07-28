@@ -13,7 +13,6 @@ def _validate_bp(enc: BytePositionsEncoder):
     np.testing.assert_array_equal(expected, actual)
 
 
-
 def test_update_no_change():
     enc = BytePositionsEncoder(np.array([[8, 0, 10], [4, 88, 15]]))
     _validate_bp(enc)
@@ -50,7 +49,9 @@ def test_update_squeeze_trivial():
 
 
 def test_update_squeeze_complex():
-    enc = BytePositionsEncoder(np.array([[2, 0, 5], [4, 12, 9], [2, 28, 10], [4, 30, 29], [2, 106, 100]]))
+    enc = BytePositionsEncoder(
+        np.array([[2, 0, 5], [4, 12, 9], [2, 28, 10], [4, 30, 29], [2, 106, 100]])
+    )
     _validate_bp(enc)
 
     enc[10] = 4

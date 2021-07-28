@@ -8,7 +8,7 @@ START_BYTE_COLUMN = 1
 
 
 class BytePositionsEncoder(Encoder):
-    def get_sum_of_bytes(self, until_row_index: int=-1) -> int:
+    def get_sum_of_bytes(self, until_row_index: int = -1) -> int:
         """Get the total number of bytes that are accounted for.
         This operation is O(1).
 
@@ -28,7 +28,9 @@ class BytePositionsEncoder(Encoder):
 
         last_last_seen_index = 0
         if until_row_index > 0:
-            last_last_seen_index = self._encoded[until_row_index-1, LAST_SEEN_INDEX_COLUMN]
+            last_last_seen_index = self._encoded[
+                until_row_index - 1, LAST_SEEN_INDEX_COLUMN
+            ]
 
         row = self._encoded[until_row_index]
         sb = row[START_BYTE_COLUMN]
@@ -62,14 +64,12 @@ class BytePositionsEncoder(Encoder):
         """Starting at `start_row_index`, move downwards through `self._encoded` and update all start bytes
         for each row if applicable. Used for updating."""
 
-
         for row_index in range(start_row_index, len(self._encoded)):
             if row_index == 0:
                 bytes_under_row = 0
             else:
-                bytes_under_row = self.get_sum_of_bytes(row_index-1)
+                bytes_under_row = self.get_sum_of_bytes(row_index - 1)
             self._encoded[row_index, START_BYTE_COLUMN] = bytes_under_row
-
 
     def _derive_value(
         self, row: np.ndarray, row_index: int, local_sample_index: int
@@ -84,5 +84,3 @@ class BytePositionsEncoder(Encoder):
         start_byte = row_start_byte + (local_sample_index - index_bias) * row_num_bytes
         end_byte = start_byte + row_num_bytes
         return int(start_byte), int(end_byte)
-
-    
