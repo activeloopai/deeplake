@@ -103,7 +103,7 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
                 assert arr.shape == shape
                 return arr
             else:
-                raise Exception(arr.shape, shape)
+                raise SampleDecompressionError()
         return arr.reshape(shape)
     except UnidentifiedImageError:
         raise SampleDecompressionError()
