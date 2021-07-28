@@ -13,8 +13,8 @@ __pdoc__ = {
 from .api.dataset import dataset
 from .api.read import read
 from .util.bugout_reporter import hub_reporter
-from .util.list_datasets import list_my_datasets, list_public_datasets
 
+list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like

@@ -5,6 +5,7 @@ from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, M
 from hub.core.dataset import Dataset
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
+from hub.client.client import HubBackendClient
 
 
 class dataset:
@@ -233,6 +234,13 @@ class dataset:
         raise NotImplementedError
 
     @staticmethod
-    def list(workspace: str) -> None:
-        """List all datasets"""
-        raise NotImplementedError
+    def list(workspace: str = "") -> None:
+        """List all available datasets.
+
+        Args:
+            workspace (str): If not specified, prints a list of all datasets that can be accessed, regardless of what workspace they are in.
+                 Otherwise, lists all datasets in the given workspace.
+        """
+        client = HubBackendClient()
+        datasets = client.get_datasets(workspace=workspace)
+        return datasets
