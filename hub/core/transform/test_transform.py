@@ -30,6 +30,21 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
         samples_out.label.append(np.ones((13,)) * sample_in * mul)
 
 
+@hub.compute
+def read_image(sample_in, samples_out):
+    samples_out.image_png.append(hub.read(sample_in))
+    samples_out.image_jpeg.append(hub.read(sample_in))
+    samples_out.image_none.append(hub.read(sample_in))
+
+
+@hub.compute
+def crop_image(sample_in, samples_out, copy=1):
+    for _ in range(copy):
+        samples_out.image_none.append(sample_in.image_jpeg.numpy()[:100, :100, :])
+        samples_out.image_png.append(sample_in.image_jpeg.numpy()[:100, :100, :])
+        samples_out.image_jpeg.append(sample_in.image_jpeg.numpy()[:100, :100, :])
+
+
 @enabled_datasets
 def test_single_transform_hub_dataset(ds):
     with CliRunner().isolated_filesystem():
@@ -146,3 +161,53 @@ def test_chain_transform_list_small_processed(ds):
             np.testing.assert_array_equal(
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
+
+
+@enabled_datasets
+def test_transform_hub_read(ds, cat_path):
+    data_in = [cat_path] * 10
+    ds_out = ds
+    ds_out.create_tensor("image_png", htype="image", sample_compression="png")
+    ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
+    ds_out.create_tensor("image_none", htype="image", sample_compression=None)
+
+    read_image().eval(data_in, ds_out, workers=8)
+    assert len(ds_out) == 10
+    for i in range(10):
+        assert ds_out.image_png[i].numpy().shape == (900, 900, 3)
+        assert ds_out.image_jpeg[i].numpy().shape == (900, 900, 3)
+        assert ds_out.image_none[i].numpy().shape == (900, 900, 3)
+        np.testing.assert_array_equal(
+            ds_out.image_none[i].numpy(), ds_out.image_none[0].numpy()
+        )
+        np.testing.assert_array_equal(
+            ds_out.image_jpeg[i].numpy(), ds_out.image_jpeg[0].numpy()
+        )
+        np.testing.assert_array_equal(
+            ds_out.image_png[i].numpy(), ds_out.image_png[0].numpy()
+        )
+
+
+@enabled_datasets
+def test_transform_hub_read_pipeline(ds, cat_path):
+    data_in = [cat_path] * 10
+    ds_out = ds
+    ds_out.create_tensor("image_png", htype="image", sample_compression="png")
+    ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
+    ds_out.create_tensor("image_none", htype="image", sample_compression=None)
+    pipeline = hub.compose([read_image(), crop_image(copy=2)])
+    pipeline.eval(data_in, ds_out, workers=8)
+    assert len(ds_out) == 20
+    for i in range(20):
+        assert ds_out.image_png[i].numpy().shape == (100, 100, 3)
+        assert ds_out.image_jpeg[i].numpy().shape == (100, 100, 3)
+        assert ds_out.image_none[i].numpy().shape == (100, 100, 3)
+        np.testing.assert_array_equal(
+            ds_out.image_none[i].numpy(), ds_out.image_none[0].numpy()
+        )
+        np.testing.assert_array_equal(
+            ds_out.image_jpeg[i].numpy(), ds_out.image_jpeg[0].numpy()
+        )
+        np.testing.assert_array_equal(
+            ds_out.image_png[i].numpy(), ds_out.image_png[0].numpy()
+        )
