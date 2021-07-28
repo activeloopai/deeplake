@@ -20,13 +20,7 @@ class Hashlist(CachableCallback):
 
     @property
     def nbytes(self):
-        # TODO: optimize this
         return len(self.tobytes())
-
-    @property
-    def print(self):
-        text = "hello"
-        print(text)
 
 
 def load_hashlist(hashlist_key: str, cache: LRUCache):

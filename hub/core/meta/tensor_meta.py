@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Optional
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -18,6 +18,7 @@ from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.meta.meta import Meta
 
 
+
 class TensorMeta(Meta):
     htype: str
     dtype: str
@@ -25,6 +26,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
+    isHash: Optional[bool]
 
     def __init__(
         self,

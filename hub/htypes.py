@@ -41,6 +41,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "image": {
         "dtype": "uint8",
         "sample_compression": REQUIRE_USER_SPECIFICATION,
+        "isHash": REQUIRE_USER_SPECIFICATION
     },
     "class_label": {
         "dtype": "uint32",

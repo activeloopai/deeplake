@@ -23,6 +23,7 @@ def create_tensor(
     storage: StorageProvider,
     htype: str,
     sample_compression: str,
+    isHash : Optional[bool] = False,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -46,6 +47,7 @@ def create_tensor(
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
+        isHash=isHash,
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore
