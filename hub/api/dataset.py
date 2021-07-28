@@ -240,6 +240,9 @@ class dataset:
         Args:
             workspace (str): If not specified, prints a list of all datasets that can be accessed, regardless of what workspace they are in.
                  Otherwise, lists all datasets in the given workspace.
+
+        Returns:
+            List of dataset names.
         """
         client = HubBackendClient()
         datasets = client.get_datasets(workspace=workspace)

@@ -441,11 +441,6 @@ class ChunkSizeTooSmallError(ChunkEngineError):
         super().__init__(message)
 
 
-class ListDatasetsAuthorizationError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
-
-
 class WindowsSharedMemoryError(Exception):
     def __init__(self):
         super().__init__(

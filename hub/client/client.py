@@ -217,7 +217,7 @@ class HubBackendClient:
         return response["_id"], response["organizations"]
 
     def get_workspace_datasets(
-        self, workspace: str = None, suffix_public: str = None, suffix_user: str = None
+        self, workspace: str, suffix_public: str, suffix_user: str
     ):
         _, organizations = self.get_user_profile()
         if workspace in organizations:
