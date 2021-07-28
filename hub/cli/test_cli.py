@@ -21,14 +21,12 @@ def test_cli_auth(hub_cloud_dev_credentials):
     assert result.output == "Logged out of Activeloop.\n"
 
 
-@pytest.mark.skipif(not has_hub_testing_creds(), reason="requires hub credentials")
-def test_get_datasets():
+def test_get_datasets(hub_cloud_dev_credentials):
     runner = CliRunner()
-    username = "testingacc"
-    password = os.getenv("ACTIVELOOP_HUB_PASSWORD")
+    username, password = hub_cloud_dev_credentials
 
     runner.invoke(login, f"-u {username} -p {password}")
-    ds = hub.Dataset("hub://testingacc/test_list")
+    ds = hub.dataset("hub://testingacc/test_list")
 
     res = runner.invoke(list_my_datasets)
     assert res.exit_code == 0
