@@ -67,20 +67,20 @@ pip3 install hub
 ```
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
-from hub import Dataset
+import hub
 
-mnist = Dataset("hub://activeloop/mnist-train")
+mnist = hub.load("hub://activeloop/mnist-train")
 mnist_np = mnist.images[0].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
-from hub import Dataset
+import hub
 
-my_dataset = Dataset("s3://bucket_name/dataset_folder")
-my_dataloader = my_dataset.pytorch()
+my_dataset = hub.load("s3://bucket_name/dataset_folder")
+my_dataloader = my_dataset.pytorch(batch_size = 16, num_workers = 4)
 
 for batch in my_dataloader:
-    print(batch["images"])
+    print(batch)
 
 ## Training Loop Here ##
 ```
