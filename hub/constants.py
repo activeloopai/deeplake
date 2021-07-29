@@ -11,11 +11,31 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SUPPORTED_COMPRESSIONS = ["bmp", "dib", "pcx", "gif", "png", "jpeg2000", "ico", "tiff", "jpeg", "ppm", "sgi", "tga", "webp", "wmf", "xbm"]
+SUPPORTED_COMPRESSIONS = [
+    "bmp",
+    "dib",
+    "pcx",
+    "gif",
+    "png",
+    "jpeg2000",
+    "ico",
+    "tiff",
+    "jpeg",
+    "ppm",
+    "sgi",
+    "tga",
+    "webp",
+    "wmf",
+    "xbm",
+]
 # Pillow plugins for some formats might not be installed:
 if not Image.SAVE:
     Image.init()
-SUPPORTED_COMPRESSIONS = [c for c in SUPPORTED_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN]
+SUPPORTED_COMPRESSIONS = [
+    c
+    for c in SUPPORTED_COMPRESSIONS
+    if c.upper() in Image.SAVE and c.upper() in Image.OPEN
+]
 SUPPORTED_COMPRESSIONS.append(None)
 
 COMPRESSION_ALIASES = {"jpg": "jpeg"}

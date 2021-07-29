@@ -6,10 +6,10 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from PIL import Image
 
 
-
 compressions = SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)
 compressions.remove("wmf")  # driver has to be provided by user for write support
+
 
 @pytest.mark.parametrize("compression", compressions)
 def test_array(compression, compressed_image_paths):

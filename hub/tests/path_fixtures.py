@@ -170,12 +170,12 @@ def compressed_image_paths():
         "png": "flower.png",
         "ico": "sample_ico.ico",
         "jpeg2000": "sample_jpeg2000.jp2",
-        "pcx" : "sample_pcx.pcx",
+        "pcx": "sample_pcx.pcx",
         "ppm": "sample_ppm.ppm",
         "sgi": "sample_sgi.sgi",
         "tga": "sample_tga.tga",
-        "xbm": "sample_xbm.xbm"
-    }    
+        "xbm": "sample_xbm.xbm",
+    }
 
     parent = get_dummy_data_path("compressed_images")
     for k in paths:
