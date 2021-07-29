@@ -6,11 +6,11 @@ import numpy as np
 
 
 def _add_dummy_mnist(ds, images_compression: str = None):
-    ds.create_tensor("images", sample_compression=images_compression)
-    ds.create_tensor("labels")
+    ds.create_tensor("images", htype="image", sample_compression=images_compression)
+    ds.create_tensor("labels", htype="class_label")
 
-    ds.images.extend(np.ones((10, 28, 28)))
-    ds.labels.extend(np.ones(10))
+    ds.images.extend(np.ones((10, 28, 28), dtype=np.uint8))
+    ds.labels.extend(np.ones(10, dtype=np.uint8))
 
     return ds
 
@@ -37,6 +37,10 @@ def _make_update_assert_equal(
             indexing again to update. (`ds.tensor[pre_index][index] = value`).
         check_persistence (bool): If True, the update will be tested to make sure it can be serialized/deserialized.
     """
+
+    # just to allow np.ones/np.zeros to be used without dtypes everywhere
+    if isinstance(value, np.ndarray):
+        value = value.astype(np.uint8)
 
     ds = ds_generator()
     assert len(ds) == 10
