@@ -3,8 +3,8 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
-from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.compute import get_compute_provider
+from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
     check_transform_data_in,
     check_transform_ds_out,
@@ -12,23 +12,50 @@ from hub.util.transform import (
     merge_all_tensor_metas,
     store_data_slice,
 )
+from hub.util.exceptions import (
+    TransformComposeEmptyListError,
+    TransformComposeIncompatibleFunction,
+)
 
 
 class TransformFunction:
     def __init__(self, func, args, kwargs):
+        """Creates a TransformFunction object that can be evaluated using .eval or used as a part of a Pipeline."""
         self.func = func
         self.args = args
         self.kwargs = kwargs
 
-    def eval(self, data_in, ds_out, num_workers=1, scheduler="threaded"):
+    def eval(
+        self,
+        data_in,
+        ds_out: hub.core.dataset.Dataset,
+        num_workers: int = 1,
+        scheduler: str = "threaded",
+    ):
+        """Evaluates the TransformFunction on data_in to produce an output dataset ds_out.
+
+        Args:
+            data_in: Input passed to the transform to generate output dataset. Should support __getitem__ and __len__. Can be a Hub dataset.
+            ds_out (Dataset): The dataset object to which the transform will get written.
+                Should have all keys being generated in output already present as tensors. It's initial state should be either:-
+                - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
+                - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
+            num_workers (int): The number of workers to use for performing the transform. Defaults to 1.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'threaded' and 'processed'. Defaults to threaded.
+
+        Raises:
+            InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
+            TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
+            UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'threaded' and 'processed'.
+        """
         pipeline = Pipeline([self])
         pipeline.eval(data_in, ds_out, num_workers, scheduler)
 
 
 class Pipeline:
     def __init__(self, transform_functions: List[TransformFunction]):
-        if not transform_functions:
-            raise Exception  # TODO: Proper exception
+        """Takes a list of transform functions and creates a pipeline out of them that can be evaluated using .eval"""
         self.transform_functions = transform_functions
 
     def __len__(self):
@@ -39,7 +66,7 @@ class Pipeline:
         data_in,
         ds_out: hub.core.dataset.Dataset,
         num_workers: int = 1,
-        scheduler="threaded",
+        scheduler: str = "threaded",
     ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
@@ -50,14 +77,13 @@ class Pipeline:
                 - Empty i.e. all tensors have no samples. In this case all samples are added to the dataset.
                 - All tensors are populated and have sampe length. In this case new samples are appended to the dataset.
             num_workers (int): The number of workers to use for performing the transform. Defaults to 1.
-            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'threaded' and 'processed'.
+            scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'threaded' and 'processed'. Defaults to threaded.
 
         Raises:
             InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
             InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'threaded' and 'processed'.
-            InvalidTransformOutputError: If the output of any step in a transformation isn't dictionary or a list/tuple of dictionaries.
         """
         if isinstance(data_in, hub.core.dataset.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
@@ -99,12 +125,23 @@ class Pipeline:
 
 
 def compose(transform_functions: List[TransformFunction]):
+    """Takes a list of transform functions and creates a pipeline out of them that can be evaluated using .eval"""
+    if not transform_functions:
+        raise TransformComposeEmptyListError
     for fn in transform_functions:
-        assert isinstance(fn, TransformFunction)  # TODO add exception
+        if not isinstance(fn, TransformFunction):
+            raise TransformComposeIncompatibleFunction
     return Pipeline(transform_functions)
 
 
 def compute(fn):
+    """Compute is a decorator for functions.
+    The functions should have atleast 2 argument, the first two will correspond to sample_in and samples_out.
+    There can be as many other arguments as required.
+    The output should be appended/extended to the second argument in a hub like syntax.
+    Any value returned by the fn will be ignored.
+    """
+
     def inner(*args, **kwargs):
         return TransformFunction(fn, args, kwargs)
 

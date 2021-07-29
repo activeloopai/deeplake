@@ -396,6 +396,22 @@ class InvalidOutputDatasetError(TransformError):
         super().__init__(message)
 
 
+class TransformComposeEmptyListError(TransformError):
+    def __init__(
+        self,
+        message="The list passed to hub.compose is empty. Ensure that hub.compose is always called with a list of 1 or more functions.",
+    ):
+        super().__init__(message)
+
+
+class TransformComposeIncompatibleFunction(TransformError):
+    def __init__(
+        self,
+        message="One or more elements passed to hub.compose are incompatible with it. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, pass my_fn() in the list.",
+    ):
+        super().__init__(message)
+
+
 class DatasetUnsupportedPytorch(Exception):
     def __init__(self, reason):
         super().__init__(
