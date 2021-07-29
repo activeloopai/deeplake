@@ -3,9 +3,10 @@ from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
+from hub.htypes import HTYPE_CONFIGURATIONS
 import numpy as np
-from hub.core.meta.dataset_meta import DatasetMeta
 
+from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
@@ -175,13 +176,30 @@ class Dataset:
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
 
+        # Seperate meta and info
+
+        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
+        info_keys = htype_config.pop("_info", [])
+        info_kwargs = {}
+        meta_kwargs = {}
+        for k, v in kwargs.items():
+            if k in info_keys:
+                info_kwargs[k] = v
+            else:
+                meta_kwargs[k] = v
+
+        # Set defaults
+        for k in info_keys:
+            if k not in info_kwargs:
+                info_kwargs[k] = htype_config[k]
+
         create_tensor(
             name,
             self.storage,
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
-            **kwargs,
+            **meta_kwargs,
         )
         self.meta.tensors.append(name)
         self.storage.maybe_flush()
@@ -189,7 +207,36 @@ class Dataset:
 
         self.tensors[name] = tensor
 
+        tensor.info.update(info_kwargs)
+
         return tensor
+
+    @hub_reporter.record_call
+    def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
+        """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
+
+        Args:
+            name (str): Name for the new tensor.
+            source (Tensor): Tensor who's meta/info will be copied. May or may not be contained in the same dataset.
+
+        Returns:
+            Tensor: New Tensor object.
+        """
+
+        info = source.info.__getstate__().copy()
+        meta = source.meta.__getstate__().copy()
+        del meta["min_shape"]
+        del meta["max_shape"]
+        del meta["length"]
+        del meta["version"]
+
+        destination_tensor = self.create_tensor(
+            name,
+            **meta,
+        )
+        destination_tensor.info.update(info)
+
+        return destination_tensor
 
     __getattr__ = __getitem__
 
@@ -310,14 +357,15 @@ class Dataset:
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
+            hub_reporter.feature_report(
+                feature_name="HubDataset", parameters={"Path": str(self.path)}
+            )
+
         self._load_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 
-        hub_reporter.feature_report(
-            feature_name="Dataset", parameters={"Path": str(self.path)}
-        )
-
+    @hub_reporter.record_call
     def tensorflow(self):
         """Converts the dataset into a tensorflow compatible format.
 
@@ -347,6 +395,7 @@ class Dataset:
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
+    @hub_reporter.record_call
     def delete(self):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.

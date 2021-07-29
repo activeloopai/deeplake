@@ -214,7 +214,7 @@ class ChunkEngine:
         if not buffer_consumed:
             self._append_to_new_chunk(buffer, shape)
 
-        self.chunk_id_encoder.register_samples_to_last_chunk_id(num_samples)
+        self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
 
     def _synchronize_cache(self):
@@ -404,7 +404,7 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         buffer = chunk.memoryview_data
-        local_sample_index = enc.get_local_sample_index(global_sample_index)
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 

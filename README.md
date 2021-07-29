@@ -17,7 +17,7 @@
   <h3 align="center">
    <a href="https://activeloop.gitbook.io/hub-2-0/"><b>Documentation</b></a> &bull;
    <a href="https://activeloop.gitbook.io/hub-2-0/getting-started/"><b>Getting Started</b></a> &bull;
-   <a href="http://docs.activeloop.ai/?utm_source=github&utm_medium=repo&utm_campaign=readme"><b>API Reference</b></a> &bull;  
+   <a href="https://api-docs.activeloop.ai/"><b>API Reference</b></a> &bull;  
   <a href="http://slack.activeloop.ai"><b>Slack Community</b></a> &bull;
   <a href="https://twitter.com/intent/tweet?text=The%20fastest%20way%20to%20access%20and%20manage%20PyTorch%20and%20Tensorflow%20datasets%20is%20open-source&url=https://activeloop.ai/&via=activeloopai&hashtags=opensource,pytorch,tensorflow,data,datascience,datapipelines,activeloop,dockerhubfordatasets"><b>Twitter</b></a>
  </h3>
@@ -67,20 +67,20 @@ pip3 install hub
 ```
 Accessing datasets in Hub requires a single line of code. Run this snippet to get the first image in the [MNIST database](https://app.activeloop.ai/dataset/activeloop/mnist/?utm_source=github&utm_medium=repo&utm_campaign=readme) in the numpy array format:
 ```python
-from hub import Dataset
+import hub
 
-mnist = Dataset("hub://activeloop/mnist-train")
+mnist = hub.load("hub://activeloop/mnist-train")
 mnist_np = mnist.images[0].numpy()
 ```
 To access and train a classifier on your own Hub dataset stored in cloud, run:
 ```python
-from hub import Dataset
+import hub
 
-my_dataset = Dataset("s3://bucket_name/dataset_folder")
-my_dataloader = my_dataset.pytorch()
+my_dataset = hub.load("s3://bucket_name/dataset_folder")
+my_dataloader = my_dataset.pytorch(batch_size = 16, num_workers = 4)
 
 for batch in my_dataloader:
-    print(batch["images"])
+    print(batch)
 
 ## Training Loop Here ##
 ```
@@ -96,8 +96,8 @@ Hub users can access and visualize a variety of popular datasets through a free 
 ### Hub and DVC
 Hub and DVC offer dataset version control similar to git for data, but their methods for storing data differ significantly. Hub converts and stores data as chunked compressed arrays, which enables rapid streaming to ML models, whereas DVC operates on top of data stored in less efficient traditional file structures. The Hub format makes dataset versioning significantly easier compared to a traditional file structures by DVC when datasets are composed of many files (i.e. many images). An additional distinction is that DVC primarily uses a command line interface, where as Hub is a python package. Lastly, Hub offers an API to easily connect datasets to ML frameworks and other common ML tools.
 
-### Hub and TensorFlow Datasets
-Hub and TensorFlow Datasets seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both Pytorch and Tensorflow, whereas TensorFlow Datasets are only compatible with TensorFlow. A key difference between Hub and TensorFlow Datasets is that Hub offers powerful tools for users to create custom datasets, store them on a variety of cloud storage providers, and collaborate with with their piers. TensorFlow Datasets is primarily focused on giving the public easy access to commonly available datasets, and the creation and storage of custom datasets is not its focus. Datasets can be converted between TFDS and Hub formats with a simple [function call](https://docs.activeloop.ai/en/latest/integrations/tensorflow.html?utm_source=github&utm_medium=readme&utm_campaign=desc).
+### Hub and TensorFlow Datasets (TFDS)
+Hub and TFDS seamlessly connect popular datasets to ML frameworks. Hub datasets are compatible with both PyTorch and TensorFlow, whereas TFDS are only compatible with TensorFlow. A key difference between Hub and TFDS is that Hub datasets are designed for streaming from the cloud, whereas TFDS must be downloaded locally prior to use. In addition to providing access to popular publicly-available datasets, Hub also offers powerful tools for creating custom datasets, storing them on a variety of cloud storage providers, and collaborating with others. TFDS is primarily focused on giving the public easy access to commonly available datasets, and management of custom datasets is not the primary focus.
 
 ### Hub and HuggingFace 
 Hub and HuggingFace offer access to popular datasets, but Hub primarily focuses on computer vision, whereas HuggingFace primarily focuses on natural language processing. HuggingFace Transforms and other computational tools for NLP are not analogous to features offered by Hub.

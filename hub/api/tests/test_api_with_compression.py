@@ -18,7 +18,7 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
     for _ in range(count):
         tensor.append(hub.read(cat_path))
-        original_compressions.append("jpeg")
+        original_compressions.append("jpg")
 
         tensor.append(hub.read(flower_path))
         original_compressions.append("png")
@@ -118,6 +118,14 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
 
     tensor = memory_ds.create_tensor(TENSOR_KEY, sample_compression="jpeg")
     tensor.append(np.ones(bad_shape, dtype="uint8"))
+
+
+def test_compression_aliases(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("jpeg_tensor", sample_compression="jpeg")
+    assert tensor.meta.sample_compression == "jpeg"
+
+    tensor = memory_ds.create_tensor("jpg_tensor", sample_compression="jpg")
+    assert tensor.meta.sample_compression == "jpeg"
 
 
 @pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)

@@ -12,6 +12,7 @@ from hub.util.exceptions import (
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
+    COMPRESSION_ALIASES,
     UNSPECIFIED,
 )
 from hub.htypes import HTYPE_CONFIGURATIONS
@@ -188,6 +189,9 @@ class TensorMeta(Meta):
         # TODO: optimize this
         return len(self.tobytes())
 
+    def __str__(self):
+        return str(self.__getstate__())
+
 
 def _required_meta_from_htype(htype: str) -> dict:
     """Gets a dictionary with all required meta information to define a tensor."""
@@ -251,8 +255,13 @@ def _format_values(htype_overwrite: dict):
     if htype_overwrite["dtype"] is not None:
         htype_overwrite["dtype"] = np.dtype(htype_overwrite["dtype"]).name
 
+    for key, value in COMPRESSION_ALIASES.items():
+        if htype_overwrite.get("sample_compression") == key:
+            htype_overwrite["sample_compression"] = value
+
 
 def _validate_htype_exists(htype: str):
+    """Raises errors if given an unrecognized htype."""
     if htype not in HTYPE_CONFIGURATIONS:
         raise TensorMetaInvalidHtype(htype, list(HTYPE_CONFIGURATIONS.keys()))
 

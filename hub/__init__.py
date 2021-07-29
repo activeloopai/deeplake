@@ -17,7 +17,9 @@ from .util.bugout_reporter import hub_reporter
 
 load = dataset.load
 empty = dataset.empty
-__all__ = ["dataset", "read", "__version__", "load", "empty", "compute", "compose"]
+like = dataset.like
+
+__all__ = ["dataset", "read", "__version__", "load", "empty", "compute", "compose", "like"]
 
 __version__ = "2.0.2"
 __encoded_version__ = np.array(__version__)
