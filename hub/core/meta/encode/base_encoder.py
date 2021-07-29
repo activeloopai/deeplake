@@ -223,9 +223,9 @@ class Encoder(ABC):
 
             Actions in order of execution:
                 no change    (cost delta = 0)
+                squeeze      (cost delta = -2)
                 squeeze up   (cost delta = -1)
                 squeeze down (cost delta = -1)
-                squeeze      (cost delta = -2)
                 move up      (cost delta = 0)
                 move down    (cost delta = 0)
                 replace      (cost delta = 0)
@@ -247,9 +247,9 @@ class Encoder(ABC):
         actions = (
             self._try_not_changing,
             self._setup_update,  # not an actual action
+            self._try_squeezing,
             self._try_squeezing_up,
             self._try_squeezing_down,
-            self._try_squeezing,
             self._try_moving_up,
             self._try_moving_down,
             self._try_replacing,
@@ -325,58 +325,6 @@ class Encoder(ABC):
 
         return self._combine_condition(item, row_index)
 
-    def _try_squeezing_up(self, item: Any, row_index: int, *_) -> bool:
-        """If update results in the above row in `self._encoded`
-        matching the incoming item, just combine them into a single row.
-
-        Cost delta = -1
-
-        Example:
-            Start:
-                item    last index
-                ------------------
-                A       10
-                B       11
-                C       15
-
-            Update:
-                self[11] = A
-
-            End:
-                item    last index
-                ------------------
-                A       11
-                C       15
-        """
-
-        raise NotImplementedError
-
-
-    def _try_squeezing_down(self, item: Any, row_index: int, *_) -> bool:
-        """If update results in the below row in `self._encoded`
-        matching the incoming item, just combine them into a single row.
-
-        Cost delta = -1
-
-        Example:
-            Start:
-                item    last index
-                ------------------
-                A       10
-                B       11
-                C       15
-
-            Update:
-                self[11] = C
-
-            End:
-                item    last index
-                ------------------
-                A       10
-                C       15
-        """
-
-        raise NotImplementedError
 
     def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the above and below rows in `self._encoded`
@@ -413,6 +361,73 @@ class Encoder(ABC):
         self._encoded = np.concatenate((start, end))
 
         return True
+
+
+    def _try_squeezing_up(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the above row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       11
+                C       15
+        """
+
+        if not self._has_above:
+            return False
+
+        if not self._can_combine_above:
+            return False
+
+        # row can be "squeezed upwards"
+        start = self._encoded[: row_index]
+        end = self._encoded[row_index +1 :]
+        start[-1, LAST_SEEN_INDEX_COLUMN] += 1
+        self._encoded = np.concatenate((start, end))
+
+        return True
+
+
+    def _try_squeezing_down(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the below row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = C
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                C       15
+        """
+
+        raise NotImplementedError
+
 
     def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
         """If `item` exists in the row above `row_index`, then we can just use the above row to encode `item`.
