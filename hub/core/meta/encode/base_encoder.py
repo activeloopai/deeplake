@@ -222,14 +222,16 @@ class Encoder(ABC):
                 An action that is "downwards" is being performed away from idx=0
 
             Actions in order of execution:
-                0. no change    (cost delta = 0)
-                1. squeeze      (cost delta = -2)
-                2. move up      (cost delta = 0)
-                3. move down    (cost delta = 0)
-                4. replace      (cost delta = 0)
-                5. split up     (cost delta = +1)
-                6. split down   (cost delta = +1)
-                7. split middle (cost delta = +2)
+                no change    (cost delta = 0)
+                squeeze up   (cost delta = -1)
+                squeeze down (cost delta = -1)
+                squeeze      (cost delta = -2)
+                move up      (cost delta = 0)
+                move down    (cost delta = 0)
+                replace      (cost delta = 0)
+                split up     (cost delta = +1)
+                split down   (cost delta = +1)
+                split middle (cost delta = +2)
 
         Args:
             local_sample_index (int): Index representing a sample. Localized to `self._encoded`.
@@ -245,6 +247,8 @@ class Encoder(ABC):
         actions = (
             self._try_not_changing,
             self._setup_update,  # not an actual action
+            self._try_squeezing_up,
+            self._try_squeezing_down,
             self._try_squeezing,
             self._try_moving_up,
             self._try_moving_down,
@@ -320,6 +324,59 @@ class Encoder(ABC):
         """
 
         return self._combine_condition(item, row_index)
+
+    def _try_squeezing_up(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the above row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       11
+                C       15
+        """
+
+        raise NotImplementedError
+
+
+    def _try_squeezing_down(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the below row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = C
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                C       15
+        """
+
+        raise NotImplementedError
 
     def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the above and below rows in `self._encoded`
