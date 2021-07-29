@@ -363,15 +363,17 @@ class ChunkEngine:
 
         updated_chunks = set()
         index_length = index.values[0].length(self.num_samples)
-        len_value = 1
+
         try:
             len(value)
         except TypeError:
             value = [value]
+
         if index_length != len(value):
             raise ValueError(
                 f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
             )
+
         for value_index, global_sample_index in enumerate(
             index.values[0].indices(self.num_samples)
         ):
@@ -391,6 +393,7 @@ class ChunkEngine:
                     raise TypeError(
                         f"Cannot cast from {incoming_sample.dtype} to {self.tensor_meta.dtype}."
                     )
+
             # TODO: optimize this (memcp)
             buffer = memoryview(incoming_sample.tobytes())
             chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)

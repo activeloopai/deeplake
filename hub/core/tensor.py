@@ -265,13 +265,20 @@ class Tensor:
         elif isinstance(val, Sequence):
             return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
         else:
-            raise TypeError(f"Cannot infer numpy dtype for {value}")
+            raise TypeError(f"Cannot infer numpy dtype for {val}")
 
     def __setitem__(self, item: Union[int, slice], value: Any):
-        value_dtype = self._infer_np_dtype(value)
-        if self.dtype and self.dtype != value_dtype:
-            if not np.can_cast(value_dtype, self.dtype):
-                raise TypeError(f"Cannot cast from {value.dtype} to {self.dtype}")
+        # TODO: docstring?
+
+        # TODO: support casting python ints/float scalars into np dtypes (like int -> uint8)
+        # value_dtype = self._infer_np_dtype(value)
+        # if self.dtype and self.dtype != value_dtype:
+        #     if not np.can_cast(value_dtype, self.dtype):
+        #         if hasattr(value, "dtype"):
+        #             raise TypeError(f"Cannot cast from {value.dtype} to {self.dtype}")
+        #         else:
+        #             raise TypeError(f"Cannot cast from {type(value)} to {self.dtype}")
+
         self.chunk_engine.update(Index(item), value)
 
     def __iter__(self):
