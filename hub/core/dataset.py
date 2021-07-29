@@ -107,7 +107,7 @@ class Dataset:
             "public": self.public,
             "storage": self.storage,
             "_token": self.token,
-            "log_loading": self.log_loading
+            "log_loading": self.log_loading,
         }
 
     def __setstate__(self, state: Dict[str, Any]):
