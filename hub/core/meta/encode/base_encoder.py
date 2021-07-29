@@ -284,6 +284,7 @@ class Encoder(ABC):
         self._can_combine_above = None
         self._can_combine_below = None
         self._decomposable_item = None
+        self._num_samples_at_row = None
 
     def _setup_update(self, item: Any, row_index: int, *_):
         """Setup the state variables for preceeding actions. Used for updating."""
@@ -300,6 +301,7 @@ class Encoder(ABC):
             self._can_combine_below = self._combine_condition(item, row_index + 1)
 
         self._decomposable_item = self._make_decomposable(item, row_index)
+        self._num_samples_at_row = self.num_samples_at(row_index)
 
     def _try_not_changing(self, item: Any, row_index: int, *_) -> bool:
         """If `item` already is the value at `row_index`, no need to make any updates.
@@ -349,6 +351,9 @@ class Encoder(ABC):
                 A       15
         """
 
+        if self._num_samples_at_row != 1:
+            return False
+
         if not (self._has_above and self._has_below):
             return False
 
@@ -386,6 +391,9 @@ class Encoder(ABC):
                 A       11
                 C       15
         """
+
+        if self._num_samples_at_row != 1:
+            return False
 
         if not self._has_above:
             return False
@@ -425,8 +433,22 @@ class Encoder(ABC):
                 A       10
                 C       15
         """
+        
+        if self._num_samples_at_row != 1:
+            return False
 
-        raise NotImplementedError
+        if not self._has_below:
+            return False
+
+        if not self._can_combine_below:
+            return False
+
+        # row can be "squeezed downwards"
+        start = self._encoded[: row_index]
+        end = self._encoded[row_index + 1 :]
+        self._encoded = np.concatenate((start, end))
+
+        return True
 
 
     def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
@@ -514,7 +536,7 @@ class Encoder(ABC):
                 C       20
         """
 
-        if self.num_samples_at(row_index) != 1:
+        if self._num_samples_at_row != 1:
             return False
 
         # sample can be "replaced"
