@@ -8,7 +8,13 @@ from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.api.info import load_info
 from hub.api.hashlist import load_hashlist
 from hub.api.hashlist import Hashlist
-from hub.util.keys import get_tensor_meta_key, get_hashlist_key, hashlist_exists, tensor_exists, get_tensor_info_key
+from hub.util.keys import (
+    get_tensor_meta_key,
+    get_hashlist_key,
+    hashlist_exists,
+    tensor_exists,
+    get_tensor_info_key,
+)
 from hub.util.shape import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
@@ -18,12 +24,13 @@ from hub.util.exceptions import (
 )
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
+
 def create_tensor(
     key: str,
     storage: StorageProvider,
     htype: str,
     sample_compression: str,
-    isHash : Optional[bool] = False,
+    isHash: Optional[bool] = False,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -33,6 +40,7 @@ def create_tensor(
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
+        isHash (Optional[bool]): All samples added to this tensor will be hashed and added to a hashlist.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -52,11 +60,10 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
-    # Creating hashlist 
+    # Creating hashlist
     hashlist_key = get_hashlist_key(key)
     hlist = Hashlist()
     storage[hashlist_key] = hlist
-
 
 
 class Tensor:
@@ -93,8 +100,6 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
         self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
-
-
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,

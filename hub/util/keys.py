@@ -17,12 +17,14 @@ def get_dataset_info_key() -> str:
     # dataset info is always relative to the `StorageProvider`'s root
     return constants.DATASET_INFO_FILENAME
 
+
 def get_hashlist_key(key: str) -> str:
     return posixpath.join(key, constants.HASHLIST_FILENAME)
 
 
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
+
 
 def get_tensor_info_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_INFO_FILENAME)
@@ -34,6 +36,7 @@ def get_chunk_id_encoder_key(key: str) -> str:
         constants.ENCODED_CHUNK_NAMES_FOLDER,
         constants.ENCODED_CHUNK_NAMES_FILENAME,
     )
+
 
 def dataset_exists(storage: StorageProvider) -> bool:
     try:
@@ -51,8 +54,9 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
         return False
     return get_tensor_meta_key(key) in storage
 
+
 def hashlist_exists(key: str, storage: StorageProvider) -> bool:
-    try: 
+    try:
         storage[get_hashlist_key(key)]
         return True
     except KeyError:

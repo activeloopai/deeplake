@@ -6,10 +6,11 @@ import numpy as np
 from PIL import Image
 from hub.util.exceptions import HashlistDoesNotExistError
 
+
 def test_compare_tensors(memory_ds):
-    
+
     ds = memory_ds
-    
+
     ds.create_tensor("ints1", dtype="int64", isHash=True)
     ds.ints1.extend(np.arange(10, dtype="int64"))
 
@@ -19,10 +20,11 @@ def test_compare_tensors(memory_ds):
     # Jaccard similarity score should be 1.0 as both hashlists are same
     assert hub.compare(ds.ints1, ds.ints2) == 1.0
 
+
 def test_compare_half_tensors(memory_ds):
-    
+
     ds = memory_ds
-    
+
     ds.create_tensor("ints1", dtype="int64", isHash=True)
     ds.ints1.extend(np.arange(10, dtype="int64"))
 
@@ -34,9 +36,9 @@ def test_compare_half_tensors(memory_ds):
 
 
 def test_hashlist_does_not_exist(memory_ds):
-    
+
     ds = memory_ds
-    
+
     ds.create_tensor("ints1", dtype="int64")
     ds.ints1.extend(np.arange(10, dtype="int64"))
 
@@ -44,4 +46,4 @@ def test_hashlist_does_not_exist(memory_ds):
     ds.ints2.extend(np.arange(10, dtype="int64"))
 
     with pytest.raises(HashlistDoesNotExistError):
-            hub.compare(ds.ints1,ds.ints2)
+        hub.compare(ds.ints1, ds.ints2)

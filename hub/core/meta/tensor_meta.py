@@ -18,7 +18,6 @@ from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.meta.meta import Meta
 
 
-
 class TensorMeta(Meta):
     htype: str
     dtype: str

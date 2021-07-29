@@ -11,12 +11,16 @@ from hub.util.exceptions import (
 )
 import os, glob
 
+
 def jaccard_similarity(list1, list2):
     intersection = len(list(set(list1).intersection(list2)))
     union = (len(list1) + len(list2)) - intersection
     return float(intersection) / union
 
-def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tensor]) -> int:
+
+def compare(
+    path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tensor]
+) -> int:
     """Utility that compares hashlist of two different files
 
     Note:
@@ -45,15 +49,15 @@ def compare(path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tenso
 
     if isinstance(path1, str) or isinstance(path2, str):
         raise NotImplementedError
-    
+
     list1 = path1.hashlist
     list2 = path2.hashlist
 
     if list1.isEmpty() or list2.isEmpty():
         raise HashlistDoesNotExistError
 
-    #Find jaccard similarity between the two lists
+    # Find jaccard similarity between the two lists
     similarity_score = jaccard_similarity(list1.hashes, list2.hashes)
-    
+
     logger.info(f"The Jaccard similarity score is {similarity_score}")
     return similarity_score

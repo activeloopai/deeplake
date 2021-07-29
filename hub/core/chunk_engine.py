@@ -12,7 +12,7 @@ from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
-    get_hashlist_key
+    get_hashlist_key,
 )
 from hub.core.sample import Sample  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
@@ -47,16 +47,21 @@ def is_uniform_sequence(samples):
         return True
 
 
-# Generate hash of a file
+"""Generates a 128 bit hash for a sample using murmurhash3"""
+
+
 def hash_sample(sample):
-    hash = mmh3.hash_bytes(sample, 0xBEFFE)
+    hash = mmh3.hash_bytes(sample)
     return hash.hex()
 
 
 class ChunkEngine:
     def __init__(
-        self, key: str, cache: LRUCache, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
-    ):  
+        self,
+        key: str,
+        cache: LRUCache,
+        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+    ):
         """Handles creating `Chunk`s and filling them with incoming samples.
 
         Data delegation:
@@ -115,7 +120,7 @@ class ChunkEngine:
 
         self.key = key
         self.cache = cache
-        
+
         if max_chunk_size <= 2:
             raise ValueError("Max chunk size should be > 2 bytes.")
 
@@ -186,7 +191,7 @@ class ChunkEngine:
     def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
-    
+
     @property
     def hashlist(self):
         hashlist_key = get_hashlist_key(self.key)
@@ -237,7 +242,6 @@ class ChunkEngine:
         self.cache[chunk_id_key] = self.chunk_id_encoder
 
     def _try_appending_to_last_chunk(
-
         self, buffer: memoryview, shape: Tuple[int]
     ) -> bool:
         """Will store `buffer` inside of the last chunk if it can.
@@ -302,7 +306,7 @@ class ChunkEngine:
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
-        
+
         isHash = self.tensor_meta.isHash
 
         if isinstance(samples, np.ndarray):
@@ -313,11 +317,11 @@ class ChunkEngine:
 
                 # before adding any data, we need to check all sample sizes
                 for sample in samples:
-                    
-                    if (isHash):
+
+                    if isHash:
                         hash_value = hash_sample(sample.tobytes())
                         self.hashlist.append(hash_value)
-                    
+
                     buffer = memoryview(sample.tobytes())
                     self._check_sample_size(len(buffer))
                     buffers.append(buffer)
@@ -333,10 +337,10 @@ class ChunkEngine:
                     sample_object = Sample(array=sample)
                     sample_objects.append(sample_object)
 
-                    if (isHash):
+                    if isHash:
                         hash_value = hash_sample(sample.uncompressed_bytes())
                         self.hashlist.append(hash_value)
-                    
+
                     num_bytes = len(sample_object.compressed_bytes(compression))
                     self._check_sample_size(num_bytes)
 
@@ -358,18 +362,18 @@ class ChunkEngine:
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
         isHash = self.tensor_meta.isHash
-        
+
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
             # might be able to optimize this away
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
             self._check_sample_size(len(data))
-            
-            if (isHash):
+
+            if isHash:
                 hash_value = hash_sample(sample.uncompressed_bytes())
                 self.hashlist.append(hash_value)
-                    
+
             self._append_bytes(data, sample.shape, sample.dtype)
 
         else:

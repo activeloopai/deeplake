@@ -22,9 +22,11 @@ class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Tensor '{key}' already exists.")
 
+
 class HashlistAlreadyExistsError(Exception):
-    def __init__(self, key:str):
+    def __init__(self, key: str):
         super().__init__(f"Hashlist '{key}' already exists.")
+
 
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
@@ -276,14 +278,15 @@ class TensorUnsupportedSampleType(Exception):
             "or resulting dictionary from .read() to be added to the tensor"
         )
 
+
 class HashlistDoesNotExistError(Exception):
-        def __init__(self):
-            super().__init__(
-                f"Hashlist doesn't exist."
-        )
-        
+    def __init__(self):
+        super().__init__(f"Hashlist doesn't exist.")
+
+
 class MetaError(Exception):
     pass
+
 
 class MetaDoesNotExistError(MetaError):
     def __init__(self, key: str):

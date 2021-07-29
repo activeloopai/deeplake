@@ -1,5 +1,4 @@
 from hub.api.info import load_info
-from hub.api.hashlist import load_hashlist
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
@@ -15,7 +14,6 @@ from hub.util.keys import (
     get_dataset_info_key,
     get_dataset_meta_key,
     tensor_exists,
-    get_hashlist_key,
 )
 from hub.util.bugout_reporter import hub_reporter
 from hub.util.exceptions import (
@@ -250,7 +248,7 @@ class Dataset:
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
-    
+
     def _load_meta(self):
         meta_key = get_dataset_meta_key()
 

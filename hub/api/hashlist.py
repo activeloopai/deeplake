@@ -5,13 +5,7 @@ from hub.core.storage.cachable import CachableCallback, use_callback
 
 class Hashlist(CachableCallback):
     def __init__(self):
-        """Contains **optional** key/values that datasets/tensors use for human-readability.
-        See the `Meta` class for required key/values for datasets/tensors.
-
-        Note:
-            Since `Info` is rarely written to and mostly by the user, every modifier will call `cache[key] = self`.
-            Must call `initialize_callback_location` before using any methods.
-        """
+        """Contains list of hashes generated for a particular tensor."""
         self.hashes = []
         super().__init__()
 
@@ -21,11 +15,11 @@ class Hashlist(CachableCallback):
     @property
     def nbytes(self):
         return len(self.tobytes())
-    
+
     def isEmpty(self):
         if len(self.hashes):
             return False
-        else: 
+        else:
             return True
 
 
@@ -37,4 +31,3 @@ def load_hashlist(hashlist_key: str, cache: LRUCache):
         hashlist.initialize_callback_location(hashlist_key, cache)
 
     return hashlist
-
