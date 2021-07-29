@@ -41,9 +41,15 @@ class Encoder(ABC):
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
         """
 
+        if isinstance(encoded, list):
+            encoded = np.array(encoded, dtype=ENCODING_DTYPE)
+
         self._encoded = encoded
         if self._encoded is None:
             self._encoded = np.array([], dtype=ENCODING_DTYPE)
+
+        if self._encoded.dtype != ENCODING_DTYPE:
+            raise ValueError(f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}")
 
     @property
     def array(self):

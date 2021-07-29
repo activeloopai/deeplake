@@ -104,8 +104,8 @@ def test(local_ds_generator, images_compression):
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype=int)
     )  # empty sample (new shape)
-    _make_update_assert_equal(gen, "labels", -5, 99)
-    _make_update_assert_equal(gen, "labels", 0, 5)
+    _make_update_assert_equal(gen, "labels", -5, np.uint8(99)) # TODO: remove dtype wrapping
+    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))  # TODO: remove dtype wrapping
 
     # update a range of samples
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))

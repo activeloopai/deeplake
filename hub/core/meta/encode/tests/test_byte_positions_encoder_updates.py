@@ -14,7 +14,7 @@ def _validate_bp(enc: BytePositionsEncoder):
 
 
 def test_update_no_change():
-    enc = BytePositionsEncoder(np.array([[8, 0, 10], [4, 88, 15]]))
+    enc = BytePositionsEncoder([[8, 0, 10], [4, 88, 15]])
     _validate_bp(enc)
 
     enc[0] = 8
@@ -39,7 +39,7 @@ def test_update_no_change():
 
 
 def test_update_squeeze_trivial():
-    enc = BytePositionsEncoder(np.array([[4, 0, 9], [2, 40, 10], [4, 42, 29]]))
+    enc = BytePositionsEncoder([[4, 0, 9], [2, 40, 10], [4, 42, 29]])
     _validate_bp(enc)
 
     enc[10] = 4
@@ -50,7 +50,7 @@ def test_update_squeeze_trivial():
 
 def test_update_squeeze_complex():
     enc = BytePositionsEncoder(
-        np.array([[2, 0, 5], [4, 12, 9], [2, 28, 10], [4, 30, 29], [2, 106, 100]])
+        [[2, 0, 5], [4, 12, 9], [2, 28, 10], [4, 30, 29], [2, 106, 100]]
     )
     _validate_bp(enc)
 
