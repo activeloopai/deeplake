@@ -47,16 +47,14 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     try:
         img = to_image(array)
         out = BytesIO()
-        try:
-            img.save(out, compression)
-        except Exception as e:
-            if compression == "jpeg":
-                img = img.convert("RGB")
-                img.save(out, compression)
-            else:
-                raise e
+        out._close = out.close
+        out.close = lambda : None  # sgi save handler will try to close the stream (see https://github.com/python-pillow/Pillow/pull/5645)
+        kwargs = {"sizes": [img.size]} if compression == "ico" else {}
+        img.save(out, compression, **kwargs)
         out.seek(0)
-        return out.read()
+        compressed_bytes = out.read()
+        out._close()
+        return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
 
@@ -82,28 +80,6 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
 
     try:
         img = Image.open(BytesIO(buffer))
-        arr = np.array(img)
-        if np.prod(shape) != arr.size:
-            if (
-                img.mode == "RGB"
-                and shape[-1] == 4
-                and arr.shape[:-1] == shape[:-1]
-                and np.prod(shape[:-1]) * 3 == arr.size
-            ):
-                img = img.convert("RGBA")
-                arr = np.array(img)
-                assert arr.shape == shape
-                return arr
-            elif arr.shape[:2] == shape[:-1] and np.prod(shape[:-1]) == arr.size:
-                if shape[-1] == 4:
-                    img = img.convert("RGBA")
-                elif shape[-1] == 3:
-                    img = img.convert("RGB")
-                arr = np.array(img)
-                assert arr.shape == shape
-                return arr
-            else:
-                raise SampleDecompressionError()
-        return arr.reshape(shape)
+        return np.array(img).reshape(shape)
     except UnidentifiedImageError:
         raise SampleDecompressionError()

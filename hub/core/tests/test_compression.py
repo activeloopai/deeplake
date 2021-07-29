@@ -3,22 +3,19 @@ import numpy as np
 import pytest
 from hub.core.compression import compress_array, decompress_array
 from hub.constants import SUPPORTED_COMPRESSIONS
-
-parametrize_compressions = pytest.mark.parametrize(
-    "compression", SUPPORTED_COMPRESSIONS[:-1]
-)  # TODO: extend to be all pillow types we want to focus on
-
-parametrize_image_shapes = pytest.mark.parametrize(
-    "shape",
-    [(100, 100, 3), (28, 28, 1), (32, 32)],  # JPEG does not support RGBA
-)
+from PIL import Image
 
 
-@parametrize_compressions
-@parametrize_image_shapes
-def test_array(compression, shape):
+
+compressions = SUPPORTED_COMPRESSIONS[:]
+compressions.remove(None)
+compressions.remove("wmf")  # driver has to be provided by user for write support
+
+@pytest.mark.parametrize("compression", compressions)
+def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
-    array = np.zeros(shape, dtype="uint8")  # TODO: handle non-uint8
+    array = np.array(Image.open(compressed_image_paths[compression])) * False
+    shape = array.shape
     compressed_buffer = compress_array(array, compression)
     assert get_actual_compression_from_buffer(compressed_buffer) == compression
     decompressed_array = decompress_array(compressed_buffer, shape=shape)

@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image  # type: ignore
 
 BYTE_PADDING = b"\0"
 
@@ -10,9 +11,13 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-# Image.init()
-# SUPPORTED_COMPRESSIONS = [c.lower() for c in Image.SAVE if c in Image.OPEN] + [None]
-SUPPORTED_COMPRESSIONS = ["jpeg", "png", "bmp", "gif", None]
+SUPPORTED_COMPRESSIONS = ["bmp", "dib", "pcx", "gif", "png", "jpeg2000", "ico", "tiff", "jpeg", "ppm", "sgi", "tga", "webp", "wmf", "xbm"]
+# Pillow plugins for some formats might not be installed:
+if not Image.SAVE:
+    Image.init()
+SUPPORTED_COMPRESSIONS = [c for c in SUPPORTED_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN]
+SUPPORTED_COMPRESSIONS.append(None)
+
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
