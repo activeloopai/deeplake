@@ -482,7 +482,7 @@ class Encoder(ABC):
         # a new row should be created above
         start = self._encoded[: row_index - 1]
         end = self._encoded[row_index:]
-        new_row = [*self._decomposable_item, local_sample_index]
+        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
@@ -523,7 +523,7 @@ class Encoder(ABC):
         start = self._encoded[: row_index + 1]
         end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-        new_row = [*self._decomposable_item, local_sample_index]
+        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
@@ -559,7 +559,7 @@ class Encoder(ABC):
 
         # 2 rows should be created, and 1 should be updated
         start = np.array(self._encoded[: row_index + 1])
-        new_row = [*self._decomposable_item, local_sample_index]
+        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
         end = self._encoded[row_index:]
         start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
         self._encoded = np.concatenate((start, [new_row], end))
