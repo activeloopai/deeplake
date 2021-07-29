@@ -384,15 +384,13 @@ class ChunkEngine:
             incoming_sample = value[value_index]
             if not isinstance(incoming_sample, np.ndarray):
                 incoming_sample = np.array(incoming_sample)
-                if incoming_sample.dtype != self.tensor_meta.dtype:
-                    if np.can_cast(incoming_sample.dtype, self.tensor_meta.dtype):
-                        incoming_sample = np.cast[self.tensor_meta.dtype](
-                            incoming_sample
-                        )
-                    else:
-                        raise TypeError(
-                            f"Cannot cast from {incoming_sample.dtype} to {self.tensor_meta.dtype}."
-                        )
+            if incoming_sample.dtype != self.tensor_meta.dtype:
+                if np.can_cast(incoming_sample.dtype, self.tensor_meta.dtype):
+                    incoming_sample = np.cast[self.tensor_meta.dtype](incoming_sample)
+                else:
+                    raise TypeError(
+                        f"Cannot cast from {incoming_sample.dtype} to {self.tensor_meta.dtype}."
+                    )
             # TODO: optimize this (memcp)
             buffer = memoryview(incoming_sample.tobytes())
             chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)

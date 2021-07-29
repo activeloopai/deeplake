@@ -80,11 +80,12 @@ def _make_update_assert_equal(
 @pytest.mark.parametrize("images_compression", [None, "png"])
 def test(local_ds_generator, images_compression):
 
-    # gen = local_ds_generator
     mem = hub.dataset("mem://xyz")
 
     def gen():
         return mem
+
+    # gen = local_ds_generator
 
     _add_dummy_mnist(gen(), images_compression=images_compression)
 
@@ -139,11 +140,12 @@ def test_pre_indexed_tensor(local_ds_generator):
         >>> tensor[0:5] = ...
     """
 
-    # gen = local_ds_generator
     mem = hub.dataset("mem://xyz")
 
     def gen():
         return mem
+
+    # gen = local_ds_generator
 
     _add_dummy_mnist(gen())
 
