@@ -48,18 +48,18 @@ def test_update_squeeze_complex():
 
 
 def test_update_squeeze_up():
-    enc = ShapeEncoder([[28, 25,  0], [28, 28,  8], [0,  0,  9]])
+    enc = ShapeEncoder([[28, 25, 0], [28, 28, 8], [0, 0, 9]])
     enc[9] = (28, 28)
 
-    assert_encoded(enc, [[28, 25,  0], [28, 28,  9]])
+    assert_encoded(enc, [[28, 25, 0], [28, 28, 9]])
     assert enc.num_samples == 10
 
 
 def test_update_squeeze_down():
-    enc = ShapeEncoder([[28, 25,  0], [28, 28,  8], [0,  0,  9]])
+    enc = ShapeEncoder([[28, 25, 0], [28, 28, 8], [0, 0, 9]])
     enc[0] = (28, 28)
 
-    assert_encoded(enc, [[28, 28,  8], [0,  0,  9]])
+    assert_encoded(enc, [[28, 28, 8], [0, 0, 9]])
     assert enc.num_samples == 10
 
 

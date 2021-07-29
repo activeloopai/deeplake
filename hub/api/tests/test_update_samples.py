@@ -96,16 +96,24 @@ def test(local_ds_generator, images_compression):
     _make_update_assert_equal(
         gen, "images", -1, np.ones((1, 28, 28), dtype=int) * 75
     )  # same shape (with 1)
-    _make_update_assert_equal(gen, "images", -1, np.ones((28, 28), dtype=int) * 75)  # same shape
-    _make_update_assert_equal(gen, "images", 0, np.ones((28, 25), dtype=int) * 5)  # new shape
+    _make_update_assert_equal(
+        gen, "images", -1, np.ones((28, 28), dtype=int) * 75
+    )  # same shape
+    _make_update_assert_equal(
+        gen, "images", 0, np.ones((28, 25), dtype=int) * 5
+    )  # new shape
     _make_update_assert_equal(
         gen, "images", 0, np.ones((1, 28, 25), dtype=int) * 5
     )  # new shape (with 1)
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype=int)
     )  # empty sample (new shape)
-    _make_update_assert_equal(gen, "labels", -5, np.uint8(99)) # TODO: remove dtype wrapping
-    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))  # TODO: remove dtype wrapping
+    _make_update_assert_equal(
+        gen, "labels", -5, np.uint8(99)
+    )  # TODO: remove dtype wrapping
+    _make_update_assert_equal(
+        gen, "labels", 0, np.uint8(5)
+    )  # TODO: remove dtype wrapping
 
     # update a range of samples
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
@@ -186,5 +194,7 @@ def test_failures(memory_ds):
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
-    np.testing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28), dtype=int))
+    np.testing.assert_array_equal(
+        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype=int)
+    )
     np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype=int))

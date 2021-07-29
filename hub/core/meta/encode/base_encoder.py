@@ -37,6 +37,9 @@ class Encoder(ABC):
                 the row that corresponds to that sample index (since the right-most column is our "last index" for that meta information).
                 Then, you decode the row and that is your meta!
 
+        Raises:
+            ValueError: If `encoded` is not the right dtype.
+
         Args:
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
         """
@@ -49,7 +52,9 @@ class Encoder(ABC):
             self._encoded = np.array([], dtype=ENCODING_DTYPE)
 
         if self._encoded.dtype != ENCODING_DTYPE:
-            raise ValueError(f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}")
+            raise ValueError(
+                f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}"
+            )
 
     @property
     def array(self):
@@ -327,7 +332,6 @@ class Encoder(ABC):
 
         return self._combine_condition(item, row_index)
 
-
     def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the above and below rows in `self._encoded`
         to match the incoming item, just combine them all into a single row.
@@ -367,7 +371,6 @@ class Encoder(ABC):
 
         return True
 
-
     def _try_squeezing_up(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the above row in `self._encoded`
         matching the incoming item, just combine them into a single row.
@@ -402,13 +405,12 @@ class Encoder(ABC):
             return False
 
         # row can be "squeezed upwards"
-        start = self._encoded[: row_index]
-        end = self._encoded[row_index +1 :]
+        start = self._encoded[:row_index]
+        end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] += 1
         self._encoded = np.concatenate((start, end))
 
         return True
-
 
     def _try_squeezing_down(self, item: Any, row_index: int, *_) -> bool:
         """If update results in the below row in `self._encoded`
@@ -433,7 +435,7 @@ class Encoder(ABC):
                 A       10
                 C       15
         """
-        
+
         if self._num_samples_at_row != 1:
             return False
 
@@ -444,12 +446,11 @@ class Encoder(ABC):
             return False
 
         # row can be "squeezed downwards"
-        start = self._encoded[: row_index]
+        start = self._encoded[:row_index]
         end = self._encoded[row_index + 1 :]
         self._encoded = np.concatenate((start, end))
 
         return True
-
 
     def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
         """If `item` exists in the row above `row_index`, then we can just use the above row to encode `item`.
@@ -582,7 +583,9 @@ class Encoder(ABC):
         # a new row should be created above
         start = self._encoded[: row_index - 1]
         end = self._encoded[row_index:]
-        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
@@ -623,7 +626,9 @@ class Encoder(ABC):
         start = self._encoded[: row_index + 1]
         end = self._encoded[row_index + 1 :]
         start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
-        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
         self._encoded = np.concatenate((start, [new_row], end))
 
         return True
@@ -659,7 +664,9 @@ class Encoder(ABC):
 
         # 2 rows should be created, and 1 should be updated
         start = np.array(self._encoded[: row_index + 1])
-        new_row = np.array([*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE)
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
         end = self._encoded[row_index:]
         start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
         self._encoded = np.concatenate((start, [new_row], end))
