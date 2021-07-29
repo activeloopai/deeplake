@@ -1,5 +1,6 @@
 import numpy as np
-from typing import List, Sequence, Union, Optional, Tuple
+from typing import List, Sequence, Union, Optional, Tuple, Any
+from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
@@ -237,7 +238,40 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         return Tensor(self.key, self.storage, index=self.index[item])
 
-    def __setitem__(self, item: Union[int, slice], value: np.ndarray):
+    def _get_bigger_dtype(self, d1, d2):
+        if np.can_cast(d1, d2):
+            if np.can_cast(d2, d1):
+                return d1
+            else:
+                return d2
+        else:
+            if np.can_cast(d2, d1):
+                return d2
+            else:
+                return np.object
+
+    def _infer_np_dtype(self, val: Any) -> np.dtype:
+        # TODO refac
+        if hasattr(val, "dtype"):
+            return val.dtype
+        elif isinstance(val, int):
+            return np.array(0).dtype
+        elif isinstance(val, float):
+            return np.array(0.0).dtype
+        elif isinstance(val, str):
+            return np.array("").dtype
+        elif isinstance(val, bool):
+            return np.bool
+        elif isinstance(val, Sequence):
+            return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
+        else:
+            raise TypeError(f"Cannot infer numpy dtype for {value}")
+
+    def __setitem__(self, item: Union[int, slice], value: Any):
+        value_dtype = self._infer_np_dtype(value)
+        if self.dtype and self.dtype != value_dtype:
+            if not np.can_cast(value_dtype, self.dtype):
+                raise TypeError(f"Cannot cast from {value.dtype} to {self.dtype}")
         self.chunk_engine.update(Index(item), value)
 
     def __iter__(self):

@@ -1,8 +1,8 @@
 import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
-from hub.api.dataset import Dataset
 import numpy as np
+import hub
 
 
 def _add_dummy_mnist(ds, images_compression: str = None):
@@ -82,21 +82,27 @@ def _make_update_assert_equal(
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
 def test(local_ds_generator, images_compression):
+
+    mem = hub.dataset("mem://xyz")
+
+    def gen():
+        return mem
+
     gen = local_ds_generator
 
     _add_dummy_mnist(gen(), images_compression=images_compression)
 
     # update single sample
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28)) * 75
+        gen, "images", -1, np.ones((1, 28, 28), dtype=int) * 75
     )  # same shape (with 1)
-    _make_update_assert_equal(gen, "images", -1, np.ones((28, 28)) * 75)  # same shape
-    _make_update_assert_equal(gen, "images", 0, np.ones((28, 25)) * 5)  # new shape
+    _make_update_assert_equal(gen, "images", -1, np.ones((28, 28), dtype=int) * 75)  # same shape
+    _make_update_assert_equal(gen, "images", 0, np.ones((28, 25), dtype=int) * 5)  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 28, 25)) * 5
+        gen, "images", 0, np.ones((1, 28, 25), dtype=int) * 5
     )  # new shape (with 1)
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((0, 0))
+        gen, "images", -1, np.ones((0, 0), dtype=int)
     )  # empty sample (new shape)
     _make_update_assert_equal(gen, "labels", -5, 99)
     _make_update_assert_equal(gen, "labels", 0, 5)
@@ -105,10 +111,10 @@ def test(local_ds_generator, images_compression):
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
     _make_update_assert_equal(gen, "images", slice(0, 3), x)  # same shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28))
+        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int)
     )  # new shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 0, 0))
+        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype=int)
     )  # empty samples (new shape)
     _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
 
@@ -118,9 +124,9 @@ def test(local_ds_generator, images_compression):
         "images",
         slice(7, 10),
         [
-            np.ones((28, 50)) * 5,
-            np.ones((0, 5)),
-            np.ones((1, 1)) * 10,
+            np.ones((28, 50), dtype=int) * 5,
+            np.ones((0, 5), dtype=int),
+            np.ones((1, 1), dtype=int) * 10,
         ],
     )
 
@@ -137,7 +143,13 @@ def test_pre_indexed_tensor(local_ds_generator):
         >>> tensor[0:5] = ...
     """
 
+    mem = hub.dataset("mem://xyz")
+
+    def gen():
+        return mem
+
     gen = local_ds_generator
+
     _add_dummy_mnist(gen())
 
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
@@ -153,19 +165,19 @@ def test_failures(memory_ds):
 
     # primary axis doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((28, 28))
+        memory_ds.images[0:3] = np.zeros((28, 28), dtype=int)
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((2, 28, 28))
+        memory_ds.images[0:3] = np.zeros((2, 28, 28), dtype=int)
     with pytest.raises(ValueError):
-        memory_ds.images[0] = np.zeros((2, 28, 28))
+        memory_ds.images[0] = np.zeros((2, 28, 28), dtype=int)
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:5] = np.zeros((5, 28))
+        memory_ds.images[0:5] = np.zeros((5, 28), dtype=int)
     with pytest.raises(ValueError):
-        memory_ds.labels[0:5] = np.zeros((5, 2))
+        memory_ds.labels[0:5] = np.zeros((5, 2), dtype=int)
 
     # inplace operators
     with pytest.raises(NotImplementedError):
@@ -174,5 +186,5 @@ def test_failures(memory_ds):
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
-    np.testing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28)))
-    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10))
+    np.testing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28), dtype=int))
+    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype=int))
