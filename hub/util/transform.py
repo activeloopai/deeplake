@@ -1,24 +1,23 @@
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 import hub
 import numpy as np
 from typing import Any, Dict, List, Tuple
 
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.storage import MemoryProvider, LRUCache
+from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.dataset import Dataset
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.transform.transform_shard import TransformDatasetShard
 
 from hub.constants import MB
 
 from hub.util.remove_cache import get_base_storage
+from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 from hub.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
-    InvalidTransformOutputError,
     TensorMismatchError,
 )
-from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
-from hub.core.transform.transform_shard import TransformDatasetShard
 
 
 def transform_sample(
@@ -29,8 +28,7 @@ def transform_sample(
     Can return 0 or more samples.
     Args:
         sample: The sample on which the pipeline of functions is to be applied.
-        pipeline: The Sequence of functions to apply on the sample.
-        kwarg_list: A list of kwargs to be used with functions in the pipeline.
+        pipeline (Pipeline): The Sequence of functions to apply on the sample.
     Returns:
         TransformDatasetShard: A dataset shard containing all the samples that were generated.
     """
@@ -65,8 +63,12 @@ def combine_shards(shards: List[TransformDatasetShard]):
     return final_shard
 
 
-def store_data_slice(transform_input: Tuple):
-    """Takes a slice of the original data and iterates through it, producing chunks."""
+def store_data_slice(
+    transform_input: Tuple,
+) -> Tuple[Dict[str, TensorMeta], Dict[str, ChunkIdEncoder]]:
+    """Takes a slice of the original data and iterates through it and stores it in the actual storage.
+    The tensor_meta and chunk_id_encoder are not stored to the storage to prevent overwrites/race conditions b/w workers.
+    They are instead stored in memory and returned."""
     data_slice, output_storage, tensors, pipeline = transform_input
     all_chunk_engines = create_worker_chunk_engines(tensors, output_storage)
 
@@ -84,7 +86,9 @@ def store_data_slice(transform_input: Tuple):
     return all_tensor_metas, all_chunk_id_encoders
 
 
-def transform_data_slice_and_append(data_slice, pipeline, tensors, all_chunk_engines):
+def transform_data_slice_and_append(
+    data_slice, pipeline, tensors: List[str], all_chunk_engines: Dict[str, ChunkEngine]
+) -> None:
     """Transforms the data_slice with the pipeline and adds the resultant samples to chunk_engines."""
     for sample in data_slice:
         result = transform_sample(sample, pipeline)
@@ -94,7 +98,9 @@ def transform_data_slice_and_append(data_slice, pipeline, tensors, all_chunk_eng
             all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
 
 
-def create_worker_chunk_engines(tensors, output_storage) -> Dict[str, ChunkEngine]:
+def create_worker_chunk_engines(
+    tensors: List[str], output_storage: StorageProvider
+) -> Dict[str, ChunkEngine]:
     """Creates chunk engines corresponding to each storage for all tensors.
     These are created separately for each worker for parallel uploads.
     """
@@ -103,7 +109,6 @@ def create_worker_chunk_engines(tensors, output_storage) -> Dict[str, ChunkEngin
         # TODO: replace this with simply a MemoryProvider once we get rid of cachable
         memory_cache = LRUCache(MemoryProvider(), MemoryProvider(), 32 * MB)
         memory_cache.autoflush = False
-
         storage_cache = LRUCache(MemoryProvider(), output_storage, 32 * MB)
         storage_cache.autoflush = False
 
@@ -126,7 +131,9 @@ def create_worker_chunk_engines(tensors, output_storage) -> Dict[str, ChunkEngin
     return all_chunk_engines
 
 
-def add_cache_to_dataset_slice(dataset_slice):
+def add_cache_to_dataset_slice(
+    dataset_slice: hub.core.dataset.Dataset,
+) -> hub.core.dataset.Dataset:
     base_storage = get_base_storage(dataset_slice.storage)
     # 64 to account for potentially big encoder corresponding to each tensor
     # TODO: adjust this size once we get rid of cachable
@@ -142,8 +149,9 @@ def add_cache_to_dataset_slice(dataset_slice):
 
 
 def merge_all_tensor_metas(
-    all_workers_tensor_metas: List[Dict[str, TensorMeta]], ds_out
-):
+    all_workers_tensor_metas: List[Dict[str, TensorMeta]],
+    ds_out: hub.core.dataset.Dataset,
+) -> None:
     """Merges tensor metas from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
@@ -156,7 +164,7 @@ def merge_all_tensor_metas(
     ds_out.flush()
 
 
-def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta):
+def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) -> None:
     """Combines the dataset's tensor meta with a single worker's tensor meta."""
     # if tensor meta is empty, copy attributes from current_meta
     if len(ds_tensor_meta.max_shape) == 0 or ds_tensor_meta.dtype is None:
@@ -177,8 +185,9 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta):
 
 
 def merge_all_chunk_id_encoders(
-    all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]], ds_out
-):
+    all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]],
+    ds_out: hub.core.dataset.Dataset,
+) -> None:
     """Merges chunk_id_encoders from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
@@ -202,7 +211,7 @@ def combine_chunk_id_encoders(
     ds_chunk_id_encoder: ChunkIdEncoder,
     worker_chunk_id_encoder: ChunkIdEncoder,
     offset: int,
-):
+) -> None:
     """Combines the dataset's chunk_id_encoder with a single worker's chunk_id_encoder."""
     encoded_ids = worker_chunk_id_encoder._encoded
     if encoded_ids.size != 0:
@@ -216,16 +225,26 @@ def combine_chunk_id_encoders(
                 )
 
 
-def check_transform_data_in(data_in):
+def check_transform_data_in(data_in, scheduler: str) -> None:
     """Checks whether the data_in for a transform is valid or not."""
     if not hasattr(data_in, "__getitem__"):
-        raise InvalidInputDataError("__getitem__")
+        raise InvalidInputDataError(
+            f"The data_in to transform is invalid. It should support __getitem__ operation."
+        )
     if not hasattr(data_in, "__len__"):
-        raise InvalidInputDataError("__len__")
+        raise InvalidInputDataError(
+            f"The data_in to transform is invalid. It should support __len__ operation."
+        )
+    if isinstance(data_in, hub.core.dataset.Dataset):
+        base_storage = get_base_storage(data_in.storage)
+        if isinstance(base_storage, MemoryProvider) and scheduler != "threaded":
+            raise InvalidOutputDatasetError(
+                f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+            )
 
 
-def check_transform_ds_out(ds_out):
-    """Checks whether the das_out for a transform is valid or not."""
+def check_transform_ds_out(ds_out: hub.core.dataset.Dataset, scheduler: str) -> None:
+    """Checks whether the ds_out for a transform is valid or not."""
     if ds_out._read_only:
         raise InvalidOutputDatasetError
     tensors = list(ds_out.tensors)
@@ -234,3 +253,9 @@ def check_transform_ds_out(ds_out):
             raise InvalidOutputDatasetError(
                 "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
             )
+
+    output_base_storage = get_base_storage(ds_out.storage)
+    if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
+        raise InvalidOutputDatasetError(
+            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+        )

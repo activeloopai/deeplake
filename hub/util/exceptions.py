@@ -367,13 +367,6 @@ class TransformError(Exception):
     pass
 
 
-class InvalidTransformOutputError(TransformError):
-    def __init__(self, item):
-        super().__init__(
-            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
-        )
-
-
 class InvalidInputDataError(TransformError):
     def __init__(self, message):
         super().__init__(
@@ -401,13 +394,6 @@ class InvalidOutputDatasetError(TransformError):
         self, message="The output Dataset to transform should not be in read mode."
     ):
         super().__init__(message)
-
-
-class MemoryDatasetNotSupportedError(TransformError):
-    def __init__(self, scheduler):
-        super().__init__(
-            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
-        )
 
 
 class DatasetUnsupportedPytorch(Exception):

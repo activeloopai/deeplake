@@ -1,12 +1,10 @@
-from hub.core.compute.provider import ComputeProvider
 import hub
 import math
-from itertools import repeat
 from typing import List
-
-from hub.core.storage import MemoryProvider, LRUCache
+from itertools import repeat
+from hub.core.compute.provider import ComputeProvider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
-from hub.util.dataset import try_flushing
+from hub.util.compute import get_compute_provider
 from hub.util.transform import (
     check_transform_data_in,
     check_transform_ds_out,
@@ -14,12 +12,6 @@ from hub.util.transform import (
     merge_all_tensor_metas,
     store_data_slice,
 )
-from hub.util.exceptions import (
-    InvalidInputDataError,
-    InvalidOutputDatasetError,
-    MemoryDatasetNotSupportedError,
-)
-from hub.util.compute import get_compute_provider
 
 
 class TransformFunction:
@@ -42,7 +34,13 @@ class Pipeline:
     def __len__(self):
         return len(self.transform_functions)
 
-    def eval(self, data_in, ds_out, num_workers: int = 1, scheduler="threaded"):
+    def eval(
+        self,
+        data_in,
+        ds_out: hub.core.dataset.Dataset,
+        num_workers: int = 1,
+        scheduler="threaded",
+    ):
         """Evaluates the pipeline on data_in to produce an output dataset ds_out.
 
         Args:
@@ -55,27 +53,21 @@ class Pipeline:
             scheduler (str): The scheduler to be used to compute the transformation. Supported values include: 'threaded' and 'processed'.
 
         Raises:
-            InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations.
-            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length.
+            InvalidInputDataError: If data_in passed to transform is invalid. It should support __getitem__ and __len__ operations. Using scheduler other than "threaded" with hub dataset having base storage as memory as data_in will also raise this.
+            InvalidOutputDatasetError: If all the tensors of ds_out passed to transform don't have the same length. Using scheduler other than "threaded" with hub dataset having base storage as memory as ds_out will also raise this.
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: 'threaded' and 'processed'.
             InvalidTransformOutputError: If the output of any step in a transformation isn't dictionary or a list/tuple of dictionaries.
-            MemoryDatasetNotSupportedError: If ds_out is a Hub dataset with memory as underlying storage and the scheduler is not threaded.
         """
         if isinstance(data_in, hub.core.dataset.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
-        check_transform_data_in(data_in)
+        check_transform_data_in(data_in, scheduler)
+        check_transform_ds_out(ds_out, scheduler)
 
-        check_transform_ds_out(ds_out)
         ds_out.flush()
         initial_autoflush = ds_out.storage.autoflush
         ds_out.storage.autoflush = False
-
-        output_base_storage = get_base_storage(ds_out.storage)
-        if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
-            # TODO: do this for input data too
-            raise MemoryDatasetNotSupportedError(scheduler)
 
         tensors = list(ds_out.tensors)
         compute_provider = get_compute_provider(scheduler, num_workers)
@@ -86,7 +78,7 @@ class Pipeline:
     def run_pipeline(
         self,
         data_in,
-        ds_out,
+        ds_out: hub.core.dataset.Dataset,
         tensors: List[str],
         compute: ComputeProvider,
         num_workers: int,

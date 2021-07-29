@@ -1,12 +1,11 @@
-from hub.core.transform.transform import Pipeline
-from hub.util.exceptions import MemoryDatasetNotSupportedError
+import hub
 import pytest
+import numpy as np
+from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
-import numpy as np
-import hub
 from hub.tests.dataset_fixtures import enabled_datasets
-from click.testing import CliRunner
+from hub.util.exceptions import InvalidOutputDatasetError
 
 
 @hub.compute
@@ -146,7 +145,7 @@ def test_chain_transform_list_small_processed(ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
-        with pytest.raises(MemoryDatasetNotSupportedError):
+        with pytest.raises(InvalidOutputDatasetError):
             fn2().eval(ls, ds_out, num_workers=3, scheduler="processed")
         return
 
