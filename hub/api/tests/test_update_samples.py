@@ -3,6 +3,7 @@ from typing import Callable
 from hub.tests.common import assert_array_lists_equal
 from hub.api.dataset import Dataset
 import numpy as np
+import hub
 
 
 def _add_dummy_mnist(ds, images_compression: str = None):
@@ -78,7 +79,12 @@ def _make_update_assert_equal(
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
 def test(local_ds_generator, images_compression):
-    gen = local_ds_generator
+
+    # gen = local_ds_generator
+    mem = hub.dataset("mem://xyz")
+
+    def gen():
+        return mem
 
     _add_dummy_mnist(gen(), images_compression=images_compression)
 
@@ -133,7 +139,12 @@ def test_pre_indexed_tensor(local_ds_generator):
         >>> tensor[0:5] = ...
     """
 
-    gen = local_ds_generator
+    # gen = local_ds_generator
+    mem = hub.dataset("mem://xyz")
+
+    def gen():
+        return mem
+
     _add_dummy_mnist(gen())
 
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))

@@ -363,11 +363,15 @@ class ChunkEngine:
 
         updated_chunks = set()
         index_length = index.values[0].length(self.num_samples)
+        len_value = 1
+        try:
+            len(value)
+        except TypeError:
+            value = [value]
         if index_length != len(value):
             raise ValueError(
                 f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
             )
-
         for value_index, global_sample_index in enumerate(
             index.values[0].indices(self.num_samples)
         ):
@@ -378,7 +382,17 @@ class ChunkEngine:
             )
 
             incoming_sample = value[value_index]
-
+            if not isinstance(incoming_sample, np.ndarray):
+                incoming_sample = np.array(incoming_sample)
+                if incoming_sample.dtype != self.tensor_meta.dtype:
+                    if np.can_cast(incoming_sample.dtype, self.tensor_meta.dtype):
+                        incoming_sample = np.cast[self.tensor_meta.dtype](
+                            incoming_sample
+                        )
+                    else:
+                        raise TypeError(
+                            f"Cannot cast from {incoming_sample.dtype} to {self.tensor_meta.dtype}."
+                        )
             # TODO: optimize this (memcp)
             buffer = memoryview(incoming_sample.tobytes())
             chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)
@@ -532,10 +546,12 @@ def _format_input_samples(index: Index, value: Any, total_num_samples: int):
 
     index_length = index.length(total_num_samples)
     if index_length == 1:
-        if hasattr(value, "__len__"):
-            if len(value) != 1:
-                value = [value]
-        else:
+        n = 1
+        try:
+            n = len(value)
+        except TypeError:  # Note: `hasattr(value, '__len__') won't work as it is implemented by numpy scalars`
+            pass
+        if n != 1:
             value = [value]
     return value
 
