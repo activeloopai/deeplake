@@ -44,6 +44,7 @@ def test_persist(ds_generator):
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
     assert ds_new.meta.version == hub.__version__
+    ds_new.delete()
 
 
 @enabled_persistent_dataset_generators
@@ -473,6 +474,7 @@ def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
 
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
+    hub_cloud_ds.delete()
 
 
 def test_index_range(memory_ds):
