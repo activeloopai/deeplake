@@ -162,15 +162,15 @@ def merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out):
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
             num_samples = current_chunk_id_encoder.num_samples
-            encoded_ids = current_chunk_id_encoder._encoded_ids
+            encoded_ids = current_chunk_id_encoder._encoded
             if encoded_ids is not None:
                 for encoded_id in encoded_ids:
                     encoded_id[1] += offset
-                    if chunk_id_encoder._encoded_ids is None:
-                        chunk_id_encoder._encoded_ids = np.reshape(encoded_id, (-1, 2))
+                    if chunk_id_encoder._encoded.size == 0:
+                        chunk_id_encoder._encoded = np.reshape(encoded_id, (-1, 2))
                     else:
-                        chunk_id_encoder._encoded_ids = np.vstack(
-                            [chunk_id_encoder._encoded_ids, encoded_id]
+                        chunk_id_encoder._encoded = np.vstack(
+                            [chunk_id_encoder._encoded, encoded_id]
                         )
             offset += num_samples
         chunk_id_key = get_chunk_id_encoder_key(tensor)
