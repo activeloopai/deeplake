@@ -238,8 +238,9 @@ class dataset:
         """List all available datasets.
 
         Args:
-            workspace (str): If not specified, prints a list of all datasets that can be accessed, regardless of what workspace they are in.
-                 Otherwise, lists all datasets in the given workspace.
+            workspace (str): Specify user/organization name. If not given,
+                returns a list of all datasets that can be accessed, regardless of what workspace they are in.
+                Otherwise, lists all datasets in the given workspace.
 
         Returns:
             List of dataset names.

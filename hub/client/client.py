@@ -210,16 +210,21 @@ class HubBackendClient:
             endpoint=self.endpoint(),
         ).json()
 
-    def get_user_profile(self):
+    def get_user_organizations(self):
+        """Get list of user organizations from the backend. If user is not logged in, returns ['public'].
+
+        Returns:
+            list: user/organization names
+        """
         response = self.request(
             "GET", GET_USER_PROFILE, endpoint=self.endpoint()
         ).json()
-        return response["_id"], response["organizations"]
+        return response["organizations"]
 
     def get_workspace_datasets(
         self, workspace: str, suffix_public: str, suffix_user: str
     ):
-        _, organizations = self.get_user_profile()
+        organizations = self.get_user_organizations()
         if workspace in organizations:
             response = self.request(
                 "GET",
