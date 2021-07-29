@@ -267,7 +267,44 @@ class Tensor:
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
 
+    __repr__ = __str__
+
     def __array__(self) -> np.ndarray:
         return self.numpy()
 
-    __repr__ = __str__
+    # TODO: Inplace operatitions
+    def __iadd__(self, other):
+        raise NotImplementedError
+
+    def __isub__(self, other):
+        raise NotImplementedError
+
+    def __imul__(self, other):
+        raise NotImplementedError
+
+    def __idiv__(self, other):
+        raise NotImplementedError
+
+    def __ifloordiv__(self, other):
+        raise NotImplementedError
+
+    def __imod__(self, other):
+        raise NotImplementedError
+
+    def __ipow__(self, other):
+        raise NotImplementedError
+
+    def __ilshift__(self, other):
+        raise NotImplementedError
+
+    def __irshift__(self, other):
+        raise NotImplementedError
+
+    def __iand__(self, other):
+        raise NotImplementedError
+
+    def __ixor__(self, other):
+        raise NotImplementedError
+
+    def __ior__(self, other):
+        raise NotImplementedError

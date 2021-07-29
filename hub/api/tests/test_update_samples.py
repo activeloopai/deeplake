@@ -170,5 +170,5 @@ def test_failures(memory_ds):
     # make sure no data changed
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
-    np.tesing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28)))
-    np.tesing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10))
+    np.testing.assert_array_equal(memory_ds.images.numpy(), np.ones((10, 28, 28)))
+    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10))

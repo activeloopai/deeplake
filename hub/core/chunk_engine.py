@@ -362,6 +362,12 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         updated_chunks = set()
+        index_length = index.values[0].length(self.num_samples)
+        if index_length != len(value):
+            raise ValueError(
+                f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
+            )
+
         for value_index, global_sample_index in enumerate(
             index.values[0].indices(self.num_samples)
         ):
