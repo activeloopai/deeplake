@@ -12,7 +12,7 @@ from hub.util.transform import (
     check_transform_ds_out,
     merge_all_chunk_id_encoders,
     merge_all_tensor_metas,
-    store_shard,
+    store_data_slice,
 )
 from hub.util.exceptions import (
     InvalidInputDataError,
@@ -74,6 +74,7 @@ class Pipeline:
 
         output_base_storage = get_base_storage(ds_out.storage)
         if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
+            # TODO: do this for input data too
             raise MemoryDatasetNotSupportedError(scheduler)
 
         tensors = list(ds_out.tensors)
@@ -92,12 +93,12 @@ class Pipeline:
     ):
         """Runs the pipeline on the input data to produce output samples and stores in the dataset."""
         size = math.ceil(len(data_in) / num_workers)
-        shards = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
+        slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
         output_base_storage = get_base_storage(ds_out.storage)
         metas_and_encoders = compute.map(
-            store_shard,
-            zip(shards, repeat(output_base_storage), repeat(tensors), repeat(self)),
+            store_data_slice,
+            zip(slices, repeat(output_base_storage), repeat(tensors), repeat(self)),
         )
 
         all_tensor_metas, all_chunk_id_encoders = zip(*metas_and_encoders)
