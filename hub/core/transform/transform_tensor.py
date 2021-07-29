@@ -1,4 +1,4 @@
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
 
@@ -30,7 +30,7 @@ class TransformDatasetTensor:
     def __len__(self) -> int:
         if self.length is None:
             self.numpy_compressed()  # calculates and sets length
-        return self.length
+        return self.length  # type: ignore
 
     def __getitem__(self, index):
         if isinstance(index, list):

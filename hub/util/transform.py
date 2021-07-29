@@ -18,7 +18,7 @@ from hub.core.transform.transform_shard import TransformDatasetShard
 def transform_sample(
     sample: Any,
     pipeline,
-) -> List[dict]:
+) -> TransformDatasetShard:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
     Args:
