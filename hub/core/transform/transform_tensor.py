@@ -42,15 +42,16 @@ class TransformDatasetTensor:
         )
 
     def append(self, item):
-        if self.items and not isinstance(item, Sample):
+        if not isinstance(item, Sample):
             item = np.asarray(item)
-            expected_dims = self.items[-1].ndim
-            dims = item.ndim
-            if expected_dims != dims:
-                raise TensorInvalidSampleShapeError(
-                    f"Sample shape length is expected to be {expected_dims}, actual length is {dims}.",
-                    item.shape,
-                )
+            if self.items:
+                expected_dims = self.items[-1].ndim
+                dims = item.ndim
+                if expected_dims != dims:
+                    raise TensorInvalidSampleShapeError(
+                        f"Sample shape length is expected to be {expected_dims}, actual length is {dims}.",
+                        item.shape,
+                    )
         self.items.append(item)
 
     def extend(self, items):

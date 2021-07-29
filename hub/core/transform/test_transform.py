@@ -59,7 +59,7 @@ def test_single_transform_hub_dataset(ds):
         ds_out.create_tensor("image")
         ds_out.create_tensor("label")
 
-        fn2(copy=1, mul=2).eval(data_in, ds_out, workers=5)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -86,7 +86,7 @@ def test_single_transform_hub_dataset_htypes(ds):
         ds_out = ds
         ds_out.create_tensor("image")
         ds_out.create_tensor("label")
-        fn2(copy=1, mul=2).eval(data_in, ds_out, workers=5)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -107,7 +107,7 @@ def test_chain_transform_list_small(ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, workers=5)
+    pipeline.eval(ls, ds_out, num_workers=5)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
@@ -127,7 +127,7 @@ def test_chain_transform_list_big(ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn3(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, workers=3)
+    pipeline.eval(ls, ds_out, num_workers=3)
     assert len(ds_out) == 8
     for i in range(2):
         for index in range(4 * i, 4 * i + 4):
@@ -147,11 +147,11 @@ def test_chain_transform_list_small_processed(ds):
     ds_out.create_tensor("label")
     if isinstance(remove_memory_cache(ds.storage), MemoryProvider):
         with pytest.raises(MemoryDatasetNotSupportedError):
-            fn2().eval(ls, ds_out, workers=3, scheduler="processed")
+            fn2().eval(ls, ds_out, num_workers=3, scheduler="processed")
         return
 
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, workers=3, scheduler="processed")
+    pipeline.eval(ls, ds_out, num_workers=3, scheduler="processed")
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
@@ -171,7 +171,7 @@ def test_transform_hub_read(ds, cat_path):
     ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
     ds_out.create_tensor("image_none", htype="image", sample_compression=None)
 
-    read_image().eval(data_in, ds_out, workers=8)
+    read_image().eval(data_in, ds_out, num_workers=8)
     assert len(ds_out) == 10
     for i in range(10):
         assert ds_out.image_png[i].numpy().shape == (900, 900, 3)
@@ -196,7 +196,7 @@ def test_transform_hub_read_pipeline(ds, cat_path):
     ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
     ds_out.create_tensor("image_none", htype="image", sample_compression=None)
     pipeline = hub.compose([read_image(), crop_image(copy=2)])
-    pipeline.eval(data_in, ds_out, workers=8)
+    pipeline.eval(data_in, ds_out, num_workers=8)
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image_png[i].numpy().shape == (100, 100, 3)

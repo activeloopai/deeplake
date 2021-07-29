@@ -1,6 +1,7 @@
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 import hub
 import numpy as np
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import MemoryProvider, LRUCache
@@ -10,7 +11,12 @@ from hub.core.dataset import Dataset
 from hub.constants import MB
 
 from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import InvalidTransformOutputError, TensorMismatchError
+from hub.util.exceptions import (
+    InvalidInputDataError,
+    InvalidOutputDatasetError,
+    InvalidTransformOutputError,
+    TensorMismatchError,
+)
 from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 from hub.core.transform.transform_shard import TransformDatasetShard
 
@@ -26,14 +32,12 @@ def transform_sample(
         pipeline: The Sequence of functions to apply on the sample.
         kwarg_list: A list of kwargs to be used with functions in the pipeline.
     Returns:
-        List[Dict]: Containing a dictionary of all the output samples generated.
+        TransformDatasetShard: A dataset shard containing all the samples that were generated.
     """
     result = sample
     for index in range(len(pipeline)):
-        transform_function = pipeline.transform_functions[index]
-        fn = transform_function.func
-        args = transform_function.args
-        kwargs = transform_function.kwargs
+        transform_fn = pipeline.transform_functions[index]
+        fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
         if isinstance(result, TransformDatasetShard):
             all_samples_out = []
@@ -127,52 +131,92 @@ def store_shard(transform_input: Tuple):
     return all_tensor_metas, all_chunk_id_encoders
 
 
-def merge_tensor_metas(all_workers_tensor_metas, ds_out):
+def merge_all_tensor_metas(
+    all_workers_tensor_metas: List[Dict[str, TensorMeta]], ds_out
+):
+    """Merges tensor metas from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         tensor_meta = ds_out[tensor].meta
         for current_worker_metas in all_workers_tensor_metas:
             current_meta = current_worker_metas[tensor]
-            # tensor meta is empty, copy attributes from current_meta
-            if len(tensor_meta.max_shape) == 0 or tensor_meta.dtype is None:
-                tensor_meta.dtype = current_meta.dtype
-                tensor_meta.length += current_meta.length
-                tensor_meta.max_shape = current_meta.max_shape
-                tensor_meta.min_shape = current_meta.min_shape
-
-            # len of min_shape will be 0 if 0 outputs from worker
-            elif len(current_meta.min_shape) != 0:
-                assert tensor_meta.dtype == current_meta.dtype
-                # TODO we can support this once we have ragged tensor support
-                assert len(tensor_meta.max_shape) == len(current_meta.max_shape)
-                assert len(tensor_meta.min_shape) == len(current_meta.min_shape)
-                tensor_meta.length += current_meta.length
-                tensor_meta._update_shape_interval(tuple(current_meta.max_shape))
-                tensor_meta._update_shape_interval(tuple(current_meta.min_shape))
+            combine_metas(tensor_meta, current_meta)
         meta_key = get_tensor_meta_key(tensor)
         ds_out[tensor].chunk_engine.cache[meta_key] = tensor_meta
     ds_out.flush()
 
 
-def merge_chunk_id_encoders(all_workers_chunk_id_encoders, ds_out):
+def combine_metas(ds_tensor_meta, worker_tensor_meta):
+    """Combines the dataset's tensor meta with a single worker's tensor meta."""
+    # if tensor meta is empty, copy attributes from current_meta
+    if len(ds_tensor_meta.max_shape) == 0 or ds_tensor_meta.dtype is None:
+        ds_tensor_meta.dtype = worker_tensor_meta.dtype
+        ds_tensor_meta.length += worker_tensor_meta.length
+        ds_tensor_meta.max_shape = worker_tensor_meta.max_shape
+        ds_tensor_meta.min_shape = worker_tensor_meta.min_shape
+
+    # len of min_shape will be 0 if 0 outputs from worker
+    elif len(worker_tensor_meta.min_shape) != 0:
+        assert ds_tensor_meta.dtype == worker_tensor_meta.dtype
+        # TODO we can support this once we have ragged tensor support
+        assert len(ds_tensor_meta.max_shape) == len(worker_tensor_meta.max_shape)
+        assert len(ds_tensor_meta.min_shape) == len(worker_tensor_meta.min_shape)
+        ds_tensor_meta.length += worker_tensor_meta.length
+        ds_tensor_meta._update_shape_interval(tuple(worker_tensor_meta.max_shape))
+        ds_tensor_meta._update_shape_interval(tuple(worker_tensor_meta.min_shape))
+
+
+def merge_all_chunk_id_encoders(
+    all_workers_chunk_id_encoders: List[Dict[str, ChunkIdEncoder]], ds_out
+):
+    """Merges chunk_id_encoders from all workers into a single one and stores it in ds_out."""
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         chunk_id_encoder = ds_out[tensor].chunk_engine.chunk_id_encoder
         offset = chunk_id_encoder.num_samples
+
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
             num_samples = current_chunk_id_encoder.num_samples
-            encoded_ids = current_chunk_id_encoder._encoded
-            if encoded_ids is not None:
-                for encoded_id in encoded_ids:
-                    encoded_id[1] += offset
-                    if chunk_id_encoder._encoded.size == 0:
-                        chunk_id_encoder._encoded = np.reshape(encoded_id, (-1, 2))
-                    else:
-                        chunk_id_encoder._encoded = np.vstack(
-                            [chunk_id_encoder._encoded, encoded_id]
-                        )
+            combine_chunk_id_encoders(
+                chunk_id_encoder, current_chunk_id_encoder, offset
+            )
             offset += num_samples
+
         chunk_id_key = get_chunk_id_encoder_key(tensor)
         ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
     ds_out.flush()
+
+
+def combine_chunk_id_encoders(ds_chunk_id_encoder, worker_chunk_id_encoder, offset):
+    """Combines the dataset's chunk_id_encoder with a single worker's chunk_id_encoder."""
+    encoded_ids = worker_chunk_id_encoder._encoded
+    if encoded_ids.size != 0:
+        for encoded_id in encoded_ids:
+            encoded_id[1] += offset
+            if ds_chunk_id_encoder._encoded.size == 0:
+                ds_chunk_id_encoder._encoded = np.reshape(encoded_id, (-1, 2))
+            else:
+                ds_chunk_id_encoder._encoded = np.vstack(
+                    [ds_chunk_id_encoder._encoded, encoded_id]
+                )
+
+
+def check_transform_data_in(data_in):
+    """Checks whether the data_in for a transform is valid or not."""
+    if not hasattr(data_in, "__getitem__"):
+        raise InvalidInputDataError("__getitem__")
+    if not hasattr(data_in, "__len__"):
+        raise InvalidInputDataError("__len__")
+
+
+def check_transform_ds_out(ds_out):
+    """Checks whether the das_out for a transform is valid or not."""
+    if ds_out._read_only:
+        raise InvalidOutputDatasetError
+    tensors = list(ds_out.tensors)
+    for tensor in tensors:
+        if len(ds_out[tensor]) != len(ds_out):
+            raise InvalidOutputDatasetError(
+                "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
+            )

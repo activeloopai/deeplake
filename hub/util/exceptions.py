@@ -398,7 +398,7 @@ class TensorMismatchError(TransformError):
 
 class InvalidOutputDatasetError(TransformError):
     def __init__(
-        self, message="The output Dataset to transform should not be in read mode"
+        self, message="The output Dataset to transform should not be in read mode."
     ):
         super().__init__(message)
 
