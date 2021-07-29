@@ -243,6 +243,37 @@ class dataset:
             - Currently only local source paths and image classification datasets are supported for automatic ingestion.
             - Supported filetypes: png/jpeg/jpg.
             - All files and sub-directories with unsupported filetypes are ignored.
+            - Valid source directory structures look like:
+
+            src:
+                directory -
+                    img.jpg
+                    ...
+
+            src:
+                directory -
+                    class0 -
+                        img.jpg
+                        ...
+                    class1 -
+                        img.jpg
+                        ...
+                    ...
+
+            src:
+                directory -
+                    train -
+                        class0 -
+                            img.jpg
+                            ...
+                        ...
+                    test -
+                        class1 -
+                            img.jpg
+                            ...
+                        ...
+                    ...
+
             - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
             - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]
             - Mapping filenames to classes from an external file is currently not supported.
