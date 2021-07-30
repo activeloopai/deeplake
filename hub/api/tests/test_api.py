@@ -471,10 +471,8 @@ def test_array_interface(memory_ds: Dataset):
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
     ds = hub.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
-
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
-    hub_cloud_ds.delete()
 
 
 def test_index_range(memory_ds):

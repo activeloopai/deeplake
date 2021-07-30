@@ -47,7 +47,9 @@ def s3_ds_generator(s3_path):
 
 @pytest.fixture
 def hub_cloud_ds(hub_cloud_ds_generator):
-    return hub_cloud_ds_generator()
+    hub_cloud_dataset = hub_cloud_ds_generator()
+    yield hub_cloud_dataset
+    hub_cloud_dataset.delete()
 
 
 @pytest.fixture
