@@ -7,7 +7,7 @@ from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.dataset import Dataset
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-from hub.core.transform.transform_shard import TransformDatasetShard
+from hub.core.transform.transform_dataset import TransformDataset
 
 from hub.constants import MB
 
@@ -23,44 +23,44 @@ from hub.util.exceptions import (
 def transform_sample(
     sample: Any,
     pipeline,
-) -> TransformDatasetShard:
+) -> TransformDataset:
     """Calls all the functions one after the other on a single sample.
     Can return 0 or more samples.
     Args:
         sample: The sample on which the pipeline of functions is to be applied.
         pipeline (Pipeline): The Sequence of functions to apply on the sample.
     Returns:
-        TransformDatasetShard: A dataset shard containing all the samples that were generated.
+        TransformDataset: A transform dataset containing all the samples that were generated.
     """
     result = sample
     for index in range(len(pipeline)):
         transform_fn = pipeline.transform_functions[index]
         fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
-        if isinstance(result, TransformDatasetShard):
+        if isinstance(result, TransformDataset):
             all_samples_out = []
             for item in result:
-                samples_out = TransformDatasetShard()
+                samples_out = TransformDataset()
                 fn(item, samples_out, *args, **kwargs)
                 samples_out._check_length_equal()
                 all_samples_out.append(samples_out)
-            result = combine_shards(all_samples_out)
+            result = combine_transform_datasets(all_samples_out)
             result._check_length_equal()  # TODO separate exception for this
         else:
-            samples_out = TransformDatasetShard()
+            samples_out = TransformDataset()
             fn(result, samples_out, *args, **kwargs)
             samples_out._check_length_equal()
             result = samples_out
     return result
 
 
-def combine_shards(shards: List[TransformDatasetShard]):
-    """Combines multiple shards into a single dataset shard"""
-    final_shard = TransformDatasetShard()
+def combine_transform_datasets(shards: List[TransformDataset]):
+    """Combines multiple TransformDataset into a single transform dataset."""
+    final_ds = TransformDataset()
     for shard in shards:
         for tensor in shard.tensors:
-            final_shard[tensor].extend(shard[tensor].numpy())
-    return final_shard
+            final_ds[tensor].extend(shard[tensor].numpy())
+    return final_ds
 
 
 def store_data_slice(

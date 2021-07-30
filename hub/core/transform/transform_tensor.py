@@ -3,7 +3,7 @@ from hub.util.exceptions import TensorInvalidSampleShapeError
 import numpy as np
 
 
-class TransformDatasetTensor:
+class TransformTensor:
     def __init__(self, base_tensor=None, slice_list=None) -> None:
         self.items = [] if base_tensor is None else base_tensor.items
         self.base_tensor = base_tensor or self
@@ -39,9 +39,7 @@ class TransformDatasetTensor:
             new_slice_list = self.slice_list + index
         else:
             new_slice_list = self.slice_list + [index]
-        return TransformDatasetTensor(
-            base_tensor=self.base_tensor, slice_list=new_slice_list
-        )
+        return TransformTensor(base_tensor=self.base_tensor, slice_list=new_slice_list)
 
     def append(self, item):
         """Adds an item to the tensor."""
