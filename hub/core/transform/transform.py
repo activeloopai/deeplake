@@ -134,9 +134,9 @@ def compose(transform_functions: List[TransformFunction]):
     """Takes a list of transform functions and creates a pipeline out of them that can be evaluated using .eval"""
     if not transform_functions:
         raise TransformComposeEmptyListError
-    for fn in transform_functions:
+    for index, fn in enumerate(transform_functions):
         if not isinstance(fn, TransformFunction):
-            raise TransformComposeIncompatibleFunction
+            raise TransformComposeIncompatibleFunction(index)
     return Pipeline(transform_functions)
 
 

@@ -402,11 +402,10 @@ class TransformComposeEmptyListError(TransformError):
 
 
 class TransformComposeIncompatibleFunction(TransformError):
-    def __init__(
-        self,
-        message="One or more elements passed to hub.compose are incompatible with it. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, pass my_fn() in the list.",
-    ):
-        super().__init__(message)
+    def __init__(self, index: int):
+        super().__init__(
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
+        )
 
 
 class DatasetUnsupportedPytorch(Exception):
