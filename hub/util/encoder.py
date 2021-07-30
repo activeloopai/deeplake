@@ -7,7 +7,6 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 
 
-
 def merge_all_tensor_metas(
     all_workers_tensor_metas: List[Dict[str, TensorMeta]],
     ds_out: hub.core.dataset.Dataset,
@@ -65,7 +64,6 @@ def merge_all_chunk_id_encoders(
         chunk_id_key = get_chunk_id_encoder_key(tensor)
         ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
     ds_out.flush()
-
 
 
 def combine_chunk_id_encoders(
