@@ -82,7 +82,7 @@ def store_data_slice(
     all_chunk_id_encoders = {}
     for tensor, chunk_engine in all_chunk_engines.items():
         chunk_engine.cache.flush()
-        chunk_engine.mem_cache.flush()  # type: ignore
+        chunk_engine.meta_cache.flush()
         all_tensor_metas[tensor] = chunk_engine.tensor_meta
         all_chunk_id_encoders[tensor] = chunk_engine.chunk_id_encoder
     return all_tensor_metas, all_chunk_id_encoders
