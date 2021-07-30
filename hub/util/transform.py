@@ -84,7 +84,7 @@ def store_data_slice(
     data_slice, output_storage, tensors, pipeline = transform_input
     all_chunk_engines = create_worker_chunk_engines(tensors, output_storage)
 
-    if isinstance(data_slice, Dataset):
+    if isinstance(data_slice, hub.core.dataset.Dataset):
         data_slice = add_cache_to_dataset_slice(data_slice)
 
     transform_data_slice_and_append(data_slice, pipeline, tensors, all_chunk_engines)

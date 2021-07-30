@@ -7,6 +7,8 @@ from hub.util.remove_cache import remove_memory_cache
 from hub.tests.dataset_fixtures import enabled_datasets
 from hub.util.exceptions import InvalidOutputDatasetError
 
+all_compressions = pytest.mark.parametrize("sample_compression", [None, "png", "jpeg"])
+
 
 @hub.compute
 def fn1(sample_in, samples_out, mul=1, copy=1):
@@ -31,17 +33,13 @@ def fn3(sample_in, samples_out, mul=1, copy=1):
 
 @hub.compute
 def read_image(sample_in, samples_out):
-    samples_out.image_png.append(hub.read(sample_in))
-    samples_out.image_jpeg.append(hub.read(sample_in))
-    samples_out.image_none.append(hub.read(sample_in))
+    samples_out.image.append(hub.read(sample_in))
 
 
 @hub.compute
 def crop_image(sample_in, samples_out, copy=1):
     for _ in range(copy):
-        samples_out.image_none.append(sample_in.image_jpeg.numpy()[:100, :100, :])
-        samples_out.image_png.append(sample_in.image_jpeg.numpy()[:100, :100, :])
-        samples_out.image_jpeg.append(sample_in.image_jpeg.numpy()[:100, :100, :])
+        samples_out.image.append(sample_in.image.numpy()[:100, :100, :])
 
 
 @enabled_datasets
@@ -161,52 +159,30 @@ def test_chain_transform_list_small_processed(ds):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
-
+@all_compressions
 @enabled_datasets
-def test_transform_hub_read(ds, cat_path):
+def test_transform_hub_read(ds, cat_path, sample_compression):
     data_in = [cat_path] * 10
     ds_out = ds
-    ds_out.create_tensor("image_png", htype="image", sample_compression="png")
-    ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
-    ds_out.create_tensor("image_none", htype="image", sample_compression=None)
+    ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
 
     read_image().eval(data_in, ds_out, num_workers=8)
     assert len(ds_out) == 10
     for i in range(10):
-        assert ds_out.image_png[i].numpy().shape == (900, 900, 3)
-        assert ds_out.image_jpeg[i].numpy().shape == (900, 900, 3)
-        assert ds_out.image_none[i].numpy().shape == (900, 900, 3)
-        np.testing.assert_array_equal(
-            ds_out.image_none[i].numpy(), ds_out.image_none[0].numpy()
-        )
-        np.testing.assert_array_equal(
-            ds_out.image_jpeg[i].numpy(), ds_out.image_jpeg[0].numpy()
-        )
-        np.testing.assert_array_equal(
-            ds_out.image_png[i].numpy(), ds_out.image_png[0].numpy()
-        )
+        assert ds_out.image[i].numpy().shape == (900, 900, 3)
+        np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
-
+@all_compressions
 @enabled_datasets
-def test_transform_hub_read_pipeline(ds, cat_path):
+def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
     data_in = [cat_path] * 10
     ds_out = ds
-    ds_out.create_tensor("image_png", htype="image", sample_compression="png")
-    ds_out.create_tensor("image_jpeg", htype="image", sample_compression="jpeg")
-    ds_out.create_tensor("image_none", htype="image", sample_compression=None)
+    ds_out.create_tensor("image", htype="image", sample_compression=sample_compression)
     pipeline = hub.compose([read_image(), crop_image(copy=2)])
     pipeline.eval(data_in, ds_out, num_workers=8)
     assert len(ds_out) == 20
     for i in range(20):
-        assert ds_out.image_png[i].numpy().shape == (100, 100, 3)
-        assert ds_out.image_jpeg[i].numpy().shape == (100, 100, 3)
-        assert ds_out.image_none[i].numpy().shape == (100, 100, 3)
+        assert ds_out.image[i].numpy().shape == (100, 100, 3)
         np.testing.assert_array_equal(
-            ds_out.image_none[i].numpy(), ds_out.image_none[0].numpy()
-        )
-        np.testing.assert_array_equal(
-            ds_out.image_jpeg[i].numpy(), ds_out.image_jpeg[0].numpy()
-        )
-        np.testing.assert_array_equal(
-            ds_out.image_png[i].numpy(), ds_out.image_png[0].numpy()
+            ds_out.image[i].numpy(), ds_out.image[0].numpy()
         )
