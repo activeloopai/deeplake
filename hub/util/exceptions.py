@@ -391,16 +391,13 @@ class TensorMismatchError(TransformError):
 
 class InvalidOutputDatasetError(TransformError):
     def __init__(
-        self, message="The output Dataset to transform should not be in read mode."
+        self, message="The output Dataset to transform should not be `read_only`."
     ):
         super().__init__(message)
 
 
 class TransformComposeEmptyListError(TransformError):
-    def __init__(
-        self,
-        message="The list passed to hub.compose is empty. Ensure that hub.compose is always called with a list of 1 or more functions.",
-    ):
+    def __init__(self, message="Cannot hub.compose an empty list."):
         super().__init__(message)
 
 

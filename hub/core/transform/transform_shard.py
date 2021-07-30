@@ -1,11 +1,10 @@
 from hub.core.transform.transform_tensor import TransformDatasetTensor
 from hub.util.exceptions import TensorDoesNotExistError
 
-# TODO: add tests
-
 
 class TransformDatasetShard:
     def __init__(self, all_tensors=None, slice_list=None):
+        """Creates a Dataset like object that supports "." access of tensors and appends/extends to the tensors."""
         self.tensors = all_tensors or {}
         self.slice_list = slice_list or []
 
@@ -13,8 +12,9 @@ class TransformDatasetShard:
         return min(len(self[tensor]) for tensor in self.tensors)
 
     def _check_length_equal(self):
+        """Cheks if the length of all the tensors is equal. Raises exception if not equal."""
         lengths = [len(self[tensor]) for tensor in self.tensors]
-        if any(l != lengths[0] for l in lengths):
+        if any(length != lengths[0] for length in lengths):
             raise Exception  # TODO proper exception
 
     def __getattr__(self, name):

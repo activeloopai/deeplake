@@ -76,6 +76,8 @@ def store_data_slice(
         data_slice = add_cache_to_dataset_slice(data_slice)
 
     transform_data_slice_and_append(data_slice, pipeline, tensors, all_chunk_engines)
+
+    # retrieve the tensor metas and chunk_id_encoder from the memory
     all_tensor_metas = {}
     all_chunk_id_encoders = {}
     for tensor, chunk_engine in all_chunk_engines.items():

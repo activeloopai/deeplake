@@ -11,6 +11,7 @@ class TransformDatasetTensor:
         self.length = None
 
     def numpy(self) -> None:
+        """Returns all the items stored in the slice of the tensor as numpy arrays. Even samples stored using hub.read are converted to numpy arrays in this."""
         value = self.numpy_compressed()
         if isinstance(value, list):
             for i in range(len(value)):
@@ -21,6 +22,7 @@ class TransformDatasetTensor:
         return value
 
     def numpy_compressed(self):
+        """Returns all the items stored in the slice of the tensor. Samples stored using hub.read are not converted to numpy arrays in this."""
         value = self.items
         for slice_ in self.slice_list:
             value = value[slice_]
@@ -42,6 +44,7 @@ class TransformDatasetTensor:
         )
 
     def append(self, item):
+        """Adds an item to the tensor."""
         if not isinstance(item, Sample):
             item = np.asarray(item)
             if self.items:
@@ -55,5 +58,6 @@ class TransformDatasetTensor:
         self.items.append(item)
 
     def extend(self, items):
+        """Adds multiple items to the tensor."""
         for item in items:
             self.append(item)

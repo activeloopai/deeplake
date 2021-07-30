@@ -98,10 +98,10 @@ class Pipeline:
         tensors = list(ds_out.tensors)
         compute_provider = get_compute_provider(scheduler, num_workers)
 
-        self.run_pipeline(data_in, ds_out, tensors, compute_provider, num_workers)
+        self.run(data_in, ds_out, tensors, compute_provider, num_workers)
         ds_out.storage.autoflush = initial_autoflush
 
-    def run_pipeline(
+    def run(
         self,
         data_in,
         ds_out: hub.core.dataset.Dataset,
@@ -109,7 +109,9 @@ class Pipeline:
         compute: ComputeProvider,
         num_workers: int,
     ):
-        """Runs the pipeline on the input data to produce output samples and stores in the dataset."""
+        """Runs the pipeline on the input data to produce output samples and stores in the dataset.
+        This receives arguments processed and sanitized by the Pipeline.eval method.
+        """
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
@@ -140,6 +142,11 @@ def compute(fn):
     There can be as many other arguments as required.
     The output should be appended/extended to the second argument in a hub like syntax.
     Any value returned by the fn will be ignored.
+
+    Example:
+    @hub.compute
+    def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
+        samples_out.your_tensor.append(your_arg0 * your_arg1)
     """
 
     def inner(*args, **kwargs):
