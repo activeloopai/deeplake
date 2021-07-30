@@ -355,8 +355,6 @@ class ChunkEngine:
     def update(self, index: Index, value: np.ndarray):
         # TODO: docstring
 
-        # TODO: first make sure `value` can be asigned to `Index`
-
         value = _format_input_samples(index, value, self.num_samples)
 
         enc = self.chunk_id_encoder
@@ -383,16 +381,10 @@ class ChunkEngine:
                 global_sample_index
             )
 
-            incoming_sample = value[value_index]
-            if not isinstance(incoming_sample, np.ndarray):
-                incoming_sample = np.array(incoming_sample)
-            if incoming_sample.dtype != self.tensor_meta.dtype:
-                if np.can_cast(incoming_sample.dtype, self.tensor_meta.dtype):
-                    incoming_sample = np.cast[self.tensor_meta.dtype](incoming_sample)
-                else:
-                    raise TypeError(
-                        f"Cannot cast from {incoming_sample.dtype} to {self.tensor_meta.dtype}."
-                    )
+            # TODO: maybe we want to do this before adding any data?
+            incoming_sample = np.asarray(value[value_index])
+            self.tensor_meta.check_compatibility(incoming_sample.shape, incoming_sample.dtype)
+            incoming_sample = self.tensor_meta.cast_to_dtype(incoming_sample)
 
             # TODO: optimize this (memcp)
             buffer = memoryview(incoming_sample.tobytes())

@@ -1,3 +1,4 @@
+from hub.util.exceptions import TensorInvalidSampleShapeError
 import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
@@ -176,15 +177,15 @@ def test_failures(memory_ds):
         memory_ds.images[0:3] = np.zeros((28, 28), dtype="uint8")
     with pytest.raises(ValueError):
         memory_ds.images[0:3] = np.zeros((2, 28, 28), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.images[0] = np.zeros((2, 28, 28), dtype="uint8")
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
-    with pytest.raises(ValueError):
+    with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.images[0:5] = np.zeros((5, 28), dtype="uint8")
-    with pytest.raises(ValueError):
+    with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.labels[0:5] = np.zeros((5, 2), dtype="uint8")
 
     # inplace operators

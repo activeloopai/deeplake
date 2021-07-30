@@ -113,15 +113,6 @@ class TensorMeta(Meta):
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
 
-        dtype = np.dtype(dtype)
-
-        if self.dtype is not None and self.dtype != dtype.name:
-            raise TensorDtypeMismatchError(
-                self.dtype,
-                dtype.name,
-                self.htype,
-            )
-
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
@@ -131,6 +122,41 @@ class TensorMeta(Meta):
                     f"Sample shape length is expected to be {expected_shape_len}, actual length is {actual_shape_len}.",
                     shape,
                 )
+
+    def cast_to_dtype(self, incoming_sample: np.ndarray) -> np.ndarray:
+        """Cast incoming sample to the meta's dtype. If the meta dtype is
+        a uint and the incoming sample is a positive integer, it will be casted to uint.
+
+        Args:
+            incoming_sample: Sample to be casted.
+
+        Raises:
+            TensorInvalidSampleShapeError: If int -> uint is not possible (negatives).
+
+        Returns:
+            Casted sample.
+        """
+
+        if self.dtype is not None:
+            dtype = np.dtype(self.dtype)
+
+            if incoming_sample.size > 1:
+                return incoming_sample.astype(dtype)
+
+            if (
+                dtype.kind == "u"
+                and incoming_sample.dtype.kind == "i"
+                and np.any(incoming_sample < 0)
+            ):
+                raise TensorDtypeMismatchError(
+                    self.dtype,
+                    incoming_sample.dtype,
+                    self.htype,
+                )
+
+            return incoming_sample.astype(dtype)
+        else:
+            return incoming_sample
 
     def update(self, shape: Tuple[int], dtype, num_samples: int):
         """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
