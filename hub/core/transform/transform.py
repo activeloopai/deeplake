@@ -8,10 +8,9 @@ from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_c
 from hub.util.transform import (
     check_transform_data_in,
     check_transform_ds_out,
-    merge_all_chunk_id_encoders,
-    merge_all_tensor_metas,
     store_data_slice,
 )
+from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
 from hub.util.exceptions import (
     TransformComposeEmptyListError,
     TransformComposeIncompatibleFunction,
