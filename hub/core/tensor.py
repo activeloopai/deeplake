@@ -270,16 +270,8 @@ class Tensor:
     def __setitem__(self, item: Union[int, slice], value: Any):
         # TODO: docstring?
 
-        # TODO: support casting python ints/float scalars into np dtypes (like int -> uint8)
-        # value_dtype = self._infer_np_dtype(value)
-        # if self.dtype and self.dtype != value_dtype:
-        #     if not np.can_cast(value_dtype, self.dtype):
-        #         if hasattr(value, "dtype"):
-        #             raise TypeError(f"Cannot cast from {value.dtype} to {self.dtype}")
-        #         else:
-        #             raise TypeError(f"Cannot cast from {type(value)} to {self.dtype}")
-
-        self.chunk_engine.update(Index(item), value)
+        item_index = Index(item)
+        self.chunk_engine.update(self.index[item_index], value)
 
     def __iter__(self):
         for i in range(len(self)):

@@ -21,7 +21,6 @@ def _make_update_assert_equal(
     tensor_name: str,
     index,
     value,
-    pre_index=None,
     check_persistence: bool = True,
 ):
     """Updates a tensor and checks that the data is as expected.
@@ -57,12 +56,8 @@ def _make_update_assert_equal(
             expected_value = value[0]
 
     # make updates
-    if pre_index is None:
-        tensor[index] = value
-        expected[index] = expected_value
-    else:
-        tensor[pre_index][index] = value
-        expected[pre_index][index] = expected_value
+    tensor[index] = value
+    expected[index] = expected_value
 
     # non-persistence check
     actual = tensor.numpy(aslist=True)
@@ -111,10 +106,10 @@ def test(local_ds_generator, images_compression):
     )  # empty sample (new shape)
     _make_update_assert_equal(
         gen, "labels", -5, np.uint8(99)
-    )  # TODO: remove dtype wrapping
+    )
     _make_update_assert_equal(
         gen, "labels", 0, np.uint8(5)
-    )  # TODO: remove dtype wrapping
+    )
 
     # update a range of samples
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
@@ -142,31 +137,28 @@ def test(local_ds_generator, images_compression):
     # TODO: hub.read test
 
 
-def test_pre_indexed_tensor(local_ds_generator):
+def test_pre_indexed_tensor(memory_ds):
     """A pre-indexed tensor update means the tensor was already indexed into, and an update is being made to that tensor view.
-
-    Example:
-        >>> tensor = ds.tensor[0:10]
-        >>> len(tensor)
-        10
-        >>> tensor[0:5] = ...
     """
 
-    mem = hub.dataset("mem://xyz")
+    tensor = memory_ds.create_tensor("tensor")
 
-    def gen():
-        return mem
+    tensor.append([0, 1, 2])
+    tensor.append([3, 4, 5, 6, 7])
+    tensor.append([8])
+    tensor.append([9, 10, 11])
+    tensor.append([12, 13, 14, 15, 16])
+    tensor.append([17, 18, 19, 20, 21])
 
-    gen = local_ds_generator
+    tensor[0:5][0] = [99, 98, 97]
+    tensor[5:10][0] = [44, 44, 44, 44]
+    tensor[4:10][0:2] = [[44, 44, 44, 44], [33]]
 
-    _add_dummy_mnist(gen())
-
-    x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
-    _make_update_assert_equal(gen, "images", slice(4, 7), x, pre_index=slice(2, 9))
-
-    _make_update_assert_equal(
-        gen, "labels", slice(0, 5), [1, 2, 3, 4, 5], pre_index=slice(0, 6)
-    )
+    np.testing.assert_array_equal([99, 98, 97], tensor[0])
+    np.testing.assert_array_equal([44, 44, 44, 44], tensor[4])
+    np.testing.assert_array_equal([33], tensor[5])
+    
+    assert len(tensor) == 6
 
 
 def test_failures(memory_ds):

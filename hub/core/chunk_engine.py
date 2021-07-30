@@ -360,13 +360,8 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
 
         updated_chunks = set()
-        index_length = index.values[0].length(self.num_samples)
 
-        try:
-            len(value)
-        except TypeError:
-            value = [value]
-
+        index_length = index.length(self.num_samples)
         if index_length != len(value):
             raise ValueError(
                 f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
@@ -537,7 +532,11 @@ class ChunkEngine:
 def _format_input_samples(index: Index, value: Any, total_num_samples: int):
     """Returns `value` wrapped in a list so it can be looped over in case it isn't already."""
 
+    if np.isscalar(value):
+        return [value]
+
     index_length = index.length(total_num_samples)
+
     if index_length == 1:
         n = 1
         try:
@@ -546,6 +545,7 @@ def _format_input_samples(index: Index, value: Any, total_num_samples: int):
             pass
         if n != 1:
             value = [value]
+
     return value
 
 
