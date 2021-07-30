@@ -99,7 +99,7 @@ def test(local_ds_generator, images_compression):
         gen, "images", 0, np.ones((28, 25), dtype=int) * 5
     )  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 28, 25), dtype=int) * 5
+        gen, "images", 0, np.ones((1, 32, 32), dtype=int) * 5
     )  # new shape (with 1)
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype=int)
@@ -136,6 +136,10 @@ def test(local_ds_generator, images_compression):
 
     # TODO: hub.read test
 
+    ds = gen()
+    assert ds.images.shape_interval.lower == (10, 0, 0)
+    assert ds.images.shape_interval.upper == (10, 32, 31)
+
 
 def test_pre_indexed_tensor(memory_ds):
     """A pre-indexed tensor update means the tensor was already indexed into, and an update is being made to that tensor view.
@@ -145,7 +149,7 @@ def test_pre_indexed_tensor(memory_ds):
 
     tensor.append([0, 1, 2])
     tensor.append([3, 4, 5, 6, 7])
-    tensor.append([8])
+    tensor.append([8, 5])
     tensor.append([9, 10, 11])
     tensor.append([12, 13, 14, 15, 16])
     tensor.append([17, 18, 19, 20, 21])
@@ -157,7 +161,9 @@ def test_pre_indexed_tensor(memory_ds):
     np.testing.assert_array_equal([99, 98, 97], tensor[0])
     np.testing.assert_array_equal([44, 44, 44, 44], tensor[4])
     np.testing.assert_array_equal([33], tensor[5])
-    
+   
+    assert tensor.shape_interval.lower == (6, 1)
+    assert tensor.shape_interval.upper == (6, 5) 
     assert len(tensor) == 6
 
 
@@ -166,17 +172,17 @@ def test_failures(memory_ds):
 
     # primary axis doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((28, 28), dtype="uint8")
+        memory_ds.images[0:3] = np.zeros((25, 30), dtype="uint8")
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((2, 28, 28), dtype="uint8")
+        memory_ds.images[0:3] = np.zeros((2, 25, 30), dtype="uint8")
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.images[0] = np.zeros((2, 28, 28), dtype="uint8")
+        memory_ds.images[0] = np.zeros((2, 25, 30), dtype="uint8")
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.images[0:5] = np.zeros((5, 28), dtype="uint8")
+        memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
     with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.labels[0:5] = np.zeros((5, 2), dtype="uint8")
 
@@ -191,3 +197,5 @@ def test_failures(memory_ds):
         memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
     )
     np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype="uint8"))
+    assert memory_ds.images.shape == (10, 28, 28)
+    assert memory_ds.labels.shape == (10,)
