@@ -173,19 +173,19 @@ def test_failures(memory_ds):
 
     # primary axis doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((28, 28), dtype=int)
+        memory_ds.images[0:3] = np.zeros((28, 28), dtype="uint8")
     with pytest.raises(ValueError):
-        memory_ds.images[0:3] = np.zeros((2, 28, 28), dtype=int)
+        memory_ds.images[0:3] = np.zeros((2, 28, 28), dtype="uint8")
     with pytest.raises(ValueError):
-        memory_ds.images[0] = np.zeros((2, 28, 28), dtype=int)
+        memory_ds.images[0] = np.zeros((2, 28, 28), dtype="uint8")
     with pytest.raises(ValueError):
         memory_ds.labels[0:3] = [1, 2, 3, 4]
 
     # dimensionality doesn't match
     with pytest.raises(ValueError):
-        memory_ds.images[0:5] = np.zeros((5, 28), dtype=int)
+        memory_ds.images[0:5] = np.zeros((5, 28), dtype="uint8")
     with pytest.raises(ValueError):
-        memory_ds.labels[0:5] = np.zeros((5, 2), dtype=int)
+        memory_ds.labels[0:5] = np.zeros((5, 2), dtype="uint8")
 
     # inplace operators
     with pytest.raises(NotImplementedError):
@@ -195,6 +195,6 @@ def test_failures(memory_ds):
     assert len(memory_ds.images) == 10
     assert len(memory_ds.labels) == 10
     np.testing.assert_array_equal(
-        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype=int)
+        memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
     )
-    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype=int))
+    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype="uint8"))
