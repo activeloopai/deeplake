@@ -138,7 +138,7 @@ def test(local_ds_generator, images_compression):
 
     ds = gen()
     assert ds.images.shape_interval.lower == (10, 0, 0)
-    assert ds.images.shape_interval.upper == (10, 32, 31)
+    assert ds.images.shape_interval.upper == (10, 32, 50)
 
 
 def test_pre_indexed_tensor(memory_ds):
