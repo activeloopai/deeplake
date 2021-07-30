@@ -396,6 +396,14 @@ class InvalidOutputDatasetError(TransformError):
         super().__init__(message)
 
 
+class InvalidTransformDataset(TransformError):
+    def __init__(
+        self,
+        message="The TransformDataset (2nd argument to transform function) of one of the functions is invalid. All the tensors should have equal length for it to be valid.",
+    ):
+        super().__init__(message)
+
+
 class TransformComposeEmptyListError(TransformError):
     def __init__(self, message="Cannot hub.compose an empty list."):
         super().__init__(message)

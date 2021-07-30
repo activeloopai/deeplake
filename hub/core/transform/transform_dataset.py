@@ -12,12 +12,6 @@ class TransformDataset:
     def __len__(self):
         return min(len(self[tensor]) for tensor in self.tensors)
 
-    def _check_length_equal(self):
-        """Cheks if the length of all the tensors is equal. Raises exception if not equal."""
-        lengths = [len(self[tensor]) for tensor in self.tensors]
-        if any(length != lengths[0] for length in lengths):
-            raise Exception  # TODO proper exception
-
     def __getattr__(self, name):
         if name not in self.tensors:
             self.tensors[name] = TransformTensor()

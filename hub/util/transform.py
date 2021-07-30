@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Tuple
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, MemoryProvider, LRUCache
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.dataset import Dataset
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.transform.transform_dataset import TransformDataset
 
@@ -16,6 +15,7 @@ from hub.util.keys import get_tensor_meta_key, get_chunk_id_encoder_key
 from hub.util.exceptions import (
     InvalidInputDataError,
     InvalidOutputDatasetError,
+    InvalidTransformDataset,
     TensorMismatchError,
 )
 
@@ -42,25 +42,37 @@ def transform_sample(
             for item in result:
                 samples_out = TransformDataset()
                 fn(item, samples_out, *args, **kwargs)
-                samples_out._check_length_equal()
+                validate_transform_dataset(samples_out)
                 all_samples_out.append(samples_out)
             result = combine_transform_datasets(all_samples_out)
-            result._check_length_equal()  # TODO separate exception for this
+            try:
+                validate_transform_dataset(result)
+            except InvalidTransformDataset:
+                raise InvalidTransformDataset(
+                    "One or more of the TransformDatasets returned had different number of tensors. Always ensure that all outputs have exactly the same tensors and equal number of samples in each tensor."
+                )
         else:
             samples_out = TransformDataset()
             fn(result, samples_out, *args, **kwargs)
-            samples_out._check_length_equal()
+            validate_transform_dataset(samples_out)
             result = samples_out
     return result
 
 
-def combine_transform_datasets(shards: List[TransformDataset]):
+def combine_transform_datasets(datasets: List[TransformDataset]):
     """Combines multiple TransformDataset into a single transform dataset."""
     final_ds = TransformDataset()
-    for shard in shards:
-        for tensor in shard.tensors:
-            final_ds[tensor].extend(shard[tensor].numpy())
+    for ds in datasets:
+        for tensor in ds.tensors:
+            final_ds[tensor].extend(ds[tensor].numpy())
     return final_ds
+
+
+def validate_transform_dataset(dataset: TransformDataset):
+    """Cheks if the length of all the tensors is equal. Raises exception if not equal."""
+    lengths = [len(dataset[tensor]) for tensor in dataset.tensors]
+    if any(length != lengths[0] for length in lengths):
+        raise InvalidTransformDataset
 
 
 def store_data_slice(
@@ -141,7 +153,7 @@ def add_cache_to_dataset_slice(
     # TODO: adjust this size once we get rid of cachable
     cache_size = 64 * len(dataset_slice.tensors) * MB
     cached_store = LRUCache(MemoryProvider(), base_storage, cache_size)
-    dataset_slice = Dataset(
+    dataset_slice = hub.core.dataset.Dataset(
         cached_store,
         index=dataset_slice.index,
         read_only=dataset_slice.read_only,
