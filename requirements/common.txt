@@ -9,3 +9,4 @@ humbug>=0.2.6
 types-requests
 types-click
 tqdm
+mmh3~=3.0.0
