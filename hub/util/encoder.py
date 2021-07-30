@@ -51,15 +51,9 @@ def merge_all_chunk_id_encoders(
     tensors = list(ds_out.meta.tensors)
     for tensor in tensors:
         chunk_id_encoder = ds_out[tensor].chunk_engine.chunk_id_encoder
-        offset = chunk_id_encoder.num_samples
-
         for current_worker_chunk_id_encoders in all_workers_chunk_id_encoders:
             current_chunk_id_encoder = current_worker_chunk_id_encoders[tensor]
-            num_samples = current_chunk_id_encoder.num_samples
-            combine_chunk_id_encoders(
-                chunk_id_encoder, current_chunk_id_encoder, offset
-            )
-            offset += num_samples
+            combine_chunk_id_encoders(chunk_id_encoder, current_chunk_id_encoder)
 
         chunk_id_key = get_chunk_id_encoder_key(tensor)
         ds_out[tensor].chunk_engine.cache[chunk_id_key] = chunk_id_encoder
@@ -69,11 +63,11 @@ def merge_all_chunk_id_encoders(
 def combine_chunk_id_encoders(
     ds_chunk_id_encoder: ChunkIdEncoder,
     worker_chunk_id_encoder: ChunkIdEncoder,
-    offset: int,
 ) -> None:
     """Combines the dataset's chunk_id_encoder with a single worker's chunk_id_encoder."""
     encoded_ids = worker_chunk_id_encoder._encoded
     if encoded_ids.size != 0:
+        offset = ds_chunk_id_encoder.num_samples
         for encoded_id in encoded_ids:
             encoded_id[1] += offset
             if ds_chunk_id_encoder._encoded.size == 0:
