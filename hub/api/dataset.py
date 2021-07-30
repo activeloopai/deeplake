@@ -235,7 +235,7 @@ class dataset:
 
     @staticmethod
     def list(workspace: str = "") -> None:
-        """List all available datasets.
+        """List all available hub cloud datasets.
 
         Args:
             workspace (str): Specify user/organization name. If not given,
