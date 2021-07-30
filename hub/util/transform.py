@@ -145,7 +145,7 @@ def add_cache_to_dataset_slice(
         cached_store,
         index=dataset_slice.index,
         read_only=dataset_slice.read_only,
-        log_loading=False,
+        verbose=False,
     )
     return dataset_slice
 

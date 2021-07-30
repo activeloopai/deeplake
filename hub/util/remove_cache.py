@@ -30,5 +30,5 @@ def get_dataset_with_zero_size_cache(ds):
         storage=zero_cache_storage,
         index=ds.index,
         read_only=ds.read_only,
-        log_loading=False,
+        verbose=False,
     )
