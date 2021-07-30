@@ -180,6 +180,18 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
+    def _prepare_update(self, num_new_samples: int, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
+        # TODO: docstring / change name
+
+        self.cache.check_readonly()
+
+        # update tensor meta first because erroneous meta information is better than un-accounted for data.
+        # TODO: replace adapt with something better (and use it in update)
+        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
+        self.tensor_meta.update(shape, dtype, num_new_samples)
+
+        return buffer
+
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
@@ -191,14 +203,11 @@ class ChunkEngine:
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
-        self.cache.check_readonly()
 
         # num samples is always 1 when appending
         num_samples = 1
 
-        # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
-        self.tensor_meta.update(shape, dtype, num_samples)
+        buffer = self._prepare_update(num_samples, buffer, shape, dtype)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
         if not buffer_consumed:
@@ -366,6 +375,9 @@ class ChunkEngine:
             raise ValueError(
                 f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
             )
+        
+        tensor_meta = self.tensor_meta
+        sample_compression = tensor_meta.sample_compression
 
         for value_index, global_sample_index in enumerate(
             index.values[0].indices(self.num_samples)
@@ -378,11 +390,18 @@ class ChunkEngine:
 
             # TODO: maybe we want to do this before adding any data?
             incoming_sample = np.asarray(value[value_index])
-            self.tensor_meta.check_compatibility(incoming_sample.shape, incoming_sample.dtype)
-            incoming_sample = self.tensor_meta.cast_to_dtype(incoming_sample)
+            # self.tensor_meta.check_compatibility(incoming_sample.shape, incoming_sample.dtype)
+            incoming_sample = tensor_meta.cast_to_dtype(incoming_sample)
+            # incoming_sample = Sample(array=incoming_sample)
 
-            # TODO: optimize this (memcp)
-            buffer = memoryview(incoming_sample.tobytes())
+            # TODO: optimize this (memcps)
+            # buffer = incoming_sample.compressed_bytes(sample_compression)
+
+            shape = incoming_sample.shape
+            dtype = incoming_sample.dtype
+            buffer = self._prepare_update(0, incoming_sample.tobytes(), shape, dtype)
+            buffer = Sample(array=incoming_sample).compressed_bytes(sample_compression)
+
             chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)
 
             updated_chunks.add(chunk)
@@ -391,6 +410,7 @@ class ChunkEngine:
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
 
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
     def numpy(
@@ -466,6 +486,10 @@ class ChunkEngine:
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
         buffer = buffer[sb:eb]
+
+        if len(buffer) == 0:
+            return np.zeros(shape, dtype=dtype)
+
         if expect_compressed:
             sample = decompress_array(buffer, shape)
         else:

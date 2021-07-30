@@ -92,7 +92,8 @@ class Sample:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
         """
 
-        compression = compression.lower()
+        if self.is_empty:
+            return bytes()
 
         if compression is None:
             return self.uncompressed_bytes()

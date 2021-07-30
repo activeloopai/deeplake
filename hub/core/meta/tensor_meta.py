@@ -158,21 +158,21 @@ class TensorMeta(Meta):
         else:
             return incoming_sample
 
-    def update(self, shape: Tuple[int], dtype, num_samples: int):
+    def update(self, shape: Tuple[int], dtype, num_new_samples: int):
         """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
 
         Args:
             shape (Tuple[int]): [description]
             dtype ([type]): [description]
-            num_samples (int): [description]
+            num_new_samples (int): [description]
 
         Raises:
             ValueError: [description]
         """
 
-        if num_samples <= 0:
+        if num_new_samples < 0:
             raise ValueError(
-                f"Can only update tensor meta when the number of samples is > 0. Got: '{num_samples}'"
+                f"Can only update tensor meta when the number of new samples is >= 0. Got: '{num_new_samples}'"
             )
 
         dtype = np.dtype(dtype)
@@ -187,7 +187,7 @@ class TensorMeta(Meta):
             # update meta subsequent times
             self._update_shape_interval(shape)
 
-        self.length += num_samples
+        self.length += num_new_samples
 
     def _update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:
