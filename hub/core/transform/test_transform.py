@@ -159,6 +159,7 @@ def test_chain_transform_list_small_processed(ds):
                 ds_out[index].label.numpy(), 15 * i * np.ones((1,))
             )
 
+
 @all_compressions
 @enabled_datasets
 def test_transform_hub_read(ds, cat_path, sample_compression):
@@ -172,6 +173,7 @@ def test_transform_hub_read(ds, cat_path, sample_compression):
         assert ds_out.image[i].numpy().shape == (900, 900, 3)
         np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
 
+
 @all_compressions
 @enabled_datasets
 def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
@@ -183,6 +185,28 @@ def test_transform_hub_read_pipeline(ds, cat_path, sample_compression):
     assert len(ds_out) == 20
     for i in range(20):
         assert ds_out.image[i].numpy().shape == (100, 100, 3)
-        np.testing.assert_array_equal(
-            ds_out.image[i].numpy(), ds_out.image[0].numpy()
-        )
+        np.testing.assert_array_equal(ds_out.image[i].numpy(), ds_out.image[0].numpy())
+
+
+@enabled_datasets
+def test_hub_like(ds):
+    with CliRunner().isolated_filesystem():
+        data_in = ds
+        data_in.create_tensor("image", htype="image", sample_compression="png")
+        data_in.create_tensor("label", htype="class_label")
+        for i in range(1, 100):
+            data_in.image.append(i * np.ones((i, i), dtype="uint8"))
+            data_in.label.append(i * np.ones((1,), dtype="uint32"))
+        ds_out = hub.like("./test/transform_hub_like", ds)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        assert len(ds_out) == 99
+        for index in range(1, 100):
+            np.testing.assert_array_equal(
+                ds_out[index - 1].image.numpy(), 2 * index * np.ones((index, index))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index - 1].label.numpy(), 2 * index * np.ones((1,))
+            )
+
+        assert ds_out.image.shape_interval.lower == (99, 1, 1)
+        assert ds_out.image.shape_interval.upper == (99, 99, 99)
