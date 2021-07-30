@@ -293,7 +293,7 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creater function.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -348,7 +348,7 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
-            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creater function.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
             Dataset: New dataset object with structured dataset.
