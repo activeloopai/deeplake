@@ -241,7 +241,7 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
         base_storage = get_base_storage(data_in.storage)
         if isinstance(base_storage, MemoryProvider) and scheduler != "threaded":
             raise InvalidOutputDatasetError(
-                f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+                f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
             )
 
 
@@ -259,5 +259,5 @@ def check_transform_ds_out(ds_out: hub.core.dataset.Dataset, scheduler: str) -> 
     output_base_storage = get_base_storage(ds_out.storage)
     if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
         raise InvalidOutputDatasetError(
-            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
         )

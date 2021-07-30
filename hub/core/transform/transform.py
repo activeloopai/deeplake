@@ -85,6 +85,10 @@ class Pipeline:
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
         """
+        num_workers = max(num_workers, 0)
+        if num_workers == 0:
+            scheduler = "serial"
+
         if isinstance(data_in, hub.core.dataset.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
