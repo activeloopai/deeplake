@@ -235,7 +235,12 @@ class dataset:
     @staticmethod
     @hub_reporter.record_call
     def ingest(
-        src: str, dest: str, dest_creds: dict, compression: str, overwrite: bool = False
+        src: str,
+        dest: str,
+        dest_creds: dict,
+        compression: str,
+        overwrite: bool = False,
+        **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
 
@@ -288,6 +293,7 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creater function.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -303,7 +309,7 @@ class dataset:
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        ds = hub.dataset(dest, creds=dest_creds)
+        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
@@ -324,6 +330,7 @@ class dataset:
         dest_creds: dict,
         compression: str,
         overwrite: bool = False,
+        **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
 
@@ -341,6 +348,7 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creater function.
 
         Returns:
             Dataset: New dataset object with structured dataset.
@@ -360,6 +368,7 @@ class dataset:
             dest_creds=dest_creds,
             compression=compression,
             overwrite=overwrite,
+            **dataset_kwargs,
         )
 
         return ds
