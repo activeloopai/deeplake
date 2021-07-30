@@ -234,7 +234,7 @@ class HubBackendClient:
             ).json()
         else:
             print(
-                f"You are not a member of organization {workspace}. List of accessible datasets from {workspace}: ",
+                f'You are not a member of organization "{workspace}". List of accessible datasets from "{workspace}": ',
             )
             response = self.request(
                 "GET",
