@@ -1,4 +1,3 @@
-from hub.auto.unstructured.image_classification import ImageClassification
 import hub
 import glob
 import os
