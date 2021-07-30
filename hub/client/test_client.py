@@ -26,19 +26,24 @@ def test_client_utils():
     remove_token()
     assert read_token() is None
 
-def test_client_workspace_organizations(hub_cloud_dev_credentials):    
+
+def test_client_workspace_organizations(hub_cloud_dev_credentials):
     username, password = hub_cloud_dev_credentials
     hub_client = HubBackendClient()
 
-    assert hub_client.get_user_organizations() == ['public']
+    assert hub_client.get_user_organizations() == ["public"]
     token = hub_client.request_auth_token(username, password)
     runner = CliRunner()
     runner.invoke(login, f"-u {username} -p {password}")
     hub_client = HubBackendClient()
-    assert 'testingacc' in hub_client.get_user_organizations()
-    assert 'public' in hub_client.get_user_organizations()
+    assert "testingacc" in hub_client.get_user_organizations()
+    assert "public" in hub_client.get_user_organizations()
 
-    datasets = subprocess.check_output(['activeloop', 'list-datasets', '--workspace', 'activeloop'])
-    assert 'You are not a member of organization' in str(datasets)
-    datasets = subprocess.check_output(['activeloop', 'list-datasets', '--workspace', 'test'])
-    assert 'You are not a member of organization' not in str(datasets)
+    datasets = subprocess.check_output(
+        ["activeloop", "list-datasets", "--workspace", "activeloop"]
+    )
+    assert "You are not a member of organization" in str(datasets)
+    datasets = subprocess.check_output(
+        ["activeloop", "list-datasets", "--workspace", "test"]
+    )
+    assert "You are not a member of organization" not in str(datasets)
