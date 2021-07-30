@@ -180,7 +180,13 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _prepare_update(self, num_new_samples: int, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
+    def _prepare_update(
+        self,
+        num_new_samples: int,
+        buffer: memoryview,
+        shape: Tuple[int],
+        dtype: np.dtype,
+    ):
         # TODO: docstring / change name
 
         self.cache.check_readonly()
@@ -202,7 +208,6 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
             dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
-
 
         # num samples is always 1 when appending
         num_samples = 1
@@ -375,7 +380,7 @@ class ChunkEngine:
             raise ValueError(
                 f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
             )
-        
+
         tensor_meta = self.tensor_meta
         sample_compression = tensor_meta.sample_compression
 

@@ -104,12 +104,8 @@ def test(local_ds_generator, images_compression):
     _make_update_assert_equal(
         gen, "images", -1, np.ones((0, 0), dtype=int)
     )  # empty sample (new shape)
-    _make_update_assert_equal(
-        gen, "labels", -5, np.uint8(99)
-    )
-    _make_update_assert_equal(
-        gen, "labels", 0, np.uint8(5)
-    )
+    _make_update_assert_equal(gen, "labels", -5, np.uint8(99))
+    _make_update_assert_equal(gen, "labels", 0, np.uint8(5))
 
     # update a range of samples
     x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
@@ -142,8 +138,7 @@ def test(local_ds_generator, images_compression):
 
 
 def test_pre_indexed_tensor(memory_ds):
-    """A pre-indexed tensor update means the tensor was already indexed into, and an update is being made to that tensor view.
-    """
+    """A pre-indexed tensor update means the tensor was already indexed into, and an update is being made to that tensor view."""
 
     tensor = memory_ds.create_tensor("tensor")
 
@@ -161,9 +156,9 @@ def test_pre_indexed_tensor(memory_ds):
     np.testing.assert_array_equal([99, 98, 97], tensor[0])
     np.testing.assert_array_equal([44, 44, 44, 44], tensor[4])
     np.testing.assert_array_equal([33], tensor[5])
-   
+
     assert tensor.shape_interval.lower == (6, 1)
-    assert tensor.shape_interval.upper == (6, 5) 
+    assert tensor.shape_interval.upper == (6, 5)
     assert len(tensor) == 6
 
 

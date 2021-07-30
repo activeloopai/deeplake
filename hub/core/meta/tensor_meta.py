@@ -131,7 +131,7 @@ class TensorMeta(Meta):
             incoming_sample: Sample to be casted.
 
         Raises:
-            TensorInvalidSampleShapeError: If int -> uint is not possible (negatives).
+            TensorDtypeMismatchError: If int -> uint is not possible (negatives).
 
         Returns:
             Casted sample.
