@@ -12,12 +12,23 @@ __pdoc__ = {
 
 from .api.dataset import dataset
 from .api.read import read
+from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
-__all__ = ["dataset", "read", "__version__", "load", "empty", "like"]
+
+__all__ = [
+    "dataset",
+    "read",
+    "__version__",
+    "load",
+    "empty",
+    "compute",
+    "compose",
+    "like",
+]
 
 __version__ = "2.0.3"
 __encoded_version__ = np.array(__version__)

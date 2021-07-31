@@ -21,7 +21,7 @@ class Cachable(ABC):
         raise NotImplementedError
 
     def __getstate__(self) -> Dict[str, Any]:
-        raise NotImplementedError
+        return self.__dict__
 
     def __setstate__(self, state: Dict[str, Any]):
         self.__dict__.update(state)
