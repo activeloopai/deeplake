@@ -201,22 +201,18 @@ class dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
-        base_storage = storage_provider_from_path(
-            path, creds={}, read_only=False, token=None
-        )
 
-        if force:
-            base_storage.clear()
-        else:
+        try:
             ds = hub.load(path)
-            if not large_ok:
-                size = ds.size_approx()
-                if size > hub.constants.DELETE_SAFETY_SIZE:
-                    logger.info(
-                        f"Hub Dataset {path} was too large to delete. Try again with large_ok=True."
-                    )
-                    return
-            ds.delete()
+            ds.delete(large_ok=large_ok)
+        except:
+            if force:
+                base_storage = storage_provider_from_path(
+                    path, creds={}, read_only=False, token=None
+                )
+                base_storage.clear()
+            else:
+                raise
 
     @staticmethod
     @hub_reporter.record_call
