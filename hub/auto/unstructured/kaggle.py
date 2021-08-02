@@ -1,3 +1,4 @@
+from threading import local
 import hub
 import glob
 import os
@@ -7,6 +8,7 @@ from hub.util.exceptions import (
     KaggleDatasetAlreadyDownloadedError,
 )
 from hub.constants import ENV_KAGGLE_KEY, ENV_KAGGLE_USERNAME
+from zipfile import ZipFile
 
 
 def _exec_command(command):
@@ -56,8 +58,14 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
     _set_environment_credentials_if_none(kaggle_credentials)
 
     os.makedirs(local_path, exist_ok=True)
-    setup = "cd %s &&" % (local_path)
+    os.chdir(local_path)
 
-    _exec_command("%s kaggle datasets download -d %s" % (setup, tag))
-    _exec_command("%s unzip -n *.zip" % setup)
-    _exec_command("%s rm *.zip" % setup)
+    _exec_command("kaggle datasets download -d %s" % (tag))
+
+    for item in os.listdir(local_path):
+        if item.endswith(".zip"):
+            file_name = os.path.abspath(item)
+            zip_ref = ZipFile(file_name)
+            zip_ref.extractall(local_path)
+            zip_ref.close()
+            os.remove(file_name)
