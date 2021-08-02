@@ -10,6 +10,7 @@ from hub.core.index.index import Index
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
+    get_tile_encoder_key,
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample  # type: ignore
@@ -22,7 +23,7 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-
+from hub.core.meta.encode.tile import TileEncoder
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
@@ -160,6 +161,18 @@ class ChunkEngine:
             return True
         except KeyError:
             return False
+
+    @property
+    def tile_encoder(self) -> TileEncoder:
+        """Gets the tile encoder from cache, if one is not found it creates a blank encoder."""
+        key = get_tile_encoder_key(self.key)
+        if not key in self.meta_cache:
+            enc = TileEncoder()
+            self.meta_cache[key] = enc
+            return enc
+
+        enc = self.meta_cache.get_cachable(key, TileEncoder)
+        return enc
 
     @property
     def num_chunks(self) -> int:
