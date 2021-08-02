@@ -7,11 +7,13 @@ from hub.core.sample import Sample  # type: ignore
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.util.casting import get_incompatible_dtype
 from hub.util.shape import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    TensorDtypeMismatchError,
 )
 
 
@@ -109,6 +111,14 @@ class Tensor:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
         """
+        if self.meta.dtype:
+            err_dtype = get_incompatible_dtype(samples, self.meta.dtype)
+            if err_dtype:
+                raise TensorDtypeMismatchError(
+                    self.meta.dtype,
+                    err_dtype,
+                    self.meta.htype,
+                )
         self.chunk_engine.extend(samples)
 
     def append(
