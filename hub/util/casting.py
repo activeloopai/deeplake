@@ -14,7 +14,7 @@ def get_incompatible_dtype(
         None if all samples are compatible. If not, the dtype of the offending item is returned.
 
     Raises:
-        TypeError if samples is of unexepcted type.
+        TypeError: if samples is of unexepcted type.
     """
     if isinstance(samples, (int, float, bool, str)) or hasattr(samples, "dtype"):
         return (
