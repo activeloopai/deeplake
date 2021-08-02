@@ -12,6 +12,7 @@ __pdoc__ = {
 
 from .api.dataset import dataset
 from .api.read import read
+from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
 
@@ -20,18 +21,21 @@ empty = dataset.empty
 like = dataset.like
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
+
 __all__ = [
     "dataset",
     "read",
     "__version__",
     "load",
     "empty",
+    "compute",
+    "compose",
     "like",
     "ingest",
     "ingest_kaggle",
 ]
 
-__version__ = "2.0.2"
+__version__ = "2.0.4"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")

@@ -406,13 +406,6 @@ class TransformError(Exception):
     pass
 
 
-class InvalidTransformOutputError(TransformError):
-    def __init__(self, item):
-        super().__init__(
-            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
-        )
-
-
 class InvalidInputDataError(TransformError):
     def __init__(self, message):
         super().__init__(
@@ -436,16 +429,29 @@ class TensorMismatchError(TransformError):
 
 
 class InvalidOutputDatasetError(TransformError):
-    def __init__(self):
-        super().__init__(
-            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-        )
+    def __init__(
+        self, message="The output Dataset to transform should not be `read_only`."
+    ):
+        super().__init__(message)
 
 
-class MemoryDatasetNotSupportedError(TransformError):
-    def __init__(self, scheduler):
+class InvalidTransformDataset(TransformError):
+    def __init__(
+        self,
+        message="The TransformDataset (2nd argument to transform function) of one of the functions is invalid. All the tensors should have equal length for it to be valid.",
+    ):
+        super().__init__(message)
+
+
+class TransformComposeEmptyListError(TransformError):
+    def __init__(self, message="Cannot hub.compose an empty list."):
+        super().__init__(message)
+
+
+class TransformComposeIncompatibleFunction(TransformError):
+    def __init__(self, index: int):
         super().__init__(
-            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
         )
 
 
