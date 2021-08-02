@@ -1,11 +1,14 @@
-from hub.util.exceptions import DatasetHandlerError
-from hub.util.storage import get_storage_and_cache_chain
+import hub
 from typing import Optional, Union
-from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
-from hub.core.dataset import Dataset
+
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.client.log import logger
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.client.client import HubBackendClient
+from hub.util.exceptions import DatasetHandlerError
+from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.core.dataset import Dataset
 
 
 class dataset:
@@ -190,8 +193,27 @@ class dataset:
     @staticmethod
     @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
-        """Deletes a dataset"""
-        raise NotImplementedError
+        """Deletes a dataset at a given path.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        Args:
+            path (str): The path to the dataset to be deleted.
+            force (bool): Delete data regardless of whether
+                it looks like a hub dataset. All data at the path will be removed.
+            large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
+        """
+
+        try:
+            ds = hub.load(path)
+            ds.delete(large_ok=large_ok)
+        except:
+            if force:
+                base_storage = storage_provider_from_path(
+                    path, creds={}, read_only=False, token=None
+                )
+                base_storage.clear()
+            else:
+                raise
 
     @staticmethod
     @hub_reporter.record_call
