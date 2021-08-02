@@ -75,12 +75,6 @@ def _make_update_assert_equal(
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
 def test(local_ds_generator, images_compression):
-
-    mem = hub.dataset("mem://xyz")
-
-    def gen():
-        return mem
-
     gen = local_ds_generator
 
     _add_dummy_mnist(gen(), images_compression=images_compression)
@@ -127,11 +121,26 @@ def test(local_ds_generator, images_compression):
         ],
     )
 
-    # TODO: hub.read test
-
     ds = gen()
     assert ds.images.shape_interval.lower == (10, 0, 0)
     assert ds.images.shape_interval.upper == (10, 32, 50)
+
+
+@pytest.mark.parametrize("images_compression", [None, "png"])
+def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path):
+    gen = local_ds_generator
+
+    ds = gen()
+    ds.create_tensor("images", htype="image", sample_compression=images_compression)
+    ds.images.extend(np.zeros((10, 0, 0, 0), dtype=np.uint8))
+
+    _make_update_assert_equal(gen, "images", 0, hub.read(cat_path))
+    _make_update_assert_equal(gen, "images", slice(8, 10), [hub.read(cat_path), hub.read(flower_path)])
+
+    assert ds.images.shape_interval.lower == (10, 0, 0)
+    assert ds.images.shape_interval.upper == (10, 900, 900, 4)
+
+    assert len(ds.images) == 10
 
 
 def test_pre_indexed_tensor(memory_ds):

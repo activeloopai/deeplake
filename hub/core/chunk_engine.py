@@ -575,6 +575,10 @@ class ChunkEngine:
 def _format_input_samples(index: Index, value: Any, total_num_samples: int):
     """Returns `value` wrapped in a list so it can be looped over in case it isn't already."""
 
+    if isinstance(value, Sample):
+        # TODO implement `Sample` values (refactor to work with append/extend)
+        raise NotImplementedError
+
     if np.isscalar(value):
         return [value]
 
