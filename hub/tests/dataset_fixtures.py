@@ -51,7 +51,7 @@ def hub_cloud_ds(hub_cloud_ds_generator):
     yield hub_cloud_dataset
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope='session')
 def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
     def generate_hub_cloud_ds():
         return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token)
