@@ -44,7 +44,6 @@ def test_persist(ds_generator):
     np.testing.assert_array_equal(ds_new.image.numpy(), np.ones((4, 224, 224, 3)))
 
     assert ds_new.meta.version == hub.__version__
-    ds_new.delete()
 
 
 @enabled_persistent_dataset_generators
