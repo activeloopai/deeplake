@@ -6,7 +6,7 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.api.hashlist import Hashlist
+from hub.core.meta.hashlist import Hashlist
 from hub.core.index.index import Index
 from hub.util.keys import (
     get_chunk_key,
@@ -317,7 +317,7 @@ class ChunkEngine:
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
-        isHash = self.tensor_meta.isHash
+        hash_samples = self.tensor_meta.hash_samples
 
         if isinstance(samples, np.ndarray):
             compression = self.tensor_meta.sample_compression
@@ -328,7 +328,7 @@ class ChunkEngine:
                 # before adding any data, we need to check all sample sizes
                 for sample in samples:
 
-                    if isHash:
+                    if hash_samples:
                         hash_value = hash_sample(sample.tobytes())
                         self.hashlist.append(hash_value)
 
@@ -347,7 +347,7 @@ class ChunkEngine:
                     sample_object = Sample(array=sample)
                     sample_objects.append(sample_object)
 
-                    if isHash:
+                    if hash_samples:
                         hash_value = hash_sample(sample.uncompressed_bytes())
                         self.hashlist.append(hash_value)
 
@@ -371,7 +371,7 @@ class ChunkEngine:
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
-        isHash = self.tensor_meta.isHash
+        hash_samples = self.tensor_meta.hash_samples
 
         if isinstance(sample, Sample):
             # has to decompress to read the array's shape and dtype
@@ -380,7 +380,7 @@ class ChunkEngine:
             data = memoryview(sample.compressed_bytes(compression))
             self._check_sample_size(len(data))
 
-            if isHash:
+            if hash_samples:
                 hash_value = hash_sample(sample.uncompressed_bytes())
                 self.hashlist.append(hash_value)
 

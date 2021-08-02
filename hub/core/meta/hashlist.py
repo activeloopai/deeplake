@@ -16,7 +16,7 @@ class Hashlist(CachableCallback):
     def nbytes(self):
         return len(self.tobytes())
 
-    def isEmpty(self):
+    def is_empty(self):
         if len(self.hashes):
             return False
         else:

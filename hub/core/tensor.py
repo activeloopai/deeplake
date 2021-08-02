@@ -6,8 +6,8 @@ from hub.core.storage import StorageProvider, LRUCache
 from hub.core.sample import Sample  # type: ignore
 from hub.core.chunk_engine import ChunkEngine, SampleValue
 from hub.api.info import load_info
-from hub.api.hashlist import load_hashlist
-from hub.api.hashlist import Hashlist
+from hub.core.meta.hashlist import load_hashlist
+from hub.core.meta.hashlist import Hashlist
 from hub.util.keys import (
     get_tensor_meta_key,
     get_hashlist_key,
@@ -30,7 +30,7 @@ def create_tensor(
     storage: StorageProvider,
     htype: str,
     sample_compression: str,
-    isHash: Optional[bool] = False,
+    hash_samples: Optional[bool] = False,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -40,7 +40,7 @@ def create_tensor(
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
-        isHash (Optional[bool]): All samples added to this tensor will be hashed and added to a hashlist.
+        hash_samples (Optional[bool]): All samples added to this tensor will be hashed and added to a hashlist.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -55,7 +55,7 @@ def create_tensor(
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
-        isHash=isHash,
+        hash_samples=hash_samples,
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore

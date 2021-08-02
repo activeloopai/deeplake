@@ -26,7 +26,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
-    isHash: Optional[bool]
+    hash_samples: Optional[bool]
 
     def __init__(
         self,

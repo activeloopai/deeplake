@@ -53,7 +53,7 @@ def compare(
     list1 = path1.hashlist
     list2 = path2.hashlist
 
-    if list1.isEmpty() or list2.isEmpty():
+    if list1.is_empty() or list2.is_empty():
         raise HashlistDoesNotExistError
 
     # Find jaccard similarity between the two lists
