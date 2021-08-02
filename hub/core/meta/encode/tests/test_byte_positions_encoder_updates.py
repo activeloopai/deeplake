@@ -4,7 +4,7 @@ from .common import assert_encoded
 
 
 def _validate_bp(enc: BytePositionsEncoder):
-    """Helps validate test initial and terminal states."""
+    """Helps validate that tests have proper initial encoder states."""
 
     expected = np.array(enc._encoded)
     enc._post_process_state(0)
