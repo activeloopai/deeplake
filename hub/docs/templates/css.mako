@@ -11,6 +11,16 @@
   .flex {
     display: flex !important;
   }
+  th,
+  td {
+    border: 1px solid #ddd;
+    padding: 8px;
+  }
+  th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+  }
   body {
     line-height: 1.5em;
   }
