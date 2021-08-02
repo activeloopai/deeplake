@@ -63,7 +63,6 @@ def _make_update_assert_equal(
     assert len(ds) == 10
 
     if check_persistence:
-        # persistence check
         ds = ds_generator()
         tensor = ds[tensor_name]
         actual = tensor.numpy(aslist=True)

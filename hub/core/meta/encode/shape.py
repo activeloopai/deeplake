@@ -25,16 +25,3 @@ class ShapeEncoder(Encoder):
     ) -> bool:
         last_shape = self._derive_value(self._encoded[compare_row_index])
         return shape == last_shape
-
-    def update_shape(self, local_sample_index: int, new_shape: Tuple[int]):
-        # TODO: this function needs optimization
-
-        encoded_index = self.translate_index(local_sample_index)
-
-        if self[-1] == new_shape:
-            return
-
-        # TODO: if shapes don't match and there is only 1 sample for this row, all you need to do is update shape
-        # TODO: if shapes don't match and there is > 1 sample for this row, you will need to create a new row
-
-        raise NotImplementedError
