@@ -49,15 +49,15 @@ def s3_ds_generator(s3_path):
 def hub_cloud_ds(hub_cloud_ds_generator):
     hub_cloud_dataset = hub_cloud_ds_generator()
     yield hub_cloud_dataset
-    hub_cloud_dataset.delete()
 
 
-@pytest.fixture
+@pytest.fixture(scope='session', autouse=True)
 def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
     def generate_hub_cloud_ds():
         return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token)
 
-    return generate_hub_cloud_ds
+    yield generate_hub_cloud_ds
+    generate_hub_cloud_ds().delete()
 
 
 @pytest.fixture
