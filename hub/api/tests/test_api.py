@@ -1,11 +1,14 @@
+import os
 import numpy as np
 import pytest
-import uuid
 import hub
-import os
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    TensorDtypeMismatchError,
+    TensorInvalidSampleShapeError,
+    UnsupportedCompressionError,
+)
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
@@ -18,7 +21,16 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-@enabled_persistent_dataset_generators
+# not using the predefined parametrizes because `hub_cloud_ds_generator` is not enabled by default
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
 def test_persist(ds_generator):
     ds = ds_generator()
 
@@ -201,7 +213,7 @@ def test_empty_samples(ds: Dataset):
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
-    assert tensor.meta.dtype == None
+    assert tensor.meta.dtype is None
 
     # first sample sets dtype
     tensor.append(5)
@@ -457,17 +469,89 @@ def test_array_interface(memory_ds: Dataset):
 
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
-    ds = Dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
+    ds = hub.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
 
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
 
 
+def test_index_range(memory_ds):
+    with pytest.raises(ValueError):
+        memory_ds[0]
+
+    memory_ds.create_tensor("label")
+
+    with pytest.raises(ValueError):
+        memory_ds.label[0]
+
+    memory_ds.label.extend([5, 6, 7])
+    assert len(memory_ds) == 3
+    assert len(memory_ds.label) == 3
+
+    for valid_idx in [0, 1, 2, -0, -1, -2, -3]:
+        memory_ds[valid_idx]
+        memory_ds.label[valid_idx]
+
+    for invalid_idx in [3, 4, -4, -5]:
+        with pytest.raises(ValueError):
+            memory_ds[invalid_idx]
+        with pytest.raises(ValueError):
+            memory_ds.label[invalid_idx]
+
+    memory_ds[[0, 1, 2]]
+    with pytest.raises(ValueError):
+        memory_ds[[0, 1, 2, 3, 4, 5]]
+
+
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = Dataset("test")
+        ds = hub.dataset("test")
+        assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_like(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+    src_ds.info.update(key=0)
+
+    src_ds.create_tensor("a", htype="image", sample_compression="png")
+    src_ds.create_tensor("b", htype="class_label")
+    src_ds.create_tensor("c")
+    src_ds.create_tensor("d", dtype=bool)
+
+    src_ds.d.info.update(key=1)
+
+    dest_ds = hub.like(dest_path, src_ds)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    assert len(dest_ds) == 0
+
+
+def test_tensor_creation_fail_recovery():
+    with CliRunner().isolated_filesystem():
+        ds = hub.dataset("test")
+        with ds:
+            ds.create_tensor("x")
+            ds.create_tensor("y")
+            with pytest.raises(UnsupportedCompressionError):
+                ds.create_tensor("z", sample_compression="something_random")
+        ds = hub.dataset("test")
+        assert list(ds.tensors) == ["x", "y"]
+        ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]

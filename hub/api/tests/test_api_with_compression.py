@@ -4,23 +4,23 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
 )
 import pytest
-from hub.api.tensor import Tensor
+from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
 from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
-from hub import Dataset
+from hub.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
     original_compressions = []
 
     for _ in range(count):
-        tensor.append(hub.load(cat_path))
-        original_compressions.append("jpeg")
+        tensor.append(hub.read(cat_path))
+        original_compressions.append("jpg")
 
-        tensor.append(hub.load(flower_path))
+        tensor.append(hub.read(flower_path))
         original_compressions.append("png")
 
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
@@ -28,8 +28,8 @@ def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1)
 
         tensor.extend(
             [
-                hub.load(flower_path),
-                hub.load(cat_path),
+                hub.read(flower_path),
+                hub.read(cat_path),
             ]
         )
         original_compressions.extend(["png", "jpeg"])
@@ -118,6 +118,14 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
 
     tensor = memory_ds.create_tensor(TENSOR_KEY, sample_compression="jpeg")
     tensor.append(np.ones(bad_shape, dtype="uint8"))
+
+
+def test_compression_aliases(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("jpeg_tensor", sample_compression="jpeg")
+    assert tensor.meta.sample_compression == "jpeg"
+
+    tensor = memory_ds.create_tensor("jpg_tensor", sample_compression="jpg")
+    assert tensor.meta.sample_compression == "jpeg"
 
 
 @pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)

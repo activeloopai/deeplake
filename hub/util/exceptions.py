@@ -105,13 +105,6 @@ class LoginException(Exception):
         super().__init__(message)
 
 
-class ImproperDatasetInitialization(Exception):
-    def __init__(self):
-        super().__init__(
-            "Exactly one argument out of 'path' and 'storage' should be provided."
-        )
-
-
 class InvalidHubPathException(Exception):
     def __init__(self, path):
         super().__init__(
@@ -374,13 +367,6 @@ class TransformError(Exception):
     pass
 
 
-class InvalidTransformOutputError(TransformError):
-    def __init__(self, item):
-        super().__init__(
-            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
-        )
-
-
 class InvalidInputDataError(TransformError):
     def __init__(self, message):
         super().__init__(
@@ -404,16 +390,29 @@ class TensorMismatchError(TransformError):
 
 
 class InvalidOutputDatasetError(TransformError):
-    def __init__(self):
-        super().__init__(
-            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-        )
+    def __init__(
+        self, message="The output Dataset to transform should not be `read_only`."
+    ):
+        super().__init__(message)
 
 
-class MemoryDatasetNotSupportedError(TransformError):
-    def __init__(self, scheduler):
+class InvalidTransformDataset(TransformError):
+    def __init__(
+        self,
+        message="The TransformDataset (2nd argument to transform function) of one of the functions is invalid. All the tensors should have equal length for it to be valid.",
+    ):
+        super().__init__(message)
+
+
+class TransformComposeEmptyListError(TransformError):
+    def __init__(self, message="Cannot hub.compose an empty list."):
+        super().__init__(message)
+
+
+class TransformComposeIncompatibleFunction(TransformError):
+    def __init__(self, index: int):
         super().__init__(
-            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
         )
 
 
@@ -452,4 +451,20 @@ class WindowsSharedMemoryError(Exception):
     def __init__(self):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )
+
+
+class DatasetHandlerError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class CallbackInitializationError(Exception):
+    pass
+
+
+class MemoryDatasetCanNotBePickledError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )

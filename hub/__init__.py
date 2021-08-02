@@ -10,14 +10,27 @@ __pdoc__ = {
     "tests": False,
 }
 
-from .api.dataset import Dataset
-from .api.tensor import Tensor
-from .api.load import load
+from .api.dataset import dataset
+from .api.read import read
+from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
-__all__ = ["Dataset", "Tensor", "load", "__version__"]
+load = dataset.load
+empty = dataset.empty
+like = dataset.like
 
-__version__ = "2.0.0"
+__all__ = [
+    "dataset",
+    "read",
+    "__version__",
+    "load",
+    "empty",
+    "compute",
+    "compose",
+    "like",
+]
+
+__version__ = "2.0.4"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")

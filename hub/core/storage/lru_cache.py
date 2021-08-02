@@ -1,8 +1,14 @@
 from collections import OrderedDict
-from hub.core.storage.cachable import Cachable
-from typing import Callable, Set, Union
+from hub.core.storage.cachable import Cachable, CachableCallback
+from typing import Any, Dict, Set, Union
 
 from hub.core.storage.provider import StorageProvider
+
+
+def _get_nbytes(obj: Union[bytes, memoryview, Cachable]):
+    if isinstance(obj, Cachable):
+        return obj.nbytes
+    return len(obj)
 
 
 # TODO use lock for multiprocessing
@@ -82,8 +88,13 @@ class LRUCache(StorageProvider):
 
         if isinstance(item, (bytes, memoryview)):
             obj = expected_class.frombuffer(item)
-            if len(obj) <= self.cache_size:
+
+            if isinstance(obj, CachableCallback):
+                obj.initialize_callback_location(path, self)
+
+            if obj.nbytes <= self.cache_size:
                 self._insert_in_cache(path, obj)
+
             return obj
 
         raise ValueError(f"Item at '{path}' got an invalid type: '{type(item)}'.")
@@ -106,7 +117,8 @@ class LRUCache(StorageProvider):
             return self.cache_storage[path]
         else:
             result = self.next_storage[path]  # fetch from storage, may throw KeyError
-            if len(result) <= self.cache_size:  # insert in cache if it fits
+
+            if _get_nbytes(result) <= self.cache_size:  # insert in cache if it fits
                 self._insert_in_cache(path, result)
             return result
 
@@ -125,7 +137,7 @@ class LRUCache(StorageProvider):
             size = self.lru_sizes.pop(path)
             self.cache_used -= size
 
-        if len(value) <= self.cache_size:
+        if _get_nbytes(value) <= self.cache_size:
             self._insert_in_cache(path, value)
             self.dirty_keys.add(path)
         else:  # larger than cache, directly send to next layer
@@ -161,11 +173,10 @@ class LRUCache(StorageProvider):
         self.maybe_flush()
 
     def clear_cache(self):
-        """Flushes the content of the cache and and then deletes contents of all the layers of it.
+        """Flushes the content of the cache if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """
-        self.check_readonly()
-        self.flush()
+        self._flush_if_not_read_only()
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()
@@ -255,10 +266,10 @@ class LRUCache(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
 
-        self._free_up_space(len(value))
+        self._free_up_space(_get_nbytes(value))
         self.cache_storage[path] = value  # type: ignore
 
-        self.update_used_cache_for_path(path, len(value))
+        self.update_used_cache_for_path(path, _get_nbytes(value))
 
     def _list_keys(self):
         """Helper function that lists all the objects present in the cache and the underlying storage.
@@ -270,3 +281,40 @@ class LRUCache(StorageProvider):
         for key in self.cache_storage:
             all_keys.add(key)
         return list(all_keys)
+
+    def _flush_if_not_read_only(self):
+        """Flushes the cache if not in read-only mode."""
+        if not self.read_only:
+            self.flush()
+
+    def __getstate__(self) -> Dict[str, Any]:
+        """Returns the state of the cache, for pickling"""
+
+        # flushes the cache before pickling
+        self._flush_if_not_read_only()
+
+        return {
+            "next_storage": self.next_storage,
+            "cache_storage": self.cache_storage,
+            "cache_size": self.cache_size,
+        }
+
+    def __setstate__(self, state: Dict[str, Any]):
+        """Recreates a cache with the same configuration as the state.
+
+        Args:
+            state (dict): The state to be used to recreate the cache.
+
+        Note:
+            While restoring the cache, we reset its contents.
+            In case the cache storage was local/s3 and is still accessible when unpickled (if same machine/s3 creds present respectively), the earlier cache contents are no longer accessible.
+        """
+
+        # TODO: We might want to change this behaviour in the future by having a separate file that keeps a track of the lru order for restoring the cache.
+        # This would also allow the cache to persist across different different Dataset objects pointing to the same dataset.
+        self.next_storage = state["next_storage"]
+        self.cache_storage = state["cache_storage"]
+        self.cache_size = state["cache_size"]
+        self.lru_sizes = OrderedDict()
+        self.dirty_keys = set()
+        self.cache_used = 0
