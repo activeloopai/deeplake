@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pytest
 import hub
@@ -6,10 +7,12 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
+    DatasetHandlerError,
     UnsupportedCompressionError,
 )
+from hub.constants import MB
+
 from click.testing import CliRunner
-from hub.util.exceptions import TensorDtypeMismatchError, TensorInvalidSampleShapeError
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
@@ -513,6 +516,36 @@ def test_empty_dataset():
         assert list(ds.tensors) == ["x", "y", "z"]
 
 
+def test_like(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+    src_ds.info.update(key=0)
+
+    src_ds.create_tensor("a", htype="image", sample_compression="png")
+    src_ds.create_tensor("b", htype="class_label")
+    src_ds.create_tensor("c")
+    src_ds.create_tensor("d", dtype=bool)
+
+    src_ds.d.info.update(key=1)
+
+    dest_ds = hub.like(dest_path, src_ds)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    assert len(dest_ds) == 0
+
+
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
         ds = hub.dataset("test")
@@ -525,3 +558,40 @@ def test_tensor_creation_fail_recovery():
         assert list(ds.tensors) == ["x", "y"]
         ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_dataset_delete():
+    with CliRunner().isolated_filesystem():
+        os.mkdir("test")
+        with open("test/test.txt", "w") as f:
+            f.write("some data")
+
+        with pytest.raises(DatasetHandlerError):
+            # Can't delete raw data without force
+            hub.dataset.delete("test/")
+
+        hub.dataset.delete("test/", force=True)
+        assert not os.path.isfile("test/test.txt")
+
+        hub.empty("test/").create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/")
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        old_size = hub.constants.DELETE_SAFETY_SIZE
+        hub.constants.DELETE_SAFETY_SIZE = 1 * MB
+
+        ds = hub.empty("test/")
+        ds.create_tensor("data")
+        ds.data.extend(np.zeros((100, 2000)))
+
+        try:
+            hub.dataset.delete("test/")
+        finally:
+            assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/", large_ok=True)
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        hub.constants.DELETE_SAFETY_SIZE = old_size

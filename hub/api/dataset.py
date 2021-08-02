@@ -1,9 +1,13 @@
-from hub.util.exceptions import DatasetHandlerError
-from hub.util.storage import get_storage_and_cache_chain
-from typing import Optional
-from hub.constants import DEFAULT_LOCAL_CACHE_SIZE, DEFAULT_MEMORY_CACHE_SIZE, MB
-from hub.core.dataset import Dataset
+import hub
+from typing import Optional, Union
+
+from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
+from hub.client.log import logger
 from hub.util.keys import dataset_exists
+from hub.util.bugout_reporter import hub_reporter
+from hub.util.exceptions import DatasetHandlerError
+from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.core.dataset import Dataset
 
 
 class dataset:
@@ -56,11 +60,15 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         read_only = storage.read_only
+
+        hub_reporter.feature_report(feature_name="dataset", parameters={})
+
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def empty(
         path: str,
         overwrite: bool = False,
@@ -119,6 +127,7 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def load(
         path: str,
         read_only: bool = False,
@@ -181,18 +190,64 @@ class dataset:
         )
 
     @staticmethod
+    @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
-        """Deletes a dataset"""
-        raise NotImplementedError
+        """Deletes a dataset at a given path.
+        This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        Args:
+            path (str): The path to the dataset to be deleted.
+            force (bool): Delete data regardless of whether
+                it looks like a hub dataset. All data at the path will be removed.
+            large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
+        """
+
+        try:
+            ds = hub.load(path)
+            ds.delete(large_ok=large_ok)
+        except:
+            if force:
+                base_storage = storage_provider_from_path(
+                    path, creds={}, read_only=False, token=None
+                )
+                base_storage.clear()
+            else:
+                raise
 
     @staticmethod
+    @hub_reporter.record_call
     def like(
-        path: str, like: str, like_creds: dict, overwrite: bool = False
+        path: str,
+        source: Union[str, Dataset],
+        creds: dict = None,
+        overwrite: bool = False,
     ) -> Dataset:
-        """Creates a dataset with the same structure as another dataset"""
-        raise NotImplementedError
+        """Copies the `source` dataset's structure to a new location. No samples are copied, only the meta/info for the dataset and it's tensors.
+
+        Args:
+            path (str): Path where the new dataset will be created.
+            source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            creds (dict): Credentials that will be used to create the new dataset.
+            overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
+
+        Returns:
+            Dataset: New dataset object.
+        """
+
+        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
+        source_ds = source
+        if isinstance(source, str):
+            source_ds = dataset.load(source)
+
+        for tensor_name in source_ds.meta.tensors:  # type: ignore
+            destination_ds.create_tensor_like(tensor_name, source_ds[tensor_name])
+
+        destination_ds.info.update(source_ds.info.__getstate__())  # type: ignore
+
+        return destination_ds
 
     @staticmethod
+    @hub_reporter.record_call
     def ingest(
         path: str, src: str, src_creds: dict, overwrite: bool = False
     ) -> Dataset:

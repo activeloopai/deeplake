@@ -10,7 +10,8 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SUPPORTED_COMPRESSIONS = ["png", "jpeg", None]
+SUPPORTED_COMPRESSIONS = ["png", "jpg", "jpeg", None]
+COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
 REQUIRE_USER_SPECIFICATION = "require_user_specification"
@@ -34,6 +35,8 @@ MIN_SECOND_CACHE_SIZE = 160 * MB
 DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
+# maximum allowable size before `large_ok` must be passed to dataset delete methods
+DELETE_SAFETY_SIZE = 1 * GB
 
 # meta is hub-defined information, necessary for hub Datasets/Tensors to function
 DATASET_META_FILENAME = "dataset_meta.json"

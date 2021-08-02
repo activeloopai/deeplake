@@ -1,5 +1,5 @@
 from hub.core.storage.lru_cache import LRUCache
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union, Sequence
 from hub.core.storage.cachable import CachableCallback, use_callback
 
 
@@ -12,7 +12,6 @@ class Info(CachableCallback):
             Since `Info` is rarely written to and mostly by the user, every modifier will call `cache[key] = self`.
             Must call `initialize_callback_location` before using any methods.
         """
-
         self._info = {}
         super().__init__()
 
@@ -89,6 +88,37 @@ class Info(CachableCallback):
 
     def __repr__(self):
         return self._info.__repr__()
+
+    @use_callback()
+    def delete(self, key: Optional[Union[Sequence[str], str]] = None):
+        """Deletes a key or list of keys. If no key(s) is passed, all keys are deleted."""
+        self._cache.check_readonly()
+        if key is None:
+            self._info.clear()
+        elif isinstance(key, str):
+            del self._info[key]
+        elif isinstance(key, Sequence):
+            for k in key:
+                del self._info[k]
+        else:
+            raise KeyError(key)
+
+    @use_callback()
+    def __setitem__(self, key: str, value):
+        self._cache.check_readonly()
+        self._info[key] = value
+
+    def __setattr__(self, key: str, value):
+        if key in ("_key", "_cache", "_info"):
+            object.__setattr__(self, key, value)
+        else:
+            self[key] = value
+
+    def __getattr__(self, key: str):
+        try:
+            return object.__getattribute__(self, key)
+        except AttributeError:
+            return self[key]
 
 
 def load_info(info_key: str, cache: LRUCache):
