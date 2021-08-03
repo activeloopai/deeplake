@@ -228,6 +228,7 @@ def test_safe_downcasting(ds: Dataset):
     tensor.extend([5.0, 6.0, np.float32(7.0)])
     with pytest.raises(TensorDtypeMismatchError):
         tensor.append(float(np.finfo(np.float32).max + 1))
+    assert len(tensor) == 16
 
 
 @enabled_datasets
@@ -276,6 +277,8 @@ def test_scalar_samples(ds: Dataset):
     # len(shape) for a scalar is `()`. len(shape) for [1, 2] is `(2,)`
     with pytest.raises(TensorInvalidSampleShapeError):
         tensor.append([1, 2])
+
+    assert len(tensor) == 16
 
 
 @enabled_datasets
@@ -469,6 +472,9 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
+
+    assert len(tensor) == 1
+    assert len(dtyped_tensor) == 1
 
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
