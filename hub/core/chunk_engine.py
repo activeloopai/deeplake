@@ -191,7 +191,9 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
+    def _append_bytes(
+        self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype, compressed: bool
+    ):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -208,7 +210,8 @@ class ChunkEngine:
         num_samples = 1
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
+        if not compressed:
+            buffer = self.tensor_meta.adapt(buffer, shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
@@ -314,7 +317,7 @@ class ChunkEngine:
                     buffers.append(buffer)
 
                 for buffer in buffers:
-                    self._append_bytes(buffer, sample.shape, sample.dtype)
+                    self._append_bytes(buffer, sample.shape, sample.dtype, False)
             else:
                 sample_objects = []
                 compression = self.tensor_meta.sample_compression
@@ -349,7 +352,7 @@ class ChunkEngine:
             compression = self.tensor_meta.sample_compression
             data = memoryview(sample.compressed_bytes(compression))
             self._check_sample_size(len(data))
-            self._append_bytes(data, sample.shape, sample.dtype)
+            self._append_bytes(data, sample.shape, sample.dtype, bool(compression))
         else:
             return self.append(Sample(array=np.array(sample)))
 
@@ -394,11 +397,10 @@ class ChunkEngine:
         return _format_samples(samples, index, aslist)
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
+        self, global_sample_index: int, chunk: Chunk, cast: bool = True
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
@@ -409,8 +411,10 @@ class ChunkEngine:
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
         buffer = buffer[sb:eb]
-        if expect_compressed:
+        if self.tensor_meta.sample_compression:
             sample = decompress_array(buffer, shape)
+            if cast:
+                sample = self.tensor_meta.adapt(sample)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 

@@ -256,7 +256,7 @@ class TorchDataset:
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
         chunk_engine = self.all_chunk_engines[key]
-        value = chunk_engine.read_sample_from_chunk(index, chunk)
+        value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
 
         # typecast if incompatible with pytorch
         if value.dtype == "uint16":

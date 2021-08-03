@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple, Union
 import numpy as np
 from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
@@ -60,7 +60,12 @@ class TensorMeta(Meta):
 
         super().__init__()
 
-    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
+    def adapt(
+        self,
+        buffer: Union[memoryview, np.ndarray],
+        shape: Tuple[int] = None,
+        dtype=None,
+    ) -> memoryview:
         """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
         the incoming sample to match the tensor's dtype if needed (and possible).
 
@@ -76,11 +81,15 @@ class TensorMeta(Meta):
             TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
             TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
         """
-        dtype = np.dtype(dtype)
+        if isinstance(buffer, np.ndarray):
+            shape = buffer.shape
+            dtype = buffer.dtype
+            array = buffer
+        else:
+            array = np.frombuffer(buffer, dtype=dtype).reshape(shape)
+            dtype = np.dtype(dtype)
         if self.dtype and self.dtype != dtype.name:
-            buffer = memoryview(  # Already verified this is safe in tensor.extend
-                np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
-            )
+            array = np.cast[self.dtype](array)
 
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
@@ -93,7 +102,9 @@ class TensorMeta(Meta):
                     ),
                     shape,
                 )
-        return buffer
+        if isinstance(buffer, np.ndarray):
+            return array
+        return memoryview(array.tobytes())
 
     def check_compatibility(self, shape: Tuple[int], dtype):
         """Checks if this tensor meta is compatible with the incoming sample(s) properties.

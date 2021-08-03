@@ -6,7 +6,7 @@ def get_incompatible_dtype(
     samples: Union[np.ndarray, Sequence], dtype: Union[str, np.dtype]
 ):
     """Check if items in a non-uniform mixed dtype sequence of samples can be safely cast to the given dtype.
-    
+
     Args:
         samples: Sequence of samples
         dtype: dtype to which samples have to be cast
