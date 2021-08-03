@@ -324,10 +324,9 @@ class ChunkEngine:
 
         self.extend([sample])
 
-
-    def update(self, index: Index, samples):
+    def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         # TODO: static typing refactor for samples
-        
+
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
         updated_chunks = set()
@@ -337,7 +336,7 @@ class ChunkEngine:
 
         index_length = index.length(self.num_samples)
 
-        # TODO: explain this
+        # if only a single sample is being updated, we should wrap it in a list to make it iterable
         if index_length == 1:
             samples = [samples]
         serialized_input_samples = serialize_input_samples(
@@ -345,9 +344,8 @@ class ChunkEngine:
         )
 
         if index_length != len(serialized_input_samples):
-            # TODO: update error message
             raise ValueError(
-                f"cannot copy sequence with size {len(serialized_input_samples)} to array axis with dimension {index_length}"
+                f"Index length ({index_length}) and length of samples ({len(serialized_input_samples)}) must be equal for updating a tensor."
             )
 
         for i, (buffer, shape) in enumerate(serialized_input_samples):

@@ -223,7 +223,6 @@ def _get_shape(sample: SampleValue):
     else:
         shape = (len(sample),)
 
-
     if len(shape) > 1 and shape[0] == 1:
         return shape[1:]
 
