@@ -8,7 +8,7 @@ from io import BytesIO
 from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
-from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
+from hub.core.serialization.chunks import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 
 
 class Chunk(Cachable):

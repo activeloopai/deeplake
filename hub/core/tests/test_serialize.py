@@ -1,4 +1,4 @@
-from hub.core.serialize import (
+from hub.core.serialization.chunks import (
     serialize_chunk,
     deserialize_chunk,
     serialize_chunkids,
