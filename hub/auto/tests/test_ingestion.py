@@ -13,7 +13,6 @@ def test_ingestion_simple(memory_ds: Dataset):
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             dest_creds=None,
-            compression="jpeg",
             overwrite=False,
         )
 

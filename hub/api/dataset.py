@@ -16,6 +16,7 @@ from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
+from hub.util.detect_compression import detect_compression
 from hub.core.dataset import Dataset
 
 
@@ -261,7 +262,7 @@ class dataset:
         src: str,
         dest: str,
         dest_creds: dict,
-        compression: str,
+        compression: Optional[str] = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
@@ -337,6 +338,9 @@ class dataset:
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
 
+        if compression is None:
+            compression = detect_compression(src)
+
         # TODO: auto detect compression
         unstructured.structure(
             ds, image_tensor_args={"sample_compression": compression}  # type: ignore
@@ -351,7 +355,7 @@ class dataset:
         src: str,
         dest: str,
         dest_creds: dict,
-        compression: str,
+        compression: Optional[str] = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
