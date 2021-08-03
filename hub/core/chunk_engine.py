@@ -324,70 +324,47 @@ class ChunkEngine:
 
         self.extend([sample])
 
-    """  # TODO: remove this!
+
     def update(self, index: Index, samples):
         # TODO: static typing refactor for samples
-
-        for buffer, shape in serialize_input_samples(
-            samples, self.tensor_meta, self.min_chunk_size
-        ):
-            continue
-
-        # TODO: update
-        raise NotImplementedError
-
-        self.cache.maybe_flush()
-    """
-
-    def update(self, index: Index, value: np.ndarray):
-        # TODO: docstring
-
-        value = _format_input_samples(index, value, self.num_samples)
-
+        
+        tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
-
         updated_chunks = set()
 
+        # TODO: there's gotta be a better way to do this:
+        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+
         index_length = index.length(self.num_samples)
-        if index_length != len(value):
+
+        # TODO: explain this
+        if index_length == 1:
+            samples = [samples]
+        serialized_input_samples = serialize_input_samples(
+            samples, tensor_meta, self.min_chunk_size
+        )
+
+        if index_length != len(serialized_input_samples):
+            # TODO: update error message
             raise ValueError(
-                f"cannot copy sequence with size {len(value)} to array axis with dimension {index_length}"
+                f"cannot copy sequence with size {len(serialized_input_samples)} to array axis with dimension {index_length}"
             )
 
-        tensor_meta = self.tensor_meta
-        sample_compression = tensor_meta.sample_compression
+        for i, (buffer, shape) in enumerate(serialized_input_samples):
+            global_sample_index = global_sample_indices[i]  # TODO!
 
-        for value_index, global_sample_index in enumerate(
-            index.values[0].indices(self.num_samples)
-        ):
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
-
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
 
-            # TODO: maybe we want to do this before adding any data?
-            incoming_sample = np.asarray(value[value_index])
-            # self.tensor_meta.check_compatibility(incoming_sample.shape, incoming_sample.dtype)
-            incoming_sample = tensor_meta.cast_to_dtype(incoming_sample)
-            # incoming_sample = Sample(array=incoming_sample)
-
-            # TODO: optimize this (memcps)
-            # buffer = incoming_sample.compressed_bytes(sample_compression)
-
-            shape = incoming_sample.shape
-            dtype = incoming_sample.dtype
-            buffer = self._prepare_update(0, incoming_sample.tobytes(), shape, dtype)
-            buffer = Sample(array=incoming_sample).compressed_bytes(sample_compression)
-
-            chunk.update_sample(local_sample_index, buffer, incoming_sample.shape)
-
+            tensor_meta.update_shape_interval(shape)
+            chunk.update_sample(local_sample_index, buffer, shape)
             updated_chunks.add(chunk)
 
         # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
         for chunk in updated_chunks:
             self.cache[chunk.key] = chunk  # type: ignore
-
         self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 

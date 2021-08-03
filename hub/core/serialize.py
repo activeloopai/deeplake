@@ -212,13 +212,22 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
 
 
 def _get_shape(sample: SampleValue):
+    """Gets the shape for a single sample."""
+
     if hasattr(sample, "shape"):
-        return sample.shape
+        shape = sample.shape
 
-    if isinstance(sample, (int, float, bool)):
-        return tuple()
+    elif isinstance(sample, (int, float, bool)):
+        shape = tuple()
 
-    return (len(sample),)
+    else:
+        shape = (len(sample),)
+
+
+    if len(shape) > 1 and shape[0] == 1:
+        return shape[1:]
+
+    return shape
 
 
 def _serialize_input_sample(
