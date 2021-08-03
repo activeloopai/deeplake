@@ -52,7 +52,6 @@ def tensor_exists(key: str, storage: StorageProvider) -> bool:
         return True
     except KeyError:
         return False
-    return get_tensor_meta_key(key) in storage
 
 
 def hashlist_exists(key: str, storage: StorageProvider) -> bool:
@@ -61,4 +60,3 @@ def hashlist_exists(key: str, storage: StorageProvider) -> bool:
         return True
     except KeyError:
         return False
-    return get_hashlist_key(key) in storage

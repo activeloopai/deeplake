@@ -47,12 +47,10 @@ def is_uniform_sequence(samples):
         return True
 
 
-"""Generates a 128 bit hash for a sample using murmurhash3"""
-
-
-def hash_sample(sample):
-    hash = mmh3.hash_bytes(sample)
-    return hash.hex()
+def hash(sample):
+    """Generates a 128 bit hash for a sample using murmurhash3"""
+    hashed_sample = mmh3.hash_bytes(sample)
+    return hashed_sample.hex()
 
 
 class ChunkEngine:
@@ -329,7 +327,7 @@ class ChunkEngine:
                 for sample in samples:
 
                     if hash_samples:
-                        hash_value = hash_sample(sample.tobytes())
+                        hash_value = hash(sample.tobytes())
                         self.hashlist.append(hash_value)
 
                     buffer = memoryview(sample.tobytes())
@@ -348,7 +346,7 @@ class ChunkEngine:
                     sample_objects.append(sample_object)
 
                     if hash_samples:
-                        hash_value = hash_sample(sample.uncompressed_bytes())
+                        hash_value = hash(sample.uncompressed_bytes())
                         self.hashlist.append(hash_value)
 
                     num_bytes = len(sample_object.compressed_bytes(compression))
@@ -381,7 +379,7 @@ class ChunkEngine:
             self._check_sample_size(len(data))
 
             if hash_samples:
-                hash_value = hash_sample(sample.uncompressed_bytes())
+                hash_value = hash(sample.uncompressed_bytes())
                 self.hashlist.append(hash_value)
 
             self._append_bytes(data, sample.shape, sample.dtype)

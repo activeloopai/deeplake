@@ -281,8 +281,9 @@ class TensorUnsupportedSampleType(Exception):
 
 class HashlistDoesNotExistError(Exception):
     def __init__(self):
-        super().__init__(f"Hashlist doesn't exist.")
-
+        super().__init__(f"Hashlist doesn't exist for one of the tensors being compared. This could be caused by"
+                            "not enabling hashing when creating the tensor"
+                        )
 
 class MetaError(Exception):
     pass

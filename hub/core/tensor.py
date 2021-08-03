@@ -51,6 +51,9 @@ def create_tensor(
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
+    if hashlist_exists(key, storage):
+        raise HashlistAlreadyExistsError(key)
+
     meta_key = get_tensor_meta_key(key)
     meta = TensorMeta(
         htype=htype,

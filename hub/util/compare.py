@@ -12,52 +12,42 @@ from hub.util.exceptions import (
 import os, glob
 
 
-def jaccard_similarity(list1, list2):
-    intersection = len(list(set(list1).intersection(list2)))
-    union = (len(list1) + len(list2)) - intersection
+def jaccard_similarity(list_1, list_2):
+    intersection = len(list(set(list_1).intersection(list_2)))
+    union = (len(list_1) + len(list_2)) - intersection
     return float(intersection) / union
 
 
 def compare(
-    path1: Union[str, Dataset, Tensor], path2: Union[str, Dataset, Tensor]
+    path_1: Union[str, Dataset, Tensor], path_2: Union[str, Dataset, Tensor]
 ) -> int:
-    """Utility that compares hashlist of two different files
-
-    Note:
-        No data is actually loaded until you try to get a property of the returned `Sample`. This is useful for passing along to
-            `tensor.append` and `tensor.extend`.
+    """Utility that compares hashlist of two different dataset/tensors
 
     Examples:
-        >>> sample = hub.read("path/to/cat.jpeg")
-        >>> type(sample.array)
-        <class 'numpy.ndarray'>
-        >>> sample.compression
-        'jpeg'
-
-    Supported File Types:
-        image: png, jpeg, and all others supported by `PIL`: https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html#fully-supported-formats
+        >>> sample = hub.compare(dataset_1.images, dataset_2.images)
+        1.0
 
     Args:
-        path (str): Path to a supported file.
-
+        path_1 (Union[str,Dataset,Tensor]): Dataset/tensor being compared
+        path_2 (Union[str,Dataset,Tensor]): Dataset/tensor being compared
     Returns:
-        Sample: Sample object. Call `sample.array` to get the `np.ndarray`.
+        int: The Jaccard similarity index between the two hashlists of the two tensore being compared.
     """
 
-    if isinstance(path1, Dataset) or isinstance(path2, Dataset):
+    if isinstance(path_1, Dataset) or isinstance(path_2, Dataset):
         raise NotImplementedError
 
-    if isinstance(path1, str) or isinstance(path2, str):
+    if isinstance(path_1, str) or isinstance(path_2, str):
         raise NotImplementedError
 
-    list1 = path1.hashlist
-    list2 = path2.hashlist
+    list_1 = path_1.hashlist
+    list_2 = path_2.hashlist
 
-    if list1.is_empty() or list2.is_empty():
+    if list_1.is_empty() or list_2.is_empty():
         raise HashlistDoesNotExistError
 
-    # Find jaccard similarity between the two lists
-    similarity_score = jaccard_similarity(list1.hashes, list2.hashes)
+    # Find Jaccard similarity between the two lists
+    similarity_score = jaccard_similarity(list_1.hashes, list_2.hashes)
 
     logger.info(f"The Jaccard similarity score is {similarity_score}")
     return similarity_score
