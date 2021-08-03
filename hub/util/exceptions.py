@@ -4,8 +4,8 @@ from typing import Any, List, Sequence, Tuple
 
 
 class TensorInvalidSampleShapeError(Exception):
-    def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__(f"{message} Incoming sample shape: {str(shape)}")
+    def __init__(self, shape: Sequence[int], expected_dims: int):
+        super().__init__(f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}")
 
 
 class TensorMetaMissingKey(Exception):

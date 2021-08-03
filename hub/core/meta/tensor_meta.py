@@ -1,13 +1,12 @@
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
-    TensorInvalidSampleShapeError,
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
-    TensorDtypeMismatchError,
     TensorMetaMissingRequiredValue,
     UnsupportedCompressionError,
+    TensorInvalidSampleShapeError,
 )
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
@@ -60,40 +59,6 @@ class TensorMeta(Meta):
 
         super().__init__()
 
-    def update(self, shape: Tuple[int], dtype, num_samples: int):
-        """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
-
-        Args:
-            shape (Tuple[int]): [description]
-            dtype ([type]): [description]
-            num_samples (int): [description]
-
-        Raises:
-            ValueError: [description]
-        """
-
-        # TODO: remove this entire function
-        raise NotImplementedError
-
-        if num_samples < 0:
-            raise ValueError(
-                f"Num samples cannot be negative. Got: '{num_samples}'"
-            )
-
-        dtype = np.dtype(dtype)
-
-        if self.length <= 0:
-            if self.dtype is None:
-                self.dtype = dtype.name
-
-            self.min_shape = list(shape)
-            self.max_shape = list(shape)
-        else:
-            # update meta subsequent times
-            self._update_shape_interval(shape)
-
-        self.length += num_samples
-
     def set_dtype(self, dtype: np.dtype):
         # TODO: docstring
 
@@ -109,9 +74,13 @@ class TensorMeta(Meta):
         if self.length <= 0:
             self.min_shape = list(shape)
             self.max_shape = list(shape)
-        for i, dim in enumerate(shape):
-            self.min_shape[i] = min(dim, self.min_shape[i])
-            self.max_shape[i] = max(dim, self.max_shape[i])
+        else:
+            if len(shape) != len(self.min_shape):
+                raise TensorInvalidSampleShapeError(shape, len(self.min_shape))
+
+            for i, dim in enumerate(shape):
+                self.min_shape[i] = min(dim, self.min_shape[i])
+                self.max_shape[i] = max(dim, self.max_shape[i])
 
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()

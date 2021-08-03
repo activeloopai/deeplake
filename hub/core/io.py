@@ -1,7 +1,7 @@
+from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample, SampleValue
-from hub.core.index.index import Index
 import numpy as np
 from typing import List, Optional, Sequence, Union
 
@@ -13,6 +13,8 @@ def _get_shape(sample: SampleValue):
 
     if isinstance(sample, (int, float, bool)):
         return tuple()
+
+    return (len(sample),)
 
 
 
@@ -37,12 +39,20 @@ def _check_input_samples_are_valid(buffer_generator, min_chunk_size: int, sample
     # TODO: docstring
     # TODO: statictyping
 
-    for buffer, _ in buffer_generator:
+    expected_dimensionality = None
+    for buffer, shape in buffer_generator:
+        # check that all samples have the same dimensionality
+        if expected_dimensionality is None:
+            expected_dimensionality = len(shape)
+
         if len(buffer) > min_chunk_size:
             msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {len(buffer)} bytes."
             if sample_compression is None:
                 msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
             raise NotImplementedError(msg)
+
+        if len(shape) != expected_dimensionality:
+            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
 
 
 def _make_generator(samples, sample_compression, expected_dtype):
