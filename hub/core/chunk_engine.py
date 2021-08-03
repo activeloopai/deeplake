@@ -334,7 +334,7 @@ class ChunkEngine:
 
         elif isinstance(samples, Sequence):
             if is_uniform_sequence(samples):
-                self.extend(np.array(samples))
+                self.extend(np.array(samples, dtype=self.tensor_meta.dtype))
             else:
                 for sample in samples:
                     self.append(sample)
@@ -414,7 +414,7 @@ class ChunkEngine:
         if self.tensor_meta.sample_compression:
             sample = decompress_array(buffer, shape)
             if cast:
-                sample = self.tensor_meta.adapt(sample)
+                sample = np.cast[self.tensor_meta.dtype](sample)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
