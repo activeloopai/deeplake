@@ -146,10 +146,11 @@ def compute(fn):
     The output should be appended/extended to the second argument in a hub like syntax.
     Any value returned by the fn will be ignored.
 
-    Example:
-    @hub.compute
-    def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
-        samples_out.your_tensor.append(your_arg0 * your_arg1)
+    Example::
+
+        @hub.compute
+        def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
+            samples_out.your_tensor.append(your_arg0 * your_arg1)
     """
 
     def inner(*args, **kwargs):
