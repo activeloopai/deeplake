@@ -211,7 +211,9 @@ class ChunkEngine:
         num_samples = 1
 
         # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        if not compressed:
+        if compressed:
+            self.tensor_meta.check_compatibility(shape, dtype)
+        else:
             buffer = self.tensor_meta.adapt(buffer, shape, dtype)
         self.tensor_meta.update(shape, dtype, num_samples)
 
