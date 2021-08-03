@@ -202,6 +202,7 @@ class ChunkEngine:
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
             dtype (np.dtype): Data type for the sample that `buffer` represents.
+            compressed (bool): Whether buffer is compressed.
         """
 
         self.cache.check_readonly()
