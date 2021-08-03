@@ -24,7 +24,8 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-from hub.core.io import serialize_input_samples
+
+from hub.core.serialize import serialize_input_samples
 
 
 def is_uniform_sequence(samples):
