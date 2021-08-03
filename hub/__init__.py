@@ -15,7 +15,7 @@ from .api.read import read
 from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
-
+list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like

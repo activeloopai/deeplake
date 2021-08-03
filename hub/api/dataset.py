@@ -14,9 +14,10 @@ from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
+from hub.client.client import HubBackendClient
 from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
-from hub.util.detect_compression import detect_compression
+from hub.util.auto import detect_compression
 from hub.core.dataset import Dataset
 
 
@@ -401,6 +402,17 @@ class dataset:
         return ds
 
     @staticmethod
-    def list(workspace: str) -> None:
-        """List all datasets"""
-        raise NotImplementedError
+    def list(workspace: str = "") -> None:
+        """List all available hub cloud datasets.
+
+        Args:
+            workspace (str): Specify user/organization name. If not given,
+                returns a list of all datasets that can be accessed, regardless of what workspace they are in.
+                Otherwise, lists all datasets in the given workspace.
+
+        Returns:
+            List of dataset names.
+        """
+        client = HubBackendClient()
+        datasets = client.get_datasets(workspace=workspace)
+        return datasets
