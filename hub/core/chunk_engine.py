@@ -27,7 +27,6 @@ from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.io import serialize_input_samples
 
 
-
 def is_uniform_sequence(samples):
     """Determines if a sequence of samples has uniform type and shape, allowing it to be vectorized by `ChunkEngine.extend`."""
     if len(set(map(type, samples))) != 1:
@@ -323,7 +322,9 @@ class ChunkEngine:
     def update(self, index: Index, samples):
         # TODO: static typing refactor for samples
 
-        for buffer, shape in serialize_input_samples(samples, self.tensor_meta, self.min_chunk_size):
+        for buffer, shape in serialize_input_samples(
+            samples, self.tensor_meta, self.min_chunk_size
+        ):
             continue
 
         # TODO: update
@@ -391,7 +392,6 @@ class ChunkEngine:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
         return sample
-
 
     def get_chunk_names(
         self, sample_index: int, last_index: int, target_chunk_count: int

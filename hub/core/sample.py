@@ -7,8 +7,6 @@ from typing import List, Optional, Tuple, Union
 from PIL import Image  # type: ignore
 
 
-
-
 class Sample:
     path: Optional[pathlib.Path]
 
@@ -140,5 +138,6 @@ class Sample:
 
     def __repr__(self):
         return str(self)
+
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

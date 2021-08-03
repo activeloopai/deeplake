@@ -63,7 +63,9 @@ class TensorMeta(Meta):
         # TODO: docstring
 
         if self.dtype is not None:
-            raise ValueError(f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}.")
+            raise ValueError(
+                f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}."
+            )
 
         if self.length > 0:
             raise ValueError("Dtype was None, but length was > 0.")

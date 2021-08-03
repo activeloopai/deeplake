@@ -5,7 +5,9 @@ from typing import Any, List, Sequence, Tuple
 
 class TensorInvalidSampleShapeError(Exception):
     def __init__(self, shape: Sequence[int], expected_dims: int):
-        super().__init__(f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}")
+        super().__init__(
+            f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}"
+        )
 
 
 class TensorMetaMissingKey(Exception):

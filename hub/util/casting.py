@@ -2,13 +2,12 @@ from typing import Union, Sequence
 import numpy as np
 
 
-
 def get_dtype(samples: Union[np.ndarray, Sequence]) -> np.dtype:
     """Get the dtype of a non-uniform mixed dtype sequence of samples."""
 
     if isinstance(samples, np.ndarray):
         return samples.dtype
-    
+
     if isinstance(samples, (int, float, bool, str)):
         return np.dtype(type(samples))
 
@@ -28,7 +27,9 @@ def intelligent_cast(sample, dtype) -> np.ndarray:
         return sample
 
     if not np.can_cast(sample.dtype, dtype):
-        raise NotImplementedError(f"Need better casting. From {sample.dtype} -> {dtype}")
+        raise NotImplementedError(
+            f"Need better casting. From {sample.dtype} -> {dtype}"
+        )
 
     sample = sample.astype(dtype)
     return sample
@@ -38,7 +39,7 @@ def get_incompatible_dtype(
     samples: Union[np.ndarray, Sequence], dtype: Union[str, np.dtype]
 ):
     """Check if items in a non-uniform mixed dtype sequence of samples can be safely cast to the given dtype.
-    
+
     Args:
         samples: Sequence of samples
         dtype: dtype to which samples have to be cast
