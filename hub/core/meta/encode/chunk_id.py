@@ -5,7 +5,7 @@ import hub
 from hub.core.storage.cachable import Cachable
 import numpy as np
 from uuid import uuid4
-from hub.core.serialization.chunks import serialize_chunkids, deserialize_chunkids
+from hub.core.serialize import serialize_chunkids, deserialize_chunkids
 
 
 CHUNK_ID_COLUMN = 0

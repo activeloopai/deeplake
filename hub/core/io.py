@@ -7,14 +7,21 @@ from typing import List, Optional, Sequence, Union
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
+def _get_shape(sample: SampleValue):
+    if hasattr(sample, "shape"):
+        return sample.shape
+
+    if isinstance(sample, (int, float, bool)):
+        return tuple()
+
+
 def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[str], expected_dtype: np.dtype):
     # TODO: docstring
     # TODO: statictyping
 
     # TODO: casting?
 
-    if sample.dtype != expected_dtype:
-        # TODO: casting?
+    if isinstance(sample, Sample):
         raise NotImplementedError
 
     if sample_compression is not None:
@@ -22,7 +29,16 @@ def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[st
         raise NotImplementedError
 
     if isinstance(sample, np.ndarray):
+        if sample.dtype != expected_dtype:
+            # TODO: use intelligent casting util
+            if not np.can_cast(sample.dtype, expected_dtype):
+                raise NotImplementedError
+            sample = sample.astype(expected_dtype)
+
         return sample.tobytes()
+
+    if isinstance(sample, (int, float, bool)):
+        return bytes(sample)
 
     raise NotImplementedError
 
@@ -46,13 +62,13 @@ def _make_generator(samples, sample_compression, expected_dtype):
     if isinstance(samples, Sequence):
         for sample in samples:
             buffer = _serialize_input_sample(sample, sample_compression, expected_dtype)
-            yield buffer, sample.shape
+            yield buffer, _get_shape(sample)
 
     elif isinstance(samples, np.ndarray):
         if sample_compression is None:
             for sample in samples:
                 buffer = _serialize_input_sample(sample, sample_compression, expected_dtype)
-                yield buffer, sample.shape
+                yield buffer, _get_shape(sample)
 
         else:
             raise NotImplementedError

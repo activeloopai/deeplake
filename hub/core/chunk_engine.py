@@ -23,7 +23,7 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-from hub.core.serialization.samples import serialize_input_samples, SampleValue
+from hub.core.io import serialize_input_samples, SampleValue
 
 
 
