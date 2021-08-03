@@ -201,9 +201,6 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
         """
 
-        # TODO: remove `dtype` variable below (and all parameters that ref it), casting should be done before this method is called
-        dtype = self.tensor_meta.dtype
-
         self.cache.check_readonly()
 
         # num samples is always 1 when appending
@@ -368,7 +365,7 @@ class ChunkEngine:
             samples.append(sample)
             last_shape = shape
 
-        return _format_output_samples(samples, index, aslist)
+        return _format_read_samples(samples, index, aslist)
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk
@@ -440,7 +437,7 @@ class ChunkEngine:
             )
 
 
-def _format_output_samples(
+def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepare samples being read from the chunk engine in the way the format the user expects."""
