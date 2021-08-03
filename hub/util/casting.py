@@ -19,7 +19,7 @@ def get_incompatible_dtype(
     if isinstance(samples, (int, float, bool, str)) or hasattr(samples, "dtype"):
         return (
             None
-            if np.can_cast(samples, dtype)
+            if np.can_cast(getattr(samples, "dtype", samples), dtype)
             else getattr(samples, "dtype", np.array(samples).dtype)
         )
     elif isinstance(samples, Sequence):
