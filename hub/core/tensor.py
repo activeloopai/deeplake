@@ -3,8 +3,8 @@ from typing import List, Sequence, Union, Optional, Tuple
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
-from hub.core.sample import Sample  # type: ignore
-from hub.core.chunk_engine import ChunkEngine, SampleValue
+from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
 from hub.util.casting import get_incompatible_dtype

@@ -2,9 +2,11 @@
 from hub.core.compression import compress_array
 import numpy as np
 import pathlib
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
+
+
 
 
 class Sample:
@@ -138,3 +140,5 @@ class Sample:
 
     def __repr__(self):
         return str(self)
+
+SampleValue = Union[np.ndarray, int, float, bool, Sample]

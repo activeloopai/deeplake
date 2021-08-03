@@ -20,6 +20,20 @@ def get_dtype(samples: Union[np.ndarray, Sequence]) -> np.dtype:
     raise TypeError(f"Unsupported type: {type(samples)}")
 
 
+def intelligent_cast(sample, dtype) -> np.ndarray:
+    # TODO: docstring (note: sample can be a scalar)/statictyping
+    # TODO: implement better casting here
+
+    if sample.dtype == dtype:
+        return sample
+
+    if not np.can_cast(sample.dtype, dtype):
+        raise NotImplementedError(f"Need better casting. From {sample.dtype} -> {dtype}")
+
+    sample = sample.astype(dtype)
+    return sample
+
+
 def get_incompatible_dtype(
     samples: Union[np.ndarray, Sequence], dtype: Union[str, np.dtype]
 ):

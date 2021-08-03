@@ -13,7 +13,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
 )
-from hub.core.sample import Sample  # type: ignore
+from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
@@ -24,7 +24,7 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-from hub.core.io import serialize_input_samples, SampleValue
+from hub.core.io import serialize_input_samples
 
 
 

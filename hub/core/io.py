@@ -1,10 +1,10 @@
+from hub.util.casting import intelligent_cast
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample
+from hub.core.sample import Sample, SampleValue
 from hub.core.index.index import Index
 import numpy as np
 from typing import List, Optional, Sequence, Union
 
-SampleValue = Union[np.ndarray, int, float, bool, Sample]
 
 
 def _get_shape(sample: SampleValue):
@@ -20,22 +20,16 @@ def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[st
     # TODO: docstring
     # TODO: statictyping
 
-    # TODO: casting?
-
     if isinstance(sample, Sample):
         raise NotImplementedError
 
-    sample = np.asarray(sample)
-    if sample.dtype != expected_dtype:
-        # TODO: use intelligent casting util
-        if not np.can_cast(sample.dtype, expected_dtype):
-            raise NotImplementedError(f"Need better casting. From {sample.dtype} -> {expected_dtype}")
-        sample = sample.astype(expected_dtype)
-        
+    sample = intelligent_cast(np.asarray(sample), expected_dtype)
     buffer = sample.tobytes()
+
     if sample_compression is not None:
-        # TODO: compression?
+        # TODO: compression
         raise NotImplementedError
+
     return buffer
 
 
