@@ -3,7 +3,7 @@ from hub.util.casting import intelligent_cast
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.sample import Sample, SampleValue  # type: ignore
 import numpy as np
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 
 def _get_shape(sample: SampleValue):
@@ -61,9 +61,20 @@ def serialize_input_samples(
     samples: Union[Sequence[SampleValue], SampleValue],
     meta: TensorMeta,
     min_chunk_size: int,
-):
-    # TODO: docstring
-    # TODO: statictyping
+) -> List[Tuple[memoryview, Tuple[int]]]:
+    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Either a single sample or sequence of samples.
+        meta (TensorMeta): Tensor meta. Will not be modified.
+        min_chunk_size (int): Used to validate that all samples are appropriately sized.
+
+    Raises:
+        ValueError: Tensor meta should have it's dtype set.
+
+    Returns:
+        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
+    """
 
     if meta.dtype is None:
         raise ValueError("Dtype must be set before input samples can be serialized.")
