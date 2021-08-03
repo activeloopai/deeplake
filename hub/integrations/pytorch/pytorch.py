@@ -259,11 +259,16 @@ class TorchDataset:
         value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
 
         # typecast if incompatible with pytorch
+        dtype = chunk_engine.tensor_meta.dtype
         if value.dtype == "uint16":
             value = value.astype("int32")
         elif value.dtype == "uint32" or value.dtype == "uint64":
             value = value.astype("int64")
-        return torch.tensor(value, dtype=chunk_engine.tensor_meta.dtype)  # type: ignore
+        if dtype == "uint16":
+            dtype = "int32"
+        elif dtype == "uin32" or dtype == "uint64":
+            dtype = "int64"
+        return torch.as_tensor(value, dtype=dtype)  # type: ignore
 
     def _get_data_from_chunks(
         self,

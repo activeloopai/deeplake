@@ -94,13 +94,13 @@ class TensorMeta(Meta):
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(shape)
+            actual_shape_len = len(shape)  # type: ignore
             if expected_shape_len != actual_shape_len:
                 raise TensorInvalidSampleShapeError(
                     "Sample shape length is expected to be {}, actual length is {}.".format(
                         expected_shape_len, actual_shape_len
                     ),
-                    shape,
+                    shape,  # type: ignore
                 )
         if isinstance(buffer, np.ndarray):
             return array
