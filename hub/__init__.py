@@ -1,3 +1,4 @@
+from .core.dataset import Dataset
 import numpy as np
 
 __pdoc__ = {
@@ -15,11 +16,14 @@ from .api.read import read
 from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
-list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
-
+list = dataset.list
+create_tensor = Dataset.create_tensor
+create_tensor_like = Dataset.create_tensor_like
+pytorch = Dataset.pytorch
+tensorflow = Dataset.tensorflow
 __all__ = [
     "dataset",
     "read",
@@ -29,6 +33,11 @@ __all__ = [
     "compute",
     "compose",
     "like",
+    "create_tensor",
+    "create_tensor_like",
+    "pytorch",
+    "tensorflow",
+    "list",
 ]
 
 __version__ = "2.0.4"
