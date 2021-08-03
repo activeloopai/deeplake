@@ -81,6 +81,9 @@ def serialize_input_samples(samples: Union[Sequence[SampleValue], SampleValue], 
     # TODO: docstring
     # TODO: statictyping
 
+    if meta.dtype is None:
+        raise ValueError("Dtype must be set before input samples can be serialized.")
+
     sample_compression = meta.sample_compression
     dtype = np.dtype(meta.dtype)
 
