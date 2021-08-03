@@ -213,6 +213,24 @@ def test_empty_samples(ds: Dataset):
 
 
 @enabled_datasets
+def test_safe_downcasting(ds: Dataset):
+    tensor = ds.create_tensor("int", dtype="uint8")
+    tensor.append(0)
+    tensor.append(1)
+    tensor.extend([2, 3, 4])
+    tensor.extend([5, 6, np.uint8(7)])
+    with pytest.raises(TensorDtypeMismatchError):
+        tensor.append(-8)
+    tensor = ds.create_tensor("float", dtype="float32")
+    tensor.append(0)
+    tensor.append(1)
+    tensor.extend([2, 3.0, 4.0])
+    tensor.extend([5.0, 6.0, np.float32(7.0)])
+    with pytest.raises(TensorDtypeMismatchError):
+        tensor.append(float(np.finfo(np.float32).max + 1))
+
+
+@enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 

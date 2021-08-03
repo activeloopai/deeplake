@@ -78,16 +78,10 @@ class TensorMeta(Meta):
         """
         dtype = np.dtype(dtype)
         if self.dtype and self.dtype != dtype.name:
-            if np.can_cast(dtype, self.dtype):
-                buffer = memoryview(
-                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
-                )
-            else:
-                raise TensorDtypeMismatchError(
-                    self.dtype,
-                    dtype.name,
-                    self.htype,
-                )
+            buffer = memoryview(  # Already verified this is safe in tensor.extend
+                np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
+            )
+
         # shape length is only enforced after at least 1 sample exists.
         if self.length > 0:
             expected_shape_len = len(self.min_shape)
