@@ -15,6 +15,7 @@ def _get_shape(sample: SampleValue):
         return tuple()
 
 
+
 def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[str], expected_dtype: np.dtype):
     # TODO: docstring
     # TODO: statictyping
@@ -24,23 +25,18 @@ def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[st
     if isinstance(sample, Sample):
         raise NotImplementedError
 
+    sample = np.asarray(sample)
+    if sample.dtype != expected_dtype:
+        # TODO: use intelligent casting util
+        if not np.can_cast(sample.dtype, expected_dtype):
+            raise NotImplementedError(f"Need better casting. From {sample.dtype} -> {expected_dtype}")
+        sample = sample.astype(expected_dtype)
+        
+    buffer = sample.tobytes()
     if sample_compression is not None:
         # TODO: compression?
         raise NotImplementedError
-
-    if isinstance(sample, np.ndarray):
-        if sample.dtype != expected_dtype:
-            # TODO: use intelligent casting util
-            if not np.can_cast(sample.dtype, expected_dtype):
-                raise NotImplementedError
-            sample = sample.astype(expected_dtype)
-
-        return sample.tobytes()
-
-    if isinstance(sample, (int, float, bool)):
-        return bytes(sample)
-
-    raise NotImplementedError
+    return buffer
 
 
 def _check_input_samples_are_valid(buffer_generator, min_chunk_size: int, sample_compression: Optional[str]):

@@ -60,73 +60,6 @@ class TensorMeta(Meta):
 
         super().__init__()
 
-    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
-        """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
-        the incoming sample to match the tensor's dtype if needed (and possible).
-
-        Args:
-            buffer: (memoryview) memoryview of the sample's bytes
-            shape: (Tuple[int]): Shape of the sample
-            dtype: Datatype for the sample(s).
-
-        Returns:
-            The sample as as memoryview which might be upcasted to match the meta's dtype.
-
-        Raises:
-            TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
-            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
-        """
-        dtype = np.dtype(dtype)
-        if self.dtype and self.dtype != dtype.name:
-            buffer = memoryview(  # Already verified this is safe in tensor.extend
-                np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
-            )
-
-        # shape length is only enforced after at least 1 sample exists.
-        if self.length > 0:
-            expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(shape)
-            if expected_shape_len != actual_shape_len:
-                raise TensorInvalidSampleShapeError(
-                    "Sample shape length is expected to be {}, actual length is {}.".format(
-                        expected_shape_len, actual_shape_len
-                    ),
-                    shape,
-                )
-        return buffer
-
-    def check_compatibility(self, shape: Tuple[int], dtype):
-        """Checks if this tensor meta is compatible with the incoming sample(s) properties.
-
-        Args:
-            shape (Tuple[int]): Shape all samples having their compatibility checked. Must be a single-sample shape
-                but can represent multiple.
-            dtype: Datatype for the sample(s).
-
-        Raises:
-            TensorDtypeMismatchError: Dtype for array must be equal to this meta.
-            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
-        """
-
-        dtype = np.dtype(dtype)
-
-        if self.dtype is not None and self.dtype != dtype.name:
-            raise TensorDtypeMismatchError(
-                self.dtype,
-                dtype.name,
-                self.htype,
-            )
-
-        # shape length is only enforced after at least 1 sample exists.
-        if self.length > 0:
-            expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(shape)
-            if expected_shape_len != actual_shape_len:
-                raise TensorInvalidSampleShapeError(
-                    f"Sample shape length is expected to be {expected_shape_len}, actual length is {actual_shape_len}.",
-                    shape,
-                )
-
     def update(self, shape: Tuple[int], dtype, num_samples: int):
         """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
 
@@ -139,9 +72,12 @@ class TensorMeta(Meta):
             ValueError: [description]
         """
 
-        if num_samples <= 0:
+        # TODO: remove this entire function
+        raise NotImplementedError
+
+        if num_samples < 0:
             raise ValueError(
-                f"Can only update tensor meta when the number of samples is > 0. Got: '{num_samples}'"
+                f"Num samples cannot be negative. Got: '{num_samples}'"
             )
 
         dtype = np.dtype(dtype)
@@ -158,7 +94,18 @@ class TensorMeta(Meta):
 
         self.length += num_samples
 
-    def _update_shape_interval(self, shape: Tuple[int, ...]):
+    def set_dtype(self, dtype: np.dtype):
+        # TODO: docstring
+
+        if self.dtype is not None:
+            raise ValueError(f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}.")
+
+        if self.length > 0:
+            raise ValueError("Dtype was None, but length was > 0.")
+
+        self.dtype = dtype.name
+
+    def update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:
             self.min_shape = list(shape)
             self.max_shape = list(shape)

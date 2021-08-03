@@ -2,6 +2,24 @@ from typing import Union, Sequence
 import numpy as np
 
 
+
+def get_dtype(samples: Union[np.ndarray, Sequence]) -> np.dtype:
+    """Get the dtype of a non-uniform mixed dtype sequence of samples."""
+
+    if isinstance(samples, np.ndarray):
+        return samples.dtype
+    
+    if isinstance(samples, (int, float, bool, str)):
+        return np.dtype(type(samples))
+
+    if isinstance(samples, Sequence):
+        # TODO: instead of just getting the first sample's dtype, maybe we want to check all
+        # samples and get the "max"
+        return get_dtype(samples[0])
+
+    raise TypeError(f"Unsupported type: {type(samples)}")
+
+
 def get_incompatible_dtype(
     samples: Union[np.ndarray, Sequence], dtype: Union[str, np.dtype]
 ):

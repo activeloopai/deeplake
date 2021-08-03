@@ -1,3 +1,4 @@
+from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple, List, Set
@@ -209,10 +210,6 @@ class ChunkEngine:
         # num samples is always 1 when appending
         num_samples = 1
 
-        # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
-        self.tensor_meta.update(shape, dtype, num_samples)
-
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
         if not buffer_consumed:
             self._append_to_new_chunk(buffer, shape)
@@ -304,8 +301,16 @@ class ChunkEngine:
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
-        samples = serialize_input_samples(samples, self.tensor_meta, self.min_chunk_size)
+        tensor_meta = self.tensor_meta
+        if tensor_meta.dtype is None:
+            tensor_meta.set_dtype(get_dtype(samples))
+
+        samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
         for buffer, shape in samples:
+            # update tensor meta length first because erroneous meta information is better than un-accounted for data.
+            # TODO: move these functions somewhere usable by update and any other methods
+            tensor_meta.update_shape_interval(shape)
+            tensor_meta.length += 1
             self._append_bytes(buffer, shape)
 
         self.cache.maybe_flush()
