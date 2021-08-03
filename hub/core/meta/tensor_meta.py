@@ -60,7 +60,7 @@ class TensorMeta(Meta):
         super().__init__()
 
     def set_dtype(self, dtype: np.dtype):
-        # TODO: docstring
+        """Should only be called once."""
 
         if self.dtype is not None:
             raise ValueError(

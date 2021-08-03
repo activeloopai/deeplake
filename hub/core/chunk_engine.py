@@ -24,7 +24,6 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-
 from hub.core.serialize import serialize_input_samples
 
 
