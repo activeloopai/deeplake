@@ -5,6 +5,7 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
+from hub.client.client import HubBackendClient
 from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.core.dataset import Dataset
@@ -255,6 +256,17 @@ class dataset:
         raise NotImplementedError
 
     @staticmethod
-    def list(workspace: str) -> None:
-        """List all datasets"""
-        raise NotImplementedError
+    def list(workspace: str = "") -> None:
+        """List all available hub cloud datasets.
+
+        Args:
+            workspace (str): Specify user/organization name. If not given,
+                returns a list of all datasets that can be accessed, regardless of what workspace they are in.
+                Otherwise, lists all datasets in the given workspace.
+
+        Returns:
+            List of dataset names.
+        """
+        client = HubBackendClient()
+        datasets = client.get_datasets(workspace=workspace)
+        return datasets
