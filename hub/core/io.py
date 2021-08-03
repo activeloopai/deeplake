@@ -23,16 +23,18 @@ def _serialize_input_sample(sample: SampleValue, sample_compression: Optional[st
     # TODO: statictyping
 
     if isinstance(sample, Sample):
-        raise NotImplementedError
+        if sample.dtype != expected_dtype:
+            # TODO: should we cast to the expected dtype? this would require recompression
+            # TODO: we should also have a test for this
+            raise NotImplementedError
+
+        # only re-compresses when sample_compression doesn't match the original compression
+        return sample.compressed_bytes(sample_compression)
 
     sample = intelligent_cast(np.asarray(sample), expected_dtype)
-    buffer = sample.tobytes()
-
     if sample_compression is not None:
-        # TODO: compression
-        raise NotImplementedError
-
-    return buffer
+        return Sample(array=sample).compressed_bytes(sample_compression)
+    return sample.tobytes()
 
 
 def _check_input_samples_are_valid(buffer_generator, min_chunk_size: int, sample_compression: Optional[str]):
