@@ -1,7 +1,7 @@
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.sample import Sample, SampleValue
+from hub.core.sample import Sample, SampleValue  # type: ignore
 import numpy as np
 from typing import List, Optional, Sequence, Union
 

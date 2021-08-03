@@ -39,8 +39,8 @@ def combine_metas(ds_tensor_meta: TensorMeta, worker_tensor_meta: TensorMeta) ->
         assert len(ds_tensor_meta.max_shape) == len(worker_tensor_meta.max_shape)
         assert len(ds_tensor_meta.min_shape) == len(worker_tensor_meta.min_shape)
         ds_tensor_meta.length += worker_tensor_meta.length
-        ds_tensor_meta._update_shape_interval(tuple(worker_tensor_meta.max_shape))
-        ds_tensor_meta._update_shape_interval(tuple(worker_tensor_meta.min_shape))
+        ds_tensor_meta.update_shape_interval(tuple(worker_tensor_meta.max_shape))
+        ds_tensor_meta.update_shape_interval(tuple(worker_tensor_meta.min_shape))
 
 
 def merge_all_chunk_id_encoders(
