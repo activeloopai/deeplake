@@ -297,6 +297,8 @@ class ChunkEngine:
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
+        self.cache.check_readonly()
+
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
@@ -314,10 +316,13 @@ class ChunkEngine:
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
+        self.cache.check_readonly()
         self.extend([sample])
 
     def update(self, index: Index, samples):
         # TODO: static typing refactor for samples
+
+        self.cache.check_readonly()
 
         for buffer, shape in serialize_input_samples(
             samples, self.tensor_meta, self.min_chunk_size
