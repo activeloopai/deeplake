@@ -79,3 +79,21 @@ def test_kaggle_exception(local_ds: Dataset):
             compression="jpeg",
             overwrite=False,
         )
+
+
+def test_auto_compression_kaggle(local_ds: Dataset):
+    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_simple")
+
+    ds = hub.ingest_kaggle(
+        tag="thisiseshan/auto-compression",
+        src=kaggle_path,
+        dest=local_ds.path,
+        dest_creds={},
+        overwrite=False,
+    )
+
+    assert ds.images.meta.sample_compression == "png"
+    assert list(ds.tensors.keys()) == ["images", "labels"]
+    assert ds.images.numpy().shape == (3, 200, 200, 3)
+    assert ds.labels.numpy().shape == (3,)
+    assert ds.labels.info.class_names == ("jpeg", "png")
