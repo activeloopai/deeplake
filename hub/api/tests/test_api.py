@@ -213,6 +213,27 @@ def test_empty_samples(ds: Dataset):
 
 
 @enabled_datasets
+def test_safe_downcasting(ds: Dataset):
+    int_tensor = ds.create_tensor("int", dtype="uint8")
+    int_tensor.append(0)
+    int_tensor.append(1)
+    int_tensor.extend([2, 3, 4])
+    int_tensor.extend([5, 6, np.uint8(7)])
+    with pytest.raises(TensorDtypeMismatchError):
+        int_tensor.append(-8)
+    assert len(int_tensor) == 8
+
+    float_tensor = ds.create_tensor("float", dtype="float32")
+    float_tensor.append(0)
+    float_tensor.append(1)
+    float_tensor.extend([2, 3.0, 4.0])
+    float_tensor.extend([5.0, 6.0, np.float32(7.0)])
+    with pytest.raises(TensorDtypeMismatchError):
+        float_tensor.append(float(np.finfo(np.float32).max + 1))
+    assert len(float_tensor) == 8
+
+
+@enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
@@ -251,12 +272,14 @@ def test_scalar_samples(ds: Dataset):
     tensor.extend([[1], [2], [3, 4]])
     tensor.append(np.empty(0))
 
+    with pytest.raises(TensorInvalidSampleShapeError):
+        tensor.append([[[1]]])
+
     assert tensor.shape == (23, None)
     assert tensor.shape_interval.lower == (24, 0)
     assert tensor.shape_interval.upper == (24, 3)
 
-    expected = np.array(
-        [
+    expected = [
             [5],
             [10],
             [-99],
@@ -280,10 +303,8 @@ def test_scalar_samples(ds: Dataset):
             [3, 4],
             [],
         ]
-    )
-    np.testing.assert_array_equal(tensor.numpy(), expected)
 
-    assert tensor.numpy(aslist=True) == expected.tolist()
+    assert_array_lists_equal(expected, tensor.numpy(aslist=True))
 
 
 @enabled_datasets
@@ -477,6 +498,9 @@ def test_dtype(memory_ds: Dataset):
     assert dtyped_tensor.dtype == np.uint8
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
+
+    assert len(tensor) == 1
+    assert len(dtyped_tensor) == 1
 
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
