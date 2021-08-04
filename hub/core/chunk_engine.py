@@ -343,14 +343,15 @@ class ChunkEngine:
         # if only a single sample is being updated, we should wrap it in a list to make it iterable
         if index_length == 1:
             samples = [samples]
-        serialized_input_samples = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size
-        )
 
-        if index_length != len(serialized_input_samples):
+        if index_length != len(samples):
             raise ValueError(
-                f"Index length ({index_length}) and length of samples ({len(serialized_input_samples)}) must be equal for updating a tensor."
+                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
             )
+
+        serialized_input_samples = serialize_input_samples(
+            samples, tensor_meta, self.min_chunk_size, allow_shape_squeeze=True
+        )
 
         for i, (buffer, shape) in enumerate(serialized_input_samples):
             global_sample_index = global_sample_indices[i]  # TODO!

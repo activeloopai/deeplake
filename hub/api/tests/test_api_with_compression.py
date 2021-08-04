@@ -14,15 +14,9 @@ from hub.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
-    original_compressions = []
-
     for _ in range(count):
         tensor.append(hub.read(cat_path))
-        original_compressions.append("jpg")
-
         tensor.append(hub.read(flower_path))
-        original_compressions.append("png")
-
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
         tensor.append(
             np.ones((100, 100, 4), dtype=int).tolist()
