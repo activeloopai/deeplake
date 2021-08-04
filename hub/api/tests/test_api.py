@@ -7,8 +7,11 @@ from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
+    DatasetHandlerError,
     UnsupportedCompressionError,
 )
+from hub.constants import MB
+
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
@@ -555,3 +558,40 @@ def test_tensor_creation_fail_recovery():
         assert list(ds.tensors) == ["x", "y"]
         ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_dataset_delete():
+    with CliRunner().isolated_filesystem():
+        os.mkdir("test")
+        with open("test/test.txt", "w") as f:
+            f.write("some data")
+
+        with pytest.raises(DatasetHandlerError):
+            # Can't delete raw data without force
+            hub.dataset.delete("test/")
+
+        hub.dataset.delete("test/", force=True)
+        assert not os.path.isfile("test/test.txt")
+
+        hub.empty("test/").create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/")
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        old_size = hub.constants.DELETE_SAFETY_SIZE
+        hub.constants.DELETE_SAFETY_SIZE = 1 * MB
+
+        ds = hub.empty("test/")
+        ds.create_tensor("data")
+        ds.data.extend(np.zeros((100, 2000)))
+
+        try:
+            hub.dataset.delete("test/")
+        finally:
+            assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/", large_ok=True)
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        hub.constants.DELETE_SAFETY_SIZE = old_size

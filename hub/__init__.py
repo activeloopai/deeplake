@@ -16,6 +16,7 @@ from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 from .util.compare import compare
 
+list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
@@ -31,7 +32,7 @@ __all__ = [
     "like",
 ]
 
-__version__ = "2.0.3"
+__version__ = "2.0.4"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")

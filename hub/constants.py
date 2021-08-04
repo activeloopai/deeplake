@@ -38,6 +38,9 @@ DEFAULT_LOCAL_CACHE_SIZE = 0
 # hashlist consists of list of hashes of all samples inside a tensor
 HASHLIST_FILENAME = "hashlist.json"
 
+# maximum allowable size before `large_ok` must be passed to dataset delete methods
+DELETE_SAFETY_SIZE = 1 * GB
+
 # meta is hub-defined information, necessary for hub Datasets/Tensors to function
 DATASET_META_FILENAME = "dataset_meta.json"
 TENSOR_META_FILENAME = "tensor_meta.json"

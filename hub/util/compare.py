@@ -23,7 +23,7 @@ def jaccard_similarity(list_1, list_2):
         A similarity score that ranges from 0.0 to 1.0. The higher the score, the more similar the lists being compared.
     """
     intersection = len(list(set(list_1).intersection(list_2)))
-    union = (len(list_1) + len(list_2)) - intersection
+    union = (len(set(list_1)) + len(set(list_2))) - intersection
     return float(intersection) / union
 
 def load_hashlist(path: Union[str, Dataset, Tensor]):

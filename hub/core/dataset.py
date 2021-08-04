@@ -1,3 +1,4 @@
+import hub
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
@@ -396,11 +397,31 @@ class Dataset:
         if hasattr(self.storage, "clear_cache"):
             self.storage.clear_cache()
 
+    def size_approx(self):
+        """Estimates the size in bytes of the dataset.
+        Includes only content, so will generally return an under-estimate.
+        """
+        tensors = self.tensors.values()
+        chunk_engines = [tensor.chunk_engine for tensor in tensors]
+        size = sum(c.num_chunks * c.min_chunk_size for c in chunk_engines)
+        return size
+
     @hub_reporter.record_call
-    def delete(self):
+    def delete(self, large_ok=False):
         """Deletes the entire dataset from the cache layers (if any) and the underlying storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
+
+        Args:
+            large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
+        if not large_ok:
+            size = self.size_approx()
+            if size > hub.constants.DELETE_SAFETY_SIZE:
+                logger.info(
+                    f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
+                )
+                return
+
         self.storage.clear()
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
