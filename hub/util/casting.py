@@ -45,6 +45,7 @@ def intelligent_cast(
 
     if hasattr(sample, "dtype") and sample.dtype == dtype:
         return sample
+
     err_dtype = get_incompatible_dtype(sample, dtype)
     if err_dtype:
         raise TensorDtypeMismatchError(
@@ -52,8 +53,10 @@ def intelligent_cast(
             err_dtype,
             htype,
         )
+
     if hasattr(sample, "astype"):  # covers both ndarrays and scalars
         return sample.astype(dtype)
+
     return np.array(sample, dtype=dtype)
 
 
