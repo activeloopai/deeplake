@@ -1,3 +1,4 @@
+from hub.core.sample import Sample
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import pytest
 from typing import Callable
@@ -35,10 +36,6 @@ def _make_update_assert_equal(
         value (Any): Any value that can be used as a value for updating (`ds.tensor[index] = value`).
         check_persistence (bool): If True, the update will be tested to make sure it can be serialized/deserialized.
     """
-
-    # just to allow np.ones/np.zeros to be used without dtypes everywhere
-    if isinstance(value, np.ndarray):
-        value = value.astype(np.uint8)
 
     ds = ds_generator()
     assert len(ds) == 10
@@ -134,10 +131,11 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     ds.create_tensor("images", htype="image", sample_compression=images_compression)
     ds.images.extend(np.zeros((10, 0, 0, 0), dtype=np.uint8))
 
-    _make_update_assert_equal(gen, "images", 0, hub.read(cat_path))
-    _make_update_assert_equal(
-        gen, "images", slice(8, 10), [hub.read(cat_path), hub.read(flower_path)]
-    )
+    ds.images[0] = hub.read(cat_path)
+    np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
+
+    ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
+    assert_array_lists_equal(ds.images[8:10].numpy(aslist=True), [hub.read(cat_path).array, hub.read(flower_path).array])
 
     assert ds.images.shape_interval.lower == (10, 0, 0)
     assert ds.images.shape_interval.upper == (10, 900, 900, 4)
