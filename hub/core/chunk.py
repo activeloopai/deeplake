@@ -1,4 +1,4 @@
-from hub.util.exceptions import FullChunkError
+from hub.util.exceptions import FullChunkError, TensorInvalidSampleShapeError
 import hub
 from hub.core.storage.cachable import Cachable
 from typing import Tuple, Union
@@ -117,15 +117,14 @@ class Chunk(Cachable):
     def update_sample(
         self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int]
     ):
-        # TODO: docstring
+        """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
+
 
         # TODO: warn user the length of buffer is longer than expected
 
         expected_dimensionality = len(self.shapes_encoder[local_sample_index])
         if expected_dimensionality != len(new_shape):
-            raise ValueError(
-                f"Dimensionality of incoming sample was expected to be {expected_dimensionality}, but got {len(new_shape)}."
-            )
+            raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
 
         self._make_data_bytearray()
 
