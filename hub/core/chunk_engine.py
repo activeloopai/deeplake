@@ -312,7 +312,6 @@ class ChunkEngine:
         samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
         for buffer, shape in samples:
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
-            # TODO: move these functions somewhere usable by update and any other methods
             tensor_meta.update_shape_interval(shape)
             tensor_meta.length += 1
             self._append_bytes(buffer, shape)
