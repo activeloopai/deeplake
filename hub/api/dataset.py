@@ -351,8 +351,9 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
-        dest_creds: dict,
         compression: str,
+        dest_creds: dict = None,
+        kaggle_credentials: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
@@ -384,7 +385,9 @@ class dataset:
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        download_kaggle_dataset(tag, local_path=src)
+        download_kaggle_dataset(
+            tag, local_path=src, kaggle_credentials=kaggle_credentials
+        )
 
         ds = hub.ingest(
             src=src,
