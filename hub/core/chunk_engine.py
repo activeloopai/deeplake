@@ -517,7 +517,9 @@ def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
     return ceil(size / chunk_max_data_bytes)
 
 
-def _make_sequence(samples: Union[Sequence[SampleValue], SampleValue], index_length: int) -> Sequence[SampleValue]:
+def _make_sequence(
+    samples: Union[Sequence[SampleValue], SampleValue], index_length: int
+) -> Sequence[SampleValue]:
     """Make `samples` a sequence of `SampleValue`s.
 
     Args:
@@ -536,7 +538,7 @@ def _make_sequence(samples: Union[Sequence[SampleValue], SampleValue], index_len
             if len(samples) != 1:
                 samples = [samples]
         elif hasattr(samples, "shape"):
-            if len(samples.shape) > 0 and samples.shape[0] != 1:
+            if len(samples.shape) > 0 and samples.shape[0] != 1:  # type: ignore
                 samples = [samples]
         else:
             samples = [samples]

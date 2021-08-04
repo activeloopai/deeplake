@@ -212,8 +212,6 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-
-
 def _serialize_input_sample(
     sample: SampleValue,
     sample_compression: Optional[str],
@@ -277,7 +275,6 @@ def serialize_input_samples(
     sample_compression = meta.sample_compression
     dtype = np.dtype(meta.dtype)
     htype = meta.htype
-
 
     serialized = []
     for sample in samples:
