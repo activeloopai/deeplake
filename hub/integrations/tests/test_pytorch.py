@@ -26,13 +26,14 @@ def to_tuple(sample):
 @requires_torch
 @enabled_datasets
 def test_pytorch_small(ds):
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(16)]))
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -85,13 +86,14 @@ def test_pytorch_small(ds):
 @requires_torch
 @enabled_datasets
 def test_pytorch_transform(ds):
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -112,8 +114,6 @@ def test_pytorch_transform(ds):
 @requires_torch
 @enabled_datasets
 def test_pytorch_with_compression(ds: Dataset):
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
         images = ds.create_tensor("images", htype="image", sample_compression="png")
@@ -123,6 +123,9 @@ def test_pytorch_with_compression(ds: Dataset):
 
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -141,13 +144,14 @@ def test_pytorch_with_compression(ds: Dataset):
 @requires_torch
 @enabled_datasets
 def test_pytorch_small_old(ds):
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
         ds.create_tensor("image2")
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -169,13 +173,14 @@ def test_pytorch_small_old(ds):
 @requires_torch
 @enabled_datasets
 def test_custom_tensor_order(ds):
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     with ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
             ds.create_tensor(t)
             ds[t].extend(np.random.random((3, 4, 5)))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -214,14 +219,15 @@ def test_custom_tensor_order(ds):
 
 @requires_torch
 def test_readonly(local_ds):
-    update_chunk_sizes(local_ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
     path = local_ds.path
 
     local_ds.create_tensor("images")
     local_ds.create_tensor("labels")
     local_ds.images.extend(np.ones((10, 28, 28)))
     local_ds.labels.extend(np.ones(10))
+
+    # this MUST be after all tensors have been created!
+    update_chunk_sizes(local_ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     del local_ds
 
