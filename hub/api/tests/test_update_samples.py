@@ -133,13 +133,16 @@ def test_hub_read(local_ds_generator, images_compression, cat_path, flower_path)
     ds.images[0] = hub.read(cat_path)
     np.testing.assert_array_equal(ds.images[0].numpy(), hub.read(cat_path).array)
 
+    ds.images[1] = [hub.read(flower_path)]
+    np.testing.assert_array_equal(ds.images[1].numpy(), hub.read(flower_path).array)
+
     ds.images[8:10] = [hub.read(cat_path), hub.read(flower_path)]
     assert_array_lists_equal(
         ds.images[8:10].numpy(aslist=True),
         [hub.read(cat_path).array, hub.read(flower_path).array],
     )
 
-    assert ds.images.shape_interval.lower == (10, 0, 0)
+    assert ds.images.shape_interval.lower == (10, 0, 0, 0)
     assert ds.images.shape_interval.upper == (10, 900, 900, 4)
 
     assert len(ds.images) == 10
