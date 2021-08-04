@@ -1,3 +1,5 @@
+from hub.constants import KB
+from hub.tests.common import update_chunk_sizes
 from hub.util.remove_cache import get_base_storage
 import pickle
 import pytest
@@ -13,6 +15,10 @@ from hub.tests.dataset_fixtures import enabled_datasets
 from hub.core.dataset import Dataset
 
 
+# ensure tests have multiple chunks without a ton of data
+PYTORCH_TESTS_MAX_CHUNK_SIZE = 2 * KB
+
+
 def to_tuple(sample):
     return sample["image"], sample["image2"]
 
@@ -20,6 +26,8 @@ def to_tuple(sample):
 @requires_torch
 @enabled_datasets
 def test_pytorch_small(ds):
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(16)]))
@@ -77,6 +85,8 @@ def test_pytorch_small(ds):
 @requires_torch
 @enabled_datasets
 def test_pytorch_transform(ds):
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
@@ -102,6 +112,8 @@ def test_pytorch_transform(ds):
 @requires_torch
 @enabled_datasets
 def test_pytorch_with_compression(ds: Dataset):
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
         images = ds.create_tensor("images", htype="image", sample_compression="png")
@@ -129,6 +141,8 @@ def test_pytorch_with_compression(ds: Dataset):
 @requires_torch
 @enabled_datasets
 def test_pytorch_small_old(ds):
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     with ds:
         ds.create_tensor("image")
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
@@ -155,6 +169,8 @@ def test_pytorch_small_old(ds):
 @requires_torch
 @enabled_datasets
 def test_custom_tensor_order(ds):
+    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     with ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
@@ -198,6 +214,8 @@ def test_custom_tensor_order(ds):
 
 @requires_torch
 def test_readonly(local_ds):
+    update_chunk_sizes(local_ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+
     path = local_ds.path
 
     local_ds.create_tensor("images")
