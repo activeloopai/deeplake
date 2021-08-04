@@ -221,12 +221,21 @@ def _serialize_input_sample(
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if isinstance(sample, Sample):
-        return sample.compressed_bytes(sample_compression), sample.shape
+        buffer = sample.compressed_bytes(sample_compression)
+        shape = sample.shape
+    else:
+        sample = intelligent_cast(sample, expected_dtype, htype)
+        shape = sample.shape
 
-    sample = intelligent_cast(sample, expected_dtype, htype)
-    if sample_compression is not None:
-        return compress_array(sample, sample_compression), sample.shape
-    return sample.tobytes(), sample.shape
+        if sample_compression is not None:
+            buffer = compress_array(sample, sample_compression)
+        else:
+            buffer = sample.tobytes()
+
+    if len(shape) == 0:
+        shape = (1,)
+
+    return buffer, shape
 
 
 def _check_input_samples_are_valid(
