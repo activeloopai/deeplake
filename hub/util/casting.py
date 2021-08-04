@@ -2,7 +2,7 @@ from typing import Union, Sequence, Any
 from functools import reduce
 import numpy as np
 from hub.util.exceptions import TensorDtypeMismatchError
-from hub.core.sample import Sample
+from hub.core.sample import Sample  # type: ignore
 
 
 def _get_bigger_dtype(d1, d2):
@@ -22,7 +22,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     """Get the dtype of a non-uniform mixed dtype sequence of samples."""
 
     if hasattr(val, "dtype"):
-        return val.dtype
+        return val.dtype  # type: ignore
     elif isinstance(val, int):
         return np.array(0).dtype
     elif isinstance(val, float):
