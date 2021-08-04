@@ -270,14 +270,10 @@ def test_scalar_samples(ds: Dataset):
     tensor.append([1])
     tensor.append([1, 2, 3])
     tensor.extend([[1], [2], [3, 4]])
-    tensor.append(np.empty(0))
+    tensor.append(np.empty(0, dtype=int))
 
     with pytest.raises(TensorInvalidSampleShapeError):
         tensor.append([[[1]]])
-
-    assert tensor.shape == (23, None)
-    assert tensor.shape_interval.lower == (24, 0)
-    assert tensor.shape_interval.upper == (24, 3)
 
     expected = [
             [5],
@@ -305,6 +301,11 @@ def test_scalar_samples(ds: Dataset):
         ]
 
     assert_array_lists_equal(expected, tensor.numpy(aslist=True))
+
+    assert tensor.shape == (22, None)
+    assert tensor.shape_interval.lower == (22, 0)
+    assert tensor.shape_interval.upper == (22, 3)
+
 
 
 @enabled_datasets
@@ -414,9 +415,9 @@ def test_length_slices(memory_ds):
     assert len(ds.data[1:10:2]) == 5
     assert len(ds.data[[0, 1, 5, 9]]) == 4
 
-    assert ds.data.shape == (11,)
-    assert ds[0:5].data.shape == (5,)
-    assert ds.data[1:6].shape == (5,)
+    assert ds.data.shape == (11, 1)
+    assert ds[0:5].data.shape == (5, 1)
+    assert ds.data[1:6].shape == (5, 1)
 
 
 def test_shape_property(memory_ds):
