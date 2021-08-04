@@ -132,4 +132,3 @@ def test_auto_compression_ingestion(memory_ds: Dataset):
     assert ds.images.numpy().shape == (3, 200, 200, 3)
     assert ds.labels.numpy().shape == (3,)
     assert ds.labels.info.class_names == ("jpeg", "png")
-    
