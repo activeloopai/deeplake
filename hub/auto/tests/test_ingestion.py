@@ -37,7 +37,7 @@ def test_image_classification_sets(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
-        images_compressionn="jpeg",
+        images_compression="jpeg",
         overwrite=False,
     )
 
