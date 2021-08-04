@@ -262,7 +262,7 @@ class dataset:
         src: str,
         dest: str,
         dest_creds: dict,
-        compression: str,
+        images_compression: str,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
@@ -314,8 +314,8 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -340,7 +340,7 @@ class dataset:
 
         # TODO: auto detect compression
         unstructured.structure(
-            ds, image_tensor_args={"sample_compression": compression}  # type: ignore
+            ds, image_tensor_args={"sample_compression": images_compression}  # type: ignore
         )
 
         return ds  # type: ignore
@@ -351,7 +351,7 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
-        compression: str,
+        images_compression: str,
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
         overwrite: bool = False,
@@ -370,9 +370,9 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"", "key": ""}.
-            compression (str): Compression type of dataset.
+            kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -394,7 +394,7 @@ class dataset:
             src=src,
             dest=dest,
             dest_creds=dest_creds,
-            compression=compression,
+            images_compression=images_compression,
             overwrite=overwrite,
             **dataset_kwargs,
         )
