@@ -305,6 +305,8 @@ class ChunkEngine:
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
+        self.cache.check_readonly()
+
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
@@ -321,10 +323,13 @@ class ChunkEngine:
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
 
+        self.cache.check_readonly()
         self.extend([sample])
 
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         # TODO: static typing refactor for samples
+
+        self.cache.check_readonly()
 
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
@@ -421,7 +426,7 @@ class ChunkEngine:
         return chunk
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
+        self, global_sample_index: int, chunk: Chunk, cast: bool = True
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
@@ -442,6 +447,8 @@ class ChunkEngine:
 
         if expect_compressed:
             sample = decompress_array(buffer, shape)
+            if cast and sample.dtype != self.tensor_meta.dtype:
+                sample = sample.astype(self.tensor_meta.dtype)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 

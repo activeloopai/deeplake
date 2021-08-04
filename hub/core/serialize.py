@@ -2,6 +2,7 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.exceptions import TensorInvalidSampleShapeError
 from hub.util.casting import intelligent_cast
 from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.compression import compress_array
 from typing import List, Optional, Sequence, Union, Tuple
 
 import hub
@@ -211,6 +212,7 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
+# TODO: delete this method?
 def _get_shape(sample: SampleValue):
     """Gets the shape for a single sample."""
 
@@ -230,23 +232,20 @@ def _get_shape(sample: SampleValue):
 
 
 def _serialize_input_sample(
-    sample: SampleValue, sample_compression: Optional[str], expected_dtype: np.dtype, htype: str,
-) -> bytes:
+    sample: SampleValue,
+    sample_compression: Optional[str],
+    expected_dtype: np.dtype,
+    htype: str,
+) -> Tuple[bytes, Tuple[int]]:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if isinstance(sample, Sample):
-        if sample.dtype != expected_dtype:
-            # TODO: should we cast to the expected dtype? this would require recompression
-            # TODO: we should also have a test for this
-            raise NotImplementedError
+        return sample.compressed_bytes(sample_compression), sample.shape
 
-        # only re-compresses when sample_compression doesn't match the original compression
-        return sample.compressed_bytes(sample_compression)
-
-    sample = intelligent_cast(np.asarray(sample), expected_dtype, htype)
+    sample = intelligent_cast(sample, expected_dtype, htype)
     if sample_compression is not None:
-        return Sample(array=sample).compressed_bytes(sample_compression)
-    return sample.tobytes()
+        return compress_array(sample, sample_compression), sample.shape
+    return sample.tobytes(), sample.shape
 
 
 def _check_input_samples_are_valid(
@@ -298,8 +297,8 @@ def serialize_input_samples(
 
     serialized = []
     for sample in samples:
-        buffer = memoryview(_serialize_input_sample(sample, sample_compression, dtype, htype))
-        shape = _get_shape(sample)
+        byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
+        buffer = memoryview(byts)
         serialized.append((buffer, shape))
 
     _check_input_samples_are_valid(serialized, min_chunk_size, dtype)
