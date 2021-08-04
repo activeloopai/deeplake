@@ -82,7 +82,7 @@ def test_kaggle_exception(local_ds: Dataset):
 
 
 def test_auto_compression_kaggle(local_ds: Dataset):
-    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_simple")
+    kaggle_path = os.path.join(local_ds.path, "unstructured_kaggle_data_auto")
 
     ds = hub.ingest_kaggle(
         tag="thisiseshan/auto-compression",
