@@ -267,7 +267,7 @@ class TorchDataset:
             torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
         except AttributeError:
             raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
-        return torch.as_tensor(value, dtype=torch_dtype)  # type: ignore
+        return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
 
     def _get_data_from_chunks(
         self,

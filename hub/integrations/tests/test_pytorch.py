@@ -22,9 +22,9 @@ def to_tuple(sample):
 def test_pytorch_small(ds):
     with ds:
         ds.create_tensor("image")
-        ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(16)]))
         ds.create_tensor("image2")
-        ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -35,46 +35,46 @@ def test_pytorch_small(ds):
 
     for i, batch in enumerate(dl):
         np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 300, 300))
+            batch["image"].numpy(), i * np.ones((1, 10, 10))
         )
         np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 100, 100))
+            batch["image2"].numpy(), i * np.ones((1, 12, 12))
         )
 
-    sub_ds = ds[50:]
+    sub_ds = ds[5:]
 
     sub_dl = sub_ds.pytorch(num_workers=2)
 
     for i, batch in enumerate(sub_dl):
         np.testing.assert_array_equal(
-            batch["image"].numpy(), (50 + i) * np.ones((1, 300, 300))
+            batch["image"].numpy(), (5 + i) * np.ones((1, 10, 10))
         )
         np.testing.assert_array_equal(
-            batch["image2"].numpy(), (50 + i) * np.ones((1, 100, 100))
+            batch["image2"].numpy(), (5 + i) * np.ones((1, 12, 12))
         )
 
-    sub_ds2 = ds[30:100]
+    sub_ds2 = ds[8:12]
 
     sub_dl2 = sub_ds2.pytorch(num_workers=2, batch_size=1)
 
     for i, batch in enumerate(sub_dl2):
         np.testing.assert_array_equal(
-            batch["image"].numpy(), (30 + i) * np.ones((1, 300, 300))
+            batch["image"].numpy(), (8 + i) * np.ones((1, 10, 10))
         )
         np.testing.assert_array_equal(
-            batch["image2"].numpy(), (30 + i) * np.ones((1, 100, 100))
+            batch["image2"].numpy(), (8 + i) * np.ones((1, 12, 12))
         )
 
-    sub_ds3 = ds[:100]
+    sub_ds3 = ds[:5]
 
     sub_dl3 = sub_ds3.pytorch(num_workers=2, batch_size=1)
 
     for i, batch in enumerate(sub_dl3):
         np.testing.assert_array_equal(
-            batch["image"].numpy(), (i) * np.ones((1, 300, 300))
+            batch["image"].numpy(), (i) * np.ones((1, 10, 10))
         )
         np.testing.assert_array_equal(
-            batch["image2"].numpy(), (i) * np.ones((1, 100, 100))
+            batch["image2"].numpy(), (i) * np.ones((1, 12, 12))
         )
 
 
@@ -83,9 +83,9 @@ def test_pytorch_small(ds):
 def test_pytorch_transform(ds):
     with ds:
         ds.create_tensor("image")
-        ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
         ds.create_tensor("image2")
-        ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -96,9 +96,9 @@ def test_pytorch_transform(ds):
 
     for i, batch in enumerate(dl):
         actual_image = batch[0].numpy()
-        expected_image = i * np.ones((1, 300, 300))
+        expected_image = i * np.ones((1, 10, 10))
         actual_image2 = batch[1].numpy()
-        expected_image2 = i * np.ones((1, 100, 100))
+        expected_image2 = i * np.ones((1, 12, 12))
         np.testing.assert_array_equal(actual_image, expected_image)
         np.testing.assert_array_equal(actual_image2, expected_image2)
 
@@ -113,7 +113,7 @@ def test_pytorch_with_compression(ds: Dataset):
 
         assert images.meta.sample_compression == "png"
 
-        images.extend(np.ones((16, 100, 100, 3), dtype="uint8"))
+        images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
@@ -126,7 +126,7 @@ def test_pytorch_with_compression(ds: Dataset):
     for batch in dl:
         X = batch["images"].numpy()
         T = batch["labels"].numpy()
-        assert X.shape == (1, 100, 100, 3)
+        assert X.shape == (1, 12, 12, 3)
         assert T.shape == (1, 1)
 
 
@@ -135,9 +135,9 @@ def test_pytorch_with_compression(ds: Dataset):
 def test_pytorch_small_old(ds):
     with ds:
         ds.create_tensor("image")
-        ds.image.extend(np.array([i * np.ones((300, 300)) for i in range(256)]))
+        ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
         ds.create_tensor("image2")
-        ds.image2.extend(np.array([i * np.ones((100, 100)) for i in range(256)]))
+        ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -153,10 +153,10 @@ def test_pytorch_small_old(ds):
 
     for i, batch in enumerate(dl):
         np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 300, 300))
+            batch["image"].numpy(), i * np.ones((1, 10, 10))
         )
         np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 100, 100))
+            batch["image2"].numpy(), i * np.ones((1, 12, 12))
         )
 
 
