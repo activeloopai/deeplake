@@ -261,8 +261,8 @@ class dataset:
     def ingest(
         src: str,
         dest: str,
-        dest_creds: dict,
         images_compression: str,
+        dest_creds: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
