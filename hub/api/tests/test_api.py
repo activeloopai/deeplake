@@ -276,36 +276,35 @@ def test_scalar_samples(ds: Dataset):
         tensor.append([[[1]]])
 
     expected = [
-            [5],
-            [10],
-            [-99],
-            [4],
-            [4],
-            [3],
-            [10],
-            [1],
-            [4],
-            [1],
-            [1],
-            [2],
-            [3],
-            [4],
-            [5],
-            [33],
-            [1],
-            [1, 2, 3],
-            [1],
-            [2],
-            [3, 4],
-            [],
-        ]
+        [5],
+        [10],
+        [-99],
+        [4],
+        [4],
+        [3],
+        [10],
+        [1],
+        [4],
+        [1],
+        [1],
+        [2],
+        [3],
+        [4],
+        [5],
+        [33],
+        [1],
+        [1, 2, 3],
+        [1],
+        [2],
+        [3, 4],
+        [],
+    ]
 
     assert_array_lists_equal(expected, tensor.numpy(aslist=True))
 
     assert tensor.shape == (22, None)
     assert tensor.shape_interval.lower == (22, 0)
     assert tensor.shape_interval.upper == (22, 3)
-
 
 
 @enabled_datasets
