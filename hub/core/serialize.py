@@ -222,7 +222,7 @@ def _get_shape(sample: SampleValue):
 
 
 def _serialize_input_sample(
-    sample: SampleValue, sample_compression: Optional[str], expected_dtype: np.dtype
+    sample: SampleValue, sample_compression: Optional[str], expected_dtype: np.dtype, htype: str,
 ) -> bytes:
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
@@ -235,7 +235,7 @@ def _serialize_input_sample(
         # only re-compresses when sample_compression doesn't match the original compression
         return sample.compressed_bytes(sample_compression)
 
-    sample = intelligent_cast(np.asarray(sample), expected_dtype)
+    sample = intelligent_cast(np.asarray(sample), expected_dtype, htype)
     if sample_compression is not None:
         return Sample(array=sample).compressed_bytes(sample_compression)
     return sample.tobytes()
@@ -286,10 +286,11 @@ def serialize_input_samples(
 
     sample_compression = meta.sample_compression
     dtype = np.dtype(meta.dtype)
+    htype = meta.htype
 
     serialized = []
     for sample in samples:
-        buffer = memoryview(_serialize_input_sample(sample, sample_compression, dtype))
+        buffer = memoryview(_serialize_input_sample(sample, sample_compression, dtype, htype))
         shape = _get_shape(sample)
         serialized.append((buffer, shape))
 
