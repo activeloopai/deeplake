@@ -213,7 +213,7 @@ def test_warnings(memory_ds):
 
     # this MUST be after all tensors have been created!
     update_chunk_sizes(memory_ds, 8 * KB)
-    
+
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 
     # this update makes (small) suboptimal chunks

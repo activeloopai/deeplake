@@ -119,7 +119,6 @@ class Chunk(Cachable):
     ):
         """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
 
-
         # TODO: warn user the length of buffer is longer than expected
 
         expected_dimensionality = len(self.shapes_encoder[local_sample_index])

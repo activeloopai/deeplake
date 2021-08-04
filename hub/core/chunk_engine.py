@@ -366,7 +366,7 @@ class ChunkEngine:
             updated_chunks.add(chunk)
 
             # only care about deltas if it isn't the last chunk
-            if chunk.key != self.last_chunk_key:
+            if chunk.key != self.last_chunk_key:  # type: ignore
                 chunks_nbytes_after_updates.append(chunk.nbytes)
 
         # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
@@ -376,8 +376,9 @@ class ChunkEngine:
         self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
 
-        _warn_if_suboptimal_chunks(chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size)
-
+        _warn_if_suboptimal_chunks(
+            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
+        )
 
     def numpy(
         self, index: Index, aslist: bool = False
@@ -570,11 +571,15 @@ def _make_sequence(
     return samples
 
 
-def _warn_if_suboptimal_chunks(chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int):
+def _warn_if_suboptimal_chunks(
+    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
+):
     upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
     lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
 
     for nbytes in chunks_nbytes_after_updates:
         if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
-            warnings.warn("After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!")
+            warnings.warn(
+                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
+            )
             break
