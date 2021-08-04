@@ -78,31 +78,31 @@ def test(local_ds_generator, images_compression):
 
     # update single sample
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((1, 28, 28), dtype=int) * 75
+        gen, "images", -1, np.ones((1, 28, 28), dtype="uint8") * 75
     )  # same shape (with 1)
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((28, 28), dtype=int) * 75
+        gen, "images", -1, np.ones((28, 28), dtype="uint8") * 75
     )  # same shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((28, 25), dtype=int) * 5
+        gen, "images", 0, np.ones((28, 25), dtype="uint8") * 5
     )  # new shape
     _make_update_assert_equal(
-        gen, "images", 0, np.ones((1, 32, 32), dtype=int) * 5
+        gen, "images", 0, np.ones((1, 32, 32), dtype="uint8") * 5
     )  # new shape (with 1)
     _make_update_assert_equal(
-        gen, "images", -1, np.ones((0, 0), dtype=int)
+        gen, "images", -1, np.ones((0, 0), dtype="uint8")
     )  # empty sample (new shape)
     _make_update_assert_equal(gen, "labels", -5, np.uint8(99))
     _make_update_assert_equal(gen, "labels", 0, np.uint8(5))
 
     # update a range of samples
-    x = np.arange(3 * 28 * 28).reshape((3, 28, 28))
+    x = np.arange(3 * 28 * 28).reshape((3, 28, 28)).astype("uint8")
     _make_update_assert_equal(gen, "images", slice(0, 3), x)  # same shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int)
+        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype="uint8")
     )  # new shapes
     _make_update_assert_equal(
-        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype=int)
+        gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype="uint8")
     )  # empty samples (new shape)
     _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
 
@@ -112,9 +112,9 @@ def test(local_ds_generator, images_compression):
         "images",
         slice(7, 10),
         [
-            np.ones((28, 50), dtype=int) * 5,
-            np.ones((0, 5), dtype=int),
-            np.ones((1, 1), dtype=int) * 10,
+            np.ones((28, 50), dtype="uint8") * 5,
+            np.ones((0, 5), dtype="uint8"),
+            np.ones((1, 1), dtype="uint8") * 10,
         ],
     )
 
