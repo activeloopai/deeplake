@@ -34,12 +34,8 @@ def test_pytorch_small(ds):
     dl = ds.pytorch(num_workers=2, batch_size=1)
 
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 12, 12))
-        )
+        np.testing.assert_array_equal(batch["image"].numpy(), i * np.ones((1, 10, 10)))
+        np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((1, 12, 12)))
 
     sub_ds = ds[5:]
 
@@ -152,12 +148,8 @@ def test_pytorch_small_old(ds):
     )
 
     for i, batch in enumerate(dl):
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), i * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), i * np.ones((1, 12, 12))
-        )
+        np.testing.assert_array_equal(batch["image"].numpy(), i * np.ones((1, 10, 10)))
+        np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((1, 12, 12)))
 
 
 @requires_torch
