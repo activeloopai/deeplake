@@ -64,9 +64,10 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     # Creating hashlist
-    hashlist_key = get_hashlist_key(key)
-    hlist = Hashlist()
-    storage[hashlist_key] = hlist
+    if (hash_samples):
+        hashlist_key = get_hashlist_key(key)
+        hlist = Hashlist()
+        storage[hashlist_key] = hlist
 
 
 class Tensor:
@@ -293,3 +294,12 @@ class Tensor:
         return self.numpy()
 
     __repr__ = __str__
+
+
+def load_tensor_meta(tensor_key: str, cache: LRUCache):
+    if tensor_key in cache:
+        tensor = cache.get_cachable(tensor_key, TensorMeta)
+    else:
+        raise TensorDoesNotExistError(tensor_key)
+
+    return tensor
