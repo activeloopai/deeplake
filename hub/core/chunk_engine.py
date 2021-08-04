@@ -339,18 +339,10 @@ class ChunkEngine:
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
 
         index_length = index.length(self.num_samples)
-
-        # if only a single sample is being updated, we should wrap it in a list to make it iterable
-        if index_length == 1:
-            samples = [samples]
-
-        if index_length != len(samples):
-            raise ValueError(
-                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
-            )
+        samples = _make_sequence(samples, index_length)
 
         serialized_input_samples = serialize_input_samples(
-            samples, tensor_meta, self.min_chunk_size, allow_shape_squeeze=True
+            samples, tensor_meta, self.min_chunk_size
         )
 
         for i, (buffer, shape) in enumerate(serialized_input_samples):
@@ -523,3 +515,38 @@ def _format_read_samples(
 def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
     """Calculates the minimum number of chunks in which data of given size can be fit."""
     return ceil(size / chunk_max_data_bytes)
+
+
+def _make_sequence(samples: Union[Sequence[SampleValue], SampleValue], index_length: int) -> Sequence[SampleValue]:
+    """Make `samples` a sequence of `SampleValue`s.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Incoming samples to be made into a sequence.
+        index_length (int): Number of expected samples in the sequence.
+
+    Raises:
+        ValueError: If `index_length` is incompatible with the true length of `samples`.
+
+    Returns:
+        Sequence[SampleValue]: Sequence of `SampleValue`s with the same length as `index_length`.
+    """
+
+    if index_length == 1:
+        if hasattr(samples, "__len__"):
+            if len(samples) != 1:
+                samples = [samples]
+        elif hasattr(samples, "shape"):
+            if len(samples.shape) > 0 and samples.shape[0] != 1:
+                samples = [samples]
+        else:
+            samples = [samples]
+
+    if hasattr(samples, "__len__"):
+        if index_length != len(samples):
+            raise ValueError(
+                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
+            )
+    else:
+        samples = [samples]
+
+    return samples

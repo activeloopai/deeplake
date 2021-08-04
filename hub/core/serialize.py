@@ -212,19 +212,6 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     return version, ids
 
 
-def _squeeze_shape_if_necessary(shape: Tuple[int], target_dimensionality: int):
-    # TODO: docstring
-
-    if target_dimensionality is None:
-        return shape
-
-    if len(shape) == target_dimensionality:
-        return shape
-
-    if len(shape) - 1 == target_dimensionality and shape[0] == 1:
-        return shape[1:]
-
-    raise TensorInvalidSampleShapeError(shape, target_dimensionality)
 
 
 def _serialize_input_sample(
@@ -269,7 +256,6 @@ def serialize_input_samples(
     samples: Union[Sequence[SampleValue], SampleValue],
     meta: TensorMeta,
     min_chunk_size: int,
-    allow_shape_squeeze: bool=False,
 ) -> List[Tuple[memoryview, Tuple[int]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
@@ -292,18 +278,11 @@ def serialize_input_samples(
     dtype = np.dtype(meta.dtype)
     htype = meta.htype
 
-    # if samples already exist in the meta, we want the length of shapes to match
-    if meta.length > 0:
-        target_dimensionality = len(meta.min_shape)
-    else:
-        target_dimensionality = None
 
     serialized = []
     for sample in samples:
         byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
         buffer = memoryview(byts)
-        if allow_shape_squeeze:  # TODO: update docstring
-            shape = _squeeze_shape_if_necessary(shape, target_dimensionality)
         serialized.append((buffer, shape))
 
     _check_input_samples_are_valid(serialized, min_chunk_size, dtype)
