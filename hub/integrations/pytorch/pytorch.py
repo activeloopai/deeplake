@@ -1,3 +1,4 @@
+import numpy as np
 from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.util.keys import get_chunk_key
@@ -262,8 +263,11 @@ class TorchDataset:
         dtype = chunk_engine.tensor_meta.dtype
         compatible_dtypes = {"uint16": "int32", "uint32": "int64", "uint64": "int64"}
         dtype = compatible_dtypes.get(dtype, dtype)
-
-        return torch.as_tensor(value, dtype=dtype)  # type: ignore
+        try:
+            torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
+        except AttributeError:
+            raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
+        return torch.as_tensor(value, dtype=torch_dtype)  # type: ignore
 
     def _get_data_from_chunks(
         self,

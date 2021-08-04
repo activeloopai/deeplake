@@ -497,7 +497,7 @@ class ChunkEngine:
 def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepare samples being read from the chunk engine in the way the format the user expects."""
+    """Prepare samples read from chunks, like making sure the shape is as expected."""
 
     samples = index.apply(samples)  # type: ignore
 
