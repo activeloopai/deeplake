@@ -32,7 +32,7 @@ def _set_environment_credentials_if_none(kaggle_credentials: dict = None):
             os.environ[ENV_KAGGLE_KEY] = key
 
 
-def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = {}):
+def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = None):
     """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
 
     Args:
