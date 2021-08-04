@@ -244,20 +244,46 @@ def test_scalar_samples(ds: Dataset):
 
     assert len(tensor) == 16
 
-    expected = np.array([5, 10, -99, 4, 4, 3, 10, 1, 4, 1, 1, 2, 3, 4, 5, 33])
+    assert tensor.shape == (16, 1)
+
+    tensor.append([1])
+    tensor.append([1, 2, 3])
+    tensor.extend([[1], [2], [3, 4]])
+    tensor.append(np.empty(0))
+
+    assert tensor.shape == (23, None)
+    assert tensor.shape_interval.lower == (24, 0)
+    assert tensor.shape_interval.upper == (24, 3)
+
+    expected = np.array(
+        [
+            [5],
+            [10],
+            [-99],
+            [4],
+            [4],
+            [3],
+            [10],
+            [1],
+            [4],
+            [1],
+            [1],
+            [2],
+            [3],
+            [4],
+            [5],
+            [33],
+            [1],
+            [1, 2, 3],
+            [1],
+            [2],
+            [3, 4],
+            [],
+        ]
+    )
     np.testing.assert_array_equal(tensor.numpy(), expected)
 
     assert tensor.numpy(aslist=True) == expected.tolist()
-
-    assert tensor.shape == (16,)
-
-    # len(shape) for a scalar is `()`. len(shape) for [1] is `(1,)`
-    with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1])
-
-    # len(shape) for a scalar is `()`. len(shape) for [1, 2] is `(2,)`
-    with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1, 2])
 
 
 @enabled_datasets
