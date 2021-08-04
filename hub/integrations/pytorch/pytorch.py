@@ -256,14 +256,14 @@ class TorchDataset:
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
         chunk_engine = self.all_chunk_engines[key]
-        value = chunk_engine.read_sample_from_chunk(index, chunk)
+        value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
 
         # typecast if incompatible with pytorch
-        if value.dtype == "uint16":
-            value = value.astype("int32")
-        elif value.dtype == "uint32" or value.dtype == "uint64":
-            value = value.astype("int64")
-        return torch.tensor(value)  # type: ignore
+        dtype = chunk_engine.tensor_meta.dtype
+        compatible_dtypes = {"uint16": "int32", "uint32": "int64", "uint64": "int64"}
+        dtype = compatible_dtypes.get(dtype, dtype)
+
+        return torch.as_tensor(value, dtype=dtype)  # type: ignore
 
     def _get_data_from_chunks(
         self,

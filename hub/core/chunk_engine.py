@@ -368,7 +368,7 @@ class ChunkEngine:
         return _format_read_samples(samples, index, aslist)
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
+        self, global_sample_index: int, chunk: Chunk, cast: bool = True
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
@@ -385,6 +385,8 @@ class ChunkEngine:
         buffer = buffer[sb:eb]
         if expect_compressed:
             sample = decompress_array(buffer, shape)
+            if cast and sample.dtype != self.tensor_meta.dtype:
+                sample = sample.astype(self.tensor_meta.dtype)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 

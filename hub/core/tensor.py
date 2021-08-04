@@ -114,7 +114,7 @@ class Tensor:
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
-        
+
         self.chunk_engine.extend(samples)
 
     def append(

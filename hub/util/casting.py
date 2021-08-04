@@ -1,32 +1,50 @@
-from typing import Union, Sequence
+from typing import Union, Sequence, Any
+from functools import reduce
 import numpy as np
 from hub.util.exceptions import TensorDtypeMismatchError
+from hub.core.sample import Sample
 
 
-def get_dtype(samples: Union[np.ndarray, Sequence]) -> np.dtype:
+def _get_bigger_dtype(d1, d2):
+    if np.can_cast(d1, d2):
+        if np.can_cast(d2, d1):
+            return d1
+        else:
+            return d2
+    else:
+        if np.can_cast(d2, d1):
+            return d2
+        else:
+            return np.object
+
+
+def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     """Get the dtype of a non-uniform mixed dtype sequence of samples."""
 
-    if isinstance(samples, np.ndarray):
-        return samples.dtype
+    if hasattr(val, "dtype"):
+        return val.dtype
+    elif isinstance(val, int):
+        return np.array(0).dtype
+    elif isinstance(val, float):
+        return np.array(0.0).dtype
+    elif isinstance(val, str):
+        return np.array("").dtype
+    elif isinstance(val, bool):
+        return np.bool
+    elif isinstance(val, Sequence):
+        return reduce(_get_bigger_dtype, map(get_dtype, val))
+    else:
+        raise TypeError(f"Cannot infer numpy dtype for {val}")
 
-    if isinstance(samples, (int, float, bool, str)):
-        return np.dtype(type(samples))
 
-    if isinstance(samples, Sequence):
-        # TODO: instead of just getting the first sample's dtype, maybe we want to check all
-        # samples and get the "max"
-        return get_dtype(samples[0])
-
-    raise TypeError(f"Unsupported type: {type(samples)}")
-
-
-def intelligent_cast(sample, dtype, htype: str) -> np.ndarray:
+def intelligent_cast(
+    sample: Any, dtype: Union[np.dtype, str], htype: str
+) -> np.ndarray:
     # TODO: docstring (note: sample can be a scalar)/statictyping
     # TODO: implement better casting here
 
-    if sample.dtype == dtype:
+    if hasattr(sample, "dtype") and sample.dtype == dtype:
         return sample
-
     err_dtype = get_incompatible_dtype(sample, dtype)
     if err_dtype:
         raise TensorDtypeMismatchError(
@@ -34,9 +52,9 @@ def intelligent_cast(sample, dtype, htype: str) -> np.ndarray:
             err_dtype,
             htype,
         )
-
-    sample = sample.astype(dtype)
-    return sample
+    if hasattr(sample, "astype"):  # covers both ndarrays and scalars
+        return sample.astype(dtype)
+    return np.array(sample, dtype=dtype)
 
 
 def get_incompatible_dtype(
