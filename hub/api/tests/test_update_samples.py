@@ -191,7 +191,7 @@ def test_failures(memory_ds):
     with pytest.raises(TensorInvalidSampleShapeError):
         memory_ds.images[0:5] = np.zeros((5, 30), dtype="uint8")
     with pytest.raises(TensorInvalidSampleShapeError):
-        memory_ds.labels[0:5] = np.zeros((5, 2), dtype="uint8")
+        memory_ds.labels[0:5] = np.zeros((5, 2, 3), dtype="uint8")
 
     # inplace operators
     with pytest.raises(NotImplementedError):
@@ -203,9 +203,9 @@ def test_failures(memory_ds):
     np.testing.assert_array_equal(
         memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
     )
-    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones(10, dtype="uint8"))
+    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8"))
     assert memory_ds.images.shape == (10, 28, 28)
-    assert memory_ds.labels.shape == (10,)
+    assert memory_ds.labels.shape == (10, 1)
 
 
 def test_warnings(memory_ds):
