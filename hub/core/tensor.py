@@ -274,7 +274,16 @@ class Tensor:
             raise TypeError(f"Cannot infer numpy dtype for {val}")
 
     def __setitem__(self, item: Union[int, slice], value: Any):
-        # TODO: docstring?
+        """Update samples with new values. Sub-slice updates are not supported yet.
+        
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.shape
+            (1, 10, 10)
+            >>> tensor[0] = np.zeros((3, 3))
+            >>> tensor.shape
+            (1, 3, 3)
+        """
 
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)

@@ -145,9 +145,6 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         # note: do not call super() method (num_samples can be 0)
 
-    def _combine_condition(self, *args) -> bool:
-        return True
-
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         # this operation will trigger an overflow for the first addition, so supress the warning
         np.seterr(over="ignore")
@@ -156,5 +153,13 @@ class ChunkIdEncoder(Encoder, Cachable):
 
         return new_last_index
 
+    def _combine_condition(self, *args) -> bool:
+        """Always returns True because sample registration can always be done. Used in base encoder `register_samples`."""
+
+        return True
+
     def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
         return row[CHUNK_ID_COLUMN]
+
+    def __setitem__(self, *args):
+        raise NotImplementedError("There is no reason for ChunkIdEncoder to be updated now.")

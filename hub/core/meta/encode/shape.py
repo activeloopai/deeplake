@@ -6,7 +6,7 @@ import numpy as np
 
 
 class ShapeEncoder(Encoder):
-    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+    def _derive_value(self, row: np.ndarray, *_) -> Tuple:
         return tuple(row[:LAST_SEEN_INDEX_COLUMN])
 
     def _validate_incoming_item(self, shape: Tuple[int], _):

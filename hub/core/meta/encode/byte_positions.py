@@ -33,14 +33,14 @@ class BytePositionsEncoder(Encoder):
             ]
 
         row = self._encoded[until_row_index]
-        sb = row[START_BYTE_COLUMN]
-        nb = row[NUM_BYTES_COLUMN]
+        start_byte = row[START_BYTE_COLUMN]
+        num_bytes = row[NUM_BYTES_COLUMN]
         delta = row[LAST_SEEN_INDEX_COLUMN] - last_last_seen_index
 
         if until_row_index == 0:
             delta += 1
 
-        return sb + (nb * delta)
+        return start_byte + (num_bytes * delta)
 
     def _validate_incoming_item(self, num_bytes: int, _):
         if num_bytes < 0:
@@ -57,8 +57,10 @@ class BytePositionsEncoder(Encoder):
     def _make_decomposable(
         self, num_bytes: int, compare_row_index: int = -1
     ) -> Sequence:
-        sb = self.get_sum_of_bytes(compare_row_index)
-        return [num_bytes, sb]
+        """Used for updating. Return value is a sequence representing the row that can be decomposed using the `*` operator."""
+
+        start_byte = self.get_sum_of_bytes(compare_row_index)
+        return [num_bytes, start_byte]
 
     def _post_process_state(self, start_row_index: int):
         """Starting at `start_row_index`, move downwards through `self._encoded` and update all start bytes
