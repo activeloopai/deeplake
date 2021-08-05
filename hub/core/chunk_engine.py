@@ -315,8 +315,6 @@ class ChunkEngine:
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-
-        self.cache.check_readonly()
         self.extend([sample])
 
     def update(self, index: Index, samples):
@@ -447,7 +445,7 @@ class ChunkEngine:
 def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepare samples read from chunks, like making sure the shape is as expected."""
+    """Prepares samples being read from the chunk engine in the format the user expects."""
 
     samples = index.apply(samples)  # type: ignore
 
