@@ -306,7 +306,7 @@ def test_scalar_samples(ds: Dataset):
     assert tensor.shape_interval.lower == (22, 0)
     assert tensor.shape_interval.upper == (22, 3)
 
-    assert len(tensor) == 16
+    assert len(tensor) == 22
 
 
 @enabled_datasets
