@@ -12,6 +12,7 @@ from hub.constants import (
     PYTEST_LOCAL_PROVIDER_BASE_ROOT,
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
+    ENV_KAGGLE_USERNAME,
 )
 import posixpath
 from hub.tests.common import (

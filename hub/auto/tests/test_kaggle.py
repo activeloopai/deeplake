@@ -1,5 +1,10 @@
+from hub.auto.unstructured import kaggle
 from hub.api.dataset import Dataset
-from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError, SamePathException
+from hub.util.exceptions import (
+    KaggleDatasetAlreadyDownloadedError,
+    SamePathException,
+    KaggleMissingCredentialsError,
+)
 from hub.tests.common import get_dummy_data_path
 import pytest
 import os
@@ -56,6 +61,16 @@ def test_kaggle_exception(local_ds: Dataset):
             src=dummy_path,
             dest=dummy_path,
             images_compression="jpeg",
+            overwrite=False,
+        )
+
+    with pytest.raises(KaggleMissingCredentialsError):
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
+            src=kaggle_path,
+            dest=dummy_path,
+            images_compression="jpeg",
+            kaggle_credentials={},
             overwrite=False,
         )
 
