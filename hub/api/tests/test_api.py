@@ -265,22 +265,48 @@ def test_scalar_samples(ds: Dataset):
 
     assert len(tensor) == 16
 
-    expected = np.array([5, 10, -99, 4, 4, 3, 10, 1, 4, 1, 1, 2, 3, 4, 5, 33])
-    np.testing.assert_array_equal(tensor.numpy(), expected)
+    assert tensor.shape == (16, 1)
 
-    assert tensor.numpy(aslist=True) == expected.tolist()
+    tensor.append([1])
+    tensor.append([1, 2, 3])
+    tensor.extend([[1], [2], [3, 4]])
+    tensor.append(np.empty(0, dtype=int))
 
-    assert tensor.shape == (16,)
-
-    # len(shape) for a scalar is `()`. len(shape) for [1] is `(1,)`
     with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1])
+        tensor.append([[[1]]])
 
-    # len(shape) for a scalar is `()`. len(shape) for [1, 2] is `(2,)`
-    with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1, 2])
+    expected = [
+        [5],
+        [10],
+        [-99],
+        [4],
+        [4],
+        [3],
+        [10],
+        [1],
+        [4],
+        [1],
+        [1],
+        [2],
+        [3],
+        [4],
+        [5],
+        [33],
+        [1],
+        [1, 2, 3],
+        [1],
+        [2],
+        [3, 4],
+        [],
+    ]
 
-    assert len(tensor) == 16
+    assert_array_lists_equal(expected, tensor.numpy(aslist=True))
+
+    assert tensor.shape == (22, None)
+    assert tensor.shape_interval.lower == (22, 0)
+    assert tensor.shape_interval.upper == (22, 3)
+
+    assert len(tensor) == 22
 
 
 @enabled_datasets
@@ -390,9 +416,9 @@ def test_length_slices(memory_ds):
     assert len(ds.data[1:10:2]) == 5
     assert len(ds.data[[0, 1, 5, 9]]) == 4
 
-    assert ds.data.shape == (11,)
-    assert ds[0:5].data.shape == (5,)
-    assert ds.data[1:6].shape == (5,)
+    assert ds.data.shape == (11, 1)
+    assert ds[0:5].data.shape == (5, 1)
+    assert ds.data[1:6].shape == (5, 1)
 
 
 def test_shape_property(memory_ds):

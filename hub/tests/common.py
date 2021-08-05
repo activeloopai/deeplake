@@ -67,6 +67,7 @@ def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
 
 def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
     """Assert that two lists of numpy arrays are equal"""
+    assert len(l1) == len(l2)
     for idx, (a1, a2) in enumerate(zip(l1, l2)):
         np.testing.assert_array_equal(a1, a2, err_msg=f"Array mismatch at index {idx}")
 
