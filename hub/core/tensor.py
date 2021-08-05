@@ -8,8 +8,8 @@ from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
-from hub.util.shape_interval import ShapeInterval
 from hub.util.casting import get_incompatible_dtype
+from hub.util.shape import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,

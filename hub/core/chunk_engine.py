@@ -319,6 +319,7 @@ class ChunkEngine:
         samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
         for buffer, shape in samples:
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
+            # TODO: move these functions somewhere usable by update and any other methods
             tensor_meta.update_shape_interval(shape)
             tensor_meta.length += 1
             self._append_bytes(buffer, shape)
@@ -327,8 +328,6 @@ class ChunkEngine:
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
-
-        self.cache.check_readonly()
         self.extend([sample])
 
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
@@ -510,7 +509,7 @@ class ChunkEngine:
 def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
-    """Prepare samples read from chunks, like making sure the shape is as expected."""
+    """Prepares samples being read from the chunk engine in the format the user expects."""
 
     samples = index.apply(samples)  # type: ignore
 
