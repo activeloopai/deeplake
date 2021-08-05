@@ -145,7 +145,6 @@ class Chunk(Cachable):
         new_data[new_end_byte:] = right
         self._data = new_data
 
-
     @property
     def nbytes(self):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
