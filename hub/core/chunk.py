@@ -119,8 +119,6 @@ class Chunk(Cachable):
     ):
         """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
 
-        # TODO: warn user the length of buffer is longer than expected
-
         expected_dimensionality = len(self.shapes_encoder[local_sample_index])
         if expected_dimensionality != len(new_shape):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
@@ -136,6 +134,7 @@ class Chunk(Cachable):
         right = self._data[eb:]
         self._data = left + new_buffer + right  # type: ignore
 
+        # update encoders
         self.byte_positions_encoder[local_sample_index] = new_nb
         self.shapes_encoder[local_sample_index] = new_shape
 

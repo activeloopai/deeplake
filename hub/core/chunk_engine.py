@@ -340,18 +340,14 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         updated_chunks = set()
 
-        # TODO: there's gotta be a better way to do this:
-        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-
         index_length = index.length(self.num_samples)
         samples = _make_sequence(samples, index_length)
-
         serialized_input_samples = serialize_input_samples(
             samples, tensor_meta, self.min_chunk_size
         )
 
         chunks_nbytes_after_updates = []
-
+        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
         for i, (buffer, shape) in enumerate(serialized_input_samples):
             global_sample_index = global_sample_indices[i]  # TODO!
 
