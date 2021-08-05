@@ -1,6 +1,7 @@
 from hub.tests.common import get_actual_compression_from_buffer
 import numpy as np
 import pytest
+import hub
 from hub.core.compression import compress_array, decompress_array
 from hub.constants import SUPPORTED_COMPRESSIONS
 from PIL import Image
@@ -8,7 +9,7 @@ from PIL import Image
 
 compressions = SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)
-compressions.remove("wmf")  # driver has to be provided by user for write support
+compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
 
 @pytest.mark.parametrize("compression", compressions)
