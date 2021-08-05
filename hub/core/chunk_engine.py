@@ -1,3 +1,4 @@
+from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
 from math import ceil
 from typing import Optional, Sequence, Union, Tuple, List, Set
@@ -12,7 +13,7 @@ from hub.util.keys import (
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
 )
-from hub.core.sample import Sample  # type: ignore
+from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
 import numpy as np
@@ -23,8 +24,7 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-
-SampleValue = Union[np.ndarray, int, float, bool, Sample]
+from hub.core.serialize import serialize_input_samples
 
 
 def is_uniform_sequence(samples):
@@ -191,7 +191,7 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int], dtype: np.dtype):
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
 
@@ -199,17 +199,12 @@ class ChunkEngine:
             buffer (memoryview): Buffer that represents a single sample. Can have a
                 length of 0, in which case `shape` should contain at least one 0 (empty sample).
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
-            dtype (np.dtype): Data type for the sample that `buffer` represents.
         """
 
         self.cache.check_readonly()
 
         # num samples is always 1 when appending
         num_samples = 1
-
-        # update tensor meta first because erroneous meta information is better than un-accounted for data.
-        buffer = self.tensor_meta.adapt(buffer, shape, dtype)
-        self.tensor_meta.update(shape, dtype, num_samples)
 
         buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
         if not buffer_consumed:
@@ -302,56 +297,38 @@ class ChunkEngine:
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
-        if isinstance(samples, np.ndarray):
-            compression = self.tensor_meta.sample_compression
-            if compression is None:
-                buffers = []
+        self.cache.check_readonly()
 
-                # before adding any data, we need to check all sample sizes
-                for sample in samples:
-                    buffer = memoryview(sample.tobytes())
-                    self._check_sample_size(len(buffer))
-                    buffers.append(buffer)
+        tensor_meta = self.tensor_meta
+        if tensor_meta.dtype is None:
+            tensor_meta.set_dtype(get_dtype(samples))
 
-                for buffer in buffers:
-                    self._append_bytes(buffer, sample.shape, sample.dtype)
-            else:
-                sample_objects = []
-                compression = self.tensor_meta.sample_compression
-
-                # before adding any data, we need to check all sample sizes
-                for sample in samples:
-                    sample_object = Sample(array=sample)
-                    sample_objects.append(sample_object)
-                    num_bytes = len(sample_object.compressed_bytes(compression))
-                    self._check_sample_size(num_bytes)
-
-                for sample_object in sample_objects:
-                    self.append(sample_object)
-
-        elif isinstance(samples, Sequence):
-            if is_uniform_sequence(samples):
-                self.extend(np.array(samples))
-            else:
-                for sample in samples:
-                    self.append(sample)
-        else:
-            raise TypeError(f"Unsupported type for extending. Got: {type(samples)}")
+        samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
+        for buffer, shape in samples:
+            # update tensor meta length first because erroneous meta information is better than un-accounted for data.
+            # TODO: move these functions somewhere usable by update and any other methods
+            tensor_meta.update_shape_interval(shape)
+            tensor_meta.length += 1
+            self._append_bytes(buffer, shape)
 
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
+        self.extend([sample])
 
-        if isinstance(sample, Sample):
-            # has to decompress to read the array's shape and dtype
-            # might be able to optimize this away
-            compression = self.tensor_meta.sample_compression
-            data = memoryview(sample.compressed_bytes(compression))
-            self._check_sample_size(len(data))
-            self._append_bytes(data, sample.shape, sample.dtype)
-        else:
-            return self.append(Sample(array=np.array(sample)))
+    def update(self, index: Index, samples):
+        # TODO: static typing refactor for samples
+
+        self.cache.check_readonly()
+
+        for buffer, shape in serialize_input_samples(
+            samples, self.tensor_meta, self.min_chunk_size
+        ):
+            continue
+
+        # TODO: update
+        raise NotImplementedError
 
         self.cache.maybe_flush()
 
@@ -391,10 +368,10 @@ class ChunkEngine:
             samples.append(sample)
             last_shape = shape
 
-        return _format_samples(samples, index, aslist)
+        return _format_read_samples(samples, index, aslist)
 
     def read_sample_from_chunk(
-        self, global_sample_index: int, chunk: Chunk
+        self, global_sample_index: int, chunk: Chunk, cast: bool = True
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
@@ -411,19 +388,12 @@ class ChunkEngine:
         buffer = buffer[sb:eb]
         if expect_compressed:
             sample = decompress_array(buffer, shape)
+            if cast and sample.dtype != self.tensor_meta.dtype:
+                sample = sample.astype(self.tensor_meta.dtype)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 
         return sample
-
-    def _check_sample_size(self, num_bytes: int):
-        if num_bytes > self.min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({self.min_chunk_size} bytes) are not supported yet (coming soon!). Got: {num_bytes} bytes."
-
-            if self.tensor_meta.sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-
-            raise NotImplementedError(msg)
 
     def get_chunk_names(
         self, sample_index: int, last_index: int, target_chunk_count: int
@@ -472,10 +442,10 @@ class ChunkEngine:
             )
 
 
-def _format_samples(
+def _format_read_samples(
     samples: Sequence[np.array], index: Index, aslist: bool
 ) -> Union[np.ndarray, List[np.ndarray]]:
-    """Helper function for preparing `samples` read from the chunk engine in the way the format the user expects."""
+    """Prepares samples being read from the chunk engine in the format the user expects."""
 
     samples = index.apply(samples)  # type: ignore
 
