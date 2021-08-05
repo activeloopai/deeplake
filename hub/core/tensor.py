@@ -275,7 +275,7 @@ class Tensor:
 
     def __setitem__(self, item: Union[int, slice], value: Any):
         """Update samples with new values. Sub-slice updates are not supported yet.
-        
+
         Example:
             >>> tensor.append(np.zeros((10, 10)))
             >>> tensor.shape

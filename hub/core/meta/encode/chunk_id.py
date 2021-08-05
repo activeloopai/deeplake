@@ -162,4 +162,6 @@ class ChunkIdEncoder(Encoder, Cachable):
         return row[CHUNK_ID_COLUMN]
 
     def __setitem__(self, *args):
-        raise NotImplementedError("There is no reason for ChunkIdEncoder to be updated now.")
+        raise NotImplementedError(
+            "There is no reason for ChunkIdEncoder to be updated now."
+        )
