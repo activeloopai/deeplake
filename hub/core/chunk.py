@@ -123,20 +123,28 @@ class Chunk(Cachable):
         if expected_dimensionality != len(new_shape):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
 
-        self._make_data_bytearray()
-
-        sb, eb = self.byte_positions_encoder[local_sample_index]
         new_nb = len(new_buffer)
 
-        # update data
-        # TODO: optimize this (lots of memcps)
-        left = self._data[:sb]
-        right = self._data[eb:]
-        self._data = left + new_buffer + right  # type: ignore
+        # get the unchanged data
+        old_start_byte, old_end_byte = self.byte_positions_encoder[local_sample_index]
+        left = self._data[:old_start_byte]
+        right = self._data[old_end_byte:]
 
         # update encoders
         self.byte_positions_encoder[local_sample_index] = new_nb
         self.shapes_encoder[local_sample_index] = new_shape
+        new_start_byte, new_end_byte = self.byte_positions_encoder[local_sample_index]
+
+        # preallocate
+        total_new_bytes = len(left) + new_nb + len(right)
+        new_data = bytearray(total_new_bytes)
+
+        # copy old data and add new data
+        new_data[:new_start_byte] = left
+        new_data[new_start_byte:new_end_byte] = new_buffer
+        new_data[new_end_byte:] = right
+        self._data = new_data
+
 
     @property
     def nbytes(self):
