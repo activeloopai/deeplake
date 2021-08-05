@@ -9,21 +9,26 @@ __pdoc__ = {
     "constants": False,
     "integrations": False,
     "tests": False,
+    "Dataset.clear_cache": False,
+    "Dataset.delete": False,
+    "Dataset.flush": False,
+    "Dataset.read_only": False,
+    "Dataset.size_approx": False,
+    "Dataset.token": False,
 }
 
 from .api.dataset import dataset
 from .api.read import read
 from .core.transform import compute, compose
+from .core.dataset import Dataset
 from .util.bugout_reporter import hub_reporter
 
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
 list = dataset.list
-create_tensor = Dataset.create_tensor
-create_tensor_like = Dataset.create_tensor_like
-pytorch = Dataset.pytorch
-tensorflow = Dataset.tensorflow
+dataset_cl = Dataset
+
 __all__ = [
     "dataset",
     "read",
@@ -33,11 +38,8 @@ __all__ = [
     "compute",
     "compose",
     "like",
-    "create_tensor",
-    "create_tensor_like",
-    "pytorch",
-    "tensorflow",
     "list",
+    "dataset_cl",
 ]
 
 __version__ = "2.0.4"
