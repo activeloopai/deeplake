@@ -4,11 +4,11 @@ import pytest
 import hub
 from hub.core.compression import compress_array, decompress_array
 from hub.constants import SUPPORTED_COMPRESSIONS
-from PIL import Image
+from PIL import Image  # type: ignore
 
 
 compressions = SUPPORTED_COMPRESSIONS[:]
-compressions.remove(None)
+compressions.remove(None)  # type: ignore
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
 
 
