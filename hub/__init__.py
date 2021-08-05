@@ -28,6 +28,8 @@ empty = dataset.empty
 like = dataset.like
 list = dataset.list
 dataset_cl = Dataset
+ingest = dataset.ingest
+ingest_kaggle = dataset.ingest_kaggle
 
 __all__ = [
     "dataset",
@@ -40,6 +42,8 @@ __all__ = [
     "like",
     "list",
     "dataset_cl",
+    "ingest",
+    "ingest_kaggle",
 ]
 
 __version__ = "2.0.4"

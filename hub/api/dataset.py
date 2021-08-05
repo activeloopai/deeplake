@@ -1,10 +1,19 @@
+from hub.util.exceptions import (
+    DatasetHandlerError,
+    InvalidPathException,
+    SamePathException,
+)
+from hub.util.storage import get_storage_and_cache_chain
 import hub
+import os
 from typing import Optional, Union
 
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
+from hub.auto.unstructured.image_classification import ImageClassification
+from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
 from hub.util.exceptions import DatasetHandlerError
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
@@ -250,10 +259,143 @@ class dataset:
     @staticmethod
     @hub_reporter.record_call
     def ingest(
-        path: str, src: str, src_creds: dict, overwrite: bool = False
+        src: str,
+        dest: str,
+        dest_creds: dict,
+        compression: str,
+        overwrite: bool = False,
+        **dataset_kwargs,
     ) -> Dataset:
-        """Ingests a dataset from a source"""
-        raise NotImplementedError
+        """Ingests a dataset from a source and stores it as a structured dataset to destination
+
+        Note:
+            - Currently only local source paths and image classification datasets are supported for automatic ingestion.
+            - Supported filetypes: png/jpeg/jpg.
+            - All files and sub-directories with unsupported filetypes are ignored.
+            - Valid source directory structures look like:
+
+            src:
+                directory -
+                    img.jpg
+                    ...
+
+            src:
+                directory -
+                    class0 -
+                        img.jpg
+                        ...
+                    class1 -
+                        img.jpg
+                        ...
+                    ...
+
+            src:
+                directory -
+                    train -
+                        class0 -
+                            img.jpg
+                            ...
+                        ...
+                    test -
+                        class1 -
+                            img.jpg
+                            ...
+                        ...
+                    ...
+
+            - Classes defined as sub-directories can be accessed at `ds["test/labels"].info.class_names`.
+            - Support for train and test sub directories is present under ds["train/images"], ds["train/labels"] and ds["test/images"], ds["test/labels"]
+            - Mapping filenames to classes from an external file is currently not supported.
+
+        Args:
+            src (str): Local path to where the unstructured dataset is stored.
+            dest (str): Destination path where the structured dataset will be stored. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
+            compression (str): Compression type of dataset.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
+
+        Returns:
+            Dataset: New dataset object with structured dataset.
+
+        Raises:
+            InvalidPathException: If the source directory does not exist.
+            SamePathException: If the source and destination path are same.
+        """
+        if not os.path.isdir(src):
+            raise InvalidPathException(src)
+
+        if os.path.isdir(dest):
+            if os.path.samefile(src, dest):
+                raise SamePathException(src)
+
+        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+
+        # TODO: support more than just image classification (and update docstring)
+        unstructured = ImageClassification(source=src)
+
+        # TODO: auto detect compression
+        unstructured.structure(
+            ds, image_tensor_args={"sample_compression": compression}  # type: ignore
+        )
+
+        return ds  # type: ignore
+
+    @staticmethod
+    @hub_reporter.record_call
+    def ingest_kaggle(
+        tag: str,
+        src: str,
+        dest: str,
+        dest_creds: dict,
+        compression: str,
+        overwrite: bool = False,
+        **dataset_kwargs,
+    ) -> Dataset:
+        """Download and ingest a kaggle dataset and store it as a structured dataset to destination
+
+        Note:
+            Currently only local source paths and image classification datasets are supported for automatic ingestion.
+
+        Args:
+            tag (str): Kaggle dataset tag. Example: `"coloradokb/dandelionimages"` points to https://www.kaggle.com/coloradokb/dandelionimages
+            src (str): Local path to where the unstructured dataset is stored.
+            dest (str): Destination path where the structured dataset will be stored. Can be:-
+                - a Hub cloud path of the form hub://username/datasetname. To write to Hub cloud datasets, ensure that you are logged in to Hub (use 'activeloop login' from command line)
+                - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
+                - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
+                - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
+            compression (str): Compression type of dataset.
+            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
+
+        Returns:
+            Dataset: New dataset object with structured dataset.
+
+        Raises:
+            SamePathException: If the source and destination path are same.
+        """
+        if os.path.isdir(src) and os.path.isdir(dest):
+            if os.path.samefile(src, dest):
+                raise SamePathException(src)
+
+        download_kaggle_dataset(tag, local_path=src)
+
+        ds = hub.ingest(
+            src=src,
+            dest=dest,
+            dest_creds=dest_creds,
+            compression=compression,
+            overwrite=overwrite,
+            **dataset_kwargs,
+        )
+
+        return ds
 
     @staticmethod
     def list(workspace: str = "") -> None:
