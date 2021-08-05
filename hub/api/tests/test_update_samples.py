@@ -203,7 +203,9 @@ def test_failures(memory_ds):
     np.testing.assert_array_equal(
         memory_ds.images.numpy(), np.ones((10, 28, 28), dtype="uint8")
     )
-    np.testing.assert_array_equal(memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8"))
+    np.testing.assert_array_equal(
+        memory_ds.labels.numpy(), np.ones((10, 1), dtype="uint8")
+    )
     assert memory_ds.images.shape == (10, 28, 28)
     assert memory_ds.labels.shape == (10, 1)
 
