@@ -3,9 +3,50 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
+class ExternalCommandError(Exception):
+    def __init__(self, command: str, status: int):
+        super().__init__(
+            f'Status for command "{command}" was "{status}", expected to be "0".'
+        )
+
+
+class KaggleError(Exception):
+    message: str = ""
+
+
+class KaggleMissingCredentialsError(KaggleError):
+    def __init__(self, env_var_name: str):
+        super().__init__(
+            "Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api"
+            % env_var_name
+        )
+
+
+class KaggleDatasetAlreadyDownloadedError(KaggleError):
+    def __init__(self, tag: str, path: str):
+        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
+        super().__init__(self.message)
+
+
+class InvalidPathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Dataset's path is an invalid path. It should be a valid local directory got {directory}."
+        )
+
+
+class SamePathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Dataset source and destination path are same '{directory}'. Source and destination cannot be same for dataset ingestion, try setting different paths."
+        )
+
+
 class TensorInvalidSampleShapeError(Exception):
-    def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__(f"{message} Incoming sample shape: {str(shape)}")
+    def __init__(self, shape: Sequence[int], expected_dims: int):
+        super().__init__(
+            f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}"
+        )
 
 
 class TensorMetaMissingKey(Exception):
@@ -26,6 +67,12 @@ class TensorAlreadyExistsError(Exception):
 class HashlistAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Hashlist '{key}' already exists.")
+        
+class InvalidTensorNameError(Exception):
+    def __init__(self, name: str):
+        super().__init__(
+            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+        )
 
 
 class DynamicTensorNumpyError(Exception):

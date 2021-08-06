@@ -128,3 +128,11 @@ def test_failures():
     assert len(enc._encoded) == 1
 
     assert enc[-1] == (100, 100)
+
+    with pytest.raises(IndexError):
+        enc[101]
+
+    with pytest.raises(IndexError):
+        enc[101] = (1, 1)
+
+    assert enc.num_samples == 100

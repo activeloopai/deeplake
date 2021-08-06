@@ -1,4 +1,5 @@
 import numpy as np
+from PIL import Image  # type: ignore
 
 BYTE_PADDING = b"\0"
 
@@ -10,7 +11,33 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SUPPORTED_COMPRESSIONS = ["png", "jpg", "jpeg", None]
+SUPPORTED_COMPRESSIONS = [
+    "bmp",
+    "dib",
+    "pcx",
+    "gif",
+    "png",
+    "jpeg2000",
+    "ico",
+    "tiff",
+    "jpeg",
+    "ppm",
+    "sgi",
+    "tga",
+    "webp",
+    "wmf",
+    "xbm",
+]
+# Pillow plugins for some formats might not be installed:
+if not Image.SAVE:
+    Image.init()
+SUPPORTED_COMPRESSIONS = [
+    c
+    for c in SUPPORTED_COMPRESSIONS
+    if c.upper() in Image.SAVE and c.upper() in Image.OPEN
+]
+SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
+
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
@@ -61,7 +88,6 @@ ENCODING_DTYPE = np.uint32
 # caclulate the number of bits to shift right when converting a 128-bit uuid into `ENCODING_DTYPE`
 UUID_SHIFT_AMOUNT = 128 - (8 * ENCODING_DTYPE(1).itemsize)
 
-
 HUB_CLOUD_DEV_USERNAME = "testingacc"
 
 PYTEST_MEMORY_PROVIDER_BASE_ROOT = "mem://hub_pytest"
@@ -69,8 +95,10 @@ PYTEST_LOCAL_PROVIDER_BASE_ROOT = "/tmp/hub_pytest/"  # TODO: may fail for windo
 PYTEST_S3_PROVIDER_BASE_ROOT = "s3://hub-2.0-tests/"
 PYTEST_HUB_CLOUD_PROVIDER_BASE_ROOT = f"hub://{HUB_CLOUD_DEV_USERNAME}/"
 
-HUB_DEV_PASSWORD_ENVIRONMENT_VARIABLE = "ACTIVELOOP_HUB_PASSWORD"
-
+# environment variables
+ENV_HUB_DEV_PASSWORD = "ACTIVELOOP_HUB_PASSWORD"
+ENV_KAGGLE_USERNAME = "KAGGLE_USERNAME"
+ENV_KAGGLE_KEY = "KAGGLE_KEY"
 
 # pytest options
 MEMORY_OPT = "--memory-skip"

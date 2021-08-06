@@ -20,6 +20,8 @@ list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+ingest = dataset.ingest
+ingest_kaggle = dataset.ingest_kaggle
 
 __all__ = [
     "dataset",
@@ -30,6 +32,8 @@ __all__ = [
     "compute",
     "compose",
     "like",
+    "ingest",
+    "ingest_kaggle",
 ]
 
 __version__ = "2.0.4"
