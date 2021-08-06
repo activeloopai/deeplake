@@ -5,6 +5,7 @@ import hub
 from hub.core.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
+    PathNotEmptyException,
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
@@ -650,10 +651,37 @@ def test_dataset_delete():
         hub.constants.DELETE_SAFETY_SIZE = old_size
 
 
-def test_invalid_tesnor_name(memory_ds):
+def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("meta")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("tensors")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
+
+def test_allow_not_empty(local_path):
+    # create a subpath inside local_path and add 2 new files, one in sub_local_path and one in local_path
+    sub_local_path = os.path.join(local_path, "sub")
+    if not os.path.isdir(local_path):
+        os.makedirs(sub_local_path)
+    with open(os.path.join(local_path, "test.txt"), "w") as f:
+        f.write("12345912035198327501934508142305")
+    with open(os.path.join(sub_local_path, "test_sub.txt"), "w") as f:
+        f.write("12345912035198327501934508142305")
+
+    with pytest.raises(PathNotEmptyException):
+        hub.empty(local_path)
+
+    ds = hub.empty(local_path, allow_path_not_empty=True)
+    ds.create_tensor("tensor")
+    ds.tensor.append([10, 10, 10, 15])
+    assert ds.tensor.shape == (1, 4)
+
+    ds = hub.load(local_path)
+    assert ds.tensor.shape == (1, 4)
+    assert_array_lists_equal(ds.tensor, [[10, 10, 10, 15]])
+
+    with pytest.raises(PathNotEmptyException):
+        hub.like(sub_local_path, ds)
+    
+    hub.like(sub_local_path, ds, allow_path_not_empty=True)

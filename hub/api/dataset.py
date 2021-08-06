@@ -82,6 +82,7 @@ class dataset:
     def empty(
         path: str,
         overwrite: bool = False,
+        allow_path_not_empty: bool = False,
         public: Optional[bool] = True,
         memory_cache_size: int = DEFAULT_MEMORY_CACHE_SIZE,
         local_cache_size: int = DEFAULT_LOCAL_CACHE_SIZE,
@@ -100,6 +101,7 @@ class dataset:
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            allow_path_not_empty (bool): WARNING: If True, a dataset can be created if the folder is not empty. This is not recommended!
             public (bool, optional): Defines if the dataset will have public access. Applicable only if Hub cloud storage is used and a new Dataset is being created. Defaults to True.
             memory_cache_size (int): The size of the memory cache to be used in MB.
             local_cache_size (int): The size of the local filesystem cache to be used in MB.
@@ -133,7 +135,7 @@ class dataset:
             )
         read_only = storage.read_only
         return Dataset(
-            storage=cache_chain, read_only=read_only, public=public, token=token
+            storage=cache_chain, read_only=read_only, public=public, token=token, allow_path_not_empty=allow_path_not_empty
         )
 
     @staticmethod
@@ -229,6 +231,7 @@ class dataset:
     def like(
         path: str,
         source: Union[str, Dataset],
+        allow_path_not_empty: bool = False,
         creds: dict = None,
         overwrite: bool = False,
     ) -> Dataset:
@@ -237,6 +240,7 @@ class dataset:
         Args:
             path (str): Path where the new dataset will be created.
             source (Union[str, Dataset]): Path or dataset object that will be used as the template for the new dataset.
+            allow_path_not_empty (bool): If set to True, the new dataset will be created even if the source path is empty.
             creds (dict): Credentials that will be used to create the new dataset.
             overwrite (bool): If True and a dataset exists at `destination`, it will be overwritten. Defaults to False.
 
@@ -244,7 +248,7 @@ class dataset:
             Dataset: New dataset object.
         """
 
-        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
+        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite, allow_path_not_empty=allow_path_not_empty)
         source_ds = source
         if isinstance(source, str):
             source_ds = dataset.load(source)
