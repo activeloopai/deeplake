@@ -15,6 +15,7 @@ __pdoc__ = {
     "Dataset.read_only": False,
     "Dataset.size_approx": False,
     "Dataset.token": False,
+    "Dataset.num_samples": False,
 }
 
 from .api.dataset import dataset
