@@ -178,7 +178,7 @@ class Dataset:
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
-        if name in vars(self).keys():
+        if name in vars(self):
             raise InvalidTensorNameError(name)
 
         # Seperate meta and info
