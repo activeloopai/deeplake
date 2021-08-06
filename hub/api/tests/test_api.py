@@ -659,6 +659,7 @@ def test_invalid_tensor_name(memory_ds):
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
 
+
 def test_allow_not_empty(local_path):
     # create a subpath inside local_path and add 2 new files, one in sub_local_path and one in local_path
     sub_local_path = os.path.join(local_path, "sub")
@@ -683,5 +684,5 @@ def test_allow_not_empty(local_path):
 
     with pytest.raises(PathNotEmptyException):
         hub.like(sub_local_path, ds)
-    
+
     hub.like(sub_local_path, ds, allow_path_not_empty=True)

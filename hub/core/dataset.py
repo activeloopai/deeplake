@@ -266,10 +266,10 @@ class Dataset:
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
-            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
+            self.meta = self.storage.get_cachable(meta_key, DatasetMeta)  # type: ignore
 
             for tensor_name in self.meta.tensors:
-                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
+                self.tensors[tensor_name] = Tensor(tensor_name, self.storage)  # type: ignore
 
         elif len(self.storage) > 0 and not allow_path_not_empty:
             # dataset does not exist, but the path was not empty
@@ -280,7 +280,7 @@ class Dataset:
                 # cannot create a new dataset when in read_only mode.
                 raise CouldNotCreateNewDatasetException(self.path)
             self.meta = DatasetMeta()
-            self.storage[meta_key] = self.meta
+            self.storage[meta_key] = self.meta  # type: ignore
             self.flush()
             if self.path.startswith("hub://"):
                 self.client.create_dataset_entry(
@@ -368,7 +368,9 @@ class Dataset:
                 feature_name="HubDataset", parameters={"Path": str(self.path)}
             )
 
-        self._load_meta(allow_path_not_empty=allow_path_not_empty)  # TODO: use the same scheme as `load_info`
+        self._load_meta(
+            allow_path_not_empty=allow_path_not_empty
+        )  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)
 

@@ -135,7 +135,11 @@ class dataset:
             )
         read_only = storage.read_only
         return Dataset(
-            storage=cache_chain, read_only=read_only, public=public, token=token, allow_path_not_empty=allow_path_not_empty
+            storage=cache_chain,
+            read_only=read_only,
+            public=public,
+            token=token,
+            allow_path_not_empty=allow_path_not_empty,
         )
 
     @staticmethod
@@ -248,7 +252,12 @@ class dataset:
             Dataset: New dataset object.
         """
 
-        destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite, allow_path_not_empty=allow_path_not_empty)
+        destination_ds = dataset.empty(
+            path,
+            creds=creds,
+            overwrite=overwrite,
+            allow_path_not_empty=allow_path_not_empty,
+        )
         source_ds = source
         if isinstance(source, str):
             source_ds = dataset.load(source)
