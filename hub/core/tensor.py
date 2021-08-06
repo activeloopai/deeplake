@@ -24,6 +24,30 @@ from hub.util.exceptions import (
 )
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
+# def link_tensor(
+#     src:str,
+#     dest:str,
+#     storage: StorageProvider,
+#     fn,
+#     hash_samples: Optional[bool] = False,
+#     **kwargs,
+# ):
+#     if not tensor_exists(src, storage):
+#         raise TensorDoesNotExistError(src)
+    
+#     if not tensor_exists(dest, storage):
+#         raise TensorDoesNotExistError(dest)
+
+#     # Check if length of source and destination is the same (or empty)
+
+#     # Get releveant tensor meta files
+#     src_meta_key = get_tensor_meta_key(src)
+#     dest_meta_key = get_tensor_meta_key(dest)
+
+#     # Set linked tensor to true in dest_meta
+
+#     # Add name of dest_tensor to src_meta, links
+
 
 def create_tensor(
     key: str,
@@ -64,7 +88,7 @@ def create_tensor(
     storage[meta_key] = meta  # type: ignore
 
     # Creating hashlist
-    if (hash_samples):
+    if (hash_samples): 
         hashlist_key = get_hashlist_key(key)
         hlist = Hashlist()
         storage[hashlist_key] = hlist
@@ -133,6 +157,16 @@ class Tensor:
                 The length should be equal to the number of samples to add.
         """
         self.chunk_engine.extend(samples)
+        
+        # #Check tensor meta for linked tensors
+                
+        # if tensor_meta.linked_tensors:
+        #     for tensor in result.tensors:
+        #         hashed_sample = hash(samples)
+        #         self.chunk_engine.extend(samples)
+        #         all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
+
+
 
     def append(
         self,

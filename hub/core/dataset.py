@@ -151,6 +151,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
+        hash_samples: Optional[bool] =  False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -177,7 +178,7 @@ class Dataset:
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
-
+        
         # Seperate meta and info
 
         htype_config = HTYPE_CONFIGURATIONS[htype].copy()
@@ -201,6 +202,7 @@ class Dataset:
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
+            hash_samples=hash_samples,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
@@ -211,8 +213,30 @@ class Dataset:
 
         tensor.info.update(info_kwargs)
 
+        # Generate a tensor to stores hashes
+        if hash_samples:
+            self.create_tensor("hashes")
+            self._link_tensor(tensor, self.hashes)
+
         return tensor
 
+    @hub_reporter.record_call
+    def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
+        
+        print("src: ", src)
+        print("dest: ", dest)
+
+        src_meta = src.meta.__getstate__().copy()
+        dest_meta = dest.meta.__getstate__().copy()
+
+        if src_meta["length"] != dest_meta["length"]:
+           raise NotImplementedError("Meta lengths are different.")
+        
+        # Add link to source tensor 
+        src_meta["linked_tensors"] = src  
+        
+        
+    
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.
