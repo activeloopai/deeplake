@@ -9,6 +9,7 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
     DatasetHandlerError,
     UnsupportedCompressionError,
+    InvalidTensorNameError,
 )
 from hub.constants import MB
 
@@ -647,3 +648,12 @@ def test_dataset_delete():
         assert not os.path.isfile("test/dataset_meta.json")
 
         hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+def test_invalid_tesnor_name(memory_ds):
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("meta")
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("tensors")
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("info")
