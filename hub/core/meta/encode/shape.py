@@ -6,7 +6,7 @@ import numpy as np
 
 
 class ShapeEncoder(Encoder):
-    def _derive_value(self, row: np.ndarray, *_) -> np.ndarray:
+    def _derive_value(self, row: np.ndarray, *_) -> Tuple:
         return tuple(row[:LAST_SEEN_INDEX_COLUMN])
 
     def _validate_incoming_item(self, shape: Tuple[int], _):
@@ -20,7 +20,8 @@ class ShapeEncoder(Encoder):
 
         super()._validate_incoming_item(shape, _)
 
-    def _combine_condition(self, shape: Tuple[int]) -> bool:
-        last_shape = self[-1]  # TODO: optimize this
-
+    def _combine_condition(
+        self, shape: Tuple[int], compare_row_index: int = -1
+    ) -> bool:
+        last_shape = self._derive_value(self._encoded[compare_row_index])
         return shape == last_shape

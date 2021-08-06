@@ -1,7 +1,8 @@
+import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
 from math import ceil
-from typing import Optional, Sequence, Union, Tuple, List, Set
+from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
@@ -41,6 +42,10 @@ def is_uniform_sequence(samples):
     else:
         # Scalar samples can be vectorized
         return True
+
+
+# used for warning the user if updating a tensor caused suboptimal chunks
+CHUNK_UPDATE_WARN_PORTION = 0.2
 
 
 class ChunkEngine:
@@ -178,7 +183,10 @@ class ChunkEngine:
         if self.num_chunks == 0:
             return None
 
-        return self.cache.get_cachable(self.last_chunk_key, Chunk)
+        return self.get_chunk(self.last_chunk_key)
+
+    def get_chunk(self, chunk_key: str) -> Chunk:
+        return self.cache.get_cachable(chunk_key, Chunk)
 
     @property
     def last_chunk_key(self) -> str:
@@ -201,8 +209,6 @@ class ChunkEngine:
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
         """
 
-        self.cache.check_readonly()
-
         # num samples is always 1 when appending
         num_samples = 1
 
@@ -213,15 +219,22 @@ class ChunkEngine:
         self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
 
-    def _synchronize_cache(self):
-        """Synchronizes cachables with the cache. Includes: the last chunk, tensor meta, and chunk IDs encoder."""
+    def _synchronize_cache(self, chunk_keys: List[str] = None):
+        """Synchronizes cachables with the cache.
+
+        Args:
+            chunk_keys (List[str]): List of chunk keys to be synchronized. If None, only the last chunk will be synchronized. Defaults to None.
+        """
 
         # TODO implement tests for cache size compute
         # TODO: optimize this by storing all of these keys in the chunk engine's state (posixpath.joins are pretty slow)
-        # synchronize last chunk
-        last_chunk_key = self.last_chunk_key
-        last_chunk = self.last_chunk
-        self.cache.update_used_cache_for_path(last_chunk_key, last_chunk.nbytes)  # type: ignore
+
+        # synchronize chunks
+        if chunk_keys is None:
+            chunk_keys = [self.last_chunk_key]
+        for chunk_key in chunk_keys:
+            chunk = self.get_chunk(chunk_key)
+            self.cache.update_used_cache_for_path(chunk_key, chunk.nbytes)  # type: ignore
 
         # synchronize tensor meta
         tensor_meta_key = get_tensor_meta_key(self.key)
@@ -317,20 +330,50 @@ class ChunkEngine:
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
 
-    def update(self, index: Index, samples):
-        # TODO: static typing refactor for samples
+    def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+        """Update data at `index` with `samples`."""
 
         self.cache.check_readonly()
 
-        for buffer, shape in serialize_input_samples(
-            samples, self.tensor_meta, self.min_chunk_size
-        ):
-            continue
+        tensor_meta = self.tensor_meta
+        enc = self.chunk_id_encoder
+        updated_chunks = set()
 
-        # TODO: update
-        raise NotImplementedError
+        index_length = index.length(self.num_samples)
+        samples = _make_sequence(samples, index_length)
+        serialized_input_samples = serialize_input_samples(
+            samples, tensor_meta, self.min_chunk_size
+        )
 
+        chunks_nbytes_after_updates = []
+        global_sample_indices = tuple(index.values[0].indices(self.num_samples))
+        for i, (buffer, shape) in enumerate(serialized_input_samples):
+            global_sample_index = global_sample_indices[i]  # TODO!
+
+            chunk = self.get_chunk_for_sample(global_sample_index, enc)
+
+            local_sample_index = enc.translate_index_relative_to_chunks(
+                global_sample_index
+            )
+
+            tensor_meta.update_shape_interval(shape)
+            chunk.update_sample(local_sample_index, buffer, shape)
+            updated_chunks.add(chunk)
+
+            # only care about deltas if it isn't the last chunk
+            if chunk.key != self.last_chunk_key:  # type: ignore
+                chunks_nbytes_after_updates.append(chunk.nbytes)
+
+        # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
+        for chunk in updated_chunks:
+            self.cache[chunk.key] = chunk  # type: ignore
+
+        self._synchronize_cache(chunk_keys=[])
         self.cache.maybe_flush()
+
+        _warn_if_suboptimal_chunks(
+            chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
+        )
 
     def numpy(
         self, index: Index, aslist: bool = False
@@ -354,10 +397,7 @@ class ChunkEngine:
         samples = []
 
         for global_sample_index in index.values[0].indices(length):
-            chunk_id = enc[global_sample_index]
-            chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
-            chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            chunk = self.get_chunk_for_sample(global_sample_index, enc)
             sample = self.read_sample_from_chunk(global_sample_index, chunk)
             shape = sample.shape
 
@@ -369,6 +409,26 @@ class ChunkEngine:
             last_shape = shape
 
         return _format_read_samples(samples, index, aslist)
+
+    def get_chunk_for_sample(
+        self, global_sample_index: int, enc: ChunkIdEncoder
+    ) -> Chunk:
+        """Retrives the `Chunk` object corresponding to `global_sample_index`.
+        Args:
+            global_sample_index (int): Index relative to the entire tensor representing the sample.
+            enc (ChunkIdEncoder): Chunk ID encoder. This is an argument because right now it is
+                sub-optimal to use `self.chunk_id_encoder` due to posixpath joins.
+        Returns:
+            Chunk: Chunk object that contains `global_sample_index`.
+        """
+
+        chunk_id = enc[global_sample_index]
+        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
+
+        return chunk
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk, cast: bool = True
@@ -386,6 +446,10 @@ class ChunkEngine:
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
 
         buffer = buffer[sb:eb]
+
+        if len(buffer) == 0:
+            return np.zeros(shape, dtype=dtype)
+
         if expect_compressed:
             sample = decompress_array(buffer, shape)
             if cast and sample.dtype != self.tensor_meta.dtype:
@@ -463,3 +527,54 @@ def _format_read_samples(
 def _min_chunk_ct_for_data_size(chunk_max_data_bytes: int, size: int) -> int:
     """Calculates the minimum number of chunks in which data of given size can be fit."""
     return ceil(size / chunk_max_data_bytes)
+
+
+def _make_sequence(
+    samples: Union[Sequence[SampleValue], SampleValue], index_length: int
+) -> Sequence[SampleValue]:
+    """Make `samples` a sequence of `SampleValue`s.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Incoming samples to be made into a sequence.
+        index_length (int): Number of expected samples in the sequence.
+
+    Raises:
+        ValueError: If `index_length` is incompatible with the true length of `samples`.
+
+    Returns:
+        Sequence[SampleValue]: Sequence of `SampleValue`s with the same length as `index_length`.
+    """
+
+    if index_length == 1:
+        if hasattr(samples, "__len__"):
+            if len(samples) != 1:
+                samples = [samples]
+        elif hasattr(samples, "shape"):
+            if len(samples.shape) > 0 and samples.shape[0] != 1:  # type: ignore
+                samples = [samples]
+        else:
+            samples = [samples]
+
+    if hasattr(samples, "__len__"):
+        if index_length != len(samples):
+            raise ValueError(
+                f"Index length ({index_length}) and length of samples ({len(samples)}) must be equal for updating a tensor."
+            )
+    else:
+        samples = [samples]
+
+    return samples
+
+
+def _warn_if_suboptimal_chunks(
+    chunks_nbytes_after_updates: List[int], min_chunk_size: int, max_chunk_size: int
+):
+    upper_warn_threshold = max_chunk_size * (1 + CHUNK_UPDATE_WARN_PORTION)
+    lower_warn_threshold = min_chunk_size * (1 - CHUNK_UPDATE_WARN_PORTION)
+
+    for nbytes in chunks_nbytes_after_updates:
+        if nbytes > upper_warn_threshold or nbytes < lower_warn_threshold:
+            warnings.warn(
+                "After update, some chunks were suboptimal. Be careful when doing lots of updates that modify the sizes of samples by a large amount, these can heavily impact read performance!"
+            )
+            break

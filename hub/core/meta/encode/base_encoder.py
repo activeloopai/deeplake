@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Any, Sequence
+from typing import Any, List, Sequence
 from hub.constants import ENCODING_DTYPE
 import numpy as np
 
@@ -37,13 +37,24 @@ class Encoder(ABC):
                 the row that corresponds to that sample index (since the right-most column is our "last index" for that meta information).
                 Then, you decode the row and that is your meta!
 
+        Raises:
+            ValueError: If `encoded` is not the right dtype.
+
         Args:
             encoded (np.ndarray): Encoded state, if None state is empty. Helpful for deserialization. Defaults to None.
         """
 
+        if isinstance(encoded, list):
+            encoded = np.array(encoded, dtype=ENCODING_DTYPE)
+
         self._encoded = encoded
         if self._encoded is None:
             self._encoded = np.array([], dtype=ENCODING_DTYPE)
+
+        if self._encoded.dtype != ENCODING_DTYPE:
+            raise ValueError(
+                f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}"
+            )
 
     @property
     def array(self):
@@ -59,22 +70,20 @@ class Encoder(ABC):
             return 0
         return int(self._encoded[-1, LAST_SEEN_INDEX_COLUMN] + 1)
 
-    def num_samples_at(self, translated_index: int) -> int:
+    def num_samples_at(self, row_index: int) -> int:
         """Calculates the number of samples a row in the encoding corresponds to.
 
         Args:
-            translated_index (int): This index will be used when indexing `self._encoded`.
+            row_index (int): This index will be used when indexing `self._encoded`.
 
         Returns:
             int: Representing the number of samples that a row's derivable value represents.
         """
 
         lower_bound = 0
-        if len(self._encoded) > 1 and translated_index > 0:
-            lower_bound = (
-                self._encoded[translated_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
-            )
-        upper_bound = self._encoded[translated_index, LAST_SEEN_INDEX_COLUMN] + 1
+        if len(self._encoded) > 1 and row_index > 0:
+            lower_bound = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] + 1
+        upper_bound = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] + 1
 
         return int(upper_bound - lower_bound)
 
@@ -159,14 +168,14 @@ class Encoder(ABC):
         if num_samples <= 0:
             raise ValueError(f"`num_samples` should be > 0. Got: {num_samples}")
 
-    def _combine_condition(self, item: Any) -> bool:
-        """Should determine if `item` can be combined with the last row in `self._encoded`."""
+    def _combine_condition(self, item: Any, compare_row_index: int = -1) -> bool:
+        """Should determine if `item` can be combined with a row in `self._encoded`."""
 
     def _derive_next_last_index(self, last_index: ENCODING_DTYPE, num_samples: int):
         """Calculates what the next last index should be."""
         return last_index + num_samples
 
-    def _make_decomposable(self, item: Any) -> Sequence:
+    def _make_decomposable(self, item: Any, compare_row_index: int = -1) -> Sequence:
         """Should return a value that can be decompsed with the `*` operator. Example: `*(1, 2)`"""
 
         return item
@@ -199,3 +208,467 @@ class Encoder(ABC):
             return value, row_index
 
         return value
+
+    def __setitem__(self, local_sample_index: int, item: Any):
+        """Update the encoded value at a given index. Depending on the state, this may increase/decrease
+        the size of the state.
+
+        Updating:
+            Updation is executed by going through a list of possible actions and trying to reduce the cost delta.
+
+            Cost:
+                Cost is defined as `len(self._encoded)`.
+                The "cost delta" is the number of rows added/removed from `self._encoded` as a result of the action.
+
+            Actions are chosen assuming `self._encoded` is already encoded properly.
+
+            Note:
+                An action that is "upwards" is being performed towards idx=0
+                An action that is "downwards" is being performed away from idx=0
+
+            Actions in order of execution:
+                no change    (cost delta = 0)
+                squeeze      (cost delta = -2)
+                squeeze up   (cost delta = -1)
+                squeeze down (cost delta = -1)
+                move up      (cost delta = 0)
+                move down    (cost delta = 0)
+                replace      (cost delta = 0)
+                split up     (cost delta = +1)
+                split down   (cost delta = +1)
+                split middle (cost delta = +2)
+
+        Args:
+            local_sample_index (int): Index representing a sample. Localized to `self._encoded`.
+            item (Any): Item compatible with the encoder subclass.
+
+        Raises:
+            ValueError: If no update actions were taken.
+        """
+
+        row_index = self.translate_index(local_sample_index)
+
+        # TODO: optimize this (vectorize __setitem__ to accept `Index` objects)
+        actions = (
+            self._try_not_changing,
+            self._setup_update,  # not an actual action
+            self._try_squeezing,
+            self._try_squeezing_up,
+            self._try_squeezing_down,
+            self._try_moving_up,
+            self._try_moving_down,
+            self._try_replacing,
+            self._try_splitting_up,
+            self._try_splitting_down,
+            self._try_splitting_middle,
+        )
+
+        action_taken = None
+        for action in actions:
+            if action(item, row_index, local_sample_index):  # type: ignore
+                # each action returns a bool, if True that means the action was taken.
+                action_taken = action
+                break
+
+        if action_taken is None:
+            raise ValueError(
+                f"Update could not be executed for idx={local_sample_index}, item={str(item)}"
+            )
+
+        self._post_process_state(start_row_index=max(row_index - 2, 0))
+        self._reset_update_state()
+
+    def _post_process_state(self, start_row_index: int):
+        """Overridden when more complex columns exist in subclasses. Example: byte positions."""
+
+        pass
+
+    def _reset_update_state(self):
+        self._has_above = None
+        self._has_below = None
+        self._can_combine_above = None
+        self._can_combine_below = None
+        self._decomposable_item = None
+        self._num_samples_at_row = None
+
+    def _setup_update(self, item: Any, row_index: int, *_):
+        """Setup the state variables for preceeding actions. Used for updating."""
+
+        self._has_above = row_index > 0
+        self._has_below = row_index + 1 < len(self._encoded)
+
+        self._can_combine_above = False
+        if self._has_above:
+            self._can_combine_above = self._combine_condition(item, row_index - 1)
+
+        self._can_combine_below = False
+        if self._has_below:
+            self._can_combine_below = self._combine_condition(item, row_index + 1)
+
+        self._decomposable_item = self._make_decomposable(item, row_index)
+        self._num_samples_at_row = self.num_samples_at(row_index)
+
+    def _try_not_changing(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` already is the value at `row_index`, no need to make any updates.
+
+        Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+
+            Update:
+                self[5] = A
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       11
+        """
+
+        return self._combine_condition(item, row_index)
+
+    def _try_squeezing(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the above and below rows in `self._encoded`
+        to match the incoming item, just combine them all into a single row.
+
+        Cost delta = -2
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                A       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       15
+        """
+
+        if self._num_samples_at_row != 1:
+            return False
+
+        if not (self._has_above and self._has_below):
+            return False
+
+        if not (self._can_combine_above and self._can_combine_below):
+            return False
+
+        # row can be "squeezed away"
+        start = self._encoded[: row_index - 1]
+        end = self._encoded[row_index + 1 :]
+        self._encoded = np.concatenate((start, end))
+
+        return True
+
+    def _try_squeezing_up(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the above row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       11
+                C       15
+        """
+
+        if self._num_samples_at_row != 1:
+            return False
+
+        if not self._has_above:
+            return False
+
+        if not self._can_combine_above:
+            return False
+
+        # row can be "squeezed upwards"
+        start = self._encoded[:row_index]
+        end = self._encoded[row_index + 1 :]
+        start[-1, LAST_SEEN_INDEX_COLUMN] += 1
+        self._encoded = np.concatenate((start, end))
+
+        return True
+
+    def _try_squeezing_down(self, item: Any, row_index: int, *_) -> bool:
+        """If update results in the below row in `self._encoded`
+        matching the incoming item, just combine them into a single row.
+
+        Cost delta = -1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       15
+
+            Update:
+                self[11] = C
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                C       15
+        """
+
+        if self._num_samples_at_row != 1:
+            return False
+
+        if not self._has_below:
+            return False
+
+        if not self._can_combine_below:
+            return False
+
+        # row can be "squeezed downwards"
+        start = self._encoded[:row_index]
+        end = self._encoded[row_index + 1 :]
+        self._encoded = np.concatenate((start, end))
+
+        return True
+
+    def _try_moving_up(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` exists in the row above `row_index`, then we can just use the above row to encode `item`.
+
+        Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+
+            Update:
+                self[11] = A
+
+            End:
+                item    last index
+                ------------------
+                A       11
+                B       15
+        """
+
+        if self._can_combine_below or not self._can_combine_above:
+            return False
+
+        # sample can be "moved up"
+        self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN] += 1
+
+        return True
+
+    def _try_moving_down(self, item: Any, row_index: int, *_) -> bool:
+        """If `item` exists in the row below `row_index`, then we can just use the below row to encode `item`.
+
+        Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+
+            Update:
+                self[10] = B
+
+            End:
+                item    last index
+                ------------------
+                A       9
+                B       15
+        """
+
+        if self._can_combine_above or not self._can_combine_below:
+            return False
+
+        # sample can be "moved down"
+        self._encoded[row_index, LAST_SEEN_INDEX_COLUMN] -= 1
+
+        return True
+
+    def _try_replacing(self, item: Any, row_index: int, *args) -> bool:
+        """If the value encoded at `row_index` only exists for a single index, then `row_index`
+        can be directly replaced with `item`.
+
+        Cost delta = 0
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       11
+                C       20
+
+            Update:
+                self[11] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                D       11
+                C       20
+        """
+
+        if self._num_samples_at_row != 1:
+            return False
+
+        # sample can be "replaced"
+        self._encoded[row_index, :LAST_SEEN_INDEX_COLUMN] = item
+
+        return True
+
+    def _try_splitting_up(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
+        """If the row at `row_index` is being updated on the first index it is responsible for,
+        AND the above row doesn't match `item`, a new row needs to be created above.
+
+        Cost delta = +1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                C       20
+
+            Update:
+                self[11] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                D       11
+                B       15
+                C       20
+        """
+
+        above_last_index = 0
+        if self._has_above:
+            above_last_index = self._encoded[row_index - 1, LAST_SEEN_INDEX_COLUMN]
+
+        if above_last_index != local_sample_index:
+            return False
+
+        # a new row should be created above
+        start = self._encoded[: row_index - 1]
+        end = self._encoded[row_index:]
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
+        self._encoded = np.concatenate((start, [new_row], end))
+
+        return True
+
+    def _try_splitting_down(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
+        """If the row at `row_index` is being updated on the last index it is responsible for,
+        AND the below row doesn't match `item`, a new row needs to be created below.
+
+        Cost delta = +1
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                C       20
+
+            Update:
+                self[15] = D
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       14
+                D       15
+                C       20
+        """
+
+        last_index = self._encoded[row_index, LAST_SEEN_INDEX_COLUMN]
+        if last_index != local_sample_index:
+            return False
+
+        # a new row should be created below
+        start = self._encoded[: row_index + 1]
+        end = self._encoded[row_index + 1 :]
+        start[-1, LAST_SEEN_INDEX_COLUMN] -= 1
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
+        self._encoded = np.concatenate((start, [new_row], end))
+
+        return True
+
+    def _try_splitting_middle(
+        self, item: Any, row_index: int, local_sample_index: int
+    ) -> bool:
+        """If the row at `row_index` is being updated on an index in the middle of the samples it is responsible for,
+        a new row needs to be created above AND below.
+
+        Cost delta = +2
+
+        Example:
+            Start:
+                item    last index
+                ------------------
+                A       10
+                B       15
+                A       20
+
+            Update:
+                self[13] = A
+
+            End:
+                item    last index
+                ------------------
+                A       10
+                B       12
+                A       13
+                B       15
+                A       20
+        """
+
+        # 2 rows should be created, and 1 should be updated
+        start = np.array(self._encoded[: row_index + 1])
+        new_row = np.array(
+            [*self._decomposable_item, local_sample_index], dtype=ENCODING_DTYPE
+        )
+        end = self._encoded[row_index:]
+        start[-1, LAST_SEEN_INDEX_COLUMN] = local_sample_index - 1
+        self._encoded = np.concatenate((start, [new_row], end))
+
+        return True

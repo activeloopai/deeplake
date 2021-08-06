@@ -143,7 +143,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 @pytest.fixture
 def cat_path():
-    """Path to a cat image in the dummy data folder."""
+    """Path to a cat image in the dummy data folder. Expected shape: (900, 900, 3)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "cat.jpeg")
@@ -151,7 +151,7 @@ def cat_path():
 
 @pytest.fixture
 def flower_path():
-    """Path to a flower image in the dummy data folder."""
+    """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "flower.png")

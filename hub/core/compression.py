@@ -38,6 +38,10 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         bytes: Compressed `array` represented as bytes.
     """
 
+    # empty sample shouldn't be compressed
+    if 0 in array.shape:
+        return bytes()
+
     if compression not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(compression)
 
