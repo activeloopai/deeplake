@@ -139,5 +139,8 @@ class Sample:
     def __repr__(self):
         return str(self)
 
+    def __array__(self):
+        return self.array
+
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]

@@ -47,9 +47,16 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     try:
         img = to_image(array)
         out = BytesIO()
-        img.save(out, compression)
+        out._close = out.close  # type: ignore
+        out.close = (  # type: ignore
+            lambda: None
+        )  # sgi save handler will try to close the stream (see https://github.com/python-pillow/Pillow/pull/5645)
+        kwargs = {"sizes": [img.size]} if compression == "ico" else {}
+        img.save(out, compression, **kwargs)
         out.seek(0)
-        return out.read()
+        compressed_bytes = out.read()
+        out._close()  # type: ignore
+        return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
 
