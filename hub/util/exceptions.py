@@ -64,6 +64,13 @@ class TensorAlreadyExistsError(Exception):
         super().__init__(f"Tensor '{key}' already exists.")
 
 
+class InvalidTensorNameError(Exception):
+    def __init__(self, name: str):
+        super().__init__(
+            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+        )
+
+
 class DynamicTensorNumpyError(Exception):
     def __init__(self, key: str, index, property_key: str):
         super().__init__(

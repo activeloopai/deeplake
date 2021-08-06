@@ -25,6 +25,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    InvalidTensorNameError,
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
@@ -176,6 +177,8 @@ class Dataset:
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
+        if name in vars(self).keys():
+            raise InvalidTensorNameError(name)
 
         # Seperate meta and info
 
