@@ -3,8 +3,7 @@ from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
 from hub.core.meta.dataset_meta import DatasetMeta
