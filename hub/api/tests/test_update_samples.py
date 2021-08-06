@@ -102,6 +102,12 @@ def test(local_ds_generator, images_compression):
         gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype="uint8")
     )  # new shapes
     _make_update_assert_equal(
+        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=int).tolist()
+    )  # test downcasting python scalars
+    _make_update_assert_equal(
+        gen, "images", slice(3, 5), np.zeros((2, 5, 28), dtype=np.ubyte).tolist()
+    )  # test upcasting
+    _make_update_assert_equal(
         gen, "images", slice(3, 5), np.zeros((2, 0, 0), dtype="uint8")
     )  # empty samples (new shape)
     _make_update_assert_equal(gen, "labels", slice(0, 5), [1, 2, 3, 4, 5])
