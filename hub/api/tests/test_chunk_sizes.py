@@ -1,22 +1,6 @@
+from hub.tests.common import update_chunk_sizes
 import numpy as np
 from hub.constants import KB
-
-
-def _update_chunk_sizes(ds, max_chunk_size: int):
-    """Updates all chunk sizes for tensors that already exist in `ds`. If
-    more tensors are created after calling this method, those tensors will NOT have
-    the same chunk size.
-    """
-
-    # TODO: set / update chunk sizes API (to replace this function)
-
-    min_chunk_size = max_chunk_size // 2
-
-    for tensor in ds.tensors.values():
-        chunk_engine = tensor.chunk_engine
-
-        chunk_engine.max_chunk_size = max_chunk_size
-        chunk_engine.min_chunk_size = min_chunk_size
 
 
 def _assert_num_chunks(tensor, expected_num_chunks):
@@ -48,7 +32,7 @@ def _extend_tensors(images, labels):
 def test_append(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
-    _update_chunk_sizes(ds, 32 * KB)
+    update_chunk_sizes(ds, 32 * KB)
 
     _append_tensors(images, labels)
 
@@ -72,7 +56,7 @@ def test_extend(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
 
-    _update_chunk_sizes(ds, 32 * KB)
+    update_chunk_sizes(ds, 32 * KB)
 
     _extend_tensors(images, labels)
 
@@ -96,7 +80,7 @@ def test_extend_and_append(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
 
-    _update_chunk_sizes(ds, 32 * KB)
+    update_chunk_sizes(ds, 32 * KB)
 
     _extend_tensors(images, labels)
 
