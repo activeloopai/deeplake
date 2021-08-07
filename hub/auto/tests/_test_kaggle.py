@@ -22,7 +22,7 @@ def test_ingestion_simple(local_ds: Dataset):
     )
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds["labels"].numpy().shape == (10,)
+    assert ds["labels"].numpy().shape == (10, 1)
 
 
 def test_ingestion_sets(local_ds: Dataset):
@@ -74,14 +74,25 @@ def test_kaggle_exception(local_ds: Dataset):
             overwrite=False,
         )
 
-    with pytest.raises(KaggleDatasetAlreadyDownloadedError):
+    with pytest.raises(KaggleMissingCredentialsError):
         hub.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
-            dest=local_ds.path,
+            dest=dummy_path,
             images_compression="jpeg",
+            kaggle_credentials={},
             overwrite=False,
         )
+
+    hub.ingest_kaggle(
+        tag="thisiseshan/bird-classes",
+        src=kaggle_path,
+        dest=local_ds.path,
+        images_compression="jpeg",
+        overwrite=False,
+    )
+
+    with pytest.raises(KaggleDatasetAlreadyDownloadedError):
         hub.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
