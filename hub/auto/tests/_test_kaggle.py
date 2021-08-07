@@ -71,7 +71,7 @@ def test_kaggle_exception(local_ds: Dataset):
             src=kaggle_path,
             dest=dummy_path,
             images_compression="jpeg",
-            kaggle_credentials={},
+            kaggle_credentials={"not_username": "not_username"},
             overwrite=False,
         )
 
@@ -81,7 +81,7 @@ def test_kaggle_exception(local_ds: Dataset):
             src=kaggle_path,
             dest=dummy_path,
             images_compression="jpeg",
-            kaggle_credentials={"username": "thisiseshan", "password": "invalid"},
+            kaggle_credentials={"not_key": "not_key"},
             overwrite=False,
         )
 
