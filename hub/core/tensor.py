@@ -1,17 +1,20 @@
 import numpy as np
-from typing import List, Sequence, Union, Optional, Tuple
+from typing import List, Sequence, Union, Optional, Tuple, Any
+from functools import reduce
 from hub.core.index import Index
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
-from hub.core.sample import Sample  # type: ignore
-from hub.core.chunk_engine import ChunkEngine, SampleValue
+from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.chunk_engine import ChunkEngine
 from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
-from hub.util.shape import ShapeInterval
+from hub.util.casting import get_incompatible_dtype
+from hub.util.shape_interval import ShapeInterval
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
+    TensorDtypeMismatchError,
 )
 
 
@@ -108,7 +111,11 @@ class Tensor:
         Args:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
                 The length should be equal to the number of samples to add.
+
+        Raises:
+            TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
+
         self.chunk_engine.extend(samples)
 
     def append(
@@ -237,8 +244,49 @@ class Tensor:
             raise InvalidKeyTypeError(item)
         return Tensor(self.key, self.storage, index=self.index[item])
 
-    def __setitem__(self, item: Union[int, slice], value: np.ndarray):
-        raise NotImplementedError("Tensor update not currently supported!")
+    def _get_bigger_dtype(self, d1, d2):
+        if np.can_cast(d1, d2):
+            if np.can_cast(d2, d1):
+                return d1
+            else:
+                return d2
+        else:
+            if np.can_cast(d2, d1):
+                return d2
+            else:
+                return np.object
+
+    def _infer_np_dtype(self, val: Any) -> np.dtype:
+        # TODO refac
+        if hasattr(val, "dtype"):
+            return val.dtype
+        elif isinstance(val, int):
+            return np.array(0).dtype
+        elif isinstance(val, float):
+            return np.array(0.0).dtype
+        elif isinstance(val, str):
+            return np.array("").dtype
+        elif isinstance(val, bool):
+            return np.bool
+        elif isinstance(val, Sequence):
+            return reduce(self._get_bigger_dtype, map(self._infer_np_dtype, val))
+        else:
+            raise TypeError(f"Cannot infer numpy dtype for {val}")
+
+    def __setitem__(self, item: Union[int, slice], value: Any):
+        """Update samples with new values. Sub-slice updates are not supported yet.
+
+        Example:
+            >>> tensor.append(np.zeros((10, 10)))
+            >>> tensor.shape
+            (1, 10, 10)
+            >>> tensor[0] = np.zeros((3, 3))
+            >>> tensor.shape
+            (1, 3, 3)
+        """
+
+        item_index = Index(item)
+        self.chunk_engine.update(self.index[item_index], value)
 
     def __iter__(self):
         for i in range(len(self)):
@@ -267,7 +315,44 @@ class Tensor:
             index_str = ""
         return f"Tensor(key={repr(self.key)}{index_str})"
 
+    __repr__ = __str__
+
     def __array__(self) -> np.ndarray:
         return self.numpy()
 
-    __repr__ = __str__
+    # TODO: Inplace operatitions
+    def __iadd__(self, other):
+        raise NotImplementedError
+
+    def __isub__(self, other):
+        raise NotImplementedError
+
+    def __imul__(self, other):
+        raise NotImplementedError
+
+    def __idiv__(self, other):
+        raise NotImplementedError
+
+    def __ifloordiv__(self, other):
+        raise NotImplementedError
+
+    def __imod__(self, other):
+        raise NotImplementedError
+
+    def __ipow__(self, other):
+        raise NotImplementedError
+
+    def __ilshift__(self, other):
+        raise NotImplementedError
+
+    def __irshift__(self, other):
+        raise NotImplementedError
+
+    def __iand__(self, other):
+        raise NotImplementedError
+
+    def __ixor__(self, other):
+        raise NotImplementedError
+
+    def __ior__(self, other):
+        raise NotImplementedError

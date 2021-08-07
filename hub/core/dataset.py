@@ -25,6 +25,7 @@ from hub.util.exceptions import (
     ReadOnlyModeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
+    InvalidTensorNameError,
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
@@ -171,11 +172,14 @@ class Dataset:
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            InvalidTensorNameError: If `name` is in dataset attributes.
             NotImplementedError: If trying to override `chunk_compression`.
         """
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
+        if name in vars(self):
+            raise InvalidTensorNameError(name)
 
         # Seperate meta and info
 

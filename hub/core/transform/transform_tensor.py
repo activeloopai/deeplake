@@ -49,10 +49,8 @@ class TransformTensor:
                 expected_dims = self.items[-1].ndim
                 dims = item.ndim
                 if expected_dims != dims:
-                    raise TensorInvalidSampleShapeError(
-                        f"Sample shape length is expected to be {expected_dims}, actual length is {dims}.",
-                        item.shape,
-                    )
+                    raise TensorInvalidSampleShapeError(item.shape, expected_dims)
+
         self.items.append(item)
 
     def extend(self, items):

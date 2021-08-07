@@ -43,8 +43,10 @@ class SamePathException(Exception):
 
 
 class TensorInvalidSampleShapeError(Exception):
-    def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__(f"{message} Incoming sample shape: {str(shape)}")
+    def __init__(self, shape: Sequence[int], expected_dims: int):
+        super().__init__(
+            f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}"
+        )
 
 
 class TensorMetaMissingKey(Exception):
@@ -60,6 +62,13 @@ class TensorDoesNotExistError(KeyError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Tensor '{key}' already exists.")
+
+
+class InvalidTensorNameError(Exception):
+    def __init__(self, name: str):
+        super().__init__(
+            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+        )
 
 
 class DynamicTensorNumpyError(Exception):

@@ -1,4 +1,9 @@
-from typing import Optional, Sequence, Union, Tuple
+from hub.core.meta.tensor_meta import TensorMeta
+from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.casting import intelligent_cast
+from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.compression import compress_array
+from typing import List, Optional, Sequence, Union, Tuple
 
 import hub
 import numpy as np
@@ -205,3 +210,86 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     ids = buff[offset:].view(enc_dtype).reshape(-1, 2).copy()
 
     return version, ids
+
+
+def _serialize_input_sample(
+    sample: SampleValue,
+    sample_compression: Optional[str],
+    expected_dtype: np.dtype,
+    htype: str,
+) -> Tuple[bytes, Tuple[int]]:
+    """Converts the incoming sample into a buffer with the proper dtype and compression."""
+
+    if isinstance(sample, Sample):
+        buffer = sample.compressed_bytes(sample_compression)
+        shape = sample.shape
+    else:
+        sample = intelligent_cast(sample, expected_dtype, htype)
+        shape = sample.shape
+
+        if sample_compression is not None:
+            buffer = compress_array(sample, sample_compression)
+        else:
+            buffer = sample.tobytes()
+
+    if len(shape) == 0:
+        shape = (1,)
+
+    return buffer, shape
+
+
+def _check_input_samples_are_valid(
+    buffer_and_shapes: List, min_chunk_size: int, sample_compression: Optional[str]
+):
+    """Iterates through all buffers/shapes and raises appropriate errors."""
+
+    expected_dimensionality = None
+    for buffer, shape in buffer_and_shapes:
+        # check that all samples have the same dimensionality
+        if expected_dimensionality is None:
+            expected_dimensionality = len(shape)
+
+        if len(buffer) > min_chunk_size:
+            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {len(buffer)} bytes."
+            if sample_compression is None:
+                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
+            raise NotImplementedError(msg)
+
+        if len(shape) != expected_dimensionality:
+            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+
+
+def serialize_input_samples(
+    samples: Union[Sequence[SampleValue], SampleValue],
+    meta: TensorMeta,
+    min_chunk_size: int,
+) -> List[Tuple[memoryview, Tuple[int]]]:
+    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Either a single sample or sequence of samples.
+        meta (TensorMeta): Tensor meta. Will not be modified.
+        min_chunk_size (int): Used to validate that all samples are appropriately sized.
+
+    Raises:
+        ValueError: Tensor meta should have it's dtype set.
+
+    Returns:
+        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
+    """
+
+    if meta.dtype is None:
+        raise ValueError("Dtype must be set before input samples can be serialized.")
+
+    sample_compression = meta.sample_compression
+    dtype = np.dtype(meta.dtype)
+    htype = meta.htype
+
+    serialized = []
+    for sample in samples:
+        byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
+        buffer = memoryview(byts)
+        serialized.append((buffer, shape))
+
+    _check_input_samples_are_valid(serialized, min_chunk_size, dtype)
+    return serialized

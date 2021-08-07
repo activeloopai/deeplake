@@ -28,7 +28,7 @@ def test_ingestion_simple(memory_ds: Dataset):
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds.images.numpy().shape == (3, 200, 200, 3)
-    assert ds.labels.numpy().shape == (3,)
+    assert ds.labels.numpy().shape == (3, 1)
     assert ds.labels.info.class_names == ("class0", "class1", "class2")
 
 
@@ -48,11 +48,11 @@ def test_image_classification_sets(memory_ds: Dataset):
         "train/labels",
     ]
     assert ds["test/images"].numpy().shape == (3, 200, 200, 3)
-    assert ds["test/labels"].numpy().shape == (3,)
+    assert ds["test/labels"].numpy().shape == (3, 1)
     assert ds["test/labels"].info.class_names == ("class0", "class1", "class2")
 
     assert ds["train/images"].numpy().shape == (3, 200, 200, 3)
-    assert ds["train/labels"].numpy().shape == (3,)
+    assert ds["train/labels"].numpy().shape == (3, 1)
     assert ds["train/labels"].info.class_names == ("class0", "class1", "class2")
 
 
