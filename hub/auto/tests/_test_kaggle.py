@@ -69,7 +69,7 @@ def test_kaggle_exception(local_ds: Dataset):
         hub.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
-            dest=dummy_path,
+            dest=local_ds.path,
             images_compression="jpeg",
             kaggle_credentials={"not_username": "not_username"},
             overwrite=False,
@@ -79,9 +79,9 @@ def test_kaggle_exception(local_ds: Dataset):
         hub.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
-            dest=dummy_path,
+            dest=local_ds.path,
             images_compression="jpeg",
-            kaggle_credentials={"not_key": "not_key"},
+            kaggle_credentials={"username": "thisiseshan", "not_key": "not_key"},
             overwrite=False,
         )
 
@@ -89,7 +89,7 @@ def test_kaggle_exception(local_ds: Dataset):
         hub.ingest_kaggle(
             tag="thisiseshan/invalid-dataset",
             src=kaggle_path,
-            dest=dummy_path,
+            dest=local_ds.path,
             images_compression="jpeg",
             overwrite=False,
         )
