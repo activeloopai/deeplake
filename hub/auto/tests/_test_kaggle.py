@@ -4,6 +4,7 @@ from hub.util.exceptions import (
     KaggleDatasetAlreadyDownloadedError,
     SamePathException,
     KaggleMissingCredentialsError,
+    ExternalCommandError,
 )
 from hub.tests.common import get_dummy_data_path
 import pytest
@@ -80,7 +81,16 @@ def test_kaggle_exception(local_ds: Dataset):
             src=kaggle_path,
             dest=dummy_path,
             images_compression="jpeg",
-            kaggle_credentials={},
+            kaggle_credentials={"username": "thisiseshan", "password": "invalid"},
+            overwrite=False,
+        )
+
+    with pytest.raises(ExternalCommandError):
+        hub.ingest_kaggle(
+            tag="thisiseshan/invalid-dataset",
+            src=kaggle_path,
+            dest=dummy_path,
+            images_compression="jpeg",
             overwrite=False,
         )
 
