@@ -233,7 +233,6 @@ class ChunkEngine:
                 compressed_bytes = compress_multiple(
                     last_chunk_uncompressed, chunk_compression
                 )
-            chunk.update_headers(len(buffer), shape)
             chunk._data = compressed_bytes
         else:
             buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
@@ -242,6 +241,12 @@ class ChunkEngine:
 
         self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
+
+    def _can_set_to_last_chunk(self, nbytes: int) -> bool:
+        last_chunk = self.last_chunk
+        if last_chunk is None:
+            return False
+        return nbytes <= self.min_chunk_size
 
     def _synchronize_cache(self, chunk_keys: List[str] = None):
         """Synchronizes cachables with the cache.
