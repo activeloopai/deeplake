@@ -89,3 +89,38 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
         return np.array(img).reshape(shape)
     except UnidentifiedImageError:
         raise SampleDecompressionError()
+
+
+def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int]:
+    if len(shapes) == 0:
+        return (0, 0)
+    channels_shape = shapes[0][2:]
+    for shape in shapes:
+        if shape[2:] != channels_shape:
+            raise ValueError()
+    return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape
+
+
+def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
+    dtype = arrays[0].dtype
+    for arr in arrays:
+        if arr.dtype != dtype:
+            raise TypeError()  # TODO
+    canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
+    next_x = 0
+    for arr in arrays:
+        canvas[: arr.shape[0], next_x : next_x + arr.shape[1]] = arr
+        next_x += arr.shape[1]
+    return compress_array(canvas, compression=compression)
+
+
+def decompress_multiple(
+    buffer: Union[bytes, memoryview], shapes: Sequence[Tuple[int]]
+) -> List[np.ndarray]:
+    canvas = decompress_array(buffer)
+    arrays = []
+    next_x = 0
+    for shape in shapes:
+        arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
+        next_x += shape[1]
+    return arrays
