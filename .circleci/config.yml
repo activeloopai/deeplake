@@ -151,9 +151,9 @@ commands:
           command: |
             pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
-            pip3 install -r requirements/tests.txt
-            <<# parameters.plugins >>pip3 install -r requirements/plugins.txt<</ parameters.plugins >>
-            pip3 install -r requirements/common.txt
+            pip3 install -r hub/requirements/tests.txt
+            <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
+            pip3 install -r hub/requirements/common.txt
             pip3 install -e .
             git clone https://github.com/activeloopai/buH.git
             pip3 install -e buh/
@@ -310,7 +310,7 @@ jobs:
       - run:
           name: "Build Docker Hub Image"
           command: |
-            docker build -t $IMAGE_NAME:latest .
+            docker build -t $IMAGE_NAME:latest -f bin/Dockerfile.
       - run:
           name: "Deploy to Docker Hub"
           command: |
