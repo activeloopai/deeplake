@@ -56,25 +56,24 @@ def serialize_chunk(
     """
     nbytes = infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
     flatbuff = bytearray(nbytes)
-    offset = 0
-
-    write_version(version, flatbuff, offset)
-    write_shape_info(shape_info, flatbuff, offset)
-    write_byte_positions(byte_positions, flatbuff, offset)
-    write_actual_data(data, flatbuff, offset)
+    offset = write_version(version, flatbuff)
+    offset = write_shape_info(shape_info, flatbuff, offset)
+    offset = write_byte_positions(byte_positions, flatbuff, offset)
+    offset = write_actual_data(data, flatbuff, offset)
     return memoryview(flatbuff)
 
 
-def write_version(version, buffer, offset):
-    """Writes version info to the buffer, takes offset into account and updates it."""
+def write_version(version, buffer) -> int:
+    """Writes version info to the buffer, returns offset."""
     len_version = len(version)
     buffer[0] = len_version
     buffer[1 : 1 + len_version] = list(map(ord, version))
-    offset += 1 + len_version
+    offset = 1 + len_version
+    return offset
 
 
-def write_shape_info(shape_info, buffer, offset):
-    """Writes shape info to the buffer, takes offset into account and updates it."""
+def write_shape_info(shape_info, buffer, offset) -> int:
+    """Writes shape info to the buffer, takes offset into account and returns updated offset."""
     if shape_info.ndim == 1:
         offset += 8
     else:
@@ -84,10 +83,11 @@ def write_shape_info(shape_info, buffer, offset):
 
         buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
         offset += shape_info.nbytes
+    return offset
 
 
-def write_byte_positions(byte_positions, buffer, offset):
-    """Writes byte positions info to the buffer, takes offset into account and updates it."""
+def write_byte_positions(byte_positions, buffer, offset) -> int:
+    """Writes byte positions info to the buffer, takes offset into account and returns updated offset."""
     if byte_positions.ndim == 1:
         offset += 4
     else:
@@ -96,14 +96,16 @@ def write_byte_positions(byte_positions, buffer, offset):
 
         buffer[offset : offset + byte_positions.nbytes] = byte_positions.tobytes()
         offset += byte_positions.nbytes
+    return offset
 
 
-def write_actual_data(data, buffer, offset):
-    """Writes actual chunk data to the buffer, takes offset into account and updates it."""
+def write_actual_data(data, buffer, offset) -> int:
+    """Writes actual chunk data to the buffer, takes offset into account and returns updated offset"""
     for byts in data:
         n = len(byts)
         buffer[offset : offset + n] = byts
         offset += n
+    return offset
 
 
 def deserialize_chunk(
