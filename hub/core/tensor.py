@@ -12,6 +12,7 @@ from hub.api.info import load_info
 from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key, get_hashlist_key, hashlist_exists
 from hub.util.casting import get_incompatible_dtype
 from hub.util.shape_interval import ShapeInterval
+from hub.util.hash import generate_hashes
 from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
@@ -19,6 +20,7 @@ from hub.util.exceptions import (
     HashlistAlreadyExistsError,
     TensorDtypeMismatchError,
 )
+from hub.core.serialize import _serialize_input_sample
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
 # def link_tensor(
@@ -125,7 +127,10 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
         self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
-
+        
+        if self.meta.linked_tensors and self.key is not "hashes":
+            self.linked_tensor = Tensor("hashes", self.storage)
+            
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
@@ -158,15 +163,10 @@ class Tensor:
         """
 
         self.chunk_engine.extend(samples)
-        
-        # #Check tensor meta for linked tensors
-                
-        # if tensor_meta.linked_tensors:
-        #     for tensor in result.tensors:
-        #         hashed_sample = hash(samples)
-        #         self.chunk_engine.extend(samples)
-        #         all_chunk_engines[tensor].extend(result[tensor].numpy_compressed())
 
+        if self.meta.linked_tensors is not None:
+            hashed_samples = generate_hashes(samples)
+            self.linked_tensor.chunk_engine.extend(hashed_samples)
 
 
     def append(
@@ -338,6 +338,10 @@ class Tensor:
 
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
+
+        if self.meta.linked_tensors is not None:
+            hashed_samples = generate_hashes(value)
+            self.linked_tensor.chunk_engine.update(self.index[item_index],hashed_samples)
 
     def __iter__(self):
         for i in range(len(self)):

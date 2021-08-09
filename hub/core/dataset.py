@@ -1,19 +1,21 @@
 import hub
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
-from hub.core.tensor import create_tensor, Tensor
+from hub.core.tensor import create_tensor, Tensor, load_tensor_meta
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
 from hub.htypes import HTYPE_CONFIGURATIONS
 import numpy as np
 
 from hub.core.meta.dataset_meta import DatasetMeta
+from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index import Index
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
     dataset_exists,
     get_dataset_info_key,
     get_dataset_meta_key,
+    get_tensor_meta_key,
     tensor_exists,
 )
 from hub.util.bugout_reporter import hub_reporter
@@ -217,30 +219,33 @@ class Dataset:
 
         tensor.info.update(info_kwargs)
 
-        # Generate a tensor to stores hashes
         if hash_samples:
-            self.create_tensor("hashes")
+            self.create_tensor("hashes", htype = 'image', sample_compression='jpeg')
             self._link_tensor(tensor, self.hashes)
 
         return tensor
 
-    @hub_reporter.record_call
     def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
         
-        print("src: ", src)
-        print("dest: ", dest)
-
         src_meta = src.meta.__getstate__().copy()
         dest_meta = dest.meta.__getstate__().copy()
 
         if src_meta["length"] != dest_meta["length"]:
            raise NotImplementedError("Meta lengths are different.")
         
-        # Add link to source tensor 
-        src_meta["linked_tensors"] = src  
+        if isinstance(src, Tensor):
+            linked_tensor_key = get_tensor_meta_key(src.key)
+        else:
+            linked_tensor_key = get_tensor_meta_key(src)
+
+        linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
         
+        if isinstance(src, Tensor):
+            linked_tensor_meta.linked_tensors.append(dest.key)
+        else:
+            linked_tensor_meta.linked_tensors.append(dest)
+
         
-    
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.

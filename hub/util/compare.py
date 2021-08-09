@@ -11,6 +11,15 @@ from hub.util.keys import (
 import os, glob
 
 
+def load_hashes(src: Union[str, "Tensor"]):
+    
+    hashlist = []
+
+    # Load all hashes from tensor into list
+
+
+    return hashlist
+
 def jaccard_similarity(list_1, list_2):
     """Calculated the Jaccard similarity index (also known as Intersection over Union) for the two 
        lists being compared
@@ -61,7 +70,7 @@ def load_hashlist(path: Union[str, Dataset, Tensor]):
     return hashlist
 
 def compare(
-    path_1: Union[str, Dataset, Tensor], path_2: Union[str, Dataset, Tensor]
+    path_1: Union[Dataset, Tensor], path_2: Union[Dataset, Tensor]
 ) -> int:
     """Utility that compares hashlist of two different dataset/tensors
 
