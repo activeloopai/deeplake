@@ -65,26 +65,21 @@ def serialize_chunk(
 
     # Write shape info
     if shape_info.ndim == 1:
-        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte).tobytes()
         offset += 8
     else:
-        flatbuff[offset : offset + 8] = np.array(
-            shape_info.shape, dtype=np.int32
-        ).tobytes()
+        flatbuff[offset : offset + 4] = shape_info.shape[0].to_bytes(4, "little")
+        flatbuff[offset + 4 : offset + 8] = shape_info.shape[1].to_bytes(4, "little")
         offset += 8
-        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).tobytes()
+        flatbuff[offset : offset + shape_info.nbytes] = shape_info.tobytes()
         offset += shape_info.nbytes
 
     # Write byte positions
     if byte_positions.ndim == 1:
-        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte).tobytes()
         offset += 4
     else:
-        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).tobytes()
+        flatbuff[offset : offset + 4] = byte_positions.shape[0].to_bytes(4, "little")
         offset += 4
-        flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(
-            -1
-        ).tobytes()
+        flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.tobytes()
         offset += byte_positions.nbytes
 
     # Write actual data
