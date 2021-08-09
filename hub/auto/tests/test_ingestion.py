@@ -22,10 +22,10 @@ def test_ingestion_simple(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
-        images_compression="jpeg",
         overwrite=False,
     )
 
+    assert ds.images.meta.sample_compression == "jpeg"
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds.images.numpy().shape == (3, 200, 200, 3)
     assert ds.labels.numpy().shape == (3, 1)
@@ -37,7 +37,6 @@ def test_image_classification_sets(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
-        images_compression="jpeg",
         overwrite=False,
     )
 
@@ -47,6 +46,8 @@ def test_image_classification_sets(memory_ds: Dataset):
         "train/images",
         "train/labels",
     ]
+
+    assert ds["train/images"].meta.sample_compression == "jpeg"
     assert ds["test/images"].numpy().shape == (3, 200, 200, 3)
     assert ds["test/labels"].numpy().shape == (3, 1)
     assert ds["test/labels"].info.class_names == ("class0", "class1", "class2")
