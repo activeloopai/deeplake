@@ -55,7 +55,7 @@ def serialize_chunk(
         Serialized chunk as memoryview.
     """
     nbytes = infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
-    flatbuff = np.zeros(nbytes, dtype=np.byte)
+    flatbuff = bytearray(nbytes)
 
     # Write version
     len_version = len(version)
@@ -65,38 +65,34 @@ def serialize_chunk(
 
     # Write shape info
     if shape_info.ndim == 1:
-        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte)
+        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte).tobytes()
         offset += 8
     else:
-        flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
-            np.byte
-        )
+        flatbuff[offset : offset + 8] = np.array(
+            shape_info.shape, dtype=np.int32
+        ).tobytes()
         offset += 8
-        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).view(
-            np.byte
-        )
+        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).tobytes()
         offset += shape_info.nbytes
 
     # Write byte positions
     if byte_positions.ndim == 1:
-        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte)
+        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte).tobytes()
         offset += 4
     else:
-        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).view(
-            (np.byte, 4)
-        )
+        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).tobytes()
         offset += 4
         flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(
             -1
-        ).view(np.byte)
+        ).tobytes()
         offset += byte_positions.nbytes
 
     # Write actual data
     for byts in data:
         n = len(byts)
-        flatbuff[offset : offset + n] = np.frombuffer(byts, dtype=np.byte)
+        flatbuff[offset : offset + n] = byts
         offset += n
-    return memoryview(flatbuff.tobytes())
+    return memoryview(flatbuff)
 
 
 def deserialize_chunk(

@@ -77,8 +77,8 @@ class LocalProvider(StorageProvider):
                 raise FileAtPathException(directory)
             if not os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
-            file = open(full_path, "wb")
-            file.write(value)
+            with open(full_path, "wb") as file:
+                file.write(value)
         except Exception:
             raise
 
