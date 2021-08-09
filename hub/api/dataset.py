@@ -12,6 +12,7 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
+from hub.util.auto import detect_compression
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
@@ -261,7 +262,7 @@ class dataset:
     def ingest(
         src: str,
         dest: str,
-        images_compression: str,
+        images_compression: str = None,
         dest_creds: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
@@ -333,6 +334,9 @@ class dataset:
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
+        if images_compression is None:
+            images_compression = detect_compression(src)
+
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         # TODO: support more than just image classification (and update docstring)
@@ -351,7 +355,7 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
-        images_compression: str,
+        images_compression: str = None,
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
         overwrite: bool = False,
@@ -393,8 +397,8 @@ class dataset:
         ds = hub.ingest(
             src=src,
             dest=dest,
-            dest_creds=dest_creds,
             images_compression=images_compression,
+            dest_creds=dest_creds,
             overwrite=overwrite,
             **dataset_kwargs,
         )
