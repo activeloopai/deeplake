@@ -23,6 +23,7 @@ def create_tensor(
     storage: StorageProvider,
     htype: str,
     sample_compression: str,
+    chunk_compression: str,
     **kwargs,
 ):
     """If a tensor does not exist, create a new one with the provided meta.
@@ -32,6 +33,7 @@ def create_tensor(
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
+        chunk_compression (str): All chunks will be compressed in the provided format. If `None`, chunks are uncompressed.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -46,6 +48,7 @@ def create_tensor(
     meta = TensorMeta(
         htype=htype,
         sample_compression=sample_compression,
+        chunk_compression=chunk_compression,
         **kwargs,
     )
     storage[meta_key] = meta  # type: ignore

@@ -4,7 +4,7 @@ from hub.util.exceptions import (
     SampleDecompressionError,
     UnsupportedCompressionError,
 )
-from typing import Union, Tuple
+from typing import Union, Tuple, Sequence, List, Optional
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
@@ -65,7 +65,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise SampleCompressionError(array.shape, compression, str(e))
 
 
-def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.ndarray:
+def decompress_array(buffer: Union[bytes, memoryview], shape: Optional[Tuple[int]] = None) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
@@ -86,7 +86,10 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
 
     try:
         img = Image.open(BytesIO(buffer))
-        return np.array(img).reshape(shape)
+        arr = np.array(img)
+        if shape is not None:
+            arr = arr.reshape(shape)
+        return arr
     except UnidentifiedImageError:
         raise SampleDecompressionError()
 

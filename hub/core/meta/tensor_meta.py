@@ -25,6 +25,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
+    chunk_compression: str
 
     def __init__(
         self,
@@ -135,6 +136,15 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
                 raise TensorMetaMissingRequiredValue(htype, key)
 
+    if (
+        htype == "image"
+        and htype_overwrite["chunk_compression"] == UNSPECIFIED
+        and htype_overwrite["sample_compression"] == UNSPECIFIED
+    ):
+        raise TensorMetaMissingRequiredValue(
+            htype, ["chunk_compression", "sample_compression"]
+        )
+
 
 def _replace_unspecified_values(htype: str, htype_overwrite: dict):
     """Replaces `UNSPECIFIED` values in `htype_overwrite` with the `htype`'s defaults."""
@@ -154,6 +164,11 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
     if sample_compression not in SUPPORTED_COMPRESSIONS:
         raise UnsupportedCompressionError(sample_compression)
 
+    chunk_compression = htype_overwrite["chunk_compression"]
+    chunk_compression = COMPRESSION_ALIASES.get(chunk_compression, chunk_compression)
+    if chunk_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(chunk_compression)
+
     if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
             "dtype",
@@ -172,6 +187,8 @@ def _format_values(htype_overwrite: dict):
     for key, value in COMPRESSION_ALIASES.items():
         if htype_overwrite.get("sample_compression") == key:
             htype_overwrite["sample_compression"] = value
+        if htype_overwrite.get("chunk_compression") == key:
+            htype_overwrite["chunk_compression"] = value
 
 
 def _validate_htype_exists(htype: str):

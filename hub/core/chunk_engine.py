@@ -9,6 +9,12 @@ from hub.util.exceptions import (
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
+from hub.core.storage.lru_cache import LRUCache
+from hub.core.chunk import Chunk
+from hub.core.meta.encode.chunk_id import ChunkIdEncoder
+from hub.core.serialize import serialize_input_samples
+from hub.core.compression import compress_multiple
+
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
@@ -17,15 +23,11 @@ from hub.util.keys import (
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
+from itertools import repeat
+
 import numpy as np
 
-from hub.core.storage.lru_cache import LRUCache
 
-from hub.core.chunk import Chunk
-
-from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-
-from hub.core.serialize import serialize_input_samples
 
 
 def is_uniform_sequence(samples):
@@ -124,6 +126,8 @@ class ChunkEngine:
         # only the last chunk may be less than this
         self.min_chunk_size = self.max_chunk_size // 2
         self._meta_cache = meta_cache
+        if self.tensor_meta.chunk_compression:
+            self._last_chunk_uncompressed: List[np.ndarray] = self.last_chunk.decompressed_samples if self.last_chunk else []
 
     @property
     def meta_cache(self) -> LRUCache:
@@ -212,9 +216,29 @@ class ChunkEngine:
         # num samples is always 1 when appending
         num_samples = 1
 
-        buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
-        if not buffer_consumed:
-            self._append_to_new_chunk(buffer, shape)
+        chunk_compression = self.tensor_meta.chunk_compression
+        if chunk_compression:
+            last_chunk_uncompressed = self._last_chunk_uncompressed
+            last_chunk_uncompressed.append(
+                np.frombuffer(buffer, dtype=dtype).reshape(shape)
+            )
+            compressed_bytes = compress_multiple(
+                last_chunk_uncompressed, chunk_compression
+            )
+            if self._can_set_to_last_chunk(len(compressed_bytes)):
+                chunk = self.last_chunk
+            else:
+                chunk = self._create_new_chunk()
+                del last_chunk_uncompressed[:-1]
+                compressed_bytes = compress_multiple(
+                    last_chunk_uncompressed, chunk_compression
+                )
+            chunk.update_headers(len(buffer), shape)
+            chunk._data = compressed_bytes
+        else:
+            buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
+            if not buffer_consumed:
+                self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
         self._synchronize_cache()
@@ -357,7 +381,7 @@ class ChunkEngine:
             )
 
             tensor_meta.update_shape_interval(shape)
-            chunk.update_sample(local_sample_index, buffer, shape)
+            chunk.update_sample(local_sample_index, buffer, shape, chunk_compression=self.tensor_meta.chunk_compression, dtype=self.tensor_meta.dtype)
             updated_chunks.add(chunk)
 
             # only care about deltas if it isn't the last chunk
