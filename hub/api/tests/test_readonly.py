@@ -12,6 +12,9 @@ def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
     with pytest.raises(ReadOnlyModeError):
         ds.tensor.append(np.ones(sample_shape))
 
+    with pytest.raises(ReadOnlyModeError):
+        ds.tensor[0] = np.ones((200, 200))
+
     assert len(ds) == num_samples
     assert len(ds.tensor) == num_samples
 

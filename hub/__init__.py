@@ -15,9 +15,12 @@ from .api.read import read
 from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
 
+list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+ingest = dataset.ingest
+ingest_kaggle = dataset.ingest_kaggle
 
 __all__ = [
     "dataset",
@@ -28,6 +31,8 @@ __all__ = [
     "compute",
     "compose",
     "like",
+    "ingest",
+    "ingest_kaggle",
 ]
 
 __version__ = "2.0.5"

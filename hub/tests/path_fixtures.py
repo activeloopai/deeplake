@@ -143,7 +143,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 @pytest.fixture
 def cat_path():
-    """Path to a cat image in the dummy data folder."""
+    """Path to a cat image in the dummy data folder. Expected shape: (900, 900, 3)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "cat.jpeg")
@@ -151,7 +151,34 @@ def cat_path():
 
 @pytest.fixture
 def flower_path():
-    """Path to a flower image in the dummy data folder."""
+    """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "flower.png")
+
+
+@pytest.fixture
+def compressed_image_paths():
+    paths = {
+        "webp": "beach.webp",
+        "gif": "boat.gif",
+        "bmp": "car.bmp",
+        "jpeg": "cat.jpeg",
+        "wmf": "crown.wmf",
+        "dib": "dog.dib",
+        "tiff": "field.tiff",
+        "png": "flower.png",
+        "ico": "sample_ico.ico",
+        "jpeg2000": "sample_jpeg2000.jp2",
+        "pcx": "sample_pcx.pcx",
+        "ppm": "sample_ppm.ppm",
+        "sgi": "sample_sgi.sgi",
+        "tga": "sample_tga.tga",
+        "xbm": "sample_xbm.xbm",
+    }
+
+    parent = get_dummy_data_path("compressed_images")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+
+    return paths
