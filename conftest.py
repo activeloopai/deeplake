@@ -43,6 +43,9 @@ def pytest_addoption(parser):
         help="All storage providers/datasets will have their pytest data wiped. \
                 Use this option to keep the data after the test run. Note: does not keep memory tests storage.",
     )
+    parser.addoption(
+        KAGGLE_OPT, action="store_true", help="Kaggle tests will run if enabled."
+    )
 
 
 def print_session_id():
