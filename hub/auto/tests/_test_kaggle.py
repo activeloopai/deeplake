@@ -1,5 +1,11 @@
+from hub.auto.unstructured import kaggle
 from hub.api.dataset import Dataset
-from hub.util.exceptions import KaggleDatasetAlreadyDownloadedError, SamePathException
+from hub.util.exceptions import (
+    KaggleDatasetAlreadyDownloadedError,
+    SamePathException,
+    KaggleMissingCredentialsError,
+    ExternalCommandError,
+)
 from hub.tests.common import get_dummy_data_path
 import pytest
 import os
@@ -12,13 +18,12 @@ def test_ingestion_simple(local_ds: Dataset):
         tag="andradaolteanu/birdcall-recognition-data",
         src=kaggle_path,
         dest=local_ds.path,
-        dest_creds={},
-        compression="jpeg",
+        images_compression="jpeg",
         overwrite=False,
     )
 
     assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds["labels"].numpy().shape == (10,)
+    assert ds["labels"].numpy().shape == (10, 1)
 
 
 def test_ingestion_sets(local_ds: Dataset):
@@ -28,8 +33,7 @@ def test_ingestion_sets(local_ds: Dataset):
         tag="thisiseshan/bird-classes",
         src=kaggle_path,
         dest=local_ds.path,
-        dest_creds={},
-        compression="jpeg",
+        images_compression="jpeg",
         overwrite=False,
     )
 
@@ -57,25 +61,52 @@ def test_kaggle_exception(local_ds: Dataset):
             tag="thisiseshan/bird-classes",
             src=dummy_path,
             dest=dummy_path,
-            dest_creds=None,
-            compression="jpeg",
+            images_compression="jpeg",
             overwrite=False,
         )
+
+    with pytest.raises(KaggleMissingCredentialsError):
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
+            src=kaggle_path,
+            dest=local_ds.path,
+            images_compression="jpeg",
+            kaggle_credentials={"not_username": "not_username"},
+            overwrite=False,
+        )
+
+    with pytest.raises(KaggleMissingCredentialsError):
+        hub.ingest_kaggle(
+            tag="thisiseshan/bird-classes",
+            src=kaggle_path,
+            dest=local_ds.path,
+            images_compression="jpeg",
+            kaggle_credentials={"username": "thisiseshan", "not_key": "not_key"},
+            overwrite=False,
+        )
+
+    with pytest.raises(ExternalCommandError):
+        hub.ingest_kaggle(
+            tag="thisiseshan/invalid-dataset",
+            src=kaggle_path,
+            dest=local_ds.path,
+            images_compression="jpeg",
+            overwrite=False,
+        )
+
+    hub.ingest_kaggle(
+        tag="thisiseshan/bird-classes",
+        src=kaggle_path,
+        dest=local_ds.path,
+        images_compression="jpeg",
+        overwrite=False,
+    )
 
     with pytest.raises(KaggleDatasetAlreadyDownloadedError):
         hub.ingest_kaggle(
             tag="thisiseshan/bird-classes",
             src=kaggle_path,
             dest=local_ds.path,
-            dest_creds={},
-            compression="jpeg",
-            overwrite=False,
-        )
-        hub.ingest_kaggle(
-            tag="thisiseshan/bird-classes",
-            src=kaggle_path,
-            dest=local_ds.path,
-            dest_creds={},
-            compression="jpeg",
+            images_compression="jpeg",
             overwrite=False,
         )

@@ -18,21 +18,23 @@ def _exec_command(command):
 
 
 def _set_environment_credentials_if_none(kaggle_credentials: dict = None):
-    if kaggle_credentials is None:
-        kaggle_credentials = {}
+    if kaggle_credentials is not None:
+        username = kaggle_credentials.get("username", None)
+        if not username:
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_USERNAME)
+        os.environ[ENV_KAGGLE_USERNAME] = username
+        key = kaggle_credentials.get("key", None)
+        if not key:
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_KEY)
+        os.environ[ENV_KAGGLE_KEY] = key
+    else:
         if ENV_KAGGLE_USERNAME not in os.environ:
-            username = kaggle_credentials.get("username", None)
-            if not username:
-                raise KaggleMissingCredentialsError(ENV_KAGGLE_USERNAME)
-            os.environ[ENV_KAGGLE_USERNAME] = username
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_USERNAME)
         if ENV_KAGGLE_KEY not in os.environ:
-            key = kaggle_credentials.get("key", None)
-            if not key:
-                raise KaggleMissingCredentialsError(ENV_KAGGLE_KEY)
-            os.environ[ENV_KAGGLE_KEY] = key
+            raise KaggleMissingCredentialsError(ENV_KAGGLE_KEY)
 
 
-def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = {}):
+def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict = None):
     """Calls the kaggle API (https://www.kaggle.com/docs/api) to download a kaggle dataset and unzip it's contents.
 
     Args:
