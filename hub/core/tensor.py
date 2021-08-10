@@ -103,8 +103,9 @@ class Tensor:
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
         self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
         
-        if ("hashes" in self.meta.linked_tensors) and (self.key != "hashes"):
-            self.linked_tensor = Tensor("hashes", self.storage)
+        # if ("hashes" in self.meta.linked_tensors) and (self.key != "hashes"):
+        #     print("self.key:", self.key)
+        #     self.linked_tensor = Tensor("hashes", self.storage)
             
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -139,9 +140,9 @@ class Tensor:
 
         self.chunk_engine.extend(samples)
 
-        if "hashes" in self.meta.linked_tensors:
-            hashed_samples = generate_hashes(samples)
-            self.linked_tensor.chunk_engine.extend(hashed_samples)
+        # if "hashes" in self.meta.linked_tensors:
+        #     hashed_samples = generate_hashes(samples)
+        #     self.linked_tensor.chunk_engine.extend(hashed_samples)
 
 
     def append(

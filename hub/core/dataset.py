@@ -220,9 +220,9 @@ class Dataset:
         tensor.info.update(info_kwargs)
 
         if hash_samples:
-            self.create_tensor("hashes", htype = 'image', sample_compression='jpeg')
-            self._link_tensor(tensor, self.hashes)
-
+            hashes_tensor = self.create_tensor("hashes", htype = htype, sample_compression=sample_compression)
+            self._link_tensor(tensor, hashes_tensor)
+            
         return tensor
 
     def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
@@ -230,20 +230,33 @@ class Dataset:
         src_meta = src.meta.__getstate__().copy()   
         dest_meta = dest.meta.__getstate__().copy()
 
-        if src_meta["length"] != dest_meta["length"]:
-           raise NotImplementedError("Meta lengths are different.")
+        print("(Before append) src_meta: ", src_meta['linked_tensors'])
+        print('(Before append) dest_meta: ', dest_meta['linked_tensors'])
         
-        if isinstance(src, Tensor):
-            linked_tensor_key = get_tensor_meta_key(src.key)    
-            linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
-            linked_tensor_meta.linked_tensors.append(dest.key)
-            
-        else:
-            linked_tensor_key = get_tensor_meta_key(src)
-            linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
-            linked_tensor_meta.linked_tensors.append(dest)
+        src_meta['linked_tensors'].append('hashes')
+        
+        print("(After append) src_meta: ", src_meta['linked_tensors'])
+        print('(After append) dest_meta', dest_meta['linked_tensors'])
+        
+        # if isinstance(src, Tensor):
 
-        
+        #     linked_tensor_key = get_tensor_meta_key(src.key)    
+        #     linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
+
+        #     if len(linked_tensor_meta.linked_tensors) == 0:
+        #         linked_tensor_meta.linked_tensors.append(dest.key) 
+        #     else:
+        #         raise NotImplementedError("Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible.")
+                
+        # else:
+        #     linked_tensor_key = get_tensor_meta_key(src)
+            
+        #     linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
+            
+        #     if len(linked_tensor_meta.linked_tensors) == 0:
+        #         linked_tensor_meta.linked_tensors.append(dest)
+        #     else:
+        #         raise NotImplementedError("Source tensor already contains a single link to another tensor. Linking a tensor to two or more tensors is not possible.")    
         
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
