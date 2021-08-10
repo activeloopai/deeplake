@@ -155,6 +155,7 @@ commands:
             <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r hub/requirements/common.txt
             git clone https://github.com/activeloopai/buH.git
+            pip install -e buH
             sh buH/buh/scripts/create_all.sh
             pip3 install -e .
   run-tests:
