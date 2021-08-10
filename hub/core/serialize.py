@@ -55,48 +55,57 @@ def serialize_chunk(
         Serialized chunk as memoryview.
     """
     nbytes = infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
-    flatbuff = np.zeros(nbytes, dtype=np.byte)
+    flatbuff = bytearray(nbytes)
+    offset = write_version(version, flatbuff)
+    offset = write_shape_info(shape_info, flatbuff, offset)
+    offset = write_byte_positions(byte_positions, flatbuff, offset)
+    offset = write_actual_data(data, flatbuff, offset)
+    return memoryview(flatbuff)
 
-    # Write version
+
+def write_version(version, buffer) -> int:
+    """Writes version info to the buffer, returns offset."""
     len_version = len(version)
-    flatbuff[0] = len_version
-    flatbuff[1 : 1 + len_version] = list(map(ord, version))
+    buffer[0] = len_version
+    buffer[1 : 1 + len_version] = list(map(ord, version))
     offset = 1 + len_version
+    return offset
 
-    # Write shape info
+
+def write_shape_info(shape_info, buffer, offset) -> int:
+    """Writes shape info to the buffer, takes offset into account and returns updated offset."""
     if shape_info.ndim == 1:
-        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte)
         offset += 8
     else:
-        flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
-            np.byte
-        )
+        buffer[offset : offset + 4] = shape_info.shape[0].to_bytes(4, "little")
+        buffer[offset + 4 : offset + 8] = shape_info.shape[1].to_bytes(4, "little")
         offset += 8
-        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).view(
-            np.byte
-        )
+
+        buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
         offset += shape_info.nbytes
+    return offset
 
-    # Write byte positions
+
+def write_byte_positions(byte_positions, buffer, offset) -> int:
+    """Writes byte positions info to the buffer, takes offset into account and returns updated offset."""
     if byte_positions.ndim == 1:
-        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte)
         offset += 4
     else:
-        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).view(
-            (np.byte, 4)
-        )
+        buffer[offset : offset + 4] = byte_positions.shape[0].to_bytes(4, "little")
         offset += 4
-        flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(
-            -1
-        ).view(np.byte)
-        offset += byte_positions.nbytes
 
-    # Write actual data
+        buffer[offset : offset + byte_positions.nbytes] = byte_positions.tobytes()
+        offset += byte_positions.nbytes
+    return offset
+
+
+def write_actual_data(data, buffer, offset) -> int:
+    """Writes actual chunk data to the buffer, takes offset into account and returns updated offset"""
     for byts in data:
         n = len(byts)
-        flatbuff[offset : offset + n] = np.frombuffer(byts, dtype=np.byte)
+        buffer[offset : offset + n] = byts
         offset += n
-    return memoryview(flatbuff.tobytes())
+    return offset
 
 
 def deserialize_chunk(
