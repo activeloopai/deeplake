@@ -115,6 +115,7 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
+        num_workers = max(num_workers, 1)
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 

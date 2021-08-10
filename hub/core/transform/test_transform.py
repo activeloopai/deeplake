@@ -117,6 +117,26 @@ def test_chain_transform_list_small(ds):
 
 
 @enabled_datasets
+@pytest.mark.xfail(raises=hub.util.exceptions.InvalidOutputDatasetError, strict=False)
+def test_chain_transform_list_small_zero(ds):
+    ls = [i for i in range(100)]
+    ds_out = ds
+    ds_out.create_tensor("image")
+    ds_out.create_tensor("label")
+    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
+    pipeline.eval(ls, ds_out, num_workers=0)
+    assert len(ds_out) == 600
+    for i in range(100):
+        for index in range(6 * i, 6 * i + 6):
+            np.testing.assert_array_equal(
+                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
+            )
+            np.testing.assert_array_equal(
+                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
+            )
+
+
+@enabled_datasets
 @pytest.mark.xfail(raises=NotImplementedError, strict=True)
 def test_chain_transform_list_big(ds):
     ls = [i for i in range(2)]
