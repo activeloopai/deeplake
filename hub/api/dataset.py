@@ -72,11 +72,15 @@ class dataset:
 
         if path.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="dataset", parameters={"Path": str(path), "Overwrite": overwrite}
+                feature_name="dataset",
+                parameters={"Path": str(path), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="dataset", parameters={"Overwrite": overwrite})
-        
+            hub_reporter.feature_report(
+                feature_name="dataset",
+                parameters={"Overwrite": overwrite},
+            )
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
@@ -135,14 +139,18 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
-            
+
         if path.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="empty", parameters={"Path": str(path), "Overwrite": overwrite}
+                feature_name="empty",
+                parameters={"Path": str(path), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="empty", parameters={"Overwrite": overwrite})
-            
+            hub_reporter.feature_report(
+                feature_name="empty",
+                parameters={"Overwrite": overwrite},
+            )
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
@@ -205,14 +213,18 @@ class dataset:
             )
         if overwrite:
             storage.clear()
-            
+
         if path.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="load", parameters={"Path": str(path), "Overwrite": overwrite}
+                feature_name="load",
+                parameters={"Path": str(path), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="load", parameters={"Overwrite": overwrite})
-            
+            hub_reporter.feature_report(
+                feature_name="load",
+                parameters={"Overwrite": overwrite},
+            )
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
@@ -242,13 +254,17 @@ class dataset:
                 base_storage.clear()
             else:
                 raise
-                
+
         if path.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="delete", parameters={"Path": str(path), "Force": force, "Large_OK": large_ok}
+                feature_name="delete",
+                parameters={"Path": str(path), "Force": force, "Large_OK": large_ok},
             )
         else:
-            hub_reporter.feature_report(feature_name="delete", parameters={"Force": force, "Large_OK": large_ok})
+            hub_reporter.feature_report(
+                feature_name="delete",
+                parameters={"Force": force, "Large_OK": large_ok},
+            )
 
     @staticmethod
     def like(
@@ -281,11 +297,15 @@ class dataset:
 
         if path.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="like", parameters={"Path": str(path), "Overwrite": overwrite}
+                feature_name="like",
+                parameters={"Path": str(path), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="like", parameters={"Overwrite": overwrite})
-            
+            hub_reporter.feature_report(
+                feature_name="like",
+                parameters={"Overwrite": overwrite},
+            )
+
         return destination_ds
 
     @staticmethod
@@ -373,14 +393,18 @@ class dataset:
         unstructured.structure(
             ds, image_tensor_args={"sample_compression": images_compression}  # type: ignore
         )
-        
+
         if dest.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="ingest", parameters={"Path": str(dest), "Overwrite": overwrite}
+                feature_name="ingest",
+                parameters={"Path": str(dest), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="ingest", parameters={"Overwrite": overwrite})
-            
+            hub_reporter.feature_report(
+                feature_name="ingest",
+                parameters={"Overwrite": overwrite},
+            )
+
         return ds  # type: ignore
 
     @staticmethod
@@ -435,14 +459,18 @@ class dataset:
             overwrite=overwrite,
             **dataset_kwargs,
         )
-        
+
         if dest.startswith("hub://"):
             hub_reporter.feature_report(
-                feature_name="ingest_kaggle", parameters={"Path": str(dest), "Overwrite": overwrite}
+                feature_name="ingest_kaggle",
+                parameters={"Path": str(dest), "Overwrite": overwrite},
             )
         else:
-            hub_reporter.feature_report(feature_name="ingest_kaggle", parameters={"Overwrite": overwrite})
-            
+            hub_reporter.feature_report(
+                feature_name="ingest_kaggle",
+                parameters={"Overwrite": overwrite},
+            )
+
         return ds
 
     @staticmethod
