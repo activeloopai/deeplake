@@ -59,6 +59,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
 COMMON_CONFIGS = {
     "sample_compression": None,
     "dtype": None,
+    "max_chunk_size": None,
 }
 
 

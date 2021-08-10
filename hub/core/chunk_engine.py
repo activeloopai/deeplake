@@ -53,7 +53,6 @@ class ChunkEngine:
         self,
         key: str,
         cache: LRUCache,
-        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
         meta_cache: LRUCache = None,
     ):
         """Handles creating `Chunk`s and filling them with incoming samples.
@@ -116,14 +115,17 @@ class ChunkEngine:
         self.key = key
         self.cache = cache
 
-        if max_chunk_size <= 2:
-            raise ValueError("Max chunk size should be > 2 bytes.")
-
-        self.max_chunk_size = max_chunk_size
-
-        # only the last chunk may be less than this
-        self.min_chunk_size = self.max_chunk_size // 2
         self._meta_cache = meta_cache
+
+    @property
+    def max_chunk_size(self):
+        # no chunks may exceed this
+        return self.tensor_meta.max_chunk_size or DEFAULT_MAX_CHUNK_SIZE
+
+    @property
+    def min_chunk_size(self):
+        # only the last chunk may be less than this
+        return self.max_chunk_size // 2
 
     @property
     def meta_cache(self) -> LRUCache:

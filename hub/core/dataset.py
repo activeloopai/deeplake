@@ -3,7 +3,7 @@ from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
+from hub.constants import DEFAULT_HTYPE, DEFAULT_MAX_CHUNK_SIZE, UNSPECIFIED
 from hub.htypes import HTYPE_CONFIGURATIONS
 import numpy as np
 
@@ -151,6 +151,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
+        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -204,6 +205,7 @@ class Dataset:
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
+            max_chunk_size=max_chunk_size,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)

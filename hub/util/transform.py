@@ -137,9 +137,7 @@ def create_worker_chunk_engines(
         memory_cache[meta_key] = new_tensor_meta  # type: ignore
         chunk_size = storage_chunk_engine.max_chunk_size
         storage_cache.clear_cache()
-        storage_chunk_engine = ChunkEngine(
-            tensor, storage_cache, chunk_size, memory_cache
-        )
+        storage_chunk_engine = ChunkEngine(tensor, storage_cache, memory_cache)
         all_chunk_engines[tensor] = storage_chunk_engine
     return all_chunk_engines
 
