@@ -298,6 +298,8 @@ jobs:
           plugins: << parameters.plugins >>
       - run-tests:
           unix-like: << parameters.unix-like >>
+      - run-backwards-compatibility-tests:
+          unix-like: << parameters.unix-like >>
       - save-benchmarks
       - when:
           condition: << parameters.plugins >>
