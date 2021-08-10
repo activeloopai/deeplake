@@ -186,10 +186,6 @@ commands:
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --ignore-glob=buH/*
           parallelism: 10
   run-backwards-compatibility-tests:
-    parameters:
-      unix-like:
-        type: boolean
-        default: true
     steps:
       - run:
           name: "Running backwards compatibility tests"
