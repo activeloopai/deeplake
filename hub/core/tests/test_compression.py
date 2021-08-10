@@ -35,7 +35,9 @@ def test_multi_array(compression, compressed_image_paths):
     img3 = img.resize((img.size[0] // 3, img.size[1] // 3))
     arrays = list(map(np.array, [img, img2, img3]))
     compressed_buffer = compress_multiple(arrays, compression)
-    decompressed_arrays = decompress_multiple(compressed_buffer, [arr.shape for arr in arrays])
+    decompressed_arrays = decompress_multiple(
+        compressed_buffer, [arr.shape for arr in arrays]
+    )
     for arr1, arr2 in zip(arrays, decompressed_arrays):
         if compression == "png":
             np.testing.assert_array_equal(arr1, arr2)

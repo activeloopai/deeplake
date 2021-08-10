@@ -161,7 +161,12 @@ class Chunk(Cachable):
         self._decompressed_samples = None
 
     def update_sample(
-        self, local_sample_index: int, new_buffer: memoryview, new_shape: Tuple[int], chunk_compression: Optional[str] = None, dtype: Optional[np.dtype] = np.dtype("uint8")
+        self,
+        local_sample_index: int,
+        new_buffer: memoryview,
+        new_shape: Tuple[int],
+        chunk_compression: Optional[str] = None,
+        dtype: Optional[np.dtype] = np.dtype("uint8"),
     ):
         """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
 
@@ -171,7 +176,9 @@ class Chunk(Cachable):
 
         if chunk_compression:
             decompressed_samples = self.decompressed_samples
-            decompressed_samples[local_sample_index] = np.frombuffer(buffer, dtype=dtype).reshape(new_shape)
+            decompressed_samples[local_sample_index] = np.frombuffer(
+                buffer, dtype=dtype
+            ).reshape(new_shape)
             self._data = bytearray(compress_multiple(decompressed_samples))
             return
 

@@ -248,7 +248,10 @@ def _serialize_input_sample(
 
 
 def _check_input_samples_are_valid(
-    num_bytes: List[int], shapes: List[Tuple[int]], min_chunk_size: int, sample_compression: Optional[str]
+    num_bytes: List[int],
+    shapes: List[Tuple[int]],
+    min_chunk_size: int,
+    sample_compression: Optional[str],
 ):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
@@ -299,11 +302,14 @@ def serialize_input_samples(
         nbytes = []
         shapes = []
         for sample in samples:
-            byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
+            byts, shape = _serialize_input_sample(
+                sample, sample_compression, dtype, htype
+            )
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)
     elif isinstance(samples, np.ndarray):
+        samples = intelligent_cast(samples, dtype, htype)
         buff = memoryview(samples.tobytes())
         if len(samples):
             shape = samples[0].shape
@@ -317,7 +323,9 @@ def serialize_input_samples(
         shapes = [shape] * len(samples)
     elif isinstance(samples, Sample):
         # TODO
-        raise NotImplementedError("Extending with `Sample` instance is not supported yet.")
+        raise NotImplementedError(
+            "Extending with `Sample` instance is not supported yet."
+        )
     else:
         raise TypeError(f"Cannot serializes samples of type {type(samples)}")
     _check_input_samples_are_valid(nbytes, shapes, min_chunk_size, sample_compression)

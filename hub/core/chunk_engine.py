@@ -28,8 +28,6 @@ from itertools import repeat
 import numpy as np
 
 
-
-
 def is_uniform_sequence(samples):
     """Determines if a sequence of samples has uniform type and shape, allowing it to be vectorized by `ChunkEngine.extend`."""
     if len(set(map(type, samples))) != 1:
@@ -127,7 +125,9 @@ class ChunkEngine:
         self.min_chunk_size = self.max_chunk_size // 2
         self._meta_cache = meta_cache
         if self.tensor_meta.chunk_compression:
-            self._last_chunk_uncompressed: List[np.ndarray] = self.last_chunk.decompressed_samples if self.last_chunk else []
+            self._last_chunk_uncompressed: List[np.ndarray] = (
+                self.last_chunk.decompressed_samples if self.last_chunk else []
+            )
 
     @property
     def meta_cache(self) -> LRUCache:
@@ -147,13 +147,6 @@ class ChunkEngine:
         """
         key = get_chunk_id_encoder_key(self.key)
         if not self.chunk_id_encoder_exists:
-
-            # 1 because we always update the meta information before writing the samples (to account for potentially corrupted data in the future)
-            if self.tensor_meta.length > 1:
-                raise CorruptedMetaError(
-                    f"Tensor length is {self.tensor_meta.length}, but could not find the chunk id encoder."
-                )
-
             enc = ChunkIdEncoder()
             self.meta_cache[key] = enc
             return enc
@@ -203,34 +196,50 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
-    def _extend_bytes(self, buff: Union[memoryview, bytearray], nbytes: List[int], shapes: List[Tuple[int]]):
+    def _extend_bytes(
+        self,
+        buff: Union[memoryview, bytearray],
+        nbytes: List[int],
+        shapes: List[Tuple[int]],
+    ):
         if self.tensor_meta.chunk_compression:
-            raise NotImplementedError("_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead.")
+            raise NotImplementedError(
+                "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
+            )
         num_samples = len(nbytes)
         chunk = self.last_chunk
+        new_chunk = self._create_new_chunk
         if chunk is None:
+            chunk = new_chunk()
+        if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
             chunk = self._create_new_chunk()
-        rem = self.min_chunk_size - chunk.num_data_bytes
-        if nbytes[0] >= rem:
-            chunk = self._create_new_chunk()
-            rem = self.min_chunk_size
-        while buff:
+        max_chunk_size = self.max_chunk_size
+        min_chunk_size = self.min_chunk_size
+        enc = self.chunk_id_encoder
+        while nbytes:
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
             for nb in nbytes:
-                if nbytes_to_current_chunk + nb >= rem:
+                chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes
+                if chunk_future_size > max_chunk_size:
                     break
                 num_samples_to_current_chunk += 1
                 nbytes_to_current_chunk += nb
-                rem -= nb
-            chunk.extend_samples(buff[:nbytes_to_current_chunk], self.max_chunk_size, shapes[:num_samples_to_current_chunk], nbytes[:num_samples_to_current_chunk])
-            self.chunk_id_encoder.register_samples(num_samples_to_current_chunk)
+                if chunk_future_size > min_chunk_size:
+                    break
+            assert num_samples_to_current_chunk
+            chunk.extend_samples(
+                buff[:nbytes_to_current_chunk],
+                max_chunk_size,
+                shapes[:num_samples_to_current_chunk],
+                nbytes[:num_samples_to_current_chunk],
+            )
+            enc.register_samples(num_samples_to_current_chunk)
             buff = buff[nbytes_to_current_chunk:]
             del nbytes[:num_samples_to_current_chunk]
             del shapes[:num_samples_to_current_chunk]
             if buff:
-                self._create_new_chunk()
-                rem = self.min_chunk_size
+                chunk = new_chunk()
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -373,16 +382,18 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        buff, nbytes, shapes = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
+        buff, nbytes, shapes = serialize_input_samples(
+            samples, tensor_meta, self.min_chunk_size
+        )
+        for shape in shapes:
+            tensor_meta.update_shape_interval(shape)
+        tensor_meta.length += len(samples)
         if tensor_meta.chunk_compression:
             for nb, shape in zip(nbytes, shapes):
                 self._append_bytes(buff[:nb], shape[:])
                 buff = buff[nb:]
         else:
             self._extend_bytes(buff, nbytes, shapes[:])
-        for shape in shapes:
-            tensor_meta.update_shape_interval(shape)
-        tensor_meta.length += len(samples)
         self._synchronize_cache()
         self.cache.maybe_flush()
 
@@ -407,15 +418,21 @@ class ChunkEngine:
 
         chunks_nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        bufffer, nbytes, shapes = serialized_input_samples
-        for i, (nb, shape) in enumerate(serialized_input_samples):
+        buffer, nbytes, shapes = serialized_input_samples
+        for i, (nb, shape) in enumerate(zip(nbytes, shapes)):
             global_sample_index = global_sample_indices[i]  # TODO!
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
             tensor_meta.update_shape_interval(shape)
-            chunk.update_sample(local_sample_index, buffer[:nb], shape, chunk_compression=self.tensor_meta.chunk_compression, dtype=self.tensor_meta.dtype)
+            chunk.update_sample(
+                local_sample_index,
+                buffer[:nb],
+                shape,
+                chunk_compression=self.tensor_meta.chunk_compression,
+                dtype=self.tensor_meta.dtype,
+            )
             buffer = buffer[nb:]
             updated_chunks.add(chunk)
 
@@ -449,7 +466,6 @@ class ChunkEngine:
         Returns:
             Union[np.ndarray, Sequence[np.ndarray]]: Either a list of numpy arrays or a single numpy array (depending on the `aslist` argument).
         """
-
         length = self.num_samples
         enc = self.chunk_id_encoder
         last_shape = None
@@ -511,8 +527,8 @@ class ChunkEngine:
 
         if expect_compressed:
             sample = decompress_array(buffer, shape)
-            if cast and sample.dtype != self.tensor_meta.dtype:
-                sample = sample.astype(self.tensor_meta.dtype)
+            if cast and sample.dtype != dtype:
+                sample = sample.astype(dtype)
         else:
             sample = np.frombuffer(buffer, dtype=dtype).reshape(shape)
 

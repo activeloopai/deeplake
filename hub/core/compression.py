@@ -65,7 +65,9 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         raise SampleCompressionError(array.shape, compression, str(e))
 
 
-def decompress_array(buffer: Union[bytes, memoryview], shape: Optional[Tuple[int]] = None) -> np.ndarray:
+def decompress_array(
+    buffer: Union[bytes, memoryview], shape: Optional[Tuple[int]] = None
+) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
 
