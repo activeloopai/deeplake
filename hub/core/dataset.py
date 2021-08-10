@@ -227,24 +227,23 @@ class Dataset:
 
     def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
         
-        src_meta = src.meta.__getstate__().copy()
+        src_meta = src.meta.__getstate__().copy()   
         dest_meta = dest.meta.__getstate__().copy()
 
         if src_meta["length"] != dest_meta["length"]:
            raise NotImplementedError("Meta lengths are different.")
         
         if isinstance(src, Tensor):
-            linked_tensor_key = get_tensor_meta_key(src.key)
+            linked_tensor_key = get_tensor_meta_key(src.key)    
+            linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
+            linked_tensor_meta.linked_tensors.append(dest.key)
+            
         else:
             linked_tensor_key = get_tensor_meta_key(src)
-
-        linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
-        
-        if isinstance(src, Tensor):
-            linked_tensor_meta.linked_tensors.append(dest.key)
-        else:
+            linked_tensor_meta = self.storage.get_cachable(linked_tensor_key, TensorMeta)
             linked_tensor_meta.linked_tensors.append(dest)
 
+        
         
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":

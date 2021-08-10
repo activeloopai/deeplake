@@ -23,31 +23,6 @@ from hub.util.exceptions import (
 from hub.core.serialize import _serialize_input_sample
 from typing import Callable, Dict, Optional, Union, Tuple, List
 
-# def link_tensor(
-#     src:str,
-#     dest:str,
-#     storage: StorageProvider,
-#     fn,
-#     hash_samples: Optional[bool] = False,
-#     **kwargs,
-# ):
-#     if not tensor_exists(src, storage):
-#         raise TensorDoesNotExistError(src)
-    
-#     if not tensor_exists(dest, storage):
-#         raise TensorDoesNotExistError(dest)
-
-#     # Check if length of source and destination is the same (or empty)
-
-#     # Get releveant tensor meta files
-#     src_meta_key = get_tensor_meta_key(src)
-#     dest_meta_key = get_tensor_meta_key(dest)
-
-#     # Set linked tensor to true in dest_meta
-
-#     # Add name of dest_tensor to src_meta, links
-
-
 def create_tensor(
     key: str,
     storage: StorageProvider,
@@ -128,7 +103,7 @@ class Tensor:
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
         self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
         
-        if self.meta.linked_tensors and self.key is not "hashes":
+        if ("hashes" in self.meta.linked_tensors) and (self.key != "hashes"):
             self.linked_tensor = Tensor("hashes", self.storage)
             
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -164,7 +139,7 @@ class Tensor:
 
         self.chunk_engine.extend(samples)
 
-        if self.meta.linked_tensors is not None:
+        if "hashes" in self.meta.linked_tensors:
             hashed_samples = generate_hashes(samples)
             self.linked_tensor.chunk_engine.extend(hashed_samples)
 
@@ -339,7 +314,7 @@ class Tensor:
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if self.meta.linked_tensors is not None:
+        if "hashes" in self.meta.linked_tensors:
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(self.index[item_index],hashed_samples)
 
