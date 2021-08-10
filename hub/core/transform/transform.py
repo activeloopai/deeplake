@@ -3,6 +3,7 @@ import math
 from typing import List
 from itertools import repeat
 from hub.core.compute.provider import ComputeProvider
+from hub.util.bugout_reporter import hub_reporter
 from hub.util.compute import get_compute_provider
 from hub.util.remove_cache import get_base_storage, get_dataset_with_zero_size_cache
 from hub.util.transform import (
@@ -48,6 +49,12 @@ class TransformFunction:
             TensorMismatchError: If one or more of the outputs generated during transform contain different tensors than the ones present in 'ds_out' provided to transform.
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
         """
+
+        hub_reporter.feature_report(
+            feature_name="eval",
+            parameters={"Num_Workers": num_workers, "Scheduler": scheduler},
+        )
+
         pipeline = Pipeline([self])
         pipeline.eval(data_in, ds_out, num_workers, scheduler)
 

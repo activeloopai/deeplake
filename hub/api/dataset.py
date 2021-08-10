@@ -11,7 +11,7 @@ from typing import Optional, Union
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
-from hub.util.bugout_reporter import hub_reporter
+from hub.util.bugout_reporter import hub_reporter, feature_report_path
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
@@ -59,6 +59,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
+
+        feature_report_path(path, "dataset", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -69,16 +72,13 @@ class dataset:
         )
         if overwrite and dataset_exists(storage):
             storage.clear()
+
         read_only = storage.read_only
-
-        hub_reporter.feature_report(feature_name="dataset", parameters={})
-
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def empty(
         path: str,
         overwrite: bool = False,
@@ -116,6 +116,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
+
+        feature_report_path(path, "empty", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=False,
@@ -131,13 +134,13 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def load(
         path: str,
         read_only: bool = False,
@@ -179,6 +182,8 @@ class dataset:
         if creds is None:
             creds = {}
 
+        feature_report_path(path, "load", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -194,13 +199,13 @@ class dataset:
             )
         if overwrite:
             storage.clear()
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset at a given path.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
@@ -211,6 +216,8 @@ class dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
+
+        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
 
         try:
             ds = hub.load(path)
@@ -225,7 +232,6 @@ class dataset:
                 raise
 
     @staticmethod
-    @hub_reporter.record_call
     def like(
         path: str,
         source: Union[str, Dataset],
@@ -244,6 +250,8 @@ class dataset:
             Dataset: New dataset object.
         """
 
+        feature_report_path(path, "like", {"Overwrite": overwrite})
+
         destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
         source_ds = source
         if isinstance(source, str):
@@ -257,7 +265,6 @@ class dataset:
         return destination_ds
 
     @staticmethod
-    @hub_reporter.record_call
     def ingest(
         src: str,
         dest: str,
@@ -326,6 +333,9 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
+
+        feature_report_path(dest, "ingest", {"Overwrite": overwrite})
+
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
@@ -346,7 +356,6 @@ class dataset:
         return ds  # type: ignore
 
     @staticmethod
-    @hub_reporter.record_call
     def ingest_kaggle(
         tag: str,
         src: str,
@@ -382,6 +391,9 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
+
+        feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
+
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
