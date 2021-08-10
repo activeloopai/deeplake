@@ -151,7 +151,6 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
-        max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -165,7 +164,6 @@ class Dataset:
                 May also modify the defaults for other parameters.
             dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
-            max_chunk_size (int): Chunks will never exceed this size (in bytes). The default value is highly recommended.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -206,7 +204,6 @@ class Dataset:
             htype=htype,
             dtype=dtype,
             sample_compression=sample_compression,
-            max_chunk_size=max_chunk_size,
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
