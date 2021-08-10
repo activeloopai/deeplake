@@ -15,7 +15,7 @@ from hub.core.dataset import Dataset
 
 
 # ensure tests have multiple chunks without a ton of data
-PYTORCH_TESTS_MAX_CHUNK_SIZE = 2 * KB
+PYTORCH_TESTS_MAX_CHUNK_SIZE = 4 * KB
 
 
 def to_tuple(sample):
