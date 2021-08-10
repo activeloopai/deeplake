@@ -101,7 +101,7 @@ if hub_user is not None:
 
 
 def feature_report_path(
-    path: str, feature_name: str, parameters: dict, starts_with="hub://"
+    path: str, feature_name: str, parameters: dict, starts_with: str = "hub://"
 ):
     """Helper function for generating humbug feature reports depending on the path"""
     if path.startswith(starts_with):
