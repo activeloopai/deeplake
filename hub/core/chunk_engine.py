@@ -203,6 +203,35 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
+    def _extend_bytes(self, buff: Union[memoryview, bytearray], nbytes: List[int], shapes: List[Tuple[int]]):
+        if self.tensor_meta.chunk_compression:
+            raise NotImplementedError("_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead.")
+        num_samples = len(nbytes)
+        chunk = self.last_chunk
+        if chunk is None:
+            chunk = self._create_new_chunk()
+        rem = self.min_chunk_size - chunk.num_data_bytes
+        if nbytes[0] >= rem:
+            chunk = self._create_new_chunk()
+            rem = self.min_chunk_size
+        while buff:
+            num_samples_to_current_chunk = 0
+            nbytes_to_current_chunk = 0
+            for nb in nbytes:
+                if nbytes_to_current_chunk + nb >= rem:
+                    break
+                num_samples_to_current_chunk += 1
+                nbytes_to_current_chunk += nb
+                rem -= nb
+            chunk.extend_samples(buff[:nbytes_to_current_chunk], self.max_chunk_size, shapes[:num_samples_to_current_chunk], nbytes[:num_samples_to_current_chunk])
+            self.chunk_id_encoder.register_samples(num_samples_to_current_chunk)
+            buff = buff[nbytes_to_current_chunk:]
+            del nbytes[:num_samples_to_current_chunk]
+            del shapes[:num_samples_to_current_chunk]
+            if buff:
+                self._create_new_chunk()
+                rem = self.min_chunk_size
+
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
@@ -240,7 +269,6 @@ class ChunkEngine:
                 self._append_to_new_chunk(buffer, shape)
 
         self.chunk_id_encoder.register_samples(num_samples)
-        self._synchronize_cache()
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
         last_chunk = self.last_chunk
@@ -345,14 +373,17 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
-        for buffer, shape in samples:
-            # update tensor meta length first because erroneous meta information is better than un-accounted for data.
-            # TODO: move these functions somewhere usable by update and any other methods
+        buff, nbytes, shapes = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
+        if tensor_meta.chunk_compression:
+            for nb, shape in zip(nbytes, shapes):
+                self._append_bytes(buff[:nb], shape[:])
+                buff = buff[nb:]
+        else:
+            self._extend_bytes(buff, nbytes, shapes[:])
+        for shape in shapes:
             tensor_meta.update_shape_interval(shape)
-            tensor_meta.length += 1
-            self._append_bytes(buffer, shape)
-
+        tensor_meta.length += len(samples)
+        self._synchronize_cache()
         self.cache.maybe_flush()
 
     def append(self, sample: SampleValue):
@@ -376,17 +407,16 @@ class ChunkEngine:
 
         chunks_nbytes_after_updates = []
         global_sample_indices = tuple(index.values[0].indices(self.num_samples))
-        for i, (buffer, shape) in enumerate(serialized_input_samples):
+        bufffer, nbytes, shapes = serialized_input_samples
+        for i, (nb, shape) in enumerate(serialized_input_samples):
             global_sample_index = global_sample_indices[i]  # TODO!
-
             chunk = self.get_chunk_for_sample(global_sample_index, enc)
-
             local_sample_index = enc.translate_index_relative_to_chunks(
                 global_sample_index
             )
-
             tensor_meta.update_shape_interval(shape)
-            chunk.update_sample(local_sample_index, buffer, shape, chunk_compression=self.tensor_meta.chunk_compression, dtype=self.tensor_meta.dtype)
+            chunk.update_sample(local_sample_index, buffer[:nb], shape, chunk_compression=self.tensor_meta.chunk_compression, dtype=self.tensor_meta.dtype)
+            buffer = buffer[nb:]
             updated_chunks.add(chunk)
 
             # only care about deltas if it isn't the last chunk
