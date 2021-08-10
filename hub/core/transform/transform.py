@@ -12,8 +12,8 @@ from hub.util.transform import (
 )
 from hub.util.encoder import merge_all_chunk_id_encoders, merge_all_tensor_metas
 from hub.util.exceptions import (
-    TransformComposeEmptyListError,
-    TransformComposeIncompatibleFunction,
+    HubComposeEmptyListError,
+    HubComposeIncompatibleFunction,
 )
 
 
@@ -53,12 +53,12 @@ class TransformFunction:
 
 
 class Pipeline:
-    def __init__(self, transform_functions: List[TransformFunction]):
-        """Takes a list of transform functions and creates a pipeline out of them that can be evaluated using .eval"""
-        self.transform_functions = transform_functions
+    def __init__(self, functions: List[TransformFunction]):
+        """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval"""
+        self.functions = functions
 
     def __len__(self):
-        return len(self.transform_functions)
+        return len(self.functions)
 
     def eval(
         self,
@@ -129,14 +129,14 @@ class Pipeline:
         merge_all_chunk_id_encoders(all_chunk_id_encoders, ds_out)
 
 
-def compose(transform_functions: List[TransformFunction]):
-    """Takes a list of transform functions and creates a pipeline out of them that can be evaluated using .eval"""
-    if not transform_functions:
-        raise TransformComposeEmptyListError
-    for index, fn in enumerate(transform_functions):
+def compose(functions: List[TransformFunction]):
+    """Takes a list of functions decorated using hub.compute and creates a pipeline that can be evaluated using .eval"""
+    if not functions:
+        raise HubComposeEmptyListError
+    for index, fn in enumerate(functions):
         if not isinstance(fn, TransformFunction):
-            raise TransformComposeIncompatibleFunction(index)
-    return Pipeline(transform_functions)
+            raise HubComposeIncompatibleFunction(index)
+    return Pipeline(functions)
 
 
 def compute(fn):
