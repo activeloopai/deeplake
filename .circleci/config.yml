@@ -155,6 +155,8 @@ commands:
             <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r hub/requirements/common.txt
             pip3 install -e .
+            git clone https://github.com/activeloopai/buH.git
+            sh buH/buh/scripts/create_all.sh
   run-tests:
     parameters:
       unix-like:
@@ -171,7 +173,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud  --ignore-glob=buH/*
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -181,7 +183,7 @@ commands:
                   BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --ignore-glob=buH/*
           parallelism: 10
   run-backwards-compatibility-tests:
     parameters:
@@ -189,30 +191,12 @@ commands:
         type: boolean
         default: true
     steps:
-      - unless:
-          condition: << parameters.unix-like >>
-          steps:
-            - run:
-                name: "Running backwards compatibility tests - Windows"
-                environment:
-                  BUGGER_OFF: "true"
-                command: |
-                  git clone https://github.com/activeloopai/buH.git
-                  sh buH/buh/scripts/create_all.sh
-                  python3 -m pytest buH/
-      - when:
-          condition: << parameters.unix-like >>
-          steps:
-            - run:
-                name: "Running backwards compatibility tests - Unix"
-                environment:
-                  BUGGER_OFF: "true"
-                command: |
-                  git clone https://github.com/activeloopai/buH.git
-                  sh buH/buh/scripts/create_all.sh
-                  python3 -m pytest buH/
-          parallelism: 10
-
+      - run:
+          name: "Running backwards compatibility tests"
+          environment:
+            BUGGER_OFF: "true"
+          command: |
+            python3 -m pytest buH/
   codecov-upload:
     steps:
       - codecov/upload:
