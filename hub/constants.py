@@ -36,7 +36,11 @@ SUPPORTED_COMPRESSIONS = [
     for c in SUPPORTED_COMPRESSIONS
     if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
+
+SUPPORTED_COMPRESSIONS.append("lz4")
+
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
+
 
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 

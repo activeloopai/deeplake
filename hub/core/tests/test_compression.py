@@ -20,7 +20,12 @@ compressions.remove("wmf")  # driver has to be provided by user for wmf write su
 @pytest.mark.parametrize("compression", compressions)
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
-    array = np.array(hub.read(compressed_image_paths[compression])) * False
+    if compression == "lz4":
+        array = np.random.randint(0, 10, (32, 32))
+    else:
+        array = np.array(hub.read(compressed_image_paths[compression]))
+        if compression != "png":
+            array *= False
     shape = array.shape
     compressed_buffer = compress_array(array, compression)
     assert get_actual_compression_from_buffer(compressed_buffer) == compression
@@ -28,7 +33,7 @@ def test_array(compression, compressed_image_paths):
     np.testing.assert_array_equal(array, decompressed_array)
 
 
-@pytest.mark.parametrize("compression", compressions)
+@pytest.mark.parametrize("compression", [c for c in compressions if c != "lz4"])
 def test_multi_array(compression, compressed_image_paths):
     img = Image.open(compressed_image_paths[compression])
     img2 = img.resize((img.size[0] // 2, img.size[1] // 2))

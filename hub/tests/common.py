@@ -55,7 +55,8 @@ def get_dummy_data_path(subpath: str = ""):
 
 def get_actual_compression_from_buffer(buffer: memoryview) -> Optional[str]:
     """Helpful for checking if actual compression matches expected."""
-
+    if buffer[:4] == b"lz4!":
+        return "lz4"
     try:
         bio = BytesIO(buffer)
         img = Image.open(bio)

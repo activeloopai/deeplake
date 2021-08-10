@@ -13,7 +13,7 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 from hub.core.serialize import serialize_input_samples
-from hub.core.compression import compress_multiple
+from hub.core.compression import compress_multiple, decompress_multiple
 
 from hub.util.keys import (
     get_chunk_key,
@@ -26,6 +26,8 @@ from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 from itertools import repeat
 
 import numpy as np
+
+import lz4.frame
 
 
 def is_uniform_sequence(samples):
@@ -272,6 +274,8 @@ class ChunkEngine:
                     last_chunk_uncompressed, chunk_compression
                 )
             chunk._data = compressed_bytes
+            if chunk_compression == "lz4":
+                chunk.register_sample_to_headers(len(buffer), shape)
         else:
             buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
             if not buffer_consumed:
@@ -510,22 +514,33 @@ class ChunkEngine:
     ) -> np.ndarray:
         """Read a sample from a chunk, converts the global index into a local index. Handles decompressing if applicable."""
 
-        expect_compressed = self.tensor_meta.sample_compression is not None
         dtype = self.tensor_meta.dtype
 
         enc = self.chunk_id_encoder
 
         buffer = chunk.memoryview_data
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        chunk_compression = self.tensor_meta.chunk_compression
+        if chunk_compression:
+            if chunk_compression == "lz4":
+                decompressed = memoryview(lz4.format.decompress(chunk.memoryview_data))
+                shape = chunk.shapes_encoder[local_sample_index]
+                sb, eb = chunk.byte_positions_encoder[local_sample_index]
+                return (
+                    np.frombuffer(decompressed[sb:eb], dtype=np.byte)
+                    .view(dtype)
+                    .reshape(shape)
+                )
+            else:
+                return chunk.decompressed_samples[local_sample_index]
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
-
         buffer = buffer[sb:eb]
 
         if len(buffer) == 0:
             return np.zeros(shape, dtype=dtype)
 
-        if expect_compressed:
+        if self.tensor_meta.sample_compression:
             sample = decompress_array(buffer, shape)
             if cast and sample.dtype != dtype:
                 sample = sample.astype(dtype)

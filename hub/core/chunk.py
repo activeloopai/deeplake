@@ -1,7 +1,7 @@
 from hub.util.exceptions import FullChunkError, TensorInvalidSampleShapeError
 import hub
 from hub.core.storage.cachable import Cachable
-from typing import Tuple, Union, Sequence, Optional
+from typing import Tuple, Union, Sequence, Optional, List
 import numpy as np
 
 from hub.core.meta.encode.shape import ShapeEncoder
@@ -9,6 +9,8 @@ from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
 from hub.core.compression import compress_multiple, decompress_multiple
+
+import lz4.frame
 
 
 class Chunk(Cachable):
@@ -47,10 +49,13 @@ class Chunk(Cachable):
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
         self._data: Union[memoryview, bytearray] = data or bytearray()
-        self._decompressed_samples = None
+
+        # Decompressed caches
+        self._decompressed_samples: Optional[List[np.ndarray]] = None
+        self._decompressed_data: Optional[bytes] = None
 
     @property
-    def decompressed_samples(self):
+    def decompressed_samples(self) -> List[np.ndarray]:
         """Applicable only for compressed chunks"""
         if self._decompressed_samples is None:
             shapes = [
@@ -58,6 +63,13 @@ class Chunk(Cachable):
             ]
             self._decompressed_samples = decompress_multiple(self._data, shapes)
         self._decompressed_samples
+
+    @property
+    def decompressed_data(self) -> memoryview:
+        """Applicable only for compressed chunks"""
+        if self._decompressed_data is None:
+            self._decompressed_data = memoryview(lz4.frame.decompress(self._data))
+        return self._decompressed_data
 
     @property
     def memoryview_data(self):
@@ -142,6 +154,10 @@ class Chunk(Cachable):
         self._data += buffer  # type: ignore
         self.register_sample_to_headers(incoming_num_bytes, shape)
 
+    def _clear_decompressed_cache(self):
+        self._decompressed_samples = None
+        self._decompressed_data = None
+
     def register_sample_to_headers(
         self, incoming_num_bytes: int, sample_shape: Tuple[int]
     ):
@@ -158,7 +174,7 @@ class Chunk(Cachable):
         num_bytes_per_sample = incoming_num_bytes
         self.shapes_encoder.register_samples(sample_shape, 1)
         self.byte_positions_encoder.register_samples(num_bytes_per_sample, 1)
-        self._decompressed_samples = None
+        self._clear_decompressed_cache()
 
     def update_sample(
         self,
@@ -175,12 +191,32 @@ class Chunk(Cachable):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
 
         if chunk_compression:
-            decompressed_samples = self.decompressed_samples
-            decompressed_samples[local_sample_index] = np.frombuffer(
-                buffer, dtype=dtype
-            ).reshape(new_shape)
-            self._data = bytearray(compress_multiple(decompressed_samples))
-            return
+            if chunk_compression == "lz4":
+                decompressed_buffer = self.decompressed_data
+                old_start_byte, old_end_byte = self.byte_positions_encoder[
+                    local_sample_index
+                ]
+                new_nb = len(new_buffer)
+                left = decompressed_buffer[:old_start_byte]
+                right = decompressed_buffer[old_end_byte:]
+                total_new_bytes = len(left) + new_nb + len(right)
+                new_data_uncompressed = bytearray(total_new_bytes)
+                self.byte_positions_encoder[local_sample_index] = new_nb
+                self.shapes_encoder[local_sample_index] = new_shape
+                new_start_byte, new_end_byte = self.byte_positions_encoder[
+                    local_sample_index
+                ]
+                new_data_uncompressed[:new_start_byte] = left
+                new_data_uncompressed[new_start_byte:new_end_byte] = new_buffer
+                new_data_uncompressed[new_end_byte:] = right
+                self._data = memoryview(lz4.frame.compress(new_data_uncompressed))
+                self._decompressed_data = memoryview(new_data_uncompressed)
+            else:
+                decompressed_samples = self.decompressed_samples
+                decompressed_samples[local_sample_index] = np.frombuffer(
+                    buffer, dtype=dtype
+                ).reshape(new_shape)
+                self._data = bytearray(compress_multiple(decompressed_samples))
 
         new_nb = len(new_buffer)
 

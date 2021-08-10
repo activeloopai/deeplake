@@ -10,6 +10,15 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 
+import lz4.frame
+
+
+np_id2dtype = {}
+
+for dtype in np.cast:
+    dtype = np.dtype(dtype)
+    np_id2dtype[dtype.num] = dtype
+
 
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
@@ -18,6 +27,31 @@ def to_image(array: np.ndarray) -> Image:
         return Image.fromarray(array.squeeze(axis=2))
 
     return Image.fromarray(array)
+
+
+_LZ4_HEADER = b"lz4!"
+
+
+def _lz4_compress_array(array: np.ndarray) -> bytes:
+    shape_bytes = b"".join(d.to_bytes(4, "little") for d in array.shape)
+    ndim_byte = array.ndim.to_bytes(1, "little")
+    dtype_byte = array.dtype.num.to_bytes(1, "little")
+    return b"".join([_LZ4_HEADER, dtype_byte, ndim_byte, shape_bytes, array.tobytes()])
+
+
+def _lz4_decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
+    if isinstance(buffer, bytes):
+        buffer = memoryview(buffer)
+    buffer = buffer[len(_LZ4_HEADER) :]
+    dtype = np_id2dtype[int.from_bytes(buffer[:1], "little")]
+    ndim = int.from_bytes(buffer[1:2], "little")
+    shape_bytes = buffer[2 : 2 + ndim * 4]
+    shape = tuple(
+        int.from_bytes(shape_bytes[i * 4 : i * 4 + 4], "little") for i in range(ndim)
+    )
+    return (
+        np.frombuffer(buffer[ndim * 4 + 2 :], dtype=np.byte).view(dtype).reshape(shape)
+    )
 
 
 def compress_array(array: np.ndarray, compression: str) -> bytes:
@@ -39,6 +73,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     """
 
     # empty sample shouldn't be compressed
+
     if 0 in array.shape:
         return bytes()
 
@@ -47,6 +82,9 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
     if compression is None:
         return array.tobytes()
+
+    if compression == "lz4":
+        return _lz4_compress_array(array)
 
     try:
         img = to_image(array)
@@ -76,9 +114,8 @@ def decompress_array(
 
     Args:
         buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
-            decompress is contained within `buffer`.
+            decompress is contained within `buffer`, except for lz4
         shape (Tuple[int]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
-
     Raises:
         SampleDecompressionError: Right now only buffers compatible with `PIL` will be decompressed.
 
@@ -86,6 +123,8 @@ def decompress_array(
         np.ndarray: Array from the decompressed buffer.
     """
 
+    if memoryview(buffer)[: len(_LZ4_HEADER)] == _LZ4_HEADER:
+        return _lz4_decompress_array(buffer)
     try:
         img = Image.open(BytesIO(buffer))
         arr = np.array(img)
@@ -111,6 +150,10 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
     for arr in arrays:
         if arr.dtype != dtype:
             raise TypeError()  # TODO
+    if compression == "lz4":
+        return lz4.format.compress(
+            b"".join(arr.tobytes() for arr in arrays)
+        )  # Note: shape and dtype info not included
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
     for arr in arrays:
