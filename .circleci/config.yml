@@ -154,7 +154,6 @@ commands:
             pip3 install -r hub/requirements/tests.txt
             <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r hub/requirements/common.txt
-            git clone https://github.com/activeloopai/buH.git
             pip3 install -e .
   run-tests:
     parameters:
@@ -198,6 +197,7 @@ commands:
                 environment:
                   BUGGER_OFF: "true"
                 command: |
+                  git clone https://github.com/activeloopai/buH.git
                   sh buH/buh/scripts/create_all.sh
                   python3 -m pytest buH/
       - when:
@@ -208,6 +208,7 @@ commands:
                 environment:
                   BUGGER_OFF: "true"
                 command: |
+                  git clone https://github.com/activeloopai/buH.git
                   sh buH/buh/scripts/create_all.sh
                   python3 -m pytest buH/
           parallelism: 10
