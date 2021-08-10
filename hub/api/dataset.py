@@ -59,9 +59,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
-            
+
         feature_report_path(path, "dataset", {"Overwrite": overwrite})
-        
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -116,7 +116,7 @@ class dataset:
         """
         if creds is None:
             creds = {}
-            
+
         feature_report_path(path, "empty", {"Overwrite": overwrite})
 
         storage, cache_chain = get_storage_and_cache_chain(
@@ -183,7 +183,7 @@ class dataset:
             creds = {}
 
         feature_report_path(path, "load", {"Overwrite": overwrite})
-        
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -216,9 +216,9 @@ class dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
-        
+
         feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
-        
+
         try:
             ds = hub.load(path)
             ds.delete(large_ok=large_ok)
@@ -249,9 +249,9 @@ class dataset:
         Returns:
             Dataset: New dataset object.
         """
-        
+
         feature_report_path(path, "like", {"Overwrite": overwrite})
-        
+
         destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
         source_ds = source
         if isinstance(source, str):
@@ -333,9 +333,9 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
-        
+
         feature_report_path(dest, "ingest", {"Overwrite": overwrite})
-        
+
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
@@ -391,9 +391,9 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
-        
+
         feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
-        
+
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)

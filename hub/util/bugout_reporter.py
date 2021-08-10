@@ -80,6 +80,7 @@ def consent_from_reporting_config_file() -> bool:
     reporting_config = get_reporting_config()
     return reporting_config.get("consent", False)
 
+
 session_id = str(uuid.uuid4())
 client_id = get_reporting_config().get("client_id")
 
@@ -98,7 +99,10 @@ hub_user = get_reporting_config().get("username")
 if hub_user is not None:
     hub_reporter.tags.append(f"username:{hub_user}")
 
-def feature_report_path(path:str, feature_name: str, parameters: dict, starts_with = "hub://"):
+
+def feature_report_path(
+    path: str, feature_name: str, parameters: dict, starts_with="hub://"
+):
     """Helper function for generating humbug feature reports depending on the path"""
     if path.startswith(starts_with):
         parameters["Path"] = str(path)
