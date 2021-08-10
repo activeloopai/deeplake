@@ -117,7 +117,6 @@ def test_chain_transform_list_small(ds):
 
 
 @enabled_datasets
-@pytest.mark.xfail(raises=hub.util.exceptions.InvalidOutputDatasetError, strict=False)
 def test_chain_transform_list_small_zero(ds):
     ls = [i for i in range(100)]
     ds_out = ds
