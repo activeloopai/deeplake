@@ -154,8 +154,7 @@ commands:
             pip3 install -r hub/requirements/tests.txt
             <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r hub/requirements/common.txt
-            pip3 install -e .
-            git clone https://github.com/activeloopai/buH.git
+            pip3 install -e .            
   run-tests:
     parameters:
       unix-like:
@@ -173,6 +172,13 @@ commands:
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+            - backwards-compatibility:
+                name: "Running backwards compatibility tests - Windows"
+                environment:
+                  BUGGER_OFF: "true"
+                command: |
+                  git clone https://github.com/activeloopai/buH.git
+                  python3 -m pytest buH
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -183,6 +189,13 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+            - run:
+                name: "Running backwards compatibility tests - Unix"
+                environment:
+                  BUGGER_OFF: "true"
+                command: |
+                  git clone https://github.com/activeloopai/buH.git
+                  python3 -m pytest buH
                   
           parallelism: 10
   codecov-upload:
