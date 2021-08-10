@@ -172,12 +172,8 @@ commands:
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
-            - backwards-compatibility:
-                name: "Running backwards compatibility tests - Windows"
-                environment:
-                  BUGGER_OFF: "true"
-                command: |
                   git clone https://github.com/activeloopai/buH.git
+                  sh buH/buh/scripts/create_all.sh
                   python3 -m pytest buH
       - when:
           condition: << parameters.unix-like >>
@@ -189,12 +185,8 @@ commands:
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
-            - run:
-                name: "Running backwards compatibility tests - Unix"
-                environment:
-                  BUGGER_OFF: "true"
-                command: |
                   git clone https://github.com/activeloopai/buH.git
+                  sh buH/buh/scripts/create_all.sh
                   python3 -m pytest buH
                   
           parallelism: 10
