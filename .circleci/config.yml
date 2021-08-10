@@ -156,7 +156,6 @@ commands:
             pip3 install -r hub/requirements/common.txt
             pip3 install -e .
             git clone https://github.com/activeloopai/buH.git
-            pip3 install -e ./buh/
   run-tests:
     parameters:
       unix-like:
