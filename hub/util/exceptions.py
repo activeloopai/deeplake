@@ -3,9 +3,50 @@ from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
+class ExternalCommandError(Exception):
+    def __init__(self, command: str, status: int):
+        super().__init__(
+            f'Status for command "{command}" was "{status}", expected to be "0".'
+        )
+
+
+class KaggleError(Exception):
+    message: str = ""
+
+
+class KaggleMissingCredentialsError(KaggleError):
+    def __init__(self, env_var_name: str):
+        super().__init__(
+            "Could not find %s in environment variables. Try setting them or providing the `credentials` argument. More information on how to get kaggle credentials: https://www.kaggle.com/docs/api"
+            % env_var_name
+        )
+
+
+class KaggleDatasetAlreadyDownloadedError(KaggleError):
+    def __init__(self, tag: str, path: str):
+        self.message = "Kaggle dataset %s already exists at %s." % (tag, path)
+        super().__init__(self.message)
+
+
+class InvalidPathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Dataset's path is an invalid path. It should be a valid local directory got {directory}."
+        )
+
+
+class SamePathException(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Dataset source and destination path are same '{directory}'. Source and destination cannot be same for dataset ingestion, try setting different paths."
+        )
+
+
 class TensorInvalidSampleShapeError(Exception):
-    def __init__(self, message: str, shape: Sequence[int]):
-        super().__init__(f"{message} Incoming sample shape: {str(shape)}")
+    def __init__(self, shape: Sequence[int], expected_dims: int):
+        super().__init__(
+            f"Sample shape length is expected to be {expected_dims}, actual length is {len(shape)}. Full incoming shape: {shape}"
+        )
 
 
 class TensorMetaMissingKey(Exception):
@@ -21,6 +62,13 @@ class TensorDoesNotExistError(KeyError):
 class TensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Tensor '{key}' already exists.")
+
+
+class InvalidTensorNameError(Exception):
+    def __init__(self, name: str):
+        super().__init__(
+            f"The use of a reserved attribute '{name}' as a tensor name is invalid."
+        )
 
 
 class DynamicTensorNumpyError(Exception):
@@ -103,13 +151,6 @@ class LoginException(Exception):
         message="Error while logging in, invalid auth token. Please try logging in again.",
     ):
         super().__init__(message)
-
-
-class ImproperDatasetInitialization(Exception):
-    def __init__(self):
-        super().__init__(
-            "Exactly one argument out of 'path' and 'storage' should be provided."
-        )
 
 
 class InvalidHubPathException(Exception):
@@ -374,13 +415,6 @@ class TransformError(Exception):
     pass
 
 
-class InvalidTransformOutputError(TransformError):
-    def __init__(self, item):
-        super().__init__(
-            f"The output of each step in a transformation should be either dictionary or a list/tuple of dictionaries, found {type(item)}."
-        )
-
-
 class InvalidInputDataError(TransformError):
     def __init__(self, message):
         super().__init__(
@@ -404,16 +438,29 @@ class TensorMismatchError(TransformError):
 
 
 class InvalidOutputDatasetError(TransformError):
-    def __init__(self):
-        super().__init__(
-            "One or more tensors of the ds_out have different lengths. Transform only supports ds_out having same number of samples for each tensor (This includes empty datasets that have 0 samples per tensor)."
-        )
+    def __init__(
+        self, message="The output Dataset to transform should not be `read_only`."
+    ):
+        super().__init__(message)
 
 
-class MemoryDatasetNotSupportedError(TransformError):
-    def __init__(self, scheduler):
+class InvalidTransformDataset(TransformError):
+    def __init__(
+        self,
+        message="The TransformDataset (2nd argument to transform function) of one of the functions is invalid. All the tensors should have equal length for it to be valid.",
+    ):
+        super().__init__(message)
+
+
+class TransformComposeEmptyListError(TransformError):
+    def __init__(self, message="Cannot hub.compose an empty list."):
+        super().__init__(message)
+
+
+class TransformComposeIncompatibleFunction(TransformError):
+    def __init__(self, index: int):
         super().__init__(
-            f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded mode. Current mode is {scheduler}."
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
         )
 
 
@@ -452,4 +499,20 @@ class WindowsSharedMemoryError(Exception):
     def __init__(self):
         super().__init__(
             f"Python Shared memory with multiprocessing doesn't work properly on Windows."
+        )
+
+
+class DatasetHandlerError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class CallbackInitializationError(Exception):
+    pass
+
+
+class MemoryDatasetCanNotBePickledError(Exception):
+    def __init__(self):
+        super().__init__(
+            "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )

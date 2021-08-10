@@ -151,9 +151,9 @@ commands:
           command: |
             pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
-            pip3 install -r requirements/tests.txt
-            <<# parameters.plugins >>pip3 install -r requirements/plugins.txt<</ parameters.plugins >>
-            pip3 install -r requirements/common.txt
+            pip3 install -r hub/requirements/tests.txt
+            <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
+            pip3 install -r hub/requirements/common.txt
             pip3 install -e .
   run-tests:
     parameters:
@@ -166,6 +166,8 @@ commands:
           steps:
             - run:
                 name: "Running tests - Windows"
+                environment:
+                  BUGGER_OFF: "true"
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
@@ -175,6 +177,8 @@ commands:
           steps:
             - run:
                 name: "Running tests - Unix"
+                environment:
+                  BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
@@ -304,7 +308,7 @@ jobs:
       - run:
           name: "Build Docker Hub Image"
           command: |
-            docker build -t $IMAGE_NAME:latest .
+            docker build -t $IMAGE_NAME:latest -f bin/Dockerfile.
       - run:
           name: "Deploy to Docker Hub"
           command: |

@@ -1,8 +1,6 @@
-from hub.tests.storage_fixtures import enabled_storages
+from hub.tests.storage_fixtures import enabled_storages, enabled_persistent_storages
 from hub.tests.cache_fixtures import enabled_cache_chains
 import pytest
-
-from click.testing import CliRunner
 from hub.constants import MB
 import pickle
 
@@ -126,14 +124,11 @@ def test_cache(cache_chain):
     check_cache(cache_chain)
 
 
-@enabled_storages
+@enabled_persistent_storages
 def test_pickling(storage):
-    with CliRunner().isolated_filesystem():
-        FILE_1 = f"{KEY}_1"
-        storage[FILE_1] = b"hello world"
-        assert storage[FILE_1] == b"hello world"
-        pickle_file = open("storage_pickle", "wb")
-        pickle.dump(storage, pickle_file)
-        pickle_file = open("storage_pickle", "rb")
-        unpickled_storage = pickle.load(pickle_file)
-        assert unpickled_storage[FILE_1] == b"hello world"
+    FILE_1 = f"{KEY}_1"
+    storage[FILE_1] = b"hello world"
+    assert storage[FILE_1] == b"hello world"
+    pickled_storage = pickle.dumps(storage)
+    unpickled_storage = pickle.loads(pickled_storage)
+    assert unpickled_storage[FILE_1] == b"hello world"

@@ -1,7 +1,7 @@
 from hub.constants import (
     HUB_CLOUD_DEV_USERNAME,
     HUB_CLOUD_OPT,
-    HUB_DEV_PASSWORD_ENVIRONMENT_VARIABLE,
+    ENV_HUB_DEV_PASSWORD,
 )
 from hub.tests.common import is_opt_true
 import os
@@ -16,11 +16,11 @@ def hub_cloud_dev_credentials(request):
 
     # TODO: use dev environment
 
-    password = os.getenv(HUB_DEV_PASSWORD_ENVIRONMENT_VARIABLE)
+    password = os.getenv(ENV_HUB_DEV_PASSWORD)
 
     assert (
         password is not None
-    ), f"Hub dev password was not found in the environment variable '{HUB_DEV_PASSWORD_ENVIRONMENT_VARIABLE}'. This is necessary for testing hub cloud datasets."
+    ), f"Hub dev password was not found in the environment variable '{ENV_HUB_DEV_PASSWORD}'. This is necessary for testing hub cloud datasets."
 
     return HUB_CLOUD_DEV_USERNAME, password
 

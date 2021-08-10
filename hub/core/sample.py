@@ -2,7 +2,7 @@
 from hub.core.compression import compress_array
 import numpy as np
 import pathlib
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 
@@ -92,8 +92,6 @@ class Sample:
             bytes: Bytes for the compressed sample. Contains all metadata required to decompress within these bytes.
         """
 
-        compression = compression.lower()
-
         if compression is None:
             return self.uncompressed_bytes()
 
@@ -141,3 +139,9 @@ class Sample:
 
     def __repr__(self):
         return str(self)
+
+    def __array__(self):
+        return self.array
+
+
+SampleValue = Union[np.ndarray, int, float, bool, Sample]

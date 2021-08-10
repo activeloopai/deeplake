@@ -1,15 +1,18 @@
+import os
 import numpy as np
 import pytest
-import uuid
 import hub
-import os
-from hub.api.dataset import Dataset
+from hub.core.dataset import Dataset
 from hub.tests.common import assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
+    DatasetHandlerError,
     UnsupportedCompressionError,
+    InvalidTensorNameError,
 )
+from hub.constants import MB
+
 from click.testing import CliRunner
 from hub.tests.dataset_fixtures import (
     enabled_datasets,
@@ -22,7 +25,16 @@ MAX_INT_DTYPE = np.int_.__name__
 MAX_FLOAT_DTYPE = np.float_.__name__
 
 
-@enabled_persistent_dataset_generators
+# not using the predefined parametrizes because `hub_cloud_ds_generator` is not enabled by default
+@pytest.mark.parametrize(
+    "ds_generator",
+    [
+        "local_ds_generator",
+        "s3_ds_generator",
+        "hub_cloud_ds_generator",
+    ],
+    indirect=True,
+)
 def test_persist(ds_generator):
     ds = ds_generator()
 
@@ -202,10 +214,31 @@ def test_empty_samples(ds: Dataset):
 
 
 @enabled_datasets
+def test_safe_downcasting(ds: Dataset):
+    int_tensor = ds.create_tensor("int", dtype="uint8")
+    int_tensor.append(0)
+    int_tensor.append(1)
+    int_tensor.extend([2, 3, 4])
+    int_tensor.extend([5, 6, np.uint8(7)])
+    with pytest.raises(TensorDtypeMismatchError):
+        int_tensor.append(-8)
+    assert len(int_tensor) == 8
+
+    float_tensor = ds.create_tensor("float", dtype="float32")
+    float_tensor.append(0)
+    float_tensor.append(1)
+    float_tensor.extend([2, 3.0, 4.0])
+    float_tensor.extend([5.0, 6.0, np.float32(7.0)])
+    with pytest.raises(TensorDtypeMismatchError):
+        float_tensor.append(float(np.finfo(np.float32).max + 1))
+    assert len(float_tensor) == 8
+
+
+@enabled_datasets
 def test_scalar_samples(ds: Dataset):
     tensor = ds.create_tensor("scalars")
 
-    assert tensor.meta.dtype == None
+    assert tensor.meta.dtype is None
 
     # first sample sets dtype
     tensor.append(5)
@@ -233,20 +266,48 @@ def test_scalar_samples(ds: Dataset):
 
     assert len(tensor) == 16
 
-    expected = np.array([5, 10, -99, 4, 4, 3, 10, 1, 4, 1, 1, 2, 3, 4, 5, 33])
-    np.testing.assert_array_equal(tensor.numpy(), expected)
+    assert tensor.shape == (16, 1)
 
-    assert tensor.numpy(aslist=True) == expected.tolist()
+    tensor.append([1])
+    tensor.append([1, 2, 3])
+    tensor.extend([[1], [2], [3, 4]])
+    tensor.append(np.empty(0, dtype=int))
 
-    assert tensor.shape == (16,)
-
-    # len(shape) for a scalar is `()`. len(shape) for [1] is `(1,)`
     with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1])
+        tensor.append([[[1]]])
 
-    # len(shape) for a scalar is `()`. len(shape) for [1, 2] is `(2,)`
-    with pytest.raises(TensorInvalidSampleShapeError):
-        tensor.append([1, 2])
+    expected = [
+        [5],
+        [10],
+        [-99],
+        [4],
+        [4],
+        [3],
+        [10],
+        [1],
+        [4],
+        [1],
+        [1],
+        [2],
+        [3],
+        [4],
+        [5],
+        [33],
+        [1],
+        [1, 2, 3],
+        [1],
+        [2],
+        [3, 4],
+        [],
+    ]
+
+    assert_array_lists_equal(expected, tensor.numpy(aslist=True))
+
+    assert tensor.shape == (22, None)
+    assert tensor.shape_interval.lower == (22, 0)
+    assert tensor.shape_interval.upper == (22, 3)
+
+    assert len(tensor) == 22
 
 
 @enabled_datasets
@@ -356,9 +417,9 @@ def test_length_slices(memory_ds):
     assert len(ds.data[1:10:2]) == 5
     assert len(ds.data[[0, 1, 5, 9]]) == 4
 
-    assert ds.data.shape == (11,)
-    assert ds[0:5].data.shape == (5,)
-    assert ds.data[1:6].shape == (5,)
+    assert ds.data.shape == (11, 1)
+    assert ds[0:5].data.shape == (5, 1)
+    assert ds.data[1:6].shape == (5, 1)
 
 
 def test_shape_property(memory_ds):
@@ -441,6 +502,9 @@ def test_dtype(memory_ds: Dataset):
     assert np_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
     assert py_dtyped_tensor.dtype == MAX_FLOAT_DTYPE
 
+    assert len(tensor) == 1
+    assert len(dtyped_tensor) == 1
+
 
 @pytest.mark.xfail(raises=TypeError, strict=True)
 def test_fails_on_wrong_tensor_syntax(memory_ds):
@@ -461,7 +525,7 @@ def test_array_interface(memory_ds: Dataset):
 
 def test_hub_dataset_suffix_bug(hub_cloud_ds, hub_cloud_dev_token):
     # creating dataset with similar name but some suffix removed from end
-    ds = Dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
+    ds = hub.dataset(hub_cloud_ds.path[:-1], token=hub_cloud_dev_token)
 
     # need to delete because it's a different path (won't be auto cleaned up)
     ds.delete()
@@ -497,23 +561,99 @@ def test_index_range(memory_ds):
 
 def test_empty_dataset():
     with CliRunner().isolated_filesystem():
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         ds.create_tensor("x")
         ds.create_tensor("y")
         ds.create_tensor("z")
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_like(local_path):
+    src_path = os.path.join(local_path, "src")
+    dest_path = os.path.join(local_path, "dest")
+
+    src_ds = hub.dataset(src_path)
+    src_ds.info.update(key=0)
+
+    src_ds.create_tensor("a", htype="image", sample_compression="png")
+    src_ds.create_tensor("b", htype="class_label")
+    src_ds.create_tensor("c")
+    src_ds.create_tensor("d", dtype=bool)
+
+    src_ds.d.info.update(key=1)
+
+    dest_ds = hub.like(dest_path, src_ds)
+
+    assert tuple(dest_ds.tensors.keys()) == ("a", "b", "c", "d")
+
+    assert dest_ds.a.meta.htype == "image"
+    assert dest_ds.a.meta.sample_compression == "png"
+    assert dest_ds.b.meta.htype == "class_label"
+    assert dest_ds.c.meta.htype == "generic"
+    assert dest_ds.d.dtype == bool
+
+    assert dest_ds.info.key == 0
+    assert dest_ds.d.info.key == 1
+
+    assert len(dest_ds) == 0
 
 
 def test_tensor_creation_fail_recovery():
     with CliRunner().isolated_filesystem():
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         with ds:
             ds.create_tensor("x")
             ds.create_tensor("y")
             with pytest.raises(UnsupportedCompressionError):
                 ds.create_tensor("z", sample_compression="something_random")
-        ds = Dataset("test")
+        ds = hub.dataset("test")
         assert list(ds.tensors) == ["x", "y"]
         ds.create_tensor("z")
         assert list(ds.tensors) == ["x", "y", "z"]
+
+
+def test_dataset_delete():
+    with CliRunner().isolated_filesystem():
+        os.mkdir("test")
+        with open("test/test.txt", "w") as f:
+            f.write("some data")
+
+        with pytest.raises(DatasetHandlerError):
+            # Can't delete raw data without force
+            hub.dataset.delete("test/")
+
+        hub.dataset.delete("test/", force=True)
+        assert not os.path.isfile("test/test.txt")
+
+        hub.empty("test/").create_tensor("tmp")
+        assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/")
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        old_size = hub.constants.DELETE_SAFETY_SIZE
+        hub.constants.DELETE_SAFETY_SIZE = 1 * MB
+
+        ds = hub.empty("test/")
+        ds.create_tensor("data")
+        ds.data.extend(np.zeros((100, 2000)))
+
+        try:
+            hub.dataset.delete("test/")
+        finally:
+            assert os.path.isfile("test/dataset_meta.json")
+
+        hub.dataset.delete("test/", large_ok=True)
+        assert not os.path.isfile("test/dataset_meta.json")
+
+        hub.constants.DELETE_SAFETY_SIZE = old_size
+
+
+def test_invalid_tesnor_name(memory_ds):
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("meta")
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("tensors")
+    with pytest.raises(InvalidTensorNameError):
+        memory_ds.create_tensor("info")

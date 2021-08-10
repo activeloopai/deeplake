@@ -8,10 +8,10 @@ project_name = "hub"
 
 this_directory = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(this_directory, "requirements/common.txt")) as f:
+with open(os.path.join(this_directory, "hub/requirements/common.txt")) as f:
     requirements = f.readlines()
 
-with open(os.path.join(this_directory, "requirements/tests.txt")) as f:
+with open(os.path.join(this_directory, "hub/requirements/tests.txt")) as f:
     tests = f.readlines()
 
 with open(os.path.join(this_directory, "README.md"), encoding="utf-8") as f:
@@ -34,6 +34,8 @@ setup(
     name=project_name,
     version=get_property("__version__"),
     description="Activeloop Hub",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     author="activeloop.ai",
     author_email="support@activeloop.ai",
     packages=find_packages(),

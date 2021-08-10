@@ -1,6 +1,5 @@
 import pytest
-from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
-from hub import Dataset
+from hub.util.exceptions import ReadOnlyModeError
 from hub.tests.storage_fixtures import enabled_storages
 
 

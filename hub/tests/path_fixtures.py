@@ -1,4 +1,4 @@
-from hub.util.get_storage_provider import storage_provider_from_hub_path
+from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 import os
@@ -100,6 +100,7 @@ def local_path(request):
         return
 
     path = _get_storage_path(request, LOCAL)
+    LocalProvider(path).clear()
 
     yield path
 
@@ -115,6 +116,7 @@ def s3_path(request):
         return
 
     path = _get_storage_path(request, S3)
+    S3Provider(path).clear()
 
     yield path
 
@@ -130,6 +132,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
         return
 
     path = _get_storage_path(request, HUB_CLOUD)
+    storage_provider_from_hub_path(path, token=hub_cloud_dev_token).clear()
 
     yield path
 
@@ -140,7 +143,7 @@ def hub_cloud_path(request, hub_cloud_dev_token):
 
 @pytest.fixture
 def cat_path():
-    """Path to a cat image in the dummy data folder."""
+    """Path to a cat image in the dummy data folder. Expected shape: (900, 900, 3)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "cat.jpeg")
@@ -148,7 +151,34 @@ def cat_path():
 
 @pytest.fixture
 def flower_path():
-    """Path to a flower image in the dummy data folder."""
+    """Path to a flower image in the dummy data folder. Expected shape: (513, 464, 4)"""
 
     path = get_dummy_data_path("compressed_images")
     return os.path.join(path, "flower.png")
+
+
+@pytest.fixture
+def compressed_image_paths():
+    paths = {
+        "webp": "beach.webp",
+        "gif": "boat.gif",
+        "bmp": "car.bmp",
+        "jpeg": "cat.jpeg",
+        "wmf": "crown.wmf",
+        "dib": "dog.dib",
+        "tiff": "field.tiff",
+        "png": "flower.png",
+        "ico": "sample_ico.ico",
+        "jpeg2000": "sample_jpeg2000.jp2",
+        "pcx": "sample_pcx.pcx",
+        "ppm": "sample_ppm.ppm",
+        "sgi": "sample_sgi.sgi",
+        "tga": "sample_tga.tga",
+        "xbm": "sample_xbm.xbm",
+    }
+
+    parent = get_dummy_data_path("compressed_images")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+
+    return paths

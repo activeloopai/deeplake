@@ -2,7 +2,7 @@ from typing import Tuple
 import pytest
 import numpy as np
 
-from hub import Dataset
+import hub
 from hub.util.exceptions import CouldNotCreateNewDatasetException, ReadOnlyModeError
 
 
@@ -11,6 +11,9 @@ def _assert_readonly_ops(ds, num_samples: int, sample_shape: Tuple[int]):
 
     with pytest.raises(ReadOnlyModeError):
         ds.tensor.append(np.ones(sample_shape))
+
+    with pytest.raises(ReadOnlyModeError):
+        ds.tensor[0] = np.ones((200, 200))
 
     assert len(ds) == num_samples
     assert len(ds.tensor) == num_samples
@@ -29,7 +32,13 @@ def test_readonly(local_ds_generator):
     ds.read_only = True
     _assert_readonly_ops(ds, 1, (100, 100))
 
+    with pytest.raises(ReadOnlyModeError):
+        ds.info.update(key=0)
+
+    with pytest.raises(ReadOnlyModeError):
+        ds.tensor.info.update(key=0)
+
 
 @pytest.mark.xfail(raises=CouldNotCreateNewDatasetException, strict=True)
 def test_readonly_doesnt_exist(local_path):
-    Dataset(local_path, read_only=True)
+    hub.dataset(local_path, read_only=True)

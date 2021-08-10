@@ -45,6 +45,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "class_label": {
         "dtype": "uint32",
         "class_names": [],
+        "_info": ["class_names"],  # class_names should be stored in info, not meta
     },
     "bbox": {"dtype": "float32"},
     "video": {"dtype": "uint8"},

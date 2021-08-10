@@ -1,29 +1,27 @@
-import numpy as np
 import pytest
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
+from .common import assert_encoded
 
 
 def test_trivial():
     enc = BytePositionsEncoder()
 
-    np.testing.assert_array_equal(
-        enc._encoded_byte_positions, np.array([], dtype=np.uint64)
-    )
+    assert_encoded(enc, [])
 
     assert enc.num_samples == 0
 
-    enc.add_byte_position(8, 100)
-    enc.add_byte_position(8, 100)
+    enc.register_samples(8, 100)
+    enc.register_samples(8, 100)
 
     assert enc.num_samples == 200
-    assert len(enc._encoded_byte_positions) == 1
-    assert enc.num_bytes_encoded_under_row(-1) == 1600
+    assert len(enc._encoded) == 1
+    assert enc.get_sum_of_bytes(-1) == 1600
 
-    enc.add_byte_position(1, 1000)
+    enc.register_samples(1, 1000)
 
     assert enc.num_samples == 1200
-    assert len(enc._encoded_byte_positions) == 2
-    assert enc.num_bytes_encoded_under_row(-1) == 2600
+    assert len(enc._encoded) == 2
+    assert enc.get_sum_of_bytes(-1) == 2600
 
     assert enc[0] == (0, 8)
     assert enc[1] == (8, 16)
@@ -32,11 +30,11 @@ def test_trivial():
     assert enc[201] == (1601, 1602)
     assert enc[1199] == (2599, 2600)
 
-    enc.add_byte_position(16, 32)
+    enc.register_samples(16, 32)
 
     assert enc.num_samples == 1232
-    assert len(enc._encoded_byte_positions) == 3
-    assert enc.num_bytes_encoded_under_row(-1) == 3112
+    assert len(enc._encoded) == 3
+    assert enc.get_sum_of_bytes(-1) == 3112
 
     assert enc[1200] == (2600, 2616)
 
@@ -49,21 +47,26 @@ def test_non_uniform():
 
     assert enc.num_samples == 0
 
-    enc.add_byte_position(4960, 1)
-    enc.add_byte_position(4961, 1)
-    enc.add_byte_position(41, 1)
+    enc.register_samples(4960, 1)
+    enc.register_samples(4961, 1)
+    enc.register_samples(41, 1)
 
     assert enc.num_samples == 3
-    assert len(enc._encoded_byte_positions) == 3
+    assert len(enc._encoded) == 3
 
     assert enc[0] == (0, 4960)
     assert enc[1] == (4960, 4960 + 4961)
     assert enc[2] == (4960 + 4961, 4960 + 4961 + 41)
 
+    assert enc.get_sum_of_bytes(0) == 4960
+    assert enc.get_sum_of_bytes(1) == 4960 + 4961
+    assert enc.get_sum_of_bytes(2) == 4960 + 4961 + 41
+    assert enc.get_sum_of_bytes(-1) == 4960 + 4961 + 41
+
 
 def test_failures():
     enc = BytePositionsEncoder()
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         # num_samples cannot be 0
-        enc.add_byte_position(8, 0)
+        enc.register_samples(8, 0)

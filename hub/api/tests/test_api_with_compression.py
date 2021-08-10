@@ -4,37 +4,30 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
 )
 import pytest
-from hub.api.tensor import Tensor
+from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
 from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
 import hub
-from hub import Dataset
+from hub.core.dataset import Dataset
 
 
 def _populate_compressed_samples(tensor: Tensor, cat_path, flower_path, count=1):
-    original_compressions = []
-
     for _ in range(count):
-        tensor.append(hub.load(cat_path))
-        original_compressions.append("jpeg")
-
-        tensor.append(hub.load(flower_path))
-        original_compressions.append("png")
-
+        tensor.append(hub.read(cat_path))
+        tensor.append(hub.read(flower_path))
         tensor.append(np.ones((100, 100, 4), dtype="uint8"))
-        original_compressions.append(tensor.meta.sample_compression)
+        tensor.append(
+            np.ones((100, 100, 4), dtype=int).tolist()
+        )  # test safe downcasting of python scalars
 
         tensor.extend(
             [
-                hub.load(flower_path),
-                hub.load(cat_path),
+                hub.read(flower_path),
+                hub.read(cat_path),
             ]
         )
-        original_compressions.extend(["png", "jpeg"])
-
-    return original_compressions
 
 
 @enabled_datasets
@@ -46,13 +39,25 @@ def test_populate_compressed_samples(ds: Dataset, cat_path, flower_path):
 
     _populate_compressed_samples(images, cat_path, flower_path)
 
-    assert images[0].numpy().shape == (900, 900, 3)
-    assert images[1].numpy().shape == (513, 464, 4)
+    expected_shapes = [
+        (900, 900, 3),
+        (513, 464, 4),
+        (100, 100, 4),
+        (100, 100, 4),
+        (513, 464, 4),
+        (900, 900, 3),
+    ]
 
-    assert len(images) == 5
-    assert images.shape == (5, None, None, None)
-    assert images.shape_interval.lower == (5, 100, 100, 3)
-    assert images.shape_interval.upper == (5, 900, 900, 4)
+    assert len(images) == 6
+
+    for img, exp_shape in zip(images, expected_shapes):
+        arr = img.numpy()
+        assert arr.shape == exp_shape
+        assert arr.dtype == "uint8"
+
+    assert images.shape == (6, None, None, None)
+    assert images.shape_interval.lower == (6, 100, 100, 3)
+    assert images.shape_interval.upper == (6, 900, 900, 4)
 
 
 @enabled_datasets
@@ -68,6 +73,7 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
         (900, 900, 3),
         (513, 464, 4),
         (100, 100, 4),
+        (100, 100, 4),
         (513, 464, 4),
         (900, 900, 3),
     ]
@@ -80,6 +86,7 @@ def test_iterate_compressed_samples(ds: Dataset, cat_path, flower_path):
             type(x) == np.ndarray
         ), "Check is necessary in case a `PIL` object is returned instead of an array."
         assert x.shape == expected_shape
+        assert x.dtype == "uint8"
 
 
 @enabled_datasets
@@ -118,6 +125,14 @@ def test_jpeg_bad_shapes(memory_ds: Dataset, bad_shape):
 
     tensor = memory_ds.create_tensor(TENSOR_KEY, sample_compression="jpeg")
     tensor.append(np.ones(bad_shape, dtype="uint8"))
+
+
+def test_compression_aliases(memory_ds: Dataset):
+    tensor = memory_ds.create_tensor("jpeg_tensor", sample_compression="jpeg")
+    assert tensor.meta.sample_compression == "jpeg"
+
+    tensor = memory_ds.create_tensor("jpg_tensor", sample_compression="jpg")
+    assert tensor.meta.sample_compression == "jpeg"
 
 
 @pytest.mark.xfail(raises=UnsupportedCompressionError, strict=True)

@@ -1,4 +1,4 @@
-from hub.util.get_storage_provider import storage_provider_from_hub_path
+from hub.util.storage import storage_provider_from_hub_path
 from hub.core.storage.s3 import S3Provider
 from hub.core.storage.local import LocalProvider
 from hub.core.storage.memory import MemoryProvider
@@ -7,7 +7,13 @@ import pytest
 
 enabled_storages = pytest.mark.parametrize(
     "storage",
-    ["memory_storage", "local_storage", "s3_storage", "hub_cloud_storage"],
+    ["memory_storage", "local_storage", "s3_storage"],
+    indirect=True,
+)
+
+enabled_persistent_storages = pytest.mark.parametrize(
+    "storage",
+    ["local_storage", "s3_storage"],
     indirect=True,
 )
 
