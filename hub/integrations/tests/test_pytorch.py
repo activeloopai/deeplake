@@ -219,8 +219,6 @@ def test_custom_tensor_order(ds):
 
 @requires_torch
 def test_readonly(local_ds):
-    path = local_ds.path
-
     local_ds.create_tensor("images")
     local_ds.create_tensor("labels")
     local_ds.images.extend(np.ones((10, 28, 28)))
@@ -228,12 +226,13 @@ def test_readonly(local_ds):
 
     # this MUST be after all tensors have been created!
     update_chunk_sizes(local_ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
-    del local_ds
-
-    local_ds = hub.dataset(path)
-    local_ds.mode = "r"
+    base_storage = get_base_storage(local_ds.storage)
+    base_storage.enable_readonly()
+    ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 
     # no need to check input, only care that readonly works
-    for sample in local_ds.pytorch():
+    for _ in ds.pytorch():
+        pass
+
+    for _ in dataset_to_pytorch(ds):
         pass
