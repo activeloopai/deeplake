@@ -326,6 +326,7 @@ class dataset:
         Raises:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
+            AutoCompressionError: If the source director is empty or does not contain a valid extension.
         """
         if not os.path.isdir(src):
             raise InvalidPathException(src)
