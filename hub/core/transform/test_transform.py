@@ -4,6 +4,7 @@ import numpy as np
 from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
+from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets
 from hub.util.exceptions import InvalidOutputDatasetError
 
@@ -98,32 +99,14 @@ def test_single_transform_hub_dataset_htypes(ds):
 
 
 @enabled_datasets
-def test_chain_transform_list_small(ds):
+@parametrize_num_workers
+def test_chain_transform_list_small(ds, num_workers):
     ls = [i for i in range(100)]
     ds_out = ds
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=5)
-    assert len(ds_out) == 600
-    for i in range(100):
-        for index in range(6 * i, 6 * i + 6):
-            np.testing.assert_array_equal(
-                ds_out[index].image.numpy(), 15 * i * np.ones((337, 200))
-            )
-            np.testing.assert_array_equal(
-                ds_out[index].label.numpy(), 15 * i * np.ones((1,))
-            )
-
-
-@enabled_datasets
-def test_chain_transform_list_small_zero(ds):
-    ls = [i for i in range(100)]
-    ds_out = ds
-    ds_out.create_tensor("image")
-    ds_out.create_tensor("label")
-    pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=0)
+    pipeline.eval(ls, ds_out, num_workers=num_workers)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
