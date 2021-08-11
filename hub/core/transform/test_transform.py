@@ -100,7 +100,7 @@ def test_single_transform_hub_dataset_htypes(ds, num_workers):
 
 
 @enabled_datasets
-def test_chain_transform_list_small(ds, num_workers):
+def test_chain_transform_list_small(ds):
     ls = [i for i in range(100)]
     ds_out = ds
     ds_out.create_tensor("image")
