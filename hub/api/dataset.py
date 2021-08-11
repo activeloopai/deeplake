@@ -12,11 +12,11 @@ from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, M
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
 from hub.util.bugout_reporter import hub_reporter
-from hub.util.auto import detect_compression
+from hub.util.auto import get_most_common_extension
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
-from hub.util.exceptions import DatasetHandlerError
+from hub.util.exceptions import DatasetHandlerError, AutoCompressionError
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.core.dataset import Dataset
 
@@ -262,7 +262,7 @@ class dataset:
     def ingest(
         src: str,
         dest: str,
-        images_compression: str = None,
+        images_compression: str = "auto",
         dest_creds: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
@@ -315,7 +315,7 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
@@ -334,8 +334,13 @@ class dataset:
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        if images_compression is None:
-            images_compression = detect_compression(src)
+        if len(os.listdir(src)) < 1:
+            raise AutoCompressionError(src)
+
+        if images_compression is "auto":
+            images_compression = get_most_common_extension(src)
+            if images_compression is None:
+                raise AutoCompressionError(src)
 
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
@@ -355,7 +360,7 @@ class dataset:
         tag: str,
         src: str,
         dest: str,
-        images_compression: str = None,
+        images_compression: str = "auto",
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
         overwrite: bool = False,
@@ -374,7 +379,7 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
-            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.

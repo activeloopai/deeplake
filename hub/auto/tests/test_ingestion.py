@@ -12,7 +12,7 @@ def test_ingestion_simple(memory_ds: Dataset):
         hub.ingest(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
-            images_compression="jpeg",
+            images_compression="auto",
             overwrite=False,
         )
 
@@ -22,6 +22,7 @@ def test_ingestion_simple(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
+        images_compression="auto",
         overwrite=False,
     )
 
@@ -37,6 +38,7 @@ def test_image_classification_sets(memory_ds: Dataset):
     ds = hub.ingest(
         src=path,
         dest=memory_ds.path,
+        images_compression="auto",
         overwrite=False,
     )
 
@@ -63,7 +65,7 @@ def test_ingestion_exception(memory_ds: Dataset):
         hub.ingest(
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
-            images_compression="jpeg",
+            images_compression="auto",
             overwrite=False,
         )
 
@@ -71,6 +73,6 @@ def test_ingestion_exception(memory_ds: Dataset):
         hub.ingest(
             src=path,
             dest=path,
-            images_compression="jpeg",
+            images_compression="auto",
             overwrite=False,
         )

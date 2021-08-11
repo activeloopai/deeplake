@@ -1,22 +1,15 @@
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
-from hub.util.exceptions import InvalidPathException, SamePathException
+from hub.util.auto import get_most_common_extension
 import pytest
-import hub
 
 
 def test_auto_compression(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/auto_compression")
+    path_file = get_dummy_data_path("test_auto/auto_comrpession/jpeg/bird.jpeg")
 
-    ds = hub.ingest(
-        src=path,
-        dest=memory_ds.path,
-        dest_creds=None,
-        overwrite=False,
-    )
+    compression = get_most_common_extension(path)
+    file_compression = get_most_common_extension(path_file)
 
-    assert ds.images.meta.sample_compression == "png"
-    assert list(ds.tensors.keys()) == ["images", "labels"]
-    assert ds.images.numpy().shape == (3, 200, 200, 3)
-    assert ds.labels.numpy().shape == (3, 1)
-    assert ds.labels.info.class_names == ("jpeg", "png")
+    assert compression == "png"
+    assert file_compression == "jpeg"

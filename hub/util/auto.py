@@ -1,25 +1,36 @@
 import glob
 import os, random
 from collections import Counter
+from typing import Tuple
 
 
-def detect_compression(path: str):
-    """Detects the most frequent compression type of files in a dataset.
+def get_most_common_extension(
+    path: str, allowed_extensions: Tuple = (".jpeg", ".png", ".jpg")
+):
+    """Determines the most frequently used extension in a directory of files.
 
     Args:
-        path (str): Path to the directory of a local dataset.
+        path (str): Directory to scan.
+        allowed_extensions (Tuple): File extensions considered for scanning.
 
     Returns:
-        compression (str): Compression type of a dataset.
+        compression (str): Most common extension under the provided path.
     """
 
-    types = (".jpeg", ".png", ".jpg")
+    # Return file extension if path is not a directory
+    if not os.path.isdir(path):
+        file_extension = os.path.splitext(path)[1].split(".")[1]
+        if file_extension is not None:
+            return None
+        else:
+            return file_extension
+
     file_names = []
 
     g = glob.glob(os.path.join(path, "**"), recursive=True)
 
     for name in g:
-        if name.endswith(types):
+        if name.endswith(allowed_extensions):
             file_names.append(name)
 
     if len(file_names) < 100:
