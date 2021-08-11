@@ -40,6 +40,26 @@ def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
 
 
+def ingestion_summary(src: str, skipped_files: list):
+    columns, lines = os.get_terminal_size()
+
+    mid = int(columns / 2)
+    for i in range(columns - 20):
+        print("=", end="")
+        if i == mid - 10:
+            print(" Ingestion Summary ", end="")
+    print("\n")
+
+    for root, dirs, files in os.walk(src):
+        level = root.replace(src, "").count(os.sep)
+        indent = " " * 6 * (level)
+        print("{}{}/".format(indent, os.path.basename(root)))
+        subindent = " " * 6 * (level + 1)
+        for f in files:
+            if f in skipped_files:
+                print("{}{} -- Skipped".format(subindent, f))
+
+
 class ImageClassification(UnstructuredDataset):
     def __init__(self, source: str):
         """Convert an unstructured dataset to a structured dataset.
@@ -128,6 +148,7 @@ class ImageClassification(UnstructuredDataset):
                 total=len(paths),
                 disable=not use_progress_bar,
             )
+            skipped_files = []
             for file_path in iterator:
                 image = hub.read(file_path)
                 class_name = _class_name_from_path(file_path)
@@ -146,10 +167,8 @@ class ImageClassification(UnstructuredDataset):
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
                 except Exception as e:
-
-                    warnings.warn(
-                        f"[Skipping] Could not upload sample '{file_path}'. Reason: {e}"
-                    )
+                    skipped_files.append(file_path.name)
+                    ingestion_summary(str(self.source), skipped_files)
                     continue
 
                 ds[labels_tensor_map[set_name]].append(label)
