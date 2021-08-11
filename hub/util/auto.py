@@ -20,7 +20,7 @@ def get_most_common_extension(
     # Return file extension if path is not a directory
     if not os.path.isdir(path):
         file_extension = os.path.splitext(path)[1].split(".")[1]
-        if file_extension is not None:
+        if file_extension is None:
             return None
         else:
             return file_extension
