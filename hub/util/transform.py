@@ -33,7 +33,7 @@ def transform_sample(
     """
     result = sample
     for index in range(len(pipeline)):
-        transform_fn = pipeline.transform_functions[index]
+        transform_fn = pipeline.functions[index]
         fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
         if isinstance(result, TransformDataset):
