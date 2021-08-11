@@ -43,7 +43,8 @@ def is_uniform_sequence(samples):
     else:
         # Scalar samples can be vectorized
         return True
-    
+
+
 # used for warning the user if updating a tensor caused suboptimal chunks
 CHUNK_UPDATE_WARN_PORTION = 0.2
 

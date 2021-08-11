@@ -6,14 +6,22 @@ from hub.core.meta.tensor_meta import TensorMeta
 
 from typing import List, Sequence, Union
 
+
 def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
-    """ Generate two unsigned 64-bit murmurhash3 of samples """
-    
+    """Generate two unsigned 64-bit murmurhash3 of samples"""
+
     hashlist = []
 
-    for sample in samples:
-        
-        hashed_sample = mmh3.hash64(sample.uncompressed_bytes(), signed=False)
-        hashlist.append(np.array(hashed_sample))
-        
+    if isinstance(samples, np.ndarray):
+        # TODO: Account for compression
+        for sample in samples:
+            hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
+            hashlist.append(np.array(hashed_sample))
+
+    else:
+
+        for sample in samples:
+            hashed_sample = mmh3.hash64(sample.uncompressed_bytes(), signed=False)
+            hashlist.append(np.array(hashed_sample))
+
     return hashlist

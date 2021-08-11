@@ -1,9 +1,9 @@
 import hub
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
-from hub.core.tensor import create_tensor, Tensor, load_tensor_meta
+from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
+from hub.constants import DEFAULT_HTYPE, UNSPECIFIED, HASHES_TENSOR_FOLDER
 from hub.htypes import HTYPE_CONFIGURATIONS
 import numpy as np
 
@@ -154,7 +154,7 @@ class Dataset:
         htype: str = DEFAULT_HTYPE,
         dtype: Union[str, np.dtype, type] = UNSPECIFIED,
         sample_compression: str = UNSPECIFIED,
-        hash_samples: Optional[bool] =  False,
+        hash_samples: Optional[bool] = False,
         **kwargs,
     ):
         """Creates a new tensor in the dataset.
@@ -220,25 +220,27 @@ class Dataset:
         tensor.info.update(info_kwargs)
 
         if hash_samples:
-            hashes_tensor = self.create_tensor("hashes")
+            hashes_tensor = self.create_tensor(HASHES_TENSOR_FOLDER)
             self._link_tensor(tensor, hashes_tensor)
-            
+
         return tensor
 
     def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
-        
+
         if not src.meta.linked_tensors:
             if not dest.meta.is_linked:
 
                 src.meta.linked_tensors = dest.key
                 dest.meta.is_linked = True
             else:
-                raise NotImplementedError("Destination tensor already has been linked to another tensor.")
+                raise NotImplementedError(
+                    "Destination tensor already has been linked to another tensor."
+                )
         else:
-            raise NotImplementedError("Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible.")
+            raise NotImplementedError(
+                "Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible."
+            )
 
-
-    
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
         """Copies the `source` tensor's meta information and creates a new tensor with it. No samples are copied, only the meta/info for the tensor is.

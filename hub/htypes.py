@@ -61,7 +61,7 @@ COMMON_CONFIGS = {
     "dtype": None,
     "hash_samples": None,
     "linked_tensors": None,
-    "is_linked" : None,
+    "is_linked": None,
 }
 
 

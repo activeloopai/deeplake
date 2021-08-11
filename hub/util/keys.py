@@ -17,6 +17,7 @@ def get_dataset_info_key() -> str:
     # dataset info is always relative to the `StorageProvider`'s root
     return constants.DATASET_INFO_FILENAME
 
+
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 

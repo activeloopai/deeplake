@@ -67,7 +67,8 @@ class TensorAlreadyExistsError(Exception):
 class HashesTensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
         super().__init__(f"Hashes tensor already exists.")
-        
+
+
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
         super().__init__(
@@ -328,9 +329,11 @@ class TensorUnsupportedSampleType(Exception):
 
 class HashesTensorDoesNotExistError(Exception):
     def __init__(self):
-        super().__init__(f"Hashes tensor doesn't exist for the dataset. This can be created by setting"
-                          " the paramter, hash_samples = True in create_tensor"
-                        )
+        super().__init__(
+            f"Hashes tensor doesn't exist for the dataset. This can be created by setting"
+            " the paramter, hash_samples = True in create_tensor"
+        )
+
 
 class MetaError(Exception):
     pass
