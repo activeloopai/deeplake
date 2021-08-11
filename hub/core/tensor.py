@@ -6,10 +6,9 @@ from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.storage import StorageProvider, LRUCache
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.core.chunk_engine import ChunkEngine
-from hub.core.meta.hashlist import Hashlist
-from hub.core.meta.hashlist import load_hashlist
 from hub.api.info import load_info
-from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key, get_hashlist_key, hashlist_exists
+from hub.util.keys import get_tensor_meta_key, tensor_exists, get_tensor_info_key
+from hub.constants import HASHES_TENSOR_FOLDER
 from hub.util.casting import get_incompatible_dtype
 from hub.util.shape_interval import ShapeInterval
 from hub.util.hash import generate_hashes
@@ -17,7 +16,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
     InvalidKeyTypeError,
     TensorAlreadyExistsError,
-    HashlistAlreadyExistsError,
+    HashesTensorAlreadyExistsError,
     TensorDtypeMismatchError,
 )
 from hub.core.serialize import _serialize_input_sample
@@ -38,7 +37,7 @@ def create_tensor(
         storage (StorageProvider): StorageProvider that all tensor data is written to.
         htype (str): Htype is how the default tensor metadata is defined.
         sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
-        hash_samples (Optional[bool]): All samples added to this tensor will be hashed and added to a hashlist.
+        hash_samples (Optional[bool]): All samples added to this tensor will be hashed and added as chunk to a tensor.
         **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
             To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
 
@@ -49,9 +48,6 @@ def create_tensor(
     if tensor_exists(key, storage):
         raise TensorAlreadyExistsError(key)
 
-    if hashlist_exists(key, storage):
-        raise HashlistAlreadyExistsError(key)
-
     meta_key = get_tensor_meta_key(key)
     meta = TensorMeta(
         htype=htype,
@@ -61,11 +57,6 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
-    # Creating hashlist
-    if (hash_samples): 
-        hashlist_key = get_hashlist_key(key)
-        hlist = Hashlist()
-        storage[hashlist_key] = hlist
 
 
 class Tensor:
@@ -101,11 +92,9 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
-        self.hashlist = load_hashlist(get_hashlist_key(self.key), self.storage)
         
-        # if ("hashes" in self.meta.linked_tensors) and (self.key != "hashes"):
-        #     print("self.key:", self.key)
-        #     self.linked_tensor = Tensor("hashes", self.storage)
+        if (self.meta.linked_tensors == HASHES_TENSOR_FOLDER) and (self.key != HASHES_TENSOR_FOLDER):
+            self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
             
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
@@ -140,9 +129,10 @@ class Tensor:
 
         self.chunk_engine.extend(samples)
 
-        # if "hashes" in self.meta.linked_tensors:
-        #     hashed_samples = generate_hashes(samples)
-        #     self.linked_tensor.chunk_engine.extend(hashed_samples)
+        if (self.meta.linked_tensors ==  HASHES_TENSOR_FOLDER):
+            hashed_samples = generate_hashes(samples)
+            self.linked_tensor.chunk_engine.extend(hashed_samples)
+
 
 
     def append(
@@ -315,7 +305,7 @@ class Tensor:
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if "hashes" in self.meta.linked_tensors:
+        if (HASHES_TENSOR_FOLDER in self.meta.linked_tensors):
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(self.index[item_index],hashed_samples)
 

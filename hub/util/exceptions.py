@@ -64,9 +64,9 @@ class TensorAlreadyExistsError(Exception):
         super().__init__(f"Tensor '{key}' already exists.")
 
 
-class HashlistAlreadyExistsError(Exception):
+class HashesTensorAlreadyExistsError(Exception):
     def __init__(self, key: str):
-        super().__init__(f"Hashlist '{key}' already exists.")
+        super().__init__(f"Hashes tensor already exists.")
         
 class InvalidTensorNameError(Exception):
     def __init__(self, name: str):
@@ -326,10 +326,10 @@ class TensorUnsupportedSampleType(Exception):
         )
 
 
-class HashlistDoesNotExistError(Exception):
+class HashesTensorDoesNotExistError(Exception):
     def __init__(self):
-        super().__init__(f"Hashlist doesn't exist for one of the tensors being compared. This could've been caused by"
-                            " not enabling hashing when creating the tensor (hash_samples)."
+        super().__init__(f"Hashes tensor doesn't exist for the dataset. This can be created by setting"
+                          " the paramter, hash_samples = True in create_tensor"
                         )
 
 class MetaError(Exception):

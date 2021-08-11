@@ -17,11 +17,6 @@ def get_dataset_info_key() -> str:
     # dataset info is always relative to the `StorageProvider`'s root
     return constants.DATASET_INFO_FILENAME
 
-
-def get_hashlist_key(key: str) -> str:
-    return posixpath.join(key, constants.HASHLIST_FILENAME)
-
-
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 
@@ -49,14 +44,6 @@ def dataset_exists(storage: StorageProvider) -> bool:
 def tensor_exists(key: str, storage: StorageProvider) -> bool:
     try:
         storage[get_tensor_meta_key(key)]
-        return True
-    except KeyError:
-        return False
-
-
-def hashlist_exists(key: str, storage: StorageProvider) -> bool:
-    try:
-        storage[get_hashlist_key(key)]
         return True
     except KeyError:
         return False

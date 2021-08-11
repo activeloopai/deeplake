@@ -8,13 +8,11 @@ from hub.util.exceptions import (
     DynamicTensorNumpyError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
-from hub.core.meta.hashlist import Hashlist
 from hub.core.index.index import Index
 from hub.util.keys import (
     get_chunk_key,
     get_chunk_id_encoder_key,
     get_tensor_meta_key,
-    get_hashlist_key,
 )
 from hub.core.sample import Sample, SampleValue  # type: ignore
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
@@ -26,9 +24,6 @@ from hub.core.storage.lru_cache import LRUCache
 from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
-
-import mmh3, os, sys
-
 
 SampleValue = Union[np.ndarray, int, float, bool, Sample]
 from hub.core.serialize import serialize_input_samples
@@ -48,12 +43,6 @@ def is_uniform_sequence(samples):
     else:
         # Scalar samples can be vectorized
         return True
-
-
-def hash(sample):
-    """Generates a 128 bit hash for a sample using murmurhash3"""
-    hashed_sample = mmh3.hash_bytes(sample)
-    return hashed_sample.hex()
     
 # used for warning the user if updating a tensor caused suboptimal chunks
 CHUNK_UPDATE_WARN_PORTION = 0.2
@@ -209,11 +198,6 @@ class ChunkEngine:
     def tensor_meta(self):
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
-
-    @property
-    def hashlist(self):
-        hashlist_key = get_hashlist_key(self.key)
-        return self.cache.get_cachable(hashlist_key, Hashlist)
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for

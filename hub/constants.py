@@ -62,8 +62,8 @@ MIN_SECOND_CACHE_SIZE = 160 * MB
 DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
-# hashlist consists of list of hashes of all samples inside a tensor
-HASHLIST_FILENAME = "hashlist.json"
+# tensor containing hashes of samples
+HASHES_TENSOR_FOLDER = "hashes"
 
 # maximum allowable size before `large_ok` must be passed to dataset delete methods
 DELETE_SAFETY_SIZE = 1 * GB

@@ -7,12 +7,13 @@ from hub.core.meta.tensor_meta import TensorMeta
 from typing import List, Sequence, Union
 
 def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
-    """ Generate 128-bit murmurhash3 of samples """
+    """ Generate two unsigned 64-bit murmurhash3 of samples """
     
+    hashlist = []
+
     for sample in samples:
         
-        hashed_sample = mmh3.hash_bytes(sample.uncompressed_bytes())
-        sample = hashed_sample.hex()
-        print("Hash: ", sample)
-
-    return samples
+        hashed_sample = mmh3.hash64(sample.uncompressed_bytes(), signed=False)
+        hashlist.append(np.array(hashed_sample))
+        
+    return hashlist
