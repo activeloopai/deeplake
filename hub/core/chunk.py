@@ -54,21 +54,43 @@ class Chunk(Cachable):
         self._decompressed_samples: Optional[List[np.ndarray]] = None
         self._decompressed_data: Optional[bytes] = None
 
-    @property
-    def decompressed_samples(self) -> List[np.ndarray]:
+    def decompressed_samples(
+        self,
+        compression: Optional[str] = None,
+        dtype: Optional[Union[np.dtype, str]] = None,
+    ) -> List[np.ndarray]:
         """Applicable only for compressed chunks"""
         if self._decompressed_samples is None:
             shapes = [
                 self.shapes_encoder[i] for i in range(self.shapes_encoder.num_samples)
             ]
-            self._decompressed_samples = decompress_multiple(self._data, shapes)
-        self._decompressed_samples
+            if compression == "lz4":
+                itemsize = np.dtype(dtype).itemsize
+                decompressed_data = self.decompressed_data(compression)
+                samples = []
+                for shape in shapes:
+                    nbytes = np.prod(shape) * itemsize
+                    samples.append(
+                        np.frombuffer(decompressed_data[:nbytes], dtype=dtype).reshape(
+                            shape
+                        )
+                    )
+                    decompressed_data = decompressed_data[nbytes:]
+                self._decompressed_samples = samples
+            else:
+                self._decompressed_samples = decompress_multiple(self._data, shapes)
+        return self._decompressed_samples
 
-    @property
-    def decompressed_data(self) -> memoryview:
+    def decompressed_data(self, compression: Optional[str] = None) -> memoryview:
         """Applicable only for compressed chunks"""
         if self._decompressed_data is None:
-            self._decompressed_data = memoryview(lz4.frame.decompress(self._data))
+            if compression == "lz4":
+                self._decompressed_data = memoryview(lz4.frame.decompress(self._data))
+            else:
+                # This should never be reached. non lz4 tensors should use decompressed_samples() instead.
+                self._decompressed_data = memoryview(
+                    decompress_array(self._data).tobytes()
+                )
         return self._decompressed_data
 
     @property
@@ -171,9 +193,11 @@ class Chunk(Cachable):
             ValueError: If `incoming_num_bytes` is not divisible by `num_samples`.
         """
 
-        num_bytes_per_sample = incoming_num_bytes
         self.shapes_encoder.register_samples(sample_shape, 1)
-        self.byte_positions_encoder.register_samples(num_bytes_per_sample, 1)
+        if (
+            incoming_num_bytes is not None
+        ):  # incoming_num_bytes is not applicable for non lz4 compressions
+            self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
         self._clear_decompressed_cache()
 
     def update_sample(
@@ -189,20 +213,20 @@ class Chunk(Cachable):
         expected_dimensionality = len(self.shapes_encoder[local_sample_index])
         if expected_dimensionality != len(new_shape):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
-
+        new_nb = len(new_buffer)
+        self.shapes_encoder[local_sample_index] = new_shape
         if chunk_compression:
             if chunk_compression == "lz4":
-                decompressed_buffer = self.decompressed_data
+                decompressed_buffer = self.decompressed_data()
                 old_start_byte, old_end_byte = self.byte_positions_encoder[
                     local_sample_index
                 ]
-                new_nb = len(new_buffer)
+
                 left = decompressed_buffer[:old_start_byte]
                 right = decompressed_buffer[old_end_byte:]
                 total_new_bytes = len(left) + new_nb + len(right)
                 new_data_uncompressed = bytearray(total_new_bytes)
                 self.byte_positions_encoder[local_sample_index] = new_nb
-                self.shapes_encoder[local_sample_index] = new_shape
                 new_start_byte, new_end_byte = self.byte_positions_encoder[
                     local_sample_index
                 ]
@@ -212,22 +236,22 @@ class Chunk(Cachable):
                 self._data = memoryview(lz4.frame.compress(new_data_uncompressed))
                 self._decompressed_data = memoryview(new_data_uncompressed)
             else:
-                decompressed_samples = self.decompressed_samples
+                decompressed_samples = self.decompressed_samples()
                 decompressed_samples[local_sample_index] = np.frombuffer(
-                    buffer, dtype=dtype
+                    new_buffer, dtype=dtype
                 ).reshape(new_shape)
-                self._data = bytearray(compress_multiple(decompressed_samples))
-
-        new_nb = len(new_buffer)
+                self._data = bytearray(
+                    compress_multiple(decompressed_samples, chunk_compression)
+                )
+            return
 
         # get the unchanged data
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_sample_index]
         left = self._data[:old_start_byte]
         right = self._data[old_end_byte:]
 
-        # update encoders
+        # update byte postions
         self.byte_positions_encoder[local_sample_index] = new_nb
-        self.shapes_encoder[local_sample_index] = new_shape
         new_start_byte, new_end_byte = self.byte_positions_encoder[local_sample_index]
 
         # preallocate

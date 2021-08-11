@@ -128,7 +128,12 @@ class ChunkEngine:
         self._meta_cache = meta_cache
         if self.tensor_meta.chunk_compression:
             self._last_chunk_uncompressed: List[np.ndarray] = (
-                self.last_chunk.decompressed_samples if self.last_chunk else []
+                self.last_chunk.decompressed_samples(
+                    compression=self.tensor_meta.chunk_compression,
+                    dtype=self.tensor_meta.dtype,
+                )
+                if self.last_chunk
+                else []
             )
 
     @property
@@ -260,7 +265,7 @@ class ChunkEngine:
         if chunk_compression:
             last_chunk_uncompressed = self._last_chunk_uncompressed
             last_chunk_uncompressed.append(
-                np.frombuffer(buffer, dtype=dtype).reshape(shape)
+                np.frombuffer(buffer, dtype=self.tensor_meta.dtype).reshape(shape)
             )
             compressed_bytes = compress_multiple(
                 last_chunk_uncompressed, chunk_compression
@@ -276,6 +281,8 @@ class ChunkEngine:
             chunk._data = compressed_bytes
             if chunk_compression == "lz4":
                 chunk.register_sample_to_headers(len(buffer), shape)
+            else:
+                chunk.register_sample_to_headers(None, shape)
         else:
             buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
             if not buffer_consumed:
@@ -523,16 +530,14 @@ class ChunkEngine:
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
             if chunk_compression == "lz4":
-                decompressed = memoryview(lz4.format.decompress(chunk.memoryview_data))
+                decompressed = chunk.decompressed_data(compression=chunk_compression)
                 shape = chunk.shapes_encoder[local_sample_index]
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
-                return (
-                    np.frombuffer(decompressed[sb:eb], dtype=np.byte)
-                    .view(dtype)
-                    .reshape(shape)
-                )
+                return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
             else:
-                return chunk.decompressed_samples[local_sample_index]
+                return chunk.decompressed_samples(compression=chunk_compression)[
+                    local_sample_index
+                ]
         shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         buffer = buffer[sb:eb]

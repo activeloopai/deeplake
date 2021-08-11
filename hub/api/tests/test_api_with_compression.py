@@ -144,3 +144,46 @@ def test_unsupported_compression(memory_ds: Dataset):
 @pytest.mark.xfail(raises=TensorMetaMissingRequiredValue, strict=True)
 def test_missing_sample_compression_for_image(memory_ds: Dataset):
     memory_ds.create_tensor("tensor", htype="image")
+
+
+@enabled_datasets
+def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
+    images = ds.create_tensor("images", htype="image", chunk_compression="jpg")
+    images.append(hub.read(cat_path))
+    images.append(hub.read(cat_path))
+    images.append(np.zeros((500, 450, 3), dtype="uint8"))
+    images.append(hub.read(cat_path))
+    images.append(hub.read(cat_path))
+    expected_shapes = [
+        (900, 900, 3),
+        (900, 900, 3),
+        (500, 450, 3),
+        (900, 900, 3),
+        (900, 900, 3),
+    ]
+    for img, exp_shape in zip(images, expected_shapes):
+        assert img.numpy().shape == exp_shape
+
+    images = ds.create_tensor("images2", htype="image", chunk_compression="png")
+    images.append(hub.read(flower_path))
+    images.append(hub.read(flower_path))
+    expected_arr = np.random.randint(0, 256, (500, 450, 4)).astype("uint8")
+    images.append(expected_arr)
+    images.append(hub.read(flower_path))
+    images.append(hub.read(flower_path))
+    expected_img = np.array(hub.read(flower_path))
+
+    np.testing.assert_array_equal(images[2].numpy(), expected_arr)
+    for img in images[[0, 1, 3, 4]]:
+        np.testing.assert_array_equal(img, expected_img)
+
+    labels = ds.create_tensor("labels", chunk_compression="lz4")
+    data = [[0] * 50, [1, 2, 3] * 100, [4, 5, 6] * 200, [7, 8, 9] * 300]
+    labels.extend(data)
+    for row, label in zip(data, labels):
+        assert row == label.numpy().tolist()
+
+    updates = [[3, 4, 5] * 50, [5, 6, 7] * 300]
+    labels[1:3] = updates
+    for row, label in zip(updates, labels[1:3]):
+        assert row == label.numpy().tolist()

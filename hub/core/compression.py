@@ -151,7 +151,7 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
         if arr.dtype != dtype:
             raise TypeError()  # TODO
     if compression == "lz4":
-        return lz4.format.compress(
+        return lz4.frame.compress(
             b"".join(arr.tobytes() for arr in arrays)
         )  # Note: shape and dtype info not included
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)

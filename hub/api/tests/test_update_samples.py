@@ -7,8 +7,10 @@ import numpy as np
 import hub
 
 
-def _add_dummy_mnist(ds, images_compression: str = None):
-    ds.create_tensor("images", htype="image", sample_compression=images_compression)
+def _add_dummy_mnist(ds, **kwargs):
+    compression = {"sample_compression": None}
+    compression.update(kwargs)
+    ds.create_tensor("images", htype="image", **compression)
     ds.create_tensor("labels", htype="class_label")
 
     ds.images.extend(np.ones((10, 28, 28), dtype=np.uint8))
@@ -70,11 +72,18 @@ def _make_update_assert_equal(
         assert len(ds) == 10
 
 
-@pytest.mark.parametrize("images_compression", [None, "png"])
-def test(local_ds_generator, images_compression):
+@pytest.mark.parametrize(
+    "compression",
+    [
+        {"sample_compression": None},
+        {"sample_compression": "png"},
+        {"chunk_compression": "png"},
+    ],
+)
+def test(local_ds_generator, compression):
     gen = local_ds_generator
 
-    _add_dummy_mnist(gen(), images_compression=images_compression)
+    _add_dummy_mnist(gen(), **compression)
 
     # update single sample
     _make_update_assert_equal(
