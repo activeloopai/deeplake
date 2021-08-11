@@ -95,7 +95,7 @@ class Pipeline:
 
         hub_reporter.feature_report(
             feature_name="eval",
-            parameters={"Num_Workers": num_workers, "Scheduler": scheduler},
+            parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
         )
 
         check_transform_data_in(data_in, scheduler)
