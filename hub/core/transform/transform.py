@@ -50,11 +50,6 @@ class TransformFunction:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
         """
 
-        hub_reporter.feature_report(
-            feature_name="eval",
-            parameters={"Num_Workers": num_workers, "Scheduler": scheduler},
-        )
-
         pipeline = Pipeline([self])
         pipeline.eval(data_in, ds_out, num_workers, scheduler)
 
@@ -97,6 +92,11 @@ class Pipeline:
 
         if isinstance(data_in, hub.core.dataset.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
+
+        hub_reporter.feature_report(
+            feature_name="eval",
+            parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
+        )
 
         check_transform_data_in(data_in, scheduler)
         check_transform_ds_out(ds_out, scheduler)
