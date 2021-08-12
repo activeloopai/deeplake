@@ -148,6 +148,8 @@ commands:
     steps:
       - run:
           name: "Collecting requirements"
+          environment:
+            BUGGER_OFF: "true"
           command: |
             pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
