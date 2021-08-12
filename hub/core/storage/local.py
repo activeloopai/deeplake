@@ -50,8 +50,6 @@ class LocalProvider(StorageProvider):
             raise
         except FileNotFoundError:
             raise KeyError
-        except Exception:
-            raise
 
     def __setitem__(self, path: str, value: bytes):
         """Sets the object present at the path with the value
@@ -70,17 +68,14 @@ class LocalProvider(StorageProvider):
             ReadOnlyError: If the provider is in read-only mode.
         """
         self.check_readonly()
-        try:
-            full_path = self._check_is_file(path)
-            directory = os.path.dirname(full_path)
-            if os.path.isfile(directory):
-                raise FileAtPathException(directory)
-            if not os.path.exists(directory):
-                os.makedirs(directory, exist_ok=True)
-            file = open(full_path, "wb")
-            file.write(value)
-        except Exception:
-            raise
+        full_path = self._check_is_file(path)
+        directory = os.path.dirname(full_path)
+        if os.path.isfile(directory):
+            raise FileAtPathException(directory)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+        file = open(full_path, "wb")
+        file.write(value)
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -106,8 +101,6 @@ class LocalProvider(StorageProvider):
             raise
         except FileNotFoundError:
             raise KeyError
-        except Exception:
-            raise
 
     def __iter__(self):
         """Generator function that iterates over the keys of the provider.
