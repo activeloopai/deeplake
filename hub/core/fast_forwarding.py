@@ -4,19 +4,56 @@ from hub.core.meta.encode.shape import ShapeEncoder
 import hub
 
 
+def version_compare(v1, v2):
+    """Returns -1 if v1 is older than v2, 0 if v1 == v2, and +1 if v1 > v2."""
+
+    # This will split both the versions by '.'
+    arr1 = v1.split(".")
+    arr2 = v2.split(".")
+    n = len(arr1)
+    m = len(arr2)
+
+    # converts to integer from string
+    arr1 = [int(i) for i in arr1]
+    arr2 = [int(i) for i in arr2]
+
+    # compares which list is bigger and fills
+    # smaller list with zero (for unequal delimeters)
+    if n > m:
+        for i in range(m, n):
+            arr2.append(0)
+    elif m > n:
+        for i in range(n, m):
+            arr1.append(0)
+
+    # returns 1 if version 1 is bigger and -1 if
+    # version 2 is bigger and 0 if equal
+    for i in range(len(arr1)):
+        if arr1[i] > arr2[i]:
+            return 1
+        elif arr2[i] > arr1[i]:
+            return -1
+    return 0
+
+
 def _check_version(v):
     """Raises exceptions for incompatible versions. Returns True if no fast forwarding is required (False if otherwise)."""
 
-    # TODO: if `v` is newer than the current version, raise an exception
+    comparison = version_compare(v, hub.__version__)
+    if comparison > 0:
+        raise Exception(
+            f"Cannot update the version of a dataset that was created with a newer version of hub. Dataset version: {v}, current hub version: {hub.__version__}"
+        )
 
-    if v == hub.__version__:
+    if comparison == 0:
         return True
 
     return False
 
 
 def ffw(func):
-    # TODO: docstring
+    """Decorator for fast forwarding functions. Will handle checking for valid versions and automatically updating the
+    fast forwarded version to the latest. Also adds an extra parameter to the decoarted function (version)."""
 
     def decor(inp, **kwargs):
         v = inp.version
