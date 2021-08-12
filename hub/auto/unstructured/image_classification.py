@@ -5,6 +5,7 @@ import os
 import glob
 from typing import Dict, List, Sequence, Tuple, Union
 
+from hub.util.auto import ingestion_summary
 from hub.util.exceptions import InvalidPathException, TensorInvalidSampleShapeError
 from hub.core.dataset import Dataset
 
@@ -38,26 +39,6 @@ def _class_name_from_path(path: Path) -> str:
 
 def _set_name_from_path(path: Path) -> str:
     return path.parts[-3]
-
-
-def ingestion_summary(src: str, skipped_files: list):
-    columns, lines = os.get_terminal_size()
-
-    mid = int(columns / 2)
-    for i in range(columns - 20):
-        print("=", end="")
-        if i == mid - 10:
-            print(" Ingestion Summary ", end="")
-    print("\n")
-
-    for root, dirs, files in os.walk(src):
-        level = root.replace(src, "").count(os.sep)
-        indent = " " * 6 * (level)
-        print("{}{}/".format(indent, os.path.basename(root)))
-        subindent = " " * 6 * (level + 1)
-        for f in files:
-            if f in skipped_files:
-                print("{}{} -- Skipped".format(subindent, f))
 
 
 class ImageClassification(UnstructuredDataset):
@@ -168,8 +149,8 @@ class ImageClassification(UnstructuredDataset):
 
                 except Exception as e:
                     skipped_files.append(file_path.name)
-                    ingestion_summary(str(self.source), skipped_files)
                     continue
+                    ingestion_summary(str(self.source), skipped_files)
 
                 ds[labels_tensor_map[set_name]].append(label)
 
