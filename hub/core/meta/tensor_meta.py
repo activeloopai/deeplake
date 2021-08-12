@@ -1,3 +1,4 @@
+from hub.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
@@ -61,6 +62,7 @@ class TensorMeta(Meta):
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
+        ffw_tensor_meta(self)
 
         if self.dtype is not None:
             raise ValueError(
@@ -73,11 +75,15 @@ class TensorMeta(Meta):
         self.dtype = dtype.name
 
     def update_shape_interval(self, shape: Tuple[int, ...]):
+        ffw_tensor_meta(self)
+
         if self.length <= 0:
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
-            if len(shape) != len(self.min_shape):
+            expected_dims = len(self.min_shape)
+
+            if len(shape) != expected_dims:
                 raise TensorInvalidSampleShapeError(shape, len(self.min_shape))
 
             for i, dim in enumerate(shape):

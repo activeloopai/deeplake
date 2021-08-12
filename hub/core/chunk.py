@@ -1,3 +1,4 @@
+from hub.core.fast_forwarding import ffw_chunk
 from hub.util.exceptions import FullChunkError, TensorInvalidSampleShapeError
 import hub
 from hub.core.storage.cachable import Cachable
@@ -41,6 +42,8 @@ class Chunk(Cachable):
             data (memoryview): If this chunk already exists, data should be set.
                 Used by `frombuffer`. Defaults to None.
         """
+
+        self.version = hub.__version__
 
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
@@ -91,6 +94,7 @@ class Chunk(Cachable):
                 f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
 
+        ffw_chunk(self)
         self._make_data_bytearray()
 
         # note: incoming_num_bytes can be 0 (empty sample)
@@ -123,6 +127,8 @@ class Chunk(Cachable):
         if expected_dimensionality != len(new_shape):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
 
+        ffw_chunk(self)
+
         new_nb = len(new_buffer)
 
         # get the unchanged data
@@ -150,7 +156,7 @@ class Chunk(Cachable):
         """Calculates the number of bytes `tobytes` will be without having to call `tobytes`. Used by `LRUCache` to determine if this chunk can be cached."""
 
         return infer_chunk_num_bytes(
-            hub.__version__,
+            self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             len_data=len(self._data),
@@ -158,7 +164,7 @@ class Chunk(Cachable):
 
     def tobytes(self) -> memoryview:
         return serialize_chunk(
-            hub.__version__,
+            self.version,
             self.shapes_encoder.array,
             self.byte_positions_encoder.array,
             [self._data],
@@ -169,4 +175,6 @@ class Chunk(Cachable):
         if not buffer:
             return cls()
         version, shapes, byte_positions, data = deserialize_chunk(buffer)
-        return cls(shapes, byte_positions, data=data)
+        chunk = cls(shapes, byte_positions, data=data)
+        chunk.version = version
+        return chunk

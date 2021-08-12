@@ -1,3 +1,4 @@
+from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
@@ -311,6 +312,7 @@ class ChunkEngine:
         """Formats a batch of `samples` and feeds them into `_append_bytes`."""
 
         self.cache.check_readonly()
+        ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta
         if tensor_meta.dtype is None:
@@ -334,6 +336,7 @@ class ChunkEngine:
         """Update data at `index` with `samples`."""
 
         self.cache.check_readonly()
+        ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder

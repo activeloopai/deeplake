@@ -1,3 +1,4 @@
+import hub
 from abc import ABC
 from typing import Any, List, Sequence
 from hub.constants import ENCODING_DTYPE
@@ -55,6 +56,8 @@ class Encoder(ABC):
             raise ValueError(
                 f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}"
             )
+        
+        self.version = hub.__version__
 
     @property
     def array(self):
