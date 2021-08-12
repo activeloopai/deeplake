@@ -14,7 +14,9 @@ from .api.dataset import dataset
 from .api.read import read
 from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
+from .htype import HTYPE_CONFIGURATIONS
 
+htypes = list(HTYPE_CONFIGURATIONS.keys())
 list = dataset.list
 load = dataset.load
 empty = dataset.empty
@@ -33,6 +35,7 @@ __all__ = [
     "like",
     "ingest",
     "ingest_kaggle",
+    "htypes",
 ]
 
 __version__ = "2.0.6"
