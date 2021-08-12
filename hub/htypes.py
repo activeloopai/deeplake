@@ -26,7 +26,7 @@ Supported htypes and their respective defaults are:
 | video         |  uint8    |  none         |
 | binary_mask   |  bool     |  none         |
 | segment_mask  |  int32    |  none         |
-
+| hashes        |  float64  |  none         |
 """
 
 from re import L
@@ -52,7 +52,8 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     "binary_mask": {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
-    "segment_mask": {"dtype": "int32"},
+    "segment_mask": {"dtype": "int32"}, 
+    "hashes":{"dtype": "float64"}
 }
 
 # these configs are added to every `htype`

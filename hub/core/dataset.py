@@ -223,7 +223,7 @@ class Dataset:
         tensor.info.update(info_kwargs)
 
         if hash_samples:
-            hashes_tensor = self.create_tensor(HASHES_TENSOR_FOLDER)
+            hashes_tensor = self.create_tensor(HASHES_TENSOR_FOLDER, htype="hashes")
             self._link_tensor(tensor, hashes_tensor)
 
         return tensor
