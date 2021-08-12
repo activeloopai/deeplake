@@ -3,8 +3,7 @@ from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
-from hub.constants import DEFAULT_HTYPE, UNSPECIFIED
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
 import numpy as np
 
 from hub.core.meta.dataset_meta import DatasetMeta
@@ -362,10 +361,6 @@ class Dataset:
             split_path = self.path.split("/")
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
-
-            hub_reporter.feature_report(
-                feature_name="HubDataset", parameters={"Path": str(self.path)}
-            )
 
         self._load_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore

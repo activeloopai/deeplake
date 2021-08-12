@@ -1,3 +1,4 @@
+from .core.dataset import Dataset
 import numpy as np
 
 __pdoc__ = {
@@ -8,17 +9,30 @@ __pdoc__ = {
     "constants": False,
     "integrations": False,
     "tests": False,
+    "Dataset.clear_cache": False,
+    "Dataset.delete": False,
+    "Dataset.flush": False,
+    "Dataset.read_only": False,
+    "Dataset.size_approx": False,
+    "Dataset.token": False,
+    "Dataset.num_samples": False,
 }
 
 from .api.dataset import dataset
 from .api.read import read
 from .core.transform import compute, compose
+from .core.dataset import Dataset
 from .util.bugout_reporter import hub_reporter
+from .htype import HTYPE_CONFIGURATIONS
 
+
+htypes = list(HTYPE_CONFIGURATIONS.keys())
 list = dataset.list
 load = dataset.load
 empty = dataset.empty
 like = dataset.like
+list = dataset.list
+dataset_cl = Dataset
 ingest = dataset.ingest
 ingest_kaggle = dataset.ingest_kaggle
 
@@ -31,8 +45,11 @@ __all__ = [
     "compute",
     "compose",
     "like",
+    "list",
+    "dataset_cl",
     "ingest",
     "ingest_kaggle",
+    "htypes",
 ]
 
 __version__ = "2.0.6"

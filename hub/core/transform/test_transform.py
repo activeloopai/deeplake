@@ -4,6 +4,7 @@ import numpy as np
 from click.testing import CliRunner
 from hub.core.storage.memory import MemoryProvider
 from hub.util.remove_cache import remove_memory_cache
+from hub.tests.common import parametrize_num_workers
 from hub.tests.dataset_fixtures import enabled_datasets
 from hub.util.exceptions import InvalidOutputDatasetError
 
@@ -71,7 +72,8 @@ def test_single_transform_hub_dataset(ds):
 
 
 @enabled_datasets
-def test_single_transform_hub_dataset_htypes(ds):
+@parametrize_num_workers
+def test_single_transform_hub_dataset_htypes(ds, num_workers):
     with CliRunner().isolated_filesystem():
         with hub.dataset("./test/transform_hub_in_htypes") as data_in:
             data_in.create_tensor("image", htype="image", sample_compression="png")
@@ -83,7 +85,7 @@ def test_single_transform_hub_dataset_htypes(ds):
         ds_out = ds
         ds_out.create_tensor("image")
         ds_out.create_tensor("label")
-        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
+        fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=num_workers)
         assert len(ds_out) == 99
         for index in range(1, 100):
             np.testing.assert_array_equal(
@@ -104,7 +106,7 @@ def test_chain_transform_list_small(ds):
     ds_out.create_tensor("image")
     ds_out.create_tensor("label")
     pipeline = hub.compose([fn1(mul=5, copy=2), fn2(mul=3, copy=3)])
-    pipeline.eval(ls, ds_out, num_workers=5)
+    pipeline.eval(ls, ds_out, num_workers=3)
     assert len(ds_out) == 600
     for i in range(100):
         for index in range(6 * i, 6 * i + 6):
