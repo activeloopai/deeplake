@@ -1,4 +1,9 @@
-from typing import Optional, Sequence, Union, Tuple
+from hub.core.meta.tensor_meta import TensorMeta
+from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.casting import intelligent_cast
+from hub.core.sample import Sample, SampleValue  # type: ignore
+from hub.core.compression import compress_array
+from typing import List, Optional, Sequence, Union, Tuple
 
 import hub
 import numpy as np
@@ -50,48 +55,57 @@ def serialize_chunk(
         Serialized chunk as memoryview.
     """
     nbytes = infer_chunk_num_bytes(version, shape_info, byte_positions, data, len_data)
-    flatbuff = np.zeros(nbytes, dtype=np.byte)
+    flatbuff = bytearray(nbytes)
+    offset = write_version(version, flatbuff)
+    offset = write_shape_info(shape_info, flatbuff, offset)
+    offset = write_byte_positions(byte_positions, flatbuff, offset)
+    offset = write_actual_data(data, flatbuff, offset)
+    return memoryview(flatbuff)
 
-    # Write version
+
+def write_version(version, buffer) -> int:
+    """Writes version info to the buffer, returns offset."""
     len_version = len(version)
-    flatbuff[0] = len_version
-    flatbuff[1 : 1 + len_version] = list(map(ord, version))
+    buffer[0] = len_version
+    buffer[1 : 1 + len_version] = list(map(ord, version))
     offset = 1 + len_version
+    return offset
 
-    # Write shape info
+
+def write_shape_info(shape_info, buffer, offset) -> int:
+    """Writes shape info to the buffer, takes offset into account and returns updated offset."""
     if shape_info.ndim == 1:
-        flatbuff[offset : offset + 8] = np.zeros(8, dtype=np.byte)
         offset += 8
     else:
-        flatbuff[offset : offset + 8] = np.array(shape_info.shape, dtype=np.int32).view(
-            np.byte
-        )
+        buffer[offset : offset + 4] = shape_info.shape[0].to_bytes(4, "little")
+        buffer[offset + 4 : offset + 8] = shape_info.shape[1].to_bytes(4, "little")
         offset += 8
-        flatbuff[offset : offset + shape_info.nbytes] = shape_info.reshape(-1).view(
-            np.byte
-        )
+
+        buffer[offset : offset + shape_info.nbytes] = shape_info.tobytes()
         offset += shape_info.nbytes
+    return offset
 
-    # Write byte positions
+
+def write_byte_positions(byte_positions, buffer, offset) -> int:
+    """Writes byte positions info to the buffer, takes offset into account and returns updated offset."""
     if byte_positions.ndim == 1:
-        flatbuff[offset : offset + 4] = np.zeros(4, dtype=np.byte)
         offset += 4
     else:
-        flatbuff[offset : offset + 4] = np.int32(byte_positions.shape[0]).view(
-            (np.byte, 4)
-        )
+        buffer[offset : offset + 4] = byte_positions.shape[0].to_bytes(4, "little")
         offset += 4
-        flatbuff[offset : offset + byte_positions.nbytes] = byte_positions.reshape(
-            -1
-        ).view(np.byte)
-        offset += byte_positions.nbytes
 
-    # Write actual data
+        buffer[offset : offset + byte_positions.nbytes] = byte_positions.tobytes()
+        offset += byte_positions.nbytes
+    return offset
+
+
+def write_actual_data(data, buffer, offset) -> int:
+    """Writes actual chunk data to the buffer, takes offset into account and returns updated offset"""
     for byts in data:
         n = len(byts)
-        flatbuff[offset : offset + n] = np.frombuffer(byts, dtype=np.byte)
+        buffer[offset : offset + n] = byts
         offset += n
-    return memoryview(flatbuff.tobytes())
+    return offset
 
 
 def deserialize_chunk(
@@ -205,3 +219,86 @@ def deserialize_chunkids(byts: Union[bytes, memoryview]) -> Tuple[str, np.ndarra
     ids = buff[offset:].view(enc_dtype).reshape(-1, 2).copy()
 
     return version, ids
+
+
+def _serialize_input_sample(
+    sample: SampleValue,
+    sample_compression: Optional[str],
+    expected_dtype: np.dtype,
+    htype: str,
+) -> Tuple[bytes, Tuple[int]]:
+    """Converts the incoming sample into a buffer with the proper dtype and compression."""
+
+    if isinstance(sample, Sample):
+        buffer = sample.compressed_bytes(sample_compression)
+        shape = sample.shape
+    else:
+        sample = intelligent_cast(sample, expected_dtype, htype)
+        shape = sample.shape
+
+        if sample_compression is not None:
+            buffer = compress_array(sample, sample_compression)
+        else:
+            buffer = sample.tobytes()
+
+    if len(shape) == 0:
+        shape = (1,)
+
+    return buffer, shape
+
+
+def _check_input_samples_are_valid(
+    buffer_and_shapes: List, min_chunk_size: int, sample_compression: Optional[str]
+):
+    """Iterates through all buffers/shapes and raises appropriate errors."""
+
+    expected_dimensionality = None
+    for buffer, shape in buffer_and_shapes:
+        # check that all samples have the same dimensionality
+        if expected_dimensionality is None:
+            expected_dimensionality = len(shape)
+
+        if len(buffer) > min_chunk_size:
+            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {len(buffer)} bytes."
+            if sample_compression is None:
+                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
+            raise NotImplementedError(msg)
+
+        if len(shape) != expected_dimensionality:
+            raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
+
+
+def serialize_input_samples(
+    samples: Union[Sequence[SampleValue], SampleValue],
+    meta: TensorMeta,
+    min_chunk_size: int,
+) -> List[Tuple[memoryview, Tuple[int]]]:
+    """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
+
+    Args:
+        samples (Union[Sequence[SampleValue], SampleValue]): Either a single sample or sequence of samples.
+        meta (TensorMeta): Tensor meta. Will not be modified.
+        min_chunk_size (int): Used to validate that all samples are appropriately sized.
+
+    Raises:
+        ValueError: Tensor meta should have it's dtype set.
+
+    Returns:
+        List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
+    """
+
+    if meta.dtype is None:
+        raise ValueError("Dtype must be set before input samples can be serialized.")
+
+    sample_compression = meta.sample_compression
+    dtype = np.dtype(meta.dtype)
+    htype = meta.htype
+
+    serialized = []
+    for sample in samples:
+        byts, shape = _serialize_input_sample(sample, sample_compression, dtype, htype)
+        buffer = memoryview(byts)
+        serialized.append((buffer, shape))
+
+    _check_input_samples_are_valid(serialized, min_chunk_size, dtype)
+    return serialized

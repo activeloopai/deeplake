@@ -1,21 +1,18 @@
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
-    TensorInvalidSampleShapeError,
     TensorMetaInvalidHtype,
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
-    TensorDtypeMismatchError,
     TensorMetaMissingRequiredValue,
     UnsupportedCompressionError,
+    TensorInvalidSampleShapeError,
 )
 from hub.constants import (
-    REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
     COMPRESSION_ALIASES,
-    UNSPECIFIED,
 )
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
 
 
@@ -40,7 +37,7 @@ class TensorMeta(Meta):
 
         Args:
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
 
         if htype != UNSPECIFIED:
@@ -60,117 +57,30 @@ class TensorMeta(Meta):
 
         super().__init__()
 
-    def adapt(self, buffer: memoryview, shape: Tuple[int], dtype) -> memoryview:
-        """Checks if this tensor meta is compatible with a sample's properties, as well as upcasts
-        the incoming sample to match the tensor's dtype if needed (and possible).
+    def set_dtype(self, dtype: np.dtype):
+        """Should only be called once."""
 
-        Args:
-            buffer: (memoryview) memoryview of the sample's bytes
-            shape: (Tuple[int]): Shape of the sample
-            dtype: Datatype for the sample(s).
-
-        Returns:
-            The sample as as memoryview which might be upcasted to match the meta's dtype.
-
-        Raises:
-            TensorDtypeMismatchError: Dtype for array must be equal to or castable to this meta's dtype
-            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
-        """
-        dtype = np.dtype(dtype)
-        if self.dtype and self.dtype != dtype.name:
-            if np.can_cast(dtype, self.dtype):
-                buffer = memoryview(
-                    np.cast[self.dtype](np.frombuffer(buffer, dtype=dtype)).tobytes()
-                )
-            else:
-                raise TensorDtypeMismatchError(
-                    self.dtype,
-                    dtype.name,
-                    self.htype,
-                )
-        # shape length is only enforced after at least 1 sample exists.
-        if self.length > 0:
-            expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(shape)
-            if expected_shape_len != actual_shape_len:
-                raise TensorInvalidSampleShapeError(
-                    "Sample shape length is expected to be {}, actual length is {}.".format(
-                        expected_shape_len, actual_shape_len
-                    ),
-                    shape,
-                )
-        return buffer
-
-    def check_compatibility(self, shape: Tuple[int], dtype):
-        """Checks if this tensor meta is compatible with the incoming sample(s) properties.
-
-        Args:
-            shape (Tuple[int]): Shape all samples having their compatibility checked. Must be a single-sample shape
-                but can represent multiple.
-            dtype: Datatype for the sample(s).
-
-        Raises:
-            TensorDtypeMismatchError: Dtype for array must be equal to this meta.
-            TensorInvalidSampleShapeError: If a sample already exists, `len(array.shape)` has to be consistent for all arrays.
-        """
-
-        dtype = np.dtype(dtype)
-
-        if self.dtype is not None and self.dtype != dtype.name:
-            raise TensorDtypeMismatchError(
-                self.dtype,
-                dtype.name,
-                self.htype,
-            )
-
-        # shape length is only enforced after at least 1 sample exists.
-        if self.length > 0:
-            expected_shape_len = len(self.min_shape)
-            actual_shape_len = len(shape)
-            if expected_shape_len != actual_shape_len:
-                raise TensorInvalidSampleShapeError(
-                    f"Sample shape length is expected to be {expected_shape_len}, actual length is {actual_shape_len}.",
-                    shape,
-                )
-
-    def update(self, shape: Tuple[int], dtype, num_samples: int):
-        """Update `self.min_shape` and `self.max_shape`, `dtype` (if it is None), and increment length with `num_samples`.
-
-        Args:
-            shape (Tuple[int]): [description]
-            dtype ([type]): [description]
-            num_samples (int): [description]
-
-        Raises:
-            ValueError: [description]
-        """
-
-        if num_samples <= 0:
+        if self.dtype is not None:
             raise ValueError(
-                f"Can only update tensor meta when the number of samples is > 0. Got: '{num_samples}'"
+                f"Tensor meta already has a dtype ({self.dtype}). Incoming: {dtype.name}."
             )
 
-        dtype = np.dtype(dtype)
+        if self.length > 0:
+            raise ValueError("Dtype was None, but length was > 0.")
 
+        self.dtype = dtype.name
+
+    def update_shape_interval(self, shape: Tuple[int, ...]):
         if self.length <= 0:
-            if self.dtype is None:
-                self.dtype = dtype.name
-
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
-            # update meta subsequent times
-            self._update_shape_interval(shape)
+            if len(shape) != len(self.min_shape):
+                raise TensorInvalidSampleShapeError(shape, len(self.min_shape))
 
-        self.length += num_samples
-
-    def _update_shape_interval(self, shape: Tuple[int, ...]):
-        if self.length <= 0:
-            self.min_shape = list(shape)
-            self.max_shape = list(shape)
-        for i, dim in enumerate(shape):
-            self.min_shape[i] = min(dim, self.min_shape[i])
-            self.max_shape[i] = max(dim, self.max_shape[i])
+            for i, dim in enumerate(shape):
+                self.min_shape[i] = min(dim, self.min_shape[i])
+                self.max_shape[i] = max(dim, self.max_shape[i])
 
     def __getstate__(self) -> Dict[str, Any]:
         d = super().__getstate__()
@@ -237,8 +147,10 @@ def _replace_unspecified_values(htype: str, htype_overwrite: dict):
 def _validate_required_htype_overwrites(htype_overwrite: dict):
     """Raises errors if `htype_overwrite` has invalid values."""
 
-    if htype_overwrite["sample_compression"] not in SUPPORTED_COMPRESSIONS:
-        raise UnsupportedCompressionError(htype_overwrite["sample_compression"])
+    sample_compression = htype_overwrite["sample_compression"]
+    sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
+    if sample_compression not in SUPPORTED_COMPRESSIONS:
+        raise UnsupportedCompressionError(sample_compression)
 
     if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
