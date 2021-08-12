@@ -29,7 +29,7 @@ def test_ingestion_simple(memory_ds: Dataset):
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds.images.numpy().shape == (3, 200, 200, 3)  # type: ignore
     assert ds.labels.numpy().shape == (3, 1)  # type: ignore
-    assert ds.labels.info.class_names == ("class0", "class1", "class2") # type: ignore
+    assert ds.labels.info.class_names == ("class0", "class1", "class2")  # type: ignore
 
 
 def test_image_classification_sets(memory_ds: Dataset):

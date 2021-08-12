@@ -56,7 +56,7 @@ class Encoder(ABC):
             raise ValueError(
                 f"Encoding dtype should be {ENCODING_DTYPE}, instead got {self._encoded.dtype}"
             )
-        
+
         self.version = hub.__version__
 
     @property

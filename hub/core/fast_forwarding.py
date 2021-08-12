@@ -14,6 +14,7 @@ def _check_version(v):
 
     return False
 
+
 def ffw(func):
     # TODO: docstring
 
