@@ -26,7 +26,7 @@ def test_ingestion_simple(memory_ds: Dataset):
         overwrite=False,
     )
 
-    assert ds.images.meta.sample_compression == "jpeg"
+    assert ds["images"].meta.sample_compression == "jpeg"
     assert list(ds.tensors.keys()) == ["images", "labels"]
     assert ds["images"].numpy().shape == (3, 200, 200, 3)
     assert ds["labels"].numpy().shape == (3, 1)
