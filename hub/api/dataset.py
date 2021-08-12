@@ -391,7 +391,7 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
-        cwd = os.getcwd()
+
         feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
 
         if os.path.isdir(src) and os.path.isdir(dest):
@@ -410,7 +410,7 @@ class dataset:
             overwrite=overwrite,
             **dataset_kwargs,
         )
-        os.chdir(cwd)
+
         return ds
 
     @staticmethod
