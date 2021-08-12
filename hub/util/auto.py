@@ -2,6 +2,7 @@ import glob
 import os, random
 from collections import Counter
 from typing import Tuple
+import shutil
 
 
 def get_most_common_extension(
@@ -59,7 +60,7 @@ def ingestion_summary(src: str, skipped_files: list):
         src (str): Root directory of dataset.
         skipped_files (list): List of files skipped during ingestion.
     """
-    columns, lines = os.get_terminal_size()
+    columns, lines = shutil.get_terminal_size()
 
     mid = int(columns / 2)
     for i in range(columns - 20):
