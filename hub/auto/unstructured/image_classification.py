@@ -123,7 +123,7 @@ class ImageClassification(UnstructuredDataset):
 
         with ds:
             paths = self._abs_file_paths
-            skipped_files = []
+            skipped_files: list = []
             iterator = tqdm(
                 paths,
                 desc='Ingesting "%s" (%i files skipped)'
