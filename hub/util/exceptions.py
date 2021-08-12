@@ -450,7 +450,7 @@ class InvalidInputDataError(TransformError):
 class UnsupportedSchedulerError(TransformError):
     def __init__(self, scheduler):
         super().__init__(
-            f"Hub transform currently doesn't support {scheduler} scheduler."
+            f"Hub compute currently doesn't support {scheduler} scheduler."
         )
 
 
@@ -477,15 +477,15 @@ class InvalidTransformDataset(TransformError):
         super().__init__(message)
 
 
-class TransformComposeEmptyListError(TransformError):
+class HubComposeEmptyListError(TransformError):
     def __init__(self, message="Cannot hub.compose an empty list."):
         super().__init__(message)
 
 
-class TransformComposeIncompatibleFunction(TransformError):
+class HubComposeIncompatibleFunction(TransformError):
     def __init__(self, index: int):
         super().__init__(
-            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() or my_fn(arg1=5, arg2=3) in the list."
         )
 
 

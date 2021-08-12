@@ -1,5 +1,5 @@
 <img src="https://static.scarf.sh/a.png?x-pxid=bc3c57b0-9a65-49fe-b8ea-f711c4d35b82" /><p align="center">
-    <img src="https://github.com/activeloopai/Hub/blob/main/media/hub_logo.png" width="35%"/>
+    <img src="https://www.linkpicture.com/q/hub_logo-1.png" width="35%"/>
     </br>
     <h2 align="center">Dataset management for deep learning applications
  </h2>

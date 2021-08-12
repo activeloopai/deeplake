@@ -396,10 +396,6 @@ class Dataset:
             self.org_id, self.ds_name = split_path[2], split_path[3]
             self.client = HubBackendClient(token=self._token)
 
-            hub_reporter.feature_report(
-                feature_name="HubDataset", parameters={"Path": str(self.path)}
-            )
-
         self._load_meta()  # TODO: use the same scheme as `load_info`
         self.info = load_info(get_dataset_info_key(), self.storage)  # type: ignore
         self.index.validate(self.num_samples)

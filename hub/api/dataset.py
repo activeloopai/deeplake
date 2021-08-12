@@ -11,7 +11,7 @@ from typing import Optional, Union
 from hub.constants import DEFAULT_MEMORY_CACHE_SIZE, DEFAULT_LOCAL_CACHE_SIZE, MB
 from hub.client.log import logger
 from hub.util.keys import dataset_exists
-from hub.util.bugout_reporter import hub_reporter
+from hub.util.bugout_reporter import hub_reporter, feature_report_path
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
@@ -59,6 +59,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
+
+        feature_report_path(path, "dataset", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -69,16 +72,13 @@ class dataset:
         )
         if overwrite and dataset_exists(storage):
             storage.clear()
+
         read_only = storage.read_only
-
-        hub_reporter.feature_report(feature_name="dataset", parameters={})
-
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def empty(
         path: str,
         overwrite: bool = False,
@@ -116,6 +116,9 @@ class dataset:
         """
         if creds is None:
             creds = {}
+
+        feature_report_path(path, "empty", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=False,
@@ -131,13 +134,13 @@ class dataset:
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def load(
         path: str,
         read_only: bool = False,
@@ -179,6 +182,8 @@ class dataset:
         if creds is None:
             creds = {}
 
+        feature_report_path(path, "load", {"Overwrite": overwrite})
+
         storage, cache_chain = get_storage_and_cache_chain(
             path=path,
             read_only=read_only,
@@ -194,13 +199,13 @@ class dataset:
             )
         if overwrite:
             storage.clear()
+
         read_only = storage.read_only
         return Dataset(
             storage=cache_chain, read_only=read_only, public=public, token=token
         )
 
     @staticmethod
-    @hub_reporter.record_call
     def delete(path: str, force: bool = False, large_ok: bool = False) -> None:
         """Deletes a dataset at a given path.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
@@ -211,6 +216,8 @@ class dataset:
                 it looks like a hub dataset. All data at the path will be removed.
             large_ok (bool): Delete datasets larger than 1GB. Disabled by default.
         """
+
+        feature_report_path(path, "delete", {"Force": force, "Large_OK": large_ok})
 
         try:
             ds = hub.load(path)
@@ -225,7 +232,6 @@ class dataset:
                 raise
 
     @staticmethod
-    @hub_reporter.record_call
     def like(
         path: str,
         source: Union[str, Dataset],
@@ -244,6 +250,8 @@ class dataset:
             Dataset: New dataset object.
         """
 
+        feature_report_path(path, "like", {"Overwrite": overwrite})
+
         destination_ds = dataset.empty(path, creds=creds, overwrite=overwrite)
         source_ds = source
         if isinstance(source, str):
@@ -257,12 +265,11 @@ class dataset:
         return destination_ds
 
     @staticmethod
-    @hub_reporter.record_call
     def ingest(
         src: str,
         dest: str,
-        dest_creds: dict,
-        compression: str,
+        images_compression: str,
+        dest_creds: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
@@ -314,8 +321,8 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            compression (str): Compression type of dataset.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -326,6 +333,9 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
         """
+
+        feature_report_path(dest, "ingest", {"Overwrite": overwrite})
+
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
@@ -340,19 +350,19 @@ class dataset:
 
         # TODO: auto detect compression
         unstructured.structure(
-            ds, image_tensor_args={"sample_compression": compression}  # type: ignore
+            ds, image_tensor_args={"sample_compression": images_compression}  # type: ignore
         )
 
         return ds  # type: ignore
 
     @staticmethod
-    @hub_reporter.record_call
     def ingest_kaggle(
         tag: str,
         src: str,
         dest: str,
-        dest_creds: dict,
-        compression: str,
+        images_compression: str,
+        dest_creds: dict = None,
+        kaggle_credentials: dict = None,
         overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
@@ -369,8 +379,9 @@ class dataset:
                 - an s3 path of the form s3://bucketname/path/to/dataset. Credentials are required in either the environment or passed to the creds argument.
                 - a local file system path of the form ./path/to/dataset or ~/path/to/dataset or path/to/dataset.
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
+            images_compression (str): For image classification datasets, this compression will be used for the `images` tensor.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            compression (str): Compression type of dataset.
+            kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -380,17 +391,22 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
+
+        feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
+
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
 
-        download_kaggle_dataset(tag, local_path=src)
+        download_kaggle_dataset(
+            tag, local_path=src, kaggle_credentials=kaggle_credentials
+        )
 
         ds = hub.ingest(
             src=src,
             dest=dest,
             dest_creds=dest_creds,
-            compression=compression,
+            images_compression=images_compression,
             overwrite=overwrite,
             **dataset_kwargs,
         )
