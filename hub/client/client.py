@@ -1,5 +1,6 @@
+import hub
 import requests
-from typing import Dict, Optional
+from typing import Optional
 from hub.util.exceptions import LoginException, InvalidPasswordException
 from hub.client.utils import check_response_status, write_token, read_token
 from hub.client.config import (
@@ -12,12 +13,10 @@ from hub.client.config import (
     GET_DATASET_CREDENTIALS_SUFFIX,
     CREATE_DATASET_SUFFIX,
     DATASET_SUFFIX,
-    UPDATE_SUFFIX,
     LIST_DATASETS,
     GET_USER_PROFILE,
 )
 from hub.client.log import logger
-import hub
 
 
 class HubBackendClient:
