@@ -123,11 +123,11 @@ class Chunk(Cachable):
     ):
         """Updates data and headers for `local_sample_index` with the incoming `new_buffer` and `new_shape`."""
 
+        ffw_chunk(self)
+
         expected_dimensionality = len(self.shapes_encoder[local_sample_index])
         if expected_dimensionality != len(new_shape):
             raise TensorInvalidSampleShapeError(new_shape, expected_dimensionality)
-
-        ffw_chunk(self)
 
         new_nb = len(new_buffer)
 
