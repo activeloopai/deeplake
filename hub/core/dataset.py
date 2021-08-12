@@ -28,6 +28,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
+    TensorAlreadyLinkedError,
 )
 
 from hub.client.client import HubBackendClient
@@ -226,16 +227,22 @@ class Dataset:
         return tensor
 
     def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
+        """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and 
 
-        if not src.meta.linked_tensors:
-            if not dest.meta.is_linked:
+        Args:
+            src (str): Source tensor.  
+            dest (Tensor): Tensor being linked to the source tensor. A sample appended to the source tensor will also be appended to its linked tensor.
 
-                src.meta.linked_tensors = dest.key
-                dest.meta.is_linked = True
+        Raises:
+            TensorAlreadyLinkedError: A linked tensor can't be linked again.
+            NotImplementedError: Source tensor can't have more than one links.
+        """
+        if not src.meta.links: 
+            if not dest.meta.linked_tensor:
+                src.meta.links = dest.key
+                dest.meta.linked_tensor = True
             else:
-                raise NotImplementedError(
-                    "Destination tensor already has been linked to another tensor."
-                )
+                raise TensorAlreadyLinkedError
         else:
             raise NotImplementedError(
                 "Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible."

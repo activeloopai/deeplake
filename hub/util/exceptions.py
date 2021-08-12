@@ -334,6 +334,18 @@ class HashesTensorDoesNotExistError(Exception):
             " the paramter, hash_samples = True in create_tensor"
         )
 
+class LinkedTensorError(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            f"Samples can't be appended to a linked tensor. Appending to the original tensor"
+            " will add samples (after applying a funciton) to this tensor."
+        )
+
+class TensorAlreadyLinkedError(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            f"Tensor is already being used as a linked tensor."
+        )
 
 class MetaError(Exception):
     pass

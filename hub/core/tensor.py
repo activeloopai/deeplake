@@ -18,6 +18,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     HashesTensorAlreadyExistsError,
     TensorDtypeMismatchError,
+    LinkedTensorError,
 )
 from hub.core.serialize import _serialize_input_sample
 from typing import Callable, Dict, Optional, Union, Tuple, List
@@ -93,7 +94,7 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
 
-        if (self.meta.linked_tensors == HASHES_TENSOR_FOLDER) and (
+        if (self.meta.links == HASHES_TENSOR_FOLDER) and (
             self.key != HASHES_TENSOR_FOLDER
         ):
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
@@ -129,9 +130,12 @@ class Tensor:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
         """
 
+        if self.meta.linked_tensor:
+            raise LinkedTensorError
+
         self.chunk_engine.extend(samples)
 
-        if self.meta.linked_tensors == HASHES_TENSOR_FOLDER:
+        if self.meta.links == HASHES_TENSOR_FOLDER:
             hashed_samples = generate_hashes(samples)
             self.linked_tensor.chunk_engine.extend(hashed_samples)
 
@@ -305,7 +309,7 @@ class Tensor:
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if HASHES_TENSOR_FOLDER in self.meta.linked_tensors:
+        if HASHES_TENSOR_FOLDER in self.meta.links:
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(
                 self.index[item_index], hashed_samples

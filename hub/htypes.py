@@ -60,8 +60,8 @@ COMMON_CONFIGS = {
     "sample_compression": None,
     "dtype": None,
     "hash_samples": None,
-    "linked_tensors": None,
-    "is_linked": None,
+    "links": None,
+    "linked_tensor": None,
 }
 
 

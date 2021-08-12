@@ -12,16 +12,13 @@ def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
 
     hashlist = []
 
-    if isinstance(samples, np.ndarray):
-        # TODO: Account for compression
-        for sample in samples:
-            hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
-            hashlist.append(np.array(hashed_sample))
+    for sample in samples:
 
-    else:
-
-        for sample in samples:
+        if isinstance(sample, Sample):
             hashed_sample = mmh3.hash64(sample.uncompressed_bytes(), signed=False)
-            hashlist.append(np.array(hashed_sample))
+        else:
+            hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
+
+        hashlist.append(np.array(hashed_sample))
 
     return hashlist
