@@ -348,7 +348,7 @@ class dataset:
         if len(os.listdir(src)) < 1:
             raise AutoCompressionError(src)
 
-        if images_compression is "auto":
+        if images_compression == "auto":
             images_compression = get_most_common_extension(src)
             if images_compression is None:
                 raise AutoCompressionError(src)
