@@ -68,11 +68,17 @@ def ingestion_summary(src: str, skipped_files: list):
             print(" Ingestion Summary ", end="")
     print("\n")
 
+    if not skipped_files:
+        print("Ingesiton Complete. No files were skipped.")
+        print("\n\n")
+        return
+
     for root, dirs, files in os.walk(src):
+        dirs.sort()
         level = root.replace(src, "").count(os.sep)
         indent = " " * 6 * (level)
         print("{}{}/".format(indent, os.path.basename(root)))
         subindent = " " * 6 * (level + 1)
         for f in files:
             if f in skipped_files:
-                print("{}{} -- Skipped".format(subindent, f))
+                print("{}[Skipped]  {}".format(subindent, f))

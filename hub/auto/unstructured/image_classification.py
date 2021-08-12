@@ -123,13 +123,14 @@ class ImageClassification(UnstructuredDataset):
 
         with ds:
             paths = self._abs_file_paths
+            skipped_files = []
             iterator = tqdm(
                 paths,
-                desc='Ingesting "%s"' % self.source,
+                desc='Ingesting "%s" (%i files skipped)'
+                % (self.source.name, len(skipped_files)),
                 total=len(paths),
                 disable=not use_progress_bar,
             )
-            skipped_files = []
             for file_path in iterator:
                 image = hub.read(file_path)
                 class_name = _class_name_from_path(file_path)
@@ -147,11 +148,16 @@ class ImageClassification(UnstructuredDataset):
                     reshaped_image = np.expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
-                except Exception as e:
+                except Exception:
                     skipped_files.append(file_path.name)
+                    iterator.set_description(
+                        'Ingesting "%s" (%i files skipped)'
+                        % (self.source.name, len(skipped_files))
+                    )
                     continue
-                    ingestion_summary(str(self.source), skipped_files)
 
                 ds[labels_tensor_map[set_name]].append(label)
 
+            iterator.close()
+            ingestion_summary(str(self.source), skipped_files)
             return ds
