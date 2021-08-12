@@ -59,8 +59,8 @@ def download_kaggle_dataset(tag: str, local_path: str, kaggle_credentials: dict 
 
     _set_environment_credentials_if_none(kaggle_credentials)
 
-    os.makedirs(local_path, exist_ok=True)
     cwd = os.getcwd()
+    os.makedirs(local_path, exist_ok=True)
     os.chdir(local_path)
 
     _exec_command("kaggle datasets download -d %s" % (tag))
