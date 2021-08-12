@@ -171,10 +171,12 @@ class Dataset:
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            hash_samples (Optional[bool]): A hash tensor is created and linked to this tensor. Any sample appended to this tensor 
+                                           will be hashed and appended to the hash tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
-
+            
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.

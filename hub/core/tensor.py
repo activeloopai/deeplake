@@ -103,6 +103,8 @@ class Tensor:
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
+        If the meta file contains a link to a hash tensor, hashes are generated for each sample and appended to the hash tensor. 
+
         Example:
             numpy input:
                 >>> len(tensor)
@@ -120,7 +122,6 @@ class Tensor:
                     ])
                 >>> len(tensor)
                 2
-
 
         Args:
             samples (np.ndarray, Sequence, Sequence[Sample]): The data to add to the tensor.
@@ -305,6 +306,9 @@ class Tensor:
             >>> tensor.shape
             (1, 3, 3)
         """
+
+        if self.meta.linked_tensor:
+            raise LinkedTensorError
 
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)

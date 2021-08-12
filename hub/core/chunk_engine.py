@@ -25,7 +25,6 @@ from hub.core.chunk import Chunk
 
 from hub.core.meta.encode.chunk_id import ChunkIdEncoder
 
-SampleValue = Union[np.ndarray, int, float, bool, Sample]
 from hub.core.serialize import serialize_input_samples
 
 
