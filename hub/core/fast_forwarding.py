@@ -92,6 +92,8 @@ def ffw_chunk(chunk, version):
 
             # sanity check, this shouldn't be possible
             if len(a) > 1:
-                raise ValueError(f"Cannot fast forward an invalid shapes encoder. The length of the encoding was expected to be == 1, but got {len(a)}.")
+                raise ValueError(
+                    f"Cannot fast forward an invalid shapes encoder. The length of the encoding was expected to be == 1, but got {len(a)}."
+                )
 
             shapes._encoded = np.array([[1, a[0][0]]], dtype=ENCODING_DTYPE)
