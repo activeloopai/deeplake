@@ -103,7 +103,7 @@ class Tensor:
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
 
-        If the meta file contains a link to a hash tensor, hashes are generated for each sample and appended to the hash tensor. 
+        If the meta file contains a link to a hash tensor, hashes are generated for each sample and appended to the hash tensor.
 
         Example:
             numpy input:

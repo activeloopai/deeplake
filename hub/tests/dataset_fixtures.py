@@ -3,7 +3,7 @@ import hub
 
 enabled_datasets = pytest.mark.parametrize(
     "ds",
-    ["memory_ds", "local_ds", "s3_ds"],
+    ["memory_ds", "memory_ds_2", "local_ds", "s3_ds"],
     indirect=True,
 )
 
@@ -16,6 +16,11 @@ enabled_persistent_dataset_generators = pytest.mark.parametrize(
 
 @pytest.fixture
 def memory_ds(memory_path):
+    return hub.dataset(memory_path)
+
+
+@pytest.fixture
+def memory_ds_2(memory_path):
     return hub.dataset(memory_path)
 
 

@@ -171,12 +171,12 @@ class Dataset:
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
-            hash_samples (Optional[bool]): A hash tensor is created and linked to this tensor. Any sample appended to this tensor 
+            hash_samples (Optional[bool]): A hash tensor is created and linked to this tensor. Any sample appended to this tensor
                                            will be hashed and appended to the hash tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
-            
+
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
             InvalidTensorNameError: If `name` is in dataset attributes.
@@ -229,11 +229,11 @@ class Dataset:
         return tensor
 
     def _link_tensor(self, src: "Tensor", dest: "Tensor"):
-        """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and 
+        """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and
 
         Args:
-            src (Union[str, Tensor]): Source tensor.  
-            dest (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor 
+            src (Union[str, Tensor]): Source tensor.
+            dest (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor
                                         will also be appended to its linked tensor after applying a certain function (e.g hashing).
 
         Raises:
@@ -248,10 +248,9 @@ class Dataset:
 
         if dest.meta.linked_tensor or src.meta.linked_tensor:
             raise TensorAlreadyLinkedError
-        
+
         src.meta.links = dest.key
         dest.meta.linked_tensor = True
-    
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":

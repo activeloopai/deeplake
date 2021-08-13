@@ -10,9 +10,8 @@ from typing import List, Sequence, Union
 def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
     """Generate two unsigned 64-bit murmurhash3 of samples
     Args:
-        samples (Union[np.ndarray, Sequence[SampleValue]): Name of tfds dataset.You can see a list of all tfds datasets here:
-            https://www.tensorflow.org/datasets/catalog/overview
-    
+        samples (Union[np.ndarray, Sequence[SampleValue]): Samples for which hashes are generated.
+
     Returns:
         A Python list containg two unsigned 64-bit hashes for each sample in numpy aray format
     """
