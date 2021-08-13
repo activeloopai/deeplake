@@ -7,7 +7,6 @@ import hub
 def version_compare(v1, v2):
     """Returns -1 if v1 is older than v2, 0 if v1 == v2, and +1 if v1 > v2."""
 
-    # This will split both the versions by '.'
     arr1 = v1.split(".")
     arr2 = v2.split(".")
     n = len(arr1)
