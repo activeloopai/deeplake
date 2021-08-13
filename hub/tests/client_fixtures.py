@@ -2,6 +2,9 @@ from hub.constants import (
     HUB_CLOUD_DEV_USERNAME,
     HUB_CLOUD_OPT,
     ENV_HUB_DEV_PASSWORD,
+    ENV_KAGGLE_USERNAME,
+    ENV_KAGGLE_KEY,
+    KAGGLE_OPT,
 )
 from hub.tests.common import is_opt_true
 import os
@@ -32,3 +35,18 @@ def hub_cloud_dev_token(hub_cloud_dev_credentials):
     client = HubBackendClient()
     token = client.request_auth_token(username, password)
     return token
+
+
+@pytest.fixture(scope="session")
+def hub_kaggle_credentials(request):
+    if not is_opt_true(request, KAGGLE_OPT):
+        pytest.skip()
+
+    username = os.getenv(ENV_KAGGLE_USERNAME)
+    key = os.getenv(ENV_KAGGLE_KEY)
+
+    assert (
+        key is not None
+    ), f"Kaggle credentials were not found in environment variable. This is necessary for testing kaggle ingestion datasets."
+
+    return username, key
