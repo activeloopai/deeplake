@@ -338,6 +338,7 @@ class dataset:
             InvalidPathException: If the source directory does not exist.
             SamePathException: If the source and destination path are same.
             AutoCompressionError: If the source director is empty or does not contain a valid extension.
+            InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
 
         feature_report_path(dest, "ingest", {"Overwrite": overwrite})
