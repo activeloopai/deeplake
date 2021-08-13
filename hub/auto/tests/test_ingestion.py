@@ -1,3 +1,4 @@
+from hub.util.auto import ingestion_summary
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
 from hub.util.exceptions import InvalidPathException, SamePathException
@@ -13,6 +14,8 @@ def test_ingestion_simple(memory_ds: Dataset):
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             images_compression="auto",
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )
 
@@ -23,6 +26,8 @@ def test_ingestion_simple(memory_ds: Dataset):
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
+        progress_bar=False,
+        summary=False,
         overwrite=False,
     )
 
@@ -39,6 +44,8 @@ def test_image_classification_sets(memory_ds: Dataset):
         src=path,
         dest=memory_ds.path,
         images_compression="auto",
+        progress_bar=False,
+        summary=False,
         overwrite=False,
     )
 
@@ -66,6 +73,8 @@ def test_ingestion_exception(memory_ds: Dataset):
             src="tests_auto/invalid_path",
             dest=memory_ds.path,
             images_compression="auto",
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )
 
@@ -74,5 +83,7 @@ def test_ingestion_exception(memory_ds: Dataset):
             src=path,
             dest=path,
             images_compression="auto",
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )

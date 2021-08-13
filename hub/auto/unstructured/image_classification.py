@@ -81,13 +81,18 @@ class ImageClassification(UnstructuredDataset):
         return tuple(sorted(class_names))  # TODO: lexicographical sorting
 
     def structure(  # type: ignore
-        self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
+        self,
+        ds: Dataset,
+        use_progress_bar: bool = True,
+        generate_summary: bool = True,
+        image_tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
 
         Args:
             ds (Dataset) : A Hub dataset object.
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
+            generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
@@ -123,8 +128,8 @@ class ImageClassification(UnstructuredDataset):
 
         with ds:
             paths = self._abs_file_paths
-            ingested_dir_count = 0
             skipped_files: list = []
+
             iterator = tqdm(
                 paths,
                 desc='Ingesting "%s" (%i files skipped)'
@@ -133,6 +138,7 @@ class ImageClassification(UnstructuredDataset):
                 disable=not use_progress_bar,
             )
             for file_path in iterator:
+                ingested_file_count = 0
                 image = hub.read(file_path)
                 class_name = _class_name_from_path(file_path)
 
@@ -144,6 +150,7 @@ class ImageClassification(UnstructuredDataset):
                 # if appending fails because of a shape mismatch, expand dims (might also fail)
                 try:
                     ds[images_tensor_map[set_name]].append(image)
+
                 except TensorInvalidSampleShapeError:
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
@@ -155,13 +162,12 @@ class ImageClassification(UnstructuredDataset):
                         'Ingesting "%s" (%i files skipped)'
                         % (self.source.name, len(skipped_files))
                     )
+                    ingested_file_count -= 2
                     continue
 
+                ingested_file_count += 1
                 ds[labels_tensor_map[set_name]].append(label)
-                ingested_dir_count += 1
 
-            iterator.close()
-            # ingestion_summary(
-            #     str(self.source), skipped_files, ingested_dir_count, total_dir_count
-            # )
+            if generate_summary:
+                ingestion_summary(str(self.source), skipped_files, ingested_file_count)
             return ds
