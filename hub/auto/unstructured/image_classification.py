@@ -123,6 +123,7 @@ class ImageClassification(UnstructuredDataset):
 
         with ds:
             paths = self._abs_file_paths
+            ingested_dir_count = 0
             skipped_files: list = []
             iterator = tqdm(
                 paths,
@@ -157,7 +158,10 @@ class ImageClassification(UnstructuredDataset):
                     continue
 
                 ds[labels_tensor_map[set_name]].append(label)
+                ingested_dir_count += 1
 
             iterator.close()
-            ingestion_summary(str(self.source), skipped_files)
+            # ingestion_summary(
+            #     str(self.source), skipped_files, ingested_dir_count, total_dir_count
+            # )
             return ds
