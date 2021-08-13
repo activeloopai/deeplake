@@ -16,7 +16,11 @@ from hub.util.bugout_reporter import hub_reporter, feature_report_path
 from hub.auto.unstructured.image_classification import ImageClassification
 from hub.auto.unstructured.kaggle import download_kaggle_dataset
 from hub.client.client import HubBackendClient
-from hub.util.exceptions import DatasetHandlerError, AutoCompressionError
+from hub.util.exceptions import (
+    DatasetHandlerError,
+    AutoCompressionError,
+    InvalidFileExtension,
+)
 from hub.util.storage import get_storage_and_cache_chain, storage_provider_from_path
 from hub.core.dataset import Dataset
 
@@ -351,7 +355,7 @@ class dataset:
         if images_compression == "auto":
             images_compression = get_most_common_extension(src)
             if images_compression is None:
-                raise AutoCompressionError(src)
+                raise InvalidFileExtension(src)
 
         ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
