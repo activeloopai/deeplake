@@ -1,6 +1,7 @@
 from hub.util import compare
 from hub.api.dataset import dataset
 from hub.core.dataset import Dataset
+from hub.util.exceptions import TensorAlreadyLinkedError
 from hub.tests.common import get_dummy_data_path
 import hub, pytest
 import numpy as np
@@ -93,3 +94,25 @@ def test_compare_image_datasets():
     
     ds_1.delete()
     ds_2.delete()
+
+
+def test_linked_tensors():
+
+    path_1 = "test_links_dataset"
+    
+    ds_1 = hub.empty(path_1)
+    
+    ds_1.create_tensor("image")
+    ds_1.create_tensor("grayscale_image")
+
+    ds_1._link_tensor(ds_1.image, ds_1.grayscale_image)
+    
+    assert(ds_1.grayscale_image.meta.linked_tensor == True)
+    assert(ds_1.image.meta.links == "grayscale_image")
+
+    with pytest.raises(TensorAlreadyLinkedError):
+        ds_1.create_tensor("rotated_image")
+        ds_1._link_tensor(ds_1.grayscale_image, ds_1.rotated_image)
+
+    ds_1.delete()
+    

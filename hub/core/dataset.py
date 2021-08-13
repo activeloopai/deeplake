@@ -228,27 +228,30 @@ class Dataset:
 
         return tensor
 
-    def _link_tensor(self, src: Union[str, "Tensor"], dest: Union[str, "Tensor"]):
+    def _link_tensor(self, src: "Tensor", dest: "Tensor"):
         """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and 
 
         Args:
-            src (str): Source tensor.  
-            dest (Tensor): Tensor being linked to the source tensor. A sample appended to the source tensor will also be appended to its linked tensor.
+            src (Union[str, Tensor]): Source tensor.  
+            dest (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor 
+                                        will also be appended to its linked tensor after applying a certain function (e.g hashing).
 
         Raises:
-            TensorAlreadyLinkedError: A linked tensor can't be linked again.
+            TensorAlreadyLinkedError: A linked tensor can't be linked again i.e linked tensors have a many to one relationship with source tensors.
             NotImplementedError: Source tensor can't have more than one links.
         """
-        if not src.meta.links: 
-            if not dest.meta.linked_tensor:
-                src.meta.links = dest.key
-                dest.meta.linked_tensor = True
-            else:
-                raise TensorAlreadyLinkedError
-        else:
+
+        if src.meta.links:
             raise NotImplementedError(
                 "Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible."
             )
+
+        if dest.meta.linked_tensor or src.meta.linked_tensor:
+            raise TensorAlreadyLinkedError
+        
+        src.meta.links = dest.key
+        dest.meta.linked_tensor = True
+    
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":
