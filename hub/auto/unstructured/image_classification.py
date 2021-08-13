@@ -126,7 +126,6 @@ class ImageClassification(UnstructuredDataset):
                 class_names=self.class_names,
             )
 
-        with ds:
             paths = self._abs_file_paths
             skipped_files: list = []
 
@@ -137,6 +136,8 @@ class ImageClassification(UnstructuredDataset):
                 total=len(paths),
                 disable=not use_progress_bar,
             )
+
+        with ds, iterator:
             for file_path in iterator:
                 ingested_file_count = 0
                 image = hub.read(file_path)
