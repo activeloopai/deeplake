@@ -70,6 +70,7 @@ class Dataset:
                 self._read_only = False
             except LockedException:
                 self._read_only = True
+                storage.enable_readonly()
 
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
