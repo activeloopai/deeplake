@@ -5,9 +5,10 @@ from hub.core.storage.provider import StorageProvider
 class MemoryProvider(StorageProvider):
     """Provider class for using the memory."""
 
-    def __init__(self, root: str = ""):
+    def __init__(self, root: str = "", read_only: bool = False):
         self.dict: Dict[str, Any] = {}
         self.root = root
+        self._read_only = read_only  # no locking for MemoryProvider
 
     def __getitem__(
         self,
@@ -21,7 +22,7 @@ class MemoryProvider(StorageProvider):
 
         Args:
             path (str): The path relative to the root of the provider.
-
+            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         Returns:
             bytes: The bytes of the object present at the path.
 
@@ -93,9 +94,8 @@ class MemoryProvider(StorageProvider):
         """
         return len(self.dict)
 
-    def clear(self):
+    def _clear(self):
         """Clears the provider."""
-        self.check_readonly()
         self.dict = {}
 
     def __getstate__(self) -> str:

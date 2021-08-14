@@ -41,20 +41,25 @@ def storage_provider_from_path(
         endpoint_url = creds.get("endpoint_url")
         region = creds.get("region")
         storage: StorageProvider = S3Provider(
-            path, key, secret, session_token, endpoint_url, region, token=token
+            path,
+            key,
+            secret,
+            session_token,
+            endpoint_url,
+            region,
+            token=token,
+            read_only=read_only,
         )
     elif path.startswith("mem://"):
-        storage = MemoryProvider(path)
+        storage = MemoryProvider(path, read_only=read_only)
     elif path.startswith("hub://"):
         storage = storage_provider_from_hub_path(path, read_only, token=token)
     else:
         if not os.path.exists(path) or os.path.isdir(path):
-            storage = LocalProvider(path)
+            storage = LocalProvider(path, read_only=read_only)
         else:
             raise ValueError(f"Local path {path} must be a path to a local directory")
 
-    if read_only:
-        storage.enable_readonly()
     return storage
 
 

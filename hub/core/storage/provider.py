@@ -3,19 +3,44 @@ from collections.abc import MutableMapping
 from hub.core.storage.cachable import Cachable
 from typing import Optional
 
-from hub.constants import BYTE_PADDING
+from hub.constants import (
+    BYTE_PADDING,
+    DATASET_LOCK_UPDATE_INTERVAL,
+    DATASET_LOCK_VALIDITY,
+)
 from hub.util.assert_byte_indexes import assert_byte_indexes
-from hub.util.exceptions import ReadOnlyModeError
+from hub.util.exceptions import ReadOnlyModeError, LockedException
+from hub.util.keys import get_dataset_lock_key
+from hub.util.threading import terminate_thread
+
+
+import time
+import threading
+import struct
+import uuid
+import atexit
+import ctypes
+
+
+_WRITE_KEY = str(uuid.uuid4()).replace("-", "").encode("ascii")  # 32 bytes
 
 
 class StorageProvider(ABC, MutableMapping):
     autoflush = False
-    read_only = False
-
+    _read_only = False
+    _locked = False
     """An abstract base class for implementing a storage provider.
 
     To add a new provider using Provider, create a subclass and implement all 5 abstract methods below.
     """
+
+    def __init__(self, read_only: bool = False):
+        self._read_only = read_only
+        if not read_only:
+            if self._is_locked():
+                self._locked = True
+            else:
+                self._lock()
 
     @abstractmethod
     def __getitem__(self, path: str):
@@ -128,6 +153,16 @@ class StorageProvider(ABC, MutableMapping):
             int: the number of files present inside the root.
         """
 
+    @property
+    def read_only(self):
+        return self._locked or self._read_only
+
+    @read_only.setter
+    def read_only(self, value: bool):
+        if not value and self._locked:
+            raise LockedException()
+        self._read_only = value
+
     def enable_readonly(self):
         """Enables read-only mode for the provider."""
         self.read_only = True
@@ -154,6 +189,66 @@ class StorageProvider(ABC, MutableMapping):
         if self.autoflush:
             self.flush()
 
-    @abstractmethod
     def clear(self):
         """Delete the contents of the provider."""
+        self.check_readonly()
+        self._unlock()
+        self._clear()
+        self._lock()
+
+    @abstractmethod
+    def _clear(self):
+        pass
+
+    # def __contains__(self, path):
+    #     try:
+    #         self[path]
+    #     except KeyError:
+    #         return False
+    #     return True
+
+    def _is_locked(self):
+        lock_bytes = self.get(get_dataset_lock_key())
+        if lock_bytes is None:
+            return False
+        lock_bytes = memoryview(lock_bytes)
+        write_key = lock_bytes[:32]
+        if write_key == _WRITE_KEY:  # locked in the same python session
+            return False
+        lock_time = struct.unpack("d", lock_bytes[32:])[0]
+        if time.time() - lock_time < DATASET_LOCK_VALIDITY:
+            return True
+        return False
+
+    def _lock(self):
+        self.check_readonly()
+        self._stop_lock_thread = threading.Event()
+        self._lock_thread = threading.Thread(target=self._lock_loop, daemon=True)
+        self._lock_thread.start()
+        atexit.register(self._unlock)
+
+    def _unlock(self):
+        if hasattr(self, "_lock_thread"):
+            self._stop_lock_thread.set()
+            terminate_thread(self._lock_thread)
+            # self._lock_thread.join()
+            try:
+                del self[get_dataset_lock_key()]
+            except Exception:
+                pass  # TODO
+
+    def _lock_loop(self):
+        try:
+            while not self._stop_lock_thread.is_set():
+                try:
+                    self[get_dataset_lock_key()] = _WRITE_KEY + struct.pack(
+                        "d", time.time()
+                    )
+                except Exception:
+                    pass
+                time.sleep(DATASET_LOCK_UPDATE_INTERVAL)
+        except Exception:  # Thread termination
+            return
+
+    def empty(self):
+        return len(self) - int(get_dataset_lock_key() in self) <= 0

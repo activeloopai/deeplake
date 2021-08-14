@@ -259,7 +259,6 @@ class Dataset:
 
     def _load_meta(self):
         meta_key = get_dataset_meta_key()
-
         if dataset_exists(self.storage):
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
@@ -268,7 +267,7 @@ class Dataset:
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
-        elif len(self.storage) > 0:
+        elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
             raise PathNotEmptyException
 

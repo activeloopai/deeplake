@@ -186,11 +186,10 @@ class LRUCache(StorageProvider):
         if hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
-    def clear(self):
+    def _clear(self):
         """Deletes ALL the data from all the layers of the cache and the actual storage.
         This is an IRREVERSIBLE operation. Data once deleted can not be recovered.
         """
-        self.check_readonly()
         self.cache_used = 0
         self.lru_sizes.clear()
         self.dirty_keys.clear()

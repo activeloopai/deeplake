@@ -8,7 +8,7 @@ from hub.util.exceptions import DirectoryAtPathException, FileAtPathException
 class LocalProvider(StorageProvider):
     """Provider class for using the local filesystem."""
 
-    def __init__(self, root: str):
+    def __init__(self, root: str, read_only: bool = False):
         """Initializes the LocalProvider.
 
         Example:
@@ -16,13 +16,14 @@ class LocalProvider(StorageProvider):
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root."
-
+            read_only (bool): Opens dataset in read only mode if this is passed as True. Defaults to False.
         Raises:
             FileAtPathException: If the root is a file instead of a directory.
         """
         if os.path.isfile(root):
             raise FileAtPathException(root)
         self.root = root
+        super(LocalProvider, self).__init__(read_only=read_only)
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
@@ -77,8 +78,8 @@ class LocalProvider(StorageProvider):
                 raise FileAtPathException(directory)
             if not os.path.exists(directory):
                 os.makedirs(directory, exist_ok=True)
-            file = open(full_path, "wb")
-            file.write(value)
+            with open(full_path, "wb") as f:
+                f.write(value)
         except Exception:
             raise
 
@@ -164,8 +165,7 @@ class LocalProvider(StorageProvider):
             raise DirectoryAtPathException
         return full_path
 
-    def clear(self):
+    def _clear(self):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
-        self.check_readonly()
         if os.path.exists(self.root):
             shutil.rmtree(self.root)

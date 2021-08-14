@@ -1,4 +1,3 @@
-from hub.core.storage.provider import StorageProvider
 import posixpath
 
 from hub import constants
@@ -18,6 +17,10 @@ def get_dataset_info_key() -> str:
     return constants.DATASET_INFO_FILENAME
 
 
+def get_dataset_lock_key() -> str:
+    return constants.DATASET_LOCK_FILENAME
+
+
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 
@@ -34,7 +37,7 @@ def get_chunk_id_encoder_key(key: str) -> str:
     )
 
 
-def dataset_exists(storage: StorageProvider) -> bool:
+def dataset_exists(storage: "StorageProvider") -> bool:
     try:
         storage[get_dataset_meta_key()]
         return True
@@ -42,7 +45,7 @@ def dataset_exists(storage: StorageProvider) -> bool:
         return False
 
 
-def tensor_exists(key: str, storage: StorageProvider) -> bool:
+def tensor_exists(key: str, storage: "StorageProvider") -> bool:
     try:
         storage[get_tensor_meta_key(key)]
         return True
