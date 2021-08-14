@@ -19,7 +19,7 @@ class Sample:
 
         Note:
             If `self.is_lazy` is True, this `Sample` doesn't actually have have any data loaded. To read this data,
-                simply try to read one of it's properties (such as `self.array`, `self.shape`, etc.).
+                simply try to read it into a numpy array (`sample.array`)
 
         Args:
             path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
@@ -36,14 +36,16 @@ class Sample:
         if path is not None:
             self.path = pathlib.Path(path)
             self._array = None
+            self._read_meta()
 
         if array is not None:
             self.path = None
             self._array = array
+            self.shape = array.shape
+            self.compression = None
 
         self._compressed_bytes = None
         self._uncompressed_bytes = None
-        self._read_meta()
 
     @property
     def is_lazy(self) -> bool:
@@ -59,21 +61,9 @@ class Sample:
         return self._array  # type: ignore
 
     @property
-    def shape(self) -> Tuple[int, ...]:
-        return self._shape
-
-    @property
     def dtype(self) -> str:
         self._read()
         return self._array.dtype.name  # type: ignore
-
-    @property
-    def compression(self) -> str:
-        if self._original_compression is None:
-            img = Image.open(self.path)
-            self._original_compression = img.format.lower()
-            img.close()
-        return self._original_compression
 
     def compressed_bytes(self, compression: str) -> bytes:
         """Returns this sample as compressed bytes.
@@ -116,8 +106,8 @@ class Sample:
     def _read_meta(self):
         """Reads shape and format without decompressing the sample."""
         img = Image.open(self.path)
-        self._shape = (img.height, img.width, img.layers)
-        self._original_compression = img.format.lower()
+        self.shape = (img.height, img.width, img.layers)
+        self.compression = img.format.lower()
         img.close()
 
     def _read(self):
