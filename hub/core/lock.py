@@ -33,7 +33,7 @@ class Lock(object):
     def _parse_lock_bytes(self, byts) -> Tuple[int, float]:
         byts = memoryview(byts)
         nodeid = int.from_bytes(byts[:6], "little")
-        timestamp = struct.unpack("d", byts[6:])
+        timestamp = struct.unpack("d", byts[6:])[0]
         return nodeid, timestamp
 
     def _lock_loop(self):

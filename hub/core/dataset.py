@@ -62,8 +62,11 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
+        # uniquely identifies dataset
+        self.path = get_path_from_storage(storage)
+        self.storage = storage
         if read_only:
-            self.read_only = True
+            self._read_only = True
         else:
             try:
                 lock(storage)
@@ -72,9 +75,6 @@ class Dataset:
                 self._read_only = True
                 storage.enable_readonly()
 
-        # uniquely identifies dataset
-        self.path = get_path_from_storage(storage)
-        self.storage = storage
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
