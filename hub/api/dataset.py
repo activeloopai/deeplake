@@ -131,6 +131,7 @@ class dataset:
         if overwrite and dataset_exists(storage):
             storage.clear()
         elif dataset_exists(storage):
+            print(list(storage))
             raise DatasetHandlerError(
                 f"A dataset already exists at the given path ({path}). If you want to create a new empty dataset, either specify another path or use overwrite=True. If you want to load the dataset that exists at this path, use dataset.load() or dataset() instead."
             )
