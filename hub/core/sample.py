@@ -40,10 +40,10 @@ class Sample:
         if array is not None:
             self.path = None
             self._array = array
-            self._original_compression = None
 
         self._compressed_bytes = None
         self._uncompressed_bytes = None
+        self._read_meta()
 
     @property
     def is_lazy(self) -> bool:
@@ -51,8 +51,7 @@ class Sample:
 
     @property
     def is_empty(self) -> bool:
-        self._read()
-        return 0 in self.array.shape
+        return 0 in self._shape
 
     @property
     def array(self) -> np.ndarray:
@@ -61,8 +60,7 @@ class Sample:
 
     @property
     def shape(self) -> Tuple[int, ...]:
-        self._read()
-        return self._array.shape  # type: ignore
+        return self._shape
 
     @property
     def dtype(self) -> str:
@@ -71,12 +69,11 @@ class Sample:
 
     @property
     def compression(self) -> str:
-        self._read()
-
-        if self.is_empty:
-            return None
-
-        return self._original_compression.lower()
+        if self._original_compression is None:
+            img = Image.open(self.path)
+            self._original_compression = img.format.lower()
+            img.close()
+        return self._original_compression
 
     def compressed_bytes(self, compression: str) -> bytes:
         """Returns this sample as compressed bytes.
@@ -116,9 +113,15 @@ class Sample:
 
         return self._uncompressed_bytes
 
-    def _read(self):
-        """If this sample hasn't been already read into memory, do so. This is required for properties to be accessible."""
+    def _read_meta(self):
+        """Reads shape and format without decompressing the sample."""
+        img = Image.open(self.path)
+        self._shape = (img.height, img.width, img.layers)
+        self._original_compression = img.format.lower()
+        img.close()
 
+    def _read(self):
+        """If this sample hasn't been already read into memory, do so."""
         # "cache"
         if self._array is not None:
             return self._array
@@ -128,7 +131,6 @@ class Sample:
         # path will definitely not be `None` because of `__init__`
         img = Image.open(self.path)
         self._array = np.array(img)
-        self._original_compression = img.format.lower()
         return self._array
 
     def __str__(self):
