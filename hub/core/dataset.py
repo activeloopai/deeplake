@@ -8,6 +8,7 @@ import numpy as np
 
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.index import Index
+from hub.core.lock import lock, unlock
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
     dataset_exists,
@@ -25,6 +26,7 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
+    LockedException,
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
@@ -60,7 +62,15 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        self._read_only = read_only
+        if read_only:
+            self.read_only = True
+        else:
+            try:
+                lock(storage)
+                self._read_only = False
+            except LockedException:
+                self._read_only = True
+
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
         self.storage = storage
@@ -268,7 +278,7 @@ class Dataset:
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
-        elif len(self.storage) > 0:
+        elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
             raise PathNotEmptyException
 
@@ -419,7 +429,7 @@ class Dataset:
                     f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
                 )
                 return
-
+        unlock(self.storage)
         self.storage.clear()
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
