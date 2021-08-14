@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Dict
 from hub.constants import (
     DATASET_LOCK_VALIDITY,
     DATASET_LOCK_UPDATE_INTERVAL,
@@ -15,8 +15,6 @@ import uuid
 import os
 import threading
 import atexit
-
-_LOCKS = {}
 
 
 class Lock(object):
@@ -75,6 +73,9 @@ class Lock(object):
         with self._thread_lock:
             terminate_thread(self._thread)
             self._acquired = False
+
+
+_LOCKS: Dict[str, Lock] = {}
 
 
 def lock(storage: StorageProvider):
