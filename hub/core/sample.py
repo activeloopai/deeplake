@@ -42,6 +42,7 @@ class Sample:
             self.path = None
             self._array = array
             self.shape = array.shape
+            self.dtype = array.dtype.name
             self.compression = None
 
         self._compressed_bytes = None
@@ -59,11 +60,6 @@ class Sample:
     def array(self) -> np.ndarray:
         self._read()
         return self._array  # type: ignore
-
-    @property
-    def dtype(self) -> str:
-        self._read()
-        return self._array.dtype.name  # type: ignore
 
     def compressed_bytes(self, compression: str) -> bytes:
         """Returns this sample as compressed bytes.
@@ -104,11 +100,11 @@ class Sample:
         return self._uncompressed_bytes
 
     def _read_meta(self):
-        """Reads shape and format without decompressing the sample."""
+        """Reads shape, dtype and format without decompressing the sample."""
         img = Image.open(self.path)
-        self.shape = (img.height, img.width, img.layers)
+        self.shape, dtype = Image._conv_type_shape(img)
+        self.dtype = np.dtype(dtype).name
         self.compression = img.format.lower()
-        img.close()
 
     def _read(self):
         """If this sample hasn't been already read into memory, do so."""
