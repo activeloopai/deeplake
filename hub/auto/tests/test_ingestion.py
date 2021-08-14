@@ -27,7 +27,7 @@ def test_ingestion_simple(memory_ds: Dataset):
         dest=memory_ds.path,
         images_compression="auto",
         progress_bar=False,
-        summary=False,
+        summary=True,
         overwrite=False,
     )
 
