@@ -94,9 +94,7 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
 
-        if (self.meta.links == HASHES_TENSOR_FOLDER) and (
-            self.key != HASHES_TENSOR_FOLDER
-        ):
+        if (self.meta.links == HASHES_TENSOR_FOLDER):
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -129,6 +127,7 @@ class Tensor:
 
         Raises:
             TensorDtypeMismatchError: TensorDtypeMismatchError: Dtype for array must be equal to or castable to this tensor's dtype
+            LinkedTensorError: Appending samples directly to a linked tensor is not permitted. 
         """
 
         if self.meta.linked_tensor:
@@ -390,11 +389,3 @@ class Tensor:
     def __ior__(self, other):
         raise NotImplementedError
 
-
-def load_tensor_meta(tensor_key: str, cache: LRUCache):
-    if tensor_key in cache:
-        tensor = cache.get_cachable(tensor_key, TensorMeta)
-    else:
-        raise TensorDoesNotExistError(tensor_key)
-
-    return tensor

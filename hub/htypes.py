@@ -26,7 +26,7 @@ Supported htypes and their respective defaults are:
 | video         |  uint8    |  none         |
 | binary_mask   |  bool     |  none         |
 | segment_mask  |  int32    |  none         |
-| hashes        |  float64  |  none         |
+| hashes        |  int64  |  none         |
 """
 
 from re import L

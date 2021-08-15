@@ -63,7 +63,7 @@ DEFAULT_MEMORY_CACHE_SIZE = 256
 DEFAULT_LOCAL_CACHE_SIZE = 0
 
 # tensor containing hashes of samples
-HASHES_TENSOR_FOLDER = "hashes"
+HASHES_TENSOR_FOLDER = "_hashes"
 
 # maximum allowable size before `large_ok` must be passed to dataset delete methods
 DELETE_SAFETY_SIZE = 1 * GB

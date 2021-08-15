@@ -5,7 +5,7 @@ from hub.client.log import logger
 from hub.util.exceptions import (
     HashesTensorDoesNotExistError,
 )
-
+from hub.constants import HASHES_TENSOR_FOLDER
 import os, glob
 
 
@@ -39,11 +39,11 @@ def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
         int: The Jaccard similarity score between the two hashlists being compared. This score ranges from 0.0 to 1.0, with 1.0 being the highest.
     """
 
-    if not (dataset_1.hashes or dataset_2.hashes):
+    if (HASHES_TENSOR_FOLDER not in dataset_1.tensors or HASHES_TENSOR_FOLDER not in dataset_2.tensors):
         raise HashesTensorDoesNotExistError()
 
-    hashlist_1 = dataset_1.hashes.numpy()
-    hashlist_2 = dataset_2.hashes.numpy()
+    hashlist_1 = dataset_1[HASHES_TENSOR_FOLDER].numpy()
+    hashlist_2 = dataset_2[HASHES_TENSOR_FOLDER].numpy()
 
     # mmh3 produces two 64 bit hashes for each sample. We access only one of these during comparision.
     similarity_score = jaccard_similarity(hashlist_1[:, 0], hashlist_2[:, 0])

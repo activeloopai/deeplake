@@ -8,6 +8,7 @@ import numpy as np
 from PIL import Image
 from hub.core.tensor import Tensor
 from hub.tests.common import TENSOR_KEY
+from hub.constants import HASHES_TENSOR_FOLDER
 from hub.tests.dataset_fixtures import enabled_datasets
 
 import glob
@@ -77,8 +78,8 @@ def test_compare_image_datasets(memory_ds: Dataset, memory_ds_2: Dataset):
                     hub.read(path)
                 )  # Append to images tensor using hub.read
 
-    assert memory_ds.hashes.meta.linked_tensor == True
-    assert memory_ds.images.meta.links == "hashes"
+    assert memory_ds[HASHES_TENSOR_FOLDER].meta.linked_tensor == True
+    assert memory_ds.images.meta.links == HASHES_TENSOR_FOLDER
     assert hub.compare(memory_ds, memory_ds_2) == 0.5
 
 
