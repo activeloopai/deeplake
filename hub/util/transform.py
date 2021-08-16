@@ -30,6 +30,9 @@ def transform_sample(
         sample: The sample on which the pipeline of functions is to be applied.
         pipeline (Pipeline): The Sequence of functions to apply on the sample.
 
+    Raises:
+        InvalidTransformDataset: If number of tensors were inconsistent between all transform datasets.
+
     Returns:
         TransformDataset: A transform dataset containing all the samples that were generated.
     """
