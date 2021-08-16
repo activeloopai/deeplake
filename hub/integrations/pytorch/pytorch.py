@@ -3,7 +3,6 @@ from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.util.keys import get_chunk_key
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import (
     StorageProvider,
@@ -11,7 +10,6 @@ from hub.core.storage import (
     MemoryProvider,
     SharedMemoryProvider,
 )
-from hub.core.meta.tensor_meta import TensorMeta
 from hub.util.remove_cache import get_base_storage
 from itertools import repeat
 from collections import defaultdict
@@ -123,6 +121,7 @@ class TorchDataset:
 
         index_value = dataset.index.values[0].value
 
+        # TODO: this might be improper, fix this
         if not isinstance(index_value, slice):
             raise DatasetUnsupportedPytorch(
                 "Only full dataset or dataset indexed using slices can be converted to pytorch."
@@ -153,7 +152,6 @@ class TorchDataset:
         self.all_shared_memory_names: Dict[str, List[str]] = defaultdict(list)
 
         self.main_shared_memory_provider = SharedMemoryProvider()
-
 
         self.last_chunk_num_generated = -1
 
@@ -196,19 +194,6 @@ class TorchDataset:
             for key in self.tensor_keys
         }
 
-    def _load_all_meta(self):
-        """Loads meta for all Tensors into memory"""
-        all_meta = {}
-        # pytorch doesn't support certain dtypes, which are type casted to another dtype implicitly
-        for key in self.tensor_keys:
-            tensor_meta = TensorMeta.load(key, self.storage)
-            if tensor_meta.dtype == "uint16":
-                tensor_meta.dtype = "int32"
-            elif tensor_meta.dtype in ["uint32", "uint64"]:
-                tensor_meta.dtype = "int64"
-            all_meta[key] = tensor_meta
-        return all_meta
-
     def _prefetch_data(self, key: str, index: int):
         """Prefetches data for the given key, starting from the given index"""
         # clear data from previous prefetching, before fetching data
@@ -217,7 +202,7 @@ class TorchDataset:
         self.main_shared_memory_provider.delete_items(old_shared_memory_names)
 
         chunk_engine = self.all_chunk_engines[key]
-        chunk_names = chunk_engine.get_chunk_names(
+        chunk_names = chunk_engine.get_chunk_names_for_multiple_indexes(
             index + self.index_offset, len(self) + self.index_offset, self.num_workers
         )
 

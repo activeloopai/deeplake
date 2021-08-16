@@ -459,7 +459,7 @@ class ChunkEngine:
 
         return sample
 
-    def get_chunk_names(
+    def get_chunk_names_for_multiple_indexes(
         self, sample_index: int, last_index: int, target_chunk_count: int
     ) -> Set[str]:
         """Fetches a set of chunk names in which data starting from sample_index is contained.
@@ -484,6 +484,12 @@ class ChunkEngine:
             chunk_names.add(chunk)
             sample_index += 1
         return chunk_names
+
+    def get_chunk_names_for_index(self, sample_index):
+        # TODO fix this once we support multiple chunk names per sample
+        chunk_id = self.chunk_id_encoder[sample_index]
+        chunk = self.chunk_id_encoder.name_from_id(chunk_id)
+        return [chunk]
 
     def validate_num_samples_is_synchronized(self):
         """Check if tensor meta length and chunk ID encoder are representing the same number of samples.
