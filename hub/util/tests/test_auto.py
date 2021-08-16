@@ -3,6 +3,7 @@ from hub.tests.common import get_dummy_data_path
 from hub.util.auto import get_most_common_extension, ingestion_summary
 from io import StringIO
 import sys
+import hub
 import pytest
 
 
@@ -17,12 +18,19 @@ def test_most_common_extension(memory_ds: Dataset):
     assert file_compression == "jpeg"
 
 
-def test_ingestion_summary():
+def test_ingestion_summary(memory_ds: Dataset):
     path = get_dummy_data_path("tests_auto/auto_compression")
 
     auto_ingest = StringIO()
     sys.stdout = auto_ingest
-    ingestion_summary(path, [], 1)
+    hub.ingest(
+        src=path,
+        dest=memory_ds.path,
+        images_compression="auto",
+        progress_bar=False,
+        summary=True,
+        overwrite=False,
+    )
     sys.stdout = sys.__stdout__
 
     output_1 = auto_ingest.getvalue()
