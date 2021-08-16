@@ -35,6 +35,20 @@ class InvalidPathException(Exception):
         )
 
 
+class AutoCompressionError(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Auto compression could not run on {directory}. The directory is empty."
+        )
+
+
+class InvalidFileExtension(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Missing file with extension in {directory}. Expected a valid file extension got None."
+        )
+
+
 class SamePathException(Exception):
     def __init__(self, directory):
         super().__init__(
