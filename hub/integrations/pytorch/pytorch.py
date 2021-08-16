@@ -15,6 +15,8 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
     TensorDoesNotExistError,
+    SampleDecompressionError,
+    CorruptedSampleError,
 )
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
@@ -30,6 +32,8 @@ except ModuleNotFoundError:
     pass
 
 from functools import lru_cache
+
+import warnings
 
 
 @lru_cache()
@@ -257,7 +261,13 @@ class TorchDataset:
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
         chunk_engine = self.all_chunk_engines[key]
-        value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+        try:
+            value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+        except SampleDecompressionError:
+            warnings.warn(
+                CorruptedSampleError(chunk_engine.tensor_meta.sample_compression)
+            )
+            return None
 
         # typecast if incompatible with pytorch
         dtype = chunk_engine.tensor_meta.dtype
@@ -317,6 +327,11 @@ class TorchDataset:
             sample = IterableOrderedDict(
                 (key, self.all_index_value_maps[key][i]) for key in self.tensor_keys
             )
+            sample = IterableOrderedDict()
+            for key in self.tensor_keys:
+                val = self.all_index_value_maps[key][i]
+                if val is not None:
+                    sample[key] = val
             samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)

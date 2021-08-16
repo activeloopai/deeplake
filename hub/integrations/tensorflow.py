@@ -1,4 +1,9 @@
-from hub.util.exceptions import ModuleNotInstalledException
+from hub.util.exceptions import (
+    ModuleNotInstalledException,
+    SampleDecompressionError,
+    CorruptedSampleError,
+)
+import warnings
 
 
 def dataset_to_tensorflow(dataset):
@@ -14,10 +19,18 @@ def dataset_to_tensorflow(dataset):
     def __iter__():
         for index in range(len(dataset)):
             sample = {}
+            corrupt_sample_found = False
             for key in dataset.tensors:
-                value = dataset[key][index].numpy()
-                sample[key] = value
-            yield sample
+                try:
+                    value = dataset[key][index].numpy()
+                    sample[key] = value
+                except SampleDecompressionError:
+                    warnings.warn(
+                        CorruptedSampleError(dataset[key].meta.sample_compression)
+                    )
+                    corrupt_sample_found = True
+            if not corrupt_sample_found:
+                yield sample
 
     def generate_signature():
         signature = {}

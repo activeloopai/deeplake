@@ -11,6 +11,8 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
     TensorDoesNotExistError,
+    SampleDecompressionError,
+    CorruptedSampleError,
 )
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
@@ -119,7 +121,13 @@ class TorchDataset:
         sample = IterableOrderedDict()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
-            item = self.dataset[key][index].numpy()  # type: ignore
+            try:
+                item = self.dataset[key][index].numpy()  # type: ignore
+            except SampleDecompressionError:
+                warnings.warn(
+                    CorruptedSampleError(self.dataset[key].meta.sample_compression)
+                )
+                return None
             if item.dtype == "uint16":
                 item = item.astype("int32")
             elif item.dtype in ["uint32", "uint64"]:
@@ -130,4 +138,6 @@ class TorchDataset:
 
     def __iter__(self):
         for index in range(len(self)):
-            yield self[index]
+            val = self[index]
+            if val is not None:
+                yield self[index]
