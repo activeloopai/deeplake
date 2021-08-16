@@ -36,7 +36,7 @@ def transform_sample(
 
     result = sample
     for index in range(len(pipeline)):
-        transform_fn = pipeline.transform_functions[index]
+        transform_fn = pipeline.functions[index]
         fn, args, kwargs = transform_fn.func, transform_fn.args, transform_fn.kwargs
 
         if isinstance(result, TransformDataset):
@@ -174,8 +174,11 @@ def check_transform_data_in(data_in, scheduler: str) -> None:
             f"The data_in to transform is invalid. It should support __len__ operation."
         )
     if isinstance(data_in, hub.core.dataset.Dataset):
-        base_storage = get_base_storage(data_in.storage)
-        if isinstance(base_storage, MemoryProvider) and scheduler != "threaded":
+        input_base_storage = get_base_storage(data_in.storage)
+        if isinstance(input_base_storage, MemoryProvider) and scheduler not in [
+            "serial",
+            "threaded",
+        ]:
             raise InvalidOutputDatasetError(
                 f"Transforms with data_in as a Dataset having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
             )
@@ -193,7 +196,10 @@ def check_transform_ds_out(ds_out: hub.core.dataset.Dataset, scheduler: str) -> 
             )
 
     output_base_storage = get_base_storage(ds_out.storage)
-    if isinstance(output_base_storage, MemoryProvider) and scheduler != "threaded":
+    if isinstance(output_base_storage, MemoryProvider) and scheduler not in [
+        "serial",
+        "threaded",
+    ]:
         raise InvalidOutputDatasetError(
             f"Transforms with ds_out having base storage as MemoryProvider are only supported in threaded and serial mode. Current mode is {scheduler}."
         )

@@ -9,12 +9,10 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
 )
 from hub.constants import (
-    REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
     COMPRESSION_ALIASES,
-    UNSPECIFIED,
 )
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
 
 
@@ -40,7 +38,7 @@ class TensorMeta(Meta):
 
         Args:
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
 
         if htype != UNSPECIFIED:
