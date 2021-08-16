@@ -516,3 +516,8 @@ class MemoryDatasetCanNotBePickledError(Exception):
         super().__init__(
             "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )
+
+
+class CorruptedSampleError(Exception):
+    def __init__(self, compression):
+        super().__init__(f"Invalid {compression} file.")
