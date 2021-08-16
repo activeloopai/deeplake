@@ -161,7 +161,7 @@ class Sample:
             sof_idx = mm.find(b"\xff\xc0", 2)
             if sof_idx == -1:
                 # Look for Progressive DCT marker
-                sof_idx = mm.find(b"\xff\xc0", 2)
+                sof_idx = mm.find(b"\xff\xc2", 2)
                 if sof_idx == -1:
                     raise Exception()  # Caught by verify
             f.seek(sof_idx + 2)
