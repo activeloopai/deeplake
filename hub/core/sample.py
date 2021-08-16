@@ -142,7 +142,7 @@ class Sample:
             else:
                 self._fast_decompress()
         except Exception as e:
-            raise e
+            raise CorruptedSampleError(self.compression)
 
     def _verify_png(self):
         img = Image.open(self.path)
@@ -175,7 +175,7 @@ class Sample:
             ]  # DHT, DQT, DRI
 
             # TODO this check is too slow
-            # assert mm.find(b"\xff\xd9") != -1  # End of Image
+            assert mm.find(b"\xff\xd9") != -1  # End of Image
 
     def _fast_decompress(self):
         img = Image.open(self.path)
