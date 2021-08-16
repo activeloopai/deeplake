@@ -20,10 +20,18 @@ def test_most_common_extension(memory_ds: Dataset):
 def test_ingestion_summary():
     path = get_dummy_data_path("tests_auto/auto_compression")
 
-    capturedOutput = StringIO()
-    sys.stdout = capturedOutput
+    auto_ingest = StringIO()
+    sys.stdout = auto_ingest
     ingestion_summary(path, [], 1)
     sys.stdout = sys.__stdout__
 
-    assert len(capturedOutput.getvalue()) == 251
-    assert capturedOutput.getvalue()[225:-5] == "No files were skipped"
+    output_1 = auto_ingest.getvalue()
+
+    ingest_summary = StringIO()
+    sys.stdout = ingest_summary
+    ingestion_summary(path, [], 1)
+    sys.stdout = sys.__stdout__
+
+    output_2 = ingest_summary.getvalue()
+
+    assert output_1 == output_2
