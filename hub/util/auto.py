@@ -75,7 +75,7 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
         print("\n\n")
         return
 
-    at_root = 1
+    at_root = True
     for root, dirs, files in os.walk(local_path):
         files = [f for f in files if not f[0] == "."]
         dirs[:] = [d for d in dirs if not d[0] == "."]
@@ -83,7 +83,7 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
 
         level = root.replace(local_path, "").count(os.sep)
         indent = " " * 6 * (level)
-        if at_root == 1:
+        if at_root == True:
             print(
                 "{}{}/    ({}/{})".format(
                     indent,
@@ -92,7 +92,7 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
                     len(dirs) + len(files),
                 )
             )
-            at_root = 0
+            at_root = False
         else:
             print(
                 "{}{}/    ({}/{})".format(
