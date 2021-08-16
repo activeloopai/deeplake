@@ -1,7 +1,7 @@
 from hub.core.sample import Sample  # type: ignore
 
 
-def read(path: str, verify: bool = True) -> Sample:
+def read(path: str, verify: bool = False) -> Sample:
     """Utility that reads raw data from a file into a `np.ndarray` in 1 line of code. Also provides access to all important metadata.
 
     Note:

@@ -16,7 +16,7 @@ class Sample:
         self,
         path: str = None,
         array: np.ndarray = None,
-        verify: bool = True,
+        verify: bool = False,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 

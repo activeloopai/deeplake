@@ -182,6 +182,9 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
+        if sample is None:
+            return None
+
         sample = self._apply_transform(sample)
 
         return sample
@@ -328,11 +331,17 @@ class TorchDataset:
                 (key, self.all_index_value_maps[key][i]) for key in self.tensor_keys
             )
             sample = IterableOrderedDict()
+            corrupt = False
             for key in self.tensor_keys:
                 val = self.all_index_value_maps[key][i]
-                if val is not None:
-                    sample[key] = val
-            samples.append(sample)
+                if val is None:
+                    corrupt = True
+                    break
+                sample[key] = val
+            if corrupt:
+                samples.append(None)
+            else:
+                samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 
