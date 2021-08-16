@@ -71,6 +71,7 @@ class Dataset:
         self.storage = storage
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
+        self.hidden_tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
         self.verbose = verbose
@@ -214,17 +215,23 @@ class Dataset:
             hash_samples=hash_samples,
             **meta_kwargs,
         )
-        self.meta.tensors.append(name)
+        
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
-
-        self.tensors[name] = tensor
-
-        tensor.info.update(info_kwargs)
-
+        
         if hash_samples:
             hashes_tensor = self.create_tensor(HASHES_TENSOR_FOLDER, htype="hashes")
             self._link_tensor(tensor, hashes_tensor)
+           
+        # Hashes tensor is considered as a "hidden tensor"
+        if tensor.meta.htype == "hashes":
+            self.meta.hidden_tensors.append(name)
+            self.hidden_tensors[name] = tensor
+        else:   
+            self.meta.tensors.append(name)
+            self.tensors[name] = tensor
+
+        tensor.info.update(info_kwargs)
 
         return tensor
 
@@ -305,6 +312,9 @@ class Dataset:
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
+            for hidden_tensor_name in self.meta.hidden_tensors:
+                self.hidden_tensors[hidden_tensor_name] = Tensor(hidden_tensor_name, self.storage)
+                
         elif len(self.storage) > 0:
             # dataset does not exist, but the path was not empty
             raise PathNotEmptyException
