@@ -21,7 +21,7 @@ class Sample:
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
         Note:
-            If `self.is_lazy` is True, this `Sample` doesn't actually have have any data loaded. To read this data,
+            If `self.is_lazy` is True, this `Sample` doesn't actually have any data loaded. To read this data,
                 simply try to read it into a numpy array (`sample.array`)
 
         Args:
