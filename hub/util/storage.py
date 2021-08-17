@@ -4,7 +4,7 @@ from hub.util.tag import check_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
+from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
 from hub.client.client import HubBackendClient
 
 
@@ -106,3 +106,10 @@ def get_storage_and_cache_chain(
         storage, memory_cache_size_bytes, local_cache_size_bytes, path
     )
     return storage, storage_chain
+
+
+def get_base_storage(storage: StorageProvider) -> StorageProvider:
+    """Extracts the underlying storage from a given cache storage."""
+    if isinstance(storage, LRUCache):
+        return get_base_storage(storage.next_storage)
+    return storage

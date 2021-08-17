@@ -1,6 +1,7 @@
 import hub
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
+from hub.core.storage.s3 import S3Provider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
@@ -31,6 +32,7 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import get_path_from_storage
+from hub.util.storage import get_base_storage
 
 
 class Dataset:
@@ -68,12 +70,18 @@ class Dataset:
         if read_only:
             self._read_only = True
         else:
-            try:
-                lock(storage)
+            base_storage = get_base_storage(storage)
+            if isinstance(
+                base_storage, S3Provider
+            ):  # Dataset locking only for S3 datasets
+                try:
+                    lock(base_storage)
+                    self._read_only = False
+                except LockedException:
+                    self._read_only = True
+                    storage.enable_readonly()
+            else:
                 self._read_only = False
-            except LockedException:
-                self._read_only = True
-                storage.enable_readonly()
 
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
