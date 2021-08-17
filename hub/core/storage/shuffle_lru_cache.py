@@ -108,6 +108,35 @@ class ShuffleLRUCache(LRUCache):
         # TODO: changes this
         return self.length
 
+    def iterate_samples(self):
+        # TODO: IterableOrderedDict
+        chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
+        pending_indexes: List[int] = []
+        for i in range(self.length):
+            index = self._suggest_next_index()
+            chunk_names_dict = self._get_chunk_names_for_index(index)
+            self.index_chunk_names_map[index] = chunk_names_dict
+            chunks_not_found = self._process_chunks_names_dict(chunk_names_dict)
+
+            if chunks_not_found:
+                pending_indexes.append(index)
+                chunk_groups_to_fetch.append(chunks_not_found)
+                if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
+                    self._fetch_and_store_required_data(chunk_groups_to_fetch)
+                    for index in pending_indexes:
+                        yield self._apply_transform(self._data_for_index(index))
+                    pending_indexes.clear()
+            else:
+                yield self._apply_transform(self._data_for_index(index))
+
+        self.flush()
+        self.clear_cache()
+
+    def _suggest_next_index(self, shuffle=False) -> int:
+        if not shuffle:
+            self.last_ordered_index += 1
+            return self.all_indexes[self.last_ordered_index]
+
     def _get_tensor_keys(self, tensor_keys: Optional[Sequence[str]], dataset):
         if tensor_keys is None:
             tensor_keys = list(dataset.tensors)
@@ -123,11 +152,6 @@ class ShuffleLRUCache(LRUCache):
         self.length = min(tensor_lengths, default=0)
         return dataset.index.values[0].indices(self.length)
 
-    def _suggest_next_index(self, shuffle=False) -> int:
-        if not shuffle:
-            self.last_ordered_index += 1
-            return self.all_indexes[self.last_ordered_index]
-
     def update_cache_sizes(self, chunk_sizes_dict) -> None:
         for key in chunk_sizes_dict:
             tensor, chunk_name = self.shared_mem_chunk_map[key]
@@ -136,7 +160,7 @@ class ShuffleLRUCache(LRUCache):
             self.dirty_keys.add(key)
 
     def _get_chunk_names_for_index(self, idx) -> Dict[str, List[str]]:
-        # returns names of all chunks across tensors that have this index
+        """Returns names of all chunks across tensors that have this index"""
         chunk_names: Dict[int, List[str]] = {}
         for key in self.tensor_keys:
             chunk_engine = self.all_chunk_engines[key]
@@ -236,30 +260,6 @@ class ShuffleLRUCache(LRUCache):
                     self.required_chunks.append(chunk)
                     self._refresh_chunk_in_cache(tensor, chunk_name)
         return chunks_not_found
-
-    def iterate_samples(self):
-        # TODO: IterableOrderedDict
-        chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
-        pending_indexes: List[int] = []
-        for i in range(self.length):
-            index = self._suggest_next_index()
-            chunk_names_dict = self._get_chunk_names_for_index(index)
-            self.index_chunk_names_map[index] = chunk_names_dict
-            chunks_not_found = self._process_chunks_names_dict(chunk_names_dict)
-
-            if chunks_not_found:
-                pending_indexes.append(index)
-                chunk_groups_to_fetch.append(chunks_not_found)
-                if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
-                    self._fetch_and_store_required_data(chunk_groups_to_fetch)
-                    for index in pending_indexes:
-                        yield self._apply_transform(self._data_for_index(index))
-                    pending_indexes.clear()
-            else:
-                yield self._apply_transform(self._data_for_index(index))
-
-        self.flush()
-        self.clear_cache()
 
     def _fetch_and_store_required_data(self, chunk_groups: List[List[Tuple[str, str]]]):
         self._generate_shared_memory_names(chunk_groups)
