@@ -19,14 +19,26 @@ def test_most_common_extension():
 
 
 def test_ingestion_summary():
-    path = get_dummy_data_path("tests_auto/auto_compression")
+    clean_path = get_dummy_data_path("tests_auto/ingestion_summary/class1")
+    skipped_path = get_dummy_data_path("test_auto/ingestion_summary")
 
-    ingest_summary = StringIO()
-    sys.stdout = ingest_summary
-    ingestion_summary(path, [], 1)
+    ingest_summary_clean = StringIO()
+    sys.stdout = ingest_summary_clean
+    ingestion_summary(clean_path, [], 1)
     sys.stdout = sys.__stdout__
 
-    if ingest_summary.getvalue() in (
+    if ingest_summary_clean.getvalue() in (
+        "\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
+        "\n=============================== Ingestion Summary =============================\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
+    ):
+        pass
+
+    ingest_summary_skipped = StringIO()
+    sys.stdout = ingest_summary_skipped
+    ingestion_summary(clean_path, [], 1)
+    sys.stdout = sys.__stdout__
+
+    if ingest_summary_skipped.getvalue() in (
         "\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
         "\n=============================== Ingestion Summary =============================\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
     ):
