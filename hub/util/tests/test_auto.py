@@ -20,7 +20,9 @@ def test_most_common_extension():
 
 def test_ingestion_summary(memory_ds: Dataset):
     clean_path = get_dummy_data_path("tests_auto/ingestion_summary/class1")
-    skipped_path = get_dummy_data_path("test_auto/ingestion_summary")
+    skipped_path = get_dummy_data_path("tests_auto/ingestion_summary")
+
+    print(skipped_path)
     ingest_summary_clean = StringIO()
     sys.stdout = ingest_summary_clean
     ingestion_summary(clean_path, [], 1)
