@@ -680,6 +680,7 @@ def test_compressions_list():
         None,
     ]
 
+
 def test_htypes_list():
     assert hub.htypes == [
         "generic",

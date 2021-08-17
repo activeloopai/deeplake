@@ -1,7 +1,7 @@
 from PIL import Image  # type: ignore
 
 
-SAMPLE_COMPRESSIONS = [
+IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
     "pcx",
@@ -19,22 +19,21 @@ SAMPLE_COMPRESSIONS = [
     "xbm",
 ]
 
-CHUNK_COMPRESSIONS = [
-    "lz4",
-]
-
 
 # Pillow plugins for some formats might not be installed:
 if not Image.SAVE:
     Image.init()
-SUPPORTED_COMPRESSIONS = [
-    c
-    for c in SAMPLE_COMPRESSIONS
-    if c.upper() in Image.SAVE and c.upper() in Image.OPEN
+IMAGE_COMPRESSIONS = [
+    c for c in IMAGE_COMPRESSIONS if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
 
-SUPPORTED_COMPRESSIONS = SAMPLE_COMPRESSIONS + CHUNK_COMPRESSIONS
+SUPPORTED_COMPRESSIONS = [
+    "lz4",
+    *IMAGE_COMPRESSIONS,
+]
+
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
+SUPPORTED_COMPRESSIONS = list(set(SUPPORTED_COMPRESSIONS))  # type: ignore
 
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
