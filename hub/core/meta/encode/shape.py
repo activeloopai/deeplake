@@ -9,6 +9,10 @@ class ShapeEncoder(Encoder):
     def _derive_value(self, row: np.ndarray, *_) -> Tuple:
         return tuple(row[:LAST_SEEN_INDEX_COLUMN])
 
+    @property
+    def dimensionality(self) -> int:
+        return len(self[0])
+
     def _validate_incoming_item(self, shape: Tuple[int], _):
         if len(self._encoded) > 0:
             last_shape = self[-1]  # TODO: optimize this

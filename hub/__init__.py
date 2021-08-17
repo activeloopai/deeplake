@@ -52,7 +52,7 @@ __all__ = [
     "htypes",
 ]
 
-__version__ = "2.0.6"
+__version__ = "2.0.7"
 __encoded_version__ = np.array(__version__)
 
 hub_reporter.tags.append(f"version:{__version__}")
