@@ -170,5 +170,6 @@ class ImageClassification(UnstructuredDataset):
                 ds[labels_tensor_map[set_name]].append(label)
 
             if generate_summary:
+                print(ingested_file_count)
                 ingestion_summary(str(self.source), skipped_files, ingested_file_count)
             return ds
