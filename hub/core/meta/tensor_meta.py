@@ -23,6 +23,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
+    max_chunk_size: int
 
     def __init__(
         self,
