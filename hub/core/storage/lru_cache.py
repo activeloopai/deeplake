@@ -1,6 +1,7 @@
 from collections import OrderedDict
+from hub.core.storage.shared_memory import SharedMemoryProvider
 from hub.core.storage.cachable import Cachable, CachableCallback
-from typing import Any, Dict, Set, Union
+from typing import Any, Dict, Optional, Set, Union
 
 from hub.core.storage.provider import StorageProvider
 
@@ -18,7 +19,7 @@ class LRUCache(StorageProvider):
     def __init__(
         self,
         cache_storage: StorageProvider,
-        next_storage: StorageProvider,
+        next_storage: Optional[StorageProvider],
         cache_size: int,
     ):
         """Initializes the LRUCache. It can be chained with other LRUCache objects to create multilayer caches.
@@ -59,7 +60,8 @@ class LRUCache(StorageProvider):
         self.check_readonly()
         for key in self.dirty_keys.copy():
             self._forward(key)
-        self.next_storage.flush()
+        if self.next_storage is not None:
+            self.next_storage.flush()
 
     def get_cachable(self, path: str, expected_class):
         """If the data at `path` was stored using the output of a `Cachable` object's `tobytes` function,
@@ -116,11 +118,15 @@ class LRUCache(StorageProvider):
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
         else:
-            result = self.next_storage[path]  # fetch from storage, may throw KeyError
+            if self.next_storage is not None:
+                result = self.next_storage[
+                    path
+                ]  # fetch from storage, may throw KeyError
 
-            if _get_nbytes(result) <= self.cache_size:  # insert in cache if it fits
-                self._insert_in_cache(path, result)
-            return result
+                if _get_nbytes(result) <= self.cache_size:  # insert in cache if it fits
+                    self._insert_in_cache(path, result)
+                return result
+            raise KeyError(path)
 
     def __setitem__(self, path: str, value: Union[bytes, Cachable]):
         """Puts the item in the cache_storage (if possible), else writes to next_storage.
@@ -165,7 +171,10 @@ class LRUCache(StorageProvider):
             deleted_from_cache = True
 
         try:
-            del self.next_storage[path]
+            if self.next_storage is not None:
+                del self.next_storage[path]
+            else:
+                raise KeyError(path)
         except KeyError:
             if not deleted_from_cache:
                 raise
@@ -173,7 +182,7 @@ class LRUCache(StorageProvider):
         self.maybe_flush()
 
     def clear_cache(self):
-        """Flushes the content of the cache if not in read mode and and then deletes contents of all the layers of it.
+        """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
         This doesn't delete data from the actual storage.
         """
         self._flush_if_not_read_only()
@@ -182,7 +191,7 @@ class LRUCache(StorageProvider):
         self.dirty_keys.clear()
         self.cache_storage.clear()
 
-        if hasattr(self.next_storage, "clear_cache"):
+        if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
     def clear(self):
@@ -194,7 +203,8 @@ class LRUCache(StorageProvider):
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
-        self.next_storage.clear()
+        if self.next_storage is not None:
+            self.next_storage.clear()
 
     def __len__(self):
         """Returns the number of files present in the cache and the underlying storage.
@@ -227,15 +237,16 @@ class LRUCache(StorageProvider):
             remove_from_dirty (bool, optional): cachable values are not un-marked automatically,
                 as they are externally mutable. Set this to True to un-mark them anyway.
         """
-        cachable = isinstance(value, Cachable)
+        if self.next_storage is not None:
+            cachable = isinstance(value, Cachable)
 
-        if not cachable or remove_from_dirty:
-            self.dirty_keys.discard(path)
+            if not cachable or remove_from_dirty:
+                self.dirty_keys.discard(path)
 
-        if cachable:
-            self.next_storage[path] = value.tobytes()
-        else:
-            self.next_storage[path] = value
+            if cachable:
+                self.next_storage[path] = value.tobytes()
+            else:
+                self.next_storage[path] = value
 
     def _free_up_space(self, extra_size: int):
         """Helper function that frees up space the requred space in cache.
@@ -277,7 +288,9 @@ class LRUCache(StorageProvider):
         Returns:
             list: list of all the objects found in the cache and the underlying storage.
         """
-        all_keys = {key for key in self.next_storage}
+        all_keys = {}
+        if self.next_storage is not None:
+            all_keys = {key for key in self.next_storage}
         for key in self.cache_storage:
             all_keys.add(key)
         return list(all_keys)

@@ -126,7 +126,8 @@ class SharedMemoryProvider(StorageProvider):
     def clear(self):
         """Clears the provider."""
         self.check_readonly()
-        for path in self.sizes:
+        paths = list(self.sizes.keys())
+        for path in paths:
             del self[path]
 
     def __getstate__(self) -> str:
