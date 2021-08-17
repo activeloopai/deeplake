@@ -119,7 +119,7 @@ class ChunkEngine:
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        return getattr(self.tensor_meta, "max_chunk_size") or DEFAULT_MAX_CHUNK_SIZE
+        return getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
 
     @property
     def min_chunk_size(self):
