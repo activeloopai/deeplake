@@ -10,10 +10,29 @@ import atexit
 import uuid
 import os
 import threading
-import atexit
 
 
 class Lock(object):
+    """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
+
+    Example:
+        From machine 1:
+        s3 = hub.core.storage.S3Provider(S3_URL)
+        lock = hub.core.lock.Lock(s3)  # Works
+
+        From machine 2:
+        s3 = hub.core.storage.S3Provider(S3_URL)
+        lock = hub.core.lock.lock(s3)  # Raises LockedException
+
+        The lock is updated every 2 mins by an internal thread. The lock is valid for 5 mins after the last update.
+
+    Args:
+        storage (StorageProvider): The storage provder to be locked.
+
+    Raises:
+        LockedException: If the storage is already locked by a different machine.
+    """
+
     def __init__(self, storage: StorageProvider):
         self.storage = storage
         self.acquired = False
@@ -77,6 +96,15 @@ _LOCKS: Dict[str, Lock] = {}
 
 
 def lock(storage: StorageProvider):
+    """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
+
+    Args:
+        storage (StorageProvider): The storage provder to be locked.
+
+    Raises:
+        LockedException: If the storage is already locked by a different machine.
+    """
+
     path = get_path_from_storage(storage)
     lock = _LOCKS.get(path)
     if lock:
@@ -87,6 +115,11 @@ def lock(storage: StorageProvider):
 
 
 def unlock(storage: StorageProvider):
+    """Unlocks a storage provider that was locked by this machine
+
+    Args:
+        storage (StorageProvider): The storage provder to be locked.
+    """
     path = get_path_from_storage(storage)
     lock = _LOCKS.get(path)
     if lock:
