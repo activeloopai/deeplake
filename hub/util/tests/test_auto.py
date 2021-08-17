@@ -40,6 +40,6 @@ def test_ingestion_summary():
 
     if ingest_summary_skipped.getvalue() in (
         "\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
-        "\n=============================== Ingestion Summary =============================\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
+        "\n============================= Ingestion Summary =============================\n\nIngesiton Complete. No files we skipped.\n\n\n\n",
     ):
         pass
