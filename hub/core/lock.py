@@ -1,9 +1,4 @@
 from typing import Tuple, Dict
-from hub.constants import (
-    DATASET_LOCK_VALIDITY,
-    DATASET_LOCK_UPDATE_INTERVAL,
-    DATASET_LOCK_FILENAME,
-)
 from hub.util.exceptions import LockedException
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
@@ -38,10 +33,12 @@ class Lock(object):
         try:
             while True:
                 try:
-                    self.storage[DATASET_LOCK_FILENAME] = self._get_lock_bytes()
+                    self.storage[
+                        hub.constants.DATASET_LOCK_FILENAME
+                    ] = self._get_lock_bytes()
                 except Exception:
                     pass
-                time.sleep(DATASET_LOCK_UPDATE_INTERVAL)
+                time.sleep(hub.constants.DATASET_LOCK_UPDATE_INTERVAL)
         except Exception:  # Thread termination
             return
 
@@ -49,7 +46,7 @@ class Lock(object):
         if self.acquired:
             return
         self.storage.check_readonly()
-        lock_bytes = self.storage.get(DATASET_LOCK_FILENAME)
+        lock_bytes = self.storage.get(hub.constants.DATASET_LOCK_FILENAME)
         if lock_bytes is not None:
             nodeid = None
             try:
@@ -60,7 +57,7 @@ class Lock(object):
                 if nodeid == uuid.getnode():
                     # Lock left by this machine from a previous run, ignore
                     pass
-                elif time.time() - timestamp < DATASET_LOCK_VALIDITY:
+                elif time.time() - timestamp < hub.constants.DATASET_LOCK_VALIDITY:
                     raise LockedException()
 
         self._thread = threading.Thread(target=self._lock_loop, daemon=True)
