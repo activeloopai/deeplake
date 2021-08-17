@@ -44,10 +44,7 @@ def _check_version(v):
             f"Cannot update the version of a dataset that was created with a newer version of hub. Dataset version: {v}, current hub version: {hub.__version__}"
         )
 
-    if comparison == 0:
-        return True
-
-    return False
+    return comparison == 0
 
 
 def ffw(func):
