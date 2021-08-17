@@ -39,6 +39,7 @@ def test_ingestion_summary_skipped(memory_ds: Dataset):
     sys.stdout = sys.__stdout__
     output = ingest_summary_skipped.getvalue()
 
-    assert output == (
-        "\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
+    assert (
+        output
+        == "\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
     )

@@ -171,7 +171,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle -vv
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -181,7 +181,7 @@ commands:
                   BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle -vv
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle
                   
           parallelism: 10
   codecov-upload:
