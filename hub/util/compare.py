@@ -42,8 +42,8 @@ def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
     if (HASHES_TENSOR_FOLDER not in dataset_1.hidden_tensors or HASHES_TENSOR_FOLDER not in dataset_2.hidden_tensors):
         raise HashesTensorDoesNotExistError()
 
-    hashlist_1 = dataset_1.hidden_tensors[HASHES_TENSOR_FOLDER].numpy()
-    hashlist_2 = dataset_2.hidden_tensors[HASHES_TENSOR_FOLDER].numpy()
+    hashlist_1 = dataset_1[HASHES_TENSOR_FOLDER].numpy()
+    hashlist_2 = dataset_2[HASHES_TENSOR_FOLDER].numpy()
 
     # mmh3 produces two 64 bit hashes for each sample. We access only one of these during comparision.
     similarity_score = jaccard_similarity(hashlist_1[:, 0], hashlist_2[:, 0])

@@ -134,10 +134,12 @@ class Dataset:
         ],
     ):
         if isinstance(item, str):
-            if item not in self.tensors:
+            if item not in self.tensors and item not in self.hidden_tensors:
                 raise TensorDoesNotExistError(item)
-            else:
+            elif item in self.tensors:
                 return self.tensors[item][self.index]
+            else:
+                return self.hidden_tensors[item][self.index]
         elif isinstance(item, (int, slice, list, tuple, Index)):
             return Dataset(
                 storage=self.storage,

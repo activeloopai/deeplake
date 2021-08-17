@@ -24,13 +24,6 @@ def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
         else:
             hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
 
-        print('\n(generate_hashes) sample dtype: ', sample.dtype)
-        print('(generate_hashes) hashed sample tuple dtype: ', type(hashed_sample[0]))
-
         hashlist.append(np.array(hashed_sample))
         
-        for element in hashlist:
-            print('Element: ', element)
-            print('(generate_hashes) hashed sample dtype: ', element.dtype)
-
     return hashlist

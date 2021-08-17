@@ -312,7 +312,7 @@ class Tensor:
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if HASHES_TENSOR_FOLDER in self.meta.links:
+        if self.meta.links == HASHES_TENSOR_FOLDER:
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(
                 self.index[item_index], hashed_samples
