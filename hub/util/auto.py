@@ -64,6 +64,7 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
     columns, lines = shutil.get_terminal_size()
 
     mid = int(columns / 2)
+    print("\n")
     for i in range(columns - 20):
         print("=", end="")
         if i == mid - 10:
@@ -72,7 +73,7 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
 
     if not skipped_files:
         print("Ingesiton Complete. No files were skipped.")
-        print("\n\n")
+        print("\n")
         return
 
     at_root = True
