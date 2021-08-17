@@ -3,7 +3,7 @@ from hub.util.dataset import try_flushing
 from hub.constants import MB
 from hub.core.storage import SharedMemoryProvider
 from typing import Callable, Optional, Sequence
-from hub.util.exceptions import ModuleNotInstalledException, TensorDoesNotExistError
+from hub.util.exceptions import ModuleNotInstalledException
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 import torch
 
@@ -52,23 +52,10 @@ class TorchDataset(torch.utils.data.IterableDataset):
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
     ):
-        # TODO: shift this to a function
-        if tensors is None:
-            tensor_keys = list(dataset.tensors)
-        else:
-            for t in tensors:
-                if t not in dataset.tensors:
-                    raise TensorDoesNotExistError(t)
-            tensor_keys = list(tensors)
-
+        shm = SharedMemoryProvider("abc")
+        size = 10 * 1000 * MB
         self.cache = ShuffleLRUCache(
-            SharedMemoryProvider("abc"),
-            None,
-            10 * 1000 * MB,
-            dataset,
-            num_workers,
-            tensor_keys,
-            transform,
+            shm, None, size, dataset, num_workers, tensors, transform
         )
 
     def __iter__(self):
