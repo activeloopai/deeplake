@@ -21,7 +21,6 @@ from hub.util.exceptions import (
     InvalidKeyTypeError,
     MemoryDatasetCanNotBePickledError,
     PathNotEmptyException,
-    ReadOnlyModeError,
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
@@ -29,6 +28,7 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import get_path_from_storage
+from hub.core.fast_forwarding import ffw_dataset_meta
 
 
 class Dataset:
@@ -206,6 +206,7 @@ class Dataset:
             **meta_kwargs,
         )
         self.meta.tensors.append(name)
+        ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
 
