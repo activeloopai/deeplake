@@ -657,3 +657,25 @@ def test_invalid_tesnor_name(memory_ds):
         memory_ds.create_tensor("tensors")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
+
+
+def test_compressions_list():
+    assert hub.compressions == [
+        "bmp",
+        "dib",
+        "pcx",
+        "gif",
+        "png",
+        "jpeg2000",
+        "ico",
+        "tiff",
+        "jpeg",
+        "ppm",
+        "sgi",
+        "tga",
+        "webp",
+        "wmf",
+        "xbm",
+        "lz4",
+        None,
+    ]

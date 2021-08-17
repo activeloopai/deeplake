@@ -1,4 +1,4 @@
-from hub.constants import SUPPORTED_COMPRESSIONS
+import hub
 from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
@@ -65,7 +65,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         compression (str): `array` will be compressed with this compression into bytes. Right now only arrays compatible with `PIL` will be compressed.
 
     Raises:
-        UnsupportedCompressionError: If `compression` is unsupported. See `SUPPORTED_COMPRESSIONS`.
+        UnsupportedCompressionError: If `compression` is unsupported. See `hub.compressions`.
         SampleCompressionError: If there was a problem compressing `array`.
 
     Returns:
@@ -77,7 +77,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     if 0 in array.shape:
         return bytes()
 
-    if compression not in SUPPORTED_COMPRESSIONS:
+    if compression not in hub.compressions:
         raise UnsupportedCompressionError(compression)
 
     if compression is None:

@@ -14,7 +14,9 @@ from .api.dataset import dataset
 from .api.read import read
 from .core.transform import compute, compose
 from .util.bugout_reporter import hub_reporter
+from .compression import SUPPORTED_COMPRESSIONS
 
+compressions = list(SUPPORTED_COMPRESSIONS)
 list = dataset.list
 load = dataset.load
 empty = dataset.empty
@@ -33,6 +35,7 @@ __all__ = [
     "like",
     "ingest",
     "ingest_kaggle",
+    "compressions",
 ]
 
 __version__ = "2.0.5"

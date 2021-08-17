@@ -1,5 +1,5 @@
 import numpy as np
-from PIL import Image  # type: ignore
+
 
 BYTE_PADDING = b"\0"
 
@@ -11,52 +11,11 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SAMPLE_COMPRESSIONS = [
-    "bmp",
-    "dib",
-    "pcx",
-    "gif",
-    "png",
-    "jpeg2000",
-    "ico",
-    "tiff",
-    "jpeg",
-    "ppm",
-    "sgi",
-    "tga",
-    "webp",
-    "wmf",
-    "xbm",
-]
-
-CHUNK_COMPRESSIONS = [
-    "lz4",
-]
-
-
-# Pillow plugins for some formats might not be installed:
-if not Image.SAVE:
-    Image.init()
-SUPPORTED_COMPRESSIONS = [
-    c
-    for c in SAMPLE_COMPRESSIONS 
-    if c.upper() in Image.SAVE and c.upper() in Image.OPEN
-]
-
-SUPPORTED_COMPRESSIONS = SAMPLE_COMPRESSIONS + CHUNK_COMPRESSIONS
-SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
-
-COMPRESSION_ALIASES = {"jpg": "jpeg"}
-
 # used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
 REQUIRE_USER_SPECIFICATION = "require_user_specification"
 
 # used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
 UNSPECIFIED = "unspecified"
-
-# If `True`  compression format has to be the same between samples in the same tensor.
-# If `False` compression format can   be different between samples in the same tensor.
-USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
 
 SUPPORTED_MODES = ["r", "a"]
 

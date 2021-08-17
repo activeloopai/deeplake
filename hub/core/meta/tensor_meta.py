@@ -1,3 +1,4 @@
+import hub
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
@@ -10,10 +11,9 @@ from hub.util.exceptions import (
 )
 from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
-    SUPPORTED_COMPRESSIONS,
-    COMPRESSION_ALIASES,
     UNSPECIFIED,
 )
+from hub.compression import COMPRESSION_ALIASES
 from hub.htypes import HTYPE_CONFIGURATIONS
 from hub.core.meta.meta import Meta
 
@@ -161,12 +161,12 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
 
     sample_compression = htype_overwrite["sample_compression"]
     sample_compression = COMPRESSION_ALIASES.get(sample_compression, sample_compression)
-    if sample_compression not in SUPPORTED_COMPRESSIONS:
+    if sample_compression not in hub.compressions:
         raise UnsupportedCompressionError(sample_compression)
 
     chunk_compression = htype_overwrite["chunk_compression"]
     chunk_compression = COMPRESSION_ALIASES.get(chunk_compression, chunk_compression)
-    if chunk_compression not in SUPPORTED_COMPRESSIONS:
+    if chunk_compression not in hub.compressions:
         raise UnsupportedCompressionError(chunk_compression)
 
     if htype_overwrite["dtype"] is not None:

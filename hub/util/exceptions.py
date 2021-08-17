@@ -1,5 +1,5 @@
+import hub
 from hub.htypes import HTYPE_CONFIGURATIONS
-from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
 
@@ -286,7 +286,7 @@ class CompressionError(Exception):
 class UnsupportedCompressionError(CompressionError):
     def __init__(self, compression: str):
         super().__init__(
-            f"Compression '{compression}' is not supported. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+            f"Compression '{compression}' is not supported. Supported compressions: {hub.compressions}."
         )
 
 
