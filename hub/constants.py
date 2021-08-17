@@ -11,7 +11,7 @@ GB = 1000 * MB
 
 DEFAULT_HTYPE = "generic"
 
-SUPPORTED_COMPRESSIONS = [
+SAMPLE_COMPRESSIONS = [
     "bmp",
     "dib",
     "pcx",
@@ -28,19 +28,23 @@ SUPPORTED_COMPRESSIONS = [
     "wmf",
     "xbm",
 ]
+
+CHUNK_COMPRESSIONS = [
+    "lz4",
+]
+
+
 # Pillow plugins for some formats might not be installed:
 if not Image.SAVE:
     Image.init()
 SUPPORTED_COMPRESSIONS = [
     c
-    for c in SUPPORTED_COMPRESSIONS
+    for c in SAMPLE_COMPRESSIONS 
     if c.upper() in Image.SAVE and c.upper() in Image.OPEN
 ]
 
-SUPPORTED_COMPRESSIONS.append("lz4")
-
+SUPPORTED_COMPRESSIONS = SAMPLE_COMPRESSIONS + CHUNK_COMPRESSIONS
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
-
 
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
