@@ -4,7 +4,7 @@ import ctypes
 def terminate_thread(thread):
     """Terminates a python thread from another thread."""
 
-    if not thread.isAlive():
+    if not thread.is_alive():
         return
 
     exc = ctypes.py_object(Exception)
