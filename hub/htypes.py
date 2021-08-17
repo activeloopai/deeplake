@@ -53,7 +53,7 @@ HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
         "dtype": "bool"
     },  # TODO: pack numpy arrays to store bools as 1 bit instead of 1 byte
     "segment_mask": {"dtype": "int32"},
-    "hashes": {"dtype": "float64"},
+    "hashes": {"dtype": "int64"},
 }
 
 # these configs are added to every `htype`

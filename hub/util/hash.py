@@ -24,6 +24,6 @@ def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
         else:
             hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
 
-        hashlist.append(np.array(hashed_sample))
+        hashlist.append(np.array(hashed_sample).astype('int64'))
         
     return hashlist
