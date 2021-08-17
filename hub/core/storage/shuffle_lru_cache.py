@@ -3,7 +3,7 @@ from itertools import repeat
 from functools import lru_cache
 from collections import defaultdict
 from pathos.pools import ProcessPool  # type: ignore
-from typing import Callable, Dict, Optional, Tuple, Union, List
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List
 
 from hub.constants import MB
 from hub.core.chunk import Chunk
@@ -18,7 +18,11 @@ from hub.core.storage import (
 )
 from hub.util.keys import get_chunk_key
 from hub.util.shared_memory import remove_shared_memory_from_resource_tracker
-from hub.util.exceptions import DatasetUnsupportedPytorch, ModuleNotInstalledException
+from hub.util.exceptions import (
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+    TensorDoesNotExistError,
+)
 from hub.util.remove_cache import get_base_storage
 
 
@@ -74,7 +78,7 @@ class ShuffleLRUCache(LRUCache):
         cache_size: int,
         dataset,
         num_workers: int,
-        tensor_keys: List[str],
+        tensor_keys: Optional[Sequence[str]],
         transform: Callable,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
@@ -106,7 +110,7 @@ class ShuffleLRUCache(LRUCache):
         self.shared_mem_chunk_map: Dict[str, tuple] = {}
         self.last_key_generated = -1
 
-        self.tensor_keys = tensor_keys
+        self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.index_chunk_names_map: Dict[int, Dict[str, str]] = {}
 
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
@@ -137,6 +141,16 @@ class ShuffleLRUCache(LRUCache):
     def __len__(self):
         # TODO: changes this
         return self.length
+
+    def _get_tensor_keys(self, tensor_keys: Optional[Sequence[str]], dataset):
+        if tensor_keys is None:
+            tensor_keys = list(dataset.tensors)
+        else:
+            for t in tensor_keys:
+                if t not in dataset.tensors:
+                    raise TensorDoesNotExistError(t)
+            tensor_keys = list(tensor_keys)
+        return tensor_keys
 
     def _extract_indexes_from_dataset(self, dataset):
         tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
