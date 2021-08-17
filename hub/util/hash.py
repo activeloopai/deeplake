@@ -13,17 +13,17 @@ def generate_hashes(samples: Union[np.ndarray, Sequence[SampleValue]]):
         samples (Union[np.ndarray, Sequence[SampleValue]): Samples for which hashes are generated.
 
     Returns:
-        A Python list containg two unsigned 64-bit hashes for each sample in numpy aray format
+        A Python list containg two unsigned 64-bit hashes for each sample in numpy array format
     """
     hashlist = []
     
     for sample in samples:
         
         if isinstance(sample, Sample):
-            hashed_sample = mmh3.hash64(sample.uncompressed_bytes(), signed=False)
+            hashed_sample = mmh3.hash64(sample.uncompressed_bytes())
         else:
-            hashed_sample = mmh3.hash64(sample.tobytes(), signed=False)
+            hashed_sample = mmh3.hash64(sample.tobytes())
 
-        hashlist.append(np.array(hashed_sample).astype('int64'))
-        
+        hashlist.append(np.array(hashed_sample, dtype='int64'))
+
     return hashlist

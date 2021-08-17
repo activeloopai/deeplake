@@ -6,12 +6,16 @@ from hub.util.exceptions import (
     HashesTensorDoesNotExistError,
 )
 from hub.constants import HASHES_TENSOR_FOLDER
-import os, glob
+import os, glob, numpy as np
 
 
 def jaccard_similarity(list_1, list_2):
     """Calculated the Jaccard similarity score (also known as Intersection over Union) for the two
        lists being compared
+    
+    Note:
+        Identical samples aren't counted as different when calculating this similarity score. For example, if two datasets contain samples,
+        [cat.jpg, cat.jpg, dog.jpg] and [cat.jpg, dog.jpg], the similarity score will still be 1.0.
 
     Args:
         list_1: First list being compared.
@@ -44,9 +48,13 @@ def compare(dataset_1: Dataset, dataset_2: Dataset) -> int:
 
     hashlist_1 = dataset_1[HASHES_TENSOR_FOLDER].numpy()
     hashlist_2 = dataset_2[HASHES_TENSOR_FOLDER].numpy()
+    
+    # Concatenating numpy arrays in the list. For example, the hashlist
+    # [[1234, 5678], [90, 12]] becomes [1234, 5678, 90, 12]
+    concat_list_1 = np.concatenate(hashlist_1, axis=None)
+    concat_list_2 = np.concatenate(hashlist_2, axis=None)
 
-    # mmh3 produces two 64 bit hashes for each sample. We access only one of these during comparision.
-    similarity_score = jaccard_similarity(hashlist_1[:, 0], hashlist_2[:, 0])
+    similarity_score = jaccard_similarity(concat_list_1, concat_list_2)
 
     logger.info(
         f"The Jaccard similarity score (on a scale from 0.0 to 1.0) is {similarity_score}"
