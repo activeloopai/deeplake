@@ -18,10 +18,9 @@ def test_most_common_extension():
     assert file_compression == "jpeg"
 
 
-def test_ingestion_summary():
+def test_ingestion_summary(memory_ds: Dataset):
     clean_path = get_dummy_data_path("tests_auto/ingestion_summary/class1")
     skipped_path = get_dummy_data_path("test_auto/ingestion_summary")
-
     ingest_summary_clean = StringIO()
     sys.stdout = ingest_summary_clean
     ingestion_summary(clean_path, [], 1)
@@ -35,7 +34,15 @@ def test_ingestion_summary():
 
     ingest_summary_skipped = StringIO()
     sys.stdout = ingest_summary_skipped
-    ingestion_summary(skipped_path, [], 1)
+    # ingestion_summary(skipped_path, [], 1)
+    hub.ingest(
+        src=skipped_path,
+        dest=memory_ds.path,
+        images_compression="auto",
+        progress_bar=True,
+        summary=True,
+        overwrite=False,
+    )
     sys.stdout = sys.__stdout__
-
+    print(ingest_summary_skipped.getvalue())
     assert ingest_summary_skipped.getvalue() == "test"
