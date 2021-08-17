@@ -25,12 +25,9 @@ def test_ingestion_summary_clean(memory_ds: Dataset):
     sys.stdout = ingest_summary_clean
     ingestion_summary(clean_path, [], 1)
     sys.stdout = sys.__stdout__
+    output = ingest_summary_clean.getvalue()
 
-    if ingest_summary_clean.getvalue() in (
-        "\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
-        "\n=============================== Ingestion Summary =============================\n\nIngesiton Complete. No files were skipped.\n\n\n\n",
-    ):
-        pass
+    assert output == "\n\nIngesiton Complete. No files were skipped.\n\n\n"
 
 
 def test_ingestion_summary_skipped(memory_ds: Dataset):
@@ -41,28 +38,7 @@ def test_ingestion_summary_skipped(memory_ds: Dataset):
     ingestion_summary(skipped_path, ["test.json", "test.json"], 1)
     sys.stdout = sys.__stdout__
     output = ingest_summary_skipped.getvalue()
-    os_outputs = (
-        (
-            "\n\n"
-            "\n\n"
-            "\n\n"
-            "\n\n"
-            "ingestion_summary/    (2/3)\n\n "
-            "[Skipped]  test.json\n\n       class0/    (1/2)\n\n             [Skipped]  test.json\n\n       class1/    (1/1)\n"
-        ),
-        (
-            "\n\n \n\n =============================== Ingestion Summary \n =============================\n\n \n\n ingestion_summary/    (2/3)\n\n       [Skipped]  test.json\n\n       class0/    (1/2)\n\n             [Skipped]  test.json\n\n       class1/    (1/1)\n"
-        ),
-        (
-            "\n\n \n\n \n\n \n\n ingestion_summary/    (2/3)\n\n       [Skipped]  test.json\n\n       class0/    (1/2)\n\n             [Skipped]  test.json\n\n       class1/    (1/1)\n"
-        ),
-        (
-            "\n\n"
-            "============================================================================================= "
-            "Ingestion Summary"
-            + " ===========================================================================================\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
-        ),
-    )
 
-    if output in os_outputs:
-        pass
+    assert output == (
+        "\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
+    )

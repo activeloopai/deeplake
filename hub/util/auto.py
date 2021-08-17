@@ -65,11 +65,6 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
 
     mid = int(columns / 2)
     print("\n")
-    for i in range(columns - 20):
-        print("=", end="")
-        if i == mid - 10:
-            print(" Ingestion Summary ", end="")
-    print("\n")
 
     if not skipped_files:
         print("Ingesiton Complete. No files were skipped.")
