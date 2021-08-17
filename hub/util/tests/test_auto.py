@@ -35,7 +35,7 @@ def test_ingestion_summary():
 
     ingest_summary_skipped = StringIO()
     sys.stdout = ingest_summary_skipped
-    ingestion_summary(clean_path, [], 1)
+    ingestion_summary(skipped_path, [], 1)
     sys.stdout = sys.__stdout__
 
     if ingest_summary_skipped.getvalue() in (
