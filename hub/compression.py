@@ -1,6 +1,11 @@
 from PIL import Image  # type: ignore
 
 
+BYTE_COMPRESSIONS = [
+    "lz4",
+]
+
+
 IMAGE_COMPRESSIONS = [
     "bmp",
     "dib",
@@ -28,10 +33,9 @@ IMAGE_COMPRESSIONS = [
 ]
 
 SUPPORTED_COMPRESSIONS = [
-    "lz4",
+    *BYTE_COMPRESSIONS,
     *IMAGE_COMPRESSIONS,
 ]
-
 SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 SUPPORTED_COMPRESSIONS = list(set(SUPPORTED_COMPRESSIONS))  # type: ignore
 
