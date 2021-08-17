@@ -20,8 +20,10 @@ SHAPE_PARAM = "shape"
 NUM_BATCHES_PARAM = "num_batches"
 DTYPE_PARAM = "dtype"
 CHUNK_SIZE_PARAM = "chunk_size"
+NUM_WORKERS_PARAM = "num_workers"
 
 NUM_BATCHES = (1, 5)
+NUM_WORKERS = (0, 1, 2, 4)
 
 CHUNK_SIZES = (
     1 * KB,
@@ -39,6 +41,7 @@ DTYPES = (
 parametrize_chunk_sizes = pytest.mark.parametrize(CHUNK_SIZE_PARAM, CHUNK_SIZES)
 parametrize_dtypes = pytest.mark.parametrize(DTYPE_PARAM, DTYPES)
 parametrize_num_batches = pytest.mark.parametrize(NUM_BATCHES_PARAM, NUM_BATCHES)
+parametrize_num_workers = pytest.mark.parametrize(NUM_WORKERS_PARAM, NUM_WORKERS)
 
 
 def current_test_name() -> str:
@@ -76,20 +79,3 @@ def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
 def is_opt_true(request, opt) -> bool:
     """Returns if the pytest option `opt` is True. Assumes `opt` is a boolean value."""
     return request.config.getoption(opt)
-
-
-def update_chunk_sizes(ds, max_chunk_size: int):
-    """Updates all chunk sizes for tensors that already exist in `ds`. If
-    more tensors are created after calling this method, those tensors will NOT have
-    the same chunk size.
-    """
-
-    # TODO: set / update chunk sizes API (to replace this function)
-
-    min_chunk_size = max_chunk_size // 2
-
-    for tensor in ds.tensors.values():
-        chunk_engine = tensor.chunk_engine
-
-        chunk_engine.max_chunk_size = max_chunk_size
-        chunk_engine.min_chunk_size = min_chunk_size

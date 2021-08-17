@@ -679,3 +679,14 @@ def test_compressions_list():
         "lz4",
         None,
     ]
+
+def test_htypes_list():
+    assert hub.htypes == [
+        "generic",
+        "image",
+        "class_label",
+        "bbox",
+        "video",
+        "binary_mask",
+        "segment_mask",
+    ]

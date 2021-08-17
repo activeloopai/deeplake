@@ -13,7 +13,7 @@ CHUNK_ID_COLUMN = 0
 
 class ChunkIdEncoder(Encoder, Cachable):
     def tobytes(self) -> memoryview:
-        return serialize_chunkids(hub.__version__, [self._encoded])
+        return serialize_chunkids(self.version, [self._encoded])
 
     @staticmethod
     def name_from_id(id: ENCODING_DTYPE) -> str:
@@ -43,6 +43,7 @@ class ChunkIdEncoder(Encoder, Cachable):
         version, ids = deserialize_chunkids(buffer)
         if ids.nbytes:
             instance._encoded = ids
+        instance.version = version
         return instance
 
     @property

@@ -1,5 +1,5 @@
 import hub
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS
 from typing import Any, List, Sequence, Tuple
 
 
@@ -32,6 +32,20 @@ class InvalidPathException(Exception):
     def __init__(self, directory):
         super().__init__(
             f"Dataset's path is an invalid path. It should be a valid local directory got {directory}."
+        )
+
+
+class AutoCompressionError(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Auto compression could not run on {directory}. The directory is empty."
+        )
+
+
+class InvalidFileExtension(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Missing file with extension in {directory}. Expected a valid file extension got None."
         )
 
 
@@ -302,7 +316,7 @@ class SampleCompressionError(CompressionError):
 class SampleDecompressionError(CompressionError):
     def __init__(self):
         super().__init__(
-            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {SUPPORTED_COMPRESSIONS}."
+            f"Could not decompress sample buffer into an array. Either the sample's buffer is corrupted, or it is in an unsupported format. Supported compressions: {hub.compressions}."
         )
 
 
@@ -376,7 +390,7 @@ class TensorMetaMissingRequiredValue(MetaError):
     def __init__(self, htype: str, key: str):
         extra = ""
         if key == "sample_compression":
-            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {str(SUPPORTED_COMPRESSIONS)}"
+            extra = f"`sample_compression` may be `None` if you want your '{htype}' data to be uncompressed. Available compressors: {hub.compressions}"
 
         super().__init__(
             f"Htype '{htype}' requires you to specify '{key}' inside the `create_tensor` method call. {extra}"
@@ -425,7 +439,7 @@ class InvalidInputDataError(TransformError):
 class UnsupportedSchedulerError(TransformError):
     def __init__(self, scheduler):
         super().__init__(
-            f"Hub transform currently doesn't support {scheduler} scheduler."
+            f"Hub compute currently doesn't support {scheduler} scheduler."
         )
 
 
@@ -452,15 +466,15 @@ class InvalidTransformDataset(TransformError):
         super().__init__(message)
 
 
-class TransformComposeEmptyListError(TransformError):
+class HubComposeEmptyListError(TransformError):
     def __init__(self, message="Cannot hub.compose an empty list."):
         super().__init__(message)
 
 
-class TransformComposeIncompatibleFunction(TransformError):
+class HubComposeIncompatibleFunction(TransformError):
     def __init__(self, index: int):
         super().__init__(
-            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() in the list."
+            f"The element passed to hub.compose at index {index} is incompatible. Ensure that functions are all decorated with hub.compute decorator and instead of passing my_fn, use my_fn() or my_fn(arg1=5, arg2=3) in the list."
         )
 
 

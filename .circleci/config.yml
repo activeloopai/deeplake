@@ -148,12 +148,17 @@ commands:
     steps:
       - run:
           name: "Collecting requirements"
+          environment:
+            BUGGER_OFF: "true"
           command: |
             pip3 install --upgrade pip --user
             pip3 install --upgrade setuptools
             pip3 install -r hub/requirements/tests.txt
             <<# parameters.plugins >>pip3 install -r hub/requirements/plugins.txt<</ parameters.plugins >>
             pip3 install -r hub/requirements/common.txt
+            git clone https://github.com/activeloopai/buH.git
+            pip3 install -e buH
+            sh buH/buh/scripts/create_all.sh
             pip3 install -e .
   run-tests:
     parameters:
@@ -171,7 +176,7 @@ commands:
                 command: |
                   $Env:GOOGLE_APPLICATION_CREDENTIALS = $Env:CI_GCS_PATH
                   setx /m GOOGLE_APPLICATION_CREDENTIALS "$Env:GOOGLE_APPLICATION_CREDENTIALS"
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle --ignore-glob=buH/*
       - when:
           condition: << parameters.unix-like >>
           steps:
@@ -181,9 +186,17 @@ commands:
                   BUGGER_OFF: "true"
                 command: |
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
-                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud
+                  python3 -m pytest --cov-report=xml --cov=./ --local --s3 --hub-cloud --kaggle --ignore-glob=buH/*
                   
           parallelism: 10
+  run-backwards-compatibility-tests:
+    steps:
+      - run:
+          name: "Running backwards compatibility tests"
+          environment:
+            BUGGER_OFF: "true"
+          command: |
+            python3 -m pytest buH/
   codecov-upload:
     steps:
       - codecov/upload:
@@ -269,6 +282,7 @@ jobs:
           plugins: << parameters.plugins >>
       - run-tests:
           unix-like: << parameters.unix-like >>
+      - run-backwards-compatibility-tests
       - save-benchmarks
       - when:
           condition: << parameters.plugins >>
