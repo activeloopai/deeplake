@@ -3,6 +3,7 @@ from hub.util.exceptions import LockedException
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
 from hub.core.storage.provider import StorageProvider
+import hub
 import time
 import struct
 import atexit
