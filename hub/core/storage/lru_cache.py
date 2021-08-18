@@ -288,7 +288,7 @@ class LRUCache(StorageProvider):
         Returns:
             list: list of all the objects found in the cache and the underlying storage.
         """
-        all_keys = {}
+        all_keys = set()
         if self.next_storage is not None:
             all_keys = {key for key in self.next_storage}
         for key in self.cache_storage:

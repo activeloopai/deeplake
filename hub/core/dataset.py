@@ -310,6 +310,7 @@ class Dataset:
         drop_last: Optional[bool] = False,
         collate_fn: Optional[Callable] = None,
         pin_memory: Optional[bool] = False,
+        shuffle: Optional[bool] = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -329,6 +330,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             pin_memory (bool, optional): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
+            shuffle (bool, optional): If True, the data loader will shuffle the data indices. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -344,6 +346,7 @@ class Dataset:
             drop_last=drop_last,
             collate_fn=collate_fn,
             pin_memory=pin_memory,
+            shuffle=shuffle,
         )
 
     def _get_total_meta(self):

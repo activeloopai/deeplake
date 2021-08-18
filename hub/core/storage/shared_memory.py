@@ -59,7 +59,12 @@ class SharedMemoryProvider(StorageProvider):
         self.check_readonly()
         size = len(value)
         self.sizes[path] = size
-        shared_memory = SharedMemory(create=True, size=size, name=path)
+        try:
+            shared_memory = SharedMemory(create=True, size=size, name=path)
+        except FileExistsError:
+            shared_memory = SharedMemory(name=path)
+            shared_memory.unlink()
+            shared_memory = SharedMemory(create=True, size=size, name=path)
 
         # needs to be sliced as some OS (like macOS) allocate extra space
         shared_memory.buf[:size] = value
