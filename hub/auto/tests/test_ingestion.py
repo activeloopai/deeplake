@@ -114,7 +114,7 @@ def test_overwrite(local_ds: Dataset):
     with pytest.raises(TensorAlreadyExistsError):
         hub.ingest(
             src=path,
-            dest="/Users/eshan/Hub/lol",
+            dest=local_ds.path,
             images_compression="auto",
             progress_bar=False,
             summary=False,
