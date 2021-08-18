@@ -1,5 +1,5 @@
 from hub.util.exceptions import CannotInferTilesError
-from hub.tests.common import MAX_INT_DTYPE, assert_num_chunks, get_num_chunks
+from hub.tests.common import MAX_INT_DTYPE
 import pytest
 import numpy as np
 from hub.constants import KB
@@ -67,9 +67,9 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     ds = local_ds_generator()
 
     if compression is None:
-        assert_num_chunks(ds.large, 125)
+        assert ds.large.num_chunks == 125
     else:
-        assert get_num_chunks(ds.large) < 125
+        assert ds.large.num_chunks < 125
 
     # check data
     patch_count = 0

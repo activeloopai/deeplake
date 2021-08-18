@@ -192,6 +192,13 @@ class Tensor:
         self.extend_empty((1, *shape))
 
     @property
+    def num_chunks(self):
+        """Returns the total number of chunks that make up this tensor."""
+
+        # TODO: account for tiles!
+        return self.chunk_engine.chunk_id_encoder.num_chunks
+
+    @property
     def meta(self):
         return self.chunk_engine.tensor_meta
 

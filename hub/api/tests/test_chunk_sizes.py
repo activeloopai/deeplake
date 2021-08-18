@@ -1,4 +1,3 @@
-from hub.tests.common import assert_num_chunks
 import numpy as np
 from hub.constants import KB
 
@@ -31,18 +30,18 @@ def test_append(memory_ds):
 
     _append_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 5)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 5
 
     _append_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 10)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 10
 
     _append_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 15)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 15
 
     assert len(ds) == 300
 
@@ -53,18 +52,19 @@ def test_extend(memory_ds):
 
     _extend_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 5)
+
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 5
 
     _extend_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 10)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 10
 
     _extend_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 15)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 15
 
     assert len(ds) == 300
 
@@ -75,22 +75,22 @@ def test_extend_and_append(memory_ds):
 
     _extend_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 5)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 5
 
     _append_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 10)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 10
 
     _extend_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 15)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 15
 
     _append_tensors(images, labels)
 
-    assert_num_chunks(labels, 1)
-    assert_num_chunks(images, 20)
+    assert labels.num_chunks == 1
+    assert images.num_chunks == 20
 
     assert len(ds) == 400
