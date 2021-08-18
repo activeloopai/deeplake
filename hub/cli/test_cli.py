@@ -31,7 +31,7 @@ def test_get_datasets(hub_cloud_dev_credentials):
 
     res = runner.invoke(list_datasets)
     assert res.exit_code == 0
-    assert f"hub://testingacc/test_list_{SESSION_ID}" in res.output
+    assert f"testingacc/test_list_{SESSION_ID}" in res.output
 
     res = runner.invoke(list_datasets, "--workspace activeloop")
     assert len(res.output.split("\n")) > 0
@@ -40,7 +40,7 @@ def test_get_datasets(hub_cloud_dev_credentials):
     res = runner.invoke(logout)
     assert res.output == "Logged out of Activeloop.\n"
     res = runner.invoke(list_datasets)
-    assert f"hub://testingacc/test_list_private_{SESSION_ID}" not in res.output
+    assert f"testingacc/test_list_private_{SESSION_ID}" not in res.output
 
     ds1.delete()
     ds2.delete()
