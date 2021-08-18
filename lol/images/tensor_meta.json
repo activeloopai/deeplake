@@ -1,1 +1,0 @@
-{"version": "2.0.6", "htype": "image", "min_shape": [200, 200, 3], "max_shape": [200, 200, 3], "length": 3, "dtype": "uint8", "sample_compression": "jpeg"}
