@@ -3,7 +3,6 @@ from hub.tests.common import get_dummy_data_path
 from hub.util.auto import get_most_common_extension, ingestion_summary
 from io import StringIO
 import sys
-import hub
 import pytest
 
 
@@ -18,7 +17,7 @@ def test_most_common_extension():
     assert file_compression == "jpeg"
 
 
-def test_ingestion_summary_clean(memory_ds: Dataset):
+def test_ingestion_summary_clean():
     clean_path = get_dummy_data_path("tests_auto/ingestion_summary/class1")
 
     ingest_summary_clean = StringIO()
@@ -30,7 +29,7 @@ def test_ingestion_summary_clean(memory_ds: Dataset):
     assert output == "\n\nIngesiton Complete. No files were skipped.\n\n\n"
 
 
-def test_ingestion_summary_skipped(memory_ds: Dataset):
+def test_ingestion_summary_skipped():
     skipped_path = get_dummy_data_path("tests_auto/ingestion_summary")
 
     ingest_summary_skipped = StringIO()
