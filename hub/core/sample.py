@@ -1,5 +1,6 @@
 # type: ignore
-from hub.core.compression import compress_array
+from hub.core.compression import compress_array, verify_compressed_file
+from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 import pathlib
 from typing import List, Optional, Tuple, Union
@@ -14,17 +15,19 @@ class Sample:
         self,
         path: str = None,
         array: np.ndarray = None,
+        verify: bool = False,
     ):
         """Represents a single sample for a tensor. Provides all important meta information in one place.
 
         Note:
-            If `self.is_lazy` is True, this `Sample` doesn't actually have have any data loaded. To read this data,
-                simply try to read one of it's properties (such as `self.array`, `self.shape`, etc.).
+            If `self.is_lazy` is True, this `Sample` doesn't actually have any data loaded. To read this data,
+                simply try to read it into a numpy array (`sample.array`)
 
         Args:
             path (str): Path to a sample stored on the local file system that represents a single sample. If `path` is provided, `array` should not be.
                 Implicitly makes `self.is_lazy == True`.
             array (np.ndarray): Array that represents a single sample. If `array` is provided, `path` should not be. Implicitly makes `self.is_lazy == False`.
+            verify (bool): If a path is provided, verifies the sample if True.
 
         Raises:
             ValueError: Cannot create a sample from both a `path` and `array`.
@@ -33,17 +36,22 @@ class Sample:
         if (path is None) == (array is None):
             raise ValueError("Must pass either `path` or `array`.")
 
+        self._compressed_bytes = {}
+        self._uncompressed_bytes = None
+
         if path is not None:
             self.path = pathlib.Path(path)
             self._array = None
+            self._read_meta()
+            if verify:
+                verify_compressed_file(self.path, self.compression)
 
         if array is not None:
             self.path = None
             self._array = array
-            self._original_compression = None
-
-        self._compressed_bytes = None
-        self._uncompressed_bytes = None
+            self.shape = array.shape
+            self.dtype = array.dtype.name
+            self.compression = None
 
     @property
     def is_lazy(self) -> bool:
@@ -51,32 +59,7 @@ class Sample:
 
     @property
     def is_empty(self) -> bool:
-        self._read()
-        return 0 in self.array.shape
-
-    @property
-    def array(self) -> np.ndarray:
-        self._read()
-        return self._array  # type: ignore
-
-    @property
-    def shape(self) -> Tuple[int, ...]:
-        self._read()
-        return self._array.shape  # type: ignore
-
-    @property
-    def dtype(self) -> str:
-        self._read()
-        return self._array.dtype.name  # type: ignore
-
-    @property
-    def compression(self) -> str:
-        self._read()
-
-        if self.is_empty:
-            return None
-
-        return self._original_compression.lower()
+        return 0 in self.shape
 
     def compressed_bytes(self, compression: str) -> bytes:
         """Returns this sample as compressed bytes.
@@ -95,41 +78,59 @@ class Sample:
         if compression is None:
             return self.uncompressed_bytes()
 
-        if self._compressed_bytes is None:
+        compressed_bytes = self._compressed_bytes.get(compression)
+        if compressed_bytes is None:
 
             # if the sample is already compressed in the requested format, just return the raw bytes
             if self.path is not None and self.compression == compression:
 
                 with open(self.path, "rb") as f:
-                    self._compressed_bytes = f.read()
+                    compressed_bytes = f.read()
 
             else:
-                self._compressed_bytes = compress_array(self.array, compression)
+                compressed_bytes = compress_array(self.array, compression)
+            self._compressed_bytes[compression] = compressed_bytes
 
-        return self._compressed_bytes
+        return compressed_bytes
 
     def uncompressed_bytes(self) -> bytes:
-        """Returns `self.array` as uncompressed bytes."""
+        """Returns uncompressed bytes."""
 
         if self._uncompressed_bytes is None:
-            self._uncompressed_bytes = self.array.tobytes()
+            if self.path is not None:
+                img = Image.open(self.path)
+                if img.mode == "1":
+                    # Binary images need to be extended from bits to bytes
+                    self._uncompressed_bytes = img.tobytes("raw", "L")
+                else:
+                    self._uncompressed_bytes = img.tobytes()
+            else:
+                self._uncompressed_bytes = self.array.tobytes()
 
         return self._uncompressed_bytes
 
-    def _read(self):
-        """If this sample hasn't been already read into memory, do so. This is required for properties to be accessible."""
+    @property
+    def array(self) -> np.ndarray:
+        if self._array is None:
+            array_interface = {
+                "shape": self.shape,
+                "typestr": self._typestr,
+                "version": 3,
+                "data": self.uncompressed_bytes(),
+            }
 
-        # "cache"
-        if self._array is not None:
-            return self._array
+            class ArrayData:
+                __array_interface__ = array_interface
 
-        # TODO: raise a comprehensive error for unsupported compression types
-
-        # path will definitely not be `None` because of `__init__`
-        img = Image.open(self.path)
-        self._array = np.array(img)
-        self._original_compression = img.format.lower()
+            self._array = np.array(ArrayData, None)
         return self._array
+
+    def _read_meta(self):
+        """Reads shape, dtype and format without decompressing the sample."""
+        img = Image.open(self.path)
+        self.shape, self._typestr = Image._conv_type_shape(img)
+        self.dtype = np.dtype(self._typestr).name
+        self.compression = img.format.lower()
 
     def __str__(self):
         if self.is_lazy:

@@ -15,6 +15,7 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
     TensorDoesNotExistError,
+    SampleDecompressionError,
 )
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
@@ -30,6 +31,8 @@ except ModuleNotFoundError:
     pass
 
 from functools import lru_cache
+
+import warnings
 
 
 @lru_cache()
@@ -161,10 +164,12 @@ class TorchDataset:
 
         self.last_chunk_num_generated = -1
 
+        self._num_bad_samples = 0
+
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def _get(self, index: int):
         for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -178,13 +183,29 @@ class TorchDataset:
             self._all_shared_memory_clean_up()
             self.processed_range = slice(-1, -1)
 
+        if sample is None:
+            return None
+
         sample = self._apply_transform(sample)
 
         return sample
 
+    def __getitem__(self, index: int):
+        while True:
+            next_good_sample_index = index + self._num_bad_samples
+            if next_good_sample_index >= self.length:
+                raise StopIteration()  # DataLoader expects StopIteration, not IndexError
+            val = self._get(next_good_sample_index)
+            if val is None:
+                self._num_bad_samples += 1
+            else:
+                return val
+
     def __iter__(self):
         for index in range(len(self)):
-            yield self[index]
+            val = self[index]
+            if val is not None:
+                yield val
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""
@@ -257,7 +278,13 @@ class TorchDataset:
     def _numpy_from_chunk(self, index: int, key: str, chunk):
         """Takes a list of chunks and returns a numpy array from it"""
         chunk_engine = self.all_chunk_engines[key]
-        value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+        try:
+            value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+        except SampleDecompressionError as e:
+            warnings.warn(
+                f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
+            )
+            return None
 
         # typecast if incompatible with pytorch
         dtype = chunk_engine.tensor_meta.dtype
@@ -317,7 +344,18 @@ class TorchDataset:
             sample = IterableOrderedDict(
                 (key, self.all_index_value_maps[key][i]) for key in self.tensor_keys
             )
-            samples.append(sample)
+            sample = IterableOrderedDict()
+            corrupt = False
+            for key in self.tensor_keys:
+                val = self.all_index_value_maps[key][i]
+                if val is None:
+                    corrupt = True
+                    break
+                sample[key] = val
+            if corrupt:
+                samples.append(None)
+            else:
+                samples.append(sample)
         self.processed_samples = samples
         self.processed_range = slice(first_index, last_index)
 

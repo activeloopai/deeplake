@@ -182,3 +182,14 @@ def compressed_image_paths():
         paths[k] = os.path.join(parent, paths[k])
 
     return paths
+
+
+@pytest.fixture
+def corrupt_image_paths():
+    paths = {"jpeg": "corrupt_jpeg.jpeg", "png": "corrupt_png.png"}
+
+    parent = get_dummy_data_path("compressed_images")
+    for k in paths:
+        paths[k] = os.path.join(parent, paths[k])
+
+    return paths
