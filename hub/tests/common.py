@@ -82,3 +82,13 @@ def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
 def is_opt_true(request, opt) -> bool:
     """Returns if the pytest option `opt` is True. Assumes `opt` is a boolean value."""
     return request.config.getoption(opt)
+
+
+def get_num_chunks(tensor):
+    chunk_engine = tensor.chunk_engine
+    return chunk_engine.chunk_id_encoder.num_chunks
+
+
+def assert_num_chunks(tensor, expected_num_chunks):
+    actual_num_chunks = get_num_chunks(tensor)
+    assert actual_num_chunks == expected_num_chunks
