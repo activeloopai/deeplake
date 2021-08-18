@@ -1,9 +1,11 @@
-from hub.util.check_installation import pytorch_installed
-from hub.core.storage import PrefetchLRUCache, ShuffleLRUCache, SharedMemoryProvider
-from hub.util.dataset import try_flushing
-from hub.constants import MB
 from typing import Callable, Optional, Sequence
+from hub.core.storage import SharedMemoryProvider
+from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
+from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache
+from hub.util.dataset import try_flushing
+from hub.util.check_installation import pytorch_installed
 from hub.util.exceptions import ModuleNotInstalledException
+from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 try:

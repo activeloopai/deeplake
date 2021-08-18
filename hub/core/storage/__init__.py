@@ -8,5 +8,3 @@ try:
 except ModuleNotFoundError:
     pass
 from hub.core.storage.lru_cache import LRUCache
-from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
-from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache

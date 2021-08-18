@@ -4,7 +4,7 @@ from hub.core.storage.provider import StorageProvider
 
 
 class SharedMemoryProvider(StorageProvider):
-    """Provider class for using the memory."""
+    """Provider class for using shared memory."""
 
     def __init__(self, root: str = ""):
         self.root = root
