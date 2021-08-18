@@ -29,7 +29,7 @@ pip3 install -r hub/requirements/tests.txt
 - `pytest .`: Run all tests with memory only.
 - `pytest . --local`: Run all tests with memory and local.
 - `pytest . --s3`: Run all tests with memory and s3.
-- `pytest . --kaggle`: Run all tests with memory and kaggle.
+- `pytest . --kaggle`: Run all tests that use the kaggle API.
 - `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
 
 

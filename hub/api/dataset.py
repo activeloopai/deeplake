@@ -327,7 +327,7 @@ class dataset:
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
-            summary (bool): Defines if the method generates ingestion summary. Defaults to True.
+            summary (bool): If True, a summary of skipped files will be printed after completion. Defaults to True.
             overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
@@ -345,14 +345,6 @@ class dataset:
         if not os.path.isdir(src):
             raise InvalidPathException(src)
 
-        if overwrite:
-            try:
-                ds_old = hub.load(dest)
-                ds_old.delete(large_ok=True)
-                print("Overwriting..\n")
-            except:
-                print("Nothing to overwrite. Moving to ingestion.\n")
-
         if os.path.isdir(dest):
             if os.path.samefile(src, dest):
                 raise SamePathException(src)
@@ -365,7 +357,7 @@ class dataset:
             if images_compression is None:
                 raise AutoCompressionError(src)
 
-        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
+        ds = hub.dataset(dest, creds=dest_creds, overwrite=overwrite, **dataset_kwargs)
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
