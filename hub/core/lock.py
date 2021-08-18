@@ -22,13 +22,13 @@ class Lock(object):
 
         From machine 2:
         s3 = hub.core.storage.S3Provider(S3_URL)
-        lock = hub.core.lock.lock(s3)  # Raises LockedException
+        lock = hub.core.lock.Lock(s3)  # Raises LockedException
 
         The lock is updated every 2 mins by an internal thread. The lock is valid for 5 mins after the last update.
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
-        callback (Callable, optional): Called if the lock is lost after acquiring
+        callback (Callable, optional): Called if the lock is lost after acquiring.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
@@ -120,7 +120,7 @@ def lock(storage: StorageProvider, callback: Optional[Callable] = None):
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
-        callback (Callable, optional): Called if the lock is lost after acquiring
+        callback (Callable, optional): Called if the lock is lost after acquiring.
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
@@ -136,7 +136,7 @@ def lock(storage: StorageProvider, callback: Optional[Callable] = None):
 
 
 def unlock(storage: StorageProvider):
-    """Unlocks a storage provider that was locked by this machine
+    """Unlocks a storage provider that was locked by this machine.
 
     Args:
         storage (StorageProvider): The storage provder to be locked.

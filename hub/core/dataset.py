@@ -33,6 +33,7 @@ from hub.client.log import logger
 from hub.util.path import get_path_from_storage
 from hub.util.remove_cache import get_base_storage
 from hub.core.fast_forwarding import ffw_dataset_meta
+import warnings
 
 
 class Dataset:
@@ -69,11 +70,16 @@ class Dataset:
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
-        if isinstance(base_storage, S3Provider):  # Dataset locking only for S3 datasets
+        if index is None and isinstance(
+            base_storage, S3Provider
+        ):  # Dataset locking only for S3 datasets
             try:
-                lock(base_storage, callback=lambda: setattr(self, "readonly", True))
+                lock(base_storage, callback=lambda: self._lock_lost_handler)
             except LockedException:
                 self.read_only = True
+                warnings.warn(
+                    "Opening dataset in read only mode as another machine has locked it for writing."
+                )
 
         self.index: Index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
@@ -82,6 +88,13 @@ class Dataset:
         self.verbose = verbose
 
         self._set_derived_attributes()
+
+    def _lock_lost_handler(self):
+        """This is called when lock is acquired but lost later on due to slow update."""
+        self.read_only = True
+        warnings.warn(
+            "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+        )
 
     def __enter__(self):
         self.storage.autoflush = False

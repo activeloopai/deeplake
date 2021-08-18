@@ -14,7 +14,8 @@ def test_dataset_locking(s3_ds_generator):
     uuid.getnode = lambda: getnode() + 1
     hub.core.lock._LOCKS.clear()
 
-    ds = s3_ds_generator()
+    with pytest.warns(UserWarning):
+        ds = s3_ds_generator()
     assert ds.read_only == True
 
     DATASET_LOCK_VALIDITY = hub.constants.DATASET_LOCK_VALIDITY
