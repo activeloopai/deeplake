@@ -16,7 +16,6 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
     SampleDecompressionError,
-    CorruptedSampleError,
 )
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 from hub.util.shared_memory import (
@@ -165,10 +164,12 @@ class TorchDataset:
 
         self.last_chunk_num_generated = -1
 
+        self._num_bad_samples = 0
+
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def get(self, index: int):
         for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -188,6 +189,16 @@ class TorchDataset:
         sample = self._apply_transform(sample)
 
         return sample
+
+    def __getitem__(self, index: int):
+        while True:
+            if index + self._num_bad_samples >= self.length:
+                raise StopIteration()
+            val = self.get(index + self._num_bad_samples)
+            if val is None:
+                self._num_bad_samples += 1
+            else:
+                return val
 
     def __iter__(self):
         for index in range(len(self)):
@@ -266,9 +277,9 @@ class TorchDataset:
         chunk_engine = self.all_chunk_engines[key]
         try:
             value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
-        except SampleDecompressionError:
+        except SampleDecompressionError as e:
             warnings.warn(
-                CorruptedSampleError(chunk_engine.tensor_meta.sample_compression)
+                f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
             )
             return None
 

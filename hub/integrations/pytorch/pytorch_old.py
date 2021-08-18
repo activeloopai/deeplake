@@ -12,7 +12,6 @@ from hub.util.exceptions import (
     ModuleNotInstalledException,
     TensorDoesNotExistError,
     SampleDecompressionError,
-    CorruptedSampleError,
 )
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
@@ -95,6 +94,7 @@ class TorchDataset:
                 if t not in dataset.tensors:
                     raise TensorDoesNotExistError(t)
             self.tensor_keys = list(tensors)
+        self._num_bad_samples = 0
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         return self.transform(sample) if self.transform else sample
@@ -116,16 +116,16 @@ class TorchDataset:
     def __len__(self):
         return self.length
 
-    def __getitem__(self, index: int):
+    def get(self, index: int):
         self._init_ds()
         sample = IterableOrderedDict()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
         for key in self.tensor_keys:
             try:
                 item = self.dataset[key][index].numpy()  # type: ignore
-            except SampleDecompressionError:
+            except SampleDecompressionError as e:
                 warnings.warn(
-                    CorruptedSampleError(self.dataset[key].meta.sample_compression)
+                    f"Skipping corrupt {self.dataset[key].meta.sample_compression} sample."
                 )
                 return None
             if item.dtype == "uint16":
@@ -135,6 +135,16 @@ class TorchDataset:
             sample[key] = item
 
         return self._apply_transform(sample)
+
+    def __getitem__(self, index: int):
+        while True:
+            if index + self._num_bad_samples >= self.length:
+                raise StopIteration()
+            val = self.get(index + self._num_bad_samples)
+            if val is None:
+                self._num_bad_samples += 1
+            else:
+                return val
 
     def __iter__(self):
         for index in range(len(self)):

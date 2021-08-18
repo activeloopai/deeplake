@@ -26,7 +26,7 @@ def dataset_to_tensorflow(dataset):
                     sample[key] = value
                 except SampleDecompressionError:
                     warnings.warn(
-                        CorruptedSampleError(dataset[key].meta.sample_compression)
+                        f"Skipping corrupt {dataset[key].meta.sample_compression} sample."
                     )
                     corrupt_sample_found = True
             if not corrupt_sample_found:
