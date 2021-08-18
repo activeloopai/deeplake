@@ -9,6 +9,8 @@ class SharedMemoryProvider(StorageProvider):
     def __init__(self, root: str = ""):
         self.root = root
         self.sizes = {}
+
+        # keeps the shared memory objects in memory, otherwise getitem throws warnings as the shared memory is deleted
         self.active_shared_memories = {}
 
     def __getitem__(self, path: str):
@@ -96,6 +98,7 @@ class SharedMemoryProvider(StorageProvider):
             shared_memory = SharedMemory(name=path)
             shared_memory.close()
             shared_memory.unlink()
+            del self.active_shared_memories[path]
             del self.sizes[path]
         except (FileNotFoundError, KeyError):
             pass

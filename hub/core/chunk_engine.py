@@ -486,7 +486,7 @@ class ChunkEngine:
         return chunk_names
 
     def get_chunk_names_for_index(self, sample_index):
-        # TODO fix this once we support multiple chunk names per sample
+        # TODO: fix this once we support multiple chunk names per sample
         chunk_id = self.chunk_id_encoder[sample_index]
         chunk = self.chunk_id_encoder.name_from_id(chunk_id)
         return [chunk]

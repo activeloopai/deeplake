@@ -28,6 +28,7 @@ class ShuffleLRUCache(PrefetchLRUCache):
             transform,
         )
 
+        # set of all indexes that have not been used yet, used to pick new indexes every time
         self.all_remaining_indexes = set(self.all_indexes)
 
         # keeps count of how many unique tensors have this index in cache, updated in pop and insert
@@ -35,9 +36,11 @@ class ShuffleLRUCache(PrefetchLRUCache):
         # corresponding to each count, stores the indexes that have appeared that many times
         self.ct_indexes = defaultdict(set)
 
+        # stores the start and end index of each chunk for each tensor
         self.all_chunks_start_end_index = self._get_all_chunks_start_end_index()
 
     def iterate_samples(self, yield_index=False):
+        """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
         for index, data in super().iterate_samples(yield_index=True):
             self.remove_index(index)
             if yield_index:
@@ -46,6 +49,7 @@ class ShuffleLRUCache(PrefetchLRUCache):
                 yield data
 
     def remove_index(self, index: int):
+        """Removes an index from all the class data structures after it has been used."""
         self.all_remaining_indexes.discard(index)
         self.ct_indexes[self.index_ct[index]].discard(index)
         if len(self.ct_indexes[self.index_ct[index]]) == 0:
@@ -61,16 +65,17 @@ class ShuffleLRUCache(PrefetchLRUCache):
         self.ct_indexes.clear()
 
     def _suggest_next_index(self) -> int:
+        """Suggests the next index to return data from. For shuffle cache this is done by a combination of random picking as well as greedy picking depending on the number of chunks present in the cache for the indexes."""
         if self.cache_used < 0.8 * self.cache_size or not self.index_ct:
             return random.choice(list(self.all_remaining_indexes))
         largest_ct = max(self.ct_indexes.keys())
         return random.choice(list(self.ct_indexes[largest_ct]))
 
     def _update_count_dicts_insertion(self, tensor, chunk_name):
-        """Updates index_ct and ct_index after a new chunk is brought into shared memory"""
+        """Updates index_ct and ct_index after a new chunk is brought into shared memory."""
         start_index, end_index = self.all_chunks_start_end_index[tensor][chunk_name]
         for index in range(start_index, end_index + 1):
-            # logic will need to be changed once we support big samples that go across chunks
+            # TODO: logic will need to be changed once we support big samples that go across chunks
             if index in self.index_ct:
                 self.ct_indexes[self.index_ct[index]].discard(index)
                 if len(self.ct_indexes[self.index_ct[index]]) == 0:
@@ -79,9 +84,10 @@ class ShuffleLRUCache(PrefetchLRUCache):
             self.ct_indexes[self.index_ct[index]].add(index)
 
     def _update_count_dicts_pop(self, tensor, chunk_name):
+        """Updates index_ct and ct_index after a chunk is popped from the cache."""
         start_index, end_index = self.all_chunks_start_end_index[tensor][chunk_name]
         for index in range(start_index, end_index + 1):
-            # logic will need to be changed once we support big samples that go across chunks
+            # TODO: logic will need to be changed once we support big samples that go across chunks
             self.ct_indexes[self.index_ct[index]].discard(index)
             if len(self.ct_indexes[self.index_ct[index]]) == 0:
                 self.ct_indexes.pop(self.index_ct[index])

@@ -41,12 +41,15 @@ class PrefetchLRUCache(LRUCache):
         import torch
 
         self.transform = transform
-        indexes = self._extract_indexes_from_dataset(dataset)
-        self.all_indexes = list(indexes)
+        self.all_indexes = self._extract_indexes_from_dataset(dataset)
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
         self.workers = num_workers
         self.map = ProcessPool(nodes=num_workers).map
+
+        # shared memory file names have format "al_{x}" where x is last_shm_key_generated, which is incremented by 1 every time
         self.last_shm_key_generated = -1
+
+        # keeps track of the last index suggested from all_indexes, incremented by 1 every time to return sequential indexes
         self.last_index_suggested = -1
         self.length = len(dataset)
 
@@ -68,8 +71,11 @@ class PrefetchLRUCache(LRUCache):
         self.index_chunk_names_map: Dict[int, Dict[str, str]] = {}
 
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
-        self.emergency_storage = LocalProvider("./temp/data")  # TODO: Finalize path
+
+        # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
         self.required_chunks: List[tuple] = []
+
+        self.emergency_storage = LocalProvider("./temp/data")  # TODO: Finalize path
 
     def __getitem__(self, path):
         if path in self.lru_sizes:
@@ -93,6 +99,7 @@ class PrefetchLRUCache(LRUCache):
         return self.length
 
     def iterate_samples(self, yield_index: bool = False):
+        """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
         chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
         pending_indexes: List[int] = []
         for i in range(self.length):
@@ -117,6 +124,7 @@ class PrefetchLRUCache(LRUCache):
         self.clear_cache()
 
     def output_for_index(self, index: int, yield_index: bool = False):
+        """Returns the final output for the given index after converting to IterableOrderedDict and transforming."""
         data = self._data_for_index(index)
         sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
         transformed_data = self._apply_transform(sample)
@@ -138,7 +146,8 @@ class PrefetchLRUCache(LRUCache):
         if self.next_storage is not None and hasattr(self.next_storage, "clear_cache"):
             self.next_storage.clear_cache()
 
-    def _get_all_chunks_start_end_index(self):
+    def _get_all_chunks_start_end_index(self) -> Dict[str, Dict[str, Tuple[int, int]]]:
+        """Gets the start and end indexes present in each chunk across all tensors."""
         all_tensors_mapping = {}
         for tensor, chunk_engine in self.all_chunk_engines.items():
             array = chunk_engine.chunk_id_encoder.array
@@ -154,10 +163,14 @@ class PrefetchLRUCache(LRUCache):
         return all_tensors_mapping
 
     def _suggest_next_index(self) -> int:
+        """Suggests the next index to return data from, in prefetch cache this always goes sequentially over all_indexes"""
         self.last_index_suggested += 1
         return self.all_indexes[self.last_index_suggested]
 
-    def _get_tensor_keys(self, tensor_keys: Optional[Sequence[str]], dataset):
+    def _get_tensor_keys(
+        self, tensor_keys: Optional[Sequence[str]], dataset
+    ) -> List[str]:
+        """Sanitizes tensor_keys if not None, else returns all the keys present in the dataset."""
         if tensor_keys is None:
             tensor_keys = list(dataset.tensors)
         else:
@@ -168,11 +181,13 @@ class PrefetchLRUCache(LRUCache):
         return tensor_keys
 
     def _extract_indexes_from_dataset(self, dataset):
+        """Returns a list of all the indexes in the dataset."""
         tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
         length = min(tensor_lengths, default=0)
-        return dataset.index.values[0].indices(length)
+        return list(dataset.index.values[0].indices(length))
 
     def _update_cache_insertion(self, chunk_sizes_dict) -> None:
+        """Updates the cache after chunks are inserted into it across processes."""
         for key in chunk_sizes_dict:
             tensor, chunk_name = self.shared_mem_chunk_map[key]
             self.required_chunks.append((tensor, chunk_name))
@@ -289,6 +304,7 @@ class PrefetchLRUCache(LRUCache):
         return chunks_not_found
 
     def _fetch_and_store_required_data(self, chunk_groups: List[List[Tuple[str, str]]]):
+        """Generates shared memory names for required data, fetches, stores it and updates cache storage."""
         self._generate_shared_memory_names(chunk_groups)
         chunk_sizes_dict = self._fetch_chunks(chunk_groups)
         self._update_cache_insertion(chunk_sizes_dict)
