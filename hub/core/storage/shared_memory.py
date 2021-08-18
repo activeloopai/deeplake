@@ -130,11 +130,10 @@ class SharedMemoryProvider(StorageProvider):
             del self[path]
 
     def __getstate__(self) -> str:
-        """Does NOT save the in memory data in state."""
-        return self.root
+        raise NotImplementedError
 
     def __setstate__(self, state: str):
-        self.__init__(root=state)  # type: ignore
+        raise NotImplementedError
 
     def update_sizes(self, dict):
         """Updates the sizes of the files.

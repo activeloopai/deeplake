@@ -23,11 +23,35 @@ def dataset_to_pytorch(
     pin_memory: Optional[bool] = False,
     shuffle: Optional[bool] = False,
 ):
-    try_flushing(dataset)
     if not pytorch_installed:
         raise ModuleNotInstalledException(
             "'torch' should be installed to convert the Dataset into pytorch format"
         )
+
+    try_flushing(dataset)
+
+    class TorchDataset(torch.utils.data.IterableDataset):
+        def __init__(
+            self,
+            dataset,
+            transform: Optional[Callable] = None,
+            tensors: Optional[Sequence[str]] = None,
+            num_workers: int = 1,
+            shuffle: bool = False,
+        ):
+            shm = SharedMemoryProvider()
+            size = 10 * 1000 * MB
+            if shuffle:
+                self.cache = ShuffleLRUCache(
+                    shm, None, size, dataset, num_workers, tensors, transform
+                )
+            else:
+                self.cache = PrefetchLRUCache(
+                    shm, None, size, dataset, num_workers, tensors, transform
+                )
+
+        def __iter__(self):
+            yield from self.cache.iterate_samples()
 
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
@@ -41,27 +65,3 @@ def dataset_to_pytorch(
         collate_fn=collate_fn,
         pin_memory=pin_memory,
     )
-
-
-class TorchDataset(torch.utils.data.IterableDataset):
-    def __init__(
-        self,
-        dataset,
-        transform: Optional[Callable] = None,
-        tensors: Optional[Sequence[str]] = None,
-        num_workers: int = 1,
-        shuffle: bool = False,
-    ):
-        shm = SharedMemoryProvider()
-        size = 10 * 1000 * MB
-        if shuffle:
-            self.cache = ShuffleLRUCache(
-                shm, None, size, dataset, num_workers, tensors, transform
-            )
-        else:
-            self.cache = PrefetchLRUCache(
-                shm, None, size, dataset, num_workers, tensors, transform
-            )
-
-    def __iter__(self):
-        yield from self.cache.iterate_samples()
