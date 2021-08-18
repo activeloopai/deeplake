@@ -277,7 +277,6 @@ class dataset:
         dest_creds: dict = None,
         progress_bar: bool = True,
         summary: bool = True,
-        overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
@@ -332,7 +331,6 @@ class dataset:
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
             summary (bool): If True, a summary of skipped files will be printed after completion. Defaults to True.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -344,8 +342,6 @@ class dataset:
             AutoCompressionError: If the source director is empty or does not contain a valid extension.
             InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
-
-        feature_report_path(dest, "ingest", {"Overwrite": overwrite})
 
         if not os.path.isdir(src):
             raise InvalidPathException(src)
@@ -362,7 +358,7 @@ class dataset:
             if images_compression is None:
                 raise InvalidFileExtension(src)
 
-        ds = hub.dataset(dest, creds=dest_creds, overwrite=overwrite, **dataset_kwargs)
+        ds = hub.dataset(dest, creds=dest_creds, **dataset_kwargs)
 
         # TODO: support more than just image classification (and update docstring)
         unstructured = ImageClassification(source=src)
@@ -387,7 +383,6 @@ class dataset:
         kaggle_credentials: dict = None,
         progress_bar: bool = True,
         summary: bool = True,
-        overwrite: bool = False,
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
@@ -408,7 +403,6 @@ class dataset:
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
             progress_bar (bool): Enables or disables ingestion progress bar. Set to true by default.
             summary (bool): Generates ingestion summary. Set to true by default.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -417,8 +411,6 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
-
-        feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
 
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
@@ -433,7 +425,6 @@ class dataset:
             dest=dest,
             images_compression=images_compression,
             dest_creds=dest_creds,
-            overwrite=overwrite,
             progress_bar=progress_bar,
             summary=summary,
             **dataset_kwargs,
