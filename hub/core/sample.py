@@ -6,7 +6,6 @@ import pathlib
 from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
-import mmap
 
 
 class Sample:

@@ -25,7 +25,9 @@ def test_array(compression, compressed_image_paths):
 
 
 @pytest.mark.parametrize("compression", ["jpeg", "png"])
-def test_corrput_files(compression, corrupt_image_paths):
+def test_verify(compression, compressed_image_paths, corrupt_image_paths):
+    path = compressed_image_paths[compression]
+    hub.read(path, verify=True)
     path = corrupt_image_paths[compression]
     hub.read(path)
     Image.open(path)

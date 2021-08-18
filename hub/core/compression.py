@@ -10,6 +10,7 @@ import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
+import mmap
 
 
 def to_image(array: np.ndarray) -> Image:
