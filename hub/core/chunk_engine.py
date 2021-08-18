@@ -344,7 +344,7 @@ class ChunkEngine:
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
 
-    def extend_empty(self, shape: Tuple[int]):
+    def extend_empty(self, shape: Tuple[int, ...]):
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 

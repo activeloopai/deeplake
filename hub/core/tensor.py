@@ -153,7 +153,7 @@ class Tensor:
         """
         self.extend([sample])
 
-    def extend_empty(self, shape: Tuple[int]):
+    def extend_empty(self, shape: Tuple[int, ...]):
         """Extends multiple empty samples with the given shape to the end of the tensor. Use this when your samples are too large for memory.
         Examples:
             >>> len(ds.tensor)

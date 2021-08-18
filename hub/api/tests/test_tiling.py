@@ -10,7 +10,7 @@ def test_initialize_large_samples(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
-    ds.create_tensor("tensor", dtype=MAX_INT_DTYPE, sample_compression=compression)  
+    ds.create_tensor("tensor", dtype=MAX_INT_DTYPE, sample_compression=compression)
 
     ds.tensor.append_empty((10, 10, 3))  # small
     ds.tensor.append_empty((1000, 1000, 3))  # large
@@ -46,7 +46,12 @@ def test_initialize_large_samples(local_ds_generator, compression):
 @pytest.mark.parametrize("compression", [None, "png"])
 def test_populate_full_large_sample(local_ds_generator, compression):
     ds = local_ds_generator()
-    ds.create_tensor("large", dtype=MAX_INT_DTYPE, sample_compression=compression, max_chunk_size=16 * KB)
+    ds.create_tensor(
+        "large",
+        dtype=MAX_INT_DTYPE,
+        sample_compression=compression,
+        max_chunk_size=16 * KB,
+    )
 
     ds.large.append_empty((500, 500))  # 2MB, 125 chunks (uncompressed)
 

@@ -52,7 +52,6 @@ def test_extend(memory_ds):
 
     _extend_tensors(images, labels)
 
-
     assert labels.num_chunks == 1
     assert images.num_chunks == 5
 
