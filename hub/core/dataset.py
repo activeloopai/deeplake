@@ -31,7 +31,7 @@ from hub.util.exceptions import (
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import get_path_from_storage
-from hub.util.storage import get_base_storage
+from hub.util.remove_cache import get_base_storage
 from hub.core.fast_forwarding import ffw_dataset_meta
 
 

@@ -106,10 +106,3 @@ def get_storage_and_cache_chain(
         storage, memory_cache_size_bytes, local_cache_size_bytes, path
     )
     return storage, storage_chain
-
-
-def get_base_storage(storage: StorageProvider) -> StorageProvider:
-    """Extracts the underlying storage from a given cache storage."""
-    if isinstance(storage, LRUCache):
-        return get_base_storage(storage.next_storage)
-    return storage
