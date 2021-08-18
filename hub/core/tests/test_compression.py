@@ -24,12 +24,13 @@ def test_array(compression, compressed_image_paths):
     np.testing.assert_array_equal(array, decompressed_array)
 
 
-@pytest.mark.parametrize("compression", ["jpeg", "png"])
+@pytest.mark.parametrize("compression", compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     path = compressed_image_paths[compression]
     hub.read(path, verify=True)
-    path = corrupt_image_paths[compression]
-    hub.read(path)
-    Image.open(path)
-    with pytest.raises(CorruptedSampleError):
-        hub.read(path, verify=True)
+    if compression in corrupt_image_paths:
+        path = corrupt_image_paths[compression]
+        hub.read(path)
+        Image.open(path)
+        with pytest.raises(CorruptedSampleError):
+            hub.read(path, verify=True)
