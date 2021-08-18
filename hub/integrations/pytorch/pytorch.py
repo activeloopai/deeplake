@@ -169,7 +169,7 @@ class TorchDataset:
     def __len__(self):
         return self.length
 
-    def get(self, index: int):
+    def _get(self, index: int):
         for key in self.tensor_keys:
             # prefetch cache miss, fetch data
             if index not in self.all_index_value_maps[key]:
@@ -192,9 +192,10 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         while True:
-            if index + self._num_bad_samples >= self.length:
-                raise StopIteration()
-            val = self.get(index + self._num_bad_samples)
+            next_good_sample_index = index + self._num_bad_samples
+            if next_good_sample_index >= self.length:
+                raise StopIteration()  # DataLoader expects StopIteration, not IndexError
+            val = self._get(next_good_sample_index)
             if val is None:
                 self._num_bad_samples += 1
             else:
@@ -202,7 +203,9 @@ class TorchDataset:
 
     def __iter__(self):
         for index in range(len(self)):
-            yield self[index]
+            val = self[index]
+            if val is not None:
+                yield val
 
     def _apply_transform(self, sample: Union[Dict, Tuple]):
         """Used to apply transform to a single sample"""

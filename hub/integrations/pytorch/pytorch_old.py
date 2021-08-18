@@ -1,6 +1,7 @@
 import os
 import pickle
 import warnings
+import math
 import hub
 from typing import Callable, Union, Optional, Dict, Tuple, Sequence
 from hub.core.storage import MemoryProvider, LRUCache
@@ -78,6 +79,7 @@ class TorchDataset:
                 )
 
         self.dataset = None
+        self._worker_range = None
         base_storage = get_base_storage(dataset.storage)
         if isinstance(base_storage, MemoryProvider):
             raise DatasetUnsupportedPytorch(
@@ -116,7 +118,7 @@ class TorchDataset:
     def __len__(self):
         return self.length
 
-    def get(self, index: int):
+    def _get(self, index: int):
         self._init_ds()
         sample = IterableOrderedDict()
         # pytorch doesn't support certain dtypes, which are type casted to another dtype below
@@ -125,7 +127,7 @@ class TorchDataset:
                 item = self.dataset[key][index].numpy()  # type: ignore
             except SampleDecompressionError as e:
                 warnings.warn(
-                    f"Skipping corrupt {self.dataset[key].meta.sample_compression} sample."
+                    f"Skipping corrupt {self.dataset[key].meta.sample_compression} sample."  # type: ignore
                 )
                 return None
             if item.dtype == "uint16":
@@ -138,9 +140,10 @@ class TorchDataset:
 
     def __getitem__(self, index: int):
         while True:
-            if index + self._num_bad_samples >= self.length:
-                raise StopIteration()
-            val = self.get(index + self._num_bad_samples)
+            next_good_sample_index = index + self._num_bad_samples
+            if next_good_sample_index >= self.length:
+                raise StopIteration()  # DataLoader expects StopIteration, not IndexError
+            val = self._get(next_good_sample_index)
             if val is None:
                 self._num_bad_samples += 1
             else:
@@ -150,4 +153,4 @@ class TorchDataset:
         for index in range(len(self)):
             val = self[index]
             if val is not None:
-                yield self[index]
+                yield val
