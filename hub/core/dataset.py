@@ -71,6 +71,7 @@ class Dataset:
         self.storage = storage
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
+        # Hidden tensors aren't considered as a part of self.tensors for this dataset.
         self.hidden_tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
@@ -174,8 +175,8 @@ class Dataset:
             sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
             **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
                 To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
-            hash_samples (Optional[bool]): A hash tensor is created and linked to this tensor. Any sample appended to this tensor
-                                           will be hashed and appended to the hash tensor.
+            hash_samples (Optional[bool]): If True, all samples added to this tensor will be hashed into two 64-bit integers
+                                        and stored in a hidden linked tensor.
 
         Returns:
             The new tensor, which can also be accessed by `self[name]`.
@@ -222,27 +223,73 @@ class Dataset:
         tensor = Tensor(name, self.storage)  # type: ignore
         
         if hash_samples:
-            hashes_tensor = self.create_tensor(HASHES_TENSOR_FOLDER, htype="hashes")
+            hashes_tensor = self._create_hidden_tensor(HASHES_TENSOR_FOLDER, htype="hash")
             self._link_tensor(tensor, hashes_tensor)
-           
-        # Hashes tensor is considered as a "hidden tensor"
-        if tensor.meta.htype == "hashes":
-            self.meta.hidden_tensors.append(name)
-            self.hidden_tensors[name] = tensor
-        else:   
-            self.meta.tensors.append(name)
-            self.tensors[name] = tensor
-
+            
+        self.meta.tensors.append(name)
+        self.tensors[name] = tensor    
         tensor.info.update(info_kwargs)
-
+        
         return tensor
 
-    def _link_tensor(self, src: "Tensor", dest: "Tensor"):
+    def _create_hidden_tensor(
+        self,
+        name: str,
+        htype: str = DEFAULT_HTYPE,
+        dtype: Union[str, np.dtype, type] = UNSPECIFIED,
+        sample_compression: str = UNSPECIFIED,
+        hash_samples: Optional[bool] = False,
+        **kwargs,
+    ):
+
+        if tensor_exists(name, self.storage):
+            raise TensorAlreadyExistsError(name)
+        if name in vars(self):
+            raise InvalidTensorNameError(name)
+
+        # Seperate meta and info
+
+        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
+        info_keys = htype_config.pop("_info", [])
+        info_kwargs = {}
+        meta_kwargs = {}
+        for k, v in kwargs.items():
+            if k in info_keys:
+                info_kwargs[k] = v
+            else:
+                meta_kwargs[k] = v
+
+        # Set defaults
+        for k in info_keys:
+            if k not in info_kwargs:
+                info_kwargs[k] = htype_config[k]
+
+        create_tensor(
+            name,
+            self.storage,
+            htype=htype,
+            dtype=dtype,
+            sample_compression=sample_compression,
+            hash_samples=hash_samples,
+            **meta_kwargs,
+        )
+        
+        self.storage.maybe_flush()
+        tensor = Tensor(name, self.storage)  # type: ignore
+        self.meta.hidden_tensors.append(name)
+        self.hidden_tensors[name] = tensor
+            
+        tensor.info.update(info_kwargs)
+        
+        return tensor
+        
+
+    def _link_tensor(self, main_tensor: "Tensor", link_tensor: "Tensor"):
         """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and
 
         Args:
-            src (Union[str, Tensor]): Source tensor.
-            dest (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor
+            main_tensor (Union[str, Tensor]): Source tensor.
+            link_tensor (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor
                                         will also be appended to its linked tensor after applying a certain function (e.g hashing).
 
         Raises:
@@ -250,16 +297,16 @@ class Dataset:
             NotImplementedError: Source tensor can't have more than one links.
         """
 
-        if src.meta.links:
+        if main_tensor.meta.linked_tensors:
             raise NotImplementedError(
                 "Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible."
             )
 
-        if dest.meta.linked_tensor or src.meta.linked_tensor:
+        if link_tensor.meta.is_linked_tensor or main_tensor.meta.is_linked_tensor:
             raise TensorAlreadyLinkedError
 
-        src.meta.links = dest.key
-        dest.meta.linked_tensor = True
+        main_tensor.meta.linked_tensors = link_tensor.key
+        link_tensor.meta.is_linked_tensor = True
 
     @hub_reporter.record_call
     def create_tensor_like(self, name: str, source: "Tensor") -> "Tensor":

@@ -12,7 +12,7 @@ class DatasetMeta(Meta):
         Note:
             tensors: A list of tensors associated with this dataset.
             hidden_tensors: Hidden tensors aren't accessible and can't be appended upon. An example of 
-                            a hidden tensor is the "hashes" tensor generated.
+                            a hidden tensor is the "_hashes" tensor generated.
             
         """
 

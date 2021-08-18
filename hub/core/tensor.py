@@ -94,7 +94,7 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
 
-        if (self.meta.links == HASHES_TENSOR_FOLDER):
+        if (self.meta.linked_tensors == HASHES_TENSOR_FOLDER):
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -130,12 +130,12 @@ class Tensor:
             LinkedTensorError: Appending samples directly to a linked tensor is not permitted. 
         """
 
-        if self.meta.linked_tensor:
+        if self.meta.is_linked_tensor:
             raise LinkedTensorError
 
         self.chunk_engine.extend(samples)
 
-        if self.meta.links == HASHES_TENSOR_FOLDER:
+        if self.meta.linked_tensors == HASHES_TENSOR_FOLDER:
             hashed_samples = generate_hashes(samples)
             self.linked_tensor.chunk_engine.extend(hashed_samples)
 
@@ -306,13 +306,13 @@ class Tensor:
             (1, 3, 3)
         """
 
-        if self.meta.linked_tensor:
+        if self.meta.is_linked_tensor:
             raise LinkedTensorError
 
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if self.meta.links == HASHES_TENSOR_FOLDER:
+        if self.meta.linked_tensors == HASHES_TENSOR_FOLDER:
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(
                 self.index[item_index], hashed_samples
@@ -352,7 +352,7 @@ class Tensor:
 
     __repr__ = __str__
 
-    # TODO: Inplace operatitions
+    # TODO: Inplace operations
     def __iadd__(self, other):
         raise NotImplementedError
 
