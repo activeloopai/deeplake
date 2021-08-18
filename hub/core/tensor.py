@@ -155,6 +155,7 @@ class Tensor:
 
     def extend_empty(self, shape: Tuple[int, ...]):
         """Extends multiple empty samples with the given shape to the end of the tensor. Use this when your samples are too large for memory.
+
         Examples:
             >>> len(ds.tensor)
             0
@@ -166,6 +167,7 @@ class Tensor:
             >>> ds.tensor[0:5, 1000:1050, 5000:5050] = np.ones((50, 50))
             >>> ds.tensor[0:5, 1000, 5000].numpy()
             np.ndarray([1, 1, 1, 1, 1])
+
         Args:
             shape (Tuple[int]): Shape of the sample.
         """
@@ -174,6 +176,7 @@ class Tensor:
 
     def append_empty(self, shape: Tuple[int]):
         """Appends a single empty sample with the given shape to the end of the tensor. Use this when your sample is too large for memory.
+
         Examples:
             >>> len(ds.tensor)
             0
@@ -185,6 +188,7 @@ class Tensor:
             >>> ds.tensor[0, 1000:1050, 5000:5050] = np.ones((50, 50))
             >>> ds.tensor[0, 1000, 5000].numpy()
             np.ndarray(1)
+
         Args:
             shape (Tuple[int]): Shape of the sample.
         """
