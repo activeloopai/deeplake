@@ -1,11 +1,6 @@
+from hub.tests.common import assert_num_chunks
 import numpy as np
 from hub.constants import KB
-
-
-def _assert_num_chunks(tensor, expected_num_chunks):
-    chunk_engine = tensor.chunk_engine
-    actual_num_chunks = chunk_engine.chunk_id_encoder.num_chunks
-    assert actual_num_chunks == expected_num_chunks
 
 
 def _create_tensors(ds):
@@ -36,18 +31,18 @@ def test_append(memory_ds):
 
     _append_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 5)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 5)
 
     _append_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 10)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 10)
 
     _append_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 15)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 15)
 
     assert len(ds) == 300
 
@@ -58,18 +53,18 @@ def test_extend(memory_ds):
 
     _extend_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 5)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 5)
 
     _extend_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 10)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 10)
 
     _extend_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 15)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 15)
 
     assert len(ds) == 300
 
@@ -80,22 +75,22 @@ def test_extend_and_append(memory_ds):
 
     _extend_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 5)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 5)
 
     _append_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 10)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 10)
 
     _extend_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 15)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 15)
 
     _append_tensors(images, labels)
 
-    _assert_num_chunks(labels, 1)
-    _assert_num_chunks(images, 20)
+    assert_num_chunks(labels, 1)
+    assert_num_chunks(images, 20)
 
     assert len(ds) == 400
