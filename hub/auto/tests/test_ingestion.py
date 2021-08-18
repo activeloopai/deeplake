@@ -4,6 +4,7 @@ from hub.tests.common import get_dummy_data_path
 from hub.util.exceptions import (
     InvalidPathException,
     SamePathException,
+    TensorAlreadyExistsError,
 )
 import pytest
 import hub
@@ -92,6 +93,28 @@ def test_ingestion_exception(memory_ds: Dataset):
         hub.ingest(
             src=path,
             dest=path,
+            images_compression="auto",
+            progress_bar=False,
+            summary=False,
+            overwrite=False,
+        )
+
+
+def test_overwrite(local_ds: Dataset):
+    path = get_dummy_data_path("tests_auto/image_classification")
+
+    hub.ingest(
+        src=path,
+        dest=local_ds.path,
+        images_compression="auto",
+        progress_bar=False,
+        summary=False,
+        overwrite=False,
+    )
+    with pytest.raises(TensorAlreadyExistsError):
+        hub.ingest(
+            src=path,
+            dest=local_ds.path,
             images_compression="auto",
             progress_bar=False,
             summary=False,
