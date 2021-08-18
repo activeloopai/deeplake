@@ -75,7 +75,7 @@ class Dataset:
             except LockedException:
                 self.read_only = True
 
-        self.index = index or Index()
+        self.index: Index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
