@@ -25,6 +25,7 @@ def dataset_to_pytorch(
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
+    shuffle: Optional[bool] = False,
     python_version_warning: bool = True,
 ):
     try_flushing(dataset)
@@ -54,6 +55,7 @@ def dataset_to_pytorch(
         drop_last=drop_last,
         collate_fn=collate_fn,
         pin_memory=pin_memory,
+        shuffle=shuffle,
     )
 
 

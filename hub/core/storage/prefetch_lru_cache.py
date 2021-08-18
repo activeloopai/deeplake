@@ -16,21 +16,11 @@ from hub.core.storage import (
 )
 from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
-    ModuleNotInstalledException,
     TensorDoesNotExistError,
 )
 from hub.util.remove_cache import get_base_storage
 from hub.util.prefetch_cache import read_and_store_chunk_groups
-
-
-def _import_torch():
-    global torch
-    try:
-        import torch
-    except ModuleNotFoundError:
-        raise ModuleNotInstalledException(
-            "'torch' should be installed to convert the Dataset into pytorch format"
-        )
+from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
 class PrefetchLRUCache(LRUCache):
@@ -47,7 +37,8 @@ class PrefetchLRUCache(LRUCache):
         transform: Callable,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
-        _import_torch()
+        global torch
+        import torch
 
         self.transform = transform
         indexes = self._extract_indexes_from_dataset(dataset)
@@ -57,6 +48,7 @@ class PrefetchLRUCache(LRUCache):
         self.map = ProcessPool(nodes=num_workers).map
         self.last_shm_key_generated = -1
         self.last_index_suggested = -1
+        self.length = len(dataset)
 
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
@@ -100,8 +92,7 @@ class PrefetchLRUCache(LRUCache):
         # TODO: changes this
         return self.length
 
-    def iterate_samples(self, yield_index:bool=False):
-        # TODO: IterableOrderedDict
+    def iterate_samples(self, yield_index: bool = False):
         chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
         pending_indexes: List[int] = []
         for i in range(self.length):
@@ -125,9 +116,10 @@ class PrefetchLRUCache(LRUCache):
 
         self.clear_cache()
 
-    def output_for_index(self, index: int, yield_index: bool=False) -> Union[Tuple, Dict]:
+    def output_for_index(self, index: int, yield_index: bool = False):
         data = self._data_for_index(index)
-        transformed_data = self._apply_transform(data)
+        sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
+        transformed_data = self._apply_transform(sample)
         if yield_index:
             return index, transformed_data
         else:
@@ -177,8 +169,8 @@ class PrefetchLRUCache(LRUCache):
 
     def _extract_indexes_from_dataset(self, dataset):
         tensor_lengths = [len(tensor) for tensor in dataset.tensors.values()]
-        self.length = min(tensor_lengths, default=0)
-        return dataset.index.values[0].indices(self.length)
+        length = min(tensor_lengths, default=0)
+        return dataset.index.values[0].indices(length)
 
     def _update_cache_insertion(self, chunk_sizes_dict) -> None:
         for key in chunk_sizes_dict:
@@ -290,7 +282,6 @@ class PrefetchLRUCache(LRUCache):
                 chunk = (tensor, chunk_name)
                 shm_name = self.chunk_shared_mem_map.get(chunk)
                 if shm_name is None or shm_name not in self._list_keys():
-                    # TODO fetch from next storage if needed
                     chunks_not_found.append((tensor, chunk_name))
                 else:
                     self.required_chunks.append(chunk)

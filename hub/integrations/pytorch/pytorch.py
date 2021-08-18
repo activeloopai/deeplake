@@ -1,21 +1,15 @@
-from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache
+from hub.util.check_installation import pytorch_installed
+from hub.core.storage import PrefetchLRUCache, ShuffleLRUCache, SharedMemoryProvider
 from hub.util.dataset import try_flushing
 from hub.constants import MB
-from hub.core.storage import SharedMemoryProvider
 from typing import Callable, Optional, Sequence
 from hub.util.exceptions import ModuleNotInstalledException
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
-import torch
 
-
-def _import_torch():
-    global torch
-    try:
-        import torch
-    except ModuleNotFoundError:
-        raise ModuleNotInstalledException(
-            "'torch' should be installed to convert the Dataset into pytorch format"
-        )
+try:
+    import torch
+except ModuleNotFoundError:
+    pass
 
 
 def dataset_to_pytorch(
@@ -27,12 +21,17 @@ def dataset_to_pytorch(
     drop_last: Optional[bool] = False,
     collate_fn: Optional[Callable] = None,
     pin_memory: Optional[bool] = False,
+    shuffle: Optional[bool] = False,
 ):
     try_flushing(dataset)
-    _import_torch()
+    if not pytorch_installed:
+        raise ModuleNotInstalledException(
+            "'torch' should be installed to convert the Dataset into pytorch format"
+        )
+
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
-    pytorch_ds = TorchDataset(dataset, transform, tensors, num_workers)
+    pytorch_ds = TorchDataset(dataset, transform, tensors, num_workers, shuffle)
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
     return torch.utils.data.DataLoader(  # type: ignore
@@ -51,12 +50,18 @@ class TorchDataset(torch.utils.data.IterableDataset):
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
         num_workers: int = 1,
+        shuffle: bool = False,
     ):
-        shm = SharedMemoryProvider("abc")
+        shm = SharedMemoryProvider()
         size = 10 * 1000 * MB
-        self.cache = ShuffleLRUCache(
-            shm, None, size, dataset, num_workers, tensors, transform
-        )
+        if shuffle:
+            self.cache = ShuffleLRUCache(
+                shm, None, size, dataset, num_workers, tensors, transform
+            )
+        else:
+            self.cache = PrefetchLRUCache(
+                shm, None, size, dataset, num_workers, tensors, transform
+            )
 
     def __iter__(self):
         yield from self.cache.iterate_samples()

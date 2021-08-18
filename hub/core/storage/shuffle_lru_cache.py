@@ -1,8 +1,7 @@
 import random
 from collections import defaultdict
 from typing import Callable, Optional, Sequence
-from hub.core.storage import StorageProvider, SharedMemoryProvider
-from hub.core.storage.prefetch_cache import PrefetchLRUCache
+from hub.core.storage import StorageProvider, SharedMemoryProvider, PrefetchLRUCache
 
 
 class ShuffleLRUCache(PrefetchLRUCache):
