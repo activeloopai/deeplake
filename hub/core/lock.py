@@ -72,6 +72,7 @@ class Lock(object):
                                     self.callback()
                                 self.acquired = False
                                 return
+                    self._previous_update_timestamp = time.time()
                     self.storage[
                         hub.constants.DATASET_LOCK_FILENAME
                     ] = self._get_lock_bytes()
