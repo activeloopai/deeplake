@@ -535,3 +535,12 @@ class MemoryDatasetCanNotBePickledError(Exception):
 class CorruptedSampleError(Exception):
     def __init__(self, compression):
         super().__init__(f"Invalid {compression} file.")
+
+
+class TilingError(Exception):
+    pass
+
+
+class CannotInferTilesError(TilingError):
+    def __init__(self, reason):
+        super().__init__(reason)

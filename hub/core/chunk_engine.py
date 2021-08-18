@@ -1,3 +1,4 @@
+from hub.util.tiles import approximate_num_bytes
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
@@ -5,6 +6,7 @@ from hub.core.compression import decompress_array
 from math import ceil
 from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
+    CannotInferTilesError,
     CorruptedMetaError,
     DynamicTensorNumpyError,
 )
@@ -202,6 +204,14 @@ class ChunkEngine:
         tensor_meta_key = get_tensor_meta_key(self.key)
         return self.meta_cache.get_cachable(tensor_meta_key, TensorMeta)
 
+    def _needs_multiple_chunks(self, nbytes: int) -> bool:
+        """If last_chunk exists, check if nbytes can fit inside of it. Otherwise, checks if nbytes can fit inside a single chunk."""
+
+        if self.last_chunk is None:
+            return nbytes > self.max_chunk_size
+
+        return not self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
+
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
         determining which chunks contain which parts of `buffer`.
@@ -333,6 +343,28 @@ class ChunkEngine:
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
         self.extend([sample])
+
+    def extend_empty(self, shape: Tuple[int]):
+        self.cache.check_readonly()
+        ffw_chunk_id_encoder(self.chunk_id_encoder)
+
+        tensor_meta = self.tensor_meta
+        if tensor_meta.dtype is None:
+            raise CannotInferTilesError(
+                "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
+            )
+
+        nbytes = approximate_num_bytes(shape, tensor_meta)
+
+        if self._needs_multiple_chunks(nbytes):
+            # TODO
+
+            raise NotImplementedError
+
+            self._synchronize_cache()
+            self.cache.maybe_flush()
+        else:
+            self.extend(np.zeros(shape, dtype=tensor_meta.dtype))
 
     def update(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
         """Update data at `index` with `samples`."""

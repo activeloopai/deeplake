@@ -11,6 +11,10 @@ import pytest
 
 from hub.constants import KB, MB
 
+# need this for 32-bit and 64-bit systems to have correct tests
+MAX_INT_DTYPE = np.int_.__name__
+MAX_FLOAT_DTYPE = np.float_.__name__
+
 SESSION_ID = str(uuid4())[:4]  # 4 ascii chars should be sufficient
 
 _THIS_FILE = pathlib.Path(__file__).parent.absolute()

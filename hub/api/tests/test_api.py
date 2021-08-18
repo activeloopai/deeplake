@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import hub
 from hub.core.dataset import Dataset
-from hub.tests.common import assert_array_lists_equal
+from hub.tests.common import MAX_FLOAT_DTYPE, MAX_INT_DTYPE, assert_array_lists_equal
 from hub.util.exceptions import (
     TensorDtypeMismatchError,
     TensorInvalidSampleShapeError,
@@ -18,11 +18,6 @@ from hub.tests.dataset_fixtures import (
     enabled_datasets,
     enabled_persistent_dataset_generators,
 )
-
-
-# need this for 32-bit and 64-bit systems to have correct tests
-MAX_INT_DTYPE = np.int_.__name__
-MAX_FLOAT_DTYPE = np.float_.__name__
 
 
 # not using the predefined parametrizes because `hub_cloud_ds_generator` is not enabled by default
