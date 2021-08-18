@@ -347,8 +347,8 @@ class dataset:
 
         if overwrite:
             try:
-                ds = hub.load(dest)
-                ds.delete(large_ok=True)
+                ds_old = hub.load(dest)
+                ds_old.delete(large_ok=True)
             except:
                 pass
 
