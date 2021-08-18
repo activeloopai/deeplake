@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from hub.core.storage.shared_memory import SharedMemoryProvider
 from hub.core.storage.cachable import Cachable, CachableCallback
 from typing import Any, Dict, Optional, Set, Union
 

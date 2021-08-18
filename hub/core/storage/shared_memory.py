@@ -1,6 +1,5 @@
-from hub.core.chunk import Chunk
+from typing import List
 from multiprocessing.shared_memory import SharedMemory
-from typing import Any, Dict, List
 from hub.core.storage.provider import StorageProvider
 
 
@@ -16,8 +15,8 @@ class SharedMemoryProvider(StorageProvider):
         """Gets the object present at the path within the given byte range.
 
         Example:
-            memory_provider = MemoryProvider("xyz")
-            my_data = memory_provider["abc.txt"]
+            shm_provider = SharedMemoryProvider("xyz")
+            my_data = shm_provider["abc.txt"]
 
         Args:
             path (str): The path relative to the root of the provider.
@@ -33,11 +32,6 @@ class SharedMemoryProvider(StorageProvider):
         chunk_size = self.sizes[path]
         return shared_memory.buf[:chunk_size]
 
-    def get_chunk(self, path: str):
-        shared_memory = SharedMemory(name=path)
-        chunk_size = self.sizes[path]
-        return Chunk.frombuffer(shared_memory.buf[:chunk_size])
-
     def __setitem__(
         self,
         path: str,
@@ -46,8 +40,8 @@ class SharedMemoryProvider(StorageProvider):
         """Sets the object present at the path with the value
 
         Example:
-            memory_provider = MemoryProvider("xyz")
-            memory_provider["abc.txt"] = b"abcd"
+            shm_provider = SharedMemoryProvider("xyz")
+            shm_provider["abc.txt"] = b"abcd"
 
         Args:
             path (str): the path relative to the root of the provider.
@@ -74,8 +68,8 @@ class SharedMemoryProvider(StorageProvider):
         """Generator function that iterates over the keys of the provider.
 
         Example:
-            memory_provider = MemoryProvider("xyz")
-            for my_data in memory_provider:
+            shm_provider = SharedMemoryProvider("xyz")
+            for my_data in shm_provider:
                 pass
 
         Yields:
@@ -87,8 +81,8 @@ class SharedMemoryProvider(StorageProvider):
         """Delete the object present at the path.
 
         Example:
-            memory_provider = MemoryProvider("xyz")
-            del memory_provider["abc.txt"]
+            shm_provider = SharedMemoryProvider("xyz")
+            del shm_provider["abc.txt"]
 
         Args:
             path (str): the path to the object relative to the root of the provider.
@@ -120,8 +114,8 @@ class SharedMemoryProvider(StorageProvider):
         """Returns the number of files present inside the root of the provider.
 
         Example:
-            memory_provider = MemoryProvider("xyz")
-            len(memory_provider)
+            shm_provider = SharedMemoryProvider("xyz")
+            len(shm_provider)
 
         Returns:
             int: the number of files present inside the root.
