@@ -131,7 +131,7 @@ def lock(storage: StorageProvider, callback: Optional[Callable] = None):
     if lock:
         lock.acquire()
     else:
-        lock = Lock(storage)
+        lock = Lock(storage, callback=callback)
         _LOCKS[path] = lock
 
 
