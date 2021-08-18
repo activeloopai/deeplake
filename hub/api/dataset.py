@@ -346,8 +346,12 @@ class dataset:
             raise InvalidPathException(src)
 
         if overwrite:
-            ds_old = hub.load(dest)
-            ds_old.delete(large_ok=True)
+            try:
+                ds_old = hub.load(dest)
+                ds_old.delete(large_ok=True)
+                print("Overwriting..\n")
+            except:
+                print("Nothing to overwrite. Moving to ingestion.\n")
 
         if os.path.isdir(dest):
             if os.path.samefile(src, dest):
