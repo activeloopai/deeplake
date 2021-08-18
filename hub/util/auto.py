@@ -6,12 +6,12 @@ import shutil
 
 
 def get_most_common_extension(
-    path: str, allowed_extensions: Tuple = (".jpeg", ".png", ".jpg")
+    local_path: str, allowed_extensions: Tuple = (".jpeg", ".png", ".jpg")
 ):
     """Determines the most frequently used extension in a directory of files.
 
     Args:
-        path (str): Directory to scan.
+        local_path (str): Directory to scan.
         allowed_extensions (Tuple): File extensions considered for scanning.
 
     Returns:
@@ -19,8 +19,8 @@ def get_most_common_extension(
     """
 
     # Return file extension if path is not a directory
-    if not os.path.isdir(path):
-        file_extension = os.path.splitext(path)[1].split(".")[1]
+    if not os.path.isdir(local_path):
+        file_extension = os.path.splitext(local_path)[1].split(".")[1]
         if file_extension is None:
             return None
         else:
@@ -28,7 +28,7 @@ def get_most_common_extension(
 
     file_names = []
 
-    g = glob.glob(os.path.join(path, "**"), recursive=True)
+    g = glob.glob(os.path.join(local_path, "**"), recursive=True)
 
     for name in g:
         if name.endswith(allowed_extensions):
