@@ -67,21 +67,13 @@ class Dataset:
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
         self.storage = storage
-        if read_only:
-            self._read_only = True
-        else:
-            base_storage = get_base_storage(storage)
-            if isinstance(
-                base_storage, S3Provider
-            ):  # Dataset locking only for S3 datasets
-                try:
-                    lock(base_storage)
-                    self._read_only = False
-                except LockedException:
-                    self._read_only = True
-                    storage.enable_readonly()
-            else:
-                self._read_only = False
+        self._read_only = read_only
+        base_storage = get_base_storage(storage)
+        if isinstance(base_storage, S3Provider):  # Dataset locking only for S3 datasets
+            try:
+                lock(base_storage, callback=lambda: setattr(self, "readonly", True))
+            except LockedException:
+                self.read_only = True
 
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}

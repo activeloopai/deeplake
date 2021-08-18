@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Callable, Optional
 from hub.util.exceptions import LockedException
 from hub.util.path import get_path_from_storage
 from hub.util.threading import terminate_thread
@@ -28,15 +28,18 @@ class Lock(object):
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
+        callback (Callable, optional): Called if the lock is lost after acquiring
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
     """
 
-    def __init__(self, storage: StorageProvider):
+    def __init__(self, storage: StorageProvider, callback: Optional[Callable] = None):
         self.storage = storage
+        self.callback = callback
         self.acquired = False
         self._thread_lock = threading.Lock()
+        self._previous_update_timestamp = None
         self.acquire()
         atexit.register(self.release)
 
@@ -53,6 +56,22 @@ class Lock(object):
         try:
             while True:
                 try:
+                    if (
+                        self._previous_update_timestamp is not None
+                        and time.time() - self._previous_update_timestamp
+                        >= self.DATASET_LOCK_VALIDITY
+                    ):
+                        # Its been too long since last update, another machine might have locked the storage
+                        lock_bytes = self.storage.get(
+                            hub.constants.DATASET_LOCK_FILENAME
+                        )
+                        if lock_bytes:
+                            nodeid, timestamp = self._parse_lock_bytes(lock_bytes)
+                            if nodeid != uuid.getnode():
+                                if self.callback:
+                                    self.callback()
+                                self.acquired = False
+                                return
                     self.storage[
                         hub.constants.DATASET_LOCK_FILENAME
                     ] = self._get_lock_bytes()
@@ -95,11 +114,12 @@ class Lock(object):
 _LOCKS: Dict[str, Lock] = {}
 
 
-def lock(storage: StorageProvider):
+def lock(storage: StorageProvider, callback: Optional[Callable] = None):
     """Locks a StorageProvider instance to avoid concurrent writes from multiple machines.
 
     Args:
         storage (StorageProvider): The storage provder to be locked.
+        callback (Callable, optional): Called if the lock is lost after acquiring
 
     Raises:
         LockedException: If the storage is already locked by a different machine.
