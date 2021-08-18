@@ -1,7 +1,10 @@
 from hub.util.auto import ingestion_summary
 from hub.api.dataset import Dataset
 from hub.tests.common import get_dummy_data_path
-from hub.util.exceptions import InvalidPathException, SamePathException
+from hub.util.exceptions import (
+    InvalidPathException,
+    SamePathException,
+)
 import pytest
 import hub
 
@@ -20,7 +23,14 @@ def test_ingestion_simple(memory_ds: Dataset):
         )
 
     with pytest.raises(SamePathException):
-        hub.ingest(src=path, dest=path, images_compression="jpeg", overwrite=False)
+        hub.ingest(
+            src=path,
+            dest=path,
+            images_compression="jpeg",
+            progress_bar=False,
+            summary=False,
+            overwrite=False,
+        )
 
     ds = hub.ingest(
         src=path,

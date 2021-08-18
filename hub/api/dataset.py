@@ -346,11 +346,8 @@ class dataset:
             raise InvalidPathException(src)
 
         if overwrite:
-            try:
-                ds_old = hub.load(dest)
-                ds_old.delete(large_ok=True)
-            except:
-                pass
+            ds_old = hub.load(dest)
+            ds_old.delete(large_ok=True)
 
         if os.path.isdir(dest):
             if os.path.samefile(src, dest):
