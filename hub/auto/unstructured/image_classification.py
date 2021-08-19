@@ -163,7 +163,6 @@ class ImageClassification(UnstructuredDataset):
                         'Ingesting "%s" (%i files skipped)'
                         % (self.source.name, len(skipped_files))
                     )
-                    ingested_file_count -= 2
                     continue
 
                 ingested_file_count += 1
