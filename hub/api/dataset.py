@@ -275,7 +275,8 @@ class dataset:
         dest: str,
         images_compression: str = "auto",
         dest_creds: dict = None,
-        overwrite: bool = False,
+        progress_bar: bool = True,
+        summary: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
         """Ingests a dataset from a source and stores it as a structured dataset to destination
@@ -328,7 +329,8 @@ class dataset:
                 - a memory path of the form mem://path/to/dataset which doesn't save the dataset but keeps it in memory instead. Should be used only for testing as it does not persist.
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            progress_bar (bool): Enables or disables ingestion progress bar. Defaults to True.
+            summary (bool): If True, a summary of skipped files will be printed after completion. Defaults to True.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -340,8 +342,6 @@ class dataset:
             AutoCompressionError: If the source director is empty or does not contain a valid extension.
             InvalidFileExtension: If the most frequent file extension is found to be 'None' during auto-compression.
         """
-
-        feature_report_path(dest, "ingest", {"Overwrite": overwrite})
 
         if not os.path.isdir(src):
             raise InvalidPathException(src)
@@ -365,7 +365,10 @@ class dataset:
 
         # TODO: auto detect compression
         unstructured.structure(
-            ds, image_tensor_args={"sample_compression": images_compression}  # type: ignore
+            ds,  # type: ignore
+            use_progress_bar=progress_bar,
+            generate_summary=summary,
+            image_tensor_args={"sample_compression": images_compression},
         )
 
         return ds  # type: ignore
@@ -378,7 +381,8 @@ class dataset:
         images_compression: str = "auto",
         dest_creds: dict = None,
         kaggle_credentials: dict = None,
-        overwrite: bool = False,
+        progress_bar: bool = True,
+        summary: bool = True,
         **dataset_kwargs,
     ) -> Dataset:
         """Download and ingest a kaggle dataset and store it as a structured dataset to destination
@@ -397,7 +401,8 @@ class dataset:
             images_compression (str): For image classification datasets, this compression will be used for the `images` tensor. If images_compression is "auto", compression will be automatically determined by the most common extension in the directory.
             dest_creds (dict): A dictionary containing credentials used to access the destination path of the dataset.
             kaggle_credentials (dict): A dictionary containing kaggle credentials {"username":"YOUR_USERNAME", "key": "YOUR_KEY"}. If None, environment variables/the kaggle.json file will be used if available.
-            overwrite (bool): WARNING: If set to True this overwrites the dataset if it already exists. This can NOT be undone! Defaults to False.
+            progress_bar (bool): Enables or disables ingestion progress bar. Set to true by default.
+            summary (bool): Generates ingestion summary. Set to true by default.
             **dataset_kwargs: Any arguments passed here will be forwarded to the dataset creator function.
 
         Returns:
@@ -406,8 +411,6 @@ class dataset:
         Raises:
             SamePathException: If the source and destination path are same.
         """
-
-        feature_report_path(dest, "ingest_kaggle", {"Overwrite": overwrite})
 
         if os.path.isdir(src) and os.path.isdir(dest):
             if os.path.samefile(src, dest):
@@ -422,7 +425,8 @@ class dataset:
             dest=dest,
             images_compression=images_compression,
             dest_creds=dest_creds,
-            overwrite=overwrite,
+            progress_bar=progress_bar,
+            summary=summary,
             **dataset_kwargs,
         )
 
