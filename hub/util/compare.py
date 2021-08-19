@@ -1,6 +1,5 @@
 from hub.core.tensor import Union, Tensor
 from hub.core.dataset import Dataset
-from hub.api.dataset import dataset
 from hub.client.log import logger
 from hub.util.exceptions import (
     HashesTensorDoesNotExistError,

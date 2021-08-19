@@ -152,6 +152,36 @@ class Dataset:
         else:
             raise InvalidKeyTypeError(item)
 
+    def _set_meta_and_info_kwargs(
+        self,
+        kwargs,
+        htype: str = DEFAULT_HTYPE,
+    ):
+        """ Separate kwargs used for tensor's meta and info files.
+        
+        Args:
+            kwargs: kwargs used during create_tensor.
+            htype: The class of data for the tensor.
+        
+        """
+
+        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
+        info_keys = htype_config.pop("_info", [])
+        info_kwargs = {}
+        meta_kwargs = {}
+        for k, v in kwargs.items():
+            if k in info_keys:
+                info_kwargs[k] = v
+            else:
+                meta_kwargs[k] = v
+
+        # Set defaults
+        for k in info_keys:
+            if k not in info_kwargs:
+                info_kwargs[k] = htype_config[k]
+
+        return meta_kwargs, info_kwargs
+
     @hub_reporter.record_call
     def create_tensor(
         self,
@@ -193,21 +223,7 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         # Seperate meta and info
-
-        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
-        info_keys = htype_config.pop("_info", [])
-        info_kwargs = {}
-        meta_kwargs = {}
-        for k, v in kwargs.items():
-            if k in info_keys:
-                info_kwargs[k] = v
-            else:
-                meta_kwargs[k] = v
-
-        # Set defaults
-        for k in info_keys:
-            if k not in info_kwargs:
-                info_kwargs[k] = htype_config[k]
+        meta_kwargs, info_kwargs = self._set_meta_and_info_kwargs(kwargs, htype)
 
         create_tensor(
             name,
@@ -220,15 +236,14 @@ class Dataset:
         )
         
         tensor = Tensor(name, self.storage)  # type: ignore
+        self.meta.tensors.append(name)
+        self.tensors[name] = tensor    
+        tensor.info.update(info_kwargs)
         
         if hash_samples:
             hashes_tensor = self._create_hidden_tensor(HASHES_TENSOR_FOLDER, htype="hash")
             self._link_tensor(tensor, hashes_tensor)
             
-        self.meta.tensors.append(name)
-        self.tensors[name] = tensor    
-        tensor.info.update(info_kwargs)
-        
         return tensor
 
     def _create_hidden_tensor(
@@ -240,8 +255,9 @@ class Dataset:
         hash_samples: Optional[bool] = False,
         **kwargs,
     ):
-        """Creates a new hidden tensor in the dataset. # Hidden tensors are used to separate tensors created by the user from 
-           those created internally (e.g hashes tensor).
+        """Creates a new hidden tensor in the dataset. Hidden tensors are used to separate tensors created by the user from 
+           those created internally (e.g hashes tensor). Hidden tensors aren't accessible from dataset.tensors but can be retrived 
+           by getitem/getattr.
 
         Args:
             name (str): The name of the tensor to be created.
@@ -258,7 +274,7 @@ class Dataset:
                                         and stored in a hidden linked tensor.
 
         Returns:
-            The new hidden tensor, which can also be accessed by `self[name]`.
+            The new hidden tensor, which can also be accessed by `self[name]` and `self._name`.
 
         Raises:
             TensorAlreadyExistsError: Duplicate tensors are not allowed.
@@ -271,20 +287,7 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         # Seperate meta and info
-        htype_config = HTYPE_CONFIGURATIONS[htype].copy()
-        info_keys = htype_config.pop("_info", [])
-        info_kwargs = {}
-        meta_kwargs = {}
-        for k, v in kwargs.items():
-            if k in info_keys:
-                info_kwargs[k] = v
-            else:
-                meta_kwargs[k] = v
-
-        # Set defaults
-        for k in info_keys:
-            if k not in info_kwargs:
-                info_kwargs[k] = htype_config[k]
+        meta_kwargs, info_kwargs = self._set_meta_and_info_kwargs(kwargs, htype)
 
         create_tensor(
             name,
@@ -297,10 +300,11 @@ class Dataset:
         )
         
         self.storage.maybe_flush()
+        
         tensor = Tensor(name, self.storage)  # type: ignore
         self.meta.hidden_tensors.append(name)
         self.hidden_tensors[name] = tensor
-            
+    
         tensor.info.update(info_kwargs)
         
         return tensor
