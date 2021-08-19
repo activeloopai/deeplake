@@ -657,3 +657,16 @@ def test_invalid_tesnor_name(memory_ds):
         memory_ds.create_tensor("tensors")
     with pytest.raises(InvalidTensorNameError):
         memory_ds.create_tensor("info")
+
+
+def test_htypes_list():
+    assert hub.htypes == [
+        "generic",
+        "image",
+        "class_label",
+        "bbox",
+        "video",
+        "binary_mask",
+        "segment_mask",
+        "hash"
+    ]

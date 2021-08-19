@@ -1,5 +1,4 @@
 from hub.constants import KB
-from hub.tests.common import update_chunk_sizes
 from hub.util.remove_cache import get_base_storage
 import pickle
 import pytest
@@ -16,7 +15,7 @@ from hub.core.dataset import Dataset
 
 
 # ensure tests have multiple chunks without a ton of data
-PYTORCH_TESTS_MAX_CHUNK_SIZE = 2 * KB
+PYTORCH_TESTS_MAX_CHUNK_SIZE = 4 * KB
 
 
 def to_tuple(sample):
@@ -27,13 +26,10 @@ def to_tuple(sample):
 @enabled_datasets
 def test_pytorch_small(ds):
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(16)]))
-        ds.create_tensor("image2")
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(16)]))
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -87,13 +83,10 @@ def test_pytorch_small(ds):
 @enabled_datasets
 def test_pytorch_transform(ds):
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
-        ds.create_tensor("image2")
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -116,16 +109,20 @@ def test_pytorch_transform(ds):
 def test_pytorch_with_compression(ds: Dataset):
     # TODO: chunk-wise compression for labels (right now they are uncompressed)
     with ds:
-        images = ds.create_tensor("images", htype="image", sample_compression="png")
-        labels = ds.create_tensor("labels", htype="class_label")
+        images = ds.create_tensor(
+            "images",
+            htype="image",
+            sample_compression="png",
+            max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE,
+        )
+        labels = ds.create_tensor(
+            "labels", htype="class_label", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE
+        )
 
         assert images.meta.sample_compression == "png"
 
         images.extend(np.ones((16, 12, 12, 3), dtype="uint8"))
         labels.extend(np.ones((16, 1), dtype="uint32"))
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -145,13 +142,10 @@ def test_pytorch_with_compression(ds: Dataset):
 @enabled_datasets
 def test_pytorch_small_old(ds):
     with ds:
-        ds.create_tensor("image")
+        ds.create_tensor("image", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image.extend(np.array([i * np.ones((10, 10)) for i in range(256)]))
-        ds.create_tensor("image2")
+        ds.create_tensor("image2", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
         ds.image2.extend(np.array([i * np.ones((12, 12)) for i in range(256)]))
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -176,11 +170,8 @@ def test_custom_tensor_order(ds):
     with ds:
         tensors = ["a", "b", "c", "d"]
         for t in tensors:
-            ds.create_tensor(t)
+            ds.create_tensor(t, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
             ds[t].extend(np.random.random((3, 4, 5)))
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
 
     if isinstance(get_base_storage(ds.storage), MemoryProvider):
         with pytest.raises(DatasetUnsupportedPytorch):
@@ -219,21 +210,43 @@ def test_custom_tensor_order(ds):
 
 @requires_torch
 def test_readonly(local_ds):
-    path = local_ds.path
-
-    local_ds.create_tensor("images")
-    local_ds.create_tensor("labels")
-    local_ds.images.extend(np.ones((10, 28, 28)))
+    local_ds.create_tensor("images", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+    local_ds.create_tensor("labels", max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
+    local_ds.images.extend(np.ones((10, 12, 12)))
     local_ds.labels.extend(np.ones(10))
 
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(local_ds, max_chunk_size=PYTORCH_TESTS_MAX_CHUNK_SIZE)
-
-    del local_ds
-
-    local_ds = hub.dataset(path)
-    local_ds.mode = "r"
+    base_storage = get_base_storage(local_ds.storage)
+    base_storage.enable_readonly()
+    ds = Dataset(storage=local_ds.storage, read_only=True, verbose=False)
 
     # no need to check input, only care that readonly works
-    for sample in local_ds.pytorch():
+    for _ in ds.pytorch():
         pass
+
+    for _ in dataset_to_pytorch(ds):
+        pass
+
+
+@requires_torch
+def test_corrupt_dataset(local_ds, corrupt_image_paths, compressed_image_paths):
+    if isinstance(get_base_storage(local_ds.storage), MemoryProvider):
+        with pytest.raises(DatasetUnsupportedPytorch):
+            dl = local_ds.pytorch(num_workers=2)
+        return
+    img_good = hub.read(compressed_image_paths["jpeg"])
+    img_bad = hub.read(corrupt_image_paths["jpeg"])
+    with local_ds:
+        local_ds.create_tensor("image", htype="image", sample_compression="jpeg")
+        for i in range(3):
+            for i in range(10):
+                local_ds.image.append(img_good)
+            local_ds.image.append(img_bad)
+    num_samples = 0
+    num_batches = 0
+    with pytest.warns(UserWarning):
+        dl = local_ds.pytorch(num_workers=2, batch_size=2)
+        for (batch,) in dl:
+            num_batches += 1
+            num_samples += len(batch)
+    assert num_samples == 30
+    assert num_batches == 15

@@ -106,6 +106,11 @@ class Pipeline:
         ds_out.storage.autoflush = False
 
         tensors = list(ds_out.tensors)
+
+        # Initialize chunk id encoders
+        for tensor in tensors:
+            ds_out[tensor].chunk_engine.chunk_id_encoder
+
         compute_provider = get_compute_provider(scheduler, num_workers)
 
         self.run(data_in, ds_out, tensors, compute_provider, num_workers)
@@ -154,10 +159,11 @@ def compute(fn):
     The output should be appended/extended to the second argument in a hub like syntax.
     Any value returned by the fn will be ignored.
 
-    Example:
-    @hub.compute
-    def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
-        samples_out.your_tensor.append(your_arg0 * your_arg1)
+    Example::
+
+        @hub.compute
+        def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
+            samples_out.your_tensor.append(your_arg0 * your_arg1)
     """
 
     def inner(*args, **kwargs):

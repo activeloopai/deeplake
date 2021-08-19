@@ -1,4 +1,4 @@
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS
 from hub.constants import SUPPORTED_COMPRESSIONS
 from typing import Any, List, Sequence, Tuple
 
@@ -32,6 +32,20 @@ class InvalidPathException(Exception):
     def __init__(self, directory):
         super().__init__(
             f"Dataset's path is an invalid path. It should be a valid local directory got {directory}."
+        )
+
+
+class AutoCompressionError(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Auto compression could not run on {directory}. The directory is empty."
+        )
+
+
+class InvalidFileExtension(Exception):
+    def __init__(self, directory):
+        super().__init__(
+            f"Missing file with extension in {directory}. Expected a valid file extension got None."
         )
 
 
@@ -542,3 +556,8 @@ class MemoryDatasetCanNotBePickledError(Exception):
         super().__init__(
             "Dataset having MemoryProvider as underlying storage should not be pickled as data won't be saved."
         )
+
+
+class CorruptedSampleError(Exception):
+    def __init__(self, compression):
+        super().__init__(f"Invalid {compression} file.")

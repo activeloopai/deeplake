@@ -9,8 +9,6 @@ KB = 1000 * B
 MB = 1000 * KB
 GB = 1000 * MB
 
-DEFAULT_HTYPE = "generic"
-
 SUPPORTED_COMPRESSIONS = [
     "bmp",
     "dib",
@@ -40,11 +38,6 @@ SUPPORTED_COMPRESSIONS.append(None)  # type: ignore
 
 COMPRESSION_ALIASES = {"jpg": "jpeg"}
 
-# used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
-REQUIRE_USER_SPECIFICATION = "require_user_specification"
-
-# used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
-UNSPECIFIED = "unspecified"
 
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
@@ -75,6 +68,11 @@ TENSOR_META_FILENAME = "tensor_meta.json"
 # info is user-defined information, entirely optional. may be used by the visualizer
 DATASET_INFO_FILENAME = "dataset_info.json"
 TENSOR_INFO_FILENAME = "tensor_info.json"
+
+DATASET_LOCK_FILENAME = "dataset_lock.lock"
+
+DATASET_LOCK_UPDATE_INTERVAL = 120  # seconds
+DATASET_LOCK_VALIDITY = 300  # seconds
 
 META_ENCODING = "utf8"
 
@@ -107,3 +105,4 @@ S3_OPT = "--s3"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
+KAGGLE_OPT = "--kaggle"

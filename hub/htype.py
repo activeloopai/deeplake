@@ -29,12 +29,16 @@ Supported htypes and their respective defaults are:
 | hash          |  int64    |  none         |
 """
 
-from re import L
 from typing import Dict
-from hub.constants import (
-    DEFAULT_HTYPE,
-    REQUIRE_USER_SPECIFICATION,
-)
+
+DEFAULT_HTYPE = "generic"
+
+# used for requiring the user to specify a value for htype properties. notates that the htype property has no default.
+REQUIRE_USER_SPECIFICATION = "require_user_specification"
+
+# used for `REQUIRE_USER_SPECIFICATION` enforcement. this should be used instead of `None` for default user method arguments.
+UNSPECIFIED = "unspecified"
+
 
 HTYPE_CONFIGURATIONS: Dict[str, Dict] = {
     DEFAULT_HTYPE: {"dtype": None},
@@ -63,6 +67,7 @@ COMMON_CONFIGS = {
     "hash_samples": None,
     "linked_tensors": [],
     "is_linked_tensor": None,
+    "max_chunk_size": None,
 }
 
 

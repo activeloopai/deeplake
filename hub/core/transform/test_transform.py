@@ -199,7 +199,7 @@ def test_hub_like(ds):
         for i in range(1, 100):
             data_in.image.append(i * np.ones((i, i), dtype="uint8"))
             data_in.label.append(i * np.ones((1,), dtype="uint32"))
-        ds_out = hub.like("./test/transform_hub_like", ds)
+        ds_out = hub.like("test/transform_hub_like", ds)
         fn2(copy=1, mul=2).eval(data_in, ds_out, num_workers=5)
         assert len(ds_out) == 99
         for index in range(1, 100):
