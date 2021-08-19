@@ -248,21 +248,15 @@ def _serialize_input_sample(
 
 
 def _check_input_samples_are_valid(
-    buffer_and_shapes: List, min_chunk_size: int, sample_compression: Optional[str]
+    buffer_and_shapes: List
 ):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
     expected_dimensionality = None
-    for buffer, shape in buffer_and_shapes:
+    for _, shape in buffer_and_shapes:
         # check that all samples have the same dimensionality
         if expected_dimensionality is None:
             expected_dimensionality = len(shape)
-
-        if len(buffer) > min_chunk_size:
-            msg = f"Sorry, samples that exceed minimum chunk size ({min_chunk_size} bytes) are not supported yet (coming soon!). Got: {len(buffer)} bytes."
-            if sample_compression is None:
-                msg += "\nYour data is uncompressed, so setting `sample_compression` in `Dataset.create_tensor` could help here!"
-            raise NotImplementedError(msg)
 
         if len(shape) != expected_dimensionality:
             raise TensorInvalidSampleShapeError(shape, expected_dimensionality)
@@ -300,5 +294,5 @@ def serialize_input_samples(
         buffer = memoryview(byts)
         serialized.append((buffer, shape))
 
-    _check_input_samples_are_valid(serialized, min_chunk_size, dtype)
+    _check_input_samples_are_valid(serialized)
     return serialized
