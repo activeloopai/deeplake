@@ -44,7 +44,6 @@ class ShuffleLRUCache(PrefetchLRUCache):
     def iterate_samples(self, yield_index=False):
         """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
         for index, data in super().iterate_samples(yield_index=True):
-            self.remove_index(index)
             if yield_index:
                 yield index, data
             else:
@@ -69,9 +68,13 @@ class ShuffleLRUCache(PrefetchLRUCache):
     def _suggest_next_index(self) -> int:
         """Suggests the next index to return data from. For shuffle cache this is done by a combination of random picking as well as greedy picking depending on the number of chunks present in the cache for the indexes."""
         if self.cache_used < 0.8 * self.cache_size or not self.index_ct:
-            return random.choice(list(self.all_remaining_indexes))
-        largest_ct = max(self.ct_indexes.keys())
-        return random.choice(list(self.ct_indexes[largest_ct]))
+            index = random.choice(list(self.all_remaining_indexes))
+        else:
+            largest_ct = max(self.ct_indexes.keys())
+            index = random.choice(list(self.ct_indexes[largest_ct]))
+        self.remove_index(index)
+        return index
+
 
     def _update_count_dicts_insertion(self, tensor, chunk_name):
         """Updates index_ct and ct_index after a new chunk is brought into shared memory."""
