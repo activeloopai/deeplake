@@ -32,9 +32,9 @@ def test_initialize_large_samples(local_ds_generator, compression):
 
     # update large sample (only filling in 60KB of data)
     ds = local_ds_generator()
-    ds.tensor[1, 50:100, 50:100, 0] = np.ones((50, 50, 1), dtype=MAX_INT_DTYPE)
-    ds.tensor[1, 50:100, 50:100, 1] = np.ones((50, 50, 1), dtype=MAX_INT_DTYPE) * 2
-    ds.tensor[1, 50:100, 50:100, 2] = np.ones((50, 50, 1), dtype=MAX_INT_DTYPE) * 3
+    ds.tensor[1, 50:100, 50:100, 0] = np.ones((1, 50, 50, 1), dtype=MAX_INT_DTYPE)
+    ds.tensor[1, 50:100, 50:100, 1] = np.ones((1, 50, 50, 1), dtype=MAX_INT_DTYPE) * 2
+    ds.tensor[1, 50:100, 50:100, 2] = np.ones((1, 50, 50, 1), dtype=MAX_INT_DTYPE) * 3
 
     ds = local_ds_generator()
     expected = np.ones((50, 50, 3), dtype=MAX_INT_DTYPE)
