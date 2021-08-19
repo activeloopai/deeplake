@@ -4,7 +4,11 @@ from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
 from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache
 from hub.util.dataset import try_flushing
 from hub.util.check_installation import pytorch_installed
-from hub.util.exceptions import ModuleNotInstalledException
+from hub.util.exceptions import (
+    DatasetUnsupportedSharedMemoryCache,
+    DatasetUnsupportedPytorch,
+    ModuleNotInstalledException,
+)
 from hub.constants import MB
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
@@ -43,13 +47,32 @@ def dataset_to_pytorch(
         ):
             shm = SharedMemoryProvider()
             size = 10 * 1000 * MB
-            if shuffle:
-                self.cache = ShuffleLRUCache(
-                    shm, None, size, dataset, num_workers, tensors, transform
-                )
-            else:
-                self.cache = PrefetchLRUCache(
-                    shm, None, size, dataset, num_workers, tensors, transform
+            try:
+                if shuffle:
+                    self.cache = ShuffleLRUCache(
+                        cache_storage=shm,
+                        next_storage=None,
+                        cache_size=size,
+                        dataset=dataset,
+                        num_workers=num_workers,
+                        tensor_keys=tensors,
+                        transform=transform,
+                        mode="pytorch",
+                    )
+                else:
+                    self.cache = PrefetchLRUCache(
+                        cache_storage=shm,
+                        next_storage=None,
+                        cache_size=size,
+                        dataset=dataset,
+                        num_workers=num_workers,
+                        tensor_keys=tensors,
+                        transform=transform,
+                        mode="pytorch",
+                    )
+            except DatasetUnsupportedSharedMemoryCache:
+                raise DatasetUnsupportedPytorch(
+                    "Underlying storage of the dataset in MemoryProvider which is not supported."
                 )
 
         def __iter__(self):

@@ -15,7 +15,7 @@ from hub.core.storage import (
     LocalProvider,
 )
 from hub.util.exceptions import (
-    DatasetUnsupportedPytorch,
+    DatasetUnsupportedSharedMemoryCache,
     TensorDoesNotExistError,
 )
 from hub.util.remove_cache import get_base_storage
@@ -24,7 +24,7 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
 class PrefetchLRUCache(LRUCache):
-    """Creates an cache that fetches multiple chunks parallely."""
+    """Creates a cache that fetches multiple chunks parallely."""
 
     def __init__(
         self,
@@ -35,11 +35,10 @@ class PrefetchLRUCache(LRUCache):
         num_workers: int,
         tensor_keys: Optional[Sequence[str]],
         transform: Callable,
+        mode: Optional[str] = None,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
-        global torch
-        import torch
-
+        self.mode = mode
         self.transform = transform
         self.all_indexes = self._extract_indexes_from_dataset(dataset)
         self.tensor_keys = self._get_tensor_keys(tensor_keys, dataset)
@@ -55,8 +54,8 @@ class PrefetchLRUCache(LRUCache):
 
         self.storage = get_base_storage(dataset.storage)
         if isinstance(self.storage, MemoryProvider):
-            raise DatasetUnsupportedPytorch(
-                "Datasets whose underlying storage is MemoryProvider are not supported for Pytorch iteration."
+            raise DatasetUnsupportedSharedMemoryCache(
+                "The underlying storage is MemoryProvider which isn't supported."
             )
         elif isinstance(self.storage, S3Provider):
             self.storage_state_tuple = self.storage.__getstate__()
@@ -220,16 +219,25 @@ class PrefetchLRUCache(LRUCache):
 
         # TODO: update this once we support images spanning across multiple chunks
         chunk = chunks[0]
-        value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
-        # typecast if incompatible with pytorch
-        dtype = chunk_engine.tensor_meta.dtype
-        compatible_dtypes = {"uint16": "int32", "uint32": "int64", "uint64": "int64"}
-        dtype = compatible_dtypes.get(dtype, dtype)
-        try:
-            torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
-        except AttributeError:
-            raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
-        return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
+        if self.mode != "pytorch":
+            return chunk_engine.read_sample_from_chunk(index, chunk, cast=True)
+        else:
+            import torch
+
+            value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+            # typecast if incompatible with pytorch
+            dtype = chunk_engine.tensor_meta.dtype
+            compatible_dtypes = {
+                "uint16": "int32",
+                "uint32": "int64",
+                "uint64": "int64",
+            }
+            dtype = compatible_dtypes.get(dtype, dtype)
+            try:
+                torch_dtype = getattr(torch, np.dtype(dtype).name)  # type: ignore
+            except AttributeError:
+                raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
+            return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
 
     def _chunks_from_chunk_names(self, tensor: str, chunk_names: List[str]):
         """Takes a list of chunk names and returns a list with corresponding chunk objects"""

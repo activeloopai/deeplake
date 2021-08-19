@@ -471,6 +471,13 @@ class DatasetUnsupportedPytorch(Exception):
         )
 
 
+class DatasetUnsupportedSharedMemoryCache(Exception):
+    def __init__(self, reason):
+        super().__init__(
+            f"The Dataset object passed is incompatible with the PrefetchCache. Reason: {reason}"
+        )
+
+
 class CorruptedMetaError(Exception):
     pass
 
