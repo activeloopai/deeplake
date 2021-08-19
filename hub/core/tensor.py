@@ -93,10 +93,11 @@ class Tensor:
         self.chunk_engine = ChunkEngine(self.key, self.storage)
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
-
-        if (self.meta.linked_tensors == HASHES_TENSOR_FOLDER):
+        
+        if (HASHES_TENSOR_FOLDER in self.meta.linked_tensors):
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
 
+    
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
         """Extends the end of the tensor by appending multiple elements from a sequence. Accepts a sequence, a single batched numpy array,
         or a sequence of `hub.read` outputs, which can be used to load files. See examples down below.
@@ -135,7 +136,7 @@ class Tensor:
 
         self.chunk_engine.extend(samples)
 
-        if self.meta.linked_tensors == HASHES_TENSOR_FOLDER:
+        if HASHES_TENSOR_FOLDER in self.meta.linked_tensors:
             hashed_samples = generate_hashes(samples)
             self.linked_tensor.chunk_engine.extend(hashed_samples)
 
@@ -312,7 +313,7 @@ class Tensor:
         item_index = Index(item)
         self.chunk_engine.update(self.index[item_index], value)
 
-        if self.meta.linked_tensors == HASHES_TENSOR_FOLDER:
+        if HASHES_TENSOR_FOLDER in self.meta.linked_tensors:
             hashed_samples = generate_hashes(value)
             self.linked_tensor.chunk_engine.update(
                 self.index[item_index], hashed_samples

@@ -26,7 +26,7 @@ class TensorMeta(Meta):
     length: int
     sample_compression: str
     hash_samples: Optional[bool]
-    linked_tensors: str
+    linked_tensors: List[str]
     is_linked_tensor: Optional[bool] = False
 
     def __init__(

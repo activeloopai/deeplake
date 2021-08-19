@@ -71,7 +71,7 @@ class Dataset:
         self.storage = storage
         self.index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
-        # Hidden tensors aren't considered as a part of self.tensors for this dataset.
+        # Hidden tensors are used to separate tensors created by the user from those created internally (e.g hashes tensor).
         self.hidden_tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
@@ -219,7 +219,6 @@ class Dataset:
             **meta_kwargs,
         )
         
-        self.storage.maybe_flush()
         tensor = Tensor(name, self.storage)  # type: ignore
         
         if hash_samples:
@@ -241,6 +240,30 @@ class Dataset:
         hash_samples: Optional[bool] = False,
         **kwargs,
     ):
+        """Creates a new hidden tensor in the dataset. # Hidden tensors are used to separate tensors created by the user from 
+           those created internally (e.g hashes tensor).
+
+        Args:
+            name (str): The name of the tensor to be created.
+            htype (str): The class of data for the tensor.
+                The defaults for other parameters are determined in terms of this value.
+                For example, `htype="image"` would have `dtype` default to `uint8`.
+                These defaults can be overridden by explicitly passing any of the other parameters to this function.
+                May also modify the defaults for other parameters.
+            dtype (str): Optionally override this tensor's `dtype`. All subsequent samples are required to have this `dtype`.
+            sample_compression (str): All samples will be compressed in the provided format. If `None`, samples are uncompressed.
+            **kwargs: `htype` defaults can be overridden by passing any of the compatible parameters.
+                To see all `htype`s and their correspondent arguments, check out `hub/htypes.py`.
+            hash_samples (Optional[bool]): If True, all samples added to this tensor will be hashed into two 64-bit integers
+                                        and stored in a hidden linked tensor.
+
+        Returns:
+            The new hidden tensor, which can also be accessed by `self[name]`.
+
+        Raises:
+            TensorAlreadyExistsError: Duplicate tensors are not allowed.
+            InvalidTensorNameError: If `name` is in dataset attributes.
+        """
 
         if tensor_exists(name, self.storage):
             raise TensorAlreadyExistsError(name)
@@ -248,7 +271,6 @@ class Dataset:
             raise InvalidTensorNameError(name)
 
         # Seperate meta and info
-
         htype_config = HTYPE_CONFIGURATIONS[htype].copy()
         info_keys = htype_config.pop("_info", [])
         info_kwargs = {}
@@ -288,8 +310,8 @@ class Dataset:
         """Linking source and destination tensor. The destination tensor will be set as a linked_tensor and
 
         Args:
-            main_tensor (Union[str, Tensor]): Source tensor.
-            link_tensor (Union[str, Tensor]): Linked tensor. Tensor being liked to source tensor. A sample appended to the source tensor
+            main_tensor (Union[str, Tensor]): The source tensor.
+            link_tensor (Union[str, Tensor]): The tensor being liked to the source tensor. A sample appended to the source tensor
                                         will also be appended to its linked tensor after applying a certain function (e.g hashing).
 
         Raises:
@@ -297,15 +319,14 @@ class Dataset:
             NotImplementedError: Source tensor can't have more than one links.
         """
 
-        if main_tensor.meta.linked_tensors:
-            raise NotImplementedError(
-                "Source tensor already contains a link to another tensor. Linking a tensor to two or more tensors is not possible."
-            )
-
         if link_tensor.meta.is_linked_tensor or main_tensor.meta.is_linked_tensor:
             raise TensorAlreadyLinkedError
 
-        main_tensor.meta.linked_tensors = link_tensor.key
+        if main_tensor.meta.linked_tensors:
+            main_tensor.meta.linked_tensors.append(link_tensor.key)
+        else:
+            main_tensor.meta.linked_tensors = [link_tensor.key]
+
         link_tensor.meta.is_linked_tensor = True
 
     @hub_reporter.record_call

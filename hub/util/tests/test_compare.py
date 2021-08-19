@@ -79,7 +79,7 @@ def test_compare_image_datasets(memory_ds: Dataset, memory_ds_2: Dataset):
                 )  # Append to images tensor using hub.read
 
     assert memory_ds.hidden_tensors[HASHES_TENSOR_FOLDER].meta.is_linked_tensor == True
-    assert memory_ds.images.meta.linked_tensors == HASHES_TENSOR_FOLDER
+    assert HASHES_TENSOR_FOLDER in memory_ds.images.meta.linked_tensors
     assert hub.compare(memory_ds, memory_ds_2) == 0.5
 
 
@@ -92,7 +92,7 @@ def test_linked_tensors(ds):
     ds._link_tensor(ds.image, ds.grayscale_image)
 
     assert ds.grayscale_image.meta.is_linked_tensor == True
-    assert ds.image.meta.linked_tensors == "grayscale_image"
+    assert "grayscale_image" in ds.image.meta.linked_tensors
 
     with pytest.raises(TensorAlreadyLinkedError):
         ds.create_tensor("rotated_image")
