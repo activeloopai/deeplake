@@ -44,6 +44,7 @@ class GCSProvider(StorageProvider):
 
     def clear(self):
         """Remove all keys below root - empties out mapping"""
+        self.check_readonly()
         self.fs.delete(self.path, True)
 
     def __getitem__(self, key):
@@ -56,6 +57,7 @@ class GCSProvider(StorageProvider):
 
     def __setitem__(self, key, value):
         """Store value in key"""
+        self.check_readonly()
         with self.fs.open(posixpath.join(self.path, key), "wb") as f:
             f.write(value)
 
@@ -69,6 +71,7 @@ class GCSProvider(StorageProvider):
 
     def __delitem__(self, key):
         """Remove key"""
+        self.check_readonly()
         self.fs.rm(posixpath.join(self.path, key))
 
     def __contains__(self, key):
