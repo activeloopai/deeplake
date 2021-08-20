@@ -1,3 +1,4 @@
+from hub.core.storage.gcs import GCSProvider
 from hub.util.cache_chain import generate_chain
 from hub.constants import MB
 from hub.util.tag import check_hub_path
@@ -25,6 +26,7 @@ def storage_provider_from_path(
 
     Returns:
         If given a path starting with s3://  returns the S3Provider.
+        If given a path starting with gcp:// orreturns the GCPProvider.
         If given a path starting with mem:// returns the MemoryProvider.
         If given a path starting with hub:// returns the underlying cloud Provider.
         If given a valid local path, returns the LocalProvider.
@@ -43,6 +45,8 @@ def storage_provider_from_path(
         storage: StorageProvider = S3Provider(
             path, key, secret, session_token, endpoint_url, region, token=token
         )
+    elif path.startswith("gcp://") or path.startswith("gcs://"):
+        return GCSProvider(path, creds)
     elif path.startswith("mem://"):
         storage = MemoryProvider(path)
     elif path.startswith("hub://"):
