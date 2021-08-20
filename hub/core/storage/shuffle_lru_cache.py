@@ -75,7 +75,6 @@ class ShuffleLRUCache(PrefetchLRUCache):
         self.remove_index(index)
         return index
 
-
     def _update_count_dicts_insertion(self, tensor, chunk_name):
         """Updates index_ct and ct_index after a new chunk is brought into shared memory."""
         start_index, end_index = self.all_chunks_start_end_index[tensor][chunk_name]

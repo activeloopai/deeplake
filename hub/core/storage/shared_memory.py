@@ -11,7 +11,7 @@ class SharedMemoryProvider(StorageProvider):
         self.sizes = {}
 
         # keeps the shared memory objects in memory, otherwise getitem throws warnings as the shared memory is deleted
-        self.active_shared_memories = {}
+        self.last_active_shared_memory = None
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.
@@ -30,7 +30,7 @@ class SharedMemoryProvider(StorageProvider):
             KeyError: If an object is not found at the path.
         """
         shared_memory = SharedMemory(name=path)
-        self.active_shared_memories[path] = shared_memory
+        self.last_active_shared_memory = shared_memory
         chunk_size = self.sizes[path]
         return shared_memory.buf[:chunk_size]
 
@@ -98,7 +98,6 @@ class SharedMemoryProvider(StorageProvider):
             shared_memory = SharedMemory(name=path)
             shared_memory.close()
             shared_memory.unlink()
-            del self.active_shared_memories[path]
             del self.sizes[path]
         except (FileNotFoundError, KeyError):
             pass
