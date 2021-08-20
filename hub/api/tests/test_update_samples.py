@@ -1,5 +1,10 @@
 from hub.constants import KB
-from hub.util.exceptions import InvalidSubsliceUpdateShapeError, MultiSampleSubsliceUpdateError, TensorInvalidSampleShapeError, UpdateSampleError
+from hub.util.exceptions import (
+    InvalidSubsliceUpdateShapeError,
+    MultiSampleSubsliceUpdateError,
+    TensorInvalidSampleShapeError,
+    UpdateSampleError,
+)
 import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
@@ -140,7 +145,9 @@ def test_subslice(local_ds_generator, images_compression):
     ds.image.extend(np.ones((10, 10, 10, 3), dtype="uint8"))
     ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
 
-    np.testing.assert_array_equal(ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8"))
+    np.testing.assert_array_equal(
+        ds.image[1:].numpy(), np.ones((9, 10, 10, 3), dtype="uint8")
+    )
     np.testing.assert_array_equal(ds.image[0].numpy(), expected_0)
 
 
@@ -239,7 +246,7 @@ def test_subslice_failure(memory_ds):
     with pytest.raises(MultiSampleSubsliceUpdateError):
         memory_ds.tensor[:, 10] = np.zeros((3, 1))
     with pytest.raises(MultiSampleSubsliceUpdateError):
-        memory_ds.tensor[0:2, 3:5, 3:5, 1] = np.zeros((2, 2, 2, 1)) 
+        memory_ds.tensor[0:2, 3:5, 3:5, 1] = np.zeros((2, 2, 2, 1))
 
     # can only subslice update using numpy arrays
     with pytest.raises(TypeError):
@@ -264,7 +271,7 @@ def test_subslice_failure(memory_ds):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 1))
     with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
-    
+
     assert memory_ds.tensor.shape == (3, 28, 28, 3)
     np.testing.assert_array_equal(memory_ds.tensor.numpy(), np.ones((3, 28, 28, 3)))
 

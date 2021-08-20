@@ -346,14 +346,17 @@ class ChunkEngine:
             self._update_samples(index, samples)
         else:
             if not hasattr(samples, "shape"):
-                raise TypeError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
+                raise TypeError(
+                    f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}"
+                )
 
             self._update_samples_subslice(index, samples)
 
+    def _update_samples(
+        self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]
+    ):
+        """Update the samples at `index` with entirely new samples.
 
-    def _update_samples(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
-        """Update the samples at `index` with entirely new samples. 
-        
         Note:
             This method allows the incoming samples' shapes to be different from the original.
             However, this requires that only the primary axis is being updated upon (no subslicing).
@@ -398,11 +401,11 @@ class ChunkEngine:
 
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
-        )    
+        )
 
     def _update_samples_subslice(self, index: Index, samples: np.ndarray):
-        """Update the samples at `index` (must be a subslice index) with new data. 
-        
+        """Update the samples at `index` (must be a subslice index) with new data.
+
         Note:
             This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
             For full sample updates (allowing new shapes), use `_update_samples`.
@@ -411,15 +414,15 @@ class ChunkEngine:
         index_shape = index.shape
         if index_shape[0] != 1:
             raise MultiSampleSubsliceUpdateError(index_shape)
-        
+
         # squeeze 1s away
-        index_shape = tuple([dim for dim in index_shape if dim != 1]) 
+        index_shape = tuple([dim for dim in index_shape if dim != 1])
 
         if index_shape != samples.shape:
             raise InvalidSubsliceUpdateShapeError(samples.shape, index_shape)
 
         # TODO: implement!
-    
+
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:

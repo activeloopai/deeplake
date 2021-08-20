@@ -378,7 +378,7 @@ class Index:
 
     def is_single_dim_effective(self) -> bool:
         """Checks if an Index is only modifying the first dimension.
-        
+
         Examples:
             array[1] - True
             array[:] - False
@@ -403,7 +403,7 @@ class Index:
     def shape(self) -> Tuple[Optional[int], ...]:
         """Returns the max shape this index can create.
         For trivial slices (ex: array[:]), their shape element is `None`.
-        
+
         Examples:
             >>> a = np.ones((100, 100))
             >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
@@ -411,7 +411,7 @@ class Index:
             >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
             (1, None, 1)
         """
-        
+
         shape: List[Optional[int]] = []
         for value in self.values:
             if value.is_trivial():
