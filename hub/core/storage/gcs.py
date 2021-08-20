@@ -1,7 +1,7 @@
 import posixpath
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
-import gcsfs
+import gcsfs  # type: ignore
 
 
 class GCSProvider(StorageProvider):
