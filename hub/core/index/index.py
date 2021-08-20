@@ -403,13 +403,14 @@ class Index:
     def shape(self) -> Tuple[int]:
         """Returns the max shape this index can create.
         For trivial slices (ex: array[:]), their shape element is `None`.
+        If the output shape has a 1, they are removed (squeezed).
         
         Examples:
             >>> a = np.ones((100, 100))
             >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
-            (1, 5)
+            (5,)
             >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
-            (1, None, 1)
+            (None,)
         """
         
         shape = []
