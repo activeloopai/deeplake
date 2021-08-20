@@ -403,8 +403,8 @@ class ChunkEngine:
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
         )
 
-    def _update_samples_subslice(self, index: Index, samples: np.ndarray):
-        """Update the samples at `index` (must be a subslice index) with new data.
+    def _update_samples_subslice(self, index: Index, incoming_samples: np.ndarray):
+        """Update the samples at `index` (must be a subslice index) with incoming samples.
 
         Note:
             This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
@@ -416,12 +416,25 @@ class ChunkEngine:
             raise MultiSampleSubsliceUpdateError(index_shape)
 
         # squeeze 1s away
-        index_shape = tuple([dim for dim in index_shape if dim != 1])
+        squeezed_index_shape = tuple([dim for dim in index_shape if dim != 1])
+        if squeezed_index_shape != incoming_samples.shape:
+            raise InvalidSubsliceUpdateShapeError(
+                incoming_samples.shape, squeezed_index_shape
+            )
 
-        if index_shape != samples.shape:
-            raise InvalidSubsliceUpdateShapeError(samples.shape, index_shape)
+        # in order to update an exact subslice of a single sample:
+        # TODO: we may want to optimize this, but it won't be too slow (other than decompressing/recompressing)
 
-        # TODO: implement!
+        # 1. we need to decompress the sample into a numpy array (ignoring chunk-wise compression for now)
+        value0_index = Index([index.values[0]])
+        new_sample = self.numpy(value0_index)
+
+        # 2. perform update on this numpy array
+        subsliced_sample = index.apply([new_sample])[0]
+        subsliced_sample[:] = incoming_samples
+
+        # 3. normally update this sample
+        self._update_samples(value0_index, [new_sample])
 
     def numpy(
         self, index: Index, aslist: bool = False
