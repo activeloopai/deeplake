@@ -406,10 +406,9 @@ class ChunkEngine:
             This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
             For full sample updates (allowing new shapes), use `_update_samples`.
         """
-
-
-        if not index.check_if_shape_fits(samples.shape):
-            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples.shape} Incoming slice: {str(index)}")
+        
+        if index.shape != samples.shape:
+            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples.shape} Expected shape: {index.shape}")
 
         raise NotImplementedError
     
