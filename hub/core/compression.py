@@ -23,7 +23,6 @@ else:
     _NATIVE_FLOAT32 = ">f4"
 
 
-
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:
@@ -104,32 +103,42 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
         raise SampleDecompressionError()
 
 
-def verify_compressed_file(path: str, compression: str):
+def verify_compressed_file(file, compression: str):
     """Verify the contents of an image file
     Args:
         path (str): Path to the image file
         compression (str): Expected compression of the image file
     """
+    if isinstance(file, str):
+        f = open(file, "rb")
+        close = True
+    else:
+        f = file
+        close = False
+        f.seek(0)
     try:
         if compression == "png":
-            _verify_png(path)
+            return _verify_png(f)
         elif compression == "jpeg":
-            _verify_jpeg(path)
+            return _verify_jpeg(f)
         else:
-            _fast_decompress(path)
+            return _fast_decompress(f)
     except Exception as e:
         raise CorruptedSampleError(compression)
+    finally:
+        if close:
+            f.close()
 
 
-def _verify_png(path: str):
-    img = Image.open(path)
+def _verify_png(f):
+    img = Image.open(f)
     img.verify()
 
 
-def _verify_jpeg(path: str):
+def _verify_jpeg(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
-    with open(path, "r+b") as f:
-        mm = mmap.mmap(f.fileno(), 0)
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    try:
         soi = f.read(2)
         # Start of Image
         assert soi == b"\xff\xd8"
@@ -153,11 +162,12 @@ def _verify_jpeg(path: str):
 
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
+    finally:
         mm.close()
 
 
-def _fast_decompress(path: str):
-    img = Image.open(path)
+def _fast_decompress(f):
+    img = Image.open(f)
     img.load()
     if img.mode == 1:
         args = ("L",)
@@ -176,67 +186,76 @@ def _fast_decompress(path: str):
         raise Exception()  # caught by verify_compressed_file()
 
 
-def read_meta_from_compressed_file(path: str) -> Tuple[str, Tuple[int], str]:
-    """Reads shape, dtype and format without decompressing the sample."""
-    with open(path, "rb") as f:
-        header = f.read()
-    if header.startswith(b"\xFF\xD8\xFF"):
-        try:
-            compression, shape, typestr = "jpeg", _read_jpeg_shape(path), "|u1"
-        except Exception:
-            raise CorruptedSampleError("jpeg")
-    elif header.startswith(b"\211PNG\r\n\032\n"):
-        try:
-            compression, (shape, typestr) = "png", _read_png_shape_and_dtype(path)
-        except Exception:
-            raise CorruptedSampleError("png")
+def read_meta_from_compressed_file(file) -> Tuple[str, Tuple[int], str]:
+    """Reads shape, dtype and format without decompressing or verifying the sample."""
+    if isinstance(file, str):
+        f = open(file, "rb")
+        close = True
     else:
-        img = Image.open(path)
-        shape, typestr = Image._conv_type_shape(img)
-        compression = img.format.lower()
-        img.close()
-    return compression, shape, typestr
+        f = file
+        close = False
+        f.seek(0)
+    try:
+        header = f.read(8)
+        if header.startswith(b"\xFF\xD8\xFF"):
+            try:
+                compression, shape, typestr = "jpeg", _read_jpeg_shape(f), "|u1"
+            except Exception:
+                raise CorruptedSampleError("jpeg")
+        elif header.startswith(b"\211PNG\r\n\032\n"):
+            try:
+                compression, (shape, typestr) = "png", _read_png_shape_and_dtype(f)
+            except Exception:
+                raise CorruptedSampleError("png")
+        else:
+            f.seek(0)
+            img = Image.open(f)
+            shape, typestr = Image._conv_type_shape(img)
+            compression = img.format.lower()
+            img.close()
+        return compression, shape, typestr
+    finally:
+        if close:
+            f.close()
 
 
-def _read_jpeg_shape(path: str) -> Tuple[int]:
-    with open(path, "r+b") as f:
-        mm = mmap.mmap(f.fileno(), 0)
-        try:
-            sof_idx = mm.find(b"\xff\xc0", 2)
+def _read_jpeg_shape(f) -> Tuple[int]:
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    try:
+        sof_idx = mm.find(b"\xff\xc0", 2)
+        if sof_idx == -1:
+            sof_idx = mm.find(b"\xff\xc2", 2)
             if sof_idx == -1:
-                sof_idx = mm.find(b"\xff\xc2", 2)
-                if sof_idx == -1:
-                    raise Exception()
-            f.seek(sof_idx + 5)
-            return struct.unpack(">HHB", f.read(5))
-        finally:
-            mm.close()
+                raise Exception()
+        f.seek(sof_idx + 5)
+        return struct.unpack(">HHB", f.read(5))
+    finally:
+        mm.close()
 
 
-def _read_png_shape_and_dtype(path: str) -> Tuple[Tuple[int], str]:
-    with open(path, "rb") as f:
-        f.seek(16)
-        size = struct.unpack(">ii", f.read(8))[::-1]
-        im_mode, im_rawmode = f.read(2)
-        if im_rawmode == 0:
-            if im_mode == 1:
-                typstr = "|b1"
-            elif im_mode == 16:
-                typstr = _NATIVE_INT32
-            else:
-                typstr = "|u1"
-            nlayers = None
+def _read_png_shape_and_dtype(f) -> Tuple[Tuple[int], str]:
+    f.seek(16)
+    size = struct.unpack(">ii", f.read(8))[::-1]
+    im_mode, im_rawmode = f.read(2)
+    if im_rawmode == 0:
+        if im_mode == 1:
+            typstr = "|b1"
+        elif im_mode == 16:
+            typstr = _NATIVE_INT32
         else:
             typstr = "|u1"
-            if im_rawmode == 2:
-                nlayers = 3
-            elif im_rawmode == 3:
-                nlayers = None
-            elif im_rawmode == 4:
-                if im_mode == 8:
-                    nlayers = 2
-                else:
-                    nlayers = 4
+        nlayers = None
+    else:
+        typstr = "|u1"
+        if im_rawmode == 2:
+            nlayers = 3
+        elif im_rawmode == 3:
+            nlayers = None
+        elif im_rawmode == 4:
+            if im_mode == 8:
+                nlayers = 2
             else:
                 nlayers = 4
-        return size + (nlayers,), typstr
+        else:
+            nlayers = 4
+    return size + (nlayers,), typstr
