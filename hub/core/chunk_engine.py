@@ -344,6 +344,10 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         updated_chunks = set()
 
+        # TODO: subslice updates
+        if not index.is_single_dim_effective():
+            raise NotImplementedError
+
         index_length = index.length(self.num_samples)
         samples = _make_sequence(samples, index_length)
         serialized_input_samples = serialize_input_samples(

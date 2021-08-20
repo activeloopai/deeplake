@@ -372,9 +372,33 @@ class Index:
         else:
             return samples[0]
 
-    def is_trivial(self):
+    def is_trivial(self) -> bool:
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
+
+    def is_single_dim_effective(self) -> bool:
+        """Checks if an Index is only modifying the first dimension.
+        
+        Examples:
+            array[1] - True
+            array[:] - False
+            array[1, 1] - False
+            array[1, :, 1] - False
+            array[:, :, :] - False
+            array[:, 1] - False
+            array[100:120, :, :, :] - True
+            array[0, :, :] - True
+        """
+
+        if len(self.values) == 1:
+            return True
+
+        for value in self.values[1:]:
+            if not value.is_trivial():
+                return False
+
+        return True
+
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
