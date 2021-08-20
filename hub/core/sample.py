@@ -136,12 +136,13 @@ class Sample:
                 else:
                     self._uncompressed_bytes = img.tobytes()
             else:
-                self._uncompressed_bytes = self.array.tobytes()
+                self._uncompressed_bytes = self._array.tobytes()
 
         return self._uncompressed_bytes
 
     @property
     def array(self) -> np.ndarray:
+        
         if self._array is None:
             self._read_meta()
             array_interface = {

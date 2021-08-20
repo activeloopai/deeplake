@@ -72,6 +72,7 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
         out.seek(0)
         compressed_bytes = out.read()
         out._close()  # type: ignore
+        decompress_array(compressed_bytes, array.shape)
         return compressed_bytes
     except (TypeError, OSError) as e:
         raise SampleCompressionError(array.shape, compression, str(e))
@@ -219,7 +220,7 @@ def read_meta_from_compressed_file(file) -> Tuple[str, Tuple[int], str]:
 
 
 def _read_jpeg_shape(f) -> Tuple[int]:
-    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+    mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
     try:
         sof_idx = mm.find(b"\xff\xc0", 2)
         if sof_idx == -1:
@@ -229,6 +230,7 @@ def _read_jpeg_shape(f) -> Tuple[int]:
         f.seek(sof_idx + 5)
         return struct.unpack(">HHB", f.read(5))
     finally:
+        pass
         mm.close()
 
 
