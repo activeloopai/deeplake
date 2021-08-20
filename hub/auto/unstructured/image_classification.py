@@ -3,7 +3,7 @@ import numpy as np
 from pathlib import Path
 import os
 import glob
-import PIL
+import PIL  # type: ignore
 from typing import Dict, List, Sequence, Tuple, Union
 
 from hub.util.auto import ingestion_summary
@@ -170,13 +170,13 @@ class ImageClassification(UnstructuredDataset):
                     reshaped_image = np.expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
-                except Exception:
-                    skipped_files.append(file_path.name)
-                    iterator.set_description(
-                        'Ingesting "%s" (%i files skipped)'
-                        % (self.source.name, len(skipped_files))
-                    )
-                    continue
+                # except UnsupportedCompressionError:
+                #     skipped_files.append(file_path.name)
+                #     iterator.set_description(
+                #         'Ingesting "%s" (%i files skipped)'
+                #         % (self.source.name, len(skipped_files))
+                #     )
+                #     continue
 
                 ds[labels_tensor_map[set_name]].append(label)
 

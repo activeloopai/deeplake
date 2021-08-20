@@ -40,5 +40,5 @@ def test_ingestion_summary_skipped():
 
     assert (
         output
-        == "\n\ningestion_summary/    \n      [Skipped]  test.json\n      class0/    \n            [Skipped]  test.json\n      class1/    \n"
+        == "\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
     )
