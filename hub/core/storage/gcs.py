@@ -29,9 +29,9 @@ class GCSProvider(StorageProvider):
             IsADirectoryError,
             NotADirectoryError,
         )
-        self.initialize_provider()
+        self._initialize_provider()
 
-    def initialize_provider(self):
+    def _initialize_provider(self):
         self._set_bucket_and_path()
         self.fs = gcsfs.GCSFileSystem(token=self.token)
 
@@ -62,11 +62,11 @@ class GCSProvider(StorageProvider):
             f.write(value)
 
     def __iter__(self):
-        """iterating over the structure"""
+        """Iterating over the structure"""
         yield from (x for x in self.fs.find(self.root))
 
     def __len__(self):
-        """returns length of the structure"""
+        """Returns length of the structure"""
         return len(self.fs.find(self.root))
 
     def __delitem__(self, key):
