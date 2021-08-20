@@ -2,6 +2,7 @@ import posixpath
 from typing import Dict, Optional, Union
 from hub.core.storage.provider import StorageProvider
 import gcsfs  # type: ignore
+import json
 
 
 class GCSProvider(StorageProvider):
@@ -15,14 +16,14 @@ class GCSProvider(StorageProvider):
         """Initializes the GCSProvider
 
         Example:
-            s3_provider = GCSProvider("snark-test/benchmarks")
+            gcs_provider = GCSProvider("snark-test/gcs_ds")
 
         Args:
             root (str): The root of the provider. All read/write request keys will be appended to root.
-            token (str, optional): GCP token, used for fetching credentials for storage).
+            token (str/Dict): GCP token, used for fetching credentials for storage).
         """
         self.root = root
-        self.token: Optional[str] = token
+        self.token: Union[str, Dict] = token
         self.missing_exceptions = (
             FileNotFoundError,
             IsADirectoryError,
@@ -32,6 +33,9 @@ class GCSProvider(StorageProvider):
 
     def initialize_provider(self):
         self._set_bucket_and_path()
+        if isinstance(self.token, str):
+            with open(self.token) as token_file:
+                self.token = json.load(token_file)
         self.fs = gcsfs.GCSFileSystem(token=self.token)
 
     def _set_bucket_and_path(self):
