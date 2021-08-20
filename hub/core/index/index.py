@@ -399,8 +399,28 @@ class Index:
 
         return True
 
-    def check_if_shape_fits(self, shape: Tuple[int]):
-        raise NotImplementedError
+    @property
+    def shape(self) -> Tuple[int]:
+        """Returns the max shape this index can create.
+        For trivial slices (ex: array[:]), their shape element is `None`.
+        
+        Examples:
+            >>> a = np.ones((100, 100))
+            >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
+            (1, 5)
+            >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
+            (1, None, 1)
+        """
+        
+        shape = []
+        for value in self.values:
+            if value.is_trivial():
+                shape.append(None)
+            else:
+                l = value.length(9999999999)
+                if l != 1:  # squeeze away 1s
+                    shape.append(l)  # TODO: better way to do this
+        return tuple(shape)
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
