@@ -340,13 +340,18 @@ class ChunkEngine:
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+        if index.is_single_dim_effective():
+            self._update_sample(index, samples)
+        else:
+            self._update_sample_subslice(index, samples)
+
+
+    def _update_sample(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+        # TODO: docstring
+
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
         updated_chunks = set()
-
-        # TODO: subslice updates
-        if not index.is_single_dim_effective():
-            raise NotImplementedError
 
         index_length = index.length(self.num_samples)
         samples = _make_sequence(samples, index_length)
@@ -382,7 +387,12 @@ class ChunkEngine:
 
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
-        )
+        )    
+
+
+    def _update_sample_subslice(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+        raise NotImplementedError
+    
 
     def numpy(
         self, index: Index, aslist: bool = False
