@@ -11,6 +11,17 @@ import numpy as np
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
+import struct
+import sys
+
+
+if sys.byteorder == "little":
+    _NATIVE_INT32 = "<i4"
+    _NATIVE_FLOAT32 = "<f4"
+else:
+    _NATIVE_INT32 = ">i4"
+    _NATIVE_FLOAT32 = ">f4"
+
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -110,12 +121,12 @@ def verify_compressed_file(path: str, compression: str):
         raise CorruptedSampleError(compression)
 
 
-def _verify_png(path):
+def _verify_png(path: str):
     img = Image.open(path)
     img.verify()
 
 
-def _verify_jpeg(path):
+def _verify_jpeg(path: str):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
     with open(path, "r+b") as f:
         mm = mmap.mmap(f.fileno(), 0)
@@ -142,9 +153,10 @@ def _verify_jpeg(path):
 
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
+        mm.close()
 
 
-def _fast_decompress(path):
+def _fast_decompress(path: str):
     img = Image.open(path)
     img.load()
     if img.mode == 1:
@@ -162,3 +174,69 @@ def _fast_decompress(path):
             break
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
+
+
+def read_meta_from_compressed_file(path: str) -> Tuple[str, Tuple[int], str]:
+    """Reads shape, dtype and format without decompressing the sample."""
+    with open(path, "rb") as f:
+        header = f.read()
+    if header.startswith(b"\xFF\xD8\xFF"):
+        try:
+            compression, shape, typestr = "jpeg", _read_jpeg_shape(path), "|u1"
+        except Exception:
+            raise CorruptedSampleError("jpeg")
+    elif header.startswith(b"\211PNG\r\n\032\n"):
+        try:
+            compression, (shape, typestr) = "png", _read_png_shape_and_dtype(path)
+        except Exception:
+            raise CorruptedSampleError("png")
+    else:
+        img = Image.open(path)
+        shape, typestr = Image._conv_type_shape(img)
+        compression = img.format.lower()
+        img.close()
+    return compression, shape, typestr
+
+
+def _read_jpeg_shape(path: str) -> Tuple[int]:
+    with open(path, "r+b") as f:
+        mm = mmap.mmap(f.fileno(), 0)
+        try:
+            sof_idx = mm.find(b"\xff\xc0", 2)
+            if sof_idx == -1:
+                sof_idx = mm.find(b"\xff\xc2", 2)
+                if sof_idx == -1:
+                    raise Exception()
+            f.seek(sof_idx + 5)
+            return struct.unpack(">HHB", f.read(5))
+        finally:
+            mm.close()
+
+
+def _read_png_shape_and_dtype(path: str) -> Tuple[Tuple[int], str]:
+    with open(path, "rb") as f:
+        f.seek(16)
+        size = struct.unpack(">ii", f.read(8))[::-1]
+        im_mode, im_rawmode = f.read(2)
+        if im_rawmode == 0:
+            if im_mode == 1:
+                typstr = "|b1"
+            elif im_mode == 16:
+                typstr = _NATIVE_INT32
+            else:
+                typstr = "|u1"
+            nlayers = None
+        else:
+            typstr = "|u1"
+            if im_rawmode == 2:
+                nlayers = 3
+            elif im_rawmode == 3:
+                nlayers = None
+            elif im_rawmode == 4:
+                if im_mode == 8:
+                    nlayers = 2
+                else:
+                    nlayers = 4
+            else:
+                nlayers = 4
+        return size + (nlayers,), typstr

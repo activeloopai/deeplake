@@ -1,15 +1,14 @@
 # type: ignore
-from hub.core.compression import compress_array, verify_compressed_file
+from hub.core.compression import compress_array, verify_compressed_file, read_meta_from_compressed_file
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
-import pathlib
 from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
 
 
 class Sample:
-    path: Optional[pathlib.Path]
+    path: Optional[str]
 
     def __init__(
         self,
@@ -40,9 +39,10 @@ class Sample:
         self._uncompressed_bytes = None
 
         if path is not None:
-            self.path = pathlib.Path(path)
+            self.path = path
             self._array = None
-            self._read_meta()
+            self.compression, self.shape, self._typestr = read_meta_from_compressed_file(path)
+            self.dtype = np.dtype(self._typestr).name
             if verify:
                 verify_compressed_file(self.path, self.compression)
 
@@ -124,13 +124,6 @@ class Sample:
 
             self._array = np.array(ArrayData, None)
         return self._array
-
-    def _read_meta(self):
-        """Reads shape, dtype and format without decompressing the sample."""
-        img = Image.open(self.path)
-        self.shape, self._typestr = Image._conv_type_shape(img)
-        self.dtype = np.dtype(self._typestr).name
-        self.compression = img.format.lower()
 
     def __str__(self):
         if self.is_lazy:
