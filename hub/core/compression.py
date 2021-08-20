@@ -5,7 +5,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
@@ -113,15 +113,18 @@ def verify_compressed_file(file, compression: str):
     if isinstance(file, str):
         f = open(file, "rb")
         close = True
-    else:
+    elif hasattr(file, "read"):
         f = file
         close = False
         f.seek(0)
+    else:
+        f = file
+        close = False
     try:
         if compression == "png":
             return _verify_png(f)
         elif compression == "jpeg":
-            return _verify_jpeg(f)
+            return "uint8", _verify_jpeg(f)
         else:
             return _fast_decompress(f)
     except Exception as e:
@@ -131,12 +134,53 @@ def verify_compressed_file(file, compression: str):
             f.close()
 
 
-def _verify_png(f):
-    img = Image.open(f)
+def get_compression(header):
+    if not Image.OPEN:
+        Image.init()
+    for fmt in Image.OPEN:
+        accept = Image.OPEN[fmt][1]
+        if accept and accept(header):
+            return fmt.lower()
+    raise SampleDecompressionError()
+
+
+def _verify_png(buf):
+    if not hasattr(buf, "read"):
+        buf = BytesIO(buf)
+    img = Image.open(buf)
     img.verify()
+    return Image._conv_type_shape(img)
 
 
 def _verify_jpeg(f):
+    if hasattr(f, "read"):
+        return _verify_jpeg_file(f)
+    return _verify_jpeg_buffer(f)
+
+
+def _verify_jpeg_buffer(buf: bytes):
+    # Start of Image
+    mview = memoryview(buf)
+    assert buf.startswith(b"\xff\xd8")
+    # Look for Baseline DCT marker
+    sof_idx = buf.find(b"\xff\xc0", 2)
+    if sof_idx == -1:
+        # Look for Progressive DCT marker
+        sof_idx = buf.find(b"\xff\xc2", 2)
+        if sof_idx == -1:
+            raise Exception()
+    length = int.from_bytes(mview[sof_idx + 2 : sof_idx + 4], "big")
+    assert mview[sof_idx + length + 2 : sof_idx + length + 4] in [
+        b"\xff\xc4",
+        b"\xff\xdb",
+        b"\xff\xdd",
+    ]  # DHT, DQT, DRI
+    shape = struct.unpack(">HHB", mview[sof_idx + 5 : sof_idx + 10])
+    assert buf.find(b"\xff\xd9") != -1
+    return shape
+
+
+def _verify_jpeg_file(f):
     # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
     try:
@@ -160,15 +204,19 @@ def _verify_jpeg(f):
             b"\xff\xdb",
             b"\xff\xdd",
         ]  # DHT, DQT, DRI
-
+        f.seek(sof_idx + 5)
+        shape = struct.unpack(">HHB", f.read(5))
         # TODO this check is too slow
         assert mm.find(b"\xff\xd9") != -1  # End of Image
+        return shape
     finally:
         mm.close()
 
 
-def _fast_decompress(f):
-    img = Image.open(f)
+def _fast_decompress(buf):
+    if not hasattr(buf, "read"):
+        buf = BytesIO(buf)
+    img = Image.open(buf)
     img.load()
     if img.mode == 1:
         args = ("L",)
@@ -185,27 +233,38 @@ def _fast_decompress(f):
             break
     if err_code < 0:
         raise Exception()  # caught by verify_compressed_file()
+    return Image._conv_type_shape(img)
 
 
-def read_meta_from_compressed_file(file) -> Tuple[str, Tuple[int], str]:
+def read_meta_from_compressed_file(
+    file, compression: Optional[str] = None
+) -> Tuple[str, Tuple[int], str]:
     """Reads shape, dtype and format without decompressing or verifying the sample."""
     if isinstance(file, str):
         f = open(file, "rb")
         close = True
-    else:
+    elif hasattr(file, "read"):
         f = file
         close = False
         f.seek(0)
+    else:
+        f = file
+        close = False
     try:
-        header = f.read(8)
-        if header.startswith(b"\xFF\xD8\xFF"):
+        if compression is None:
+            if hasattr(f, "read"):
+                compression = get_compression(f.read(32))
+                f.seek(0)
+            else:
+                compression = get_compression(f[:32])  # type: ignore
+        if compression == "jpeg":
             try:
-                compression, shape, typestr = "jpeg", _read_jpeg_shape(f), "|u1"
+                shape, typestr = _read_jpeg_shape(f), "|u1"
             except Exception:
                 raise CorruptedSampleError("jpeg")
-        elif header.startswith(b"\211PNG\r\n\032\n"):
+        elif compression == "png":
             try:
-                compression, (shape, typestr) = "png", _read_png_shape_and_dtype(f)
+                shape, typestr = _read_png_shape_and_dtype(f)
             except Exception:
                 raise CorruptedSampleError("png")
         else:
@@ -213,13 +272,19 @@ def read_meta_from_compressed_file(file) -> Tuple[str, Tuple[int], str]:
             img = Image.open(f)
             shape, typestr = Image._conv_type_shape(img)
             compression = img.format.lower()
-        return compression, shape, typestr
+        return compression, shape, typestr   # type: ignore
     finally:
         if close:
             f.close()
 
 
 def _read_jpeg_shape(f) -> Tuple[int]:
+    if hasattr(f, "read"):
+        return _read_jpeg_shape_from_file(f)
+    return _read_jpeg_shape_from_buffer(f)
+
+
+def _read_jpeg_shape_from_file(f) -> Tuple[int]:
     mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_COPY)
     try:
         sof_idx = mm.find(b"\xff\xc0", 2)
@@ -228,13 +293,24 @@ def _read_jpeg_shape(f) -> Tuple[int]:
             if sof_idx == -1:
                 raise Exception()
         f.seek(sof_idx + 5)
-        return struct.unpack(">HHB", f.read(5))
+        return struct.unpack(">HHB", f.read(5))  # type: ignore
     finally:
         pass
         mm.close()
 
 
+def _read_jpeg_shape_from_buffer(buf: bytes) -> Tuple[int]:
+    sof_idx = buf.find(b"\xff\xc0", 2)
+    if sof_idx == -1:
+        sof_idx = buf.find(b"\xff\xc2", 2)
+        if sof_idx == -1:
+            raise Exception()
+    return struct.unpack(">HHB", memoryview(buf)[sof_idx + 5 : sof_idx + 10])  # type: ignore
+
+
 def _read_png_shape_and_dtype(f) -> Tuple[Tuple[int], str]:
+    if not hasattr(f, "read"):
+        f = BytesIO(f)
     f.seek(16)
     size = struct.unpack(">ii", f.read(8))[::-1]
     im_mode, im_rawmode = f.read(2)
@@ -259,4 +335,4 @@ def _read_png_shape_and_dtype(f) -> Tuple[Tuple[int], str]:
                 nlayers = 4
         else:
             nlayers = 4
-    return size + (nlayers,), typstr
+    return size + (nlayers,), typstr  # type: ignore

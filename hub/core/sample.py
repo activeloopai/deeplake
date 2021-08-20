@@ -3,12 +3,14 @@ from hub.core.compression import (
     compress_array,
     verify_compressed_file,
     read_meta_from_compressed_file,
+    get_compression,
 )
 from hub.util.exceptions import CorruptedSampleError
 import numpy as np
 from typing import List, Optional, Tuple, Union
 
 from PIL import Image  # type: ignore
+from io import BytesIO
 
 
 class Sample:
@@ -111,14 +113,24 @@ class Sample:
         if compressed_bytes is None:
             if self.path is not None:
                 with open(self.path, "rb") as f:
-                    self._read_meta(f)
-                    if self._compression == compression:
-                        if self._verify:
-                            verify_compressed_file(f, self._compression)
-                        f.seek(0)
-                        compressed_bytes = f.read()
+                    compressed_bytes = f.read()
+                self._compression = get_compression(compressed_bytes[:32])
+                if self._compression == compression:
+                    if self._verify:
+                        self._shape, self._typestr = verify_compressed_file(
+                            compressed_bytes, self._compression
+                        )
                     else:
-                        compressed_bytes = compress_array(self.array, compression)
+                        _, self._shape, self._typestr = read_meta_from_compressed_file(
+                            compressed_bytes, compression=self._compression
+                        )
+                else:
+                    img = Image.open(BytesIO(compressed_bytes))
+                    if img.mode == "1":
+                        self._uncompressed_bytes = img.tobytes("raw", "L")
+                    else:
+                        self._uncompressed_bytes = img.tobytes()
+                    compressed_bytes = compress_array(self.array, compression)
             else:
                 compressed_bytes = compress_array(self.array, compression)
             self._compressed_bytes[compression] = compressed_bytes
@@ -142,7 +154,7 @@ class Sample:
 
     @property
     def array(self) -> np.ndarray:
-        
+
         if self._array is None:
             self._read_meta()
             array_interface = {
