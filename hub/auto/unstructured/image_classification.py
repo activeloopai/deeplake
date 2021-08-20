@@ -10,7 +10,6 @@ from hub.util.auto import ingestion_summary
 from hub.util.exceptions import (
     InvalidPathException,
     TensorInvalidSampleShapeError,
-    UnsupportedCompressionError,
 )
 from hub.core.dataset import Dataset
 
