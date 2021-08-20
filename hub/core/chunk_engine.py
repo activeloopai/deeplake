@@ -7,7 +7,8 @@ from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
-    UpdateSampleError,
+    InvalidSubsliceUpdateShapeError,
+    MultiSampleSubsliceUpdateError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -345,7 +346,7 @@ class ChunkEngine:
             self._update_samples(index, samples)
         else:
             if not hasattr(samples, "shape"):
-                raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
+                raise TypeError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
 
             self._update_samples_subslice(index, samples)
 
@@ -406,11 +407,18 @@ class ChunkEngine:
             This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
             For full sample updates (allowing new shapes), use `_update_samples`.
         """
-        
-        if index.shape != samples.shape:
-            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples.shape} Expected shape: {index.shape}")
 
-        raise NotImplementedError
+        index_shape = index.shape
+        if index_shape[0] != 1:
+            raise MultiSampleSubsliceUpdateError(index_shape)
+        
+        # squeeze 1s away
+        index_shape = tuple([dim for dim in index_shape if dim != 1]) 
+
+        if index_shape != samples.shape:
+            raise InvalidSubsliceUpdateShapeError(samples.shape, index_shape)
+
+        # TODO: implement!
     
     def numpy(
         self, index: Index, aslist: bool = False
