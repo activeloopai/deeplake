@@ -235,6 +235,10 @@ def test_subslice_failure(memory_ds):
     memory_ds.create_tensor("tensor")
     memory_ds.tensor.extend(np.ones((3, 28, 28, 3)))
 
+    # can only subslice update using numpy arrays
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 10:20, 1] = np.zeros((1, 10, 10, 1)).tolist()
+
     # when updating a sample's subslice, the shape MUST match the subslicing.
     # this is different than updating samples entirely, where the new sample
     # may have a larger/smaller shape.
@@ -254,7 +258,7 @@ def test_subslice_failure(memory_ds):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 1))
     with pytest.raises(UpdateSampleError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
-
+    
     assert memory_ds.tensor.shape == (3, 28, 28, 3)
     np.testing.assert_array_equal(memory_ds.tensor.numpy(), np.ones((3, 28, 28, 3)))
 

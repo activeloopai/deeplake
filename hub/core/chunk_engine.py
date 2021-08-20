@@ -7,6 +7,7 @@ from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
     CorruptedMetaError,
     DynamicTensorNumpyError,
+    UpdateSampleError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -389,11 +390,14 @@ class ChunkEngine:
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
         )    
 
-
     def _update_sample_subslice(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+        # TODO: docstring
+
+        if not hasattr(samples, "shape"):
+            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
+
         raise NotImplementedError
     
-
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
