@@ -129,18 +129,19 @@ def test(local_ds_generator, images_compression):
     assert ds.images.shape_interval.upper == (10, 32, 50)
 
 
-def test_subslice(local_ds_generator):
+@pytest.mark.parametrize("images_compression", [None, "png"])
+def test_subslice(local_ds_generator, images_compression):
     ds = local_ds_generator()
 
-    expected_0 = np.ones((1, 10, 10, 10))
-    expected_0[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
+    expected_0 = np.ones((10, 10, 3), dtype="uint8")
+    expected_0[1:5, -5:-1, 1] = np.zeros((4, 4), dtype="uint8")
 
-    ds.create_tensor("tensor")
-    ds.tensor.append(np.ones((10, 10, 10, 10)))
-    ds.tensor[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
+    ds.create_tensor("image", htype="image", sample_compression=images_compression)
+    ds.image.extend(np.ones((10, 10, 10, 3), dtype="uint8"))
+    ds.image[0, 1:5, -5:-1, 1] = np.zeros((4, 4))
 
-    np.testing.assert_array_equal(ds.tensor[1:].numpy(), np.ones(9, 10, 10, 10))
-    np.testing.assert_array_equal(ds.tensor[0].numpy(), expected_0)
+    np.testing.assert_array_equal(ds.image[1:].numpy(), np.ones(9, 10, 10, 3), dtype="uint8")
+    np.testing.assert_array_equal(ds.image[0].numpy(), expected_0)
 
 
 @pytest.mark.parametrize("images_compression", [None, "png"])
