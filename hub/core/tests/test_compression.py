@@ -27,10 +27,13 @@ def test_array(compression, compressed_image_paths):
 @pytest.mark.parametrize("compression", compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     path = compressed_image_paths[compression]
-    hub.read(path, verify=True)
+    sample = hub.read(path, verify=True)
+    sample.compressed_bytes(compression)
     if compression in corrupt_image_paths:
         path = corrupt_image_paths[compression]
-        hub.read(path)
+        sample = hub.read(path)
+        sample.compressed_bytes(compression)
         Image.open(path)
         with pytest.raises(CorruptedSampleError):
-            hub.read(path, verify=True)
+            sample = hub.read(path, verify=True)
+            sample.compressed_bytes(compression)

@@ -96,11 +96,9 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
         np.ndarray: Array from the decompressed buffer.
     """
 
-    try:
-        img = Image.open(BytesIO(buffer))
-        return np.array(img).reshape(shape)
-    except Exception:
-        raise SampleDecompressionError()
+    img = Image.open(BytesIO(buffer))
+    print(img)
+    return np.array(img).reshape(shape)
 
 
 def verify_compressed_file(file, compression: str):
@@ -212,7 +210,6 @@ def read_meta_from_compressed_file(file) -> Tuple[str, Tuple[int], str]:
             img = Image.open(f)
             shape, typestr = Image._conv_type_shape(img)
             compression = img.format.lower()
-            img.close()
         return compression, shape, typestr
     finally:
         if close:
