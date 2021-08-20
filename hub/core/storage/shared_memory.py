@@ -8,8 +8,7 @@ class SharedMemoryProvider(StorageProvider):
 
     def __init__(self, root: str = ""):
         self.root = root
-        self.sizes = {}
-
+        self.files = set()
         # keeps the shared memory objects in memory, otherwise getitem throws warnings as the shared memory is deleted
         self.last_active_shared_memory = None
 
@@ -31,8 +30,8 @@ class SharedMemoryProvider(StorageProvider):
         """
         shared_memory = SharedMemory(name=path)
         self.last_active_shared_memory = shared_memory
-        chunk_size = self.sizes[path]
-        return shared_memory.buf[:chunk_size]
+        chunk_size = int.from_bytes(shared_memory.buf[:4], "little")
+        return shared_memory.buf[4 : chunk_size + 4]
 
     def __setitem__(
         self,
@@ -54,16 +53,17 @@ class SharedMemoryProvider(StorageProvider):
         """
         self.check_readonly()
         size = len(value)
-        self.sizes[path] = size
+        self.files.add(path)
         try:
-            shared_memory = SharedMemory(create=True, size=size, name=path)
+            shared_memory = SharedMemory(create=True, size=size + 4, name=path)
         except FileExistsError:
             shared_memory = SharedMemory(name=path)
             shared_memory.unlink()
-            shared_memory = SharedMemory(create=True, size=size, name=path)
+            shared_memory = SharedMemory(create=True, size=size + 4, name=path)
 
         # needs to be sliced as some OS (like macOS) allocate extra space
-        shared_memory.buf[:size] = value
+        shared_memory.buf[:4] = size.to_bytes(4, "little")
+        shared_memory.buf[4 : size + 4] = value
         shared_memory.close()
 
     def __iter__(self):
@@ -77,7 +77,7 @@ class SharedMemoryProvider(StorageProvider):
         Yields:
             str: the path of the object that it is iterating over, relative to the root of the provider.
         """
-        yield from self.sizes
+        yield from self.files
 
     def __delitem__(self, path: str):
         """Delete the object present at the path.
@@ -98,7 +98,7 @@ class SharedMemoryProvider(StorageProvider):
             shared_memory = SharedMemory(name=path)
             shared_memory.close()
             shared_memory.unlink()
-            del self.sizes[path]
+            self.files.remove(path)
         except (FileNotFoundError, KeyError):
             pass
 
@@ -122,12 +122,12 @@ class SharedMemoryProvider(StorageProvider):
         Returns:
             int: the number of files present inside the root.
         """
-        return len(self.sizes)
+        return len(self.files)
 
     def clear(self):
         """Clears the provider."""
         self.check_readonly()
-        paths = list(self.sizes.keys())
+        paths = list(self.files)
         for path in paths:
             del self[path]
 
@@ -137,10 +137,11 @@ class SharedMemoryProvider(StorageProvider):
     def __setstate__(self, state: str):
         raise NotImplementedError
 
-    def update_sizes(self, dict):
-        """Updates the sizes of the files.
+    def update_files(self, files: List[str]):
+        """Updates the files present in the provider.
 
         Args:
-            dict (Dict[str, int]): Dictionary of the form {path: size}.
+            files (List[str]): List of files to be updated.
         """
-        self.sizes.update(dict)
+        self.check_readonly()
+        self.files.update(files)

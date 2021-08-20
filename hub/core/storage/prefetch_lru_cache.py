@@ -317,7 +317,7 @@ class PrefetchLRUCache(LRUCache):
         chunk_sizes_dict = self._fetch_chunks(chunk_groups)
         self._update_cache_insertion(chunk_sizes_dict)
         if isinstance(self.cache_storage, SharedMemoryProvider):
-            self.cache_storage.update_sizes(chunk_sizes_dict)
+            self.cache_storage.update_files(list(chunk_sizes_dict.keys()))
         chunk_groups.clear()
 
     def _fetch_chunks(
@@ -326,10 +326,10 @@ class PrefetchLRUCache(LRUCache):
         """Takes a list of list of key, chunk_name tuples and fetches chunks for each sublist parallely."""
         # fetch chunks from storage in a multiprocessed manner and decompresses them
         storage: Union[S3Provider, Dict] = self.storage
-        shared_memory_names: List[List[str]] = []
+        shared_memory_groups: List[List[str]] = []
         for chunk_group in chunk_groups:
             names = [self.chunk_shared_mem_map[chunk] for chunk in chunk_group]
-            shared_memory_names.append(names)
+            shared_memory_groups.append(names)
         # s3 provider is not sent as storage provider but instead sent as a tuple containing it's state
         if isinstance(storage, S3Provider):
             storage = self.storage_state_tuple
@@ -337,7 +337,7 @@ class PrefetchLRUCache(LRUCache):
         all_chunk_sizes: List[Dict[str, int]] = self.map(
             read_and_store_chunk_groups,
             chunk_groups,
-            shared_memory_names,
+            shared_memory_groups,
             repeat(storage),
         )
         combined_chunk_sizes_dict: Dict[str, int] = {}
