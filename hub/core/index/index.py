@@ -400,7 +400,7 @@ class Index:
         return True
 
     @property
-    def shape(self) -> Tuple[int]:
+    def shape(self) -> Tuple[Optional[int], ...]:
         """Returns the max shape this index can create.
         For trivial slices (ex: array[:]), their shape element is `None`.
         If the output shape has a 1, they are removed (squeezed).
@@ -413,7 +413,7 @@ class Index:
             (None,)
         """
         
-        shape = []
+        shape: List[Optional[int]] = []
         for value in self.values:
             if value.is_trivial():
                 shape.append(None)
