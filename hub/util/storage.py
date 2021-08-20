@@ -26,7 +26,7 @@ def storage_provider_from_path(
 
     Returns:
         If given a path starting with s3://  returns the S3Provider.
-        If given a path starting with gcp:// orreturns the GCPProvider.
+        If given a path starting with gcp:// or gcs:// returns the GCPProvider.
         If given a path starting with mem:// returns the MemoryProvider.
         If given a path starting with hub:// returns the underlying cloud Provider.
         If given a valid local path, returns the LocalProvider.
