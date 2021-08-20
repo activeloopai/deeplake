@@ -1,5 +1,5 @@
 from hub.constants import KB
-from hub.util.exceptions import TensorInvalidSampleShapeError, UpdateSampleError
+from hub.util.exceptions import InvalidSubsliceUpdateShapeError, MultiSampleSubsliceUpdateError, TensorInvalidSampleShapeError, UpdateSampleError
 import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
@@ -235,28 +235,34 @@ def test_subslice_failure(memory_ds):
     memory_ds.create_tensor("tensor")
     memory_ds.tensor.extend(np.ones((3, 28, 28, 3)))
 
+    # cannot update multiple sample subslices at the same time
+    with pytest.raises(MultiSampleSubsliceUpdateError):
+        memory_ds.tensor[:, 10] = np.zeros((3, 1))
+    with pytest.raises(MultiSampleSubsliceUpdateError):
+        memory_ds.tensor[0:2, 3:5, 3:5, 1] = np.zeros((2, 2, 2, 1)) 
+
     # can only subslice update using numpy arrays
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(TypeError):
         memory_ds.tensor[1, 10:20, 10:20, 1] = np.zeros((1, 10, 10, 1)).tolist()
 
     # when updating a sample's subslice, the shape MUST match the subslicing.
     # this is different than updating samples entirely, where the new sample
     # may have a larger/smaller shape.
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((2, 10, 5, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((0, 10, 5, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 20, 5, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 9, 5, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 6, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 4, 3))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 1))
-    with pytest.raises(UpdateSampleError):
+    with pytest.raises(InvalidSubsliceUpdateShapeError):
         memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
     
     assert memory_ds.tensor.shape == (3, 28, 28, 3)
