@@ -96,9 +96,11 @@ def decompress_array(buffer: Union[bytes, memoryview], shape: Tuple[int]) -> np.
         np.ndarray: Array from the decompressed buffer.
     """
 
-    img = Image.open(BytesIO(buffer))
-    print(img)
-    return np.array(img).reshape(shape)
+    try:
+        img = Image.open(BytesIO(buffer))
+        return np.array(img).reshape(shape)
+    except Exception:
+        raise SampleDecompressionError()
 
 
 def verify_compressed_file(file, compression: str):
