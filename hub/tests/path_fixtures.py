@@ -148,7 +148,7 @@ def gcs_path(request):
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        S3Provider(path).clear()
+        GCSProvider(path).clear()
 
 
 @pytest.fixture

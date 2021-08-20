@@ -1,5 +1,5 @@
 import posixpath
-from typing import Optional
+from typing import Dict, Optional, Union
 from hub.core.storage.provider import StorageProvider
 import gcsfs  # type: ignore
 
@@ -10,7 +10,7 @@ class GCSProvider(StorageProvider):
     def __init__(
         self,
         root: str,
-        token: Optional[str] = None,
+        token: Union[str, Dict] = None,
     ):
         """Initializes the GCSProvider
 
