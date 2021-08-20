@@ -53,7 +53,7 @@ def get_most_common_extension(
     return compression
 
 
-def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count: int):
+def ingestion_summary(local_path: str, skipped_files: list):
     """Generate post ingesiton summary in a tree structure.
 
     Args:
@@ -81,18 +81,17 @@ def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count:
         indent = " " * 6 * (level)
         if at_root == True:
             print(
-                "{}{}/    ({}/{})".format(
+                "{}{}/    ".format(
                     indent,
                     os.path.basename(root),
-                    len(files) + len(dirs) - ingested_file_count,
-                    len(dirs) + len(files),
                 )
             )
             at_root = False
         else:
             print(
-                "{}{}/    ({}/{})".format(
-                    indent, os.path.basename(root), ingested_file_count, len(files)
+                "{}{}/    ".format(
+                    indent,
+                    os.path.basename(root),
                 )
             )
 
