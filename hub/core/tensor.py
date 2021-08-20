@@ -285,8 +285,7 @@ class Tensor:
             (1, 3, 3)
         """
 
-        item_index = Index(item)
-        self.chunk_engine.update(self.index[item_index], value)
+        self.chunk_engine.update(self[item].index, value)
 
     def __iter__(self):
         for i in range(len(self)):
