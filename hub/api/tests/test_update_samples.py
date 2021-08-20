@@ -1,5 +1,5 @@
 from hub.constants import KB
-from hub.util.exceptions import TensorInvalidSampleShapeError
+from hub.util.exceptions import TensorInvalidSampleShapeError, UpdateSampleError
 import pytest
 from typing import Callable
 from hub.tests.common import assert_array_lists_equal
@@ -129,8 +129,7 @@ def test(local_ds_generator, images_compression):
     assert ds.images.shape_interval.upper == (10, 32, 50)
 
 
-@pytest.mark.parametrize("images_compression", [None, "png"])
-def test_subslice(local_ds_generator, images_compression):
+def test_subslice(local_ds_generator):
     ds = local_ds_generator()
 
     expected_0 = np.ones((1, 10, 10, 10))
@@ -229,6 +228,34 @@ def test_failures(memory_ds):
     )
     assert memory_ds.images.shape == (10, 28, 28)
     assert memory_ds.labels.shape == (10, 1)
+
+
+def test_subslice_failure(memory_ds):
+    memory_ds.create_tensor("tensor")
+    memory_ds.tensor.extend(np.ones((3, 28, 28, 3)))
+
+    # when updating a sample's subslice, the shape MUST match the subslicing.
+    # this is different than updating samples entirely, where the new sample
+    # may have a larger/smaller shape.
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((2, 10, 5, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((0, 10, 5, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 20, 5, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 9, 5, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 6, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 4, 3))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 1))
+    with pytest.raises(UpdateSampleError):
+        memory_ds.tensor[1, 10:20, 5:10, :] = np.zeros((1, 10, 5, 4))
+
+    assert memory_ds.tensor.shape == (3, 28, 28, 3)
+    np.testing.assert_array_equal(memory_ds.tensor.numpy(), np.ones((3, 28, 28, 3)))
 
 
 def test_warnings(memory_ds):
