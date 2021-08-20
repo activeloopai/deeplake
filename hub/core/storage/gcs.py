@@ -23,7 +23,7 @@ class GCSProvider(StorageProvider):
             token (str/Dict): GCP token, used for fetching credentials for storage).
         """
         self.root = root
-        self.token: Union[str, Dict] = token
+        self.token: Union[str, Dict, None] = token
         self.missing_exceptions = (
             FileNotFoundError,
             IsADirectoryError,
@@ -33,9 +33,7 @@ class GCSProvider(StorageProvider):
 
     def initialize_provider(self):
         self._set_bucket_and_path()
-        if isinstance(self.token, str):
-            with open(self.token) as token_file:
-                self.token = json.load(token_file)
+        print(self.token)
         self.fs = gcsfs.GCSFileSystem(token=self.token)
 
     def _set_bucket_and_path(self):
