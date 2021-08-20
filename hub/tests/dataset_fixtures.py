@@ -51,9 +51,9 @@ def gcs_ds(gcs_ds_generator):
 
 
 @pytest.fixture
-def gcs_ds_generator(gcs_path):
+def gcs_ds_generator(gcs_path, gcs_creds):
     def generate_gcs_ds():
-        return hub.dataset(gcs_path)
+        return hub.dataset(gcs_path, creds=gcs_creds)
 
     return generate_gcs_ds
 

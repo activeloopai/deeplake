@@ -15,6 +15,7 @@ from hub.constants import (
     PYTEST_MEMORY_PROVIDER_BASE_ROOT,
     S3_OPT,
     GCS_OPT,
+    ENV_GOOGLE_APPLICATION_CREDENTIALS,
 )
 import posixpath
 from hub.tests.common import (
@@ -135,20 +136,25 @@ def s3_path(request):
         S3Provider(path).clear()
 
 
+@pytest.fixture(scope="session")
+def gcs_creds():
+    return os.environ[ENV_GOOGLE_APPLICATION_CREDENTIALS]
+
+
 @pytest.fixture
-def gcs_path(request):
+def gcs_path(request, gcs_creds):
     if not is_opt_true(request, GCS_OPT):
         pytest.skip()
         return
 
     path = _get_storage_path(request, GCS)
-    GCSProvider(path).clear()
+    GCSProvider(path, token=gcs_creds).clear()
 
     yield path
 
     # clear storage unless flagged otherwise
     if not is_opt_true(request, KEEP_STORAGE_OPT):
-        GCSProvider(path).clear()
+        GCSProvider(path, token=gcs_creds).clear()
 
 
 @pytest.fixture

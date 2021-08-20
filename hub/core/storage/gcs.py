@@ -33,7 +33,6 @@ class GCSProvider(StorageProvider):
 
     def initialize_provider(self):
         self._set_bucket_and_path()
-        print(self.token)
         self.fs = gcsfs.GCSFileSystem(token=self.token)
 
     def _set_bucket_and_path(self):
