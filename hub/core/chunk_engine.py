@@ -342,13 +342,22 @@ class ChunkEngine:
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
         if index.is_single_dim_effective():
-            self._update_sample(index, samples)
+            self._update_samples(index, samples)
         else:
-            self._update_sample_subslice(index, samples)
+            if not hasattr(samples, "shape"):
+                raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
+
+            self._update_samples_subslice(index, samples)
 
 
-    def _update_sample(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
-        # TODO: docstring
+    def _update_samples(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
+        """Update the samples at `index` with entirely new samples. 
+        
+        Note:
+            This method allows the incoming samples' shapes to be different from the original.
+            However, this requires that only the primary axis is being updated upon (no subslicing).
+            For subslice updates, use `_update_samples_subslice`.
+        """
 
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
@@ -390,11 +399,17 @@ class ChunkEngine:
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
         )    
 
-    def _update_sample_subslice(self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]):
-        # TODO: docstring
+    def _update_samples_subslice(self, index: Index, samples: np.ndarray):
+        """Update the samples at `index` (must be a subslice index) with new data. 
+        
+        Note:
+            This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
+            For full sample updates (allowing new shapes), use `_update_samples`.
+        """
 
-        if not hasattr(samples, "shape"):
-            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}")
+
+        if not index.check_if_shape_fits(samples.shape):
+            raise UpdateSampleError(f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples.shape} Incoming slice: {str(index)}")
 
         raise NotImplementedError
     
