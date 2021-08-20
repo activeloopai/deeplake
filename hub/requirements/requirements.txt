@@ -3,6 +3,7 @@ pytest~=6.2.3
 click~=7.1.2
 boto3~=1.17.43
 botocore~=1.20.78
+gcsfs~=0.6.2
 numcodecs~=0.7.3
 Pillow~=8.2.0
 lz4~=3.1.3
