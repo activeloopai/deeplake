@@ -403,14 +403,13 @@ class Index:
     def shape(self) -> Tuple[Optional[int], ...]:
         """Returns the max shape this index can create.
         For trivial slices (ex: array[:]), their shape element is `None`.
-        If the output shape has a 1, they are removed (squeezed).
         
         Examples:
             >>> a = np.ones((100, 100))
             >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
-            (5,)
+            (1, 5,)
             >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
-            (None,)
+            (1, None, 1)
         """
         
         shape: List[Optional[int]] = []
@@ -419,8 +418,7 @@ class Index:
                 shape.append(None)
             else:
                 l = value.length(9999999999)
-                if l != 1:  # squeeze away 1s
-                    shape.append(l)  # TODO: better way to do this
+                shape.append(l)  # TODO: better way to do this
         return tuple(shape)
 
     def length(self, parent_length: int):
