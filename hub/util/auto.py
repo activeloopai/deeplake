@@ -59,7 +59,6 @@ def ingestion_summary(local_path: str, skipped_files: list):
     Args:
         local_path (str): Root directory of dataset.
         skipped_files (list): List of files skipped during ingestion.
-        ingested_file_count (int): Number of files ingested in the dataset.
     """
     columns, lines = shutil.get_terminal_size()
 
