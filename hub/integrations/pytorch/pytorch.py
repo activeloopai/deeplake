@@ -1,3 +1,4 @@
+from hub.util.chunks import chunk_name_from_id
 import numpy as np
 from hub.util.dataset import try_flushing
 from hub.constants import MB
@@ -321,7 +322,7 @@ class TorchDataset:
             # TODO change this once it returns list/set of str
             chunk_engine = self.all_chunk_engines[key]
             chunk_id = chunk_engine.chunk_id_encoder[actual_index]
-            chunk_name = chunk_engine.chunk_id_encoder.name_from_id(chunk_id)  # type: ignore
+            chunk_name = chunk_name_from_id(chunk_id)  # type: ignore
             if chunk_name not in chunk_map:
                 self.last_index_meta[key] = i - 1
                 return

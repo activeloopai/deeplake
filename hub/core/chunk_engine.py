@@ -1,3 +1,4 @@
+from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import get_tile_shape
 from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
@@ -332,13 +333,14 @@ class ChunkEngine:
         # check if `last_chunk_extended` to handle empty samples
         new_chunk = self._create_new_chunk()
         new_chunk.append_sample(buffer, self.max_chunk_size, shape)
+        return new_chunk
 
     def _create_new_chunk(self):
         """Creates and returns a new `Chunk`. Automatically creates an ID for it and puts a reference in the cache."""
 
         chunk_id = self.chunk_id_encoder.generate_chunk_id()
         chunk = Chunk()
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
         return chunk
@@ -371,7 +373,8 @@ class ChunkEngine:
     def extend_empty(self, shape: Tuple[int, ...]):
         """If `shape` is determined to spill over into another chunk, """
 
-        if shape[0] > 1:
+        num_samples = shape[0]
+        if num_samples > 1:
             # TODO: allow extends for empty
             raise NotImplementedError("Currently you can only create 1 empty sample at a time!")
         sample_shape = shape[1:]
@@ -392,33 +395,47 @@ class ChunkEngine:
             # in order for us to create an empty sample that exceeds 1 chunk (needs to be tiled)
             # we need to:
 
+            # TODO: dynamic tile shapes?
+
             # 1. determine our tile shapes (tiles are only as good as these shapes are)
-            # TODO: refactor this:
             tile_shape = get_tile_shape(sample_shape, dtype, self.max_chunk_size)
 
             # 2. find the number of chunks/tiles required (N)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
             
-            # 3. initialize our N empty chunks including headers
-            # TODO
+            # 3. initialize our N empty chunks including headers + register with tile encoder
+            idx = self.num_samples
+            tile_encoder = self.tile_encoder
+            tile_encoder.register_sample(idx, sample_shape, tile_shape)
+            for i in range(num_tiles):
+                # TODO: corner tile chunks won't be of the same shape as tile_shape?
 
-            # 4. register all chunk names in the tile meta
-            # TODO
-            self.tile_encoder.register_sample(self.num_samples, sample_shape, tile_shape)
+                # only the first tile chunk should be registered in the normal chunk ID encoder
+                tile_chunk = Chunk()
+                tile_chunk.append_sample(bytes(), self.max_chunk_size, sample_shape)
 
-            # 5. update tensor_meta (shape and stuffs)
-            # TODO
+                if i == 0:
+                    chunk_id_encoder = self.chunk_id_encoder
+                    tile_chunk_id = chunk_id_encoder.generate_chunk_id()
+                    chunk_id_encoder.register_samples(num_samples)
 
-            # 6. send chunks to storage
-            # TODO
+                else:
+                    tile_chunk_id = random_chunk_id()
+
+                tile_chunk_name = chunk_name_from_id(tile_chunk_id)
+                tile_encoder.register_chunks_for_sample(idx, [tile_chunk_name])
+
+                self.cache[get_chunk_key(self.key, tile_chunk_name)] = tile_chunk
+
+            # 4. update tensor_meta (shape and stuffs)
+            tensor_meta.update_shape_interval(sample_shape)
+            tensor_meta.length += shape[0]
 
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method
 
             self._synchronize_cache()
             self.cache.maybe_flush()
 
-            # TODO
-            raise NotImplementedError
         else:
             self.extend(np.zeros(shape, dtype=tensor_meta.dtype))
 
@@ -570,7 +587,7 @@ class ChunkEngine:
         """
 
         chunk_id = enc[global_sample_index]
-        chunk_name = ChunkIdEncoder.name_from_id(chunk_id)
+        chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         chunk.key = chunk_key
@@ -626,7 +643,7 @@ class ChunkEngine:
         chunk_names: Set[str] = set()
         while len(chunk_names) < target_chunk_count and sample_index < last_index:
             chunk_id = self.chunk_id_encoder[sample_index]
-            chunk = self.chunk_id_encoder.name_from_id(chunk_id)
+            chunk = chunk_name_from_id(chunk_id)
             # todo, change to chunk_names.update once chunks returns sequence instead of single string
             chunk_names.add(chunk)
             sample_index += 1

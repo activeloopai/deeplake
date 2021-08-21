@@ -1,7 +1,7 @@
+from hub.util.tiles import ceildiv
 from hub.core.storage.cachable import Cachable
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 
 # TODO: do we want to make this a BaseEncoder subclass?
@@ -10,8 +10,6 @@ class TileEncoder(Cachable):
         self.entries = entries or {}
 
     def register_sample(self, idx: int, shape: Tuple[int], tile_shape: Tuple[int]):
-        raise NotImplementedError  # TODO
-
         # TODO: docstring
 
         self.entries[idx] = {
@@ -50,3 +48,6 @@ class TileEncoder(Cachable):
     def nbytes(self):
         # TODO: BEFORE MERGING IMPLEMENT THIS PROPERLY
         return 100
+
+    def __getstate__(self) -> Dict[str, Any]:
+        return {"entries": self.entries}

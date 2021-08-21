@@ -40,7 +40,7 @@ def approximate_num_bytes(shape, tensor_meta: TensorMeta) -> int:
     return num_bytes
 
 
-def _ceildiv(a: int, b: int) -> int:
+def ceildiv(a: int, b: int) -> int:
     """Computes the ceiling of the division of two ints.
     Returns an int.
     """
@@ -54,5 +54,5 @@ def num_tiles_for_sample(tile_shape: Tuple[int], sample_shape: Tuple[int]) -> in
 
     num_tiles = 1
     for tile_dim, sample_dim in zip(tile_shape, sample_shape):
-        num_tiles *= _ceildiv(sample_dim, tile_dim)
+        num_tiles *= ceildiv(sample_dim, tile_dim)
     return num_tiles
