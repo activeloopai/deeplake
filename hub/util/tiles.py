@@ -4,7 +4,7 @@ from typing import Tuple
 import numpy as np
 
 
-def _num_bytes_without_compression(shape: Tuple[int], dtype: np.dtype) -> int:
+def _num_bytes_without_compression(shape: Tuple[int, ...], dtype: np.dtype) -> int:
     return dtype.itemsize * np.prod(shape)
 
 
@@ -48,7 +48,7 @@ def ceildiv(a: int, b: int) -> int:
     return ceil(float(a) / float(b))
 
 
-def num_tiles_for_sample(tile_shape: Tuple[int], sample_shape: Tuple[int]) -> int:
+def num_tiles_for_sample(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]) -> int:
     """Calculates the number of tiles required to store a sample of `sample_shape` using tiles
     of shape `tile_shape`."""
 

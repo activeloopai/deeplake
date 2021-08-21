@@ -414,7 +414,7 @@ class ChunkEngine:
 
                 # only the first tile chunk should be registered in the normal chunk ID encoder
                 tile_chunk = Chunk()
-                tile_chunk.append_sample(bytes(), self.max_chunk_size, sample_shape)
+                tile_chunk.append_sample(memoryview(bytes()), self.max_chunk_size, sample_shape)
 
                 if i == 0:
                     chunk_id_encoder = self.chunk_id_encoder

@@ -75,7 +75,7 @@ class Chunk(Cachable):
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
-    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int]):
+    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int, ...]):
         """Store `buffer` in this chunk.
 
         Args:
@@ -102,7 +102,7 @@ class Chunk(Cachable):
         self.register_sample_to_headers(incoming_num_bytes, shape)
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: int, sample_shape: Tuple[int]
+        self, incoming_num_bytes: int, sample_shape: Tuple[int, ...]
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 

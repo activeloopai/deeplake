@@ -7,20 +7,20 @@ import numpy as np
 COST_THRESHOLD = 1 * MB  # TODO: make smaller with better optimizers
 
 
-def _cost(tile_shape: Tuple[int], dtype: np.dtype, tile_target_bytes: int) -> int:
+def _cost(tile_shape: Tuple[int, ...], dtype: np.dtype, tile_target_bytes: int) -> int:
     # TODO: docstring
 
     actual_bytes = np.prod(tile_shape) * dtype.itemsize
     return abs(tile_target_bytes - actual_bytes)
 
 
-def _downscale(tile_shape: Tuple[int], sample_shape: Tuple[int]):
+def _downscale(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]):
     # TODO: docstring
 
     return tuple(map(min, zip(tile_shape, sample_shape)))
 
 
-def _propose_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int):
+def _propose_tile_shape(sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int):
     dtype_num_bytes = dtype.itemsize
     ndims = len(sample_shape)
 
@@ -35,7 +35,7 @@ def _propose_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_siz
 
 
 def _optimize_tile_shape(
-    sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int
+    sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int
 ):
     # TODO: docstring
 
@@ -50,7 +50,7 @@ def _optimize_tile_shape(
     return tile_shape
 
 
-def _validate_tile_shape(tile_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int):
+def _validate_tile_shape(tile_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int):
     # TODO: docstring
 
     cost = _cost(tile_shape, dtype, max_chunk_size)
@@ -60,7 +60,7 @@ def _validate_tile_shape(tile_shape: Tuple[int], dtype: np.dtype, max_chunk_size
         )  # TODO: exceptions.py
 
 
-def get_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int):
+def get_tile_shape(sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int):
     # TODO: docstring
 
     tile_shape = _optimize_tile_shape(sample_shape, dtype, max_chunk_size)
