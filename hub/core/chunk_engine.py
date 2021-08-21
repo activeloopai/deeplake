@@ -1,5 +1,5 @@
 from hub.core.tiling.optimize import get_tile_shape
-from hub.util.tiles import approximate_num_bytes
+from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
@@ -396,8 +396,8 @@ class ChunkEngine:
             # TODO: refactor this:
             tile_shape = get_tile_shape(sample_shape, dtype, self.max_chunk_size)
 
-            # 2. find the number of chunks required (N)
-            # TODO
+            # 2. find the number of chunks/tiles required (N)
+            num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
             
             # 3. initialize our N empty chunks including headers
             # TODO

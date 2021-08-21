@@ -37,3 +37,9 @@ def approximate_num_bytes(shape, tensor_meta: TensorMeta) -> int:
     #     )
 
     return num_bytes
+
+
+def num_tiles_for_sample(tile_shape: Tuple[int], sample_shape: Tuple[int]):
+    # TODO: docstring
+
+    raise NotImplementedError  # TODO
