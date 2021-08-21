@@ -174,7 +174,6 @@ def decompress_multiple(
         arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
         next_x += shape[1]
     return arrays
-        return np.array(img).reshape(shape)
     except Exception:
         raise SampleDecompressionError()
 
