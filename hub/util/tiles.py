@@ -1,3 +1,4 @@
+from math import ceil
 from hub.core.meta.tensor_meta import TensorMeta
 from typing import Tuple
 import numpy as np
@@ -39,7 +40,19 @@ def approximate_num_bytes(shape, tensor_meta: TensorMeta) -> int:
     return num_bytes
 
 
-def num_tiles_for_sample(tile_shape: Tuple[int], sample_shape: Tuple[int]):
-    # TODO: docstring
+def _ceildiv(a: int, b: int) -> int:
+    """Computes the ceiling of the division of two ints.
+    Returns an int.
+    """
 
-    raise NotImplementedError  # TODO
+    return ceil(float(a) / float(b))
+
+
+def num_tiles_for_sample(tile_shape: Tuple[int], sample_shape: Tuple[int]) -> int:
+    """Calculates the number of tiles required to store a sample of `sample_shape` using tiles
+    of shape `tile_shape`."""
+
+    num_tiles = 1
+    for tile_dim, sample_dim in zip(tile_shape, sample_shape):
+        num_tiles *= _ceildiv(sample_dim, tile_dim)
+    return num_tiles
