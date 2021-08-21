@@ -247,9 +247,7 @@ def _serialize_input_sample(
     return buffer, shape
 
 
-def _check_input_samples_are_valid(
-    buffer_and_shapes: List
-):
+def _check_input_samples_are_valid(buffer_and_shapes: List):
     """Iterates through all buffers/shapes and raises appropriate errors."""
 
     expected_dimensionality = None

@@ -371,12 +371,14 @@ class ChunkEngine:
         self.extend([sample])
 
     def extend_empty(self, shape: Tuple[int, ...]):
-        """If `shape` is determined to spill over into another chunk, """
+        """If `shape` is determined to spill over into another chunk,"""
 
         num_samples = shape[0]
         if num_samples > 1:
             # TODO: allow extends for empty
-            raise NotImplementedError("Currently you can only create 1 empty sample at a time!")
+            raise NotImplementedError(
+                "Currently you can only create 1 empty sample at a time!"
+            )
         sample_shape = shape[1:]
 
         self.cache.check_readonly()
@@ -402,7 +404,7 @@ class ChunkEngine:
 
             # 2. find the number of chunks/tiles required (N)
             num_tiles = num_tiles_for_sample(tile_shape, sample_shape)
-            
+
             # 3. initialize our N empty chunks including headers + register with tile encoder
             idx = self.num_samples
             tile_encoder = self.tile_encoder

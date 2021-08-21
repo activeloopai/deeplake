@@ -15,7 +15,9 @@ def test_initialize_large_tensor(local_ds_generator, compression):
 
     ds = local_ds_generator()
     assert ds.tensor.shape == (1, 10000, 10000)
-    np.testing.assert_array_equal(ds.tensor[0, 0:10, 0:10].numpy(), np.zeros((10, 10), dtype="int32"))
+    np.testing.assert_array_equal(
+        ds.tensor[0, 0:10, 0:10].numpy(), np.zeros((10, 10), dtype="int32")
+    )
 
     # fill in some data
     ds.tensor[0, 0:5, 0:5] = np.ones((5, 5), dtype="int32")
@@ -24,7 +26,7 @@ def test_initialize_large_tensor(local_ds_generator, compression):
     actual = ds.tensor[0, 0:10, 0:10].numpy()
     expected = np.zeros((10, 10), dtype="int32")
     expected[0:5, 0:5] = 1
-    np.testing.assert_array_equal(actual, expected) 
+    np.testing.assert_array_equal(actual, expected)
 
     assert ds.tensor.shape == (1, 10000, 10000)
 
@@ -100,7 +102,7 @@ def test_populate_full_large_sample(local_ds_generator, compression):
         for x in range(0, 500, 50):
             for y in range(0, 500, 50):
                 patch = np.ones((50, 50), dtype="int32") * patch_count
-                ds.large[last_x:x, last_y:y] = patch
+                ds.large[0, last_x:x, last_y:y] = patch
                 last_y = y
             last_x = x
 
@@ -118,7 +120,7 @@ def test_populate_full_large_sample(local_ds_generator, compression):
     for x in range(0, 500, 50):
         for y in range(0, 500, 50):
             expected_patch = np.ones((50, 50), dtype="int32") * patch_count
-            actual_patch = ds.large[last_x:x, last_y:y].numpy()
+            actual_patch = ds.large[0, last_x:x, last_y:y].numpy()
             np.testing.assert_array_equal(expected_patch, actual_patch)
             last_y = y
         last_x = x

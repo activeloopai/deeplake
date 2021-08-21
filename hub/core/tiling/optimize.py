@@ -16,7 +16,7 @@ def _cost(tile_shape: Tuple[int], dtype: np.dtype, tile_target_bytes: int) -> in
 
 def _downscale(tile_shape: Tuple[int], sample_shape: Tuple[int]):
     # TODO: docstring
-    
+
     return tuple(map(min, zip(tile_shape, sample_shape)))
 
 
@@ -34,7 +34,9 @@ def _propose_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_siz
     return tile_shape
 
 
-def _optimize_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int):
+def _optimize_tile_shape(
+    sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int
+):
     # TODO: docstring
 
     tile_shape = _propose_tile_shape(sample_shape, dtype, max_chunk_size)
@@ -53,7 +55,9 @@ def _validate_tile_shape(tile_shape: Tuple[int], dtype: np.dtype, max_chunk_size
 
     cost = _cost(tile_shape, dtype, max_chunk_size)
     if cost > COST_THRESHOLD:
-        raise Exception(f"Cost too large ({cost}) for tile shape {tile_shape} and max chunk size {max_chunk_size}")  # TODO: exceptions.py
+        raise Exception(
+            f"Cost too large ({cost}) for tile shape {tile_shape} and max chunk size {max_chunk_size}"
+        )  # TODO: exceptions.py
 
 
 def get_tile_shape(sample_shape: Tuple[int], dtype: np.dtype, max_chunk_size: int):
