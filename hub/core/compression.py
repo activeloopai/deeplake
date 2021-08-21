@@ -174,8 +174,6 @@ def decompress_multiple(
         arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
         next_x += shape[1]
     return arrays
-    except Exception:
-        raise SampleDecompressionError()
 
 
 def verify_compressed_file(path: str, compression: str):
