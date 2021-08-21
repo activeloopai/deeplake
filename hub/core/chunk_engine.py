@@ -368,6 +368,7 @@ class ChunkEngine:
             # we need to:
 
             # 1. find the number of chunks required (N)
+            num_chunks = ceil(nbytes / self.max_chunk_size)
             # 2. determine our tile sizes (tiles are only as good as these sizes are)
             # 3. initialize our N empty chunks including headers
             # 4. register all chunk names in the tile meta
