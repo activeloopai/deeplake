@@ -1,3 +1,4 @@
+from hub.core.tiling.optimize import get_tile_shape
 from hub.util.tiles import approximate_num_bytes
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
@@ -370,6 +371,11 @@ class ChunkEngine:
     def extend_empty(self, shape: Tuple[int, ...]):
         """If `shape` is determined to spill over into another chunk, """
 
+        if shape[0] > 1:
+            # TODO: allow extends for empty
+            raise NotImplementedError("Currently you can only create 1 empty sample at a time!")
+        sample_shape = shape[1:]
+
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
@@ -378,6 +384,7 @@ class ChunkEngine:
             raise CannotInferTilesError(
                 "Cannot add an empty sample to a tensor with dtype=None. Either add a real sample, or use `tensor.set_dtype(...)` first."
             )
+        dtype = np.dtype(tensor_meta.dtype)
 
         nbytes = approximate_num_bytes(shape, tensor_meta)
 
@@ -385,13 +392,25 @@ class ChunkEngine:
             # in order for us to create an empty sample that exceeds 1 chunk (needs to be tiled)
             # we need to:
 
-            # 1. find the number of chunks required (N)
-            num_chunks = ceil(nbytes / self.max_chunk_size)
-            # 2. determine our tile sizes (tiles are only as good as these sizes are)
+            # 1. determine our tile shapes (tiles are only as good as these shapes are)
+            # TODO: refactor this:
+            tile_shape = get_tile_shape(sample_shape, dtype, self.max_chunk_size)
+
+            # 2. find the number of chunks required (N)
+            # TODO
+            
             # 3. initialize our N empty chunks including headers
+            # TODO
+
             # 4. register all chunk names in the tile meta
+            # TODO
+            self.tile_encoder.register_sample(self.num_samples, sample_shape, tile_shape)
+
             # 5. update tensor_meta (shape and stuffs)
+            # TODO
+
             # 6. send chunks to storage
+            # TODO
 
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method
 

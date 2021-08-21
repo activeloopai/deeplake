@@ -13,20 +13,15 @@ def ceildiv(a: int, b: int) -> int:
     return math.ceil(float(a) / float(b))
 
 
+# TODO: do we want to make this a BaseEncoder subclass?
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
         self.entries = entries or {}
 
-    def register_sample(self, idx: int, shape: Tuple[int], dtype: np.dtype):
-        tile_target_bytes = DEFAULT_MAX_CHUNK_SIZE
-        dtype_num_bytes = dtype.itemsize
-        ndims = len(shape)
+    def register_sample(self, idx: int, shape: Tuple[int], tile_shape: Tuple[int]):
+        raise NotImplementedError  # TODO
 
-        tile_target_entries = tile_target_bytes // dtype_num_bytes
-        tile_target_length = int(tile_target_entries ** (1.0 / ndims))
-
-        # Tile length must be at least 16, so we don't round too close to zero
-        tile_shape = max(16, (tile_target_length,) * ndims)
+        # TODO: docstring
 
         self.entries[idx] = {
             "sample_shape": shape,
@@ -62,3 +57,8 @@ class TileEncoder(Cachable):
             factor *= ceildiv(tile_shape[ax], sample_shape[ax])
 
         return chunks[chunk_idx]
+
+    @property
+    def nbytes(self):
+        # TODO: BEFORE MERGING IMPLEMENT THIS PROPERLY
+        return 100
