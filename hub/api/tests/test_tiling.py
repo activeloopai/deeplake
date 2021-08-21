@@ -15,18 +15,23 @@ def test_initialize_large_tensor(local_ds_generator, compression):
 
     ds = local_ds_generator()
     assert ds.tensor.shape == (1, 10000, 10000)
-    np.testing.assert_array_equal(ds.tensor[0:10, 0:10].numpy(), np.zeros((10, 10), dtype="int32"))
+    np.testing.assert_array_equal(ds.tensor[0, 0:10, 0:10].numpy(), np.zeros((10, 10), dtype="int32"))
 
     # fill in some data
-    ds.tensor[0:5, 0:5] = np.ones((5, 5), dtype="int32")
+    ds.tensor[0, 0:5, 0:5] = np.ones((5, 5), dtype="int32")
 
     ds = local_ds_generator()
-    actual = ds.tensor[0:10, 0:10].numpy()
+    actual = ds.tensor[0, 0:10, 0:10].numpy()
     expected = np.zeros((10, 10), dtype="int32")
     expected[0:5, 0:5] = 1
     np.testing.assert_array_equal(actual, expected) 
 
     assert ds.tensor.shape == (1, 10000, 10000)
+
+    if compression is None:
+        assert ds.tensor.num_chunks == 13
+    else:
+        assert ds.tensor.num_chunks < 13
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
@@ -65,6 +70,11 @@ def test_initialize_large_image(local_ds_generator, compression):
     expected[:, :, 1] *= 2
     expected[:, :, 2] *= 3
     np.testing.assert_array_equal(ds.tensor[1, 50:100, 50:100, :].numpy(), expected)
+
+    if compression is None:
+        assert ds.tensor.num_chunks == 40
+    else:
+        assert ds.tensor.num_chunks < 40
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
