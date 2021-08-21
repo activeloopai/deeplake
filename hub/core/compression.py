@@ -133,7 +133,7 @@ def decompress_array(
         if shape is not None:
             arr = arr.reshape(shape)
         return arr
-    except UnidentifiedImageError:
+    except Exception:
         raise SampleDecompressionError()
 
 

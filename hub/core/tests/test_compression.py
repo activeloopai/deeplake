@@ -9,13 +9,15 @@ from hub.core.compression import (
     decompress_multiple,
 )
 from hub.util.exceptions import CorruptedSampleError
-from hub.constants import SUPPORTED_COMPRESSIONS
 from PIL import Image  # type: ignore
 
 
-compressions = SUPPORTED_COMPRESSIONS[:]
+compressions = hub.compression.SUPPORTED_COMPRESSIONS[:]
 compressions.remove(None)  # type: ignore
 compressions.remove("wmf")  # driver has to be provided by user for wmf write support
+
+image_compressions = hub.compression.IMAGE_COMPRESSIONS[:]
+image_compressions.remove("wmf")
 
 
 @pytest.mark.parametrize("compression", compressions)
@@ -49,7 +51,9 @@ def test_multi_array(compression, compressed_image_paths):
             np.testing.assert_array_equal(arr1, arr2)
         else:
             assert arr1.shape == arr2.shape
-@pytest.mark.parametrize("compression", compressions)
+
+
+@pytest.mark.parametrize("compression", image_compressions)
 def test_verify(compression, compressed_image_paths, corrupt_image_paths):
     path = compressed_image_paths[compression]
     hub.read(path, verify=True)
