@@ -15,7 +15,7 @@ class TileEncoder(Cachable):
         self.entries[idx] = {
             "sample_shape": shape,
             "tile_shape": tile_shape,
-            "chunks": [],
+            "chunks": [],  # TODO: maybe we can get away with storing this information strictly in the chunk_id_encoder?
         }
 
     def register_chunks_for_sample(self, idx: int, chunks: List[str]):

@@ -321,13 +321,16 @@ class ChunkEngine:
 
         return False
 
-    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int]):
+    def _append_to_new_chunk(self, buffer: memoryview, shape: Tuple[int]) -> Chunk:
         """Will create a new chunk and store `buffer` inside of it. Assumes that `buffer`'s length is < max chunk size.
         This should be called if `buffer` could not be added to the last chunk.
 
         Args:
             buffer (memoryview): Data to store. This can represent any number of samples.
             shape (Tuple[int]): Shape for the sample that `buffer` represents.
+
+        Returns:
+            Chunk: The newly created chunk instance.
         """
 
         # check if `last_chunk_extended` to handle empty samples
