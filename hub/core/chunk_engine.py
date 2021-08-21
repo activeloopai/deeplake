@@ -212,6 +212,8 @@ class ChunkEngine:
         if self.last_chunk is None:
             return nbytes > self.max_chunk_size
 
+        # TODO: FIX THIS BEFORE MERGING: this may cause suboptimal chunks in the case where nbytes is too large for the last chunk, but smaller than max chunk size.
+
         return not self.last_chunk.has_space_for(nbytes, self.max_chunk_size)
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
@@ -344,9 +346,12 @@ class ChunkEngine:
 
     def append(self, sample: SampleValue):
         """Formats a single `sample` (compresseses/decompresses if applicable) and feeds it into `_append_bytes`."""
+
         self.extend([sample])
 
     def extend_empty(self, shape: Tuple[int, ...]):
+        """If `shape` is determined to spill over into another chunk, """
+
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
@@ -368,6 +373,8 @@ class ChunkEngine:
             # 4. register all chunk names in the tile meta
             # 5. update tensor_meta (shape and stuffs)
             # 6. send chunks to storage
+
+            # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method
 
             self._synchronize_cache()
             self.cache.maybe_flush()
