@@ -18,6 +18,10 @@ def get_dataset_info_key() -> str:
     return constants.DATASET_INFO_FILENAME
 
 
+def get_dataset_lock_key() -> str:
+    return constants.DATASET_LOCK_FILENAME
+
+
 def get_tensor_meta_key(key: str) -> str:
     return posixpath.join(key, constants.TENSOR_META_FILENAME)
 

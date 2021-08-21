@@ -22,7 +22,7 @@ def get_dtype(val: Union[np.ndarray, Sequence, Sample]) -> np.dtype:
     """Get the dtype of a non-uniform mixed dtype sequence of samples."""
 
     if hasattr(val, "dtype"):
-        return val.dtype  # type: ignore
+        return np.dtype(val.dtype)  # type: ignore
     elif isinstance(val, int):
         return np.array(0).dtype
     elif isinstance(val, float):

@@ -8,6 +8,7 @@ from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
 )
+from hub.util.exceptions import CorruptedSampleError
 from hub.constants import SUPPORTED_COMPRESSIONS
 from PIL import Image  # type: ignore
 
@@ -48,3 +49,13 @@ def test_multi_array(compression, compressed_image_paths):
             np.testing.assert_array_equal(arr1, arr2)
         else:
             assert arr1.shape == arr2.shape
+@pytest.mark.parametrize("compression", compressions)
+def test_verify(compression, compressed_image_paths, corrupt_image_paths):
+    path = compressed_image_paths[compression]
+    hub.read(path, verify=True)
+    if compression in corrupt_image_paths:
+        path = corrupt_image_paths[compression]
+        hub.read(path)
+        Image.open(path)
+        with pytest.raises(CorruptedSampleError):
+            hub.read(path, verify=True)

@@ -3,12 +3,14 @@ from hub.util.exceptions import (
     SampleCompressionError,
     SampleDecompressionError,
     UnsupportedCompressionError,
+    CorruptedSampleError,
 )
 from typing import Union, Tuple, Sequence, List, Optional
 import numpy as np
 
 from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
+import mmap
 
 import lz4.frame
 
@@ -172,3 +174,77 @@ def decompress_multiple(
         arrays.append(canvas[: shape[0], next_x : next_x + shape[1]])
         next_x += shape[1]
     return arrays
+        return np.array(img).reshape(shape)
+    except Exception:
+        raise SampleDecompressionError()
+
+
+def verify_compressed_file(path: str, compression: str):
+    """Verify the contents of an image file
+    Args:
+        path (str): Path to the image file
+        compression (str): Expected compression of the image file
+    """
+    try:
+        if compression == "png":
+            _verify_png(path)
+        elif compression == "jpeg":
+            _verify_jpeg(path)
+        else:
+            _fast_decompress(path)
+    except Exception as e:
+        raise CorruptedSampleError(compression)
+
+
+def _verify_png(path):
+    img = Image.open(path)
+    img.verify()
+
+
+def _verify_jpeg(path):
+    # See: https://dev.exiv2.org/projects/exiv2/wiki/The_Metadata_in_JPEG_files#2-The-metadata-structure-in-JPEG
+    with open(path, "r+b") as f:
+        mm = mmap.mmap(f.fileno(), 0)
+        soi = f.read(2)
+        # Start of Image
+        assert soi == b"\xff\xd8"
+
+        # Look for Baseline DCT marker
+        sof_idx = mm.find(b"\xff\xc0", 2)
+        if sof_idx == -1:
+            # Look for Progressive DCT marker
+            sof_idx = mm.find(b"\xff\xc2", 2)
+            if sof_idx == -1:
+                raise Exception()  # Caught by verify_compressed_file()
+        f.seek(sof_idx + 2)
+        length = int.from_bytes(f.read(2), "big")
+        f.seek(length - 2, 1)
+        definition_start = f.read(2)
+        assert definition_start in [
+            b"\xff\xc4",
+            b"\xff\xdb",
+            b"\xff\xdd",
+        ]  # DHT, DQT, DRI
+
+        # TODO this check is too slow
+        assert mm.find(b"\xff\xd9") != -1  # End of Image
+
+
+def _fast_decompress(path):
+    img = Image.open(path)
+    img.load()
+    if img.mode == 1:
+        args = ("L",)
+    else:
+        args = (img.mode,)
+    enc = Image._getencoder(img.mode, "raw", args)
+    enc.setimage(img.im)
+    bufsize = max(65536, img.size[0] * 4)
+    while True:
+        status, err_code, buf = enc.encode(
+            bufsize
+        )  # See https://github.com/python-pillow/Pillow/blob/master/src/encode.c#L144
+        if err_code:
+            break
+    if err_code < 0:
+        raise Exception()  # caught by verify_compressed_file()

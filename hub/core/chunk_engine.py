@@ -131,7 +131,9 @@ class ChunkEngine:
     @property
     def max_chunk_size(self):
         # no chunks may exceed this
-        return self.tensor_meta.max_chunk_size or DEFAULT_MAX_CHUNK_SIZE
+        return (
+            getattr(self.tensor_meta, "max_chunk_size", None) or DEFAULT_MAX_CHUNK_SIZE
+        )
 
     @property
     def min_chunk_size(self):
@@ -596,7 +598,9 @@ class ChunkEngine:
         tensor_meta_length = self.tensor_meta.length
 
         # compare chunk ID encoder and tensor meta
-        chunk_id_num_samples = self.chunk_id_encoder.num_samples
+        chunk_id_num_samples = (
+            self.chunk_id_encoder.num_samples if self.chunk_id_encoder_exists else 0
+        )
         if tensor_meta_length != chunk_id_num_samples:
             tkey = get_tensor_meta_key(self.key)
             ikey = get_chunk_id_encoder_key(self.key)

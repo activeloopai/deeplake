@@ -4,7 +4,7 @@ from hub.util.tag import check_hub_path
 from typing import Optional
 from hub.core.storage.provider import StorageProvider
 import os
-from hub.core.storage import LocalProvider, S3Provider, MemoryProvider
+from hub.core.storage import LocalProvider, S3Provider, MemoryProvider, LRUCache
 from hub.client.client import HubBackendClient
 
 

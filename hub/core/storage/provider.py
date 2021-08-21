@@ -6,6 +6,7 @@ from typing import Optional
 from hub.constants import BYTE_PADDING
 from hub.util.assert_byte_indexes import assert_byte_indexes
 from hub.util.exceptions import ReadOnlyModeError
+from hub.constants import DATASET_LOCK_FILENAME
 
 
 class StorageProvider(ABC, MutableMapping):
@@ -157,3 +158,6 @@ class StorageProvider(ABC, MutableMapping):
     @abstractmethod
     def clear(self):
         """Delete the contents of the provider."""
+
+    def empty(self) -> bool:
+        return len(self) - int(DATASET_LOCK_FILENAME in self) <= 0

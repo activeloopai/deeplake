@@ -1,6 +1,7 @@
 import hub
 from hub.api.info import load_info
 from hub.core.storage.provider import StorageProvider
+from hub.core.storage.s3 import S3Provider
 from hub.core.tensor import create_tensor, Tensor
 from typing import Any, Callable, Dict, Optional, Union, Tuple, List, Sequence
 from hub.htype import HTYPE_CONFIGURATIONS, DEFAULT_HTYPE, UNSPECIFIED
@@ -8,6 +9,7 @@ import numpy as np
 
 from hub.core.meta.dataset_meta import DatasetMeta
 from hub.core.index import Index
+from hub.core.lock import lock, unlock
 from hub.integrations import dataset_to_tensorflow
 from hub.util.keys import (
     dataset_exists,
@@ -24,11 +26,14 @@ from hub.util.exceptions import (
     TensorAlreadyExistsError,
     TensorDoesNotExistError,
     InvalidTensorNameError,
+    LockedException,
 )
 from hub.client.client import HubBackendClient
 from hub.client.log import logger
 from hub.util.path import get_path_from_storage
+from hub.util.remove_cache import get_base_storage
 from hub.core.fast_forwarding import ffw_dataset_meta
+import warnings
 
 
 class Dataset:
@@ -60,17 +65,36 @@ class Dataset:
             AuthorizationException: If a Hub cloud path (path starting with hub://) is specified and the user doesn't have access to the dataset.
             PathNotEmptyException: If the path to the dataset doesn't contain a Hub dataset and is also not empty.
         """
-        self._read_only = read_only
         # uniquely identifies dataset
         self.path = get_path_from_storage(storage)
         self.storage = storage
-        self.index = index or Index()
+        self._read_only = read_only
+        base_storage = get_base_storage(storage)
+        if index is None and isinstance(
+            base_storage, S3Provider
+        ):  # Dataset locking only for S3 datasets
+            try:
+                lock(base_storage, callback=lambda: self._lock_lost_handler)
+            except LockedException:
+                self.read_only = True
+                warnings.warn(
+                    "Opening dataset in read only mode as another machine has locked it for writing."
+                )
+
+        self.index: Index = index or Index()
         self.tensors: Dict[str, Tensor] = {}
         self._token = token
         self.public = public
         self.verbose = verbose
 
         self._set_derived_attributes()
+
+    def _lock_lost_handler(self):
+        """This is called when lock is acquired but lost later on due to slow update."""
+        self.read_only = True
+        warnings.warn(
+            "Unable to update dataset lock as another machine has locked it for writing. Switching to read only mode."
+        )
 
     def __enter__(self):
         self.storage.autoflush = False
@@ -280,7 +304,7 @@ class Dataset:
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
-        elif len(self.storage) > 0:
+        elif not self.storage.empty():
             # dataset does not exist, but the path was not empty
             raise PathNotEmptyException
 
@@ -431,7 +455,7 @@ class Dataset:
                     f"Hub Dataset {self.path} was too large to delete. Try again with large_ok=True."
                 )
                 return
-
+        unlock(self.storage)
         self.storage.clear()
         if self.path.startswith("hub://"):
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
