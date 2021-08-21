@@ -5,14 +5,39 @@ from hub.constants import KB
 
 
 @pytest.mark.parametrize("compression", [None, "png"])
-def test_initialize_large_samples(local_ds_generator, compression):
+def test_initialize_large_tensor(local_ds_generator, compression):
+    ds = local_ds_generator()
+
+    # keep max chunk size default, this test should run really fast since we barely fill in any data
+    ds.create_tensor("tensor", dtype="int32", sample_compression=compression)
+
+    ds.tensor.append_empty((10000, 10000))  # 400MB
+
+    ds = local_ds_generator()
+    assert ds.tensor.shape == (1, 10000, 10000)
+    np.testing.assert_array_equal(ds.tensor[0:10, 0:10].numpy(), np.zeros((10, 10), dtype="int32"))
+
+    # fill in some data
+    ds.tensor[0:5, 0:5] = np.ones((5, 5), dtype="int32")
+
+    ds = local_ds_generator()
+    actual = ds.tensor[0:10, 0:10].numpy()
+    expected = np.zeros((10, 10), dtype="int32")
+    expected[0:5, 0:5] = 1
+    np.testing.assert_array_equal(actual, expected) 
+
+    assert ds.tensor.shape == (1, 10000, 10000)
+
+
+@pytest.mark.parametrize("compression", [None, "png"])
+def test_initialize_large_image(local_ds_generator, compression):
     ds = local_ds_generator()
 
     # keep max chunk size default, this test should run really fast since we barely fill in any data
     ds.create_tensor("tensor", dtype="int32", sample_compression=compression)
 
     ds.tensor.append_empty((10, 10, 3))  # small
-    ds.tensor.append_empty((10000, 10000, 3))  # large (1.2GB)
+    ds.tensor.append_empty((10000, 10000, 3))  # large (1.2GB) w/ channel dim
     ds.tensor.append(np.ones((10, 10, 3), dtype="int32"))  # small
     ds.tensor.extend_empty((5, 10, 10, 3))  # small
 
