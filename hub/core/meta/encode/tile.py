@@ -1,8 +1,7 @@
 from hub.core.storage.cachable import Cachable
-from hub.core.chunk import Chunk
 from hub.constants import DEFAULT_MAX_CHUNK_SIZE
 
-from typing import Tuple
+from typing import List, Tuple
 import numpy as np
 import math
 
@@ -18,7 +17,7 @@ class TileEncoder(Cachable):
     def __init__(self, entries=None):
         self.entries = entries or {}
 
-    def register_sample(idx: int, shape: Tuple[int], dtype: np.dtype):
+    def register_sample(self, idx: int, shape: Tuple[int], dtype: np.dtype):
         tile_target_bytes = DEFAULT_MAX_CHUNK_SIZE
         dtype_num_bytes = dtype.itemsize
         ndims = len(shape)
@@ -38,7 +37,7 @@ class TileEncoder(Cachable):
         num_chunks_needed = np.prod(map(ceildiv, zip(shape, tile_shape)))
         return num_chunks_needed
 
-    def register_chunks_for_sample(idx: int, chunks: List[str]):
+    def register_chunks_for_sample(self, idx: int, chunks: List[str]):
         if idx not in self.entries:
             raise ValueError(
                 "Index not found. Entry must be registered before being populated."
@@ -46,7 +45,7 @@ class TileEncoder(Cachable):
 
         self.entries[idx]["chunks"].extend(chunks)
 
-    def chunk_for_sample(sample_idx: int, index: Tuple[int]):
+    def chunk_for_sample(self, sample_idx: int, index: Tuple[int]):
         if sample_idx not in self.entries:
             return None
 
