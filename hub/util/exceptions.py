@@ -544,3 +544,21 @@ class TilingError(Exception):
 class CannotInferTilesError(TilingError):
     def __init__(self, reason):
         super().__init__(reason)
+
+class UpdateSampleError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+
+
+class MultiSampleSubsliceUpdateError(UpdateSampleError):
+    def __init__(self, index_shape):
+        super().__init__(
+            f"Can only subslice update a single sample at a time! Got index shape: {index_shape}"
+        )
+
+
+class InvalidSubsliceUpdateShapeError(UpdateSampleError):
+    def __init__(self, samples_shape, index_shape):
+        super().__init__(
+            f"Can only update a tensor subslice if the incoming data is exactly the same shape as the subslice index. Incoming shape: {samples_shape} Expected shape: {index_shape}"
+        )

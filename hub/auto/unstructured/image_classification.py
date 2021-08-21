@@ -5,6 +5,7 @@ import os
 import glob
 from typing import Dict, List, Sequence, Tuple, Union
 
+from hub.util.auto import ingestion_summary
 from hub.util.exceptions import InvalidPathException, TensorInvalidSampleShapeError
 from hub.core.dataset import Dataset
 
@@ -80,13 +81,18 @@ class ImageClassification(UnstructuredDataset):
         return tuple(sorted(class_names))  # TODO: lexicographical sorting
 
     def structure(  # type: ignore
-        self, ds: Dataset, use_progress_bar: bool = True, image_tensor_args: dict = {}
+        self,
+        ds: Dataset,
+        use_progress_bar: bool = True,
+        generate_summary: bool = True,
+        image_tensor_args: dict = {},
     ) -> Dataset:
         """Create a structured dataset.
 
         Args:
             ds (Dataset) : A Hub dataset object.
             use_progress_bar (bool): Defines if the method uses a progress bar. Defaults to True.
+            generate_summary (bool): Defines if the method generates ingestion summary. Defaults to True.
             image_tensor_args (dict): Defines the sample compression of the dataset (jpeg or png).
 
         Returns:
@@ -120,15 +126,20 @@ class ImageClassification(UnstructuredDataset):
                 class_names=self.class_names,
             )
 
-        with ds:
             paths = self._abs_file_paths
+            skipped_files: list = []
+
             iterator = tqdm(
                 paths,
-                desc='Ingesting "%s"' % self.source,
+                desc='Ingesting "%s" (%i files skipped)'
+                % (self.source.name, len(skipped_files)),
                 total=len(paths),
                 disable=not use_progress_bar,
             )
+
+        with ds, iterator:
             for file_path in iterator:
+                ingested_file_count = 0
                 image = hub.read(file_path)
                 class_name = _class_name_from_path(file_path)
 
@@ -140,18 +151,23 @@ class ImageClassification(UnstructuredDataset):
                 # if appending fails because of a shape mismatch, expand dims (might also fail)
                 try:
                     ds[images_tensor_map[set_name]].append(image)
+
                 except TensorInvalidSampleShapeError:
                     im = image.array
                     reshaped_image = np.expand_dims(im, -1)
                     ds[images_tensor_map[set_name]].append(reshaped_image)
 
-                except Exception as e:
-
-                    warnings.warn(
-                        f"[Skipping] Could not upload sample '{file_path}'. Reason: {e}"
+                except Exception:
+                    skipped_files.append(file_path.name)
+                    iterator.set_description(
+                        'Ingesting "%s" (%i files skipped)'
+                        % (self.source.name, len(skipped_files))
                     )
                     continue
 
+                ingested_file_count += 1
                 ds[labels_tensor_map[set_name]].append(label)
 
+            if generate_summary:
+                ingestion_summary(str(self.source), skipped_files, ingested_file_count)
             return ds

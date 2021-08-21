@@ -9,6 +9,8 @@ from hub.util.exceptions import (
     CannotInferTilesError,
     CorruptedMetaError,
     DynamicTensorNumpyError,
+    InvalidSubsliceUpdateShapeError,
+    MultiSampleSubsliceUpdateError,
 )
 from hub.core.meta.tensor_meta import TensorMeta
 from hub.core.index.index import Index
@@ -372,6 +374,27 @@ class ChunkEngine:
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+        if index.is_single_dim_effective():
+            self._update_samples(index, samples)
+        else:
+            if not hasattr(samples, "shape"):
+                raise TypeError(
+                    f"Can only update a tensor subslice if the incoming data is a numpy array. Incoming type: {type(samples)}"
+                )
+
+            self._update_samples_subslice(index, samples)
+
+    def _update_samples(
+        self, index: Index, samples: Union[Sequence[SampleValue], SampleValue]
+    ):
+        """Update the samples at `index` with entirely new samples.
+
+        Note:
+            This method allows the incoming samples' shapes to be different from the original.
+            However, this requires that only the primary axis is being updated upon (no subslicing).
+            For subslice updates, use `_update_samples_subslice`.
+        """
+
         tensor_meta = self.tensor_meta
         enc = self.chunk_id_encoder
         updated_chunks = set()
@@ -411,6 +434,39 @@ class ChunkEngine:
         _warn_if_suboptimal_chunks(
             chunks_nbytes_after_updates, self.min_chunk_size, self.max_chunk_size
         )
+
+    def _update_samples_subslice(self, index: Index, incoming_samples: np.ndarray):
+        """Update the samples at `index` (must be a subslice index) with incoming samples.
+
+        Note:
+            This method requires the incoming samples' shapes to be exactly the same as the `index` subslice.
+            For full sample updates (allowing new shapes), use `_update_samples`.
+        """
+
+        index_shape = index.shape
+        if index_shape[0] != 1:
+            raise MultiSampleSubsliceUpdateError(index_shape)
+
+        # squeeze 1s away
+        squeezed_index_shape = tuple([dim for dim in index_shape if dim != 1])
+        if squeezed_index_shape != incoming_samples.shape:
+            raise InvalidSubsliceUpdateShapeError(
+                incoming_samples.shape, squeezed_index_shape
+            )
+
+        # in order to update an exact subslice of a single sample:
+        # TODO: we may want to optimize this, but it won't be too slow (other than decompressing/recompressing)
+
+        # 1. we need to decompress the sample into a numpy array (ignoring chunk-wise compression for now)
+        value0_index = Index([index.values[0]])
+        new_sample = self.numpy(value0_index)
+
+        # 2. perform update on this numpy array
+        subsliced_sample = index.apply([new_sample])[0]
+        subsliced_sample[:] = incoming_samples
+
+        # 3. normally update this sample
+        self._update_samples(value0_index, [new_sample])
 
     def numpy(
         self, index: Index, aslist: bool = False

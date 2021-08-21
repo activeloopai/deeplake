@@ -2,6 +2,7 @@ import glob
 import os, random
 from collections import Counter
 from typing import Tuple
+import shutil
 
 
 def get_most_common_extension(
@@ -50,3 +51,52 @@ def get_most_common_extension(
     compression = most_common_extension[0].split(".")[1]
 
     return compression
+
+
+def ingestion_summary(local_path: str, skipped_files: list, ingested_file_count: int):
+    """Generate post ingesiton summary in a tree structure.
+
+    Args:
+        local_path (str): Root directory of dataset.
+        skipped_files (list): List of files skipped during ingestion.
+        ingested_file_count (int): Number of files ingested in the dataset.
+    """
+    columns, lines = shutil.get_terminal_size()
+
+    mid = int(columns / 2)
+    print("\n")
+
+    if not skipped_files:
+        print("Ingesiton Complete. No files were skipped.")
+        print("\n")
+        return
+
+    at_root = True
+    for root, dirs, files in os.walk(local_path):
+        files = [f for f in files if not f[0] == "."]
+        dirs[:] = [d for d in dirs if not d[0] == "."]
+        dirs.sort()
+
+        level = root.replace(local_path, "").count(os.sep)
+        indent = " " * 6 * (level)
+        if at_root == True:
+            print(
+                "{}{}/    ({}/{})".format(
+                    indent,
+                    os.path.basename(root),
+                    len(files) + len(dirs) - ingested_file_count,
+                    len(dirs) + len(files),
+                )
+            )
+            at_root = False
+        else:
+            print(
+                "{}{}/    ({}/{})".format(
+                    indent, os.path.basename(root), ingested_file_count, len(files)
+                )
+            )
+
+        subindent = " " * 6 * (level + 1)
+        for f in files:
+            if f in skipped_files:
+                print("{}[Skipped]  {}".format(subindent, f))

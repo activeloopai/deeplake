@@ -23,6 +23,8 @@ def test_ingestion_simple(local_ds: Dataset, hub_kaggle_credentials):
             dest=local_ds.path,
             images_compression="jpeg",
             kaggle_credentials={"username": username, "key": key},
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )
 
@@ -41,6 +43,8 @@ def test_ingestion_sets(local_ds: Dataset, hub_kaggle_credentials):
             dest=local_ds.path,
             images_compression="jpeg",
             kaggle_credentials={"username": username, "key": key},
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )
 
@@ -72,6 +76,8 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 dest=dummy_path,
                 images_compression="jpeg",
                 kaggle_credentials={"username": username, "key": key},
+                progress_bar=False,
+                summary=False,
                 overwrite=False,
             )
 
@@ -82,6 +88,8 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 dest=local_ds.path,
                 images_compression="jpeg",
                 kaggle_credentials={"not_username": "not_username"},
+                progress_bar=False,
+                summary=False,
                 overwrite=False,
             )
 
@@ -92,6 +100,8 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 dest=local_ds.path,
                 images_compression="jpeg",
                 kaggle_credentials={"username": "thisiseshan", "not_key": "not_key"},
+                progress_bar=False,
+                summary=False,
                 overwrite=False,
             )
 
@@ -102,6 +112,8 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 dest=local_ds.path,
                 images_compression="jpeg",
                 kaggle_credentials={"username": username, "key": key},
+                progress_bar=False,
+                summary=False,
                 overwrite=False,
             )
 
@@ -111,6 +123,8 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
             dest=local_ds.path,
             images_compression="jpeg",
             kaggle_credentials={"username": username, "key": key},
+            progress_bar=False,
+            summary=False,
             overwrite=False,
         )
 
@@ -121,5 +135,7 @@ def test_kaggle_exception(local_ds: Dataset, hub_kaggle_credentials):
                 dest=local_ds.path,
                 images_compression="jpeg",
                 kaggle_credentials={"username": username, "key": key},
+                progress_bar=False,
+                summary=False,
                 overwrite=False,
             )

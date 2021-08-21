@@ -372,9 +372,54 @@ class Index:
         else:
             return samples[0]
 
-    def is_trivial(self):
+    def is_trivial(self) -> bool:
         """Checks if an Index is equivalent to the trivial slice `[:]`, aka slice(None)."""
         return (len(self.values) == 1) and self.values[0].is_trivial()
+
+    def is_single_dim_effective(self) -> bool:
+        """Checks if an Index is only modifying the first dimension.
+
+        Examples:
+            array[1] - True
+            array[:] - False
+            array[1, 1] - False
+            array[1, :, 1] - False
+            array[:, :, :] - False
+            array[:, 1] - False
+            array[100:120, :, :, :] - True
+            array[0, :, :] - True
+        """
+
+        if len(self.values) == 1:
+            return True
+
+        for value in self.values[1:]:
+            if not value.is_trivial():
+                return False
+
+        return True
+
+    @property
+    def shape(self) -> Tuple[Optional[int], ...]:
+        """Returns the max shape this index can create.
+        For trivial slices (ex: array[:]), their shape element is `None`.
+
+        Examples:
+            >>> a = np.ones((100, 100))
+            >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
+            (1, 5,)
+            >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
+            (1, None, 1)
+        """
+
+        shape: List[Optional[int]] = []
+        for value in self.values:
+            if value.is_trivial():
+                shape.append(None)
+            else:
+                l = value.length(9999999999)
+                shape.append(l)  # TODO: better way to do this
+        return tuple(shape)
 
     def length(self, parent_length: int):
         """Returns the primary length of an Index given the length of the parent it is indexing.
