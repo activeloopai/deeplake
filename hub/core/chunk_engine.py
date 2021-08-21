@@ -359,12 +359,21 @@ class ChunkEngine:
         nbytes = approximate_num_bytes(shape, tensor_meta)
 
         if self._needs_multiple_chunks(nbytes):
-            # TODO
+            # in order for us to create an empty sample that exceeds 1 chunk (needs to be tiled)
+            # we need to:
 
-            raise NotImplementedError
+            # 1. find the number of chunks required (N)
+            # 2. determine our tile sizes (tiles are only as good as these sizes are)
+            # 3. initialize our N empty chunks including headers
+            # 4. register all chunk names in the tile meta
+            # 5. update tensor_meta (shape and stuffs)
+            # 6. send chunks to storage
 
             self._synchronize_cache()
             self.cache.maybe_flush()
+
+            # TODO
+            raise NotImplementedError
         else:
             self.extend(np.zeros(shape, dtype=tensor_meta.dtype))
 
