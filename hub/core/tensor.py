@@ -64,7 +64,7 @@ def add_missing_meta_attributes(key: str, storage: StorageProvider, tensor_meta:
 
         Note:
             Older versions of tensor meta didn't contain attributes, "hash_samples", "linked_tensors" and 
-            "is_linked_tensor". This operation adds the attributes and its default values to tensor meta files (if missing).
+            "is_linked_tensor". This operation adds them (if missing) to tensor meta files.
 
         Args:
             key (str): The internal identifier for this tensor.
@@ -77,24 +77,29 @@ def add_missing_meta_attributes(key: str, storage: StorageProvider, tensor_meta:
 
         if not tensor_exists(key, storage):
             raise TensorDoesNotExistError(key)
-
+        
         new_tensor_meta = TensorMeta()
         new_tensor_meta.__dict__ = tensor_meta.__dict__.copy()
-        
-        if ("linked_tensors" not in tensor_meta.__dict__):    
+        missing_attribute = False
+
+        if ("linked_tensors" not in tensor_meta.__dict__):   
+            missing_attribute = True 
             new_tensor_meta._required_meta_keys += ('linked_tensors',)
             new_tensor_meta.linked_tensors = [] # Default value
-        
+            
         if ("is_linked_tensor" not in tensor_meta.__dict__):
+            missing_attribute = True
             new_tensor_meta._required_meta_keys += ('is_linked_tensor',)
             new_tensor_meta.is_linked_tensor = False # Default value
         
         if ("hash_samples" not in tensor_meta.__dict__):
+            missing_attribute = True
             new_tensor_meta._required_meta_keys += ('hash_samples',)
             new_tensor_meta.hash_samples = False # Default value
-
-        meta_key = get_tensor_meta_key(key)
-        storage[meta_key] = new_tensor_meta
+        
+        if missing_attribute:
+            meta_key = get_tensor_meta_key(key)
+            storage[meta_key] = new_tensor_meta
 
 
 class Tensor:
