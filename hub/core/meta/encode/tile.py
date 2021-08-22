@@ -20,13 +20,13 @@ class TileEncoder(Cachable):
             "chunks": [],  # TODO: maybe we can get away with storing this information strictly in the chunk_id_encoder?
         }
 
-    def register_chunks_for_sample(self, idx: int, chunks: List[str]):
+    def register_chunk_for_sample(self, idx: int, chunk_name: str):
         if idx not in self.entries:
             raise ValueError(
                 "Index not found. Entry must be registered before being populated."
             )
 
-        self.entries[idx]["chunks"].extend(chunks)
+        self.entries[idx]["chunks"].append(chunk_name)
 
     def chunk_for_sample(self, sample_idx: int, index: Tuple[int, ...]):
         if sample_idx not in self.entries:

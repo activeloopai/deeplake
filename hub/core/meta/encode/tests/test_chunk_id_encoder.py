@@ -93,6 +93,7 @@ def test_tiles():
     assert id4 == enc[2]
 
     assert enc.num_chunks == 5
+    assert enc.num_samples == 3
 
 
 def test_failures():

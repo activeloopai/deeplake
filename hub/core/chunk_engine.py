@@ -346,6 +346,7 @@ class ChunkEngine:
         chunk_name = chunk_name_from_id(chunk_id)
         chunk_key = get_chunk_key(self.key, chunk_name)
         self.cache[chunk_key] = chunk
+        chunk.name = chunk_name
         return chunk
 
     def extend(self, samples: Union[np.ndarray, Sequence[SampleValue]]):
@@ -374,7 +375,7 @@ class ChunkEngine:
         self.extend([sample])
 
     def extend_empty(self, shape: Tuple[int, ...]):
-        """If `shape` is determined to spill over into another chunk,"""
+        """If `shape` is determined to spill over into another chunk,"""  # TODO: docstring
 
         num_samples = shape[0]
         if num_samples > 1:
@@ -411,32 +412,21 @@ class ChunkEngine:
             # 3. initialize our N empty chunks including headers + register with tile encoder
             idx = self.num_samples
             tile_encoder = self.tile_encoder
-            tile_encoder.register_sample(idx, sample_shape, tile_shape)
+            chunk_id_encoder = self.chunk_id_encoder
             for i in range(num_tiles):
-                # TODO: corner tile chunks won't be of the same shape as tile_shape?
+                tile_chunk = self._create_new_chunk()
+                empty_buffer = memoryview(bytes())
 
-                # only the first tile chunk should be registered in the normal chunk ID encoder
-                tile_chunk = Chunk()
-                tile_chunk.append_sample(
-                    memoryview(bytes()), self.max_chunk_size, sample_shape
-                )
+                # TODO: edge chunks may need to override `tile_shape` (even for non-dynamic tile_shapes)
+                tile_chunk.append_sample(empty_buffer, self.max_chunk_size, tile_shape)
+                chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
 
-                if i == 0:
-                    chunk_id_encoder = self.chunk_id_encoder
-                    tile_chunk_id = chunk_id_encoder.generate_chunk_id()
-                    chunk_id_encoder.register_samples(num_samples)
-
-                else:
-                    tile_chunk_id = random_chunk_id()
-
-                tile_chunk_name = chunk_name_from_id(tile_chunk_id)
-                tile_encoder.register_chunks_for_sample(idx, [tile_chunk_name])
-
-                self.cache[get_chunk_key(self.key, tile_chunk_name)] = tile_chunk
+                tile_encoder.register_sample(idx, sample_shape, tile_shape)
+                tile_encoder.register_chunk_for_sample(idx, tile_chunk.name)
 
             # 4. update tensor_meta (shape and stuffs)
             tensor_meta.update_shape_interval(sample_shape)
-            tensor_meta.length += shape[0]
+            tensor_meta.length += num_samples
 
             # TODO: make sure that the next appended/extended sample does NOT get added to the last tile chunk that is created by this method
 
