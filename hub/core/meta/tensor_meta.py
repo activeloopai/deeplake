@@ -44,7 +44,7 @@ class TensorMeta(Meta):
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
             **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
-
+        
         if htype != UNSPECIFIED:
             _validate_htype_exists(htype)
             _validate_htype_overwrites(htype, kwargs)
@@ -136,8 +136,8 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     for key, value in htype_overwrite.items():
-        if key not in defaults:
-            raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
+        #if key not in defaults:
+        #    raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
         if value == UNSPECIFIED:
             if defaults[key] == REQUIRE_USER_SPECIFICATION:

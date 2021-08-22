@@ -59,6 +59,39 @@ def create_tensor(
     )
     storage[meta_key] = meta  # type: ignore
 
+def add_missing_meta_attributes(key: str, storage: StorageProvider, tensor_meta: TensorMeta):
+        """Adds missing attribute to tensor meta.
+
+        Note:
+            This operation does not create a new tensor in the storage provider,
+            and should normally only be performed by Hub internals.
+
+        Args:
+            key (str): The internal identifier for this tensor.
+            storage (LRUCache): The storage provider for the parent dataset.
+            tensor_meta (TensorMeta): The Tensor object to be modified.
+
+        Raises:
+            TensorDoesNotExistError: If no tensor with `key` exists and a `tensor_meta` was not provided.
+        """
+
+        if not tensor_exists(key, storage):
+            raise TensorDoesNotExistError(key)
+
+        # Adds "linked tensors" attribute to tensor metafile
+        if not hasattr(tensor_meta, "linked_tensors"):
+            new_tensor_meta = TensorMeta(
+                htype=tensor_meta.htype,
+                dtype=tensor_meta.dtype,
+                min_shape=tensor_meta.min_shape,
+                max_shape=tensor_meta.max_shape,
+                length=tensor_meta.length,
+                sample_compression=tensor_meta.sample_compression,
+                linked_tensors=[]
+            )
+            meta_key = get_tensor_meta_key(key)
+            storage[meta_key] = new_tensor_meta
+
 
 class Tensor:
     def __init__(
@@ -94,6 +127,8 @@ class Tensor:
         self.index.validate(self.num_samples)
         self.info = load_info(get_tensor_info_key(self.key), self.storage)
         
+        add_missing_meta_attributes(self.key, self.storage, self.meta)
+
         if (HASHES_TENSOR_FOLDER in self.meta.linked_tensors):
             self.linked_tensor = Tensor(HASHES_TENSOR_FOLDER, self.storage)
 

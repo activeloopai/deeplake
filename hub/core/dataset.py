@@ -259,8 +259,11 @@ class Dataset:
             **meta_kwargs,
         )
         
-        tensor = Tensor(name, self.storage)  # type: ignore
         self.meta.tensors.append(name)
+        ffw_dataset_meta(self.meta)
+        self.storage.maybe_flush()
+        
+        tensor = Tensor(name, self.storage)  # type: ignore
         self.tensors[name] = tensor    
         tensor.info.update(info_kwargs)
         
@@ -322,16 +325,15 @@ class Dataset:
             hash_samples=hash_samples,
             **meta_kwargs,
         )
-        self.meta.tensors.append(name)
+
+        self.meta.hidden_tensors.append(name)
         ffw_dataset_meta(self.meta)
         self.storage.maybe_flush()
         
         tensor = Tensor(name, self.storage)  # type: ignore
-        self.meta.hidden_tensors.append(name)
-        self.hidden_tensors[name] = tensor
-    
+        self.hidden_tensors[name] = tensor    
         tensor.info.update(info_kwargs)
-        
+
         return tensor
         
 
@@ -407,7 +409,7 @@ class Dataset:
             if self.verbose:
                 logger.info(f"{self.path} loaded successfully.")
             self.meta = self.storage.get_cachable(meta_key, DatasetMeta)
-
+        
             for tensor_name in self.meta.tensors:
                 self.tensors[tensor_name] = Tensor(tensor_name, self.storage)
 
