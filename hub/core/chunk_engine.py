@@ -422,7 +422,6 @@ class ChunkEngine:
                 chunk_id_encoder.register_samples(1 if i == 0 else 0)  # TODO: explain
 
                 tile_encoder.register_sample(idx, sample_shape, tile_shape)
-                tile_encoder.register_chunk_for_sample(idx, tile_chunk.name)
 
             # 4. update tensor_meta (shape and stuffs)
             tensor_meta.update_shape_interval(sample_shape)
@@ -567,7 +566,6 @@ class ChunkEngine:
         subslice_index = Index([index.values[1:]])
 
         for global_sample_index in value0_index:
-
             # BEFORE TILING
             # chunk = self.get_chunk_for_sample(global_sample_index, enc)
             # sample = self.read_sample_from_chunk(global_sample_index, chunk)
@@ -582,13 +580,18 @@ class ChunkEngine:
 
             # AFTER TILING
             # TODO: only read data from the required chunks
-            chunks = self.get_chunks_for_sample(global_sample_index, subslice_index)
+            # chunks = self.get_chunks_for_sample(global_sample_index)
 
-            if len(chunks) > 1:
+            chunk_ids = enc[global_sample_index]
+
+            if len(chunk_ids) > 1:
+                tile_encoder = self.tile_encoder
+                tile_encoder.prune_chunks(chunk_ids, global_sample_index, subslice_index)
+
                 # TODO!
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
-            for chunk in chunks:
+            for chunk in chunk_ids:
                 sample = self.read_sample_from_chunk(global_sample_index, chunk)
                 shape = sample.shape
 
@@ -601,37 +604,35 @@ class ChunkEngine:
 
         return _format_read_samples(samples, index, aslist)
 
-    def get_chunks_for_sample(self, global_sample_index: int, subslice_index: Index):
-        """Retrives the `Chunk` objects corresponding to `global_sample_index`.
-        Will only get tile chunks inside of `subslice_index`.
+    # def get_chunks_for_sample(self, global_sample_index: int) -> List[Chunk]:
+    #     """Retrives the `Chunk` objects corresponding to `global_sample_index`.
+    #     Will only get tile chunks inside of `subslice_index`.
 
-        Note:
-            Can only retrieve the chunks for a single sample.
+    #     Note:
+    #         Can only retrieve the chunks for a single sample.
 
-        Args:
-            global_sample_index (int): Numeric (singular) index relative to the entire tensor
-                representing the sample.
-            subslice_index (Index): Will only gather chunks for the data contained in
-                `subslice_index`.
+    #     Args:
+    #         global_sample_index (int): Numeric (singular) index relative to the entire tensor
+    #             representing the sample.
 
-        Returns:
-            List[Chunk]: Chunk objects for the sample (subslice).
-        """
+    #     Returns:
+    #         List[Chunk]: Chunk objects for the sample (subslice).
+    #     """
 
-        chunks = []
+    #     chunks = []
 
-        enc = self.chunk_id_encoder
-        chunk_ids = enc[global_sample_index]
+    #     enc = self.chunk_id_encoder
+    #     chunk_ids = enc[global_sample_index]
 
-        # TODO: take subslice_index into account
-        for chunk_id in chunk_ids:
-            chunk_name = chunk_name_from_id(chunk_id)
-            chunk_key = get_chunk_key(self.key, chunk_name)
-            chunk = self.cache.get_cachable(chunk_key, Chunk)
-            chunk.key = chunk_key
-            chunks.append(chunk)
+    #     # TODO: take subslice_index into account
+    #     for chunk_id in chunk_ids:
+    #         chunk_name = chunk_name_from_id(chunk_id)
+    #         chunk_key = get_chunk_key(self.key, chunk_name)
+    #         chunk = self.cache.get_cachable(chunk_key, Chunk)
+    #         chunk.key = chunk_key
+    #         chunks.append(chunk)
 
-        return chunks
+    #     return chunks
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk, cast: bool = True

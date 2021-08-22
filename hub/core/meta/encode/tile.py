@@ -1,3 +1,4 @@
+from hub.constants import ENCODING_DTYPE
 from hub.core.index.index import Index
 from hub.util.tiles import ceildiv
 from hub.core.storage.cachable import Cachable
@@ -22,15 +23,17 @@ class TileEncoder(Cachable):
         }
 
 
-    def prune_chunks(self, chunks: List, sample_index: int, subslice_index: Index):
+    def prune_chunks(self, chunk_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index):
         # TODO: docstring
 
-        if sample_index not in self.entries:
-            raise IndexError(f"Sample index {sample_index} does not exist in tile encoder.")
+        if global_sample_index not in self.entries:
+            raise IndexError(f"Global sample index {global_sample_index} does not exist in tile encoder.")
 
-        # TODO: return a new list of chunks that exclude the 
+        # TODO: return a new list of the same length with only needed chunks (otherwise they're None)
+        # TODO: add a sanity check for len(chunk_ids) (make sure it's rootable)
 
-        return chunks
+        raise NotImplementedError
+        return chunk_ids
 
 
     def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int]):
