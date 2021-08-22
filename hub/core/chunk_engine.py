@@ -488,19 +488,24 @@ class ChunkEngine:
         for i, (buffer, shape) in enumerate(serialized_input_samples):
             global_sample_index = global_sample_indices[i]  # TODO!
 
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
+            chunks = self.get_chunks_for_sample(global_sample_index, enc)
 
-            local_sample_index = enc.translate_index_relative_to_chunks(
-                global_sample_index
-            )
+            if len(chunks) > 1:
+                # TODO
+                raise NotImplementedError("Updating for tiled samples not yet implemented")
 
-            tensor_meta.update_shape_interval(shape)
-            chunk.update_sample(local_sample_index, buffer, shape)
-            updated_chunks.add(chunk)
+            for chunk in chunks:
+                local_sample_index = enc.translate_index_relative_to_chunks(
+                    global_sample_index
+                )
 
-            # only care about deltas if it isn't the last chunk
-            if chunk.key != self.last_chunk_key:  # type: ignore
-                chunks_nbytes_after_updates.append(chunk.nbytes)
+                tensor_meta.update_shape_interval(shape)
+                chunk.update_sample(local_sample_index, buffer, shape)
+                updated_chunks.add(chunk)
+
+                # only care about deltas if it isn't the last chunk
+                if chunk.key != self.last_chunk_key:  # type: ignore
+                    chunks_nbytes_after_updates.append(chunk.nbytes)
 
         # TODO: [refactor] this is a hacky way, also `self._synchronize_cache` might be redundant. maybe chunks should use callbacks.
         for chunk in updated_chunks:
