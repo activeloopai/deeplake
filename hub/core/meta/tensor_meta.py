@@ -136,8 +136,8 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
     defaults = HTYPE_CONFIGURATIONS[htype]
 
     for key, value in htype_overwrite.items():
-        #if key not in defaults:
-        #    raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
+        if key not in defaults:
+            raise TensorMetaInvalidHtypeOverwriteKey(htype, key, list(defaults.keys()))
 
         if value == UNSPECIFIED:
             if defaults[key] == REQUIRE_USER_SPECIFICATION:
