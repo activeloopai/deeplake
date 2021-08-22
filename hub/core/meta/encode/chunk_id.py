@@ -1,3 +1,4 @@
+from typing import List
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
@@ -153,3 +154,17 @@ class ChunkIdEncoder(Encoder, Cachable):
         raise NotImplementedError(
             "There is no reason for ChunkIdEncoder to be updated now."
         )
+
+    def __getitem__(self, local_sample_index: int, return_row_index: bool=False) -> List[ENCODING_DTYPE]:
+        """Returns a list of chunk IDs. If the sample is not tiled it will always return a tuple of length 1."""
+        
+        root_chunk = super().__getitem__(local_sample_index, return_row_index=return_row_index)
+        returns = [root_chunk]
+
+        try:
+            tile_chunk = super().__getitem__(local_sample_index + 1, return_row_index=return_row_index)
+            returns.append(tile_chunk)
+        except IndexError:
+            return returns
+
+        return returns
