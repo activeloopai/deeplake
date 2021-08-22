@@ -1,4 +1,6 @@
 from typing import List
+
+from numpy.testing._private.utils import jiffies
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.meta.encode.base_encoder import Encoder, LAST_SEEN_INDEX_COLUMN
 from hub.constants import ENCODING_DTYPE
@@ -77,7 +79,13 @@ class ChunkIdEncoder(Encoder, Cachable):
             ChunkIdEncoderError: `num_samples` can only be 0 if it is able to be a sample continuation accross chunks.
         """
 
-        super().register_samples(None, num_samples)
+        if num_samples == 0:
+            super().register_samples(None, 1)
+            if self.num_chunks <= 0:
+                raise IndexError("Cannot register a chunk ID with 0 samples because no root chunk exists.")
+            self._encoded[-1, -1] -= 1
+        else:
+            super().register_samples(None, num_samples)
 
     def translate_index_relative_to_chunks(self, global_sample_index: int) -> int:
         """Converts `global_sample_index` into a new index that is relative to the chunk the sample belongs to.
@@ -157,14 +165,30 @@ class ChunkIdEncoder(Encoder, Cachable):
 
     def __getitem__(self, local_sample_index: int, return_row_index: bool=False) -> List[ENCODING_DTYPE]:
         """Returns a list of chunk IDs. If the sample is not tiled it will always return a tuple of length 1."""
-        
-        root_chunk = super().__getitem__(local_sample_index, return_row_index=return_row_index)
-        returns = [root_chunk]
 
-        try:
-            tile_chunk = super().__getitem__(local_sample_index + 1, return_row_index=return_row_index)
-            returns.append(tile_chunk)
-        except IndexError:
-            return returns
+        # TODO: this method can probably be generalized into base class `__getitem__` with an extra parameter
+        
+        root_chunk_id, root_chunk_id_index = super().__getitem__(local_sample_index, return_row_index=True)
+        root_chunk_last_seen_index = self._encoded[root_chunk_id_index, LAST_SEEN_INDEX_COLUMN]
+        returns = [root_chunk_id]
+
+        # TODO: explain this:
+        c = 1
+        while True: 
+            try:
+                tile_chunk_id, tile_chunk_last_seen_index = self._encoded[root_chunk_id_index+c]
+
+                if tile_chunk_last_seen_index == root_chunk_last_seen_index:
+                    returns.append(tile_chunk_id)
+                else:
+                    break
+
+            except IndexError:
+                break
+            c += 1
+
+        if return_row_index:
+            # TODO: note this in the docstring
+            return returns, root_chunk_id_index
 
         return returns
