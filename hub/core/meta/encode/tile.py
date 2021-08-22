@@ -22,18 +22,64 @@ class TileEncoder(Cachable):
             "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
         }
 
+    def translate_index_relative_to_tiles(self, element_index: Tuple[int], tile_shape: Tuple[int], sample_shape: Tuple[int]) -> int:
+        """Takes in an N-dimensional element-index and returns a 1d index to be used for a flat tile-ordered list of chunks"""
 
-    def prune_chunks(self, chunk_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index):
+        # TODO: remove this method?
+
+        raise NotImplementedError
+
+
+    def prune_chunks(self, tile_ids: List[ENCODING_DTYPE], global_sample_index: int, subslice_index: Index) -> List[ENCODING_DTYPE]:
+        """This method handles the main tile logic, given a subslice_index it replaces the chunk IDs that 
+        are not needed to be downloaded with `None`, returning a new (pruned) list.
+
+        Args:
+            tile_ids (List[ENCODING_DTYPE]): All tile chunk IDs that correspond with this sample in tile-order.
+            global_sample_index (int): Primary index for the tensor.
+                Example: `tensor[0, 10:50, 50:100]` -- the first slice component would be the `global_sample_index`.
+            subslice_index (Index): Subslice index of a tensor. 
+                Example: `tensor[0, 10:50, 50:100]` -- the last 2 slice components would be the `subslice_index`.
+
+        Raises:
+            IndexError: Must first call `register_sample`.
+
+        Returns:
+            List[ENCODING_DTYPE]: New list same length & ordering, except the chunks that aren't requird for `subslice_index` are
+                `None` values.
+        """
         # TODO: docstring
 
         if global_sample_index not in self.entries:
             raise IndexError(f"Global sample index {global_sample_index} does not exist in tile encoder.")
 
         # TODO: return a new list of the same length with only needed chunks (otherwise they're None)
-        # TODO: add a sanity check for len(chunk_ids) (make sure it's rootable)
+        # TODO: add a sanity check for len(tile_ids) (make sure it's rootable)
+
+        tile_meta = self.entries[global_sample_index]
+        tile_shape = tile_meta["tile_shape"]
+        sample_shape = tile_meta["sample_shape"]
+        num_tiles = len(tile_ids)
+
+        pruned_tile_ids = []
+        for tile_index_1d, tile_id in enumerate(tile_ids):
+            tile_origin_element_index = self.first_element_index_of_tile(tile_shape, num_tiles, tile_index_1d)
+            tile_inside_subslice = self.is_element_index_inside_subslice(tile_origin_element_index, subslice_index)
+
+            if tile_inside_subslice:
+                pruned_tile_ids.append(tile_id)
+            else:
+                pruned_tile_ids.append(None)
+                
+        return tile_ids
+
+    
+    def first_element_index_of_tile(self, tile_shape: Tuple[int], num_tiles: int, tile_index_1d: int) -> Tuple[int]:
+        # TODO: docstring
+
+
 
         raise NotImplementedError
-        return chunk_ids
 
 
     def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int]):
