@@ -407,7 +407,7 @@ class Index:
         Examples:
             >>> a = np.ones((100, 100))
             >>> Index([0, slice(5, 10)]).shape  # equiv: tensor[0, 5:10]
-            (1, 5,)
+            (1, 5)
             >>>  Index([0, slice(None), 1])  # equiv: tensor[0, :, 1]
             (1, None, 1)
         """

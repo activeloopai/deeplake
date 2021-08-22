@@ -1,3 +1,4 @@
+from hub.core.index.index import Index
 from hub.util.tiles import ceildiv
 from hub.core.storage.cachable import Cachable
 
@@ -14,37 +15,38 @@ class TileEncoder(Cachable):
     ):
         # TODO: docstring
 
+        # TODO: htype-based tile ordering?
         self.entries[idx] = {
             "sample_shape": shape,
-            "tile_shape": tile_shape,
-            "chunks": [],  # TODO: maybe we can get away with storing this information strictly in the chunk_id_encoder?
+            "tile_shape": tile_shape,  # TODO: maybe this should be dynamic?
         }
 
-    def register_chunk_for_sample(self, idx: int, chunk_name: str):
-        if idx not in self.entries:
-            raise ValueError(
-                "Index not found. Entry must be registered before being populated."
-            )
 
-        self.entries[idx]["chunks"].append(chunk_name)
+    def prune_chunks(self, chunks: List, sample_index: int, subslice_index: Index):
+        # TODO: docstring
 
-    def chunk_for_sample(self, sample_idx: int, index: Tuple[int, ...]):
-        if sample_idx not in self.entries:
-            return None
+        if sample_index not in self.entries:
+            raise IndexError(f"Sample index {sample_index} does not exist in tile encoder.")
 
-        sample_shape = self.entries[sample_idx]["sample_shape"]
-        tile_shape = self.entries[sample_idx]["tile_shape"]
-        chunks = self.entries[sample_idx]["chunks"]
+        # TODO: return a new list of chunks that exclude the 
+
+        return chunks
+
+
+    def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int]):
+        tile_meta = self.entries[sample_index]
+        sample_shape = tile_meta["sample_shape"]
+        tile_shape = tile_meta["tile_shape"]
         ndims = len(sample_shape)
 
         # Generalized row-major ordering
         chunk_idx = 0
         factor = 1
         for ax in range(ndims):
-            chunk_idx += (index[ax] // tile_shape[ax]) * factor
+            chunk_idx += (tile_index[ax] // tile_shape[ax]) * factor
             factor *= ceildiv(tile_shape[ax], sample_shape[ax])
-
-        return chunks[chunk_idx]
+        
+        return chunk_idx
 
     @property
     def nbytes(self):
