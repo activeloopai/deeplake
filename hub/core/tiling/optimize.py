@@ -20,7 +20,9 @@ def _downscale(tile_shape: Tuple[int, ...], sample_shape: Tuple[int, ...]):
     return tuple(map(min, zip(tile_shape, sample_shape)))
 
 
-def _propose_tile_shape(sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int):
+def _propose_tile_shape(
+    sample_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int
+):
     dtype_num_bytes = dtype.itemsize
     ndims = len(sample_shape)
 
@@ -50,7 +52,9 @@ def _optimize_tile_shape(
     return tile_shape
 
 
-def _validate_tile_shape(tile_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int):
+def _validate_tile_shape(
+    tile_shape: Tuple[int, ...], dtype: np.dtype, max_chunk_size: int
+):
     # TODO: docstring
 
     cost = _cost(tile_shape, dtype, max_chunk_size)

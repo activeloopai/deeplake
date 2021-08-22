@@ -82,7 +82,9 @@ class ChunkIdEncoder(Encoder, Cachable):
         if num_samples == 0:
             super().register_samples(None, 1)
             if self.num_chunks <= 0:
-                raise IndexError("Cannot register a chunk ID with 0 samples because no root chunk exists.")
+                raise IndexError(
+                    "Cannot register a chunk ID with 0 samples because no root chunk exists."
+                )
             self._encoded[-1, -1] -= 1
         else:
             super().register_samples(None, num_samples)
@@ -163,20 +165,28 @@ class ChunkIdEncoder(Encoder, Cachable):
             "There is no reason for ChunkIdEncoder to be updated now."
         )
 
-    def __getitem__(self, local_sample_index: int, return_row_index: bool=False) -> List[ENCODING_DTYPE]:
+    def __getitem__(
+        self, local_sample_index: int, return_row_index: bool = False
+    ) -> List[ENCODING_DTYPE]:
         """Returns a list of chunk IDs. If the sample is not tiled it will always return a tuple of length 1."""
 
         # TODO: this method can probably be generalized into base class `__getitem__` with an extra parameter
-        
-        root_chunk_id, root_chunk_id_index = super().__getitem__(local_sample_index, return_row_index=True)
-        root_chunk_last_seen_index = self._encoded[root_chunk_id_index, LAST_SEEN_INDEX_COLUMN]
+
+        root_chunk_id, root_chunk_id_index = super().__getitem__(
+            local_sample_index, return_row_index=True
+        )
+        root_chunk_last_seen_index = self._encoded[
+            root_chunk_id_index, LAST_SEEN_INDEX_COLUMN
+        ]
         returns = [root_chunk_id]
 
         # TODO: explain this:
         c = 1
-        while True: 
+        while True:
             try:
-                tile_chunk_id, tile_chunk_last_seen_index = self._encoded[root_chunk_id_index+c]
+                tile_chunk_id, tile_chunk_last_seen_index = self._encoded[
+                    root_chunk_id_index + c
+                ]
 
                 if tile_chunk_last_seen_index == root_chunk_last_seen_index:
                     returns.append(tile_chunk_id)

@@ -417,7 +417,9 @@ class ChunkEngine:
 
                 # only the first tile chunk should be registered in the normal chunk ID encoder
                 tile_chunk = Chunk()
-                tile_chunk.append_sample(memoryview(bytes()), self.max_chunk_size, sample_shape)
+                tile_chunk.append_sample(
+                    memoryview(bytes()), self.max_chunk_size, sample_shape
+                )
 
                 if i == 0:
                     chunk_id_encoder = self.chunk_id_encoder
@@ -565,39 +567,76 @@ class ChunkEngine:
         last_shape = None
         samples = []
 
-        for global_sample_index in index.values[0].indices(length):
-            chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            sample = self.read_sample_from_chunk(global_sample_index, chunk)
-            shape = sample.shape
+        # TODO: make methods?
+        value0_index = index.values[0].indices(length)
+        subslice_index = Index([index.values[1:]])
 
-            if not aslist and last_shape is not None:
-                if shape != last_shape:
-                    raise DynamicTensorNumpyError(self.key, index, "shape")
+        for global_sample_index in value0_index:
 
-            samples.append(sample)
-            last_shape = shape
+            # BEFORE TILING
+            # chunk = self.get_chunk_for_sample(global_sample_index, enc)
+            # sample = self.read_sample_from_chunk(global_sample_index, chunk)
+            # shape = sample.shape
+
+            # if not aslist and last_shape is not None:
+            #     if shape != last_shape:
+            #         raise DynamicTensorNumpyError(self.key, index, "shape")
+
+            # samples.append(sample)
+            # last_shape = shape
+
+            # AFTER TILING
+            # TODO: only read data from the required chunks
+            chunks = self.get_chunks_for_sample(global_sample_index, subslice_index)
+
+            if len(chunks) > 1:
+                # TODO!
+                raise NotImplementedError("Numpy for tiles not implemented yet.")
+
+            for chunk in chunks:
+                sample = self.read_sample_from_chunk(global_sample_index, chunk)
+                shape = sample.shape
+
+                if not aslist and last_shape is not None:
+                    if shape != last_shape:
+                        raise DynamicTensorNumpyError(self.key, index, "shape")
+
+                samples.append(sample)
+                last_shape = shape
 
         return _format_read_samples(samples, index, aslist)
 
-    def get_chunk_for_sample(
-        self, global_sample_index: int, enc: ChunkIdEncoder
-    ) -> Chunk:
-        """Retrives the `Chunk` object corresponding to `global_sample_index`.
+    def get_chunks_for_sample(self, global_sample_index: int, subslice_index: Index):
+        """Retrives the `Chunk` objects corresponding to `global_sample_index`.
+        Will only get tile chunks inside of `subslice_index`.
+
+        Note:
+            Can only retrieve the chunks for a single sample.
+
         Args:
-            global_sample_index (int): Index relative to the entire tensor representing the sample.
-            enc (ChunkIdEncoder): Chunk ID encoder. This is an argument because right now it is
-                sub-optimal to use `self.chunk_id_encoder` due to posixpath joins.
+            global_sample_index (int): Numeric (singular) index relative to the entire tensor
+                representing the sample.
+            subslice_index (Index): Will only gather chunks for the data contained in
+                `subslice_index`.
+
         Returns:
-            Chunk: Chunk object that contains `global_sample_index`.
+            List[Chunk]: Chunk objects for the sample (subslice).
         """
 
-        chunk_id = enc[global_sample_index]
-        chunk_name = chunk_name_from_id(chunk_id)
-        chunk_key = get_chunk_key(self.key, chunk_name)
-        chunk = self.cache.get_cachable(chunk_key, Chunk)
-        chunk.key = chunk_key
+        chunks = []
 
-        return chunk
+        enc = self.chunk_id_encoder
+        chunk_ids = enc[global_sample_index]
+
+        # TODO: take subslice_index into account
+        for chunk_id in chunk_ids:
+            chunk_name = chunk_name_from_id(chunk_id)
+            chunk_key = get_chunk_key(self.key, chunk_name)
+            chunk = self.cache.get_cachable(chunk_key, Chunk)
+            chunk.key = chunk_key
+            chunks.append(chunk)
+
+        return chunks
 
     def read_sample_from_chunk(
         self, global_sample_index: int, chunk: Chunk, cast: bool = True

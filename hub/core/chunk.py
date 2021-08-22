@@ -75,7 +75,9 @@ class Chunk(Cachable):
     def has_space_for(self, num_bytes: int, max_data_bytes: int):
         return self.num_data_bytes + num_bytes <= max_data_bytes
 
-    def append_sample(self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int, ...]):
+    def append_sample(
+        self, buffer: memoryview, max_data_bytes: int, shape: Tuple[int, ...]
+    ):
         """Store `buffer` in this chunk.
 
         Args:

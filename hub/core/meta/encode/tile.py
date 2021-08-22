@@ -9,7 +9,9 @@ class TileEncoder(Cachable):
     def __init__(self, entries=None):
         self.entries = entries or {}
 
-    def register_sample(self, idx: int, shape: Tuple[int, ...], tile_shape: Tuple[int, ...]):
+    def register_sample(
+        self, idx: int, shape: Tuple[int, ...], tile_shape: Tuple[int, ...]
+    ):
         # TODO: docstring
 
         self.entries[idx] = {
