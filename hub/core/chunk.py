@@ -124,11 +124,13 @@ class Chunk(Cachable):
         nbytes: Sequence[int],
     ):
         """Store `buffer` in this chunk.
+        
         Args:
             buffer (memoryview): Buffer that represents multiple samples of same shape
             max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
             shapes (Sequence[Tuple[int]]): Shape for each sample
             nbytes (Sequence[int]): Number of bytes in each sample
+            
         Raises:
             FullChunkError: If `buffer` is too large.
         """
