@@ -26,11 +26,15 @@ pip3 install -r hub/requirements/tests.txt
 
 
 ### Running Tests
+
+#### Standard:
 - `pytest .`: Run all tests with memory only.
 - `pytest . --local`: Run all tests with memory and local.
 - `pytest . --s3`: Run all tests with memory and s3.
+- `pytest . --kaggle`: Run all tests that use the kaggle API.
 - `pytest . --memory-skip --hub-cloud`: Run all tests with hub cloud only.
-
+#### Backwards Compatibility Tests
+We use another github repository ([buH](https://github.com/activeloopai/buH)) for our backwards compatibility tests. Check out the README for instructions.
 
 ### Options
 Combine any of the following options to suit your test cases.
