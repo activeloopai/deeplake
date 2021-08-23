@@ -16,11 +16,10 @@ from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_n
 from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
+    compress_bytes,
     decompress_bytes,
 )
 from hub.compression import get_compression_type
-
-import lz4.frame
 
 
 class Chunk(Cachable):
@@ -65,7 +64,7 @@ class Chunk(Cachable):
 
         # These caches are only used when chunk-wise compression is specified.
         self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
-        self._decompressed_data_cache: Optional[bytes] = None
+        self._decompressed_data_cache: Optional[memoryview] = None
 
     def decompressed_samples(
         self,
@@ -148,7 +147,7 @@ class Chunk(Cachable):
         self._make_data_bytearray()
 
         # note: incoming_num_bytes can be 0 (empty sample)
-        self._data += buffer
+        self._data += buffer  # type: ignore
 
         for nb, shape in zip(nbytes, shapes):
             self.register_sample_to_headers(nb, shape)
@@ -184,7 +183,7 @@ class Chunk(Cachable):
         self._decompressed_data_cache = None
 
     def register_sample_to_headers(
-        self, incoming_num_bytes: int, sample_shape: Tuple[int]
+        self, incoming_num_bytes: Optional[int], sample_shape: Tuple[int]
     ):
         """Registers a single sample to this chunk's header. A chunk should NOT exist without headers.
 
@@ -224,7 +223,7 @@ class Chunk(Cachable):
             if get_compression_type(chunk_compression) == "byte":
                 # Calling self.decompressed_samples() here would allocate numpy arrays for each sample in the chunk.
                 # So we decompress the buffer and just replace the bytes.
-                decompressed_buffer = self.decompressed_data()
+                decompressed_buffer = self.decompressed_data(chunk_compression)
 
                 # get the unchanged data
                 old_start_byte, old_end_byte = self.byte_positions_encoder[
@@ -247,7 +246,7 @@ class Chunk(Cachable):
                 new_data_uncompressed[:new_start_byte] = left
                 new_data_uncompressed[new_start_byte:new_end_byte] = new_buffer
                 new_data_uncompressed[new_end_byte:] = right
-                self._data = memoryview(
+                self._data = bytearray(
                     compress_bytes(new_data_uncompressed, compression=chunk_compression)
                 )
                 self._decompressed_data_cache = memoryview(new_data_uncompressed)
@@ -263,8 +262,8 @@ class Chunk(Cachable):
 
         # get the unchanged data
         old_start_byte, old_end_byte = self.byte_positions_encoder[local_sample_index]
-        left = self._data[:old_start_byte]
-        right = self._data[old_end_byte:]
+        left = self._data[:old_start_byte]  # type: ignore
+        right = self._data[old_end_byte:]  # type: ignore
 
         # update byte postions
         self.byte_positions_encoder[local_sample_index] = new_nb

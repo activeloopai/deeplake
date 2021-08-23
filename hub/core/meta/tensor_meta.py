@@ -153,7 +153,7 @@ def _validate_htype_overwrites(htype: str, htype_overwrite: dict):
         and htype_overwrite["sample_compression"] == UNSPECIFIED
     ):
         raise TensorMetaMissingRequiredValue(
-            htype, ["chunk_compression", "sample_compression"]
+            htype, ["chunk_compression", "sample_compression"]  # type: ignore
         )
 
 

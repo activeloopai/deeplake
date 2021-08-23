@@ -209,10 +209,11 @@ class ChunkEngine:
 
     def _extend_bytes(
         self,
-        buffer: Union[memoryview, bytearray],
+        buffer: memoryview,
         nbytes: List[int],
         shapes: List[Tuple[int]],
     ):
+        """Treat `buffer` as multiple samples and place them into compressed `Chunk`s."""
         if self.tensor_meta.chunk_compression:
             raise NotImplementedError(
                 "_extend_bytes not implemented for tensors with chunk wise compression. Use _append_bytes instead."
@@ -231,7 +232,7 @@ class ChunkEngine:
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
             for nb in nbytes:
-                chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes
+                chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
                 if chunk_future_size > max_chunk_size:
                     break
                 num_samples_to_current_chunk += 1
@@ -239,7 +240,7 @@ class ChunkEngine:
                 if chunk_future_size > min_chunk_size:
                     break
             assert num_samples_to_current_chunk
-            chunk.extend_samples(
+            chunk.extend_samples(  # type: ignore
                 buffer[:nbytes_to_current_chunk],
                 max_chunk_size,
                 shapes[:num_samples_to_current_chunk],
@@ -253,7 +254,7 @@ class ChunkEngine:
                 chunk = new_chunk()
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
-        """Treat `sample` as single sample and place them into compressed `Chunk`s."""
+        """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
             last_chunk_uncompressed = self._last_chunk_uncompressed
@@ -271,11 +272,11 @@ class ChunkEngine:
                 compressed_bytes = compress_multiple(
                     last_chunk_uncompressed, chunk_compression
                 )
-            chunk._data = compressed_bytes
+            chunk._data = compressed_bytes  # type: ignore
             if get_compression_type(chunk_compression) == "byte":
-                chunk.register_sample_to_headers(len(buffer), shape)
+                chunk.register_sample_to_headers(len(buffer), shape)  # type: ignore
             else:
-                chunk.register_sample_to_headers(None, shape)
+                chunk.register_sample_to_headers(None, shape)  # type: ignore
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -414,10 +415,10 @@ class ChunkEngine:
         tensor_meta.length += len(samples)
         if tensor_meta.chunk_compression:
             for nb, shape in zip(nbytes, shapes):
-                self._append_bytes(buff[:nb], shape[:])
+                self._append_bytes(buff[:nb], shape[:])  # type: ignore
                 buff = buff[nb:]
         else:
-            self._extend_bytes(buff, nbytes, shapes[:])
+            self._extend_bytes(buff, nbytes, shapes[:])  # type: ignore
         self._synchronize_cache()
         self.cache.maybe_flush()
 
@@ -453,7 +454,7 @@ class ChunkEngine:
             tensor_meta.update_shape_interval(shape)
             chunk.update_sample(
                 local_sample_index,
-                buffer[:nb],
+                buffer[:nb],  # type: ignore
                 shape,
                 chunk_compression=self.tensor_meta.chunk_compression,
                 dtype=self.tensor_meta.dtype,
@@ -541,20 +542,20 @@ class ChunkEngine:
 
         buffer = chunk.memoryview_data
 
+        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
+        shape = chunk.shapes_encoder[local_sample_index]
+
         if len(buffer) == 0:
             return np.zeros(shape, dtype=dtype)
 
-        local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
             if get_compression_type(chunk_compression) == "byte":
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
-                shape = chunk.shapes_encoder[local_sample_index]
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
                 return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)
             else:
                 return chunk.decompressed_samples()[local_sample_index]
-        shape = chunk.shapes_encoder[local_sample_index]
         sb, eb = chunk.byte_positions_encoder[local_sample_index]
         buffer = buffer[sb:eb]
 

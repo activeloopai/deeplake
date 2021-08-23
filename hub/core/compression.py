@@ -13,7 +13,7 @@ from PIL import Image, UnidentifiedImageError  # type: ignore
 from io import BytesIO
 import mmap
 
-import lz4.frame
+import lz4.frame  # type: ignore
 
 
 def to_image(array: np.ndarray) -> Image:
@@ -29,7 +29,9 @@ def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
     if compression == "lz4":
         return lz4.frame.compress(buffer)
     else:
-        raise SampleCompressionError((len(buffer),), compression)
+        raise SampleCompressionError(
+            (len(buffer),), compression, f"Not a byte compression: {compression}"
+        )
 
 
 def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
@@ -130,21 +132,26 @@ def decompress_array(
         raise SampleDecompressionError()
 
 
-def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int]:
+def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int, int, int]:
     if len(shapes) == 0:
-        return (0, 0)
+        return (0, 0, 0)
     channels_shape = shapes[0][2:]
     for shape in shapes:
         if shape[2:] != channels_shape:
             raise ValueError()
-    return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape
+    return (max(s[0] for s in shapes), sum(s[1] for s in shapes)) + channels_shape  # type: ignore
 
 
 def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
+    """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression."""
     dtype = arrays[0].dtype
     for arr in arrays:
         if arr.dtype != dtype:
-            raise TypeError()  # TODO
+            raise SampleCompressionError(
+                [arr.shape for shape in arr],  # type: ignore
+                compression,
+                message="All arrays expected to have same dtype.",
+            )
     if get_compression_type(compression) == "byte":
         return compress_bytes(
             b"".join(arr.tobytes() for arr in arrays), compression
@@ -159,10 +166,11 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
 
 def decompress_multiple(
     buffer: Union[bytes, memoryview],
-    shapes: Sequence[Tuple[int]],
+    shapes: Sequence[Tuple[int, ...]],
     dtype: Optional[str] = None,
     compression: Optional[str] = None,
 ) -> List[np.ndarray]:
+    """Unpack a compressed buffer into multiple arrays."""
     if compression and get_compression_type(compression) == "byte":
         decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
         arrays = []
