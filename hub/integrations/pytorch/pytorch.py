@@ -73,7 +73,6 @@ def dataset_to_pytorch(
                 if value is not None:
                     yield value
 
-
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
     pytorch_ds = TorchDataset(

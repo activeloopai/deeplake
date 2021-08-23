@@ -103,63 +103,72 @@ class PrefetchLRUCache(LRUCache):
 
     def iterate_samples(self):
         """Iterates over the contents of the dataset and yields data indexwise."""
-        # chunk groups that are required. each group will be handled by a separate worker
-        chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
+        # chunk groups to be fetched, each inner list will be handled by a separate worker
+        chunk_groups_for_workers: List[List[Tuple[str, str]]] = []
 
-        # a flattened version of chunk_groups_to_fetch, used to check if a given chunk is already scheduled to be fetched
-        all_chunks_to_fetch: Set[str] = set()
+        # a set containing all chunks that are scheduled to be fetched
+        scheduled_chunks: Set[Tuple[str, str]] = set()
 
         # indexes that have been encountered but skipped due to data being unavailable
         pending_indexes: List[int] = []
         for i in range(self.length):
             index = self._suggest_next_index()
-            chunk_names_dict = self._get_chunk_names_for_index(index)
-            self.index_chunk_names_map[index] = chunk_names_dict
+            chunk_names = self._get_chunk_names(index)
+            self.index_chunk_names_map[index] = chunk_names
 
-            # chunks not found for the current index
-            chunks_not_found_in_cache = self._process_chunks_names_dict(chunk_names_dict)
+            # chunks not found for the current index in cache for current index
+            missing_chunks = self._process_chunks_names_dict(chunk_names)
 
-            # chunks that are not found for the current index and also not scheduled to be fetched by another worker
-            chunks_needed = self._get_chunks_needed(chunks_not_found_in_cache, all_chunks_to_fetch)
+            # chunks not found in cache for the current index and also not scheduled to be fetched by another worker
+            needed_chunks = self._get_chunks_needed(missing_chunks, scheduled_chunks)
 
-            if chunks_not_found_in_cache:
+            if missing_chunks:
                 pending_indexes.append(index)
-                if chunks_needed:
-                    chunk_groups_to_fetch.append(chunks_needed)
-                if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
-                    self._fetch_and_store_required_data(chunk_groups_to_fetch)
-                    for index in pending_indexes:
-                        yield self._output_for_index(index)
-                    self._reset_old_data(all_chunks_to_fetch, pending_indexes)
+                if needed_chunks:
+                    chunk_groups_for_workers.append(needed_chunks)
+                if len(chunk_groups_for_workers) == self.workers or i == len(self) - 1:
+                    yield from self._yield_pending(
+                        chunk_groups_for_workers, pending_indexes
+                    )
+                    scheduled_chunks.clear()
             else:
-                yield self._output_for_index(index)
+                yield self._get_final_output(index)
+
         if pending_indexes:
-            self._fetch_and_store_required_data(chunk_groups_to_fetch)
-            for index in pending_indexes:
-                yield self._output_for_index(index)
-            self._reset_old_data(all_chunks_to_fetch, pending_indexes)
+            yield from self._yield_pending(chunk_groups_for_workers, pending_indexes)
+            scheduled_chunks.clear()
 
         self.clear_cache()
 
-    def _get_chunks_needed(self, chunks_not_found_in_cache: List[str], all_chunks_to_fetch: Set[str]):
-        chunks_needed = []
-        for chunk in chunks_not_found_in_cache:
-            if chunk not in all_chunks_to_fetch:
-                chunks_needed.append(chunk)
-                all_chunks_to_fetch.add(chunk)
-        return chunks_needed
-
-
-    def _reset_old_data(self, all_chunks_to_fetch: Set[str], pending_indexes: List[int]):
-        all_chunks_to_fetch.clear()
+    def _yield_pending(
+        self,
+        chunk_groups_for_workers: List[List[Tuple[str, str]]],
+        pending_indexes: List[int],
+    ):
+        """Yields data for the indexes that are pending."""
+        self._fetch_and_store_required_data(chunk_groups_for_workers)
+        for index in pending_indexes:
+            yield self._get_final_output(index)
         pending_indexes.clear()
         self.required_chunks.clear()
         self.emergency_storage.clear()
 
+    def _get_chunks_needed(
+        self,
+        chunks_not_in_cache: List[Tuple[str, str]],
+        scheduled_chunks: Set[Tuple[str, str]],
+    ):
+        """Returns chunks that are not found in cache and not scheduled to be fetched by another worker."""
+        chunks_needed = []
+        for chunk in chunks_not_in_cache:
+            if chunk not in scheduled_chunks:
+                chunks_needed.append(chunk)
+                scheduled_chunks.add(chunk)
+        return chunks_needed
 
-    def _output_for_index(self, index: int):
+    def _get_final_output(self, index: int):
         """Returns the final output for the given index after converting to IterableOrderedDict and transforming."""
-        data = self._data_for_index(index)
+        data = self._get_data(index)
         if data is None:
             return None
         sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
@@ -218,7 +227,7 @@ class PrefetchLRUCache(LRUCache):
         length = min(tensor_lengths, default=0)
         return list(dataset.index.values[0].indices(length))
 
-    def _update_cache_insertion(self, chunk_sizes_dict) -> None:
+    def _update_cache_insertion(self, chunk_sizes_dict: Dict[str, int]):
         """Updates the cache after chunks are inserted into it across processes."""
         for key in chunk_sizes_dict:
             tensor, chunk_name = self.shared_mem_chunk_map[key]
@@ -228,7 +237,7 @@ class PrefetchLRUCache(LRUCache):
             if hasattr(self, "_update_count_dicts_insertion"):
                 self._update_count_dicts_insertion(tensor, chunk_name)
 
-    def _get_chunk_names_for_index(self, index) -> Dict[str, List[str]]:
+    def _get_chunk_names(self, index) -> Dict[str, List[str]]:
         """Returns names of all chunks across tensors that have this index"""
         if index in self.index_chunk_names_map:
             return self.index_chunk_names_map[index]
@@ -285,18 +294,18 @@ class PrefetchLRUCache(LRUCache):
                 raise TypeError(f"Dtype {dtype} is not supported by pytorch.")
             return torch.as_tensor(value.astype(dtype), dtype=torch_dtype)  # type: ignore
 
-    def _chunks_from_chunk_names(self, tensor: str, chunk_names: List[str]):
+    def _chunks_from_names(self, tensor: str, chunk_names: List[str]):
         """Takes a list of chunk names and returns a list with corresponding chunk objects"""
         shm_names = [self.chunk_shared_mem_map[(tensor, name)] for name in chunk_names]
         chunk_data = [self[shm_name] for shm_name in shm_names]
         return [Chunk.frombuffer(data) for data in chunk_data]
 
-    def _data_for_index(self, index):
+    def _get_data(self, index: int):
         """Returns all the data for a given index"""
         data: Dict[str, np.ndarray] = {}
-        chunk_names_dict = self._get_chunk_names_for_index(index)
+        chunk_names_dict = self._get_chunk_names(index)
         for tensor, chunk_names in chunk_names_dict.items():
-            chunks = self._chunks_from_chunk_names(tensor, chunk_names)
+            chunks = self._chunks_from_names(tensor, chunk_names)
             arr = self._numpy_from_chunks(index, tensor, chunks)
             if arr is None:
                 return None
@@ -347,17 +356,17 @@ class PrefetchLRUCache(LRUCache):
         self, chunk_names_dict: Dict[str, List[str]]
     ) -> List[str]:
         """Processes the chunk names dictionary and returns names of chunks that need to be fetched"""
-        chunks_not_found = []
+        missing_chunks = []
         for tensor, chunk_names in chunk_names_dict.items():
             for chunk_name in chunk_names:
                 chunk = (tensor, chunk_name)
                 shm_name = self.chunk_shared_mem_map.get(chunk)
                 if shm_name is None or shm_name not in self._list_keys():
-                    chunks_not_found.append((tensor, chunk_name))
+                    missing_chunks.append((tensor, chunk_name))
                 else:
                     self.required_chunks.append(chunk)
                     self._refresh_chunk_in_cache(tensor, chunk_name)
-        return chunks_not_found
+        return missing_chunks
 
     def _fetch_and_store_required_data(self, chunk_groups: List[List[Tuple[str, str]]]):
         """Generates shared memory names for required data, fetches, stores it and updates cache storage."""
