@@ -317,7 +317,11 @@ def serialize_input_samples(
             buff += byts
             nbytes.append(len(byts))
             shapes.append(shape)
-    elif isinstance(samples, np.ndarray):
+    elif (
+        isinstance(samples, np.ndarray)
+        or np.iscalar(samples)
+        or isinstance(samples, Sequence)
+    ):
         samples = intelligent_cast(samples, dtype, htype)
         buff = memoryview(samples.tobytes())  # type: ignore
         if len(samples):
@@ -326,7 +330,7 @@ def serialize_input_samples(
             if not shape:
                 shape = (1,)
         else:
-            shape = ()  # type: ignore
+            shape = (0,)  # type: ignore
             nb = 0
         nbytes = [nb] * len(samples)
         shapes = [shape] * len(samples)
