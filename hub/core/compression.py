@@ -168,7 +168,7 @@ def decompress_multiple(
         arrays = []
         itemsize = np.dtype(dtype).itemsize
         for shape in shapes:
-            nbytes = np.prod(shape) * itemsize
+            nbytes = int(np.prod(shape) * itemsize)
             arrays.append(
                 np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
             )
