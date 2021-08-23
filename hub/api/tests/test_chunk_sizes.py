@@ -1,4 +1,3 @@
-from hub.tests.common import update_chunk_sizes
 import numpy as np
 from hub.constants import KB
 
@@ -10,8 +9,10 @@ def _assert_num_chunks(tensor, expected_num_chunks):
 
 
 def _create_tensors(ds):
-    images = ds.create_tensor("images", htype="image", sample_compression=None)
-    labels = ds.create_tensor("labels", htype="class_label")
+    images = ds.create_tensor(
+        "images", htype="image", sample_compression=None, max_chunk_size=32 * KB
+    )
+    labels = ds.create_tensor("labels", htype="class_label", max_chunk_size=32 * KB)
     return images, labels
 
 
@@ -32,7 +33,6 @@ def _extend_tensors(images, labels):
 def test_append(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
-    update_chunk_sizes(ds, 32 * KB)
 
     _append_tensors(images, labels)
 
@@ -56,8 +56,6 @@ def test_extend(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
 
-    update_chunk_sizes(ds, 32 * KB)
-
     _extend_tensors(images, labels)
 
     _assert_num_chunks(labels, 1)
@@ -79,8 +77,6 @@ def test_extend(memory_ds):
 def test_extend_and_append(memory_ds):
     ds = memory_ds
     images, labels = _create_tensors(ds)
-
-    update_chunk_sizes(ds, 32 * KB)
 
     _extend_tensors(images, labels)
 

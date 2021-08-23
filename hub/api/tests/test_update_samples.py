@@ -2,7 +2,7 @@ from hub.constants import KB
 from hub.util.exceptions import TensorInvalidSampleShapeError
 import pytest
 from typing import Callable
-from hub.tests.common import assert_array_lists_equal, update_chunk_sizes
+from hub.tests.common import assert_array_lists_equal
 import numpy as np
 import hub
 
@@ -217,10 +217,7 @@ def test_failures(memory_ds):
 
 
 def test_warnings(memory_ds):
-    tensor = memory_ds.create_tensor("tensor")
-
-    # this MUST be after all tensors have been created!
-    update_chunk_sizes(memory_ds, 8 * KB)
+    tensor = memory_ds.create_tensor("tensor", max_chunk_size=8 * KB)
 
     tensor.extend(np.ones((10, 12, 12), dtype="int32"))
 

@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
@@ -16,6 +17,7 @@ from hub.core.storage import (
 )
 from hub.util.exceptions import (
     DatasetUnsupportedSharedMemoryCache,
+    SampleDecompressionError,
     TensorDoesNotExistError,
 )
 from hub.util.remove_cache import get_base_storage
@@ -99,10 +101,15 @@ class PrefetchLRUCache(LRUCache):
         # TODO: changes this
         return self.length
 
-    def iterate_samples(self, yield_index: bool = False):
-        """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
+    def iterate_samples(self):
+        """Iterates over the contents of the dataset and yields data indexwise."""
+        # chunk groups that are required. each group will be handled by a separate worker
         chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
-        chunks_to_fetch: Set[str] = set()
+
+        # a flattened version of chunk_groups_to_fetch, used to check if a given chunk is already scheduled to be fetched
+        all_chunks_to_fetch: Set[str] = set()
+
+        # indexes that have been encountered but skipped due to data being unavailable
         pending_indexes: List[int] = []
         for i in range(self.length):
             index = self._suggest_next_index()
@@ -115,9 +122,9 @@ class PrefetchLRUCache(LRUCache):
             # chunks that are not found for the current index and also not scheduled to be fetched by another worker
             chunks_needed = []
             for chunk in chunks_not_found:
-                if chunk not in chunks_to_fetch:
+                if chunk not in all_chunks_to_fetch:
                     chunks_needed.append(chunk)
-                    chunks_to_fetch.add(chunk)
+                    all_chunks_to_fetch.add(chunk)
 
             if chunks_not_found:
                 pending_indexes.append(index)
@@ -125,26 +132,24 @@ class PrefetchLRUCache(LRUCache):
                     chunk_groups_to_fetch.append(chunks_needed)
                 if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
                     self._fetch_and_store_required_data(chunk_groups_to_fetch)
+                    all_chunks_to_fetch.clear()
                     for index in pending_indexes:
-                        yield self.output_for_index(index, yield_index)
+                        yield self.output_for_index(index)
                     pending_indexes.clear()
                     self.required_chunks.clear()
                     self.emergency_storage.clear()
-                    chunks_to_fetch.clear()
             else:
-                yield self.output_for_index(index, yield_index)
+                yield self.output_for_index(index)
 
         self.clear_cache()
 
-    def output_for_index(self, index: int, yield_index: bool = False):
+    def output_for_index(self, index: int):
         """Returns the final output for the given index after converting to IterableOrderedDict and transforming."""
         data = self._data_for_index(index)
+        if data is None:
+            return None
         sample = IterableOrderedDict((key, data[key]) for key in self.tensor_keys)
-        transformed_data = self._apply_transform(sample)
-        if yield_index:
-            return index, transformed_data
-        else:
-            return transformed_data
+        return self._apply_transform(sample)
 
     def clear_cache(self):
         """Flushes the content of all the cache layers if not in read mode and and then deletes contents of all the layers of it.
@@ -234,12 +239,24 @@ class PrefetchLRUCache(LRUCache):
         # TODO: update this once we support images spanning across multiple chunks
         chunk = chunks[0]
         if self.mode != "pytorch":
-            return chunk_engine.read_sample_from_chunk(index, chunk, cast=True)
+            try:
+                return chunk_engine.read_sample_from_chunk(index, chunk, cast=True)
+            except SampleDecompressionError:
+                warnings.warn(
+                    f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
+                )
+                return None
         else:
             # read the chunk and cast it to pytorch tensor with compatible dtype
             import torch
 
-            value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+            try:
+                value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
+            except SampleDecompressionError:
+                warnings.warn(
+                    f"Skipping corrupt {chunk_engine.tensor_meta.sample_compression} sample."
+                )
+                return None
             # typecast if incompatible with pytorch
             dtype = chunk_engine.tensor_meta.dtype
             compatible_dtypes = {
@@ -267,6 +284,8 @@ class PrefetchLRUCache(LRUCache):
         for tensor, chunk_names in chunk_names_dict.items():
             chunks = self._chunks_from_chunk_names(tensor, chunk_names)
             arr = self._numpy_from_chunks(index, tensor, chunks)
+            if arr is None:
+                return None
             data[tensor] = arr
         return data
 

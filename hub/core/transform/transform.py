@@ -50,11 +50,6 @@ class TransformFunction:
             UnsupportedSchedulerError: If the scheduler passed is not recognized. Supported values include: "serial", 'threaded' and 'processed'.
         """
 
-        hub_reporter.feature_report(
-            feature_name="eval",
-            parameters={"Num_Workers": num_workers, "Scheduler": scheduler},
-        )
-
         pipeline = Pipeline([self])
         pipeline.eval(data_in, ds_out, num_workers, scheduler)
 
@@ -98,6 +93,11 @@ class Pipeline:
         if isinstance(data_in, hub.core.dataset.Dataset):
             data_in = get_dataset_with_zero_size_cache(data_in)
 
+        hub_reporter.feature_report(
+            feature_name="eval",
+            parameters={"Num_Workers": str(num_workers), "Scheduler": scheduler},
+        )
+
         check_transform_data_in(data_in, scheduler)
         check_transform_ds_out(ds_out, scheduler)
 
@@ -106,6 +106,11 @@ class Pipeline:
         ds_out.storage.autoflush = False
 
         tensors = list(ds_out.tensors)
+
+        # Initialize chunk id encoders
+        for tensor in tensors:
+            ds_out[tensor].chunk_engine.chunk_id_encoder
+
         compute_provider = get_compute_provider(scheduler, num_workers)
 
         self.run(data_in, ds_out, tensors, compute_provider, num_workers)
@@ -122,6 +127,7 @@ class Pipeline:
         """Runs the pipeline on the input data to produce output samples and stores in the dataset.
         This receives arguments processed and sanitized by the Pipeline.eval method.
         """
+        num_workers = max(num_workers, 1)
         size = math.ceil(len(data_in) / num_workers)
         slices = [data_in[i * size : (i + 1) * size] for i in range(num_workers)]
 
@@ -153,10 +159,11 @@ def compute(fn):
     The output should be appended/extended to the second argument in a hub like syntax.
     Any value returned by the fn will be ignored.
 
-    Example:
-    @hub.compute
-    def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
-        samples_out.your_tensor.append(your_arg0 * your_arg1)
+    Example::
+
+        @hub.compute
+        def your_function(sample_in: Any, samples_out, your_arg0, your_arg1=0):
+            samples_out.your_tensor.append(your_arg0 * your_arg1)
     """
 
     def inner(*args, **kwargs):

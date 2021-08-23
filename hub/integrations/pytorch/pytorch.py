@@ -69,7 +69,10 @@ def dataset_to_pytorch(
                 )
 
         def __iter__(self):
-            yield from self.cache.iterate_samples()
+            for value in self.cache.iterate_samples():
+                if value is not None:
+                    yield value
+
 
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)

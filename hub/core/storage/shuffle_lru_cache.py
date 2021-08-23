@@ -41,13 +41,9 @@ class ShuffleLRUCache(PrefetchLRUCache):
         # stores the start and end index of each chunk for each tensor
         self.all_chunks_start_end_index = self._get_all_chunks_start_end_index()
 
-    def iterate_samples(self, yield_index=False):
-        """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
-        for index, data in super().iterate_samples(yield_index=True):
-            if yield_index:
-                yield index, data
-            else:
-                yield data
+    def iterate_samples(self):
+        """Iterates over the contents of the dataset and yields data indexwise."""
+        yield from super().iterate_samples()
 
     def remove_index(self, index: int):
         """Removes an index from all the class data structures after it has been used."""

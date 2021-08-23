@@ -1,3 +1,4 @@
+from hub.core.fast_forwarding import ffw_tensor_meta
 from typing import Any, Callable, Dict, List, Tuple
 import numpy as np
 from hub.util.exceptions import (
@@ -9,12 +10,10 @@ from hub.util.exceptions import (
     TensorInvalidSampleShapeError,
 )
 from hub.constants import (
-    REQUIRE_USER_SPECIFICATION,
     SUPPORTED_COMPRESSIONS,
     COMPRESSION_ALIASES,
-    UNSPECIFIED,
 )
-from hub.htypes import HTYPE_CONFIGURATIONS
+from hub.htype import HTYPE_CONFIGURATIONS, REQUIRE_USER_SPECIFICATION, UNSPECIFIED
 from hub.core.meta.meta import Meta
 
 
@@ -25,6 +24,7 @@ class TensorMeta(Meta):
     max_shape: List[int]
     length: int
     sample_compression: str
+    max_chunk_size: int
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class TensorMeta(Meta):
 
         Args:
             htype (str): All tensors require an `htype`. This determines the default meta keys/values.
-            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htypes`.
+            **kwargs: Any key that the provided `htype` has can be overridden via **kwargs. For more information, check out `hub.htype`.
         """
 
         if htype != UNSPECIFIED:
@@ -61,6 +61,7 @@ class TensorMeta(Meta):
 
     def set_dtype(self, dtype: np.dtype):
         """Should only be called once."""
+        ffw_tensor_meta(self)
 
         if self.dtype is not None:
             raise ValueError(
@@ -73,11 +74,15 @@ class TensorMeta(Meta):
         self.dtype = dtype.name
 
     def update_shape_interval(self, shape: Tuple[int, ...]):
+        ffw_tensor_meta(self)
+
         if self.length <= 0:
             self.min_shape = list(shape)
             self.max_shape = list(shape)
         else:
-            if len(shape) != len(self.min_shape):
+            expected_dims = len(self.min_shape)
+
+            if len(shape) != expected_dims:
                 raise TensorInvalidSampleShapeError(shape, len(self.min_shape))
 
             for i, dim in enumerate(shape):
