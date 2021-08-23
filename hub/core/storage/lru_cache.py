@@ -118,9 +118,8 @@ class LRUCache(StorageProvider):
             return self.cache_storage[path]
         else:
             if self.next_storage is not None:
-                result = self.next_storage[
-                    path
-                ]  # fetch from storage, may throw KeyError
+                # fetch from storage, may throw KeyError
+                result = self.next_storage[path]
 
                 if _get_nbytes(result) <= self.cache_size:  # insert in cache if it fits
                     self._insert_in_cache(path, result)

@@ -3,7 +3,7 @@ from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
 from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List
 
-from hub.constants import MB
+from hub.constants import EMERGENCY_STORAGE_PATH, MB
 from hub.core.chunk import Chunk
 from hub.core.chunk_engine import ChunkEngine
 from hub.core.storage import (
@@ -24,7 +24,7 @@ from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
 class PrefetchLRUCache(LRUCache):
-    """Creates a cache that fetches multiple chunks parallely."""
+    """Creates a cache that fetches multiple chunks parallelly."""
 
     def __init__(
         self,
@@ -74,7 +74,9 @@ class PrefetchLRUCache(LRUCache):
         # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
         self.required_chunks: List[tuple] = []
 
-        self.emergency_storage = LocalProvider("./temp/data")  # TODO: Finalize path
+        self.emergency_storage = (
+            LocalProvider(EMERGENCY_STORAGE_PATH) if self.next_storage is None else None
+        )
 
     def __getitem__(self, path):
         if path in self.lru_sizes:
