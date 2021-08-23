@@ -293,7 +293,7 @@ jobs:
           steps:
             - slack-status
     parallelism: 10
-    no_output_timeout: 30m
+  no_output_timeout: 30m
   deploy:
     executor: linux
     environment:
