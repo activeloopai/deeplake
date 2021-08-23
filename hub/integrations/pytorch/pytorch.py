@@ -9,7 +9,7 @@ from hub.util.exceptions import (
     DatasetUnsupportedPytorch,
     ModuleNotInstalledException,
 )
-from hub.constants import LOCAL_CACHE_PREFIX, SHARED_MEMORY_CACHE_SIZE
+from hub.constants import LOCAL_CACHE_PREFIX, MB, SHARED_MEMORY_CACHE_SIZE
 from .common import convert_fn as default_convert_fn, collate_fn as default_collate_fn
 
 try:
@@ -28,6 +28,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: bool = False,
     shuffle: bool = False,
+    buffer_size: int = 10 * 1000,
     local_cache_size: int = 0,
 ):
     if not pytorch_installed:
@@ -45,11 +46,12 @@ def dataset_to_pytorch(
             tensors: Optional[Sequence[str]] = None,
             num_workers: int = 1,
             shuffle: bool = False,
+            buffer_size: int = 10 * 1000,
             local_cache_size: int = 0,
         ):
             cache = ShuffleLRUCache if shuffle else PrefetchLRUCache
             cache_storage = SharedMemoryProvider()
-            cache_size = SHARED_MEMORY_CACHE_SIZE
+            cache_size = buffer_size * MB
             next_storage = get_next_storage(local_cache_size, dataset)
 
             try:
@@ -76,7 +78,13 @@ def dataset_to_pytorch(
     # TODO new pytorch approach doesn't support 0 workers currently
     num_workers = max(num_workers, 1)
     pytorch_ds = TorchDataset(
-        dataset, transform, tensors, num_workers, shuffle, local_cache_size
+        dataset,
+        transform,
+        tensors,
+        num_workers,
+        shuffle,
+        buffer_size,
+        local_cache_size,
     )
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
@@ -97,6 +105,6 @@ def get_next_storage(local_cache_size, dataset):
         local_cache_name = local_cache_name.replace("\\", "_")
         local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
         local_provider = LocalProvider(local_cache_path)
-        return LRUCache(local_provider, None, local_cache_size)
+        return LRUCache(local_provider, None, local_cache_size * MB)
     else:
         return None

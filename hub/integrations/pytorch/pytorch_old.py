@@ -28,6 +28,7 @@ def dataset_to_pytorch(
     collate_fn: Optional[Callable] = None,
     pin_memory: bool = False,
     shuffle: bool = False,
+    buffer_size: int = 10 * 1000,
     local_cache_size: int = 0,
     python_version_warning: bool = True,
 ):
@@ -46,7 +47,6 @@ def dataset_to_pytorch(
         transform,
         tensors,
         shuffle,
-        local_cache_size,
         python_version_warning=python_version_warning,
     )
 
@@ -71,28 +71,20 @@ class TorchDataset:
         transform: Optional[Callable] = None,
         tensors: Optional[Sequence[str]] = None,
         shuffle: bool = False,
-        local_cache_size: int = 0,
         python_version_warning: bool = True,
     ):
 
         if python_version_warning:
+            warning_message = ""
             if os.name == "nt":
-                warnings.warn(
-                    f"Windows OS detected. Pytorch iteration speeds are up to 500% faster using linux/macOS along with Python version >= 3.8."
-                )
+                warning_message += f"Windows OS detected. Pytorch iteration speeds are up to 500% faster using linux/macOS along with Python version >= 3.8. "
             else:
-                warnings.warn(
-                    f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8."
-                )
+                warning_message += f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8.\n"
 
-            if local_cache_size > 0:
-                warnings.warn(
-                    f"Pytorch iteration will also not utilize the local_cache_size argument. Use linux/macOS with python >= 3.8 to use this argument."
-                )
+            warning_message += "This version will also not utilize the buffer_size and local_cache_size arguments.\n"
             if shuffle:
-                warnings.warn(
-                    f"Pytorch iteration with shuffling will also be very slow. Use linux/macOS with python >= 3.8 to make this much faster."
-                )
+                warning_message += "Pytorch iteration with shuffling will also be very slow. Use linux/macOS with python >= 3.8 to speed it up.\n"
+            warnings.warn(warning_message)
 
         self.dataset = None
         self._worker_range = None

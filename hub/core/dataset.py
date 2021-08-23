@@ -335,6 +335,7 @@ class Dataset:
         collate_fn: Optional[Callable] = None,
         pin_memory: bool = False,
         shuffle: bool = False,
+        buffer_size: int = 10 * 1000,
         local_cache_size: int = 0,
     ):
         """Converts the dataset into a pytorch Dataloader.
@@ -356,6 +357,7 @@ class Dataset:
             pin_memory (bool): If True, the data loader will copy Tensors into CUDA pinned memory before returning them. Default value is False.
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
+            buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
             local_cache_size (int): The size of the local cache in MB to use for fetching data in parallel. Default value is 0.
 
         Returns:
@@ -373,6 +375,7 @@ class Dataset:
             collate_fn=collate_fn,
             pin_memory=pin_memory,
             shuffle=shuffle,
+            buffer_size=buffer_size,
             local_cache_size=local_cache_size,
         )
 
