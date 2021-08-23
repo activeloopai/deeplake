@@ -58,3 +58,13 @@ def num_tiles_for_sample(
     for tile_dim, sample_dim in zip(tile_shape, sample_shape):
         num_tiles *= ceildiv(sample_dim, tile_dim)
     return num_tiles
+
+
+def get_tile_bounds(tile_index: Tuple[int], tile_shape: Tuple[int]) -> Tuple[Tuple[int], Tuple[int]]:
+    low, high = [], []
+
+    for index_dim, shape_dim in zip(tile_index, tile_shape):
+        low.append(index_dim * shape_dim)
+        high.append((index_dim + 1) * shape_dim)
+
+    return tuple(low), tuple(high)

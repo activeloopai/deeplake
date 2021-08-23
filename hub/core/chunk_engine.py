@@ -1,6 +1,6 @@
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import get_tile_shape
-from hub.util.tiles import approximate_num_bytes, num_tiles_for_sample
+from hub.util.tiles import approximate_num_bytes, get_tile_bounds, num_tiles_for_sample
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
@@ -23,7 +23,7 @@ from hub.util.keys import (
     get_tensor_meta_key,
 )
 from hub.core.sample import Sample, SampleValue  # type: ignore
-from hub.constants import DEFAULT_MAX_CHUNK_SIZE
+from hub.constants import DEFAULT_MAX_CHUNK_SIZE, ENCODING_DTYPE
 
 import numpy as np
 
@@ -568,7 +568,7 @@ class ChunkEngine:
 
         # TODO: make methods?
         value0_index = index.values[0].indices(length)
-        subslice_index = Index([index.values[1:]])
+        subslice_index = Index(index.values[1:])
 
         for global_sample_index in value0_index:
             chunk_ids = enc[global_sample_index]
@@ -579,6 +579,17 @@ class ChunkEngine:
 
                 tile_encoder = self.tile_encoder
                 ordered_tiles = tile_encoder.order_tiles(global_sample_index, chunk_ids)
+
+                tile_meta = tile_encoder.entries[global_sample_index]
+                tile_shape = tile_meta["tile_shape"]
+
+                # loop through each tile ID, check if it exists within the subslice_index.
+                for tile_index, tile_id in np.ndenumerate(ordered_tiles):
+                    low, high = get_tile_bounds(tile_index, tile_shape)
+
+                    if subslice_index.intersects(low, high):
+                        chunk = self.get_chunk_from_id(tile_id)
+                        tile_sample = self.read_sample_from_chunk(global_sample_index, chunk)
 
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
@@ -594,6 +605,13 @@ class ChunkEngine:
                 last_shape = shape
 
         return _format_read_samples(samples, index, aslist)
+
+    def get_chunk_from_id(self, chunk_id: ENCODING_DTYPE):
+        chunk_name = chunk_name_from_id(chunk_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        chunk.key = chunk_key
+        return chunk
 
     # def get_chunks_for_sample(self, global_sample_index: int) -> List[Chunk]:
     #     """Retrives the `Chunk` objects corresponding to `global_sample_index`.

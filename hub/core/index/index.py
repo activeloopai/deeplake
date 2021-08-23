@@ -4,6 +4,32 @@ import numpy as np
 IndexValue = Union[int, slice, Tuple[int]]
 
 
+def slice_has_step(s: slice):
+    return ((s.step or 1) != 1)
+
+def is_trivial_slice(s: slice):
+    return (
+        not s.start
+        and s.stop == None
+        and not slice_has_step(s)
+    )
+
+def is_value_within_slice(s: slice, value: int):
+    # TODO: docstring
+
+    if slice_has_step(s):
+        # TODO
+        raise NotImplementedError
+
+    if is_trivial_slice(s):
+        return True
+
+    if s.start is None:
+        # needs to be strictly less than
+        return value < s.stop
+
+    return (s.start <= value) and (value < s.stop)
+
 def has_negatives(s: slice) -> bool:
     if s.start and s.start < 0:
         return True
@@ -186,12 +212,12 @@ class IndexEntry:
 
     def is_trivial(self):
         """Checks if an IndexEntry represents the entire slice"""
-        return (
-            isinstance(self.value, slice)
-            and not self.value.start
-            and self.value.stop == None
-            and ((self.value.step or 1) == 1)
-        )
+
+        if not isinstance(self.value, slice):
+            return False
+
+        return is_trivial_slice(self.value)
+        
 
     def length(self, parent_length: int) -> int:
         """Returns the length of an IndexEntry given the length of the parent it is indexing.
@@ -227,6 +253,7 @@ class IndexEntry:
 
     def validate(self, parent_length: int):
         """Checks that the index is not accessing values outside the range of the parent."""
+
         # Slices are okay, as an out-of-range slice will just yield no samples
         # Check each index of a tuple
         if isinstance(self.value, tuple):
@@ -239,6 +266,18 @@ class IndexEntry:
                 raise ValueError(
                     f"Index {self.value} is out of range for tensors with length {parent_length}"
                 )
+
+    def intersects(self, low_dim: int, high_dim: int):
+        if isinstance(self.value, slice):
+            # check if low_dim or high_dim are between start + stop
+            low_dim_in_slice = is_value_within_slice(self.value, low_dim)
+            high_dim_in_slice = is_value_within_slice(self.value, high_dim)
+            return low_dim_in_slice or high_dim_in_slice
+
+        if isinstance(self.value, int):
+            return low_dim <= self.value and self.value < high_dim
+        
+        raise NotImplementedError
 
 
 class Index:
@@ -429,6 +468,16 @@ class Index:
     def validate(self, parent_length):
         """Checks that the index is not accessing values outside the range of the parent."""
         self.values[0].validate(parent_length)
+
+    def intersects(self, low_bound: Tuple[int], high_bound: Tuple[int]):
+        # TODO: docstring
+
+        for low_dim, high_dim, index_entry in zip(low_bound, high_bound, self.values):
+            assert low_dim < high_dim  # TODO: exceptions (sanity check)
+            if not index_entry.intersects(low_dim, high_dim):
+                return False
+
+        return True
 
     def __str__(self):
         values = [entry.value for entry in self.values]
