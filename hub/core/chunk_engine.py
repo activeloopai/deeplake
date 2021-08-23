@@ -252,19 +252,8 @@ class ChunkEngine:
             if buffer:
                 chunk = new_chunk()
 
-    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
-        """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
-        determining which chunks contain which parts of `buffer`.
-
-        Args:
-            buffer (memoryview): Buffer that represents a single sample. Can have a
-                length of 0, in which case `shape` should contain at least one 0 (empty sample).
-            shape (Tuple[int]): Shape for the sample that `buffer` represents.
-        """
-
-        # num samples is always 1 when appending
-        num_samples = 1
-
+    def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
+        """Treat `sample` as single sample and place them into compressed `Chunk`s."""
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
             last_chunk_uncompressed = self._last_chunk_uncompressed
@@ -287,6 +276,22 @@ class ChunkEngine:
                 chunk.register_sample_to_headers(len(buffer), shape)
             else:
                 chunk.register_sample_to_headers(None, shape)
+
+    def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
+        """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
+        determining which chunks contain which parts of `buffer`.
+
+        Args:
+            buffer (memoryview): Buffer that represents a single sample. Can have a
+                length of 0, in which case `shape` should contain at least one 0 (empty sample).
+            shape (Tuple[int]): Shape for the sample that `buffer` represents.
+        """
+
+        # num samples is always 1 when appending
+        num_samples = 1
+
+        if self.tensor_meta.chunk_compression:
+            self._append_bytes_to_compressed_chunk(buffer, shape)
         else:
             buffer_consumed = self._try_appending_to_last_chunk(buffer, shape)
             if not buffer_consumed:
@@ -295,6 +300,9 @@ class ChunkEngine:
         self.chunk_id_encoder.register_samples(num_samples)
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
+        """
+        Whether last chunk's data can be set to a buffer of size nbytes.
+        """
         last_chunk = self.last_chunk
         if last_chunk is None:
             return False
