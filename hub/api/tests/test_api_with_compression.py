@@ -189,4 +189,4 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     data = [[0] * 50, [1, 2, 3] * 100, [4, 5, 6] * 200, [7, 8, 9] * 300]
     labels.extend(data)
     for row, label in zip(data, labels):
-        assert row == label.numpy().tolist()
+        np.testing.assert_array_equal(row, label.numpy())
