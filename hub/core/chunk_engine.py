@@ -481,7 +481,9 @@ class ChunkEngine:
 
             if len(chunks) > 1:
                 # TODO
-                raise NotImplementedError("Updating for tiled samples not yet implemented")
+                raise NotImplementedError(
+                    "Updating for tiled samples not yet implemented"
+                )
 
             for chunk in chunks:
                 local_sample_index = enc.translate_index_relative_to_chunks(
@@ -560,35 +562,24 @@ class ChunkEngine:
         enc = self.chunk_id_encoder
         last_shape = None
         samples = []
+        
+        tensor_meta = self.tensor_meta
+        dtype = tensor_meta.dtype
 
         # TODO: make methods?
         value0_index = index.values[0].indices(length)
         subslice_index = Index([index.values[1:]])
 
         for global_sample_index in value0_index:
-            # BEFORE TILING
-            # chunk = self.get_chunk_for_sample(global_sample_index, enc)
-            # sample = self.read_sample_from_chunk(global_sample_index, chunk)
-            # shape = sample.shape
-
-            # if not aslist and last_shape is not None:
-            #     if shape != last_shape:
-            #         raise DynamicTensorNumpyError(self.key, index, "shape")
-
-            # samples.append(sample)
-            # last_shape = shape
-
-            # AFTER TILING
-            # TODO: only read data from the required chunks
-            # chunks = self.get_chunks_for_sample(global_sample_index)
-
             chunk_ids = enc[global_sample_index]
+            is_tiled = len(chunk_ids) > 1
 
-            if len(chunk_ids) > 1:
+            if is_tiled:
+                # TODO: can probably generalize this
+
                 tile_encoder = self.tile_encoder
-                tile_encoder.prune_chunks(chunk_ids, global_sample_index, subslice_index)
+                ordered_tiles = tile_encoder.order_tiles(global_sample_index, chunk_ids)
 
-                # TODO!
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
             for chunk in chunk_ids:
