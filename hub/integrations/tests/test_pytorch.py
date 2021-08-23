@@ -82,7 +82,6 @@ def test_pytorch_small(ds):
     sub_dl2 = sub_ds2.pytorch(num_workers=2, batch_size=1)
 
     for i, batch in enumerate(sub_dl2):
-        # print(i, batch["image"].numpy()[0, 0 ,0])
         np.testing.assert_array_equal(
             batch["image"].numpy(), (8 + i) * np.ones((1, 10, 10))
         )

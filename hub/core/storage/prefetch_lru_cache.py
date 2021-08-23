@@ -117,33 +117,47 @@ class PrefetchLRUCache(LRUCache):
             self.index_chunk_names_map[index] = chunk_names_dict
 
             # chunks not found for the current index
-            chunks_not_found = self._process_chunks_names_dict(chunk_names_dict)
+            chunks_not_found_in_cache = self._process_chunks_names_dict(chunk_names_dict)
 
             # chunks that are not found for the current index and also not scheduled to be fetched by another worker
-            chunks_needed = []
-            for chunk in chunks_not_found:
-                if chunk not in all_chunks_to_fetch:
-                    chunks_needed.append(chunk)
-                    all_chunks_to_fetch.add(chunk)
+            chunks_needed = self._get_chunks_needed(chunks_not_found_in_cache, all_chunks_to_fetch)
 
-            if chunks_not_found:
+            if chunks_not_found_in_cache:
                 pending_indexes.append(index)
                 if chunks_needed:
                     chunk_groups_to_fetch.append(chunks_needed)
                 if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
                     self._fetch_and_store_required_data(chunk_groups_to_fetch)
-                    all_chunks_to_fetch.clear()
                     for index in pending_indexes:
-                        yield self.output_for_index(index)
-                    pending_indexes.clear()
-                    self.required_chunks.clear()
-                    self.emergency_storage.clear()
+                        yield self._output_for_index(index)
+                    self._reset_old_data(all_chunks_to_fetch, pending_indexes)
             else:
-                yield self.output_for_index(index)
+                yield self._output_for_index(index)
+        if pending_indexes:
+            self._fetch_and_store_required_data(chunk_groups_to_fetch)
+            for index in pending_indexes:
+                yield self._output_for_index(index)
+            self._reset_old_data(all_chunks_to_fetch, pending_indexes)
 
         self.clear_cache()
 
-    def output_for_index(self, index: int):
+    def _get_chunks_needed(self, chunks_not_found_in_cache: List[str], all_chunks_to_fetch: Set[str]):
+        chunks_needed = []
+        for chunk in chunks_not_found_in_cache:
+            if chunk not in all_chunks_to_fetch:
+                chunks_needed.append(chunk)
+                all_chunks_to_fetch.add(chunk)
+        return chunks_needed
+
+
+    def _reset_old_data(self, all_chunks_to_fetch: Set[str], pending_indexes: List[int]):
+        all_chunks_to_fetch.clear()
+        pending_indexes.clear()
+        self.required_chunks.clear()
+        self.emergency_storage.clear()
+
+
+    def _output_for_index(self, index: int):
         """Returns the final output for the given index after converting to IterableOrderedDict and transforming."""
         data = self._data_for_index(index)
         if data is None:
