@@ -9,7 +9,12 @@ from hub.core.meta.encode.shape import ShapeEncoder
 from hub.core.meta.encode.byte_positions import BytePositionsEncoder
 
 from hub.core.serialize import serialize_chunk, deserialize_chunk, infer_chunk_num_bytes
-from hub.core.compression import compress_multiple, decompress_multiple
+from hub.core.compression import (
+    compress_multiple,
+    decompress_multiple,
+    decompress_bytes,
+)
+from hub.compression import get_compression_type
 
 import lz4.frame
 
@@ -67,30 +72,20 @@ class Chunk(Cachable):
             shapes = [
                 self.shapes_encoder[i] for i in range(self.shapes_encoder.num_samples)
             ]
-            if compression == "lz4":
-                itemsize = np.dtype(dtype).itemsize
-                decompressed_data = self.decompressed_data(compression)
-                samples = []
-                for shape in shapes:
-                    nbytes = np.prod(shape) * itemsize
-                    samples.append(
-                        np.frombuffer(decompressed_data[:nbytes], dtype=dtype).reshape(
-                            shape
-                        )
-                    )
-                    decompressed_data = decompressed_data[nbytes:]
-                self._decompressed_samples = samples
-            else:
-                self._decompressed_samples = decompress_multiple(self._data, shapes)
+            self._decompressed_samples = decompress_multiple(
+                self._data, shapes, dtype, compression
+            )
         return self._decompressed_samples
 
     def decompressed_data(self, compression: Optional[str] = None) -> memoryview:
         """Applicable only for compressed chunks"""
         if self._decompressed_data is None:
-            if compression == "lz4":
-                self._decompressed_data = memoryview(lz4.frame.decompress(self._data))
+            if get_compression_type(compression) == "byte":
+                self._decompressed_data = memoryview(
+                    decompress_bytes(self._data, compression)
+                )
             else:
-                # This should never be reached. non lz4 tensors should use decompressed_samples() instead.
+                # This should never be reached. non byte compressions should use decompressed_samples() instead.
                 self._decompressed_data = memoryview(
                     decompress_array(self._data).tobytes()
                 )
@@ -222,7 +217,7 @@ class Chunk(Cachable):
         new_nb = len(new_buffer)
         self.shapes_encoder[local_sample_index] = new_shape
         if chunk_compression:
-            if chunk_compression == "lz4":
+            if get_compression_type(chunk_compression) == "byte":
                 decompressed_buffer = self.decompressed_data()
                 old_start_byte, old_end_byte = self.byte_positions_encoder[
                     local_sample_index

@@ -2,6 +2,7 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
+from hub.compression import get_compression_type
 from math import ceil
 from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
@@ -283,7 +284,7 @@ class ChunkEngine:
                     last_chunk_uncompressed, chunk_compression
                 )
             chunk._data = compressed_bytes
-            if chunk_compression == "lz4":
+            if get_compression_type(chunk_compression) == "byte":
                 chunk.register_sample_to_headers(len(buffer), shape)
             else:
                 chunk.register_sample_to_headers(None, shape)
@@ -535,7 +536,7 @@ class ChunkEngine:
         local_sample_index = enc.translate_index_relative_to_chunks(global_sample_index)
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
-            if chunk_compression == "lz4":
+            if get_compression_type(chunk_compression) == "byte":
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
                 shape = chunk.shapes_encoder[local_sample_index]
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
@@ -551,8 +552,11 @@ class ChunkEngine:
         if len(buffer) == 0:
             return np.zeros(shape, dtype=dtype)
 
-        if self.tensor_meta.sample_compression:
-            sample = decompress_array(buffer, shape)
+        sample_compression = self.tensor_meta.sample_compression
+        if sample_compression:
+            sample = decompress_array(
+                buffer, shape, dtype=dtype, compression=sample_compression
+            )
             if cast and sample.dtype != dtype:
                 sample = sample.astype(dtype)
         else:

@@ -8,6 +8,7 @@ from hub.core.compression import (
     compress_multiple,
     decompress_multiple,
 )
+from hub.compression import get_compression_type
 from hub.util.exceptions import CorruptedSampleError
 from PIL import Image  # type: ignore
 
@@ -23,31 +24,46 @@ image_compressions.remove("wmf")
 @pytest.mark.parametrize("compression", compressions)
 def test_array(compression, compressed_image_paths):
     # TODO: check dtypes and no information loss
-    if compression == "lz4":
+    compression_type = get_compression_type(compression)
+    if compression_type == "byte":
         array = np.random.randint(0, 10, (32, 32))
-    else:
+    elif compression_type == "image":
         array = np.array(hub.read(compressed_image_paths[compression]))
         if compression != "png":
             array *= False
     shape = array.shape
     compressed_buffer = compress_array(array, compression)
-    assert get_actual_compression_from_buffer(compressed_buffer) == compression
-    decompressed_array = decompress_array(compressed_buffer, shape=shape)
+    if compression_type == "byte":
+        decompressed_array = decompress_array(
+            compressed_buffer, shape=shape, dtype=array.dtype, compression=compression
+        )
+    else:
+        assert get_actual_compression_from_buffer(compressed_buffer) == compression
+        decompressed_array = decompress_array(compressed_buffer, shape=shape)
     np.testing.assert_array_equal(array, decompressed_array)
 
 
-@pytest.mark.parametrize("compression", [c for c in compressions if c != "lz4"])
+@pytest.mark.parametrize("compression", compressions)
 def test_multi_array(compression, compressed_image_paths):
-    img = Image.open(compressed_image_paths[compression])
-    img2 = img.resize((img.size[0] // 2, img.size[1] // 2))
-    img3 = img.resize((img.size[0] // 3, img.size[1] // 3))
-    arrays = list(map(np.array, [img, img2, img3]))
-    compressed_buffer = compress_multiple(arrays, compression)
-    decompressed_arrays = decompress_multiple(
-        compressed_buffer, [arr.shape for arr in arrays]
-    )
+    compression_type = get_compression_type(compression)
+    if compression_type == "image":
+        img = Image.open(compressed_image_paths[compression])
+        img2 = img.resize((img.size[0] // 2, img.size[1] // 2))
+        img3 = img.resize((img.size[0] // 3, img.size[1] // 3))
+        arrays = list(map(np.array, [img, img2, img3]))
+        compressed_buffer = compress_multiple(arrays, compression)
+        decompressed_arrays = decompress_multiple(
+            compressed_buffer, [arr.shape for arr in arrays]
+        )
+    elif compression_type == "byte":
+        arrays = [np.random.randint(0, 10, (32, 32)) for _ in range(3)]
+        compressed_buffer = compress_multiple(arrays, compression)
+        decompressed_arrays = decompress_multiple(
+            compressed_buffer, [(32, 32)] * 3, arrays[0].dtype, compression
+        )
+
     for arr1, arr2 in zip(arrays, decompressed_arrays):
-        if compression == "png":
+        if compression == "png" or compression_type == "byte":
             np.testing.assert_array_equal(arr1, arr2)
         else:
             assert arr1.shape == arr2.shape

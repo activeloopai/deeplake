@@ -44,3 +44,14 @@ COMPRESSION_ALIASES = {"jpg": "jpeg"}
 # If `True`  compression format has to be the same between samples in the same tensor.
 # If `False` compression format can   be different between samples in the same tensor.
 USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
+
+
+_compression_types = {}
+for c in IMAGE_COMPRESSIONS:
+    _compression_types[c] = "image"
+for c in BYTE_COMPRESSIONS:
+    _compression_types[c] = "byte"
+
+
+def get_compression_type(c):
+    return _compression_types[c]

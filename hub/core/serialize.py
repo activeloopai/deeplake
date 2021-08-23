@@ -230,6 +230,13 @@ def _serialize_input_sample(
     """Converts the incoming sample into a buffer with the proper dtype and compression."""
 
     if isinstance(sample, Sample):
+        if (
+            sample_compression
+            and hub.compression.get_compression_type(sample_compression) == "byte"
+        ):
+            # Byte compressions don't store dtype info, so have to cast incoming samples to expected dtype
+            arr = intelligent_cast(sample.array, expected_dtype, htype)
+            sample = Sample(array=arr)
         buffer = sample.compressed_bytes(sample_compression)
         shape = sample.shape
     else:

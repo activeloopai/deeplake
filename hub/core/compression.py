@@ -5,6 +5,7 @@ from hub.util.exceptions import (
     UnsupportedCompressionError,
     CorruptedSampleError,
 )
+from hub.compression import get_compression_type
 from typing import Union, Tuple, Sequence, List, Optional
 import numpy as np
 
@@ -31,29 +32,18 @@ def to_image(array: np.ndarray) -> Image:
     return Image.fromarray(array)
 
 
-_LZ4_HEADER = b"lz4!"
+def compress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+    if compression == "lz4":
+        return lz4.frame.compress(buffer)
+    else:
+        raise SampleCompressionError((len(buffer),), compression)
 
 
-def _lz4_compress_array(array: np.ndarray) -> bytes:
-    shape_bytes = b"".join(d.to_bytes(4, "little") for d in array.shape)
-    ndim_byte = array.ndim.to_bytes(1, "little")
-    dtype_byte = array.dtype.num.to_bytes(1, "little")
-    return b"".join([_LZ4_HEADER, dtype_byte, ndim_byte, shape_bytes, array.tobytes()])
-
-
-def _lz4_decompress_array(buffer: Union[bytes, memoryview]) -> np.ndarray:
-    if isinstance(buffer, bytes):
-        buffer = memoryview(buffer)
-    buffer = buffer[len(_LZ4_HEADER) :]
-    dtype = np_id2dtype[int.from_bytes(buffer[:1], "little")]
-    ndim = int.from_bytes(buffer[1:2], "little")
-    shape_bytes = buffer[2 : 2 + ndim * 4]
-    shape = tuple(
-        int.from_bytes(shape_bytes[i * 4 : i * 4 + 4], "little") for i in range(ndim)
-    )
-    return (
-        np.frombuffer(buffer[ndim * 4 + 2 :], dtype=np.byte).view(dtype).reshape(shape)
-    )
+def decompress_bytes(buffer: Union[bytes, memoryview], compression: str) -> bytes:
+    if compression == "lz4":
+        return lz4.frame.decompress(buffer)
+    else:
+        raise SampleDecompressionError()
 
 
 def compress_array(array: np.ndarray, compression: str) -> bytes:
@@ -85,8 +75,8 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
     if compression is None:
         return array.tobytes()
 
-    if compression == "lz4":
-        return _lz4_compress_array(array)
+    if get_compression_type(compression) == "byte":
+        return compress_bytes(array.tobytes(), compression)
 
     try:
         img = to_image(array)
@@ -106,7 +96,10 @@ def compress_array(array: np.ndarray, compression: str) -> bytes:
 
 
 def decompress_array(
-    buffer: Union[bytes, memoryview], shape: Optional[Tuple[int]] = None
+    buffer: Union[bytes, memoryview],
+    shape: Optional[Tuple[int]] = None,
+    dtype: Optional[str] = None,
+    compression: Optional[str] = None,
 ) -> np.ndarray:
     """Decompress some buffer into a numpy array. It is expected that all meta information is
     stored inside `buffer`.
@@ -118,15 +111,22 @@ def decompress_array(
         buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for lz4
         shape (Tuple[int]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
+        dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
+        compression (str, Optional): Applicable only for byte compressions. Compression used to compression the given buffer.
     Raises:
         SampleDecompressionError: Right now only buffers compatible with `PIL` will be decompressed.
 
     Returns:
         np.ndarray: Array from the decompressed buffer.
     """
-
-    if memoryview(buffer)[: len(_LZ4_HEADER)] == _LZ4_HEADER:
-        return _lz4_decompress_array(buffer)
+    if compression and get_compression_type(compression) == "byte":
+        if dtype is None or shape is None:
+            raise ValueError("dtype and shape must be specified for byte compressions.")
+        try:
+            decompressed_bytes = decompress_bytes(buffer, compression)
+            return np.frombuffer(decompressed_bytes, dtype=dtype).reshape(shape)
+        except Exception:
+            raise SampleDecompressionError()
     try:
         img = Image.open(BytesIO(buffer))
         arr = np.array(img)
@@ -152,9 +152,9 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
     for arr in arrays:
         if arr.dtype != dtype:
             raise TypeError()  # TODO
-    if compression == "lz4":
-        return lz4.frame.compress(
-            b"".join(arr.tobytes() for arr in arrays)
+    if get_compression_type(compression) == "byte":
+        return compress_bytes(
+            b"".join(arr.tobytes() for arr in arrays), compression
         )  # Note: shape and dtype info not included
     canvas = np.zeros(_get_bounding_shape([arr.shape for arr in arrays]), dtype=dtype)
     next_x = 0
@@ -165,8 +165,22 @@ def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
 
 
 def decompress_multiple(
-    buffer: Union[bytes, memoryview], shapes: Sequence[Tuple[int]]
+    buffer: Union[bytes, memoryview],
+    shapes: Sequence[Tuple[int]],
+    dtype: Optional[str] = None,
+    compression: Optional[str] = None,
 ) -> List[np.ndarray]:
+    if compression and get_compression_type(compression) == "byte":
+        decompressed_buffer = memoryview(decompress_bytes(buffer, compression))
+        arrays = []
+        itemsize = np.dtype(dtype).itemsize
+        for shape in shapes:
+            nbytes = np.prod(shape) * itemsize
+            arrays.append(
+                np.frombuffer(decompressed_buffer[:nbytes], dtype=dtype).reshape(shape)
+            )
+            decompressed_buffer = decompressed_buffer[nbytes:]
+        return arrays
     canvas = decompress_array(buffer)
     arrays = []
     next_x = 0

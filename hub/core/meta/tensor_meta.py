@@ -14,7 +14,7 @@ from hub.constants import (
     REQUIRE_USER_SPECIFICATION,
     UNSPECIFIED,
 )
-from hub.compression import COMPRESSION_ALIASES
+from hub.compression import COMPRESSION_ALIASES, get_compression_type
 from hub.htype import (
     HTYPE_CONFIGURATIONS,
 )
