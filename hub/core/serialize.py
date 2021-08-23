@@ -330,7 +330,7 @@ def serialize_input_samples(
             if not shape:
                 shape = (1,)
         else:
-            shape = (0,)  # type: ignore
+            shape = ()  # type: ignore
             nb = 0
         nbytes = [nb] * len(samples)
         shapes = [shape] * len(samples)

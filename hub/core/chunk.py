@@ -144,6 +144,7 @@ class Chunk(Cachable):
                 f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
 
+        ffw_chunk(self)
         self._make_data_bytearray()
 
         # note: incoming_num_bytes can be 0 (empty sample)
