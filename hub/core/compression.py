@@ -16,13 +16,6 @@ import mmap
 import lz4.frame
 
 
-np_id2dtype = {}
-
-for dtype in np.cast:
-    dtype = np.dtype(dtype)
-    np_id2dtype[dtype.num] = dtype
-
-
 def to_image(array: np.ndarray) -> Image:
     shape = array.shape
     if len(shape) == 3 and shape[0] != 1 and shape[2] == 1:

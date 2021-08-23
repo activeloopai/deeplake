@@ -29,8 +29,6 @@ from itertools import repeat
 
 import numpy as np
 
-import lz4.frame
-
 
 def is_uniform_sequence(samples):
     """Determines if a sequence of samples has uniform type and shape, allowing it to be vectorized by `ChunkEngine.extend`."""
@@ -120,6 +118,7 @@ class ChunkEngine:
         self._meta_cache = meta_cache
 
         if self.tensor_meta.chunk_compression:
+            # Cache samples in the last chunk in uncompressed form.
             self._last_chunk_uncompressed: List[np.ndarray] = (
                 self.last_chunk.decompressed_samples(
                     compression=self.tensor_meta.chunk_compression,
@@ -210,7 +209,7 @@ class ChunkEngine:
 
     def _extend_bytes(
         self,
-        buff: Union[memoryview, bytearray],
+        buffer: Union[memoryview, bytearray],
         nbytes: List[int],
         shapes: List[Tuple[int]],
     ):
@@ -241,16 +240,16 @@ class ChunkEngine:
                     break
             assert num_samples_to_current_chunk
             chunk.extend_samples(
-                buff[:nbytes_to_current_chunk],
+                buffer[:nbytes_to_current_chunk],
                 max_chunk_size,
                 shapes[:num_samples_to_current_chunk],
                 nbytes[:num_samples_to_current_chunk],
             )
             enc.register_samples(num_samples_to_current_chunk)
-            buff = buff[nbytes_to_current_chunk:]
+            buffer = buffer[nbytes_to_current_chunk:]
             del nbytes[:num_samples_to_current_chunk]
             del shapes[:num_samples_to_current_chunk]
-            if buff:
+            if buffer:
                 chunk = new_chunk()
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
