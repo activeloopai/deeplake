@@ -19,7 +19,7 @@ from hub.core.compression import (
     compress_bytes,
     decompress_bytes,
 )
-from hub.compression import get_compression_type
+from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 
 
 class Chunk(Cachable):
@@ -221,7 +221,7 @@ class Chunk(Cachable):
         new_nb = len(new_buffer)
         self.shapes_encoder[local_sample_index] = new_shape
         if chunk_compression:
-            if get_compression_type(chunk_compression) == "byte":
+            if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 # Calling self.decompressed_samples() here would allocate numpy arrays for each sample in the chunk.
                 # So we decompress the buffer and just replace the bytes.
                 decompressed_buffer = self.decompressed_data(chunk_compression)

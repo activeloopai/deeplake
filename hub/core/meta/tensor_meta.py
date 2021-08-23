@@ -184,7 +184,7 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
 
     if sample_compression and chunk_compression:
         raise TensorMetaMutuallyExclusiveKeysError(
-            ["sample_compression", "chunk_compression"]
+            "Specifying both sample-wise and chunk-wise compressions for the same tensor is not yet supported."
         )
 
     if htype_overwrite["dtype"] is not None:

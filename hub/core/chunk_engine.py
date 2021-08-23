@@ -2,7 +2,7 @@ from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
-from hub.compression import get_compression_type
+from hub.compression import get_compression_type, BYTE_COMPRESSION, IMAGE_COMPRESSION
 from math import ceil
 from typing import Any, Optional, Sequence, Union, Tuple, List, Set
 from hub.util.exceptions import (
@@ -223,23 +223,31 @@ class ChunkEngine:
         new_chunk = self._create_new_chunk
         if chunk is None:
             chunk = new_chunk()
+
+        # If the first incoming sample can't fit in the last chunk, create a new chunk.
         if nbytes[0] > self.min_chunk_size - chunk.num_data_bytes:
             chunk = self._create_new_chunk()
+
         max_chunk_size = self.max_chunk_size
         min_chunk_size = self.min_chunk_size
         enc = self.chunk_id_encoder
-        while nbytes:
+
+        while nbytes:  # len(nbytes) is initially same as number of incoming samples.
             num_samples_to_current_chunk = 0
             nbytes_to_current_chunk = 0
-            for nb in nbytes:
+            for nb in nbytes:  # len(nbytes) = samples remaining to be added to a chunk
+
+                # Size of the current chunk if this sample is added to it
                 chunk_future_size = nbytes_to_current_chunk + nb + chunk.num_data_bytes  # type: ignore
                 if chunk_future_size > max_chunk_size:
                     break
+
                 num_samples_to_current_chunk += 1
                 nbytes_to_current_chunk += nb
-                if chunk_future_size > min_chunk_size:
+                if (
+                    chunk_future_size > min_chunk_size
+                ):  # Try to keep chunk size close to min_chunk_size
                     break
-            assert num_samples_to_current_chunk
             chunk.extend_samples(  # type: ignore
                 buffer[:nbytes_to_current_chunk],
                 max_chunk_size,
@@ -247,36 +255,50 @@ class ChunkEngine:
                 nbytes[:num_samples_to_current_chunk],
             )
             enc.register_samples(num_samples_to_current_chunk)
+
+            # Remove bytes from buffer that have been added to current chunk
             buffer = buffer[nbytes_to_current_chunk:]
+
+            # Remove shapes and nbytes for samples that have beed added to current chunk
             del nbytes[:num_samples_to_current_chunk]
             del shapes[:num_samples_to_current_chunk]
+
             if buffer:
                 chunk = new_chunk()
 
     def _append_bytes_to_compressed_chunk(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as single sample and place them into compressed `Chunk`s."""
         chunk_compression = self.tensor_meta.chunk_compression
-        if chunk_compression:
-            last_chunk_uncompressed = self._last_chunk_uncompressed
-            last_chunk_uncompressed.append(
-                np.frombuffer(buffer, dtype=self.tensor_meta.dtype).reshape(shape)
-            )
+        last_chunk_uncompressed = self._last_chunk_uncompressed
+
+        # Append incoming buffer to last chunk and compress:
+        last_chunk_uncompressed.append(
+            np.frombuffer(buffer, dtype=self.tensor_meta.dtype).reshape(shape)
+        )
+        compressed_bytes = compress_multiple(last_chunk_uncompressed, chunk_compression)
+
+        # Check if last chunk can hold new compressed buffer.
+        if self._can_set_to_last_chunk(len(compressed_bytes)):
+            chunk = self.last_chunk
+        else:
+            # Last chunk full, create new chunk
+            chunk = self._create_new_chunk()
+
+            # All samples except the last one are already in the previous chunk, so remove them from cache and compress:
+            del last_chunk_uncompressed[:-1]
             compressed_bytes = compress_multiple(
                 last_chunk_uncompressed, chunk_compression
             )
-            if self._can_set_to_last_chunk(len(compressed_bytes)):
-                chunk = self.last_chunk
-            else:
-                chunk = self._create_new_chunk()
-                del last_chunk_uncompressed[:-1]
-                compressed_bytes = compress_multiple(
-                    last_chunk_uncompressed, chunk_compression
-                )
-            chunk._data = compressed_bytes  # type: ignore
-            if get_compression_type(chunk_compression) == "byte":
-                chunk.register_sample_to_headers(len(buffer), shape)  # type: ignore
-            else:
-                chunk.register_sample_to_headers(None, shape)  # type: ignore
+
+        # Set chunk data
+        chunk._data = compressed_bytes  # type: ignore
+
+        # Update headers
+        if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
+            chunk.register_sample_to_headers(incoming_num_bytes=len(buffer), sample_shape=shape)  # type: ignore
+        else:
+            # Byte positions are not relevant for image compressions, so incoming_num_bytes=None.
+            chunk.register_sample_to_headers(incoming_num_bytes=None, sample_shape=shape)  # type: ignore
 
     def _append_bytes(self, buffer: memoryview, shape: Tuple[int]):
         """Treat `buffer` as a single sample and place them into `Chunk`s. This function implements the algorithm for
@@ -550,7 +572,7 @@ class ChunkEngine:
 
         chunk_compression = self.tensor_meta.chunk_compression
         if chunk_compression:
-            if get_compression_type(chunk_compression) == "byte":
+            if get_compression_type(chunk_compression) == BYTE_COMPRESSION:
                 decompressed = chunk.decompressed_data(compression=chunk_compression)
                 sb, eb = chunk.byte_positions_encoder[local_sample_index]
                 return np.frombuffer(decompressed[sb:eb], dtype=dtype).reshape(shape)

@@ -25,6 +25,11 @@ IMAGE_COMPRESSIONS = [
 ]
 
 
+BYTE_COMPRESSION = "byte"
+IMAGE_COMPRESSION = "image"
+COMPRESSION_TYPES = [BYTE_COMPRESSION, IMAGE_COMPRESSION]
+
+
 # Pillow plugins for some formats might not be installed:
 if not Image.SAVE:
     Image.init()
@@ -48,9 +53,9 @@ USE_UNIFORM_COMPRESSION_PER_SAMPLE = True
 
 _compression_types = {}
 for c in IMAGE_COMPRESSIONS:
-    _compression_types[c] = "image"
+    _compression_types[c] = IMAGE_COMPRESSION
 for c in BYTE_COMPRESSIONS:
-    _compression_types[c] = "byte"
+    _compression_types[c] = BYTE_COMPRESSION
 
 
 def get_compression_type(c):

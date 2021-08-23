@@ -1,6 +1,6 @@
 import hub
 from hub.htype import HTYPE_CONFIGURATIONS
-from typing import Any, List, Sequence, Tuple
+from typing import Any, List, Sequence, Tuple, Optional
 
 
 class ExternalCommandError(Exception):
@@ -419,8 +419,13 @@ class TensorDtypeMismatchError(MetaError):
 
 
 class TensorMetaMutuallyExclusiveKeysError(MetaError):
-    def __init__(self, keys: List[str]):
-        msg = f"Following fields are mutually exclusive: {keys}"
+    def __init__(
+        self, keys: Optional[List[str]] = None, custom_message: Optional[str] = None
+    ):
+        if custom_message:
+            msg = custom_message
+        else:
+            msg = f"Following fields are mutually exclusive: {keys}. "
         super().__init__(msg)
 
 

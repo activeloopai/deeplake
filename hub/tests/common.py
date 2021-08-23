@@ -77,3 +77,11 @@ def assert_array_lists_equal(l1: List[np.ndarray], l2: List[np.ndarray]):
 def is_opt_true(request, opt) -> bool:
     """Returns if the pytest option `opt` is True. Assumes `opt` is a boolean value."""
     return request.config.getoption(opt)
+
+
+def assert_images_close(img1: np.ndarray, img2: np.ndarray, eps=0.5):
+    """Helpful for testing images after lossy compression"""
+    assert img1.shape == img2.shape, (img1.shape, img2.shape)
+    err = np.sum((img1.astype(np.float32) - img2.astype(np.float32)) ** 2)
+    err /= np.prod(img1.shape) * 256
+    assert err < eps, err

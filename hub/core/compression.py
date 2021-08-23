@@ -135,6 +135,7 @@ def decompress_array(
 
 
 def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int, int, int]:
+    """Gets the shape of a bounding box that can contain the given the shapes tiled horizontally."""
     if len(shapes) == 0:
         return (0, 0, 0)
     channels_shape = shapes[0][2:]
@@ -145,7 +146,8 @@ def _get_bounding_shape(shapes: Sequence[Tuple[int]]) -> Tuple[int, int, int]:
 
 
 def compress_multiple(arrays: Sequence[np.ndarray], compression: str) -> bytes:
-    """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression."""
+    """Compress multiple arrays of different shapes into a single buffer. Used for chunk wise compression.
+    The arrays are tiled horizontally and padded with zeros to fit in a bounding box, which is then compressed."""
     dtype = arrays[0].dtype
     for arr in arrays:
         if arr.dtype != dtype:

@@ -6,7 +6,7 @@ from hub.util.exceptions import (
 )
 import pytest
 from hub.core.tensor import Tensor
-from hub.tests.common import TENSOR_KEY
+from hub.tests.common import TENSOR_KEY, assert_images_close
 from hub.tests.dataset_fixtures import enabled_datasets
 import numpy as np
 
@@ -159,18 +159,14 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     images = ds.create_tensor("images", htype="image", chunk_compression="jpg")
     images.append(hub.read(cat_path))
     images.append(hub.read(cat_path))
-    images.append(np.zeros((500, 450, 3), dtype="uint8"))
+    expected_arr = np.random.randint(0, 10, (500, 450, 3)).astype("uint8")
+    images.append(expected_arr)
     images.append(hub.read(cat_path))
     images.append(hub.read(cat_path))
-    expected_shapes = [
-        (900, 900, 3),
-        (900, 900, 3),
-        (500, 450, 3),
-        (900, 900, 3),
-        (900, 900, 3),
-    ]
-    for img, exp_shape in zip(images, expected_shapes):
-        assert img.numpy().shape == exp_shape
+    expected_img = np.array(hub.read(cat_path))
+    assert_images_close(images[2].numpy(), expected_arr)
+    for img in images[[0, 1, 3, 4]]:
+        assert_images_close(img.numpy(), expected_img)
 
     images = ds.create_tensor("images2", htype="image", chunk_compression="png")
     images.append(hub.read(flower_path))
