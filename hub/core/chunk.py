@@ -1,5 +1,9 @@
 from hub.core.fast_forwarding import ffw_chunk
-from hub.util.exceptions import FullChunkError, TensorInvalidSampleShapeError
+from hub.util.exceptions import (
+    FullChunkError,
+    TensorInvalidSampleShapeError,
+    SampleDecompressionError,
+)
 import hub
 from hub.core.storage.cachable import Cachable
 from typing import Tuple, Union, Sequence, Optional, List
@@ -56,40 +60,40 @@ class Chunk(Cachable):
         self.shapes_encoder = ShapeEncoder(encoded_shapes)
         self.byte_positions_encoder = BytePositionsEncoder(encoded_byte_positions)
 
+        # May or may not be compressed.
         self._data: Union[memoryview, bytearray] = data or bytearray()
 
-        # Decompressed caches
-        self._decompressed_samples: Optional[List[np.ndarray]] = None
-        self._decompressed_data: Optional[bytes] = None
+        # These caches are only used when chunk-wise compression is specified.
+        self._decompressed_samples_cache: Optional[List[np.ndarray]] = None
+        self._decompressed_data_cache: Optional[bytes] = None
 
     def decompressed_samples(
         self,
         compression: Optional[str] = None,
         dtype: Optional[Union[np.dtype, str]] = None,
     ) -> List[np.ndarray]:
-        """Applicable only for compressed chunks"""
-        if self._decompressed_samples is None:
+        """Applicable only for compressed chunks. Returns samples contained in this chunk as a list of numpy arrays."""
+        if self._decompressed_samples_cache is None:
             shapes = [
                 self.shapes_encoder[i] for i in range(self.shapes_encoder.num_samples)
             ]
-            self._decompressed_samples = decompress_multiple(
+            self._decompressed_samples_cache = decompress_multiple(
                 self._data, shapes, dtype, compression
             )
-        return self._decompressed_samples
+        return self._decompressed_samples_cache
 
-    def decompressed_data(self, compression: Optional[str] = None) -> memoryview:
-        """Applicable only for compressed chunks"""
-        if self._decompressed_data is None:
-            if get_compression_type(compression) == "byte":
-                self._decompressed_data = memoryview(
+    def decompressed_data(self, compression: str) -> memoryview:
+        """Applicable only for chunks compressed using a byte compression. Returns the contents of the chunk as a decompressed buffer."""
+        if self._decompressed_data_cache is None:
+            try:
+                self._decompressed_data_cache = memoryview(
                     decompress_bytes(self._data, compression)
                 )
-            else:
-                # This should never be reached. non byte compressions should use decompressed_samples() instead.
-                self._decompressed_data = memoryview(
-                    decompress_array(self._data).tobytes()
+            except SampleDecompressionError:
+                raise ValueError(
+                    "Chunk.decompressed_data() can not be called on chunks compressed with image compressions. Use Chunk.get_samples() instead."
                 )
-        return self._decompressed_data
+        return self._decompressed_data_cache
 
     @property
     def memoryview_data(self):
@@ -124,13 +128,13 @@ class Chunk(Cachable):
         nbytes: Sequence[int],
     ):
         """Store `buffer` in this chunk.
-        
+
         Args:
             buffer (memoryview): Buffer that represents multiple samples of same shape
             max_data_bytes (int): Used to determine if this chunk has space for `buffer`.
             shapes (Sequence[Tuple[int]]): Shape for each sample
             nbytes (Sequence[int]): Number of bytes in each sample
-            
+
         Raises:
             FullChunkError: If `buffer` is too large.
         """
@@ -141,9 +145,7 @@ class Chunk(Cachable):
                 f"Chunk does not have space for the incoming bytes (incoming={incoming_num_bytes}, max={max_data_bytes})."
             )
 
-        # `_data` will be a `memoryview` if `frombuffer` is called.
-        if isinstance(self._data, memoryview):
-            self._data = bytearray(self._data)
+        self._make_data_bytearray()
 
         # note: incoming_num_bytes can be 0 (empty sample)
         self._data += buffer
@@ -177,9 +179,9 @@ class Chunk(Cachable):
         self._data += buffer  # type: ignore
         self.register_sample_to_headers(incoming_num_bytes, shape)
 
-    def _clear_decompressed_cache(self):
-        self._decompressed_samples = None
-        self._decompressed_data = None
+    def _clear_decompressed_caches(self):
+        self._decompressed_samples_cache = None
+        self._decompressed_data_cache = None
 
     def register_sample_to_headers(
         self, incoming_num_bytes: int, sample_shape: Tuple[int]
@@ -197,9 +199,9 @@ class Chunk(Cachable):
         self.shapes_encoder.register_samples(sample_shape, 1)
         if (
             incoming_num_bytes is not None
-        ):  # incoming_num_bytes is not applicable for non lz4 compressions
+        ):  # incoming_num_bytes is not applicable for image compressions
             self.byte_positions_encoder.register_samples(incoming_num_bytes, 1)
-        self._clear_decompressed_cache()
+        self._clear_decompressed_caches()
 
     def update_sample(
         self,
@@ -220,24 +222,35 @@ class Chunk(Cachable):
         self.shapes_encoder[local_sample_index] = new_shape
         if chunk_compression:
             if get_compression_type(chunk_compression) == "byte":
+                # Calling self.decompressed_samples() here would allocate numpy arrays for each sample in the chunk.
+                # So we decompress the buffer and just replace the bytes.
                 decompressed_buffer = self.decompressed_data()
+
+                # get the unchanged data
                 old_start_byte, old_end_byte = self.byte_positions_encoder[
                     local_sample_index
                 ]
-
                 left = decompressed_buffer[:old_start_byte]
                 right = decompressed_buffer[old_end_byte:]
+
+                # preallocate
                 total_new_bytes = len(left) + new_nb + len(right)
                 new_data_uncompressed = bytearray(total_new_bytes)
+
+                # update byte postions
                 self.byte_positions_encoder[local_sample_index] = new_nb
-                new_start_byte, new_end_byte = self.byte_positions_encoder[
-                    local_sample_index
-                ]
+
+                new_start_byte = old_start_byte
+                new_end_byte = old_start_byte + new_nb
+
+                # copy old data and add new data
                 new_data_uncompressed[:new_start_byte] = left
                 new_data_uncompressed[new_start_byte:new_end_byte] = new_buffer
                 new_data_uncompressed[new_end_byte:] = right
-                self._data = memoryview(lz4.frame.compress(new_data_uncompressed))
-                self._decompressed_data = memoryview(new_data_uncompressed)
+                self._data = memoryview(
+                    compress_bytes(new_data_uncompressed, compression=chunk_compression)
+                )
+                self._decompressed_data_cache = memoryview(new_data_uncompressed)
             else:
                 decompressed_samples = self.decompressed_samples()
                 decompressed_samples[local_sample_index] = np.frombuffer(
@@ -255,13 +268,14 @@ class Chunk(Cachable):
 
         # update byte postions
         self.byte_positions_encoder[local_sample_index] = new_nb
-        new_start_byte, new_end_byte = self.byte_positions_encoder[local_sample_index]
 
         # preallocate
         total_new_bytes = len(left) + new_nb + len(right)
         new_data = bytearray(total_new_bytes)
 
         # copy old data and add new data
+        new_start_byte = old_start_byte
+        new_end_byte = old_start_byte + new_nb
         new_data[:new_start_byte] = left
         new_data[new_start_byte:new_end_byte] = new_buffer
         new_data[new_end_byte:] = right
