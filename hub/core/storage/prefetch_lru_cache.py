@@ -1,7 +1,7 @@
 import numpy as np
 from itertools import repeat
 from pathos.pools import ProcessPool  # type: ignore
-from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List
+from typing import Callable, Dict, Optional, Sequence, Tuple, Union, List, Set
 
 from hub.constants import EMERGENCY_STORAGE_PATH, MB
 from hub.core.chunk import Chunk
@@ -19,7 +19,7 @@ from hub.util.exceptions import (
     TensorDoesNotExistError,
 )
 from hub.util.remove_cache import get_base_storage
-from hub.util.prefetch_cache import read_and_store_chunk_groups
+from hub.util.prefetch_cache import read_and_store_chunk_group
 from hub.util.iterable_ordered_dict import IterableOrderedDict
 
 
@@ -102,16 +102,27 @@ class PrefetchLRUCache(LRUCache):
     def iterate_samples(self, yield_index: bool = False):
         """Iterates over the contents of the dataset and yields data indexwise. If yield_index is True, the index is also returned with the data."""
         chunk_groups_to_fetch: List[List[Tuple[str, str]]] = []
+        chunks_to_fetch: Set[str] = set()
         pending_indexes: List[int] = []
         for i in range(self.length):
             index = self._suggest_next_index()
             chunk_names_dict = self._get_chunk_names_for_index(index)
             self.index_chunk_names_map[index] = chunk_names_dict
+
+            # chunks not found for the current index
             chunks_not_found = self._process_chunks_names_dict(chunk_names_dict)
+
+            # chunks that are not found for the current index and also not scheduled to be fetched by another worker
+            chunks_needed = []
+            for chunk in chunks_not_found:
+                if chunk not in chunks_to_fetch:
+                    chunks_needed.append(chunk)
+                    chunks_to_fetch.add(chunk)
 
             if chunks_not_found:
                 pending_indexes.append(index)
-                chunk_groups_to_fetch.append(chunks_not_found)
+                if chunks_needed:
+                    chunk_groups_to_fetch.append(chunks_needed)
                 if len(chunk_groups_to_fetch) == self.workers or i == len(self) - 1:
                     self._fetch_and_store_required_data(chunk_groups_to_fetch)
                     for index in pending_indexes:
@@ -119,6 +130,7 @@ class PrefetchLRUCache(LRUCache):
                     pending_indexes.clear()
                     self.required_chunks.clear()
                     self.emergency_storage.clear()
+                    chunks_to_fetch.clear()
             else:
                 yield self.output_for_index(index, yield_index)
 
@@ -224,6 +236,7 @@ class PrefetchLRUCache(LRUCache):
         if self.mode != "pytorch":
             return chunk_engine.read_sample_from_chunk(index, chunk, cast=True)
         else:
+            # read the chunk and cast it to pytorch tensor with compatible dtype
             import torch
 
             value = chunk_engine.read_sample_from_chunk(index, chunk, cast=False)
@@ -337,7 +350,7 @@ class PrefetchLRUCache(LRUCache):
             storage = self.storage_state_tuple
 
         all_chunk_sizes: List[Dict[str, int]] = self.map(
-            read_and_store_chunk_groups,
+            read_and_store_chunk_group,
             chunk_groups,
             shared_memory_groups,
             repeat(storage),

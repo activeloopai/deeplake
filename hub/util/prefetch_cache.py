@@ -13,12 +13,12 @@ def get_s3_storage(state: tuple) -> S3Provider:
     return s3
 
 
-def read_and_store_chunk_groups(
+def read_and_store_chunk_group(
     chunk_group: List[str],
     shared_memory_names: List[str],
     storage: Union[StorageProvider, tuple],
 ):
-    """Reads a single chunk from the dataset's storage provider and stores it in the SharedMemory. Returns its size"""
+    """Reads chunks from the dataset's storage provider and stores them in the SharedMemory"""
     # TODO: modify to support chunk-wise decompression
     # TODO: if there's sample compression, then we need to decompress each sample present in the chunks before sending to SharedMemory to reduce work on the SharedMemory
     remove_shared_memory_from_resource_tracker()

@@ -104,3 +104,7 @@ S3_OPT = "--s3"
 HUB_CLOUD_OPT = "--hub-cloud"
 S3_PATH_OPT = "--s3-path"
 KEEP_STORAGE_OPT = "--keep-storage"
+
+EMERGENCY_STORAGE_PATH = "/tmp/emergency_storage"
+LOCAL_CACHE_PREFIX = "~/.activeloop/cache"
+SHARED_MEMORY_CACHE_SIZE = 10 * GB
