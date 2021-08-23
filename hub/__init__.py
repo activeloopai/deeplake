@@ -23,9 +23,10 @@ from .api.read import read
 from .core.transform import compute, compose
 from .core.dataset import Dataset
 from .util.bugout_reporter import hub_reporter
+from .compression import SUPPORTED_COMPRESSIONS
 from .htype import HTYPE_CONFIGURATIONS
 
-
+compressions = list(SUPPORTED_COMPRESSIONS)
 htypes = list(HTYPE_CONFIGURATIONS.keys())
 list = dataset.list
 load = dataset.load
@@ -49,6 +50,7 @@ __all__ = [
     "dataset_cl",
     "ingest",
     "ingest_kaggle",
+    "compressions",
     "htypes",
 ]
 

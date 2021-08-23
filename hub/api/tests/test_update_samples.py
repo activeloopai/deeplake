@@ -7,9 +7,14 @@ import numpy as np
 import hub
 
 
-def _add_dummy_mnist(ds, images_compression: str = None):
-    ds.create_tensor("images", htype="image", sample_compression=images_compression)
-    ds.create_tensor("labels", htype="class_label")
+def _add_dummy_mnist(ds, **kwargs):
+    compression = kwargs.get(
+        "compression", {"image_compression": {"sample_compression": None}}
+    )
+    ds.create_tensor("images", htype="image", **compression["image_compression"])
+    ds.create_tensor(
+        "labels", htype="class_label", **compression.get("label_compression", {})
+    )
 
     ds.images.extend(np.ones((10, 28, 28), dtype=np.uint8))
     ds.labels.extend(np.ones(10, dtype=np.uint8))
@@ -70,11 +75,30 @@ def _make_update_assert_equal(
         assert len(ds) == 10
 
 
-@pytest.mark.parametrize("images_compression", [None, "png"])
-def test(local_ds_generator, images_compression):
+@pytest.mark.parametrize(
+    "compression",
+    [
+        {
+            "image_compression": {"sample_compression": None},
+        },
+        {
+            "image_compression": {"sample_compression": None},
+            "label_compression": {"sample_compression": "lz4"},
+        },
+        {
+            "image_compression": {"sample_compression": None},
+            "label_compression": {"chunk_compression": "lz4"},
+        },
+        {"image_compression": {"sample_compression": "png"}},
+        {"image_compression": {"chunk_compression": "png"}},
+        {"image_compression": {"sample_compression": "lz4"}},
+        {"image_compression": {"chunk_compression": "lz4"}},
+    ],
+)
+def test(local_ds_generator, compression):
     gen = local_ds_generator
 
-    _add_dummy_mnist(gen(), images_compression=images_compression)
+    _add_dummy_mnist(gen(), **compression)
 
     # update single sample
     _make_update_assert_equal(
