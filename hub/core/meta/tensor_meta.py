@@ -105,6 +105,8 @@ class TensorMeta(Meta):
         return d
 
     def __setstate__(self, state: Dict[str, Any]):
+        if "chunk_compression" not in state:
+            state["chunk_compression"] = None  # Backward compatibility
         super().__setstate__(state)
         self._required_meta_keys = tuple(state.keys())
 
