@@ -188,7 +188,9 @@ commands:
                   export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.secrets/gcs.json
                   python3 -m pytest --cov-report=xml --cov=./ --local --s3 --gcs --hub-cloud --kaggle --ignore-glob=buH/*
                   
-          parallelism: 10
+      parallelism: 10
+      no_output_timeout: 30m
+
   run-backwards-compatibility-tests:
     steps:
       - run:
