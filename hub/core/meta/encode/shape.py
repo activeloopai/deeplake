@@ -14,7 +14,7 @@ class ShapeEncoder(Encoder):
         return len(self[0])
 
     def _validate_incoming_item(self, shape: Tuple[int], _):
-        if len(self.num_samples) > 0:
+        if self.num_samples > 0:
             last_shape = self[-1]  # TODO: optimize this
 
             if len(shape) != len(last_shape):
