@@ -1,3 +1,4 @@
+from hub.core.index.index import Index
 from math import ceil
 from hub.core.meta.tensor_meta import TensorMeta
 from typing import Tuple
@@ -68,3 +69,20 @@ def get_tile_bounds(tile_index: Tuple[int], tile_shape: Tuple[int]) -> Tuple[Tup
         high.append((index_dim + 1) * shape_dim)
 
     return tuple(low), tuple(high)
+
+
+
+def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape: Tuple[int], subslice_index: Index):
+    # loop through each tile ID, check if it exists within the subslice_index.
+
+    mask = np.zeros(ordered_tile_ids.shape, dtype=bool)
+
+    for tile_index, _ in np.ndenumerate(ordered_tile_ids):
+        low, high = get_tile_bounds(tile_index, tile_shape)
+
+        if subslice_index.intersects(low, high):
+            mask[tile_index] = True
+            # chunk = self.get_chunk_from_id(tile_id)
+            # tile_sample = self.read_sample_from_chunk(global_sample_index, chunk)
+
+    return mask

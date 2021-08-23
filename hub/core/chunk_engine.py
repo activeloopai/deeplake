@@ -1,6 +1,6 @@
 from hub.util.chunks import chunk_name_from_id, random_chunk_id
 from hub.core.tiling.optimize import get_tile_shape
-from hub.util.tiles import approximate_num_bytes, get_tile_bounds, num_tiles_for_sample
+from hub.util.tiles import approximate_num_bytes, get_tile_bounds, get_tile_mask, num_tiles_for_sample
 from hub.core.fast_forwarding import ffw_chunk_id_encoder
 import warnings
 from hub.util.casting import get_dtype
@@ -542,6 +542,28 @@ class ChunkEngine:
         # 3. normally update this sample
         self._update_samples(value0_index, [new_sample])
 
+    def get_tiles_for_sample(self, global_sample_index: int, subslice_index: Index):
+        """Returns a list of numpy arrays, each array representing a tile of the full sample. Only
+        necessary tiles are returned (according to subslice_index)."""
+
+        enc = self.chunk_id_encoder
+        tile_ids = enc[global_sample_index]
+
+        tile_encoder = self.tile_encoder
+        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
+
+        tile_meta = tile_encoder.entries[global_sample_index]
+        tile_shape = tile_meta["tile_shape"]
+
+        # ordered_tile_arrays = np.zeros((*ordered_tile_ids.shape, *tile_shape))
+        # print(ordered_tile_arrays.shape)
+        # print(subslice_index.shape)
+
+        tile_mask = get_tile_mask(ordered_tile_ids, tile_shape, subslice_index)
+        print(ordered_tile_ids)
+        print(tile_mask)
+        
+
     def numpy(
         self, index: Index, aslist: bool = False
     ) -> Union[np.ndarray, Sequence[np.ndarray]]:
@@ -577,19 +599,7 @@ class ChunkEngine:
             if is_tiled:
                 # TODO: can probably generalize this
 
-                tile_encoder = self.tile_encoder
-                ordered_tiles = tile_encoder.order_tiles(global_sample_index, chunk_ids)
-
-                tile_meta = tile_encoder.entries[global_sample_index]
-                tile_shape = tile_meta["tile_shape"]
-
-                # loop through each tile ID, check if it exists within the subslice_index.
-                for tile_index, tile_id in np.ndenumerate(ordered_tiles):
-                    low, high = get_tile_bounds(tile_index, tile_shape)
-
-                    if subslice_index.intersects(low, high):
-                        chunk = self.get_chunk_from_id(tile_id)
-                        tile_sample = self.read_sample_from_chunk(global_sample_index, chunk)
+                self.get_tiles_for_sample(global_sample_index, subslice_index)
 
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
