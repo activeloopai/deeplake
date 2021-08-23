@@ -23,6 +23,23 @@ def to_tuple(sample):
     return sample["image"], sample["image2"]
 
 
+def pytotch_small_shuffle_helper(start, end, dataloader):
+    all_values = []
+    for i, batch in enumerate(dataloader):
+        value = batch["image"].numpy()[0][0][0]
+        value2 = batch["image2"].numpy()[0][0][0]
+        assert value == value2
+        all_values.append(value)
+        np.testing.assert_array_equal(
+            batch["image"].numpy(), value * np.ones((1, 10, 10))
+        )
+        np.testing.assert_array_equal(
+            batch["image2"].numpy(), value2 * np.ones((1, 12, 12))
+        )
+
+    assert set(all_values) == set(range(start, end))
+
+
 @requires_torch
 @enabled_datasets
 def test_pytorch_small(ds):
@@ -47,20 +64,7 @@ def test_pytorch_small(ds):
         np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((1, 12, 12)))
 
     dls = ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
-    all_values = []
-    for i, batch in enumerate(dls):
-        value = batch["image"].numpy()[0][0][0]
-        value2 = batch["image2"].numpy()[0][0][0]
-        assert value == value2
-        all_values.append(value)
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), value * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), value2 * np.ones((1, 12, 12))
-        )
-
-    assert set(all_values) == set(range(16))
+    pytotch_small_shuffle_helper(0, 16, dls)
 
     sub_ds = ds[5:]
 
@@ -75,20 +79,7 @@ def test_pytorch_small(ds):
         )
 
     sub_dls = sub_ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
-    all_values = []
-    for i, batch in enumerate(sub_dls):
-        value = batch["image"].numpy()[0][0][0]
-        value2 = batch["image2"].numpy()[0][0][0]
-        assert value == value2
-        all_values.append(value)
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), value * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), value2 * np.ones((1, 12, 12))
-        )
-
-    assert set(all_values) == set(range(5, 16))
+    pytotch_small_shuffle_helper(5, 16, sub_dls)
 
     sub_ds2 = ds[8:12]
 
@@ -104,20 +95,7 @@ def test_pytorch_small(ds):
         )
 
     sub_dls2 = sub_ds2.pytorch(num_workers=2, batch_size=1, shuffle=True)
-    all_values = []
-    for i, batch in enumerate(sub_dls2):
-        value = batch["image"].numpy()[0][0][0]
-        value2 = batch["image2"].numpy()[0][0][0]
-        assert value == value2
-        all_values.append(value)
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), value * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), value2 * np.ones((1, 12, 12))
-        )
-
-    assert set(all_values) == set(range(8, 12))
+    pytotch_small_shuffle_helper(8, 12, sub_dls2)
 
     sub_ds3 = ds[:5]
 
@@ -132,20 +110,7 @@ def test_pytorch_small(ds):
         )
 
     sub_dls3 = sub_ds3.pytorch(num_workers=2, batch_size=1, shuffle=True)
-    all_values = []
-    for i, batch in enumerate(sub_dls3):
-        value = batch["image"].numpy()[0][0][0]
-        value2 = batch["image2"].numpy()[0][0][0]
-        assert value == value2
-        all_values.append(value)
-        np.testing.assert_array_equal(
-            batch["image"].numpy(), value * np.ones((1, 10, 10))
-        )
-        np.testing.assert_array_equal(
-            batch["image2"].numpy(), value2 * np.ones((1, 12, 12))
-        )
-
-    assert set(all_values) == set(range(5))
+    pytotch_small_shuffle_helper(0, 5, sub_dls3)
 
 
 @requires_torch
