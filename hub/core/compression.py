@@ -105,11 +105,13 @@ def decompress_array(
     Args:
         buffer (bytes, memoryview): Buffer to be decompressed. It is assumed all meta information required to
             decompress is contained within `buffer`, except for byte compressions
-        shape (Tuple[int]): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
+        shape (Tuple[int], Optional): Desired shape of decompressed object. Reshape will attempt to match this shape before returning.
         dtype (str, Optional): Applicable only for byte compressions. Expected dtype of decompressed array.
         compression (str, Optional): Applicable only for byte compressions. Compression used to compression the given buffer.
+
     Raises:
-        SampleDecompressionError: Right now only buffers compatible with `PIL` will be decompressed.
+        SampleDecompressionError: If decompression fails.
+        ValueError: If dtype and shape are not specified for byte compression.
 
     Returns:
         np.ndarray: Array from the decompressed buffer.

@@ -292,6 +292,8 @@ def serialize_input_samples(
 
     Raises:
         ValueError: Tensor meta should have it's dtype set.
+        NotImplementedError: When extending tensors with Sample insatances.
+        TypeError: When sample type is not understood.
 
     Returns:
         List[Tuple[memoryview, Tuple[int]]]: Buffers and their corresponding shapes for the input samples.
