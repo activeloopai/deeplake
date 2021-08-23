@@ -450,30 +450,6 @@ class Dataset:
             self.client.delete_dataset_entry(self.org_id, self.ds_name)
             logger.info(f"Hub Dataset {self.path} successfully deleted.")
 
-    @staticmethod
-    def from_path(path: str):
-        """Creates a hub dataset from unstructured data.
-
-        Note:
-            This copies the data into hub format.
-            Be careful when using this with large datasets.
-
-        Args:
-            path (str): Path to the data to be converted
-
-        Returns:
-            A Dataset instance whose path points to the hub formatted
-            copy of the data.
-
-        Raises:
-            NotImplementedError: TODO.
-        """
-
-        raise NotImplementedError(
-            "Automatic dataset ingestion is not yet supported."
-        )  # TODO: hub.auto
-        return None
-
     def __str__(self):
         path_str = ""
         if self.path:
