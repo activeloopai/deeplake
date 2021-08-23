@@ -47,10 +47,13 @@ class GCSProvider(StorageProvider):
         self.check_readonly()
         self.fs.delete(self.path, True)
 
+    def _get_full_key_path(self, key):
+        return posixpath.join(self.path, key)
+
     def __getitem__(self, key):
         """Retrieve data"""
         try:
-            with self.fs.open(posixpath.join(self.path, key), "rb") as f:
+            with self.fs.open(self._get_full_key_path(key), "rb") as f:
                 return f.read()
         except self.missing_exceptions:
             raise KeyError(key)
@@ -58,7 +61,7 @@ class GCSProvider(StorageProvider):
     def __setitem__(self, key, value):
         """Store value in key"""
         self.check_readonly()
-        with self.fs.open(posixpath.join(self.path, key), "wb") as f:
+        with self.fs.open(self._get_full_key_path(key), "wb") as f:
             f.write(value)
 
     def __iter__(self):
@@ -72,9 +75,9 @@ class GCSProvider(StorageProvider):
     def __delitem__(self, key):
         """Remove key"""
         self.check_readonly()
-        self.fs.rm(posixpath.join(self.path, key))
+        self.fs.rm(self._get_full_key_path(key))
 
     def __contains__(self, key):
         """Does key exist in mapping?"""
-        path = posixpath.join(self.path, key)
+        path = self._get_full_key_path(key)
         return self.fs.exists(path)
