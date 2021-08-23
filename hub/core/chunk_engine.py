@@ -301,8 +301,7 @@ class ChunkEngine:
         self.chunk_id_encoder.register_samples(num_samples)
 
     def _can_set_to_last_chunk(self, nbytes: int) -> bool:
-        """
-        Whether last chunk's data can be set to a buffer of size nbytes.
+        """Whether last chunk's data can be set to a buffer of size nbytes.
         """
         last_chunk = self.last_chunk
         if last_chunk is None:
