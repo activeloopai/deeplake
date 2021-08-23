@@ -132,6 +132,7 @@ class PrefetchLRUCache(LRUCache):
                     )
                     scheduled_chunks.clear()
             else:
+                # no missing chunks, so we can just yield the data
                 yield self._get_final_output(index)
 
         if pending_indexes:
@@ -158,9 +159,9 @@ class PrefetchLRUCache(LRUCache):
         self,
         chunks_not_in_cache: List[Tuple[str, str]],
         scheduled_chunks: Set[Tuple[str, str]],
-    ):
+    ) -> List[Tuple[str, str]]:
         """Returns chunks that are not found in cache and not scheduled to be fetched by another worker."""
-        chunks_needed = []
+        chunks_needed: List[Tuple[str, str]] = []
         for chunk in chunks_not_in_cache:
             if chunk not in scheduled_chunks:
                 chunks_needed.append(chunk)
