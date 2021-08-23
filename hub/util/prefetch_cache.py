@@ -1,5 +1,5 @@
 from functools import lru_cache
-from typing import Dict, Union, List
+from typing import Dict, Tuple, Union, List
 from hub.core.storage import S3Provider, StorageProvider, SharedMemoryProvider
 from hub.util.keys import get_chunk_key
 from hub.util.shared_memory import remove_shared_memory_from_resource_tracker
@@ -14,7 +14,7 @@ def get_s3_storage(state: tuple) -> S3Provider:
 
 
 def read_and_store_chunk_group(
-    chunk_group: List[str],
+    chunk_group: List[Tuple[str, str]],
     shared_memory_names: List[str],
     storage: Union[StorageProvider, tuple],
 ):

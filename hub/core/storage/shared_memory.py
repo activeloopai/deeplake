@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Set
 from multiprocessing.shared_memory import SharedMemory
 from hub.core.storage.provider import StorageProvider
 
@@ -8,9 +8,9 @@ class SharedMemoryProvider(StorageProvider):
 
     def __init__(self, root: str = ""):
         self.root = root
-        self.files = set()
+        self.files: Set[str] = set()
         # keeps the shared memory objects in memory, otherwise getitem throws warnings as the shared memory is deleted
-        self.last_active_shared_memory = None
+        self.last_active_shared_memory: Optional[SharedMemory] = None
 
     def __getitem__(self, path: str):
         """Gets the object present at the path within the given byte range.

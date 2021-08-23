@@ -36,7 +36,7 @@ class PrefetchLRUCache(LRUCache):
         dataset,
         num_workers: int,
         tensor_keys: Optional[Sequence[str]],
-        transform: Callable,
+        transform: Optional[Callable],
         mode: Optional[str] = None,
     ):
         super().__init__(cache_storage, next_storage, cache_size)
@@ -69,7 +69,7 @@ class PrefetchLRUCache(LRUCache):
         self.shared_mem_chunk_map: Dict[str, tuple] = {}
 
         # map from each index to a dictionary having tensors as keys and chunk_names as values
-        self.index_chunk_names_map: Dict[int, Dict[str, str]] = {}
+        self.index_chunk_names_map: Dict[int, Dict[str, List[str]]] = {}
 
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
 
@@ -151,7 +151,8 @@ class PrefetchLRUCache(LRUCache):
             yield self._get_final_output(index)
         pending_indexes.clear()
         self.required_chunks.clear()
-        self.emergency_storage.clear()
+        if self.emergency_storage is not None:
+            self.emergency_storage.clear()
 
     def _get_chunks_needed(
         self,
@@ -235,13 +236,13 @@ class PrefetchLRUCache(LRUCache):
             self.update_used_cache_for_path(key, chunk_sizes_dict[key])
             self.dirty_keys.add(key)
             if hasattr(self, "_update_count_dicts_insertion"):
-                self._update_count_dicts_insertion(tensor, chunk_name)
+                self._update_count_dicts_insertion(tensor, chunk_name)  # type: ignore
 
     def _get_chunk_names(self, index) -> Dict[str, List[str]]:
         """Returns names of all chunks across tensors that have this index"""
         if index in self.index_chunk_names_map:
             return self.index_chunk_names_map[index]
-        chunk_names: Dict[int, List[str]] = {}
+        chunk_names: Dict[str, List[str]] = {}
         for key in self.tensor_keys:
             chunk_engine = self.all_chunk_engines[key]
             names = chunk_engine.get_chunk_names_for_index(index)
@@ -327,11 +328,11 @@ class PrefetchLRUCache(LRUCache):
         path = self.chunk_shared_mem_map[(tensor, chunk_name)]
         if path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)
-        elif self.next_storage:
+        elif self.next_storage is not None:
             result = self.next_storage[path]  # fetch from storage, may throw KeyError
             if len(result) <= self.cache_size:  # insert in cache if it fits
                 self._insert_in_cache(path, result)
-        else:
+        elif self.emergency_storage is not None:
             # fetch from emergency storage, may throw KeyError
             result = self.emergency_storage[path]
             if len(result) <= self.cache_size:  # insert in cache if it fits
@@ -342,19 +343,19 @@ class PrefetchLRUCache(LRUCache):
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys and self.next_storage is not None:
             self._forward(key, remove_from_dirty=True)
-        else:
+        elif self.emergency_storage is not None:
             if self.shared_mem_chunk_map[key] in self.required_chunks:
                 self.emergency_storage[key] = self.cache_storage[key]
             tensor, chunk_name = self.shared_mem_chunk_map[key]
             if hasattr(self, "_update_count_dicts_pop"):
-                self._update_count_dicts_pop(tensor, chunk_name)
+                self._update_count_dicts_pop(tensor, chunk_name)  # type: ignore
 
         del self.cache_storage[key]
         self.cache_used -= itemsize
 
     def _process_chunks_names_dict(
         self, chunk_names_dict: Dict[str, List[str]]
-    ) -> List[str]:
+    ) -> List[Tuple[str, str]]:
         """Processes the chunk names dictionary and returns names of chunks that need to be fetched"""
         missing_chunks = []
         for tensor, chunk_names in chunk_names_dict.items():

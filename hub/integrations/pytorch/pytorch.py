@@ -24,11 +24,11 @@ def dataset_to_pytorch(
     tensors: Optional[Sequence[str]] = None,
     num_workers: int = 1,
     batch_size: Optional[int] = 1,
-    drop_last: Optional[bool] = False,
+    drop_last: bool = False,
     collate_fn: Optional[Callable] = None,
-    pin_memory: Optional[bool] = False,
-    shuffle: Optional[bool] = False,
-    local_cache_size: Optional[int] = 0,
+    pin_memory: bool = False,
+    shuffle: bool = False,
+    local_cache_size: int = 0,
 ):
     if not pytorch_installed:
         raise ModuleNotInstalledException(

@@ -1,6 +1,6 @@
 import random
 from collections import defaultdict
-from typing import Callable, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence, Set
 from hub.core.storage import StorageProvider, SharedMemoryProvider
 from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
 
@@ -16,7 +16,7 @@ class ShuffleLRUCache(PrefetchLRUCache):
         dataset,
         num_workers: int,
         tensor_keys: Optional[Sequence[str]],
-        transform: Callable,
+        transform: Optional[Callable],
         mode: Optional[str] = None,
     ):
         super().__init__(
@@ -34,9 +34,9 @@ class ShuffleLRUCache(PrefetchLRUCache):
         self.all_remaining_indexes = set(self.all_indexes)
 
         # keeps count of how many unique tensors have this index in cache, updated in pop and insert
-        self.index_ct = defaultdict(int)
+        self.index_ct: Dict[int, int] = defaultdict(int)
         # corresponding to each count, stores the indexes that have appeared that many times
-        self.ct_indexes = defaultdict(set)
+        self.ct_indexes: Dict[int, Set[int]] = defaultdict(set)
 
         # stores the start and end index of each chunk for each tensor
         self.all_chunks_start_end_index = self._get_all_chunks_start_end_index()
