@@ -223,14 +223,6 @@ class Dataset:
             if k not in info_kwargs:
                 info_kwargs[k] = htype_config[k]
 
-        if sample_compression not in (None, UNSPECIFIED) and chunk_compression not in (
-            None,
-            UNSPECIFIED,
-        ):
-            raise ValueError(
-                "Sample compression and chunk compression are mutually exclusive."
-            )
-
         create_tensor(
             name,
             self.storage,

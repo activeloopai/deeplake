@@ -1,6 +1,7 @@
 from hub.util.exceptions import (
     SampleCompressionError,
     TensorMetaMissingRequiredValue,
+    TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
 )
 import pytest
@@ -146,6 +147,13 @@ def test_missing_sample_compression_for_image(memory_ds: Dataset):
     memory_ds.create_tensor("tensor", htype="image")
 
 
+@pytest.mark.xfail(raises=TensorMetaMutuallyExclusiveKeysError, strict=True)
+def test_sample_chunk_compression_mutually_exclusive(memory_ds: Dataset):
+    memory_ds.create_tensor(
+        "tensor", htype="image", sample_compression="png", chunk_compression="lz4"
+    )
+
+
 @enabled_datasets
 def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     images = ds.create_tensor("images", htype="image", chunk_compression="jpg")
@@ -181,9 +189,4 @@ def test_chunkwise_compression(ds: Dataset, cat_path, flower_path):
     data = [[0] * 50, [1, 2, 3] * 100, [4, 5, 6] * 200, [7, 8, 9] * 300]
     labels.extend(data)
     for row, label in zip(data, labels):
-        assert row == label.numpy().tolist()
-
-    updates = [[3, 4, 5] * 50, [5, 6, 7] * 300]
-    labels[1:3] = updates
-    for row, label in zip(updates, labels[1:3]):
         assert row == label.numpy().tolist()

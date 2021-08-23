@@ -418,6 +418,12 @@ class TensorDtypeMismatchError(MetaError):
         super().__init__(msg)
 
 
+class TensorMetaMutuallyExclusiveKeysError(MetaError):
+    def __init__(self, keys: List[str]):
+        msg = f"Following fields are mutually exclusive: {keys}"
+        super().__init__(msg)
+
+
 class ReadOnlyModeError(Exception):
     def __init__(self, custom_message: str = None):
         if custom_message is None:

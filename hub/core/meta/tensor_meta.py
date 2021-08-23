@@ -7,6 +7,7 @@ from hub.util.exceptions import (
     TensorMetaInvalidHtypeOverwriteValue,
     TensorMetaInvalidHtypeOverwriteKey,
     TensorMetaMissingRequiredValue,
+    TensorMetaMutuallyExclusiveKeysError,
     UnsupportedCompressionError,
     TensorInvalidSampleShapeError,
 )
@@ -178,6 +179,11 @@ def _validate_required_htype_overwrites(htype_overwrite: dict):
     chunk_compression = COMPRESSION_ALIASES.get(chunk_compression, chunk_compression)
     if chunk_compression not in hub.compressions:
         raise UnsupportedCompressionError(chunk_compression)
+
+    if sample_compression and chunk_compression:
+        raise TensorMetaMutuallyExclusiveKeysError(
+            ["sample_compression", "chunk_compression"]
+        )
 
     if htype_overwrite["dtype"] is not None:
         _raise_if_condition(
