@@ -1,5 +1,4 @@
 from hub.util.exceptions import LockedException
-from hub.util.path import get_path_from_storage
 import numpy as np
 import pytest
 import hub
