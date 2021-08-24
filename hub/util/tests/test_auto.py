@@ -22,7 +22,7 @@ def test_ingestion_summary_clean():
 
     ingest_summary_clean = StringIO()
     sys.stdout = ingest_summary_clean
-    ingestion_summary(clean_path, [], 1)
+    ingestion_summary(clean_path, [])
     sys.stdout = sys.__stdout__
     output = ingest_summary_clean.getvalue()
 
@@ -34,11 +34,11 @@ def test_ingestion_summary_skipped():
 
     ingest_summary_skipped = StringIO()
     sys.stdout = ingest_summary_skipped
-    ingestion_summary(skipped_path, ["test.json", "test.json"], 1)
+    ingestion_summary(skipped_path, ["test.json", "test.json"])
     sys.stdout = sys.__stdout__
     output = ingest_summary_skipped.getvalue()
 
     assert (
         output
-        == "\n\ningestion_summary/    (2/3)\n      [Skipped]  test.json\n      class0/    (1/2)\n            [Skipped]  test.json\n      class1/    (1/1)\n"
+        == "\n\ningestion_summary/    \n      [Skipped]  test.json\n      class0/    \n            [Skipped]  test.json\n      class1/    \n"
     )
