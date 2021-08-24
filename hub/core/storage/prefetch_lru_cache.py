@@ -74,7 +74,7 @@ class PrefetchLRUCache(LRUCache):
         self.all_chunk_engines: Dict[str, ChunkEngine] = self._load_all_chunk_engines()
 
         # chunks that are needed for the current index, these should not be removed from cache. If cache is too small and next storage doesn't exist, it sends to emergency storage
-        self.required_chunks: List[tuple] = []
+        self.required_chunks: Set[tuple] = set()
 
         self.emergency_storage = (
             LocalProvider(EMERGENCY_STORAGE_PATH) if self.next_storage is None else None
@@ -84,7 +84,7 @@ class PrefetchLRUCache(LRUCache):
         if path in self.lru_sizes:
             self.lru_sizes.move_to_end(path)  # refresh position for LRU
             return self.cache_storage[path]
-        elif self.next_storage:
+        elif self.next_storage is not None:
             # fetch from next storage, may throw KeyError
             result = self.next_storage[path]
             if len(result) <= self.cache_size:  # insert in cache if it fits
@@ -182,6 +182,7 @@ class PrefetchLRUCache(LRUCache):
         """
         self._flush_if_not_read_only()
         self.cache_used = 0
+        self.last_index_suggested = -1
         self.lru_sizes.clear()
         self.dirty_keys.clear()
         self.cache_storage.clear()
@@ -231,13 +232,24 @@ class PrefetchLRUCache(LRUCache):
 
     def _update_cache_insertion(self, chunk_sizes_dict: Dict[str, int]):
         """Updates the cache after chunks are inserted into it across processes."""
-        for key in chunk_sizes_dict:
+        for key, chunk_size in chunk_sizes_dict.items():
             tensor, chunk_name = self.shared_mem_chunk_map[key]
-            self.required_chunks.append((tensor, chunk_name))
-            self.update_used_cache_for_path(key, chunk_sizes_dict[key])
-            self.dirty_keys.add(key)
-            if hasattr(self, "_update_count_dicts_insertion"):
-                self._update_count_dicts_insertion(tensor, chunk_name)  # type: ignore
+            self._free_up_space(chunk_size)
+            if self.cache_size - self.cache_used >= chunk_size:
+                self.update_used_cache_for_path(key, chunk_size)
+                self.dirty_keys.add(key)
+                self.required_chunks.add((tensor, chunk_name))
+                if hasattr(self, "_update_count_dicts_insertion"):
+                    self._update_count_dicts_insertion(tensor, chunk_name)  # type: ignore
+            elif self.next_storage is not None:
+                self.next_storage[key] = self.cache_storage[key]
+                del self.cache_storage[key]
+                if hasattr(self, "_update_count_dicts_insertion"):
+                    self._update_count_dicts_insertion(tensor, chunk_name)  # type: ignore
+            elif self.emergency_storage is not None:
+                self.emergency_storage[key] = self.cache_storage[key]
+                del self.cache_storage[key]
+                # we don't update counts when putting data in emergency storage as it well get cleared
 
     def _get_chunk_names(self, index) -> Dict[str, List[str]]:
         """Returns names of all chunks across tensors that have this index"""
@@ -344,8 +356,11 @@ class PrefetchLRUCache(LRUCache):
         key, itemsize = self.lru_sizes.popitem(last=False)
         if key in self.dirty_keys and self.next_storage is not None:
             self._forward(key, remove_from_dirty=True)
-        elif self.emergency_storage is not None:
-            if self.shared_mem_chunk_map[key] in self.required_chunks:
+        else:
+            if (
+                self.emergency_storage is not None
+                and self.shared_mem_chunk_map[key] in self.required_chunks
+            ):
                 self.emergency_storage[key] = self.cache_storage[key]
             tensor, chunk_name = self.shared_mem_chunk_map[key]
             if hasattr(self, "_update_count_dicts_pop"):
@@ -366,7 +381,7 @@ class PrefetchLRUCache(LRUCache):
                 if shm_name is None or shm_name not in self._list_keys():
                     missing_chunks.append((tensor, chunk_name))
                 else:
-                    self.required_chunks.append(chunk)
+                    self.required_chunks.add(chunk)
                     self._refresh_chunk_in_cache(tensor, chunk_name)
         return missing_chunks
 

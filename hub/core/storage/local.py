@@ -160,5 +160,6 @@ class LocalProvider(StorageProvider):
     def clear(self):
         """Deletes ALL data on the local machine (under self.root). Exercise caution!"""
         self.check_readonly()
-        if os.path.exists(self.root):
-            shutil.rmtree(self.root)
+        full_path = os.path.expanduser(self.root)
+        if os.path.exists(full_path):
+            shutil.rmtree(full_path)

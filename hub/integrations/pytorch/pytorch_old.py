@@ -29,7 +29,7 @@ def dataset_to_pytorch(
     pin_memory: bool = False,
     shuffle: bool = False,
     buffer_size: int = 10 * 1000,
-    local_cache_size: int = 0,
+    use_local_cache: bool = False,
     python_version_warning: bool = True,
 ):
     try_flushing(dataset)
@@ -81,7 +81,7 @@ class TorchDataset:
             else:
                 warning_message += f"Python version < 3.8 detected. Pytorch iteration speeds are up to 500% faster on Python version >= 3.8.\n"
 
-            warning_message += "This version will also not utilize the buffer_size and local_cache_size arguments.\n"
+            warning_message += "This version will also not utilize the buffer_size and use_local_cache arguments.\n"
             if shuffle:
                 warning_message += "Pytorch iteration with shuffling will also be very slow. Use linux/macOS with python >= 3.8 to speed it up.\n"
             warnings.warn(warning_message)

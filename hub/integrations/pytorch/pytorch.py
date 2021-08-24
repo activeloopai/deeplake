@@ -29,7 +29,7 @@ def dataset_to_pytorch(
     pin_memory: bool = False,
     shuffle: bool = False,
     buffer_size: int = 10 * 1000,
-    local_cache_size: int = 0,
+    use_local_cache: bool = False,
 ):
     if not pytorch_installed:
         raise ModuleNotInstalledException(
@@ -47,12 +47,12 @@ def dataset_to_pytorch(
             num_workers: int = 1,
             shuffle: bool = False,
             buffer_size: int = 10 * 1000,
-            local_cache_size: int = 0,
+            use_local_cache: bool = False,
         ):
             cache = ShuffleLRUCache if shuffle else PrefetchLRUCache
             cache_storage = SharedMemoryProvider()
             cache_size = buffer_size * MB
-            next_storage = get_next_storage(local_cache_size, dataset)
+            next_storage = get_pytorch_local_storage(dataset) if use_local_cache else None
 
             try:
                 self.cache = cache(
@@ -84,7 +84,7 @@ def dataset_to_pytorch(
         num_workers,
         shuffle,
         buffer_size,
-        local_cache_size,
+        use_local_cache,
     )
     if collate_fn is None:
         collate_fn = default_convert_fn if batch_size is None else default_collate_fn
@@ -97,14 +97,10 @@ def dataset_to_pytorch(
     )
 
 
-def get_next_storage(local_cache_size, dataset):
-    if local_cache_size > 0:
-        local_cache_name: str = dataset.path + "_pytorch"
-        local_cache_name = local_cache_name.replace("://", "_")
-        local_cache_name = local_cache_name.replace("/", "_")
-        local_cache_name = local_cache_name.replace("\\", "_")
-        local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
-        local_provider = LocalProvider(local_cache_path)
-        return LRUCache(local_provider, None, local_cache_size * MB)
-    else:
-        return None
+def get_pytorch_local_storage(dataset):
+    local_cache_name: str = dataset.path + "_pytorch"
+    local_cache_name = local_cache_name.replace("://", "_")
+    local_cache_name = local_cache_name.replace("/", "_")
+    local_cache_name = local_cache_name.replace("\\", "_")
+    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
+    return LocalProvider(local_cache_path)

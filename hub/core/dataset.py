@@ -336,7 +336,7 @@ class Dataset:
         pin_memory: bool = False,
         shuffle: bool = False,
         buffer_size: int = 10 * 1000,
-        local_cache_size: int = 0,
+        use_local_cache: bool = False,
     ):
         """Converts the dataset into a pytorch Dataloader.
 
@@ -358,7 +358,7 @@ class Dataset:
                 Read torch.utils.data.DataLoader docs for more details.
             shuffle (bool): If True, the data loader will shuffle the data indices. Default value is False.
             buffer_size (int): The size of the buffer used to prefetch/shuffle in MB. The buffer uses shared memory under the hood. Default value is 10 GB. Increasing the buffer_size will increase the extent of shuffling.
-            local_cache_size (int): The size of the local cache in MB to use for fetching data in parallel. Default value is 0.
+            use_local_cache (bool): If True, the data loader will use a local cache to store data. This is useful when the dataset can fit on the machine and we don't want to fetch the data multiple times for each iteration. Default value is False.
 
         Returns:
             A torch.utils.data.DataLoader object.
@@ -376,7 +376,7 @@ class Dataset:
             pin_memory=pin_memory,
             shuffle=shuffle,
             buffer_size=buffer_size,
-            local_cache_size=local_cache_size,
+            use_local_cache=use_local_cache,
         )
 
     def _get_total_meta(self):
