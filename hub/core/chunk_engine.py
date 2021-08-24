@@ -542,26 +542,58 @@ class ChunkEngine:
         # 3. normally update this sample
         self._update_samples(value0_index, [new_sample])
 
-    def get_tiles_for_sample(self, global_sample_index: int, subslice_index: Index):
-        """Returns a list of numpy arrays, each array representing a tile of the full sample. Only
-        necessary tiles are returned (according to subslice_index)."""
+
+    def sample_from_tiles(self, global_sample_index: int, subslice_index: Index) -> np.ndarray:
+        # TODO: docstring
 
         enc = self.chunk_id_encoder
         tile_ids = enc[global_sample_index]
 
         tile_encoder = self.tile_encoder
-        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
-
         tile_meta = tile_encoder.entries[global_sample_index]
         tile_shape = tile_meta["tile_shape"]
 
-        # ordered_tile_arrays = np.zeros((*ordered_tile_ids.shape, *tile_shape))
-        # print(ordered_tile_arrays.shape)
-        # print(subslice_index.shape)
-
+        ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape, subslice_index)
-        print(ordered_tile_ids)
-        print(tile_mask)
+        self.download_tiles(ordered_tile_ids, tile_mask)
+
+        raise NotImplementedError # TODO
+
+
+    def download_tiles(self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray) -> np.ndarray:
+        """Downloads the tiles and returns a numpy array of Chunk objects with the same shape.
+
+        Args:
+            ordered_tile_ids (np.ndarray): Array of tile (chunk) IDs with their shape in tile-order.
+            download_mask (np.ndarray): Boolean array with the same shape of `ordered_tile_ids`.
+                If the corresponding element is `True`, the chunk with it's ID will be downloaded.
+
+        Returns:
+            # TODO
+        """
+
+        if ordered_tile_ids.shape != download_mask.shape:
+            raise ValueError(f"Tiles {ordered_tile_ids.shape} and the download mask {download_mask.shape} should be the same shape.")
+
+        chunks = np.empty(ordered_tile_ids.shape, dtype=object)
+
+        for tile_index, tile_id in np.ndenumerate(ordered_tile_ids):
+            need_tile = download_mask[tile_index]
+
+            if need_tile:
+                tile = self.download_tile(tile_id)
+                chunks[tile_index] = tile
+
+        return chunks
+
+
+    def download_tile(self, tile_id: ENCODING_DTYPE) -> Chunk:
+        # TODO: docstring
+
+        chunk_name = chunk_name_from_id(tile_id)
+        chunk_key = get_chunk_key(self.key, chunk_name)
+        chunk = self.cache.get_cachable(chunk_key, Chunk)
+        return chunk
         
 
     def numpy(
@@ -599,8 +631,7 @@ class ChunkEngine:
             if is_tiled:
                 # TODO: can probably generalize this
 
-                self.get_tiles_for_sample(global_sample_index, subslice_index)
-
+                sample = self.sample_from_tiles(global_sample_index, subslice_index)
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
             for chunk in chunk_ids:
