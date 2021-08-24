@@ -441,6 +441,9 @@ class ChunkEngine:
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+        # TODO: updates
+        raise NotImplementedError("updates with tiles not supported yet")
+
         if index.is_single_dim_effective():
             self._update_samples(index, samples)
         else:
@@ -645,37 +648,26 @@ class ChunkEngine:
         """
 
         length = self.num_samples
-        enc = self.chunk_id_encoder
         last_shape = None
         samples = []
         
         tensor_meta = self.tensor_meta
         dtype = tensor_meta.dtype
 
-        # TODO: make methods?
+        # TODO: make methods of Index?
         value0_index = index.values[0].indices(length)
         subslice_index = Index(index.values[1:])
 
         for global_sample_index in value0_index:
-            chunk_ids = enc[global_sample_index]
-            is_tiled = len(chunk_ids) > 1
+            sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
+            shape = sample.shape
 
-            if is_tiled:
-                # TODO: can probably generalize this
+            if not aslist and last_shape is not None:
+                if shape != last_shape:
+                    raise DynamicTensorNumpyError(self.key, index, "shape")
 
-                sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
-                raise NotImplementedError("Numpy for tiles not implemented yet.")
-
-            for chunk in chunk_ids:
-                sample = self.read_sample_from_chunk(global_sample_index, chunk)
-                shape = sample.shape
-
-                if not aslist and last_shape is not None:
-                    if shape != last_shape:
-                        raise DynamicTensorNumpyError(self.key, index, "shape")
-
-                samples.append(sample)
-                last_shape = shape
+            samples.append(sample)
+            last_shape = shape
 
         return _format_read_samples(samples, index, aslist)
 
