@@ -26,8 +26,8 @@ def local_ds(local_ds_generator):
 
 @pytest.fixture
 def local_ds_generator(local_path):
-    def generate_local_ds():
-        return hub.dataset(local_path)
+    def generate_local_ds(**kwargs):
+        return hub.dataset(local_path, **kwargs)
 
     return generate_local_ds
 
@@ -39,8 +39,8 @@ def s3_ds(s3_ds_generator):
 
 @pytest.fixture
 def s3_ds_generator(s3_path):
-    def generate_s3_ds():
-        return hub.dataset(s3_path)
+    def generate_s3_ds(**kwargs):
+        return hub.dataset(s3_path, **kwargs)
 
     return generate_s3_ds
 
@@ -52,8 +52,8 @@ def hub_cloud_ds(hub_cloud_ds_generator):
 
 @pytest.fixture
 def hub_cloud_ds_generator(hub_cloud_path, hub_cloud_dev_token):
-    def generate_hub_cloud_ds():
-        return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token)
+    def generate_hub_cloud_ds(**kwargs):
+        return hub.dataset(hub_cloud_path, token=hub_cloud_dev_token, **kwargs)
 
     return generate_hub_cloud_ds
 
