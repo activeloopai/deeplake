@@ -555,8 +555,14 @@ class ChunkEngine:
         tile_ids = chunk_id_encoder[global_sample_index]
         
         ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
-        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, ordered_tile_ids)
+        is_tiled = len(ordered_tile_ids) > 1
 
+        if not is_tiled:
+            # TODO
+            # tile_mask = np.ones(ordered_tile_ids.shape, dtype=bool)
+            raise NotImplementedError("reading non-tiled samples not yet implemented")
+
+        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, ordered_tile_ids)
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
         sample = self.coalesce_sample(global_sample_index, tiles, tile_shape_mask, subslice_index, dtype)
@@ -654,7 +660,10 @@ class ChunkEngine:
 
         # TODO: make methods of Index?
         value0_index = index.values[0].indices(length)
-        subslice_index = Index(index.values[1:])
+        if len(index.values) > 1:
+            subslice_index = Index(index.values[1:])
+        else:
+            subslice_index = Index()
 
         for global_sample_index in value0_index:
             sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
@@ -789,7 +798,8 @@ def _format_read_samples(
 ) -> Union[np.ndarray, List[np.ndarray]]:
     """Prepares samples being read from the chunk engine in the format the user expects."""
 
-    samples = index.apply(samples)  # type: ignore
+    # TODO: might need to still do this for non-tiled samples!
+    # samples = index.apply(samples)  # type: ignore
 
     if aslist and all(map(np.isscalar, samples)):
         samples = list(arr.item() for arr in samples)
