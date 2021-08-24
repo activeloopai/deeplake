@@ -279,6 +279,25 @@ class IndexEntry:
         
         raise NotImplementedError
 
+    @property
+    def low_bound(self) -> int:
+        # TODO: docstring
+
+        if isinstance(self.value, int):
+            return self.value
+        elif isinstance(self.value, slice):
+            return self.value.start or self.value.stop
+        raise NotImplementedError
+
+    @property
+    def high_bound(self) -> int:
+        # TODO: docstring
+
+        if isinstance(self.value, int):
+            return self.value
+        elif isinstance(self.value, slice):
+            return self.value.stop
+        raise NotImplementedError
 
 class Index:
     def __init__(
@@ -469,15 +488,52 @@ class Index:
         """Checks that the index is not accessing values outside the range of the parent."""
         self.values[0].validate(parent_length)
 
-    def intersects(self, low_bound: Tuple[int], high_bound: Tuple[int]):
-        # TODO: docstring
+    def intersects(self, low_bound: Tuple[int], high_bound: Tuple[int]) -> bool:
+        """Checks if the incoming n-dimensional rectangle is intersected by this index object.
+        This is useful for tiling, when trying to determine if a tile should be downloaded or not
+        (if it exists on this index)."""
 
-        for low_dim, high_dim, index_entry in zip(low_bound, high_bound, self.values):
-            assert low_dim < high_dim  # TODO: exceptions (sanity check)
-            if not index_entry.intersects(low_dim, high_dim):
+        # check if this index overlaps the incoming n dimensional rectangle
+        for in_low_dim, in_high_dim, index_entry in zip(low_bound, high_bound, self.values):
+            if index_entry.is_trivial():
+                continue
+            if in_high_dim < index_entry.low_bound:
+                return False
+            if in_low_dim > index_entry.high_bound:
                 return False
 
+        # all trivial indexes intersect
         return True
+
+    @property
+    def low_bound(self) -> Tuple[int]:
+        """Get the low-bound of this index.
+        
+        Example:
+            indexing like: array[0:5, 500:505, :]
+            returns: (0, 500, None)
+        """
+
+        low = []
+        for value in self.values:
+            low.append(value.low_bound)
+
+        return tuple(low)
+
+    @property
+    def high_bound(self) -> Tuple[int]:
+        """Get the high-bound of this index.
+        
+        Example:
+            indexing like: array[0:5, 500:505, :]
+            returns: (5, 505, None)
+        """
+
+        high = []
+        for value in self.values:
+            high.append(value.high_bound)
+
+        return tuple(high)
 
     def __str__(self):
         values = [entry.value for entry in self.values]

@@ -83,7 +83,5 @@ def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape_mask: np.ndarray, sub
 
         if subslice_index.intersects(low, high):
             mask[tile_index] = True
-            # chunk = self.get_chunk_from_id(tile_id)
-            # tile_sample = self.read_sample_from_chunk(global_sample_index, chunk)
 
     return mask
