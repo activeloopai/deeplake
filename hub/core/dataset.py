@@ -70,8 +70,8 @@ class Dataset:
         self.storage = storage
         self._read_only = read_only
         base_storage = get_base_storage(storage)
-        if not read_only and index is None and isinstance(
-            base_storage, S3Provider
+        if (
+            not read_only and index is None and isinstance(base_storage, S3Provider)
         ):  # Dataset locking only for S3 datasets
             try:
                 lock(base_storage, callback=lambda: self._lock_lost_handler)
