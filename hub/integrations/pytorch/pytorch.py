@@ -52,7 +52,9 @@ def dataset_to_pytorch(
             cache = ShuffleLRUCache if shuffle else PrefetchLRUCache
             cache_storage = SharedMemoryProvider()
             cache_size = buffer_size * MB
-            next_storage = get_pytorch_local_storage(dataset) if use_local_cache else None
+            next_storage = (
+                get_pytorch_local_storage(dataset) if use_local_cache else None
+            )
 
             try:
                 self.cache = cache(

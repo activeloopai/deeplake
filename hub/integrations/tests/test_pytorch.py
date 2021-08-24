@@ -60,8 +60,12 @@ def test_pytorch_small(ds):
 
     for _ in range(2):
         for i, batch in enumerate(dl):
-            np.testing.assert_array_equal(batch["image"].numpy(), i * np.ones((1, 10, 10)))
-            np.testing.assert_array_equal(batch["image2"].numpy(), i * np.ones((1, 12, 12)))
+            np.testing.assert_array_equal(
+                batch["image"].numpy(), i * np.ones((1, 10, 10))
+            )
+            np.testing.assert_array_equal(
+                batch["image2"].numpy(), i * np.ones((1, 12, 12))
+            )
 
     dls = ds.pytorch(num_workers=2, batch_size=1, shuffle=True)
     pytotch_small_shuffle_helper(0, 16, dls)
