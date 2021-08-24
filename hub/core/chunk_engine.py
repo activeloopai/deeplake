@@ -543,23 +543,22 @@ class ChunkEngine:
         self._update_samples(value0_index, [new_sample])
 
 
-    def sample_from_tiles(self, global_sample_index: int, subslice_index: Index) -> np.ndarray:
+    def sample_from_tiles(self, global_sample_index: int, subslice_index: Index, dtype: np.dtype) -> np.ndarray:
         # TODO: docstring
 
-        enc = self.chunk_id_encoder
-        tile_ids = enc[global_sample_index]
-
+        chunk_id_encoder = self.chunk_id_encoder
         tile_encoder = self.tile_encoder
-        
 
+        tile_ids = chunk_id_encoder[global_sample_index]
+        
         ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
         tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, ordered_tile_ids)
-        print(tile_shape_mask)
+
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
-        self.coalesce_sample(tiles)
+        sample = self.coalesce_sample(global_sample_index, tiles, tile_shape_mask, subslice_index, dtype)
 
-        raise NotImplementedError # TODO
+        return sample
 
 
     def download_tiles(self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray) -> np.ndarray:
@@ -598,8 +597,33 @@ class ChunkEngine:
         return chunk
 
     
-    def coalesce_sample(self, tiles: np.ndarray):
+    def coalesce_sample(self, global_sample_index: int, tiles: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index, dtype: np.dtype) -> np.ndarray:
         # TODO: docstring
+
+        # TODO: this indexing might be broken for negative / slice indexes with "skip" components
+
+        sample_shape = subslice_index.shape
+        sample = np.zeros(sample_shape, dtype=dtype)
+        print(sample.shape)
+
+        for tile_index, tile in np.ndenumerate(tiles):
+            if tile is None:
+                continue
+
+            tile_shape = tile_shape_mask[tile_index]
+            low, high = get_tile_bounds(tile_index, tile_shape)
+
+            tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
+            
+            sample_subslice = sample
+            tile_sample_subslice = tile_sample
+            for low_dim, high_dim in zip(low, high):
+                sample_subslice = sample_subslice[low_dim:high_dim]
+
+                tile_sample_subslice = tile_sample_subslice[low_dim:high_dim]
+                print(low_dim, high_dim, sample_subslice.shape)
+
+            sample_subslice[:] = tile_sample_subslice
 
         raise NotImplementedError
         
@@ -639,7 +663,7 @@ class ChunkEngine:
             if is_tiled:
                 # TODO: can probably generalize this
 
-                sample = self.sample_from_tiles(global_sample_index, subslice_index)
+                sample = self.sample_from_tiles(global_sample_index, subslice_index, dtype)
                 raise NotImplementedError("Numpy for tiles not implemented yet.")
 
             for chunk in chunk_ids:
