@@ -125,6 +125,22 @@ class TileEncoder(Cachable):
         return ordered_tiles
 
 
+    def get_tile_shape_mask(self, sample_index: int, ordered_tile_ids: np.ndarray) -> np.ndarray:
+        # TODO: docstring
+
+        tile_meta = self.entries[sample_index]
+        tile_shape = tile_meta["tile_shape"]
+
+        tile_shape_mask = np.empty(ordered_tile_ids.shape, dtype=object)
+
+        # right now tile shape is the same for all tiles, but we might want to add dynamic tile shapes
+        # also makes lookup easier later
+        for tile_index, _ in np.ndenumerate(ordered_tile_ids):
+            tile_shape_mask[tile_index] = tile_shape
+
+        return tile_shape_mask
+
+
     def chunk_index_for_tile(self, sample_index: int, tile_index: Tuple[int]):
         tile_meta = self.entries[sample_index]
         sample_shape = tile_meta["sample_shape"]

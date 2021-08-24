@@ -550,12 +550,14 @@ class ChunkEngine:
         tile_ids = enc[global_sample_index]
 
         tile_encoder = self.tile_encoder
-        tile_meta = tile_encoder.entries[global_sample_index]
-        tile_shape = tile_meta["tile_shape"]
+        
 
         ordered_tile_ids = tile_encoder.order_tiles(global_sample_index, tile_ids)
-        tile_mask = get_tile_mask(ordered_tile_ids, tile_shape, subslice_index)
-        self.download_tiles(ordered_tile_ids, tile_mask)
+        tile_shape_mask = tile_encoder.get_tile_shape_mask(global_sample_index, ordered_tile_ids)
+        print(tile_shape_mask)
+        tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
+        tiles = self.download_tiles(ordered_tile_ids, tile_mask)
+        self.coalesce_sample(tiles)
 
         raise NotImplementedError # TODO
 
@@ -594,6 +596,12 @@ class ChunkEngine:
         chunk_key = get_chunk_key(self.key, chunk_name)
         chunk = self.cache.get_cachable(chunk_key, Chunk)
         return chunk
+
+    
+    def coalesce_sample(self, tiles: np.ndarray):
+        # TODO: docstring
+
+        raise NotImplementedError
         
 
     def numpy(

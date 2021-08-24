@@ -72,12 +72,13 @@ def get_tile_bounds(tile_index: Tuple[int], tile_shape: Tuple[int]) -> Tuple[Tup
 
 
 
-def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape: Tuple[int], subslice_index: Index):
+def get_tile_mask(ordered_tile_ids: np.ndarray, tile_shape_mask: np.ndarray, subslice_index: Index):
     # loop through each tile ID, check if it exists within the subslice_index.
 
     mask = np.zeros(ordered_tile_ids.shape, dtype=bool)
 
     for tile_index, _ in np.ndenumerate(ordered_tile_ids):
+        tile_shape = tile_shape_mask[tile_index]
         low, high = get_tile_bounds(tile_index, tile_shape)
 
         if subslice_index.intersects(low, high):
