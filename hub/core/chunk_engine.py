@@ -607,28 +607,26 @@ class ChunkEngine:
 
         sample_shape = subslice_index.shape
         sample = np.zeros(sample_shape, dtype=dtype)
-        print(sample.shape)
 
         for tile_index, tile in np.ndenumerate(tiles):
             if tile is None:
                 continue
 
             tile_shape = tile_shape_mask[tile_index]
-            low, high = get_tile_bounds(tile_index, tile_shape)
-
+            low, _ = get_tile_bounds(tile_index, tile_shape)
             tile_sample = self.read_sample_from_chunk(global_sample_index, tile)
-            
-            sample_subslice = sample
-            tile_sample_subslice = tile_sample
-            for low_dim, high_dim in zip(low, high):
-                sample_subslice = sample_subslice[low_dim:high_dim]
 
-                tile_sample_subslice = tile_sample_subslice[low_dim:high_dim]
-                print(low_dim, high_dim, sample_subslice.shape)
+            # get tile index
+            tile_slices = []
+            for low_dim, subslice_value in zip(low, subslice_index.values):
+                tile_low_dim = subslice_value.low_bound - low_dim
+                tile_high_dim = subslice_value.high_bound - low_dim
+                tile_slices.append(slice(tile_low_dim, tile_high_dim))
+            tile_slices = tuple(tile_slices)
 
-            sample_subslice[:] = tile_sample_subslice
+            sample[:] = tile_sample[tile_slices]
 
-        raise NotImplementedError
+        return sample
         
 
     def numpy(
