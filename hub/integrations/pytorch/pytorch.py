@@ -1,5 +1,6 @@
+from hub.util.storage import get_pytorch_local_storage
 from typing import Callable, Optional, Sequence
-from hub.core.storage import SharedMemoryProvider, LocalProvider, LRUCache
+from hub.core.storage import SharedMemoryProvider
 from hub.core.storage.prefetch_lru_cache import PrefetchLRUCache
 from hub.core.storage.shuffle_lru_cache import ShuffleLRUCache
 from hub.util.dataset import try_flushing
@@ -97,12 +98,3 @@ def dataset_to_pytorch(
         collate_fn=collate_fn,
         pin_memory=pin_memory,
     )
-
-
-def get_pytorch_local_storage(dataset):
-    local_cache_name: str = dataset.path + "_pytorch"
-    local_cache_name = local_cache_name.replace("://", "_")
-    local_cache_name = local_cache_name.replace("/", "_")
-    local_cache_name = local_cache_name.replace("\\", "_")
-    local_cache_path = f"{LOCAL_CACHE_PREFIX}/{local_cache_name}"
-    return LocalProvider(local_cache_path)

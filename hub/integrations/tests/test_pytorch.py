@@ -1,19 +1,18 @@
-from hub.core.storage import local
-from hub.integrations.pytorch.pytorch import get_pytorch_local_storage
-from hub.constants import KB
-from hub.util.remove_cache import get_base_storage
-import pickle
-import pytest
-from hub.util.remove_cache import get_base_storage
-from hub.util.exceptions import DatasetUnsupportedPytorch
-from hub.core.storage.memory import MemoryProvider
 import hub
 import numpy as np
+import pickle
+import pytest
+
+from hub.util.remove_cache import get_base_storage
+from hub.util.exceptions import DatasetUnsupportedPytorch
+from hub.util.storage import get_pytorch_local_storage
+from hub.util.check_installation import requires_torch
+from hub.core.dataset import Dataset
+from hub.core.storage.memory import MemoryProvider
+from hub.constants import KB
 
 from hub.integrations.pytorch.pytorch_old import dataset_to_pytorch
-from hub.util.check_installation import requires_torch
 from hub.tests.dataset_fixtures import enabled_datasets
-from hub.core.dataset import Dataset
 
 
 # ensure tests have multiple chunks without a ton of data
