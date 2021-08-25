@@ -451,6 +451,13 @@ class ChunkEngine:
         self.cache.check_readonly()
         ffw_chunk_id_encoder(self.chunk_id_encoder)
 
+
+        # TODO:
+        # 1. download the tiles we need
+        # 2. update each individual tile
+        # 3. upload new tiles
+
+
         # TODO: updates
         raise NotImplementedError("updates with tiles not supported yet")
 
@@ -560,6 +567,16 @@ class ChunkEngine:
     ) -> np.ndarray:
         # TODO: docstring
 
+        tiles, tile_shape_mask = self.download_required_tiles(global_sample_index, subslice_index)
+        sample = self.coalesce_sample(
+            global_sample_index, tiles, tile_shape_mask, subslice_index, dtype
+        )
+
+        return sample
+
+    def download_required_tiles(self, global_sample_index: int, subslice_index: Index) -> Tuple[np.ndarray, np.ndarray]:
+        # TODO: docstring
+
         chunk_id_encoder = self.chunk_id_encoder
         tile_encoder = self.tile_encoder
 
@@ -572,11 +589,9 @@ class ChunkEngine:
         )
         tile_mask = get_tile_mask(ordered_tile_ids, tile_shape_mask, subslice_index)
         tiles = self.download_tiles(ordered_tile_ids, tile_mask)
-        sample = self.coalesce_sample(
-            global_sample_index, tiles, tile_shape_mask, subslice_index, dtype
-        )
 
-        return sample
+        return tiles, tile_shape_mask
+
 
     def download_tiles(
         self, ordered_tile_ids: np.ndarray, download_mask: np.ndarray
