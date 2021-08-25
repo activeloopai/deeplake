@@ -609,7 +609,7 @@ class ChunkEngine:
 
         if not is_tiled:
             sample = self.read_sample_from_chunk(global_sample_index, tiles[0])
-            return subslice_index.apply([sample])[0]
+            return subslice_index.apply([sample], include_first_value=True)[0]
 
         sample_shape = subslice_index.shape
         sample = np.zeros(sample_shape, dtype=dtype)

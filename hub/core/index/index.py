@@ -413,11 +413,16 @@ class Index:
         else:
             raise TypeError(f"Value {item} is of unrecognized type {type(item)}.")
 
-    def apply(self, samples: List[np.ndarray]):
+    def apply(self, samples: List[np.ndarray], include_first_value: bool=False):
         """Applies an Index to a list of ndarray samples with the same number of entries
         as the first entry in the Index.
         """
-        index_values = tuple(item.value for item in self.values[1:])
+
+        if include_first_value:
+            index_values = tuple(item.value for item in self.values)
+        else:
+            index_values = tuple(item.value for item in self.values[1:])
+
         samples = list(arr[index_values] for arr in samples)
         return samples
 
