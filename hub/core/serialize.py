@@ -108,6 +108,32 @@ def write_actual_data(data, buffer, offset) -> int:
     return offset
 
 
+def _safe_np_frombuffer(
+    buff: Union[bytes, memoryview, bytearray],
+    start_byte,
+    end_byte,
+    dtype: np.dtype,
+    shape: Tuple[int, ...],
+):
+    """Creates a numpy array from a byte buffer guranteeing that the underlying buffer won't be deallocated minimizing memcpys."""
+    if isinstance(buff, bytes):
+        return np.frombuffer(buff[start_byte:end_byte], dtype=dtype).reshape(reshape)
+    elif isinstance(buff, bytearray):
+        # Note: slicing bytearray creates a copy
+        return (
+            np.frombuffer(memoryview(buff[start_byte:end_byte]), dtype=dtype)
+            .reshape(reshape)
+            .copy()
+        )
+    elif isinstance(buff, memoryview):
+        return (
+            np.frombuffer(buff[start_byte:end_byte], dtype=dtype)
+            .reshape(reshape)
+            .copy()
+        )
+    raise TypeError(type(buff))
+
+
 def deserialize_chunk(
     byts: Union[bytes, bytearray]
 ) -> Tuple[str, np.ndarray, np.ndarray, memoryview]:
@@ -142,11 +168,12 @@ def deserialize_chunk(
     if shape_info_nbytes == 0:
         shape_info = np.array([], dtype=enc_dtype)
     else:
-        shape_info = np.frombuffer(
-            mview[offset : offset + shape_info_nbytes], dtype=enc_dtype
-        ).reshape(shape_info_nrows, shape_info_ncols)
+        shape_info = (
+            np.frombuffer(mview[offset : offset + shape_info_nbytes], dtype=enc_dtype)
+            .reshape(shape_info_nrows, shape_info_ncols)
+            .copy()
+        )
         offset += shape_info_nbytes
-
     # Read byte positions
     byte_positions_rows = int.from_bytes(mview[offset : offset + 4], "little")
     offset += 4
@@ -154,11 +181,14 @@ def deserialize_chunk(
     if byte_positions_nbytes == 0:
         byte_positions = np.array([], dtype=enc_dtype)
     else:
-        byte_positions = np.frombuffer(
-            mview[offset : offset + byte_positions_nbytes], dtype=enc_dtype
-        ).reshape(byte_positions_rows, 3)
+        byte_positions = (
+            np.frombuffer(
+                mview[offset : offset + byte_positions_nbytes], dtype=enc_dtype
+            )
+            .reshape(byte_positions_rows, 3)
+            .copy()
+        )
         offset += byte_positions_nbytes
-
     # Read data
     data = mview[offset:]
 
@@ -203,8 +233,6 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
         hub version used to create the chunk,
         encoded chunk ids as memoryview.
     """
-    mview = memoryview(byts)
-
     enc_dtype = np.dtype(hub.constants.ENCODING_DTYPE)
 
     # Read version
@@ -213,8 +241,9 @@ def deserialize_chunkids(byts: Union[bytes, bytearray]) -> Tuple[str, np.ndarray
     offset = 1 + len_version
 
     # Read chunk ids
-    ids = np.frombuffer(mview[offset:], dtype=enc_dtype).reshape(-1, 2)
-
+    ids = (
+        np.frombuffer(memoryview(byts)[offset:], dtype=enc_dtype).reshape(-1, 2).copy()
+    )
     return version, ids
 
 
