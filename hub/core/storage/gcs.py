@@ -3,9 +3,9 @@ import json
 import os
 from typing import Dict, Union
 
-from google.auth import credentials
 from hub.core.storage.provider import StorageProvider
 from google.cloud import storage  # type: ignore
+from google.oauth2 import service_account  # type: ignore
 
 
 class GCSProvider(StorageProvider):
@@ -37,7 +37,6 @@ class GCSProvider(StorageProvider):
 
     def _initialize_provider(self):
         self._set_bucket_and_path()
-        from google.oauth2 import service_account
 
         if isinstance(self.token, dict):
             token_path = posixpath.expanduser("gcs.json")
