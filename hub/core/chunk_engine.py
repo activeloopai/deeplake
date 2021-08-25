@@ -6,7 +6,7 @@ from hub.util.tiles import (
     get_tile_mask,
     num_tiles_for_sample,
 )
-from hub.core.fast_forwarding import ffw_chunk_id_encoder
+from hub.core.fast_forwarding import ffw_chunk_id_encoder, ffw_tensor_meta, ffw_tile_encoder
 import warnings
 from hub.util.casting import get_dtype
 from hub.core.compression import decompress_array
@@ -369,7 +369,7 @@ class ChunkEngine:
         if tensor_meta.dtype is None:
             tensor_meta.set_dtype(get_dtype(samples))
 
-        samples = serialize_input_samples(samples, tensor_meta, self.min_chunk_size)
+        samples = serialize_input_samples(samples, tensor_meta)
         for buffer, shape in samples:
             # update tensor meta length first because erroneous meta information is better than un-accounted for data.
             # TODO: move these functions somewhere usable by update and any other methods
@@ -449,10 +449,17 @@ class ChunkEngine:
         """Update data at `index` with `samples`."""
 
         self.cache.check_readonly()
+        tensor_meta = self.tensor_meta
+        tile_encoder = self.tile_encoder
+
         ffw_chunk_id_encoder(self.chunk_id_encoder)
+        ffw_tensor_meta(tensor_meta)
+        ffw_tile_encoder(tile_encoder)
 
         length = self.num_samples
         value0_index, subslice_index = index.split_subslice()
+
+        # TODO: only allow single index updates for now
 
         # TODO:
         for global_sample_index in value0_index.values[0].indices(length):  # TODO: generalize this iterator
@@ -495,7 +502,7 @@ class ChunkEngine:
     #     index_length = index.length(self.num_samples)
     #     samples = _make_sequence(samples, index_length)
     #     serialized_input_samples = serialize_input_samples(
-    #         samples, tensor_meta, self.min_chunk_size
+    #         samples, tensor_meta
     #     )
 
     #     chunks_nbytes_after_updates = []

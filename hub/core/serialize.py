@@ -263,14 +263,12 @@ def _check_input_samples_are_valid(buffer_and_shapes: List):
 def serialize_input_samples(
     samples: Union[Sequence[SampleValue], SampleValue],
     meta: TensorMeta,
-    min_chunk_size: int,
 ) -> List[Tuple[memoryview, Tuple[int, ...]]]:
     """Casts, compresses, and serializes the incoming samples into a list of buffers and shapes.
 
     Args:
         samples (Union[Sequence[SampleValue], SampleValue]): Either a single sample or sequence of samples.
         meta (TensorMeta): Tensor meta. Will not be modified.
-        min_chunk_size (int): Used to validate that all samples are appropriately sized.
 
     Raises:
         ValueError: Tensor meta should have it's dtype set.

@@ -1,5 +1,6 @@
 import numpy as np
 
+import hub
 from hub.constants import ENCODING_DTYPE
 from hub.core.index.index import Index
 from hub.util.tiles import ceildiv
@@ -28,6 +29,7 @@ def get_tile_layout_shape(
 class TileEncoder(Cachable):
     def __init__(self, entries=None):
         self.entries = entries or {}
+        self.version = hub.__version__
 
     def register_sample(
         self, idx: int, shape: Tuple[int, ...], tile_shape: Tuple[int, ...]
@@ -184,7 +186,8 @@ class TileEncoder(Cachable):
         return len(self.tobytes())
 
     def __getstate__(self) -> Dict[str, Any]:
-        return {"entries": self.entries}
+        return {"entries": self.entries, "version": self.version}
 
     def __setstate__(self, state: Dict[str, Any]):
         self.entries = state["entries"]
+        self.version = state["version"]
